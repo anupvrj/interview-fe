@@ -46,3 +46,5 @@ tmp/
 *.tgz
 *.zip
 
+.vercel
+.env*.local
