@@ -228,7 +228,6 @@ export default function RealtimeInterviewPage() {
       case "conversation.item.input_audio_transcription.completed":
         if (event.transcript) {
           const userContent = event.transcript;
-          setCurrentUserTranscript("");
           setTranscript((prev) => [
             ...prev,
             {
