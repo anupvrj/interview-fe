@@ -143,9 +143,16 @@ export default function RealtimeInterviewPage() {
         throw new Error("User not authenticated");
       }
 
+      // Get API URL from environment (e.g., https://interview-core-production.up.railway.app/api)
+      // Remove /api suffix and protocol to build WebSocket URL
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5004/api";
+      const baseUrl = apiUrl.replace(/\/api$/, "").replace(/^https?:\/\//, "");
+      
+      // Use wss:// for HTTPS sites, ws:// for HTTP (localhost)
       const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-      const wsUrl = `${wsProtocol}//${window.location.hostname}:5004/api/interviews/${interviewId}/realtime?userId=${userId}`;
+      const wsUrl = `${wsProtocol}//${baseUrl}/api/interviews/${interviewId}/realtime?userId=${userId}`;
 
+      console.log("🔌 Connecting to WebSocket:", wsUrl);
       const ws = new WebSocket(wsUrl);
       websocketRef.current = ws;
 
