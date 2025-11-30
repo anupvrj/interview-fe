@@ -95,9 +95,7 @@ export default function RealtimeInterviewPage() {
           autoGainControl: true,
           sampleRate: 24000, // Match OpenAI's expected sample rate
           channelCount: 1, // Mono audio
-          // Explicitly request microphone (not system audio)
-          suppressLocalAudioPlayback: true,
-        },
+        } as MediaTrackConstraints,
       });
 
       console.log("✅ Media stream acquired");
