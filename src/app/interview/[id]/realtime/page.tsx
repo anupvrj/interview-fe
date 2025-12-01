@@ -62,6 +62,25 @@ export default function RealtimeInterviewPage() {
     };
   }, [interviewId]);
 
+  // Setup media stream after video element is mounted
+  useEffect(() => {
+    // Wait for video element to be available
+    const checkVideoElement = () => {
+      if (videoRef.current && !mediaStreamRef.current) {
+        console.log("✅ Video element found, setting up media stream");
+        setupMediaStream();
+      } else if (!videoRef.current) {
+        // Retry after a short delay if element not found
+        setTimeout(checkVideoElement, 100);
+      }
+    };
+    
+    // Start checking after component mounts
+    const timeoutId = setTimeout(checkVideoElement, 100);
+    
+    return () => clearTimeout(timeoutId);
+  }, []);
+
   useEffect(() => {
     if (isInterviewActive && elapsedTime >= MAX_INTERVIEW_DURATION) {
       endInterview();
@@ -72,7 +91,8 @@ export default function RealtimeInterviewPage() {
     try {
       const data = await interviewApi.get(interviewId);
       setInterview(data);
-      await setupMediaStream();
+      // Don't call setupMediaStream here - let useEffect handle it after video element is mounted
+      // setupMediaStream will be called by useEffect when videoRef.current is available
       await connectWebSocket();
     } catch (error: any) {
       console.error("Error loading interview:", error);
@@ -83,6 +103,21 @@ export default function RealtimeInterviewPage() {
   };
 
   const setupMediaStream = async () => {
+    // Check if video element exists first
+    if (!videoRef.current) {
+      console.warn("⚠️ Video element not found yet, will retry...");
+      // Retry after a short delay
+      setTimeout(() => {
+        if (videoRef.current) {
+          setupMediaStream();
+        } else {
+          console.error("❌ Video element still not found after retry");
+          setError("Video element not found. Please refresh the page.");
+        }
+      }, 500);
+      return;
+    }
+
     try {
       // Check if getUserMedia is available
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
@@ -92,7 +127,10 @@ export default function RealtimeInterviewPage() {
       }
 
       // Check if we're on HTTPS (required for production)
-      if (window.location.protocol !== "https:" && window.location.hostname !== "localhost") {
+      if (
+        window.location.protocol !== "https:" &&
+        window.location.hostname !== "localhost"
+      ) {
         console.warn(
           "⚠️ Camera/microphone access requires HTTPS in production"
         );
@@ -133,19 +171,19 @@ export default function RealtimeInterviewPage() {
         videoRef.current.srcObject = stream;
         videoRef.current.muted = true; // Required for autoplay
         videoRef.current.playsInline = true; // Required for mobile
-        
+
         // Explicitly play the video with better error handling
         try {
           await videoRef.current.play();
           console.log("✅ Video playback started");
           setVideoStreamActive(true);
-          
+
           // Verify video is actually playing
           videoRef.current.addEventListener("playing", () => {
             console.log("✅ Video is playing");
             setVideoStreamActive(true);
           });
-          
+
           videoRef.current.addEventListener("loadedmetadata", () => {
             console.log("✅ Video metadata loaded");
           });
@@ -167,26 +205,39 @@ export default function RealtimeInterviewPage() {
       }
     } catch (error: any) {
       console.error("❌ Error accessing media devices:", error);
-      
+
       // Provide specific error messages
-      let errorMessage = "Please allow camera and microphone access to continue.";
-      
-      if (error.name === "NotAllowedError" || error.name === "PermissionDeniedError") {
+      let errorMessage =
+        "Please allow camera and microphone access to continue.";
+
+      if (
+        error.name === "NotAllowedError" ||
+        error.name === "PermissionDeniedError"
+      ) {
         errorMessage =
           "Camera and microphone access was denied. Please allow permissions and refresh the page.";
-      } else if (error.name === "NotFoundError" || error.name === "DevicesNotFoundError") {
+      } else if (
+        error.name === "NotFoundError" ||
+        error.name === "DevicesNotFoundError"
+      ) {
         errorMessage =
           "No camera or microphone found. Please connect a camera and microphone.";
-      } else if (error.name === "NotReadableError" || error.name === "TrackStartError") {
+      } else if (
+        error.name === "NotReadableError" ||
+        error.name === "TrackStartError"
+      ) {
         errorMessage =
           "Camera or microphone is already in use by another application.";
-      } else if (error.name === "OverconstrainedError" || error.name === "ConstraintNotSatisfiedError") {
+      } else if (
+        error.name === "OverconstrainedError" ||
+        error.name === "ConstraintNotSatisfiedError"
+      ) {
         errorMessage =
           "Camera or microphone doesn't support the required settings.";
       } else if (error.message) {
         errorMessage = error.message;
       }
-      
+
       setError(errorMessage);
     }
   };
