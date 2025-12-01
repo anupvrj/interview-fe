@@ -34,29 +34,28 @@ export default function LandingPage() {
               href="/"
               className="flex items-center gap-2 hover:opacity-80 transition-opacity"
             >
-              <div className="w-10 h-10 bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg flex items-center justify-center shadow-md">
-                <Sparkles className="w-5 h-5 lg:w-6 lg:h-6 text-white" />
+              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg flex items-center justify-center shadow-md">
+                <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 text-white" />
               </div>
-              <span className="text-xl lg:text-2xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+              <span className="text-lg sm:text-xl lg:text-2xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
                 Easy Interview
               </span>
             </Link>
-            <div className="flex items-center gap-2 sm:gap-4">
+            <div className="flex items-center gap-2 sm:gap-3">
               <SignedOut>
                 <Link href="/sign-in">
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="hidden sm:inline-flex"
+                    className="text-xs sm:text-sm px-2 sm:px-4"
                   >
                     Sign In
                   </Button>
                 </Link>
                 <Link href="/sign-up">
                   <Button
-                    variant="gradient"
                     size="sm"
-                    className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white shadow-md hover:shadow-lg transition-all"
+                    className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white shadow-md hover:shadow-lg transition-all text-xs sm:text-sm px-2 sm:px-4"
                   >
                     Get Started
                   </Button>
@@ -67,7 +66,7 @@ export default function LandingPage() {
                   <Button
                     variant="outline"
                     size="sm"
-                    className="hidden sm:inline-flex"
+                    className="text-xs sm:text-sm px-2 sm:px-4"
                   >
                     Dashboard
                   </Button>
@@ -75,7 +74,7 @@ export default function LandingPage() {
                 <UserButton
                   appearance={{
                     elements: {
-                      avatarBox: "w-9 h-9 lg:w-10 lg:h-10",
+                      avatarBox: "w-8 h-8 sm:w-9 sm:h-9 lg:w-10 lg:h-10",
                     },
                   }}
                 />
