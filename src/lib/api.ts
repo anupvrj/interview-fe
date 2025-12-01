@@ -90,6 +90,13 @@ export interface Interview {
     targetCompany?: string;
     createdAt: string;
   };
+  session?: {
+    s3VideoKey?: string;
+    videoUrl?: string;
+    duration?: number;
+    startedAt?: string;
+    endedAt?: string;
+  };
   report?: {
     overallScore: number;
     categoryScores: {
@@ -301,6 +308,56 @@ export const interviewApi = {
   getReport: async (interviewId: string): Promise<Interview> => {
     const response = await apiClient.get<{ data: Interview }>(
       `/interviews/${interviewId}/report`
+    );
+    return response.data.data;
+  },
+
+  getRecordingVideoUrl: async (
+    interviewId: string
+  ): Promise<{ videoUrl: string; expiresIn: number }> => {
+    const userId = localStorage.getItem("clerk-user-id");
+    if (!userId) {
+      throw new Error("User not authenticated");
+    }
+    const response = await apiClient.get<{
+      data: { videoUrl: string; expiresIn: number };
+    }>(`/interviews/${interviewId}/recording/video-url`, {
+      params: { userId },
+    });
+    return response.data.data;
+  },
+
+  getRecordingUploadUrl: async (
+    interviewId: string
+  ): Promise<{ uploadUrl: string; s3Key: string; expiresIn: number }> => {
+    const userId = localStorage.getItem("clerk-user-id");
+    if (!userId) {
+      throw new Error("User not authenticated");
+    }
+    const response = await apiClient.get<{
+      data: { uploadUrl: string; s3Key: string; expiresIn: number };
+    }>(`/interviews/${interviewId}/recording/upload-url`, {
+      params: { userId },
+    });
+    return response.data.data;
+  },
+
+  saveRecordingKey: async (
+    interviewId: string,
+    s3Key: string
+  ): Promise<{ s3Key: string; videoUrl: string }> => {
+    const userId = localStorage.getItem("clerk-user-id");
+    if (!userId) {
+      throw new Error("User not authenticated");
+    }
+    const response = await apiClient.post<{
+      data: { s3Key: string; videoUrl: string };
+    }>(
+      `/interviews/${interviewId}/recording/save-key`,
+      { s3Key },
+      {
+        params: { userId },
+      }
     );
     return response.data.data;
   },

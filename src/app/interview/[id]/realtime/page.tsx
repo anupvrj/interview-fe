@@ -60,6 +60,10 @@ export default function RealtimeInterviewPage() {
   const isInterviewActiveRef = useRef(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordedChunksRef = useRef<Blob[]>([]);
+  const screenStreamRef = useRef<MediaStream | null>(null);
+  const aiAudioDestinationRef = useRef<MediaStreamAudioDestinationNode | null>(
+    null
+  );
 
   useEffect(() => {
     loadInterview();
@@ -134,8 +138,8 @@ export default function RealtimeInterviewPage() {
 
       // Check if we're on HTTPS (required for production)
       if (
-        window.location.protocol !== "https:" &&
-        window.location.hostname !== "localhost"
+        globalThis.location.protocol !== "https:" &&
+        globalThis.location.hostname !== "localhost"
       ) {
         console.warn(
           "⚠️ Camera/microphone access requires HTTPS in production"
@@ -264,6 +268,17 @@ export default function RealtimeInterviewPage() {
         console.error("Error stopping recorder during cleanup:", error);
       }
     }
+    // Stop screen capture stream
+    if (screenStreamRef.current) {
+      screenStreamRef.current.getTracks().forEach((track) => track.stop());
+      screenStreamRef.current = null;
+    }
+
+    // Clean up AI audio destination
+    if (aiAudioDestinationRef.current) {
+      aiAudioDestinationRef.current.disconnect();
+      aiAudioDestinationRef.current = null;
+    }
     if (mediaStreamRef.current) {
       mediaStreamRef.current.getTracks().forEach((track) => track.stop());
     }
@@ -287,7 +302,8 @@ export default function RealtimeInterviewPage() {
       const baseUrl = apiUrl.replace(/\/api$/, "").replace(/^https?:\/\//, "");
 
       // Use wss:// for HTTPS sites, ws:// for HTTP (localhost)
-      const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+      const wsProtocol =
+        globalThis.location.protocol === "https:" ? "wss:" : "ws:";
       const wsUrl = `${wsProtocol}//${baseUrl}/api/interviews/${interviewId}/realtime?userId=${userId}`;
 
       console.log("🔌 Connecting to WebSocket:", wsUrl);
@@ -341,7 +357,7 @@ export default function RealtimeInterviewPage() {
     // Convert PCM16 to Float32
     const float32 = new Float32Array(pcm16Chunk.length);
     for (let i = 0; i < pcm16Chunk.length; i++) {
-      float32[i] = pcm16Chunk[i] / 32768.0;
+      float32[i] = pcm16Chunk[i] / 32768;
     }
 
     // Create and play audio buffer
@@ -354,7 +370,14 @@ export default function RealtimeInterviewPage() {
 
     const source = audioContextRef.current.createBufferSource();
     source.buffer = audioBuffer;
+
+    // Connect to speakers for playback
     source.connect(audioContextRef.current.destination);
+
+    // Also connect to recording destination if it exists (for capturing AI voice)
+    if (aiAudioDestinationRef.current) {
+      source.connect(aiAudioDestinationRef.current);
+    }
 
     // When this chunk finishes, play the next one
     source.onended = () => {
@@ -453,7 +476,7 @@ export default function RealtimeInterviewPage() {
             const binaryString = atob(event.delta);
             const bytes = new Uint8Array(binaryString.length);
             for (let i = 0; i < binaryString.length; i++) {
-              bytes[i] = binaryString.charCodeAt(i);
+              bytes[i] = binaryString.codePointAt(i) ?? 0;
             }
             const pcm16 = new Int16Array(bytes.buffer);
 
@@ -582,7 +605,7 @@ export default function RealtimeInterviewPage() {
         let binary = "";
         const len = buffer.byteLength;
         for (let i = 0; i < len; i++) {
-          binary += String.fromCharCode(buffer[i]);
+          binary += String.fromCodePoint(buffer[i]);
         }
         const base64Audio = btoa(binary);
 
@@ -653,6 +676,32 @@ export default function RealtimeInterviewPage() {
 
   const endInterview = async () => {
     try {
+      // Immediately stop screen capture to remove red indicator
+      const currentScreenStream = screenStreamRef.current;
+      if (currentScreenStream) {
+        console.log("🛑 Stopping screen capture immediately...");
+        currentScreenStream.getTracks().forEach((track: MediaStreamTrack) => {
+          if (track.readyState === "live") {
+            track.stop();
+            console.log(`✅ Stopped screen track: ${track.kind}`);
+          }
+        });
+        screenStreamRef.current = null;
+      }
+
+      // Stop recording if active
+      if (
+        isRecording &&
+        mediaRecorderRef.current &&
+        mediaRecorderRef.current.state !== "inactive"
+      ) {
+        console.log("🛑 Stopping recording before ending interview...");
+        stopRecording();
+
+        // Wait a bit for recording to stop and upload to complete
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+      }
+
       // Stop timer
       if (timerRef.current) clearInterval(timerRef.current);
 
@@ -661,6 +710,21 @@ export default function RealtimeInterviewPage() {
         websocketRef.current.send(JSON.stringify({ type: "close" }));
         websocketRef.current.close();
       }
+
+      // Ensure screen capture is stopped (double check)
+      const finalScreenStream = screenStreamRef.current;
+      if (finalScreenStream) {
+        finalScreenStream.getTracks().forEach((track: MediaStreamTrack) => {
+          if (track.readyState === "live") {
+            track.stop();
+          }
+        });
+        screenStreamRef.current = null;
+      }
+
+      // Update state
+      setIsInterviewActive(false);
+      isInterviewActiveRef.current = false;
 
       // Complete interview
       await interviewApi.complete(interviewId);
@@ -694,104 +758,700 @@ export default function RealtimeInterviewPage() {
   };
 
   const startRecording = async () => {
-    if (!mediaStreamRef.current) {
-      setError("Media stream not available. Please wait for camera to load.");
-      return;
-    }
-
     try {
+      // Request screen capture (user will select tab/window/screen)
+      console.log("🖥️ Requesting screen capture...");
+      console.log("💡 The current tab should now appear in the picker!");
+      console.log(
+        "   1. Select the 'Hello Interview' tab (should be visible now)"
+      );
+      console.log(
+        "   2. Enable 'Also share tab audio' checkbox for best quality"
+      );
+      console.log("   3. Click 'Share' to start recording");
+
+      // Try to get display media with flexible constraints
+      // Include the current tab in the picker using selfBrowserSurface (prevents "hall of mirrors")
+      const screenStream = await navigator.mediaDevices.getDisplayMedia({
+        video: {
+          displaySurface: "browser", // Prefer browser tab
+          width: { ideal: 1920, max: 3840 },
+          height: { ideal: 1080, max: 2160 },
+          frameRate: { ideal: 30, max: 60 },
+        } as MediaTrackConstraints,
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+          sampleRate: 48000,
+          suppressLocalAudioPlayback: false,
+        } as MediaTrackConstraints,
+        // Allow current tab to appear in the picker (prevents "hall of mirrors" exclusion)
+        selfBrowserSurface: "include" as any,
+        // Prefer current tab to be pre-selected
+        preferCurrentTab: true as any,
+      } as any);
+
+      // Log what was selected and check for tab audio
+      const selectedVideoTrack = screenStream.getVideoTracks()[0];
+      const initialScreenAudioTracks = screenStream.getAudioTracks();
+      let displayType = "unknown";
+
+      if (selectedVideoTrack && (selectedVideoTrack as any).getSettings) {
+        const settings = (selectedVideoTrack as any).getSettings();
+        displayType = settings.displaySurface || "unknown";
+        console.log("📺 Screen capture selected:", {
+          displaySurface: displayType,
+          width: settings.width,
+          height: settings.height,
+          frameRate: settings.frameRate,
+          hasAudio: initialScreenAudioTracks.length > 0,
+        });
+      }
+
+      // Check if we have tab audio (required for AI voice via screen capture)
+      if (initialScreenAudioTracks.length === 0 && displayType !== "browser") {
+        // User selected window or screen, which doesn't support tab audio
+        console.warn(
+          "⚠️ No tab audio available - tab audio only works when sharing a browser tab"
+        );
+
+        // Ask user to cancel and try again with a tab
+        const shouldRetry = globalThis.confirm(
+          "⚠️ Tab audio is not available.\n\n" +
+            "To capture the AI's voice, you need to share THIS browser tab (not window or screen).\n\n" +
+            "Please:\n" +
+            "1. Click Cancel below\n" +
+            "2. Click 'Start Recording' again\n" +
+            "3. In the screen share dialog, select the tab with 'Hello Interview'\n" +
+            "4. Enable the 'Also share tab audio' checkbox\n\n" +
+            "Click OK to continue anyway (AI voice may not be captured fully), or Cancel to retry."
+        );
+
+        if (!shouldRetry) {
+          // User wants to retry - stop the current stream and return
+          screenStream.getTracks().forEach((track) => track.stop());
+          return;
+        }
+      } else if (displayType === "browser") {
+        console.log(
+          "✅ Browser tab selected - perfect! Tab audio should be available."
+        );
+      } else if (displayType === "window" || displayType === "monitor") {
+        console.log(
+          `ℹ️ ${
+            displayType === "window" ? "Window" : "Screen"
+          } selected - tab audio not available, but AI voice will be captured via AudioContext.`
+        );
+      }
+
+      screenStreamRef.current = screenStream;
+
+      // Use the existing microphone stream from mediaStreamRef (already in use for interview)
+      // This avoids requesting a second microphone stream which might fail or be muted
+      let micStream: MediaStream | null = null;
+      if (mediaStreamRef.current) {
+        const existingMicTracks = mediaStreamRef.current.getAudioTracks();
+        if (existingMicTracks.length > 0) {
+          // Create a new stream with the existing microphone track
+          micStream = new MediaStream();
+          existingMicTracks.forEach((track) => {
+            // Clone the track or use it directly
+            micStream!.addTrack(track);
+          });
+          console.log(
+            `🎤 Using existing microphone track for recording (${existingMicTracks.length} track(s))`
+          );
+        } else {
+          console.warn("⚠️ No microphone track found in existing media stream");
+        }
+      }
+
+      // Fallback: Request microphone if not available from existing stream
+      if (!micStream || micStream.getAudioTracks().length === 0) {
+        try {
+          micStream = await navigator.mediaDevices.getUserMedia({
+            audio: {
+              echoCancellation: true,
+              noiseSuppression: true,
+              autoGainControl: true,
+              sampleRate: 48000,
+            } as MediaTrackConstraints,
+          });
+          console.log("🎤 Microphone stream acquired separately for recording");
+        } catch (micError) {
+          console.warn("⚠️ Could not get microphone for recording:", micError);
+          // Continue without microphone audio
+        }
+      }
+
+      // Combine screen video with microphone audio
+      const videoTrack = screenStream.getVideoTracks()[0];
+      if (!videoTrack) {
+        throw new Error("No video track in screen capture. Please try again.");
+      }
+
+      // Verify video track is active
+      if (videoTrack.readyState !== "live") {
+        throw new Error(
+          "Screen capture video track is not live. Please try again."
+        );
+      }
+
+      const audioTracks: MediaStreamTrack[] = [];
+
+      // Check for tab audio first (PRIMARY source for AI voice - highest quality)
+      const screenAudioTracks = screenStream.getAudioTracks();
+      let hasTabAudio = screenAudioTracks.length > 0;
+
+      if (hasTabAudio) {
+        console.log(
+          `🔊 Tab audio tracks: ${screenAudioTracks.length} (AI voice will be captured from tab)`
+        );
+        // Add tab audio tracks to recording - this is the PRIMARY source for AI voice
+        audioTracks.push(...screenAudioTracks);
+        console.log("✅ Tab audio tracks added to recording");
+      } else {
+        console.warn(
+          "⚠️ No tab audio detected - will use AudioContext as fallback"
+        );
+      }
+
+      // Create MediaStreamAudioDestination to capture AI audio directly from AudioContext
+      // ONLY use this as a fallback if tab audio is not available (to avoid echo)
+      if (!hasTabAudio && audioContextRef.current) {
+        const aiAudioDestination =
+          audioContextRef.current.createMediaStreamDestination();
+        aiAudioDestinationRef.current = aiAudioDestination;
+        console.log(
+          "🎙️ Created AI audio capture destination (fallback - no tab audio)"
+        );
+
+        // Add AI audio track to recording (only if tab audio is not available)
+        const aiAudioTrack = aiAudioDestination.stream.getAudioTracks()[0];
+        if (aiAudioTrack) {
+          audioTracks.push(aiAudioTrack);
+          console.log(
+            "✅ AI audio track added to recording (AudioContext fallback)"
+          );
+        }
+      } else if (hasTabAudio && audioContextRef.current) {
+        // Still create the destination for playAudioQueue to connect to, but don't add to recording
+        // This prevents echo while still allowing AudioContext to work for playback
+        const aiAudioDestination =
+          audioContextRef.current.createMediaStreamDestination();
+        aiAudioDestinationRef.current = aiAudioDestination;
+        console.log(
+          "🎙️ Created AI audio destination (for playback only - tab audio used for recording)"
+        );
+      } else if (!audioContextRef.current) {
+        console.warn(
+          "⚠️ AudioContext not available - AI audio capture may not work"
+        );
+      }
+
+      // Add microphone audio if available (this captures user's voice)
+      if (micStream) {
+        const micAudioTracks = micStream.getAudioTracks();
+        if (micAudioTracks.length > 0) {
+          console.log(
+            `🎤 Microphone audio tracks: ${micAudioTracks.length} (Your voice will be captured)`
+          );
+          // Verify tracks are enabled and not muted
+          micAudioTracks.forEach((track, index) => {
+            console.log(`🎤 Mic track ${index + 1}:`, {
+              id: track.id,
+              label: track.label,
+              enabled: track.enabled,
+              muted: track.muted,
+              readyState: track.readyState,
+            });
+            // Ensure track is enabled
+            if (!track.enabled) {
+              track.enabled = true;
+              console.log(`✅ Enabled microphone track ${index + 1}`);
+            }
+          });
+          audioTracks.push(...micAudioTracks);
+          console.log("✅ Microphone audio tracks added to recording");
+        } else {
+          console.warn("⚠️ Microphone stream has no audio tracks");
+        }
+      } else {
+        console.warn("⚠️ No microphone stream available for recording");
+      }
+
+      // Mix all audio tracks into a single track using AudioContext
+      // MediaRecorder may not properly handle multiple audio tracks, so we mix them
+      let finalAudioTrack: MediaStreamTrack | null = null;
+
+      if (audioTracks.length > 0) {
+        try {
+          // Create a new AudioContext for mixing (separate from the interview AudioContext)
+          const mixAudioContext = new (globalThis.AudioContext ||
+            (globalThis as any).webkitAudioContext)();
+
+          // Create a destination node for the mixed audio
+          const mixedDestination =
+            mixAudioContext.createMediaStreamDestination();
+
+          console.log(
+            `🎚️ Mixing ${audioTracks.length} audio tracks into one...`
+          );
+
+          // Connect all audio tracks to the mixer
+          audioTracks.forEach((track, index) => {
+            try {
+              // Create a MediaStream with just this track
+              const trackStream = new MediaStream([track]);
+              const source =
+                mixAudioContext.createMediaStreamSource(trackStream);
+
+              // Connect to the mixer destination
+              source.connect(mixedDestination);
+
+              console.log(`✅ Connected audio track ${index + 1} to mixer:`, {
+                label: track.label || "unknown",
+                kind: track.kind,
+                enabled: track.enabled,
+                muted: track.muted,
+              });
+            } catch (err) {
+              console.warn(
+                `⚠️ Failed to connect audio track ${index + 1} to mixer:`,
+                err
+              );
+            }
+          });
+
+          // Get the mixed audio track
+          const mixedTracks = mixedDestination.stream.getAudioTracks();
+          if (mixedTracks.length > 0) {
+            finalAudioTrack = mixedTracks[0];
+            console.log("✅ Created mixed audio track with all sources:", {
+              id: finalAudioTrack.id,
+              label: finalAudioTrack.label,
+              enabled: finalAudioTrack.enabled,
+              muted: finalAudioTrack.muted,
+            });
+          } else {
+            console.warn("⚠️ No mixed audio track created");
+          }
+        } catch (mixError) {
+          console.error("❌ Failed to create audio mixer:", mixError);
+          // Fallback: use all tracks (let MediaRecorder handle it)
+          console.log(
+            "⚠️ Falling back to multiple audio tracks (MediaRecorder may only record first)"
+          );
+        }
+      }
+
+      // Create combined stream with video and mixed audio
+      const combinedStream = new MediaStream();
+      combinedStream.addTrack(videoTrack);
+
+      if (finalAudioTrack) {
+        combinedStream.addTrack(finalAudioTrack);
+        console.log("✅ Added mixed audio track to recording stream");
+      } else if (audioTracks.length > 0) {
+        // Fallback: add all tracks if mixing failed
+        audioTracks.forEach((track) => combinedStream.addTrack(track));
+        console.warn(
+          `⚠️ Added ${audioTracks.length} audio tracks directly (mixing failed - MediaRecorder may only record first)`
+        );
+      } else {
+        console.warn("⚠️ No audio track available for recording");
+      }
+
+      // Monitor video track for issues
+      videoTrack.addEventListener("ended", () => {
+        console.warn("⚠️ Screen capture video track ended unexpectedly");
+        if (
+          mediaRecorderRef.current &&
+          mediaRecorderRef.current.state !== "inactive"
+        ) {
+          stopRecording();
+        }
+      });
+
+      videoTrack.addEventListener("mute", () => {
+        console.warn("⚠️ Screen capture video track muted");
+      });
+
+      videoTrack.addEventListener("unmute", () => {
+        console.log("✅ Screen capture video track unmuted");
+      });
+
+      // Handle screen share stop (user clicks stop sharing)
+      screenStream.getVideoTracks()[0].addEventListener("ended", () => {
+        console.log("🛑 Screen sharing stopped by user");
+        if (
+          mediaRecorderRef.current &&
+          mediaRecorderRef.current.state !== "inactive"
+        ) {
+          stopRecording();
+        }
+      });
+
+      console.log("🎥 Recording setup:", {
+        videoTracks: combinedStream.getVideoTracks().length,
+        audioTracks: combinedStream.getAudioTracks().length,
+        tabAudio: screenAudioTracks.length,
+        aiAudioContext: aiAudioDestinationRef.current ? 1 : 0,
+        micAudio: micStream ? micStream.getAudioTracks().length : 0,
+        totalAudioTracks: audioTracks.length,
+      });
+
+      // Log each audio track for debugging
+      combinedStream.getAudioTracks().forEach((track, index) => {
+        console.log(`🎵 Audio track ${index + 1}:`, {
+          id: track.id,
+          label: track.label,
+          kind: track.kind,
+          enabled: track.enabled,
+          muted: track.muted,
+          readyState: track.readyState,
+        });
+      });
+
       // Check if MediaRecorder is supported
-      if (!MediaRecorder.isTypeSupported("video/webm")) {
-        throw new Error("WebM video format is not supported in this browser.");
+      const mimeType = "video/webm;codecs=vp8,opus";
+      if (!MediaRecorder.isTypeSupported(mimeType)) {
+        // Try alternative formats
+        const alternatives = [
+          "video/webm;codecs=vp9,opus",
+          "video/webm",
+          "video/mp4",
+        ];
+        let supportedType = null;
+        for (const alt of alternatives) {
+          if (MediaRecorder.isTypeSupported(alt)) {
+            supportedType = alt;
+            break;
+          }
+        }
+        if (!supportedType) {
+          throw new Error("No supported video format found in this browser.");
+        }
+        console.log(`⚠️ Using alternative format: ${supportedType}`);
       }
 
       recordedChunksRef.current = [];
-      const mediaRecorder = new MediaRecorder(mediaStreamRef.current, {
-        mimeType: "video/webm;codecs=vp8,opus",
-        videoBitsPerSecond: 2500000, // 2.5 Mbps
+      const mediaRecorder = new MediaRecorder(combinedStream, {
+        mimeType: MediaRecorder.isTypeSupported(mimeType)
+          ? mimeType
+          : "video/webm",
+        videoBitsPerSecond: 5000000, // 5 Mbps for screen recording
       });
 
+      let totalSize = 0;
       mediaRecorder.ondataavailable = (event) => {
         if (event.data && event.data.size > 0) {
           recordedChunksRef.current.push(event.data);
+          totalSize += event.data.size;
+          console.log(
+            `📦 Chunk received: ${event.data.size} bytes (total: ${totalSize} bytes)`
+          );
+        } else {
+          console.warn("⚠️ Empty data chunk received");
         }
       };
 
       mediaRecorder.onstop = async () => {
-        console.log("📹 Recording stopped, preparing upload...");
+        // Stop screen capture tracks
+        if (screenStreamRef.current) {
+          screenStreamRef.current.getTracks().forEach((track) => {
+            if (track.readyState === "live") {
+              track.stop();
+            }
+          });
+        }
+
+        // Clean up AI audio destination
+        if (aiAudioDestinationRef.current) {
+          // Disconnect all connections
+          aiAudioDestinationRef.current.disconnect();
+          aiAudioDestinationRef.current = null;
+        }
+
+        const totalBytes = recordedChunksRef.current.reduce(
+          (sum, chunk) => sum + chunk.size,
+          0
+        );
+        console.log(
+          `📹 Recording stopped. Total size: ${(
+            totalBytes /
+            1024 /
+            1024
+          ).toFixed(2)} MB, Chunks: ${recordedChunksRef.current.length}`
+        );
+
+        // Minimum size check - should be at least 100KB for a meaningful recording
+        if (totalBytes < 100 * 1024) {
+          console.error("❌ Recording too small, likely failed");
+          setError(
+            "Recording failed - file too small. Please ensure screen sharing is active and try again."
+          );
+          setIsRecording(false);
+          recordedChunksRef.current = [];
+          // Clean up screen stream
+          if (screenStreamRef.current) {
+            screenStreamRef.current
+              .getTracks()
+              .forEach((track) => track.stop());
+            screenStreamRef.current = null;
+          }
+          return;
+        }
+
         await uploadRecording();
       };
 
-      mediaRecorder.onerror = (event) => {
+      mediaRecorder.onerror = (event: any) => {
         console.error("❌ MediaRecorder error:", event);
-        setError("Recording error occurred. Please try again.");
+        setError(`Recording error: ${event.error?.message || "Unknown error"}`);
         setIsRecording(false);
       };
+
+      // Wait a bit to ensure stream is ready
+      await new Promise((resolve) => setTimeout(resolve, 200));
+
+      // Verify combined stream is active
+      if (!combinedStream || combinedStream.active === false) {
+        throw new Error(
+          "Screen capture stream is not active. Please try again."
+        );
+      }
+
+      const activeVideoTracks = combinedStream
+        .getVideoTracks()
+        .filter((t) => t.enabled && t.readyState === "live");
+      const activeAudioTracks = combinedStream
+        .getAudioTracks()
+        .filter((t) => t.enabled && t.readyState === "live");
+
+      if (activeVideoTracks.length === 0) {
+        throw new Error(
+          "No video track available. Please ensure screen sharing is active."
+        );
+      }
 
       mediaRecorderRef.current = mediaRecorder;
       mediaRecorder.start(1000); // Collect data every second
       setIsRecording(true);
-      console.log("🔴 Recording started");
+      console.log("🔴 Recording started with MediaRecorder", {
+        state: mediaRecorder.state,
+        streamActive: combinedStream.active,
+        activeVideoTracks: activeVideoTracks.length,
+        activeAudioTracks: activeAudioTracks.length,
+      });
+
+      // Monitor recording health - check every 5 seconds
+      const recordingHealthCheck = setInterval(() => {
+        if (!isRecording || !mediaRecorderRef.current) {
+          clearInterval(recordingHealthCheck);
+          return;
+        }
+
+        const currentChunks = recordedChunksRef.current.length;
+        const currentSize = recordedChunksRef.current.reduce(
+          (sum, chunk) => sum + chunk.size,
+          0
+        );
+
+        console.log(
+          `📊 Recording health: ${currentChunks} chunks, ${(
+            currentSize / 1024
+          ).toFixed(2)} KB`
+        );
+
+        // If after 10 seconds we have less than 10KB, something is wrong
+        if (currentSize < 10 * 1024 && currentChunks > 10) {
+          console.error(
+            "❌ Recording appears to be producing very little data"
+          );
+          setError(
+            "Recording may not be working properly. Please stop and try again."
+          );
+        }
+      }, 5000);
+
+      // Clean up health check when recording stops
+      mediaRecorder.addEventListener("stop", () => {
+        clearInterval(recordingHealthCheck);
+      });
     } catch (error: any) {
       console.error("❌ Error starting recording:", error);
-      setError(`Failed to start recording: ${error.message}`);
+
+      // Cleanup on error
+      if (screenStreamRef.current) {
+        screenStreamRef.current.getTracks().forEach((track) => track.stop());
+        screenStreamRef.current = null;
+      }
+
+      if (
+        error.name === "NotAllowedError" ||
+        error.name === "PermissionDeniedError"
+      ) {
+        setError(
+          "Screen capture was denied. Please allow screen sharing to record the interview."
+        );
+      } else if (
+        error.name === "NotFoundError" ||
+        error.name === "NotReadableError"
+      ) {
+        setError(
+          "Could not access screen. Please ensure no other application is using your screen."
+        );
+      } else {
+        setError(`Failed to start recording: ${error.message}`);
+      }
     }
   };
 
   const stopRecording = () => {
+    // Immediately stop screen capture to remove the red indicator
+    if (screenStreamRef.current) {
+      console.log("🛑 Stopping screen capture immediately...");
+      screenStreamRef.current.getTracks().forEach((track) => {
+        if (track.readyState === "live") {
+          track.stop();
+          console.log(`✅ Stopped track: ${track.kind} (${track.label})`);
+        }
+      });
+      // Don't set to null yet - let MediaRecorder finish first
+    }
+
     if (
       mediaRecorderRef.current &&
       mediaRecorderRef.current.state !== "inactive"
     ) {
-      mediaRecorderRef.current.stop();
+      const state = mediaRecorderRef.current.state;
+      const chunksCount = recordedChunksRef.current.length;
+      const totalSize = recordedChunksRef.current.reduce(
+        (sum, chunk) => sum + chunk.size,
+        0
+      );
+
+      console.log(
+        `⏹️ Stopping MediaRecorder... State: ${state}, Chunks: ${chunksCount}, Size: ${(
+          totalSize / 1024
+        ).toFixed(2)} KB`
+      );
+
+      // Request final data before stopping
+      if (mediaRecorderRef.current.state === "recording") {
+        mediaRecorderRef.current.requestData();
+      }
+
+      // Small delay to ensure final data is captured
+      setTimeout(() => {
+        if (
+          mediaRecorderRef.current &&
+          mediaRecorderRef.current.state !== "inactive"
+        ) {
+          mediaRecorderRef.current.stop();
+        }
+        setIsRecording(false);
+
+        // Clean up screen stream reference after MediaRecorder stops
+        if (screenStreamRef.current) {
+          screenStreamRef.current.getTracks().forEach((track) => {
+            if (track.readyState === "live") {
+              track.stop();
+            }
+          });
+          screenStreamRef.current = null;
+        }
+      }, 200);
+    } else {
+      // If MediaRecorder is not active, just clean up
       setIsRecording(false);
-      console.log("⏹️ Stopping recording...");
+      if (screenStreamRef.current) {
+        screenStreamRef.current = null;
+      }
     }
   };
 
   const uploadRecording = async () => {
     if (recordedChunksRef.current.length === 0) {
       console.error("❌ No recording data to upload");
+      setError("No recording data available. Please record again.");
+      setIsUploadingRecording(false);
       return;
     }
 
     try {
       setIsUploadingRecording(true);
-      const blob = new Blob(recordedChunksRef.current, { type: "video/webm" });
-      const file = new File([blob], `${interviewId}.webm`, {
-        type: "video/webm",
-      });
+
+      // Calculate total size
+      const totalSize = recordedChunksRef.current.reduce(
+        (sum, chunk) => sum + chunk.size,
+        0
+      );
 
       console.log(
-        `📤 Uploading recording: ${(file.size / 1024 / 1024).toFixed(2)} MB`
+        `📦 Preparing upload: ${recordedChunksRef.current.length} chunks, ${(
+          totalSize /
+          1024 /
+          1024
+        ).toFixed(2)} MB`
       );
 
-      // Upload to backend
-      const formData = new FormData();
-      formData.append("recording", file);
-
-      const userId = localStorage.getItem("clerk-user-id");
-      if (!userId) {
-        throw new Error("User not authenticated");
+      if (totalSize < 100 * 1024) {
+        throw new Error(
+          "Recording file is too small. Please ensure video and audio are enabled and try recording again."
+        );
       }
 
-      const response = await fetch(
-        `${
-          process.env.NEXT_PUBLIC_API_URL || "http://localhost:5004/api"
-        }/interviews/${interviewId}/recording?userId=${userId}`,
-        {
-          method: "POST",
-          body: formData,
-        }
+      const blob = new Blob(recordedChunksRef.current, { type: "video/webm" });
+
+      // Verify blob size matches
+      if (blob.size !== totalSize) {
+        console.warn(
+          `⚠️ Blob size mismatch: blob=${blob.size}, calculated=${totalSize}`
+        );
+      }
+
+      console.log(
+        `📤 Uploading recording: ${(blob.size / 1024 / 1024).toFixed(2)} MB (${
+          blob.size
+        } bytes)`
       );
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to upload recording");
+      // Step 1: Get presigned upload URL from backend
+      console.log("🔑 Getting presigned upload URL...");
+      const { uploadUrl, s3Key } = await interviewApi.getRecordingUploadUrl(
+        interviewId
+      );
+      console.log(`✅ Got upload URL for key: ${s3Key}`);
+
+      // Step 2: Upload directly to S3 using presigned URL
+      console.log("☁️ Uploading to S3...");
+      const uploadResponse = await fetch(uploadUrl, {
+        method: "PUT",
+        body: blob,
+        headers: {
+          "Content-Type": "video/webm",
+        },
+      });
+
+      if (!uploadResponse.ok) {
+        const errorText = await uploadResponse.text();
+        throw new Error(
+          `S3 upload failed: ${uploadResponse.status} ${uploadResponse.statusText} - ${errorText}`
+        );
       }
 
-      const result = await response.json();
-      console.log("✅ Recording uploaded successfully:", result);
+      console.log("✅ Recording uploaded to S3 successfully");
+
+      // Step 3: Notify backend to save the S3 key
+      console.log("💾 Saving S3 key to database...");
+      const saveResult = await interviewApi.saveRecordingKey(
+        interviewId,
+        s3Key
+      );
+      console.log("✅ Recording key saved:", saveResult);
 
       // Clear recorded chunks
       recordedChunksRef.current = [];
@@ -910,7 +1570,8 @@ export default function RealtimeInterviewPage() {
                     Start Interview
                   </Button>
                 </div>
-              ) : (
+              ) : null}
+              {isInterviewActive && (
                 <div className="flex items-center justify-center min-h-[200px] px-4">
                   {currentAssistantTranscript ? (
                     // AI is actively speaking
@@ -990,7 +1651,9 @@ export default function RealtimeInterviewPage() {
                 <>
                   {transcript.map((item, index) => (
                     <div
-                      key={index}
+                      key={`transcript-${index}-${
+                        item.role
+                      }-${item.content.slice(0, 10)}`}
                       className={`text-sm p-3 rounded ${
                         item.role === "user"
                           ? "bg-blue-600/30"
@@ -1026,48 +1689,75 @@ export default function RealtimeInterviewPage() {
         </Card>
 
         {/* Controls */}
-        <div className="flex items-center justify-center gap-4 mt-6">
-          <Button
-            variant={isMicOn ? "default" : "destructive"}
-            size="lg"
-            onClick={toggleMic}
-            className="rounded-full w-16 h-16"
-          >
-            {isMicOn ? (
-              <Mic className="w-6 h-6" />
-            ) : (
-              <MicOff className="w-6 h-6" />
-            )}
-          </Button>
-          <Button
-            variant={isCameraOn ? "default" : "destructive"}
-            size="lg"
-            onClick={toggleCamera}
-            className="rounded-full w-16 h-16"
-          >
-            {isCameraOn ? (
-              <Video className="w-6 h-6" />
-            ) : (
-              <VideoOff className="w-6 h-6" />
-            )}
-          </Button>
-          <Button
-            variant={isRecording ? "destructive" : "default"}
-            size="lg"
-            onClick={isRecording ? stopRecording : startRecording}
-            disabled={isUploadingRecording || !mediaStreamRef.current}
-            className={`rounded-full w-16 h-16 ${
-              isRecording ? "animate-pulse" : ""
-            }`}
-          >
-            {isUploadingRecording ? (
-              <Loader2 className="w-6 h-6 animate-spin" />
-            ) : isRecording ? (
-              <Square className="w-6 h-6" />
-            ) : (
-              <Circle className="w-6 h-6 fill-red-500 text-red-500" />
-            )}
-          </Button>
+        <div className="flex flex-col items-center gap-4 mt-6">
+          <div className="flex items-center justify-center gap-4">
+            <Button
+              variant={isMicOn ? "default" : "destructive"}
+              size="lg"
+              onClick={toggleMic}
+              className="rounded-full w-16 h-16"
+            >
+              {isMicOn ? (
+                <Mic className="w-6 h-6" />
+              ) : (
+                <MicOff className="w-6 h-6" />
+              )}
+            </Button>
+            <Button
+              variant={isCameraOn ? "default" : "destructive"}
+              size="lg"
+              onClick={toggleCamera}
+              className="rounded-full w-16 h-16"
+            >
+              {isCameraOn ? (
+                <Video className="w-6 h-6" />
+              ) : (
+                <VideoOff className="w-6 h-6" />
+              )}
+            </Button>
+            <div className="relative group">
+              <Button
+                variant={isRecording ? "destructive" : "default"}
+                size="lg"
+                onClick={isRecording ? stopRecording : startRecording}
+                disabled={isUploadingRecording || !mediaStreamRef.current}
+                className={`rounded-full w-16 h-16 ${
+                  isRecording ? "animate-pulse" : ""
+                }`}
+              >
+                {isUploadingRecording ? (
+                  <Loader2 className="w-6 h-6 animate-spin" />
+                ) : isRecording ? (
+                  <Square className="w-6 h-6" />
+                ) : (
+                  <Circle className="w-6 h-6 fill-red-500 text-red-500" />
+                )}
+              </Button>
+              {!isRecording && (
+                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-800 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
+                  <div className="font-semibold mb-1">💡 Screen Share Tip:</div>
+                  <div>If current tab isn't listed,</div>
+                  <div>select "Window" or "Entire screen"</div>
+                  <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-full w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-800"></div>
+                </div>
+              )}
+            </div>
+          </div>
+          {!isRecording && (
+            <div className="text-xs text-gray-400 text-center max-w-md space-y-2">
+              <p>
+                💡 <strong>Tip:</strong> The current tab should appear in the
+                picker
+              </p>
+              <p>
+                ✅ Select the <strong>"Hello Interview"</strong> tab
+              </p>
+              <p>
+                🔊 Enable <strong>"Also share tab audio"</strong> to capture AI
+                voice
+              </p>
+            </div>
+          )}
         </div>
       </div>
     </div>

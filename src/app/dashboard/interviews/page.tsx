@@ -383,22 +383,54 @@ export default function InterviewsPage() {
                           </div>
                         </div>
 
-                        {/* Right Section - Action Button */}
-                        <div className="flex-shrink-0">
+                        {/* Right Section - Action Buttons */}
+                        <div className="flex-shrink-0 flex items-center gap-2">
                           {interview.status === "completed" && (
-                            <Link
-                              href={`/dashboard/interviews/${interview.interviewId}/report`}
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <Button
-                                variant="outline"
-                                size="default"
-                                className="border-purple-300 text-purple-700 hover:bg-purple-50 group-hover:border-purple-400 transition-all whitespace-nowrap"
+                            <>
+                              {(interview.session?.videoUrl ||
+                                interview.session?.s3VideoKey) && (
+                                <Button
+                                  variant="outline"
+                                  size="default"
+                                  className="border-blue-300 text-blue-700 hover:bg-blue-50 group-hover:border-blue-400 transition-all whitespace-nowrap"
+                                  onClick={async (e) => {
+                                    e.stopPropagation();
+                                    try {
+                                      // Get presigned URL from backend
+                                      const { videoUrl } =
+                                        await interviewApi.getRecordingVideoUrl(
+                                          interview.interviewId
+                                        );
+                                      window.open(videoUrl, "_blank");
+                                    } catch (error) {
+                                      console.error(
+                                        "Error getting video URL:",
+                                        error
+                                      );
+                                      alert(
+                                        "Failed to load video. Please try again."
+                                      );
+                                    }
+                                  }}
+                                >
+                                  <PlayCircle className="w-4 h-4 mr-2" />
+                                  Play Video
+                                </Button>
+                              )}
+                              <Link
+                                href={`/dashboard/interviews/${interview.interviewId}/report`}
+                                onClick={(e) => e.stopPropagation()}
                               >
-                                <CheckCircle className="w-4 h-4 mr-2" />
-                                View Report
-                              </Button>
-                            </Link>
+                                <Button
+                                  variant="outline"
+                                  size="default"
+                                  className="border-purple-300 text-purple-700 hover:bg-purple-50 group-hover:border-purple-400 transition-all whitespace-nowrap"
+                                >
+                                  <CheckCircle className="w-4 h-4 mr-2" />
+                                  View Report
+                                </Button>
+                              </Link>
+                            </>
                           )}
                           {interview.status === "processing" && (
                             <Link

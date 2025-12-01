@@ -630,17 +630,48 @@ export default function DashboardPage() {
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
                     {interview.status === "completed" && (
-                      <Link
-                        href={`/dashboard/interviews/${interview.interviewId}/report`}
-                      >
-                        <Button
-                          variant="outline"
-                          size="default"
-                          className="border-purple-300 text-purple-700 hover:bg-purple-50"
+                      <>
+                        {(interview.session?.videoUrl ||
+                          interview.session?.s3VideoKey) && (
+                          <Button
+                            variant="outline"
+                            size="default"
+                            className="border-blue-300 text-blue-700 hover:bg-blue-50"
+                            onClick={async () => {
+                              try {
+                                // Get presigned URL from backend
+                                const { videoUrl } =
+                                  await interviewApi.getRecordingVideoUrl(
+                                    interview.interviewId
+                                  );
+                                window.open(videoUrl, "_blank");
+                              } catch (error) {
+                                console.error(
+                                  "Error getting video URL:",
+                                  error
+                                );
+                                alert(
+                                  "Failed to load video. Please try again."
+                                );
+                              }
+                            }}
+                          >
+                            <PlayCircle className="w-4 h-4 mr-2" />
+                            Play Video
+                          </Button>
+                        )}
+                        <Link
+                          href={`/dashboard/interviews/${interview.interviewId}/report`}
                         >
-                          View Report
-                        </Button>
-                      </Link>
+                          <Button
+                            variant="outline"
+                            size="default"
+                            className="border-purple-300 text-purple-700 hover:bg-purple-50"
+                          >
+                            View Report
+                          </Button>
+                        </Link>
+                      </>
                     )}
                     {interview.status === "draft" && (
                       <Link

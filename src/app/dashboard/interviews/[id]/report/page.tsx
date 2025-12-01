@@ -219,7 +219,7 @@ export default function ReportPage() {
                 ctx.restore();
 
                 // Convert to base64 with high quality
-                const circularImage = canvas.toDataURL("image/png", 1.0);
+                const circularImage = canvas.toDataURL("image/png", 1);
 
                 // Add to PDF (scale down from high-res canvas)
                 const displaySize = profileRadius * 2;
@@ -778,8 +778,8 @@ export default function ReportPage() {
 
     // Save the PDF
     const fileName = `hello-interview-${interview.metadata.role
-      .replace(/\s+/g, "-")
-      .toLowerCase()}-${formatDate(interview.createdAt).replace(
+      .replaceAll(/\s+/g, "-")
+      .toLowerCase()}-${formatDate(interview.createdAt).replaceAll(
       /\s+/g,
       "-"
     )}.pdf`;
@@ -1031,7 +1031,10 @@ export default function ReportPage() {
             <CardContent>
               <ul className="space-y-3">
                 {report.strengths.map((strength, index) => (
-                  <li key={index} className="flex items-start gap-2">
+                  <li
+                    key={`strength-${index}-${strength.slice(0, 10)}`}
+                    className="flex items-start gap-2"
+                  >
                     <CheckCircle className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
                     <span className="text-gray-700">{strength}</span>
                   </li>
@@ -1050,7 +1053,10 @@ export default function ReportPage() {
             <CardContent>
               <ul className="space-y-3">
                 {report.improvements.map((improvement, index) => (
-                  <li key={index} className="flex items-start gap-2">
+                  <li
+                    key={`improvement-${index}-${improvement.slice(0, 10)}`}
+                    className="flex items-start gap-2"
+                  >
                     <TrendingUp className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
                     <span className="text-gray-700">{improvement}</span>
                   </li>
@@ -1123,11 +1129,15 @@ export default function ReportPage() {
                     {report.behavioral.fillersPerMinute.toFixed(1)} / min
                   </div>
                   <div className="text-xs text-purple-700 mt-1">
-                    {report.behavioral.fillersPerMinute < 2
-                      ? "Excellent! Very few fillers"
-                      : report.behavioral.fillersPerMinute < 4
-                      ? "Good, but room for improvement"
-                      : "Try to reduce 'um', 'ah', 'like'"}
+                    {(() => {
+                      if (report.behavioral.fillersPerMinute < 2) {
+                        return "Excellent! Very few fillers";
+                      }
+                      if (report.behavioral.fillersPerMinute < 4) {
+                        return "Good, but room for improvement";
+                      }
+                      return "Try to reduce 'um', 'ah', 'like'";
+                    })()}
                   </div>
                 </div>
 
