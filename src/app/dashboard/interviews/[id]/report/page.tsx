@@ -27,7 +27,7 @@ import {
   MessageSquare,
   Mic,
 } from "lucide-react";
-import { interviewApi, Interview } from "@/lib/api";
+import { interviewApi, InterviewReport, Interview } from "@/lib/api";
 import { getScoreColor, getScoreGradient, formatDate } from "@/lib/utils";
 
 export default function ReportPage() {
@@ -36,6 +36,7 @@ export default function ReportPage() {
   const interviewId = params.id as string;
   const { user } = useUser();
 
+  const [report, setReport] = useState<InterviewReport | null>(null);
   const [interview, setInterview] = useState<Interview | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>("");
@@ -46,8 +47,13 @@ export default function ReportPage() {
 
   const loadReport = async () => {
     try {
-      const data = await interviewApi.getReport(interviewId);
-      setInterview(data);
+      // Load report and interview data in parallel
+      const [reportData, interviewData] = await Promise.all([
+        interviewApi.getReport(interviewId),
+        interviewApi.getInterview(interviewId),
+      ]);
+      setReport(reportData);
+      setInterview(interviewData);
     } catch (error: any) {
       console.error("Error loading report:", error);
       setError(error.response?.data?.message || "Failed to load report");
@@ -56,734 +62,511 @@ export default function ReportPage() {
     }
   };
 
-  const downloadPDF = async () => {
-    if (!interview || !interview.report) return;
+  const downloadPDF = () => {
+    if (!report || !interview) return;
 
-    const doc = new jsPDF();
-    const report = interview.report;
-    const pageWidth = doc.internal.pageSize.width;
-    const pageHeight = doc.internal.pageSize.height;
-    let y = 20;
+    const doc = new jsPDF({ unit: "pt", format: "a4" });
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const margin = 48;
+    const contentWidth = pageWidth - margin * 2;
+    let cursorY = margin;
 
-    // Helper to convert image URL to base64
-    const getBase64ImageFromURL = async (url: string): Promise<string> => {
-      try {
-        const response = await fetch(url);
-        const blob = await response.blob();
-        return new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onloadend = () => resolve(reader.result as string);
-          reader.onerror = reject;
-          reader.readAsDataURL(blob);
-        });
-      } catch (error) {
-        console.error("Error loading profile image:", error);
-        return "";
+    const ensureSpace = (height: number = 24) => {
+      if (cursorY + height > pageHeight - margin) {
+        doc.addPage();
+        cursorY = margin;
       }
     };
 
-    // Helper function to draw colored box
-    const drawColoredBox = (
-      x: number,
-      y: number,
-      width: number,
-      height: number,
-      color: number[]
+    const addSectionTitle = (
+      title: string,
+      color: [number, number, number] = [99, 102, 241]
     ) => {
+      ensureSpace(50);
+      cursorY += 12; // Add top padding
+
+      // Colored accent bar on the left
       doc.setFillColor(color[0], color[1], color[2]);
-      doc.rect(x, y, width, height, "F");
-    };
+      doc.roundedRect(margin, cursorY - 2, 4, 18, 2, 2, "F");
 
-    // Helper function to draw progress bar
-    const drawProgressBar = (
-      x: number,
-      y: number,
-      width: number,
-      height: number,
-      percentage: number,
-      color: number[]
-    ) => {
-      // Background (light gray)
-      doc.setFillColor(240, 240, 240);
-      doc.rect(x, y, width, height, "F");
-
-      // Progress (colored)
-      const progressWidth = (width * percentage) / 100;
-      doc.setFillColor(color[0], color[1], color[2]);
-      doc.rect(x, y, progressWidth, height, "F");
-
-      // Border
-      doc.setDrawColor(200, 200, 200);
-      doc.rect(x, y, width, height, "S");
-    };
-
-    // Helper to get score color
-    const getScoreColorRGB = (score: number): number[] => {
-      if (score >= 80) return [16, 185, 129]; // Green
-      if (score >= 60) return [59, 130, 246]; // Blue
-      if (score >= 40) return [251, 146, 60]; // Orange
-      return [239, 68, 68]; // Red
-    };
-
-    // ========== HEADER ==========
-    // Purple gradient header background
-    drawColoredBox(0, 0, pageWidth, 50, [139, 92, 246]);
-
-    // Logo/Icon (small circle)
-    doc.setFillColor(255, 255, 255);
-    doc.circle(20, 25, 8, "F");
-    doc.setFillColor(139, 92, 246);
-    doc.setFontSize(14);
-    doc.text("HI", 16, 28);
-
-    // Title
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(24);
-    doc.text("Interview Performance Report", 35, 25);
-
-    // Subtitle
-    doc.setFontSize(11);
-    doc.text(formatDate(interview.createdAt), 35, 35);
-
-    y = 65;
-
-    // ========== CANDIDATE INFO & OVERALL SCORE SECTION ==========
-    const sectionHeight = 60;
-
-    // Left side - Candidate Information
-    const leftBoxWidth = (pageWidth - 35) / 2;
-    drawColoredBox(15, y, leftBoxWidth, sectionHeight, [249, 250, 251]);
-    drawColoredBox(15, y, 4, sectionHeight, [139, 92, 246]); // Purple accent
-
-    // Profile image or placeholder
-    const profileX = 28;
-    const profileY = y + 20;
-    const profileRadius = 14;
-    const candidateName = user?.fullName || user?.firstName || "Candidate";
-    let imageLoaded = false;
-
-    // Try to load and add profile image
-    const profileImageUrl = user?.imageUrl;
-    if (profileImageUrl) {
-      try {
-        const base64Image = await getBase64ImageFromURL(profileImageUrl);
-        if (base64Image) {
-          // Create a temporary canvas to crop image to circle
-          const img = new Image();
-          img.crossOrigin = "anonymous";
-          img.src = base64Image;
-
-          await new Promise<void>((resolve) => {
-            img.onload = () => {
-              try {
-                // Create canvas for circular cropping
-                const canvas = document.createElement("canvas");
-                const ctx = canvas.getContext("2d");
-                if (!ctx) {
-                  resolve();
-                  return;
-                }
-
-                // Use higher resolution for better quality (3x for crisp image)
-                const scaleFactor = 3;
-                const size = profileRadius * 2 * scaleFactor;
-                canvas.width = size;
-                canvas.height = size;
-
-                // Draw white background circle
-                ctx.fillStyle = "#FFFFFF";
-                ctx.beginPath();
-                ctx.arc(size / 2, size / 2, size / 2, 0, 2 * Math.PI);
-                ctx.fill();
-
-                // Clip to circle
-                ctx.save();
-                ctx.beginPath();
-                ctx.arc(size / 2, size / 2, size / 2, 0, 2 * Math.PI);
-                ctx.clip();
-
-                // Draw image centered and scaled to fill circle (high quality)
-                const imageScale = Math.max(
-                  size / img.width,
-                  size / img.height
-                );
-                const x = (size - img.width * imageScale) / 2;
-                const yPos = (size - img.height * imageScale) / 2;
-                ctx.drawImage(
-                  img,
-                  x,
-                  yPos,
-                  img.width * imageScale,
-                  img.height * imageScale
-                );
-                ctx.restore();
-
-                // Convert to base64 with high quality
-                const circularImage = canvas.toDataURL("image/png", 1);
-
-                // Add to PDF (scale down from high-res canvas)
-                const displaySize = profileRadius * 2;
-                doc.addImage(
-                  circularImage,
-                  "PNG",
-                  profileX - profileRadius,
-                  profileY - profileRadius,
-                  displaySize,
-                  displaySize
-                );
-
-                // Draw border circle
-                doc.setDrawColor(139, 92, 246);
-                doc.setLineWidth(1.5);
-                doc.circle(profileX, profileY, profileRadius, "S");
-
-                imageLoaded = true;
-              } catch (err) {
-                console.error("Error processing image:", err);
-              }
-              resolve();
-            };
-            img.onerror = () => resolve();
-          });
-        }
-      } catch (error) {
-        console.error("Failed to load profile image, using initials:", error);
-      }
-    }
-
-    // Fallback to initials if no image or image failed
-    if (!imageLoaded) {
-      doc.setFillColor(139, 92, 246);
-      doc.circle(profileX, profileY, profileRadius, "F");
-      doc.setTextColor(255, 255, 255);
-      doc.setFontSize(16);
       doc.setFont("helvetica", "bold");
-      const initials = candidateName
-        .split(" ")
-        .map((n) => n[0])
-        .join("")
-        .toUpperCase()
-        .substring(0, 2);
-      const textWidth = doc.getTextWidth(initials);
-      doc.text(initials, profileX - textWidth / 2, profileY + 6);
-      doc.setFont("helvetica", "normal");
-    }
+      doc.setFontSize(16);
+      doc.setTextColor(color[0], color[1], color[2]);
+      doc.text(title, margin + 10, cursorY + 10);
+      cursorY += 18;
 
-    // Candidate Details
-    const detailsX = profileX + 18;
-    doc.setTextColor(31, 41, 55);
-    doc.setFontSize(14);
-    doc.text(candidateName, detailsX, y + 12);
+      // Subtle line below title
+      doc.setDrawColor(color[0], color[1], color[2]);
+      doc.setLineWidth(0.3);
+      doc.line(margin, cursorY, pageWidth - margin, cursorY);
+      cursorY += 24; // Add bottom padding
+    };
 
-    doc.setTextColor(107, 114, 128);
-    doc.setFontSize(9);
-    doc.text(user?.primaryEmailAddress?.emailAddress || "", detailsX, y + 18);
+    const addParagraph = (text: string, fontSize = 11) => {
+      const lines = doc.splitTextToSize(text, contentWidth);
+      lines.forEach((line: string) => {
+        ensureSpace(16);
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(fontSize);
+        doc.setTextColor(70, 70, 70);
+        doc.text(line, margin, cursorY);
+        cursorY += 14;
+      });
+      cursorY += 6;
+    };
 
-    // Role and Experience line
-    doc.setTextColor(75, 85, 99);
+    const addBulletList = (items: string[]) => {
+      if (!items.length) return;
+      items.forEach((item) => {
+        ensureSpace(18);
+
+        // Bullet point
+        doc.setFillColor(99, 102, 241);
+        doc.circle(margin + 3, cursorY - 3, 2, "F");
+
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(10);
+        doc.setTextColor(60, 60, 60);
+
+        const lines = doc.splitTextToSize(item, contentWidth - 10);
+        lines.forEach((line: string, lineIndex: number) => {
+          doc.text(line, margin + 10, cursorY);
+          if (lineIndex < lines.length - 1) {
+            cursorY += 12;
+          }
+        });
+        cursorY += 16;
+      });
+      cursorY += 4;
+    };
+
+    // Header with brand color
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(24);
+    doc.setTextColor(99, 102, 241);
+    doc.text("Easy Interview", margin, cursorY);
+
+    doc.setFont("helvetica", "normal");
     doc.setFontSize(10);
-    const experienceText =
-      interview.metadata.experience === 0
-        ? "Fresher"
-        : `${interview.metadata.experience} years exp`;
+    doc.setTextColor(120, 120, 120);
     doc.text(
-      `${interview.metadata.role} • ${experienceText}`,
-      detailsX,
-      y + 26
+      `Generated on ${formatDate(new Date().toISOString())}`,
+      pageWidth - margin - 200,
+      cursorY
     );
+    cursorY += 8;
 
-    // Target Company (if provided)
-    if (interview.metadata.targetCompany) {
-      doc.setFillColor(239, 246, 255);
-      doc.roundedRect(detailsX, y + 30, 70, 8, 2, 2, "F");
-      doc.setTextColor(59, 130, 246);
-      doc.setFontSize(9);
-      doc.text(interview.metadata.targetCompany, detailsX + 3, y + 35);
+    // Subtle line below brand
+    doc.setDrawColor(200, 200, 200);
+    doc.setLineWidth(0.5);
+    doc.line(margin, cursorY, pageWidth - margin, cursorY);
+    cursorY += 20;
 
-      // Language below
-      doc.setTextColor(107, 114, 128);
-      doc.setFontSize(8);
-      doc.text(
-        `Language: ${
-          interview.metadata.language === "hi" ? "Hindi" : "English"
-        }`,
-        detailsX,
-        y + 45
-      );
-    } else {
-      // Language if no company
-      doc.setTextColor(107, 114, 128);
-      doc.setFontSize(9);
-      doc.text(
-        `Language: ${
-          interview.metadata.language === "hi" ? "Hindi" : "English"
-        }`,
-        detailsX,
-        y + 35
-      );
-    }
-
-    // Interview ID (small)
-    doc.setTextColor(156, 163, 175);
-    doc.setFontSize(7);
-    doc.text(`ID: ${interview.interviewId}`, detailsX, y + sectionHeight - 5);
-
-    // Right side - Overall Performance Score
-    const rightBoxX = 15 + leftBoxWidth + 5;
-    const rightBoxWidth = leftBoxWidth;
-    const scoreColor = getScoreColorRGB(report.overallScore);
-
-    drawColoredBox(rightBoxX, y, rightBoxWidth, sectionHeight, [255, 255, 255]);
-    drawColoredBox(rightBoxX, y, 4, sectionHeight, scoreColor); // Colored accent
-
-    // "Overall Performance" label
-    doc.setTextColor(75, 85, 99);
-    doc.setFontSize(12);
-    doc.text("Overall Performance", rightBoxX + 10, y + 15);
-
-    // Large score with proper spacing
-    doc.setTextColor(scoreColor[0], scoreColor[1], scoreColor[2]);
-    doc.setFontSize(48);
     doc.setFont("helvetica", "bold");
-    const scoreNumberText = `${report.overallScore}`;
-    const scoreNumberWidth = doc.getTextWidth(scoreNumberText);
-    doc.text(scoreNumberText, rightBoxX + 20, y + 45);
+    doc.setFontSize(26);
+    doc.setTextColor(30, 30, 30);
+    doc.text("Interview Performance Report", margin, cursorY);
+    cursorY += 28;
 
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(20);
-    doc.setTextColor(156, 163, 175);
-    doc.text("/100", rightBoxX + 20 + scoreNumberWidth + 5, y + 45);
-
-    // Score indicator text
-    let scoreLabel = "";
-    if (report.overallScore >= 80) scoreLabel = "Excellent";
-    else if (report.overallScore >= 60) scoreLabel = "Good";
-    else if (report.overallScore >= 40) scoreLabel = "Fair";
-    else scoreLabel = "Needs Improvement";
-
-    doc.setTextColor(scoreColor[0], scoreColor[1], scoreColor[2]);
     doc.setFontSize(11);
-    doc.setFont("helvetica", "bold");
-    doc.text(scoreLabel, rightBoxX + 20, y + 54);
-    doc.setFont("helvetica", "normal");
+    doc.setTextColor(100, 100, 100);
+    doc.text(
+      `Interview Date: ${formatDate(interview.createdAt)}`,
+      margin,
+      cursorY
+    );
+    cursorY += 22;
 
-    y += sectionHeight + 15;
+    const candidateName = user?.fullName || user?.firstName || "Candidate Name";
+    const leftRows = [
+      ["Interview ID", interview.interviewId],
+      ["Candidate Name", candidateName],
+      ["Role Applying For", interview.metadata.role],
+    ];
+    const rightRows = [
+      [
+        "Company Applying For",
+        interview.metadata.targetCompany || "Not specified",
+      ],
+      ["Language", interview.metadata.language === "hi" ? "Hindi" : "English"],
+      ["Overall Performance", `${report.overallScore} / 100`],
+    ];
 
-    // ========== CATEGORY SCORES TABLE ==========
-    // Section header with colored background
-    drawColoredBox(15, y, pageWidth - 30, 10, [249, 250, 251]);
-    drawColoredBox(15, y, pageWidth - 30, 2, [139, 92, 246]); // Top purple line
+    const startY = cursorY;
+    let leftY = startY;
+    leftRows.forEach((row) => {
+      ensureSpace(32);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9);
+      doc.setTextColor(130, 130, 130);
+      doc.text(row[0].toUpperCase(), margin, leftY);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(12);
+      doc.setTextColor(30, 30, 30);
+      doc.text(row[1], margin, leftY + 14);
+      leftY += 36;
+    });
 
-    doc.setTextColor(31, 41, 55);
-    doc.setFontSize(14);
-    doc.text("Performance Breakdown", 20, y + 8);
-    y += 15;
+    let rightY = startY;
+    const rightX = pageWidth / 2 + 10;
+    rightRows.forEach((row, index) => {
+      ensureSpace(32);
+      if (index === rightRows.length - 1) {
+        // Overall performance card with gradient
+        doc.setFillColor(248, 250, 252);
+        doc.setDrawColor(99, 102, 241);
+        doc.setLineWidth(2);
+        doc.roundedRect(
+          rightX - 14,
+          rightY - 14,
+          pageWidth - rightX - margin + 14,
+          62,
+          8,
+          8,
+          "FD"
+        );
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(32);
+        doc.setTextColor(99, 102, 241);
+        doc.text(`${report.overallScore}`, rightX, rightY + 28);
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(11);
+        doc.setTextColor(100, 100, 100);
+        doc.text("Overall Performance", rightX, rightY + 46);
+        rightY += 68;
+      } else {
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(9);
+        doc.setTextColor(130, 130, 130);
+        doc.text(row[0].toUpperCase(), rightX, rightY);
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(12);
+        doc.setTextColor(30, 30, 30);
+        doc.text(row[1], rightX, rightY + 14);
+        rightY += 36;
+      }
+    });
 
-    const categories = [
+    cursorY = Math.max(leftY, rightY) + 20;
+
+    addSectionTitle("Performance Breakdown", [139, 92, 246]);
+
+    const performanceMetrics = [
       {
-        name: "Technical Skills",
-        score: report.categoryScores.technical,
-        color: [168, 85, 247],
+        key: "technical",
+        label: "Technical Skills",
+        value: report.categoryScores.technical,
+        color: [99, 102, 241] as [number, number, number],
       },
       {
-        name: "Behavioral",
-        score: report.categoryScores.behavioral,
-        color: [59, 130, 246],
+        key: "communication",
+        label: "Communication",
+        value: report.categoryScores.communication,
+        color: [16, 185, 129] as [number, number, number],
       },
       {
-        name: "Communication",
-        score: report.categoryScores.communication,
-        color: [16, 185, 129],
+        key: "behavioral",
+        label: "Behavioral",
+        value: report.categoryScores.behavioral,
+        color: [251, 146, 60] as [number, number, number],
       },
       {
-        name: "Confidence",
-        score: report.categoryScores.confidence,
-        color: [251, 146, 60],
+        key: "confidence",
+        label: "Confidence",
+        value: report.categoryScores.confidence,
+        color: [236, 72, 153] as [number, number, number],
       },
     ];
 
-    // Draw table with borders
-    const tableHeight = categories.length * 24;
-    doc.setDrawColor(229, 231, 235);
-    doc.setLineWidth(0.5);
-    doc.rect(15, y, pageWidth - 30, tableHeight, "S");
+    performanceMetrics.forEach((metric) => {
+      ensureSpace(42);
 
-    categories.forEach((cat, index) => {
-      const rowY = y + index * 24;
-      const bgColor = index % 2 === 0 ? [255, 255, 255] : [249, 250, 251];
-      drawColoredBox(15, rowY, pageWidth - 30, 24, bgColor);
-
-      // Colored indicator on left
-      drawColoredBox(15, rowY, 4, 24, cat.color);
-
-      // Category name (no icon)
-      doc.setTextColor(55, 65, 81);
-      doc.setFontSize(11);
-      doc.text(cat.name, 25, rowY + 15);
-
-      // Progress bar with proper spacing (ensure it fits in table)
-      const progressBarX = 95;
-      const progressBarWidth = 70;
-      drawProgressBar(
-        progressBarX,
-        rowY + 8,
-        progressBarWidth,
-        8,
-        cat.score,
-        cat.color
-      );
-
-      // Score with proper spacing (right-aligned within table)
-      doc.setTextColor(cat.color[0], cat.color[1], cat.color[2]);
-      doc.setFontSize(16);
+      // Label and score on the same line
       doc.setFont("helvetica", "bold");
-      const scoreText = `${cat.score}`;
-      const scoreTextWidth = doc.getTextWidth(scoreText);
-
-      // Calculate "/100" width
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(10);
-      const slash100Width = doc.getTextWidth("/100");
-      const totalScoreWidth = scoreTextWidth + slash100Width + 3;
-
-      // Right-align score within table (with 10px margin from right edge)
-      const tableRightEdge = pageWidth - 15;
-      const scoreX = tableRightEdge - totalScoreWidth - 10;
+      doc.setFontSize(12);
+      doc.setTextColor(40, 40, 40);
+      doc.text(metric.label, margin, cursorY);
 
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(16);
-      doc.text(scoreText, scoreX, rowY + 15);
+      doc.setFontSize(12);
+      doc.setTextColor(metric.color[0], metric.color[1], metric.color[2]);
+      doc.text(`${metric.value}%`, pageWidth - margin - 60, cursorY);
 
-      // "/100" text with proper spacing
-      doc.setFont("helvetica", "normal");
-      doc.setTextColor(156, 163, 175);
-      doc.setFontSize(10);
-      doc.text("/100", scoreX + scoreTextWidth + 3, rowY + 15);
+      cursorY += 14;
 
-      // Horizontal line between rows (except last)
-      if (index < categories.length - 1) {
-        doc.setDrawColor(229, 231, 235);
-        doc.line(15, rowY + 24, pageWidth - 15, rowY + 24);
-      }
+      // Progress bar
+      const barWidth = contentWidth;
+      const barHeight = 12;
+
+      // Background bar
+      doc.setFillColor(245, 245, 245);
+      doc.roundedRect(margin, cursorY, barWidth, barHeight, 6, 6, "F");
+
+      // Filled bar with gradient effect
+      const fillWidth = (barWidth * metric.value) / 100;
+      doc.setFillColor(metric.color[0], metric.color[1], metric.color[2]);
+      doc.roundedRect(margin, cursorY, fillWidth, barHeight, 6, 6, "F");
+
+      cursorY += 24;
     });
 
-    y += tableHeight + 15;
-
-    // Check if we need a new page before strengths section
-    if (y > 200) {
-      doc.addPage();
-      y = 20;
+    if (report.strengths.length) {
+      addSectionTitle("Key Strengths Highlighted", [16, 185, 129]);
+      addBulletList(report.strengths);
     }
 
-    // ========== STRENGTHS SECTION ==========
-    // Calculate actual strengths height first
-    let strengthsTextHeight = 0;
-    doc.setFontSize(10);
-    report.strengths.forEach((strength) => {
-      const lines = doc.splitTextToSize(strength, pageWidth - 60);
-      strengthsTextHeight += Math.max(12, lines.length * 6);
-    });
-    const strengthsSectionHeight = strengthsTextHeight + 25; // Header + padding
-
-    // Check if strengths section fits on current page
-    if (y + strengthsSectionHeight > pageHeight - 30) {
-      doc.addPage();
-      y = 20;
+    if (report.improvements.length) {
+      addSectionTitle("Improvement Ideas", [251, 146, 60]);
+      addBulletList(report.improvements);
     }
 
-    // Green gradient header
-    drawColoredBox(15, y, pageWidth - 30, 12, [16, 185, 129]);
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(14);
-    doc.text("Key Strengths", 20, y + 8);
-    y += 17;
-
-    // Strengths box with border
-    const strengthsHeight = strengthsTextHeight + 16;
-    drawColoredBox(15, y, pageWidth - 30, strengthsHeight, [240, 253, 244]);
-    doc.setDrawColor(16, 185, 129);
-    doc.setLineWidth(0.5);
-    doc.rect(15, y, pageWidth - 30, strengthsHeight, "S");
-
-    y += 8;
-    doc.setFontSize(10);
-    doc.setTextColor(21, 128, 61);
-
-    report.strengths.forEach((strength, index) => {
-      // Number badge
-      doc.setFillColor(16, 185, 129);
-      doc.circle(22, y - 2, 3.5, "F");
-      doc.setTextColor(255, 255, 255);
-      doc.setFontSize(8);
-      doc.text(`${index + 1}`, 20.5, y);
-
-      // Text
-      doc.setTextColor(22, 101, 52);
-      doc.setFontSize(10);
-      const lines = doc.splitTextToSize(strength, pageWidth - 60);
-      doc.text(lines, 30, y);
-      y += Math.max(12, lines.length * 6);
-    });
-
-    y += 8;
-
-    // Add proper spacing between sections
-    y += 15;
-
-    // Check if we need a new page before improvements section
-    if (y > 200) {
-      doc.addPage();
-      y = 20;
-    }
-
-    // ========== IMPROVEMENTS SECTION ==========
-    // Calculate actual improvements height first
-    let improvementsTextHeight = 0;
-    doc.setFontSize(10);
-    report.improvements.forEach((improvement) => {
-      const lines = doc.splitTextToSize(improvement, pageWidth - 60);
-      improvementsTextHeight += Math.max(12, lines.length * 6);
-    });
-    const improvementsSectionHeight = improvementsTextHeight + 25; // Header + padding
-
-    // Check if improvements section fits on current page
-    if (y + improvementsSectionHeight > pageHeight - 30) {
-      doc.addPage();
-      y = 20;
-    }
-
-    // Blue gradient header
-    drawColoredBox(15, y, pageWidth - 30, 12, [59, 130, 246]);
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(14);
-    doc.text("Areas for Improvement", 20, y + 8);
-    y += 17;
-
-    // Improvements box with border
-    const improvementsHeight = improvementsTextHeight + 16;
-    drawColoredBox(15, y, pageWidth - 30, improvementsHeight, [239, 246, 255]);
-    doc.setDrawColor(59, 130, 246);
-    doc.setLineWidth(0.5);
-    doc.rect(15, y, pageWidth - 30, improvementsHeight, "S");
-
-    y += 8;
-    doc.setFontSize(10);
-
-    report.improvements.forEach((improvement, index) => {
-      // Number badge
-      doc.setFillColor(59, 130, 246);
-      doc.circle(22, y - 2, 3.5, "F");
-      doc.setTextColor(255, 255, 255);
-      doc.setFontSize(8);
-      doc.text(`${index + 1}`, 20.5, y);
-
-      // Text
-      doc.setTextColor(29, 78, 216);
-      doc.setFontSize(10);
-      const lines = doc.splitTextToSize(improvement, pageWidth - 60);
-      doc.text(lines, 30, y);
-      y += Math.max(12, lines.length * 6);
-    });
-
-    y += 8;
-
-    // Add proper spacing before next section
-    y += 15;
-
-    // ========== BEHAVIORAL ANALYSIS TABLE ==========
-    if (y > 150) {
-      doc.addPage();
-      y = 20;
-    }
-
-    // Purple gradient header
-    drawColoredBox(15, y, pageWidth - 30, 12, [168, 85, 247]);
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(14);
-    doc.text("Behavioral Analysis", 20, y + 8);
-    y += 17;
-
-    // Behavioral metrics in a 2x2 grid
+    addSectionTitle("Behavioral Metrics", [168, 85, 247]);
     const behavioralMetrics = [
       {
         label: "Confidence",
         value: report.behavioral.confidence,
         unit: "%",
-        color: [168, 85, 247],
+        color: [168, 85, 247] as [number, number, number],
       },
       {
         label: "Clarity",
         value: report.behavioral.clarity,
         unit: "%",
-        color: [59, 130, 246],
+        color: [59, 130, 246] as [number, number, number],
       },
       {
         label: "Fluency",
         value: report.behavioral.fluency,
         unit: "%",
-        color: [16, 185, 129],
+        color: [16, 185, 129] as [number, number, number],
       },
       {
         label: "Filler Words",
-        value: report.behavioral.fillersPerMinute.toFixed(1),
-        unit: "/min",
-        color: [251, 146, 60],
+        value: Number(report.behavioral.fillersPerMinute.toFixed(1)),
+        unit: "per min",
+        color: [251, 146, 60] as [number, number, number],
       },
     ];
 
-    const boxWidth = (pageWidth - 40) / 2;
-    const boxHeight = 32;
-    let xPos = 15;
-    let rowY = y;
+    behavioralMetrics.forEach((metric) => {
+      ensureSpace(42);
 
-    behavioralMetrics.forEach((metric, index) => {
-      if (index === 2) {
-        xPos = 15;
-        rowY += boxHeight + 5;
-      }
-
-      // Box with gradient background
-      drawColoredBox(xPos, rowY, boxWidth, boxHeight, [255, 255, 255]);
-
-      // Top colored bar
-      drawColoredBox(xPos, rowY, boxWidth, 3, metric.color);
-
-      // Border
-      doc.setDrawColor(229, 231, 235);
-      doc.setLineWidth(0.5);
-      doc.rect(xPos, rowY, boxWidth, boxHeight, "S");
-
-      // Label (no icon)
-      doc.setTextColor(107, 114, 128);
-      doc.setFontSize(9);
-      doc.text(metric.label, xPos + 8, rowY + 12);
-
-      // Value with proper spacing
-      const numValue =
-        typeof metric.value === "number"
-          ? metric.value
-          : Number.parseFloat(metric.value);
-      const valueColor = metric.color;
-      doc.setTextColor(valueColor[0], valueColor[1], valueColor[2]);
-      doc.setFontSize(20);
+      // Label and value on the same line
       doc.setFont("helvetica", "bold");
-      const valueText = `${metric.value}`;
-      const valueTextWidth = doc.getTextWidth(valueText);
-      doc.text(valueText, xPos + 8, rowY + 25);
+      doc.setFontSize(12);
+      doc.setTextColor(40, 40, 40);
+      doc.text(metric.label, margin, cursorY);
 
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(10);
-      doc.setTextColor(156, 163, 175);
-      doc.text(metric.unit, xPos + 8 + valueTextWidth + 3, rowY + 25);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(12);
+      doc.setTextColor(metric.color[0], metric.color[1], metric.color[2]);
+      const valueText =
+        metric.unit === "%"
+          ? `${metric.value}%`
+          : `${metric.value} ${metric.unit}`;
+      doc.text(valueText, pageWidth - margin - 60, cursorY);
 
-      // Mini progress bar for percentage metrics (below value)
-      if (metric.unit === "%") {
-        drawProgressBar(
-          xPos + 8,
-          rowY + 28,
-          boxWidth - 16,
-          4,
-          numValue,
-          metric.color
-        );
-      }
+      cursorY += 14;
 
-      xPos += boxWidth + 5;
+      // Progress bar
+      const barWidth = contentWidth;
+      const barHeight = 12;
+      const normalized =
+        metric.unit === "%"
+          ? metric.value
+          : Math.max(0, Math.min((metric.value / 6) * 100, 100));
+
+      // Background bar
+      doc.setFillColor(245, 245, 245);
+      doc.roundedRect(margin, cursorY, barWidth, barHeight, 6, 6, "F");
+
+      // Filled bar
+      const fillWidth = (barWidth * normalized) / 100;
+      doc.setFillColor(metric.color[0], metric.color[1], metric.color[2]);
+      doc.roundedRect(margin, cursorY, fillWidth, barHeight, 6, 6, "F");
+
+      cursorY += 24;
     });
+    cursorY += 8;
 
-    y = rowY + boxHeight + 15;
+    if (report.qaAnalysis?.length) {
+      addSectionTitle("Question-by-Question Analysis", [236, 72, 153]);
+      report.qaAnalysis.forEach((qa, index) => {
+        ensureSpace(50);
 
-    // ========== RECOMMENDATIONS SECTION ==========
-    if (y > 220) {
-      doc.addPage();
-      y = 20;
+        // Question number with colored background
+        doc.setFillColor(236, 72, 153);
+        doc.roundedRect(margin, cursorY - 3, 80, 16, 4, 4, "F");
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(11);
+        doc.setTextColor(255, 255, 255);
+        doc.text(`Question #${index + 1}`, margin + 8, cursorY + 8);
+        cursorY += 20;
+
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(11);
+        doc.setTextColor(40, 40, 40);
+        addParagraph(qa.question, 11);
+
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(9);
+        doc.setTextColor(120, 120, 120);
+        addParagraph(
+          `Type: ${getQuestionTypeText(qa.questionType)} | Difficulty: ${
+            qa.questionDifficulty
+          } | Alignment: ${
+            qa.answerMatchedQuestion ? "Aligned" : "Needs work"
+          } | Depth: ${qa.technicalDepthMatch} | Experience Alignment: ${
+            qa.experienceAlignmentScore
+          } / 100`
+        );
+
+        cursorY += 6;
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(10);
+        doc.setTextColor(59, 130, 246);
+        doc.text("Candidate Answer", margin, cursorY);
+        cursorY += 12;
+        addParagraph(qa.candidateAnswer);
+
+        cursorY += 4;
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(10);
+        doc.setTextColor(16, 185, 129);
+        doc.text("Suggested Answer", margin, cursorY);
+        cursorY += 12;
+        addParagraph(qa.suggestedAnswer);
+
+        cursorY += 4;
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(10);
+        doc.setTextColor(168, 85, 247);
+        doc.text(
+          `Scores — Correctness: ${qa.correctnessScore}, Clarity: ${qa.clarityScore}, Completeness: ${qa.completenessScore}`,
+          margin,
+          cursorY
+        );
+        cursorY += 16;
+
+        if (qa.validationNotes && qa.validationNotes !== "N/A") {
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(10);
+          doc.setTextColor(100, 100, 100);
+          addParagraph(`Validation Notes: ${qa.validationNotes}`);
+        }
+
+        if (qa.feedback) {
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(10);
+          doc.setTextColor(100, 100, 100);
+          addParagraph(`Feedback: ${qa.feedback}`);
+        }
+
+        if (qa.strengths.length) {
+          cursorY += 6;
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(10);
+          doc.setTextColor(16, 185, 129);
+          doc.text("✓ Strengths", margin, cursorY);
+          cursorY += 12;
+          addBulletList(qa.strengths);
+        }
+
+        if (qa.improvements.length) {
+          cursorY += 6;
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(10);
+          doc.setTextColor(251, 146, 60);
+          doc.text("→ Improvement Ideas", margin, cursorY);
+          cursorY += 12;
+          addBulletList(qa.improvements);
+        }
+
+        cursorY += 12;
+      });
     }
 
-    // Recommendations box
-    drawColoredBox(15, y, pageWidth - 30, 12, [236, 72, 153]);
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(14);
-    doc.text("Recommended Next Steps", 20, y + 8);
-    y += 17;
-
-    const recommendations = [
-      "Practice more mock interviews to build confidence",
-      "Review and improve on the identified weak areas",
-      "Focus on reducing filler words in your responses",
-      "Continue building on your strengths",
-    ];
-
-    const recHeight = recommendations.length * 10 + 8;
-    drawColoredBox(15, y, pageWidth - 30, recHeight, [253, 242, 248]);
-    doc.setDrawColor(236, 72, 153);
-    doc.setLineWidth(0.5);
-    doc.rect(15, y, pageWidth - 30, recHeight, "S");
-
-    y += 8;
-    doc.setFontSize(9);
-    doc.setTextColor(157, 23, 77);
-
-    recommendations.forEach((rec, index) => {
-      doc.text(`• ${rec}`, 20, y);
-      y += 10;
-    });
-
-    y += 10;
-
-    // ========== FOOTER ==========
-    // Add footer on every page
-    const addFooter = (pageNum: number) => {
-      // Colored footer bar
-      drawColoredBox(0, pageHeight - 25, pageWidth, 25, [249, 250, 251]);
-
-      // Footer line
-      doc.setDrawColor(139, 92, 246);
-      doc.setLineWidth(1);
-      doc.line(15, pageHeight - 25, pageWidth - 15, pageHeight - 25);
-
-      // Footer content
-      doc.setFontSize(8);
-      doc.setTextColor(107, 114, 128);
-      doc.text("Generated by Hello Interview", 15, pageHeight - 15);
-
-      // Website
-      doc.setTextColor(139, 92, 246);
-      doc.text("hellointerview.ai", 15, pageHeight - 10);
-
-      // Date
-      doc.setTextColor(107, 114, 128);
-      const currentDate = formatDate(new Date().toISOString());
-      doc.text(currentDate, pageWidth / 2 - 15, pageHeight - 12);
-
-      // Page number
-      doc.setFontSize(9);
-      doc.text(`Page ${pageNum}`, pageWidth - 30, pageHeight - 12);
-
-      // Small branding
-      doc.setFontSize(7);
-      doc.setTextColor(156, 163, 175);
-      doc.text(
-        "Confidential • For Personal Use Only",
-        pageWidth / 2 - 25,
-        pageHeight - 5
-      );
-    };
-
-    // Add footer to all pages
     const totalPages = doc.getNumberOfPages();
     for (let i = 1; i <= totalPages; i++) {
       doc.setPage(i);
-      addFooter(i);
+
+      // Subtle line above footer
+      doc.setDrawColor(220, 220, 220);
+      doc.setLineWidth(0.5);
+      doc.line(margin, pageHeight - 36, pageWidth - margin, pageHeight - 36);
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      doc.setTextColor(99, 102, 241);
+      doc.text("Easy Interview", margin, pageHeight - 24);
+
+      doc.setTextColor(140, 140, 140);
+      doc.text(
+        `Generated on ${formatDate(new Date().toISOString())}`,
+        margin,
+        pageHeight - 16
+      );
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9);
+      doc.setTextColor(100, 100, 100);
+      doc.text(
+        `Page ${i} of ${totalPages}`,
+        pageWidth - margin - 55,
+        pageHeight - 20
+      );
     }
 
-    // Save the PDF
-    const fileName = `hello-interview-${interview.metadata.role
-      .replaceAll(/\s+/g, "-")
-      .toLowerCase()}-${formatDate(interview.createdAt).replaceAll(
-      /\s+/g,
-      "-"
-    )}.pdf`;
-    doc.save(fileName);
+    doc.save(`easy-interview-${interview.interviewId}.pdf`);
+  };
+
+  const getQuestionTypeText = (type: string) => {
+    switch (type) {
+      case "technical":
+        return "Technical";
+      case "behavioral":
+        return "Behavioral";
+      case "system-design":
+        return "System Design";
+      case "hr":
+        return "HR / Fit";
+      default:
+        return type;
+    }
+  };
+
+  const getDifficultyStyles = (difficulty: string) => {
+    switch (difficulty) {
+      case "easy":
+        return "bg-emerald-50 text-emerald-700 border border-emerald-100";
+      case "medium":
+        return "bg-amber-50 text-amber-700 border border-amber-100";
+      case "hard":
+        return "bg-rose-50 text-rose-700 border border-rose-100";
+      default:
+        return "bg-slate-50 text-slate-700 border border-slate-100";
+    }
+  };
+
+  const getValidationStyles = (match: string | boolean) => {
+    if (typeof match === "boolean") {
+      return match
+        ? "bg-emerald-50 text-emerald-700 border border-emerald-100"
+        : "bg-rose-50 text-rose-700 border border-rose-100";
+    }
+
+    switch (match) {
+      case "exceeds":
+        return "bg-violet-50 text-violet-700 border border-violet-100";
+      case "meets":
+        return "bg-blue-50 text-blue-700 border border-blue-100";
+      case "below":
+        return "bg-orange-50 text-orange-700 border border-orange-100";
+      default:
+        return "bg-slate-50 text-slate-700 border border-slate-100";
+    }
   };
 
   if (loading) {
@@ -794,7 +577,7 @@ export default function ReportPage() {
     );
   }
 
-  if (error || !interview || !interview.report) {
+  if (error || !report || !interview) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 via-blue-50 to-pink-50 p-4">
         <Card className="max-w-md">
@@ -816,8 +599,6 @@ export default function ReportPage() {
       </div>
     );
   }
-
-  const report = interview.report;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-pink-50">
@@ -1154,6 +935,179 @@ export default function ReportPage() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Q&A Analysis */}
+        {report.qaAnalysis && report.qaAnalysis.length > 0 && (
+          <Card className="border-2 mb-8">
+            <CardHeader>
+              <CardTitle>Question-by-Question Analysis</CardTitle>
+              <CardDescription>
+                Deep dive into how each answer performed, including validation
+                checks and suggested improvements
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {report.qaAnalysis.map((qa, index) => (
+                <div
+                  key={`${qa.question}-${index}`}
+                  className="rounded-2xl border border-slate-100 bg-white shadow-sm"
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-100 px-6 py-4">
+                    <div className="flex-1">
+                      <p className="text-xs uppercase tracking-wide text-slate-500">
+                        Question #{index + 1}
+                      </p>
+                      <h3 className="text-base font-semibold text-slate-800">
+                        {qa.question}
+                      </h3>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span
+                        className={`rounded-full px-3 py-1 text-xs font-medium ${getDifficultyStyles(
+                          qa.questionDifficulty
+                        )}`}
+                      >
+                        {qa.questionDifficulty.toUpperCase()}
+                      </span>
+                      <span className="rounded-full border border-indigo-100 bg-indigo-50 px-3 py-1 text-xs font-medium text-indigo-700">
+                        {getQuestionTypeText(qa.questionType)}
+                      </span>
+                      <span
+                        className={`rounded-full px-3 py-1 text-xs font-medium ${getValidationStyles(
+                          qa.answerMatchedQuestion
+                        )}`}
+                      >
+                        {qa.answerMatchedQuestion
+                          ? "Aligned with question"
+                          : "Needs better alignment"}
+                      </span>
+                      <span
+                        className={`rounded-full px-3 py-1 text-xs font-medium ${getValidationStyles(
+                          qa.technicalDepthMatch
+                        )}`}
+                      >
+                        Depth: {qa.technicalDepthMatch}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="space-y-5 px-6 py-5">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        Candidate Answer
+                      </p>
+                      <p className="mt-2 rounded-xl bg-slate-50 p-4 text-sm leading-relaxed text-slate-900">
+                        {qa.candidateAnswer}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        Suggested Answer
+                      </p>
+                      <p className="mt-2 rounded-xl bg-violet-50/70 p-4 text-sm leading-relaxed text-slate-900">
+                        {qa.suggestedAnswer}
+                      </p>
+                    </div>
+                    <div className="space-y-4">
+                      <div className="grid gap-3 sm:grid-cols-3">
+                        {[
+                          { label: "Correctness", value: qa.correctnessScore },
+                          { label: "Clarity", value: qa.clarityScore },
+                          {
+                            label: "Completeness",
+                            value: qa.completenessScore,
+                          },
+                        ].map((metric) => (
+                          <div
+                            key={`${qa.question}-${metric.label}`}
+                            className="rounded-xl border border-slate-100 bg-slate-50 p-3 text-center"
+                          >
+                            <p className="text-xs text-slate-500">
+                              {metric.label}
+                            </p>
+                            <p
+                              className={`text-2xl font-semibold ${getScoreColor(
+                                metric.value
+                              )}`}
+                            >
+                              {metric.value}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="rounded-xl border border-slate-100 bg-white p-4">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <span className="text-sm font-medium text-slate-700">
+                            Experience Alignment
+                          </span>
+                          <span className="text-sm font-semibold text-slate-900">
+                            {qa.experienceAlignmentScore} / 100
+                          </span>
+                        </div>
+                        <Progress
+                          value={qa.experienceAlignmentScore}
+                          className="mt-2 h-2"
+                        />
+                        {qa.validationNotes && qa.validationNotes !== "N/A" && (
+                          <p className="mt-2 text-xs text-slate-500">
+                            {qa.validationNotes}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        Feedback Summary
+                      </p>
+                      <p className="mt-1 text-sm text-slate-700">
+                        {qa.feedback}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="rounded-b-2xl border-t border-slate-100 bg-slate-50 px-6 py-4">
+                    <div className="flex flex-col gap-4 md:flex-row">
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
+                          Strengths Highlighted
+                        </p>
+                        <ul className="mt-2 space-y-1 text-sm text-slate-700">
+                          {qa.strengths.map((strength, idx) => (
+                            <li
+                              key={`strength-${index}-${idx}`}
+                              className="flex items-start gap-2"
+                            >
+                              <span className="mt-1 h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                              {strength}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-wide text-rose-700">
+                          Improvement Ideas
+                        </p>
+                        <ul className="mt-2 space-y-1 text-sm text-slate-700">
+                          {qa.improvements.map((improvement, idx) => (
+                            <li
+                              key={`improvement-${index}-${idx}`}
+                              className="flex items-start gap-2"
+                            >
+                              <span className="mt-1 h-1.5 w-1.5 rounded-full bg-rose-500" />
+                              {improvement}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Next Steps */}
         <Card className="border-2 border-purple-200 bg-gradient-to-br from-purple-100 via-blue-100 to-pink-100">

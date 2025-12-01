@@ -19,7 +19,7 @@
 2. **Create Application** (if you haven't already)
 
    - Click "Add Application"
-   - Name: "Hello Interview"
+   - Name: "Easy Interview"
    - Choose your auth methods (Email + Google recommended)
 
 3. **Copy Your Keys**
@@ -181,4 +181,4 @@ Once Clerk is configured:
 4. You'll be redirected to the dashboard
 5. Your user data is automatically synced with backend
 
-**Ready to test your Hello Interview platform!** 🚀
+**Ready to test your Easy Interview platform!** 🚀

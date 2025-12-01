@@ -309,7 +309,7 @@ export default function OnboardingPage() {
               <Sparkles className="w-6 h-6 text-white" />
             </div>
             <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
-              Welcome to Hello Interview!
+              Welcome to Easy Interview!
             </h1>
           </div>
           <p className="text-sm sm:text-base text-gray-600">

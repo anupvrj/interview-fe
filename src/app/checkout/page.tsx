@@ -66,7 +66,7 @@ export default function CheckoutPage() {
         key: order.keyId,
         amount: order.amount,
         currency: order.currency,
-        name: "Hello Interview",
+        name: "Easy Interview",
         description: `${PLAN_CONFIG[planId].name} Plan - ${PLAN_CONFIG[planId].interviewsLimit} interviews`,
         order_id: order.orderId,
         // Enable Indian payment methods
@@ -155,7 +155,7 @@ export default function CheckoutPage() {
             <Link href="/" className="flex items-center gap-2">
               <Sparkles className="h-6 w-6 text-purple-600" />
               <span className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
-                Hello Interview
+                Easy Interview
               </span>
             </Link>
             <Link href="/pricing">

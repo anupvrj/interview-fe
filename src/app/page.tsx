@@ -38,7 +38,7 @@ export default function LandingPage() {
                 <Sparkles className="w-5 h-5 lg:w-6 lg:h-6 text-white" />
               </div>
               <span className="text-xl lg:text-2xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
-                Hello Interview
+                Easy Interview
               </span>
             </Link>
             <div className="flex items-center gap-2 sm:gap-4">
@@ -146,7 +146,7 @@ export default function LandingPage() {
         <div className="container mx-auto max-w-6xl">
           <div className="text-center mb-10 sm:mb-12 lg:mb-16">
             <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-3 sm:mb-4">
-              Why Choose Hello Interview?
+              Why Choose Easy Interview?
             </h2>
             <p className="text-sm sm:text-base lg:text-lg text-gray-600 max-w-2xl mx-auto">
               Everything you need to ace technical and behavioral interviews
@@ -312,7 +312,7 @@ export default function LandingPage() {
               </h2>
               <p className="text-sm sm:text-base lg:text-lg text-gray-700 mb-6 sm:mb-8 max-w-2xl mx-auto">
                 Join 5,000+ students who have improved their interview skills
-                with Hello Interview
+                with Easy Interview
               </p>
               <Link href="/sign-up">
                 <Button
@@ -333,7 +333,7 @@ export default function LandingPage() {
       <footer className="py-6 sm:py-8 px-4 sm:px-6 border-t bg-white/80 backdrop-blur-sm">
         <div className="container mx-auto text-center">
           <p className="text-xs sm:text-sm text-gray-600">
-            © 2025 Hello Interview. Built with ❤️ for Indian students.
+            © 2025 Easy Interview.
           </p>
         </div>
       </footer>

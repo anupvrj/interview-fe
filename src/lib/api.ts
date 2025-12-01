@@ -118,6 +118,65 @@ export interface Interview {
   updatedAt: string;
 }
 
+export interface InterviewReport {
+  _id: string;
+  reportId: string;
+  interviewId: string;
+  userId: string;
+  overallScore: number;
+  categoryScores: {
+    technical: number;
+    behavioral: number;
+    communication: number;
+    confidence: number;
+  };
+  qaAnalysis: Array<{
+    question: string;
+    candidateAnswer: string;
+    suggestedAnswer: string;
+    correctnessScore: number;
+    clarityScore: number;
+    completenessScore: number;
+    questionType: "technical" | "behavioral" | "system-design" | "hr";
+    questionDifficulty: "easy" | "medium" | "hard";
+    feedback: string;
+    strengths: string[];
+    improvements: string[];
+    answerMatchedQuestion: boolean;
+    technicalDepthMatch: "below" | "meets" | "exceeds";
+    experienceAlignmentScore: number;
+    validationNotes?: string;
+  }>;
+  strengths: string[];
+  improvements: string[];
+  domainSpecificFeedback: Array<{
+    domain: string;
+    score: number;
+    feedback: string;
+    recommendations: string[];
+  }>;
+  behavioral: {
+    confidence: number;
+    clarity: number;
+    fluency: number;
+    fillersPerMinute: number;
+    averageWordCount?: number;
+    pauseFrequency?: string;
+  };
+  llmMetadata: {
+    model: string;
+    promptVersion: string;
+    tokens: {
+      input: number;
+      output: number;
+    };
+    cost: number;
+    generatedAt: string;
+  };
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface CreateInterviewRequest {
   role: string;
   experience: number;
@@ -305,8 +364,15 @@ export const interviewApi = {
     await apiClient.post(`/interviews/${interviewId}/complete`, formData);
   },
 
-  getReport: async (interviewId: string): Promise<Interview> => {
+  getInterview: async (interviewId: string): Promise<Interview> => {
     const response = await apiClient.get<{ data: Interview }>(
+      `/interviews/detail/${interviewId}`
+    );
+    return response.data.data;
+  },
+
+  getReport: async (interviewId: string): Promise<InterviewReport> => {
+    const response = await apiClient.get<{ data: InterviewReport }>(
       `/interviews/${interviewId}/report`
     );
     return response.data.data;

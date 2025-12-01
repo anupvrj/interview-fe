@@ -763,7 +763,7 @@ export default function RealtimeInterviewPage() {
       console.log("🖥️ Requesting screen capture...");
       console.log("💡 The current tab should now appear in the picker!");
       console.log(
-        "   1. Select the 'Hello Interview' tab (should be visible now)"
+        "   1. Select the 'Easy Interview' tab (should be visible now)"
       );
       console.log(
         "   2. Enable 'Also share tab audio' checkbox for best quality"
@@ -823,7 +823,7 @@ export default function RealtimeInterviewPage() {
             "Please:\n" +
             "1. Click Cancel below\n" +
             "2. Click 'Start Recording' again\n" +
-            "3. In the screen share dialog, select the tab with 'Hello Interview'\n" +
+            "3. In the screen share dialog, select the tab with 'Easy Interview'\n" +
             "4. Enable the 'Also share tab audio' checkbox\n\n" +
             "Click OK to continue anyway (AI voice may not be captured fully), or Cancel to retry."
         );
@@ -1750,7 +1750,7 @@ export default function RealtimeInterviewPage() {
                 picker
               </p>
               <p>
-                ✅ Select the <strong>"Hello Interview"</strong> tab
+                ✅ Select the <strong>"Easy Interview"</strong> tab
               </p>
               <p>
                 🔊 Enable <strong>"Also share tab audio"</strong> to capture AI

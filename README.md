@@ -1,6 +1,6 @@
-# Hello Interview - Frontend
+# Easy Interview - Frontend
 
-Modern, responsive Next.js frontend for the Hello Interview AI mock interview platform.
+Modern, responsive Next.js frontend for the Easy Interview AI mock interview platform.
 
 ## 🎨 Tech Stack
 
@@ -284,4 +284,4 @@ See main [README](../README.md) for contribution guidelines.
 
 ---
 
-Made with 💜 by Hello Interview Team
+Made with 💜 by Easy Interview Team
