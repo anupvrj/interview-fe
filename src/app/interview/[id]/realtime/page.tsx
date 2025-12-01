@@ -74,10 +74,10 @@ export default function RealtimeInterviewPage() {
         setTimeout(checkVideoElement, 100);
       }
     };
-    
+
     // Start checking after component mounts
     const timeoutId = setTimeout(checkVideoElement, 100);
-    
+
     return () => clearTimeout(timeoutId);
   }, []);
 
