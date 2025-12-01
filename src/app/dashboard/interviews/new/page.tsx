@@ -306,7 +306,10 @@ export default function NewInterviewPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="px-4 sm:px-6">
-                <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
+                <form
+                  onSubmit={handleSubmit}
+                  className="space-y-4 sm:space-y-6"
+                >
                   {/* Role Input */}
                   <div className="space-y-2">
                     <Label
