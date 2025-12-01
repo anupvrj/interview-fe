@@ -14,6 +14,8 @@ import {
   AlertCircle,
   PhoneOff,
   Volume2,
+  Circle,
+  Square,
 } from "lucide-react";
 import { interviewApi, Interview } from "@/lib/api";
 import { formatDuration } from "@/lib/utils";
@@ -35,6 +37,8 @@ export default function RealtimeInterviewPage() {
   const [videoStreamActive, setVideoStreamActive] = useState(false);
   const [isMicOn, setIsMicOn] = useState(true);
   const [isUserSpeaking, setIsUserSpeaking] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [isUploadingRecording, setIsUploadingRecording] = useState(false);
 
   // Transcript state
   const [transcript, setTranscript] = useState<
@@ -54,6 +58,8 @@ export default function RealtimeInterviewPage() {
   const audioQueueRef = useRef<Int16Array[]>([]);
   const isPlayingAudioRef = useRef(false);
   const isInterviewActiveRef = useRef(false);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const recordedChunksRef = useRef<Blob[]>([]);
 
   useEffect(() => {
     loadInterview();
@@ -247,10 +253,22 @@ export default function RealtimeInterviewPage() {
     if (websocketRef.current) websocketRef.current.close();
     if (audioProcessorRef.current) audioProcessorRef.current.disconnect();
     if (audioContextRef.current) audioContextRef.current.close();
+    // Stop recording if active
+    if (
+      mediaRecorderRef.current &&
+      mediaRecorderRef.current.state !== "inactive"
+    ) {
+      try {
+        mediaRecorderRef.current.stop();
+      } catch (error) {
+        console.error("Error stopping recorder during cleanup:", error);
+      }
+    }
     if (mediaStreamRef.current) {
       mediaStreamRef.current.getTracks().forEach((track) => track.stop());
     }
     audioQueueRef.current = [];
+    recordedChunksRef.current = [];
     isPlayingAudioRef.current = false;
     isInterviewActiveRef.current = false;
   };
@@ -675,6 +693,116 @@ export default function RealtimeInterviewPage() {
     }
   };
 
+  const startRecording = async () => {
+    if (!mediaStreamRef.current) {
+      setError("Media stream not available. Please wait for camera to load.");
+      return;
+    }
+
+    try {
+      // Check if MediaRecorder is supported
+      if (!MediaRecorder.isTypeSupported("video/webm")) {
+        throw new Error("WebM video format is not supported in this browser.");
+      }
+
+      recordedChunksRef.current = [];
+      const mediaRecorder = new MediaRecorder(mediaStreamRef.current, {
+        mimeType: "video/webm;codecs=vp8,opus",
+        videoBitsPerSecond: 2500000, // 2.5 Mbps
+      });
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data && event.data.size > 0) {
+          recordedChunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorder.onstop = async () => {
+        console.log("📹 Recording stopped, preparing upload...");
+        await uploadRecording();
+      };
+
+      mediaRecorder.onerror = (event) => {
+        console.error("❌ MediaRecorder error:", event);
+        setError("Recording error occurred. Please try again.");
+        setIsRecording(false);
+      };
+
+      mediaRecorderRef.current = mediaRecorder;
+      mediaRecorder.start(1000); // Collect data every second
+      setIsRecording(true);
+      console.log("🔴 Recording started");
+    } catch (error: any) {
+      console.error("❌ Error starting recording:", error);
+      setError(`Failed to start recording: ${error.message}`);
+    }
+  };
+
+  const stopRecording = () => {
+    if (
+      mediaRecorderRef.current &&
+      mediaRecorderRef.current.state !== "inactive"
+    ) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+      console.log("⏹️ Stopping recording...");
+    }
+  };
+
+  const uploadRecording = async () => {
+    if (recordedChunksRef.current.length === 0) {
+      console.error("❌ No recording data to upload");
+      return;
+    }
+
+    try {
+      setIsUploadingRecording(true);
+      const blob = new Blob(recordedChunksRef.current, { type: "video/webm" });
+      const file = new File([blob], `${interviewId}.webm`, {
+        type: "video/webm",
+      });
+
+      console.log(
+        `📤 Uploading recording: ${(file.size / 1024 / 1024).toFixed(2)} MB`
+      );
+
+      // Upload to backend
+      const formData = new FormData();
+      formData.append("recording", file);
+
+      const userId = localStorage.getItem("clerk-user-id");
+      if (!userId) {
+        throw new Error("User not authenticated");
+      }
+
+      const response = await fetch(
+        `${
+          process.env.NEXT_PUBLIC_API_URL || "http://localhost:5004/api"
+        }/interviews/${interviewId}/recording?userId=${userId}`,
+        {
+          method: "POST",
+          body: formData,
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to upload recording");
+      }
+
+      const result = await response.json();
+      console.log("✅ Recording uploaded successfully:", result);
+
+      // Clear recorded chunks
+      recordedChunksRef.current = [];
+    } catch (error: any) {
+      console.error("❌ Error uploading recording:", error);
+      setError(`Failed to upload recording: ${error.message}`);
+    } finally {
+      setIsUploadingRecording(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-pink-50 flex items-center justify-center">
@@ -921,6 +1049,23 @@ export default function RealtimeInterviewPage() {
               <Video className="w-6 h-6" />
             ) : (
               <VideoOff className="w-6 h-6" />
+            )}
+          </Button>
+          <Button
+            variant={isRecording ? "destructive" : "default"}
+            size="lg"
+            onClick={isRecording ? stopRecording : startRecording}
+            disabled={isUploadingRecording || !mediaStreamRef.current}
+            className={`rounded-full w-16 h-16 ${
+              isRecording ? "animate-pulse" : ""
+            }`}
+          >
+            {isUploadingRecording ? (
+              <Loader2 className="w-6 h-6 animate-spin" />
+            ) : isRecording ? (
+              <Square className="w-6 h-6" />
+            ) : (
+              <Circle className="w-6 h-6 fill-red-500 text-red-500" />
             )}
           </Button>
         </div>
