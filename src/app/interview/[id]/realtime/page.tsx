@@ -32,6 +32,7 @@ export default function RealtimeInterviewPage() {
   const [isInterviewActive, setIsInterviewActive] = useState(false);
   const [elapsedTime, setElapsedTime] = useState(0);
   const [isCameraOn, setIsCameraOn] = useState(true);
+  const [videoStreamActive, setVideoStreamActive] = useState(false);
   const [isMicOn, setIsMicOn] = useState(true);
   const [isUserSpeaking, setIsUserSpeaking] = useState(false);
 
@@ -83,11 +84,26 @@ export default function RealtimeInterviewPage() {
 
   const setupMediaStream = async () => {
     try {
-      console.log("🎤 Requesting microphone access...");
+      // Check if getUserMedia is available
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error(
+          "getUserMedia is not supported in this browser. Please use a modern browser."
+        );
+      }
+
+      // Check if we're on HTTPS (required for production)
+      if (window.location.protocol !== "https:" && window.location.hostname !== "localhost") {
+        console.warn(
+          "⚠️ Camera/microphone access requires HTTPS in production"
+        );
+      }
+
+      console.log("🎤 Requesting camera and microphone access...");
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
           width: { ideal: 1280 },
           height: { ideal: 720 },
+          facingMode: "user", // Front-facing camera
         },
         audio: {
           echoCancellation: true,
@@ -99,12 +115,15 @@ export default function RealtimeInterviewPage() {
       });
 
       console.log("✅ Media stream acquired");
+      console.log("Video tracks:", stream.getVideoTracks().length);
+      console.log("Audio tracks:", stream.getAudioTracks().length);
       console.log(
-        "Audio tracks:",
-        stream.getAudioTracks().map((t) => ({
+        "Video track:",
+        stream.getVideoTracks().map((t) => ({
           label: t.label,
           kind: t.kind,
           enabled: t.enabled,
+          readyState: t.readyState,
         }))
       );
 
@@ -112,14 +131,63 @@ export default function RealtimeInterviewPage() {
 
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        // Explicitly play the video
-        videoRef.current.play().catch((err) => {
-          console.error("Error playing video:", err);
-        });
+        videoRef.current.muted = true; // Required for autoplay
+        videoRef.current.playsInline = true; // Required for mobile
+        
+        // Explicitly play the video with better error handling
+        try {
+          await videoRef.current.play();
+          console.log("✅ Video playback started");
+          setVideoStreamActive(true);
+          
+          // Verify video is actually playing
+          videoRef.current.addEventListener("playing", () => {
+            console.log("✅ Video is playing");
+            setVideoStreamActive(true);
+          });
+          
+          videoRef.current.addEventListener("loadedmetadata", () => {
+            console.log("✅ Video metadata loaded");
+          });
+        } catch (playError: any) {
+          console.error("❌ Error playing video:", playError);
+          setVideoStreamActive(false);
+          // Try to get more specific error info
+          if (playError.name === "NotAllowedError") {
+            setError(
+              "Video autoplay was blocked. Please interact with the page first."
+            );
+          } else {
+            setError(`Video playback error: ${playError.message}`);
+          }
+        }
+      } else {
+        console.error("❌ Video element ref is null");
+        setError("Video element not found. Please refresh the page.");
       }
-    } catch (error) {
-      console.error("Error accessing media devices:", error);
-      setError("Please allow camera and microphone access to continue.");
+    } catch (error: any) {
+      console.error("❌ Error accessing media devices:", error);
+      
+      // Provide specific error messages
+      let errorMessage = "Please allow camera and microphone access to continue.";
+      
+      if (error.name === "NotAllowedError" || error.name === "PermissionDeniedError") {
+        errorMessage =
+          "Camera and microphone access was denied. Please allow permissions and refresh the page.";
+      } else if (error.name === "NotFoundError" || error.name === "DevicesNotFoundError") {
+        errorMessage =
+          "No camera or microphone found. Please connect a camera and microphone.";
+      } else if (error.name === "NotReadableError" || error.name === "TrackStartError") {
+        errorMessage =
+          "Camera or microphone is already in use by another application.";
+      } else if (error.name === "OverconstrainedError" || error.name === "ConstraintNotSatisfiedError") {
+        errorMessage =
+          "Camera or microphone doesn't support the required settings.";
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      setError(errorMessage);
     }
   };
 
@@ -702,10 +770,27 @@ export default function RealtimeInterviewPage() {
                   playsInline
                   muted
                   className="w-full h-full object-cover"
+                  onLoadedMetadata={() => {
+                    console.log("Video metadata loaded");
+                    setVideoStreamActive(true);
+                  }}
+                  onPlaying={() => {
+                    console.log("Video is playing");
+                    setVideoStreamActive(true);
+                  }}
+                  onError={(e) => {
+                    console.error("Video element error:", e);
+                    setVideoStreamActive(false);
+                  }}
                 />
-                {!isCameraOn && (
+                {(!isCameraOn || !videoStreamActive) && (
                   <div className="absolute inset-0 bg-gray-900 flex items-center justify-center">
                     <VideoOff className="w-16 h-16 text-gray-600" />
+                    {!videoStreamActive && (
+                      <p className="absolute bottom-4 text-sm text-gray-400">
+                        Waiting for camera...
+                      </p>
+                    )}
                   </div>
                 )}
               </div>
