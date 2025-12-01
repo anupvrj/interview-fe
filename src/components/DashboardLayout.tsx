@@ -69,23 +69,13 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-pink-50">
       {/* Mobile Header */}
       <header className="lg:hidden bg-white border-b shadow-sm sticky top-0 z-50">
-        <div className="flex items-center justify-between px-4 py-3">
-          <Link
-            href="/"
-            className="flex items-center gap-2 hover:opacity-80 transition-opacity"
-          >
-            <div className="w-8 h-8 bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg flex items-center justify-center">
-              <Sparkles className="w-5 h-5 text-white" />
-            </div>
-            <span className="text-xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
-              Easy Interview
-            </span>
-          </Link>
-          <div className="flex items-center gap-2">
+        <div className="flex items-center justify-between gap-2 px-3 py-2.5">
+          <div className="flex items-center gap-2 min-w-0 flex-1">
             <Button
               variant="ghost"
               size="icon"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="flex-shrink-0 h-9 w-9"
             >
               {mobileMenuOpen ? (
                 <X className="w-5 h-5" />
@@ -93,16 +83,28 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 <Menu className="w-5 h-5" />
               )}
             </Button>
-            <Link href="/dashboard/interviews/new">
-              <Button
-                size="sm"
-                className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white"
-              >
-                <PlayCircle className="w-4 h-4 mr-2" />
-                Start Interview
-              </Button>
+            <Link
+              href="/"
+              className="flex items-center gap-1.5 hover:opacity-80 transition-opacity min-w-0"
+            >
+              <div className="w-7 h-7 bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                <Sparkles className="w-4 h-4 text-white" />
+              </div>
+              <span className="text-base sm:text-lg font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent truncate">
+                Easy Interview
+              </span>
             </Link>
           </div>
+          <Link href="/dashboard/interviews/new" className="flex-shrink-0">
+            <Button
+              size="sm"
+              className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white h-9 px-3 gap-1.5 text-xs sm:text-sm shadow-md"
+            >
+              <PlayCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              <span className="hidden xs:inline">Start</span>
+              <span className="hidden sm:inline">Interview</span>
+            </Button>
+          </Link>
         </div>
       </header>
 

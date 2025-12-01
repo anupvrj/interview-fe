@@ -183,9 +183,9 @@ export default function NewInterviewPage() {
   };
 
   return (
-    <div className="w-full max-w-6xl mx-auto space-y-4 lg:space-y-6">
+    <div className="w-full max-w-6xl mx-auto space-y-4 lg:space-y-6 px-4 sm:px-6 lg:px-8">
       {/* Hero Header Section */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-purple-600 via-blue-600 to-pink-600 p-6 lg:p-8 text-white">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-purple-600 via-blue-600 to-pink-600 p-4 sm:p-6 lg:p-8 text-white">
         <div className="relative z-10">
           <div className="flex items-center gap-3 mb-3">
             <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
@@ -288,25 +288,25 @@ export default function NewInterviewPage() {
 
       {/* Main Form - Only show if limit check allows */}
       {limitCheck && limitCheck.allowed && (
-        <div className="grid lg:grid-cols-3 gap-6 lg:gap-8">
+        <div className="grid lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
           {/* Left Column - Form */}
-          <div className="lg:col-span-2 space-y-6">
-            <Card className="border-2 shadow-xl bg-white/80 backdrop-blur-sm">
-              <CardHeader className="pb-4">
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-blue-500 rounded-lg flex items-center justify-center">
-                    <Briefcase className="w-5 h-5 text-white" />
+          <div className="lg:col-span-2 space-y-4 sm:space-y-6">
+            <Card className="border-2 shadow-xl bg-white/80 backdrop-blur-sm overflow-hidden">
+              <CardHeader className="pb-3 sm:pb-4 px-4 sm:px-6">
+                <div className="flex items-center gap-2 sm:gap-3 mb-2">
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-purple-500 to-blue-500 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <Briefcase className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                   </div>
-                  <CardTitle className="text-2xl lg:text-3xl">
+                  <CardTitle className="text-lg sm:text-2xl lg:text-3xl">
                     Interview Details
                   </CardTitle>
                 </div>
-                <CardDescription className="text-base">
+                <CardDescription className="text-sm sm:text-base">
                   Fill in the details to personalize your interview experience
                 </CardDescription>
               </CardHeader>
-              <CardContent>
-                <form onSubmit={handleSubmit} className="space-y-6">
+              <CardContent className="px-4 sm:px-6">
+                <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
                   {/* Role Input */}
                   <div className="space-y-2">
                     <Label
