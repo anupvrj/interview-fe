@@ -559,9 +559,7 @@ export default function NewInterviewPage() {
                               </div>
                               <div>
                                 <p className="text-xs sm:text-sm font-semibold text-gray-700 mb-1">
-                                  {isDragActive
-                                    ? "Drop here"
-                                    : "Tap to upload"}
+                                  {isDragActive ? "Drop here" : "Tap to upload"}
                                 </p>
                                 <p className="text-xs text-gray-400">
                                   PDF only • Max 5 MB
@@ -580,9 +578,7 @@ export default function NewInterviewPage() {
                                   {uploadedFile.name}
                                 </p>
                                 <p className="text-xs text-gray-600">
-                                  {(uploadedFile.size / 1024 / 1024).toFixed(
-                                    2
-                                  )}{" "}
+                                  {(uploadedFile.size / 1024 / 1024).toFixed(2)}{" "}
                                   MB
                                 </p>
                               </div>
