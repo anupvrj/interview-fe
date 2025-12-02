@@ -183,7 +183,7 @@ export default function NewInterviewPage() {
   };
 
   return (
-    <div className="w-full max-w-6xl mx-auto space-y-4 lg:space-y-6 px-4 sm:px-6 lg:px-8">
+    <div className="w-full max-w-6xl mx-auto space-y-4 lg:space-y-6">
       {/* Hero Header Section */}
       <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-purple-600 via-blue-600 to-pink-600 p-4 sm:p-6 lg:p-8 text-white">
         <div className="relative z-10">
@@ -292,20 +292,20 @@ export default function NewInterviewPage() {
           {/* Left Column - Form */}
           <div className="lg:col-span-2 space-y-4 sm:space-y-6">
             <Card className="border-2 shadow-xl bg-white/80 backdrop-blur-sm overflow-hidden">
-              <CardHeader className="pb-3 sm:pb-4 px-4 sm:px-6">
+              <CardHeader className="pb-3 sm:pb-4 px-3 sm:px-6">
                 <div className="flex items-center gap-2 sm:gap-3 mb-2">
                   <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-purple-500 to-blue-500 rounded-lg flex items-center justify-center flex-shrink-0">
                     <Briefcase className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                   </div>
-                  <CardTitle className="text-lg sm:text-2xl lg:text-3xl">
+                  <CardTitle className="text-base sm:text-xl lg:text-2xl">
                     Interview Details
                   </CardTitle>
                 </div>
-                <CardDescription className="text-sm sm:text-base">
+                <CardDescription className="text-xs sm:text-sm">
                   Fill in the details to personalize your interview experience
                 </CardDescription>
               </CardHeader>
-              <CardContent className="px-4 sm:px-6">
+              <CardContent className="px-3 sm:px-6">
                 <form
                   onSubmit={handleSubmit}
                   className="space-y-4 sm:space-y-6"
@@ -316,18 +316,18 @@ export default function NewInterviewPage() {
                       htmlFor="role"
                       className="text-sm font-semibold text-gray-700 flex items-center gap-2"
                     >
-                      <Target className="w-4 h-4 text-purple-600" />
+                      <Target className="w-4 h-4 text-purple-600 flex-shrink-0" />
                       Role You're Applying For
                       <span className="text-red-500">*</span>
                     </Label>
                     <Input
                       id="role"
-                      placeholder="e.g., Software Developer, Data Analyst, Product Manager"
+                      placeholder="e.g., Software Developer"
                       value={formData.role}
                       onChange={(e) =>
                         setFormData({ ...formData, role: e.target.value })
                       }
-                      className={`h-12 text-base ${
+                      className={`h-11 sm:h-12 text-sm sm:text-base w-full ${
                         errors.role
                           ? "border-red-500 focus:ring-red-500"
                           : "border-gray-300 focus:border-purple-500 focus:ring-purple-500"
@@ -357,7 +357,7 @@ export default function NewInterviewPage() {
                           setFormData({ ...formData, experience: value })
                         }
                       >
-                        <SelectTrigger className="h-12 text-base">
+                        <SelectTrigger className="h-11 sm:h-12 text-sm sm:text-base w-full">
                           <SelectValue placeholder="Select experience" />
                         </SelectTrigger>
                         <SelectContent>
@@ -385,7 +385,7 @@ export default function NewInterviewPage() {
                           setFormData({ ...formData, language: value })
                         }
                       >
-                        <SelectTrigger className="h-12 text-base">
+                        <SelectTrigger className="h-11 sm:h-12 text-sm sm:text-base w-full">
                           <SelectValue placeholder="Select language" />
                         </SelectTrigger>
                         <SelectContent>
@@ -402,12 +402,12 @@ export default function NewInterviewPage() {
                       htmlFor="targetCompany"
                       className="text-sm font-semibold text-gray-700 flex items-center gap-2"
                     >
-                      <Building2 className="w-4 h-4 text-pink-600" />
+                      <Building2 className="w-4 h-4 text-pink-600 flex-shrink-0" />
                       Target Company (Optional)
                     </Label>
                     <Input
                       id="targetCompany"
-                      placeholder="e.g., TCS, Infosys, Wipro, Amazon, Google"
+                      placeholder="e.g., TCS, Amazon, Google"
                       value={formData.targetCompany}
                       onChange={(e) =>
                         setFormData({
@@ -415,7 +415,7 @@ export default function NewInterviewPage() {
                           targetCompany: e.target.value,
                         })
                       }
-                      className="h-12 text-base border-gray-300 focus:border-purple-500 focus:ring-purple-500 transition-all"
+                      className="h-11 sm:h-12 text-sm sm:text-base w-full border-gray-300 focus:border-purple-500 focus:ring-purple-500 transition-all"
                     />
                     <p className="text-xs text-gray-500 flex items-center gap-1">
                       <Zap className="w-3 h-3" />

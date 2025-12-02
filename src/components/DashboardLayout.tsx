@@ -239,7 +239,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           </header>
 
           {/* Page Content */}
-          <div className="p-4 lg:p-8">{children}</div>
+          <div className="p-3 sm:p-4 lg:p-8">{children}</div>
         </main>
       </div>
     </div>
