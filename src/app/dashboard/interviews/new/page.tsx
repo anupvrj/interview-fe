@@ -342,7 +342,7 @@ export default function NewInterviewPage() {
                   </div>
 
                   {/* Experience and Language Grid */}
-                  <div className="grid md:grid-cols-2 gap-6">
+                  <div className="grid md:grid-cols-2 gap-3 sm:gap-4">
                     <div className="space-y-2">
                       <Label
                         htmlFor="experience"
@@ -425,21 +425,21 @@ export default function NewInterviewPage() {
                   </div>
 
                   {/* Resume Selection */}
-                  <div className="space-y-4 pt-2">
-                    <Label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                      <FileText className="w-4 h-4 text-purple-600" />
+                  <div className="space-y-2 sm:space-y-3">
+                    <Label className="text-xs sm:text-sm font-semibold text-gray-700 flex items-center gap-1.5">
+                      <FileText className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-purple-600 flex-shrink-0" />
                       Resume
                       <span className="text-red-500">*</span>
                     </Label>
 
                     {/* Saved Resume Option */}
                     {userProfile?.resume && (
-                      <div className="space-y-3">
+                      <div className="space-y-2">
                         <div
-                          className={`relative border-2 rounded-xl p-5 cursor-pointer transition-all duration-300 ${
+                          className={`relative border-2 rounded-lg p-2.5 sm:p-3 cursor-pointer transition-all ${
                             useSavedResume
-                              ? "border-purple-500 bg-gradient-to-br from-purple-50 to-blue-50 shadow-lg scale-[1.02]"
-                              : "border-gray-200 bg-white hover:border-purple-300 hover:shadow-md"
+                              ? "border-purple-500 bg-gradient-to-br from-purple-50 to-blue-50"
+                              : "border-gray-200 bg-white"
                           }`}
                           onClick={() => {
                             setUseSavedResume(true);
@@ -456,64 +456,52 @@ export default function NewInterviewPage() {
                           role="button"
                           tabIndex={0}
                         >
-                          <div className="flex items-start justify-between gap-4">
-                            <div className="flex items-start gap-4 flex-1">
-                              <div
-                                className={`w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 mt-0.5 transition-all ${
-                                  useSavedResume
-                                    ? "border-purple-600 bg-purple-600 shadow-md"
-                                    : "border-gray-300"
-                                }`}
-                              >
-                                {useSavedResume && (
-                                  <div className="w-2.5 h-2.5 rounded-full bg-white" />
-                                )}
-                              </div>
-                              <div className="flex items-start gap-3 flex-1">
-                                <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-blue-500 rounded-lg flex items-center justify-center flex-shrink-0 shadow-md">
-                                  <FileText className="w-6 h-6 text-white" />
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-base font-semibold text-gray-900 mb-1">
-                                    Use saved resume
-                                  </p>
-                                  <p className="text-sm text-gray-600 truncate">
-                                    {userProfile.resume.filename}
-                                  </p>
-                                  <p className="text-xs text-gray-500 mt-1">
-                                    Uploaded on{" "}
-                                    {new Date(
-                                      userProfile.resume.uploadedAt
-                                    ).toLocaleDateString("en-IN", {
-                                      day: "numeric",
-                                      month: "short",
-                                      year: "numeric",
-                                    })}
-                                  </p>
-                                </div>
-                              </div>
+                          <div className="flex items-center gap-2 sm:gap-3">
+                            <div
+                              className={`w-4 h-4 sm:w-5 sm:h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
+                                useSavedResume
+                                  ? "border-purple-600 bg-purple-600"
+                                  : "border-gray-300"
+                              }`}
+                            >
+                              {useSavedResume && (
+                                <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-white" />
+                              )}
+                            </div>
+                            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-purple-500 to-blue-500 rounded-lg flex items-center justify-center flex-shrink-0">
+                              <FileText className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs sm:text-sm font-semibold text-gray-900 truncate">
+                                {userProfile.resume.filename}
+                              </p>
+                              <p className="text-xs text-gray-500 truncate">
+                                {new Date(
+                                  userProfile.resume.uploadedAt
+                                ).toLocaleDateString("en-IN", {
+                                  day: "numeric",
+                                  month: "short",
+                                  year: "numeric",
+                                })}
+                              </p>
                             </div>
                             {useSavedResume && (
-                              <div className="flex-shrink-0">
-                                <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center shadow-md">
-                                  <CheckCircle className="w-5 h-5 text-white" />
-                                </div>
-                              </div>
+                              <CheckCircle className="w-5 h-5 sm:w-6 sm:h-6 text-green-500 flex-shrink-0" />
                             )}
                           </div>
                         </div>
-                        <p className="text-xs text-gray-500 ml-10">
-                          Or upload a new resume below
+                        <p className="text-xs text-gray-500 pl-11 sm:pl-12">
+                          Or upload new below
                         </p>
                       </div>
                     )}
 
                     {/* Upload New Resume Option */}
                     <div
-                      className={`relative border-2 rounded-xl p-5 cursor-pointer transition-all duration-300 ${
+                      className={`relative border-2 rounded-lg p-2.5 sm:p-3 cursor-pointer transition-all ${
                         !useSavedResume
-                          ? "border-purple-500 bg-gradient-to-br from-purple-50 to-blue-50 shadow-lg scale-[1.02]"
-                          : "border-gray-200 bg-white hover:border-purple-300 hover:shadow-md"
+                          ? "border-purple-500 bg-gradient-to-br from-purple-50 to-blue-50"
+                          : "border-gray-200 bg-white"
                       }`}
                       onClick={() => {
                         setUseSavedResume(false);
@@ -526,95 +514,86 @@ export default function NewInterviewPage() {
                       role="button"
                       tabIndex={0}
                     >
-                      <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-2 sm:gap-3">
                         <div
-                          className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${
+                          className={`w-4 h-4 sm:w-5 sm:h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
                             !useSavedResume
-                              ? "border-purple-600 bg-purple-600 shadow-md"
+                              ? "border-purple-600 bg-purple-600"
                               : "border-gray-300"
                           }`}
                         >
                           {!useSavedResume && (
-                            <div className="w-2.5 h-2.5 rounded-full bg-white" />
+                            <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-white" />
                           )}
                         </div>
-                        <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-lg flex items-center justify-center shadow-md">
-                          <Upload className="w-6 h-6 text-white" />
+                        <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-lg flex items-center justify-center flex-shrink-0">
+                          <Upload className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                         </div>
-                        <span className="text-base font-semibold text-gray-900">
+                        <span className="text-xs sm:text-sm font-semibold text-gray-900 flex-1">
                           Upload new resume
                         </span>
                         {!useSavedResume && (
-                          <div className="ml-auto">
-                            <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center shadow-md">
-                              <CheckCircle className="w-5 h-5 text-white" />
-                            </div>
-                          </div>
+                          <CheckCircle className="w-5 h-5 sm:w-6 sm:h-6 text-green-500 flex-shrink-0" />
                         )}
                       </div>
                     </div>
 
                     {/* File Upload Area */}
                     {!useSavedResume && (
-                      <div className="mt-4">
+                      <div className="mt-2">
                         {!uploadedFile ? (
                           <div
                             {...getRootProps()}
-                            className={`border-2 border-dashed rounded-xl p-8 lg:p-12 text-center cursor-pointer transition-all duration-300 ${
+                            className={`border-2 border-dashed rounded-lg p-4 sm:p-6 text-center cursor-pointer transition-all ${
                               isDragActive
-                                ? "border-purple-500 bg-gradient-to-br from-purple-50 to-blue-50 shadow-lg scale-[1.02]"
+                                ? "border-purple-500 bg-gradient-to-br from-purple-50 to-blue-50"
                                 : errors.resume
                                 ? "border-red-400 bg-red-50"
-                                : "border-gray-300 bg-gray-50/50 hover:border-purple-400 hover:bg-purple-50/50 hover:shadow-md"
+                                : "border-gray-300 bg-gray-50/50"
                             }`}
                           >
                             <input {...getInputProps()} />
-                            <div className="flex flex-col items-center gap-4">
-                              <div className="w-20 h-20 bg-gradient-to-br from-purple-500 to-blue-500 rounded-2xl flex items-center justify-center shadow-lg">
-                                <Upload className="w-10 h-10 text-white" />
+                            <div className="flex flex-col items-center gap-2 sm:gap-3">
+                              <div className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-purple-500 to-blue-500 rounded-xl flex items-center justify-center">
+                                <Upload className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
                               </div>
                               <div>
-                                <p className="text-base font-semibold text-gray-700 mb-2">
+                                <p className="text-xs sm:text-sm font-semibold text-gray-700 mb-1">
                                   {isDragActive
-                                    ? "Drop your resume here"
-                                    : "Drag & drop your resume here"}
+                                    ? "Drop here"
+                                    : "Tap to upload"}
                                 </p>
-                                <p className="text-sm text-gray-500 mb-3">
-                                  or click to browse
-                                </p>
-                                <p className="text-xs text-gray-400 bg-white/60 px-3 py-1.5 rounded-full inline-block">
+                                <p className="text-xs text-gray-400">
                                   PDF only • Max 5 MB
                                 </p>
                               </div>
                             </div>
                           </div>
                         ) : (
-                          <div className="border-2 border-green-400 bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-5 shadow-lg">
-                            <div className="flex items-center justify-between gap-4">
-                              <div className="flex items-center gap-4 flex-1 min-w-0">
-                                <div className="w-14 h-14 bg-gradient-to-br from-green-500 to-emerald-500 rounded-xl flex items-center justify-center shadow-md flex-shrink-0">
-                                  <FileText className="w-7 h-7 text-white" />
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-base font-semibold text-gray-900 truncate">
-                                    {uploadedFile.name}
-                                  </p>
-                                  <p className="text-sm text-gray-600">
-                                    {(uploadedFile.size / 1024 / 1024).toFixed(
-                                      2
-                                    )}{" "}
-                                    MB
-                                  </p>
-                                </div>
+                          <div className="border-2 border-green-400 bg-gradient-to-br from-green-50 to-emerald-50 rounded-lg p-2.5 sm:p-3">
+                            <div className="flex items-center gap-2 sm:gap-3">
+                              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-green-500 to-emerald-500 rounded-lg flex items-center justify-center flex-shrink-0">
+                                <FileText className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs sm:text-sm font-semibold text-gray-900 truncate">
+                                  {uploadedFile.name}
+                                </p>
+                                <p className="text-xs text-gray-600">
+                                  {(uploadedFile.size / 1024 / 1024).toFixed(
+                                    2
+                                  )}{" "}
+                                  MB
+                                </p>
                               </div>
                               <Button
                                 type="button"
                                 variant="ghost"
                                 size="icon"
                                 onClick={() => setUploadedFile(null)}
-                                className="h-10 w-10 rounded-lg hover:bg-red-100 hover:text-red-600 transition-colors"
+                                className="h-8 w-8 sm:h-9 sm:w-9 rounded-lg hover:bg-red-100 hover:text-red-600 flex-shrink-0"
                               >
-                                <X className="w-5 h-5" />
+                                <X className="w-4 h-4" />
                               </Button>
                             </div>
                           </div>
@@ -638,22 +617,22 @@ export default function NewInterviewPage() {
                   )}
 
                   {/* Submit Button */}
-                  <div className="pt-4">
+                  <div className="pt-2 sm:pt-3">
                     <Button
                       type="submit"
                       variant="gradient"
                       size="lg"
-                      className="w-full h-14 text-base font-semibold shadow-lg hover:shadow-xl transition-all"
+                      className="w-full h-11 sm:h-12 text-sm sm:text-base font-semibold shadow-lg hover:shadow-xl transition-all"
                       disabled={loading || (limitCheck && !limitCheck.allowed)}
                     >
                       {loading ? (
                         <>
-                          <Loader2 className="w-5 h-5 animate-spin mr-2" />
-                          Creating Interview...
+                          <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin mr-2" />
+                          Creating...
                         </>
                       ) : (
                         <>
-                          <Zap className="w-5 h-5 mr-2" />
+                          <Zap className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
                           Start Interview
                         </>
                       )}
