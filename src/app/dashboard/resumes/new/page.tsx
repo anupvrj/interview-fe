@@ -163,41 +163,119 @@ export default function NewResumePage() {
                   onClick={() => setSelectedTemplate(template.id)}
                 >
                   <CardContent className="p-0">
-                    {/* Template Preview */}
+                    {/* Template Preview - Mini Resume Design */}
                     <div
-                      className="h-48 lg:h-56 bg-gradient-to-br rounded-t-lg relative overflow-hidden"
+                      className="h-64 lg:h-72 bg-white rounded-t-lg relative overflow-hidden border-b-2"
                       style={{
-                        background: `linear-gradient(135deg, ${template.colors.primary}15 0%, ${template.colors.accent}15 100%)`,
+                        borderColor: template.colors.primary,
                       }}
                     >
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <div className="text-center p-4">
-                          <div
-                            className="w-16 h-16 mx-auto mb-3 rounded-lg flex items-center justify-center"
+                      {/* Mini Resume Preview */}
+                      <div
+                        className="absolute inset-0 p-3 text-xs overflow-hidden"
+                        style={{
+                          fontFamily: template.layout.fontFamily,
+                          backgroundColor: template.colors.background,
+                        }}
+                      >
+                        {/* Header */}
+                        <div className="text-center mb-2 pb-2 border-b" style={{ borderColor: template.colors.primary }}>
+                          <h3
+                            className="font-bold mb-0.5"
                             style={{
-                              backgroundColor: template.colors.primary,
+                              color: template.colors.primary,
+                              fontSize: "11px",
                             }}
                           >
-                            <Sparkles className="w-8 h-8 text-white" />
-                          </div>
+                            JOHN DOE
+                          </h3>
                           <p
-                            className="font-bold text-lg"
-                            style={{ color: template.colors.primary }}
+                            className="text-[8px]"
+                            style={{ color: template.colors.secondary }}
                           >
-                            {template.name}
+                            Software Engineer
+                          </p>
+                          <p
+                            className="text-[7px] mt-0.5"
+                            style={{ color: template.colors.text }}
+                          >
+                            john@email.com • +1 (555) 123-4567
+                          </p>
+                        </div>
+
+                        {/* Profile Summary */}
+                        <div className="mb-2">
+                          <h4
+                            className="font-bold text-[9px] mb-1"
+                            style={{
+                              color: template.colors.primary,
+                              borderBottom: `1px solid ${template.colors.primary}`,
+                            }}
+                          >
+                            PROFILE
+                          </h4>
+                          <p className="text-[7px] leading-tight" style={{ color: template.colors.text }}>
+                            Innovative professional with 5+ years of experience in software development...
+                          </p>
+                        </div>
+
+                        {/* Experience */}
+                        <div className="mb-2">
+                          <h4
+                            className="font-bold text-[9px] mb-1"
+                            style={{
+                              color: template.colors.primary,
+                              borderBottom: `1px solid ${template.colors.primary}`,
+                            }}
+                          >
+                            EXPERIENCE
+                          </h4>
+                          <div className="text-[7px] leading-tight" style={{ color: template.colors.text }}>
+                            <p className="font-semibold mb-0.5">Senior Software Engineer</p>
+                            <p style={{ color: template.colors.secondary }}>Tech Corp • 2021 - Present</p>
+                            <div className="mt-0.5 space-y-0.5">
+                              <div className="flex gap-1">
+                                <span style={{ color: template.colors.accent }}>•</span>
+                                <span>Led development of cloud-native applications</span>
+                              </div>
+                              <div className="flex gap-1">
+                                <span style={{ color: template.colors.accent }}>•</span>
+                                <span>Reduced system latency by 40%</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Skills */}
+                        <div>
+                          <h4
+                            className="font-bold text-[9px] mb-1"
+                            style={{
+                              color: template.colors.primary,
+                              borderBottom: `1px solid ${template.colors.primary}`,
+                            }}
+                          >
+                            SKILLS
+                          </h4>
+                          <p className="text-[7px]" style={{ color: template.colors.text }}>
+                            JavaScript • TypeScript • React • Node.js • AWS
                           </p>
                         </div>
                       </div>
+
+                      {/* Selection Badge */}
                       {isSelected && (
                         <div className="absolute top-2 right-2">
-                          <div className="w-6 h-6 bg-purple-600 rounded-full flex items-center justify-center">
+                          <div className="w-6 h-6 bg-purple-600 rounded-full flex items-center justify-center shadow-lg">
                             <CheckCircle className="w-4 h-4 text-white" />
                           </div>
                         </div>
                       )}
+
+                      {/* ATS Badge */}
                       {template.atsOptimized && (
                         <div className="absolute top-2 left-2">
-                          <span className="px-2 py-1 text-xs font-semibold bg-green-500 text-white rounded-full">
+                          <span className="px-2 py-1 text-[10px] font-semibold bg-green-500 text-white rounded-full shadow">
                             ATS Ready
                           </span>
                         </div>
