@@ -606,6 +606,8 @@ export interface Resume {
       issuer: string;
       issueDate?: string;
       expiryDate?: string;
+      certificateId?: string;
+      link?: string;
     }>;
     awards?: Array<{
       id: string;

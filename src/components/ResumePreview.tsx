@@ -786,16 +786,38 @@ export function ResumePreview({
               <div className="space-y-2">
                 {resume.content.certificates.map((cert, index) => (
                   <div key={cert.id || index} style={{ marginBottom: "4px" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start" }}>
-                      <h3
-                        className="font-semibold"
-                        style={{
-                          fontSize: "10px",
-                          color: colors.text,
-                        }}
-                      >
-                        {cert.title}
-                      </h3>
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "start",
+                      }}
+                    >
+                      {cert.link ? (
+                        <a
+                          href={cert.link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-semibold"
+                          style={{
+                            fontSize: "10px",
+                            color: colors.primary,
+                            textDecoration: "none",
+                          }}
+                        >
+                          {cert.title}
+                        </a>
+                      ) : (
+                        <h3
+                          className="font-semibold"
+                          style={{
+                            fontSize: "10px",
+                            color: colors.text,
+                          }}
+                        >
+                          {cert.title}
+                        </h3>
+                      )}
                       <span
                         style={{
                           fontSize: "9px",
@@ -813,6 +835,7 @@ export function ResumePreview({
                       }}
                     >
                       {cert.issuer}
+                      {cert.certificateId && ` • ID: ${cert.certificateId}`}
                     </p>
                   </div>
                 ))}
@@ -845,7 +868,13 @@ export function ResumePreview({
               <div className="space-y-2">
                 {resume.content.awards.map((award, index) => (
                   <div key={award.id || index} style={{ marginBottom: "4px" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start" }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "start",
+                      }}
+                    >
                       <h3
                         className="font-semibold"
                         style={{
@@ -1010,7 +1039,13 @@ export function ResumePreview({
               <div className="space-y-2">
                 {resume.content.publications.map((pub, index) => (
                   <div key={pub.id || index} style={{ marginBottom: "4px" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start" }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "start",
+                      }}
+                    >
                       <h3
                         className="font-semibold"
                         style={{
@@ -1082,7 +1117,13 @@ export function ResumePreview({
               <div className="space-y-2">
                 {resume.content.courses.map((course, index) => (
                   <div key={course.id || index} style={{ marginBottom: "4px" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start" }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "start",
+                      }}
+                    >
                       <h3
                         className="font-semibold"
                         style={{
@@ -1153,7 +1194,13 @@ export function ResumePreview({
               <div className="space-y-2">
                 {resume.content.organisations.map((org, index) => (
                   <div key={org.id || index} style={{ marginBottom: "4px" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start" }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "start",
+                      }}
+                    >
                       <h3
                         className="font-semibold"
                         style={{

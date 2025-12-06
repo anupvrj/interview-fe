@@ -2787,45 +2787,298 @@ export default function EditResumePage() {
                 // Certificates Section
                 if (section.type === "certificates") {
                   return (
-                    <Card key={section.id} className="border transition-all" draggable onDragStart={() => handleDragStart(section.id)} onDragOver={(e) => handleDragOver(e, section.id)} onDragLeave={handleDragLeave} onDragEnd={handleDragEnd}>
+                    <Card
+                      key={section.id}
+                      className="border transition-all"
+                      draggable
+                      onDragStart={() => handleDragStart(section.id)}
+                      onDragOver={(e) => handleDragOver(e, section.id)}
+                      onDragLeave={handleDragLeave}
+                      onDragEnd={handleDragEnd}
+                    >
                       <div className="flex items-center justify-between p-4 border-b bg-gray-50">
                         <div className="flex items-center gap-2 flex-1">
                           <GripVertical className="w-4 h-4 text-gray-400 cursor-grab" />
-                          <h3 className="font-semibold text-sm">{section.title}</h3>
-                          <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => toggleSection(section.id)}>
-                            {section.expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                          <h3 className="font-semibold text-sm">
+                            {section.title}
+                          </h3>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-6 w-6"
+                            onClick={() => toggleSection(section.id)}
+                          >
+                            {section.expanded ? (
+                              <ChevronUp className="w-4 h-4" />
+                            ) : (
+                              <ChevronDown className="w-4 h-4" />
+                            )}
                           </Button>
                         </div>
                       </div>
                       {section.expanded && (
                         <CardContent className="p-4 space-y-3">
-                          {(resume.content.certificates || []).map((cert, index) => (
-                            <div key={cert.id} className="border p-3 rounded-md bg-gray-50">
-                              <div className="grid grid-cols-2 gap-3">
-                                <div className="col-span-2">
-                                  <Label className="text-xs">Certificate Title *</Label>
-                                  <Input value={cert.title} onChange={(e) => { const updated = [...(resume.content.certificates || [])]; updated[index] = { ...cert, title: e.target.value }; setResume((prev) => prev ? { ...prev, content: { ...prev.content, certificates: updated } } : null); setHasChanges(true); }} className="mt-1 h-9 text-sm" placeholder="AWS Certified Solutions Architect" />
+                          {(resume.content.certificates || []).map(
+                            (cert, index) => {
+                              const today = new Date().toISOString().slice(0, 7); // YYYY-MM format
+                              return (
+                                <div
+                                  key={cert.id}
+                                  className="border p-3 rounded-md bg-gray-50"
+                                >
+                                  <div className="space-y-3">
+                                    <div>
+                                      <Label className="text-xs">
+                                        Certificate Title *
+                                      </Label>
+                                      <Input
+                                        value={cert.title}
+                                        onChange={(e) => {
+                                          const updated = [
+                                            ...(resume.content.certificates ||
+                                              []),
+                                          ];
+                                          updated[index] = {
+                                            ...cert,
+                                            title: e.target.value,
+                                          };
+                                          setResume((prev) =>
+                                            prev
+                                              ? {
+                                                  ...prev,
+                                                  content: {
+                                                    ...prev.content,
+                                                    certificates: updated,
+                                                  },
+                                                }
+                                              : null
+                                          );
+                                          setHasChanges(true);
+                                        }}
+                                        className="mt-1 h-9 text-sm"
+                                        placeholder="AWS Certified Solutions Architect"
+                                      />
+                                    </div>
+                                    <div>
+                                      <Label className="text-xs">Issuer *</Label>
+                                      <Input
+                                        value={cert.issuer}
+                                        onChange={(e) => {
+                                          const updated = [
+                                            ...(resume.content.certificates ||
+                                              []),
+                                          ];
+                                          updated[index] = {
+                                            ...cert,
+                                            issuer: e.target.value,
+                                          };
+                                          setResume((prev) =>
+                                            prev
+                                              ? {
+                                                  ...prev,
+                                                  content: {
+                                                    ...prev.content,
+                                                    certificates: updated,
+                                                  },
+                                                }
+                                              : null
+                                          );
+                                          setHasChanges(true);
+                                        }}
+                                        className="mt-1 h-9 text-sm"
+                                        placeholder="Amazon Web Services"
+                                      />
+                                    </div>
+                                    <div>
+                                      <Label className="text-xs">
+                                        Issue Date
+                                      </Label>
+                                      <Input
+                                        value={cert.issueDate || ""}
+                                        onChange={(e) => {
+                                          const updated = [
+                                            ...(resume.content.certificates ||
+                                              []),
+                                          ];
+                                          updated[index] = {
+                                            ...cert,
+                                            issueDate: e.target.value,
+                                          };
+                                          setResume((prev) =>
+                                            prev
+                                              ? {
+                                                  ...prev,
+                                                  content: {
+                                                    ...prev.content,
+                                                    certificates: updated,
+                                                  },
+                                                }
+                                              : null
+                                          );
+                                          setHasChanges(true);
+                                        }}
+                                        className="mt-1 h-9 text-sm"
+                                        type="month"
+                                        max={today}
+                                      />
+                                    </div>
+                                    <div>
+                                      <Label className="text-xs">
+                                        Expiry Date (Optional)
+                                      </Label>
+                                      <Input
+                                        value={cert.expiryDate || ""}
+                                        onChange={(e) => {
+                                          const updated = [
+                                            ...(resume.content.certificates ||
+                                              []),
+                                          ];
+                                          updated[index] = {
+                                            ...cert,
+                                            expiryDate: e.target.value,
+                                          };
+                                          setResume((prev) =>
+                                            prev
+                                              ? {
+                                                  ...prev,
+                                                  content: {
+                                                    ...prev.content,
+                                                    certificates: updated,
+                                                  },
+                                                }
+                                              : null
+                                          );
+                                          setHasChanges(true);
+                                        }}
+                                        className="mt-1 h-9 text-sm"
+                                        type="month"
+                                      />
+                                    </div>
+                                    <div>
+                                      <Label className="text-xs">
+                                        Certificate ID (Optional)
+                                      </Label>
+                                      <Input
+                                        value={cert.certificateId || ""}
+                                        onChange={(e) => {
+                                          const updated = [
+                                            ...(resume.content.certificates ||
+                                              []),
+                                          ];
+                                          updated[index] = {
+                                            ...cert,
+                                            certificateId: e.target.value,
+                                          };
+                                          setResume((prev) =>
+                                            prev
+                                              ? {
+                                                  ...prev,
+                                                  content: {
+                                                    ...prev.content,
+                                                    certificates: updated,
+                                                  },
+                                                }
+                                              : null
+                                          );
+                                          setHasChanges(true);
+                                        }}
+                                        className="mt-1 h-9 text-sm"
+                                        placeholder="e.g., AWS-ASA-123456"
+                                      />
+                                    </div>
+                                    <div>
+                                      <Label className="text-xs">
+                                        Certificate Link (Optional)
+                                      </Label>
+                                      <Input
+                                        value={cert.link || ""}
+                                        onChange={(e) => {
+                                          const updated = [
+                                            ...(resume.content.certificates ||
+                                              []),
+                                          ];
+                                          updated[index] = {
+                                            ...cert,
+                                            link: e.target.value,
+                                          };
+                                          setResume((prev) =>
+                                            prev
+                                              ? {
+                                                  ...prev,
+                                                  content: {
+                                                    ...prev.content,
+                                                    certificates: updated,
+                                                  },
+                                                }
+                                              : null
+                                          );
+                                          setHasChanges(true);
+                                        }}
+                                        className="mt-1 h-9 text-sm"
+                                        type="url"
+                                        placeholder="https://..."
+                                      />
+                                    </div>
+                                  </div>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => {
+                                      setResume((prev) =>
+                                        prev
+                                          ? {
+                                              ...prev,
+                                              content: {
+                                                ...prev.content,
+                                                certificates:
+                                                  prev.content.certificates?.filter(
+                                                    (_, i) => i !== index
+                                                  ) || [],
+                                              },
+                                            }
+                                          : null
+                                      );
+                                      setHasChanges(true);
+                                    }}
+                                    className="w-full mt-3 border-red-300 text-red-700 hover:bg-red-50"
+                                  >
+                                    <Trash2 className="w-4 h-4 mr-2" />
+                                    Remove
+                                  </Button>
                                 </div>
-                                <div>
-                                  <Label className="text-xs">Issuer *</Label>
-                                  <Input value={cert.issuer} onChange={(e) => { const updated = [...(resume.content.certificates || [])]; updated[index] = { ...cert, issuer: e.target.value }; setResume((prev) => prev ? { ...prev, content: { ...prev.content, certificates: updated } } : null); setHasChanges(true); }} className="mt-1 h-9 text-sm" placeholder="Amazon Web Services" />
-                                </div>
-                                <div>
-                                  <Label className="text-xs">Issue Date</Label>
-                                  <Input value={cert.issueDate || ""} onChange={(e) => { const updated = [...(resume.content.certificates || [])]; updated[index] = { ...cert, issueDate: e.target.value }; setResume((prev) => prev ? { ...prev, content: { ...prev.content, certificates: updated } } : null); setHasChanges(true); }} className="mt-1 h-9 text-sm" type="month" />
-                                </div>
-                                <div className="col-span-2">
-                                  <Label className="text-xs">Expiry Date (Optional)</Label>
-                                  <Input value={cert.expiryDate || ""} onChange={(e) => { const updated = [...(resume.content.certificates || [])]; updated[index] = { ...cert, expiryDate: e.target.value }; setResume((prev) => prev ? { ...prev, content: { ...prev.content, certificates: updated } } : null); setHasChanges(true); }} className="mt-1 h-9 text-sm" type="month" />
-                                </div>
-                              </div>
-                              <Button variant="outline" size="sm" onClick={() => { setResume((prev) => prev ? { ...prev, content: { ...prev.content, certificates: prev.content.certificates?.filter((_, i) => i !== index) || [] } } : null); setHasChanges(true); }} className="w-full mt-3 border-red-300 text-red-700 hover:bg-red-50">
-                                <Trash2 className="w-4 h-4 mr-2" />
-                                Remove
-                              </Button>
-                            </div>
-                          ))}
-                          <Button onClick={() => { const nanoid = () => Math.random().toString(36).substring(2, 9); setResume((prev) => prev ? { ...prev, content: { ...prev.content, certificates: [...(prev.content.certificates || []), { id: nanoid(), title: "", issuer: "", issueDate: "", expiryDate: "" }] } } : null); setHasChanges(true); }} className="w-full bg-purple-600 hover:bg-purple-700 text-white">
+                              );
+                            }
+                          )}
+                          <Button
+                            onClick={() => {
+                              const nanoid = () =>
+                                Math.random().toString(36).substring(2, 9);
+                              setResume((prev) =>
+                                prev
+                                  ? {
+                                      ...prev,
+                                      content: {
+                                        ...prev.content,
+                                        certificates: [
+                                          ...(prev.content.certificates || []),
+                                          {
+                                            id: nanoid(),
+                                            title: "",
+                                            issuer: "",
+                                            issueDate: "",
+                                            expiryDate: "",
+                                            certificateId: "",
+                                            link: "",
+                                          },
+                                        ],
+                                      },
+                                    }
+                                  : null
+                              );
+                              setHasChanges(true);
+                            }}
+                            className="w-full bg-purple-600 hover:bg-purple-700 text-white"
+                          >
                             <Plus className="w-4 h-4 mr-2" />
                             Add Certificate
                           </Button>
@@ -2838,20 +3091,57 @@ export default function EditResumePage() {
                 // Interests Section
                 if (section.type === "interests") {
                   return (
-                    <Card key={section.id} className="border" draggable onDragStart={() => handleDragStart(section.id)} onDragOver={(e) => handleDragOver(e, section.id)} onDragLeave={handleDragLeave} onDragEnd={handleDragEnd}>
+                    <Card
+                      key={section.id}
+                      className="border"
+                      draggable
+                      onDragStart={() => handleDragStart(section.id)}
+                      onDragOver={(e) => handleDragOver(e, section.id)}
+                      onDragLeave={handleDragLeave}
+                      onDragEnd={handleDragEnd}
+                    >
                       <div className="flex items-center justify-between p-4 border-b bg-gray-50">
                         <div className="flex items-center gap-2 flex-1">
                           <GripVertical className="w-4 h-4 text-gray-400 cursor-grab" />
-                          <h3 className="font-semibold text-sm">{section.title}</h3>
-                          <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => toggleSection(section.id)}>
-                            {section.expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                          <h3 className="font-semibold text-sm">
+                            {section.title}
+                          </h3>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-6 w-6"
+                            onClick={() => toggleSection(section.id)}
+                          >
+                            {section.expanded ? (
+                              <ChevronUp className="w-4 h-4" />
+                            ) : (
+                              <ChevronDown className="w-4 h-4" />
+                            )}
                           </Button>
                         </div>
                       </div>
                       {section.expanded && (
                         <CardContent className="p-4">
                           <Label className="text-xs">Interests</Label>
-                          <RichTextEditor value={resume.content.interests || ""} onChange={(html) => { setResume((prev) => prev ? { ...prev, content: { ...prev.content, interests: html } } : null); setHasChanges(true); }} placeholder="List your interests..." className="mt-1" />
+                          <RichTextEditor
+                            value={resume.content.interests || ""}
+                            onChange={(html) => {
+                              setResume((prev) =>
+                                prev
+                                  ? {
+                                      ...prev,
+                                      content: {
+                                        ...prev.content,
+                                        interests: html,
+                                      },
+                                    }
+                                  : null
+                              );
+                              setHasChanges(true);
+                            }}
+                            placeholder="List your interests..."
+                            className="mt-1"
+                          />
                         </CardContent>
                       )}
                     </Card>
@@ -2861,20 +3151,57 @@ export default function EditResumePage() {
                 // Declaration Section
                 if (section.type === "declaration") {
                   return (
-                    <Card key={section.id} className="border" draggable onDragStart={() => handleDragStart(section.id)} onDragOver={(e) => handleDragOver(e, section.id)} onDragLeave={handleDragLeave} onDragEnd={handleDragEnd}>
+                    <Card
+                      key={section.id}
+                      className="border"
+                      draggable
+                      onDragStart={() => handleDragStart(section.id)}
+                      onDragOver={(e) => handleDragOver(e, section.id)}
+                      onDragLeave={handleDragLeave}
+                      onDragEnd={handleDragEnd}
+                    >
                       <div className="flex items-center justify-between p-4 border-b bg-gray-50">
                         <div className="flex items-center gap-2 flex-1">
                           <GripVertical className="w-4 h-4 text-gray-400 cursor-grab" />
-                          <h3 className="font-semibold text-sm">{section.title}</h3>
-                          <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => toggleSection(section.id)}>
-                            {section.expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                          <h3 className="font-semibold text-sm">
+                            {section.title}
+                          </h3>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-6 w-6"
+                            onClick={() => toggleSection(section.id)}
+                          >
+                            {section.expanded ? (
+                              <ChevronUp className="w-4 h-4" />
+                            ) : (
+                              <ChevronDown className="w-4 h-4" />
+                            )}
                           </Button>
                         </div>
                       </div>
                       {section.expanded && (
                         <CardContent className="p-4">
                           <Label className="text-xs">Declaration</Label>
-                          <Input value={resume.content.declaration || ""} onChange={(e) => { setResume((prev) => prev ? { ...prev, content: { ...prev.content, declaration: e.target.value } } : null); setHasChanges(true); }} placeholder="I hereby declare that..." className="mt-1 h-9 text-sm" />
+                          <Input
+                            value={resume.content.declaration || ""}
+                            onChange={(e) => {
+                              setResume((prev) =>
+                                prev
+                                  ? {
+                                      ...prev,
+                                      content: {
+                                        ...prev.content,
+                                        declaration: e.target.value,
+                                      },
+                                    }
+                                  : null
+                              );
+                              setHasChanges(true);
+                            }}
+                            placeholder="I hereby declare that..."
+                            className="mt-1 h-9 text-sm"
+                          />
                         </CardContent>
                       )}
                     </Card>
@@ -2884,20 +3211,57 @@ export default function EditResumePage() {
                 // Languages Section
                 if (section.type === "languages") {
                   return (
-                    <Card key={section.id} className="border" draggable onDragStart={() => handleDragStart(section.id)} onDragOver={(e) => handleDragOver(e, section.id)} onDragLeave={handleDragLeave} onDragEnd={handleDragEnd}>
+                    <Card
+                      key={section.id}
+                      className="border"
+                      draggable
+                      onDragStart={() => handleDragStart(section.id)}
+                      onDragOver={(e) => handleDragOver(e, section.id)}
+                      onDragLeave={handleDragLeave}
+                      onDragEnd={handleDragEnd}
+                    >
                       <div className="flex items-center justify-between p-4 border-b bg-gray-50">
                         <div className="flex items-center gap-2 flex-1">
                           <GripVertical className="w-4 h-4 text-gray-400 cursor-grab" />
-                          <h3 className="font-semibold text-sm">{section.title}</h3>
-                          <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => toggleSection(section.id)}>
-                            {section.expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                          <h3 className="font-semibold text-sm">
+                            {section.title}
+                          </h3>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-6 w-6"
+                            onClick={() => toggleSection(section.id)}
+                          >
+                            {section.expanded ? (
+                              <ChevronUp className="w-4 h-4" />
+                            ) : (
+                              <ChevronDown className="w-4 h-4" />
+                            )}
                           </Button>
                         </div>
                       </div>
                       {section.expanded && (
                         <CardContent className="p-4">
                           <Label className="text-xs">Languages</Label>
-                          <RichTextEditor value={resume.content.languages || ""} onChange={(html) => { setResume((prev) => prev ? { ...prev, content: { ...prev.content, languages: html } } : null); setHasChanges(true); }} placeholder="List languages you know..." className="mt-1" />
+                          <RichTextEditor
+                            value={resume.content.languages || ""}
+                            onChange={(html) => {
+                              setResume((prev) =>
+                                prev
+                                  ? {
+                                      ...prev,
+                                      content: {
+                                        ...prev.content,
+                                        languages: html,
+                                      },
+                                    }
+                                  : null
+                              );
+                              setHasChanges(true);
+                            }}
+                            placeholder="List languages you know..."
+                            className="mt-1"
+                          />
                         </CardContent>
                       )}
                     </Card>
@@ -2907,45 +3271,219 @@ export default function EditResumePage() {
                 // Awards Section
                 if (section.type === "awards") {
                   return (
-                    <Card key={section.id} className="border" draggable onDragStart={() => handleDragStart(section.id)} onDragOver={(e) => handleDragOver(e, section.id)} onDragLeave={handleDragLeave} onDragEnd={handleDragEnd}>
+                    <Card
+                      key={section.id}
+                      className="border"
+                      draggable
+                      onDragStart={() => handleDragStart(section.id)}
+                      onDragOver={(e) => handleDragOver(e, section.id)}
+                      onDragLeave={handleDragLeave}
+                      onDragEnd={handleDragEnd}
+                    >
                       <div className="flex items-center justify-between p-4 border-b bg-gray-50">
                         <div className="flex items-center gap-2 flex-1">
                           <GripVertical className="w-4 h-4 text-gray-400 cursor-grab" />
-                          <h3 className="font-semibold text-sm">{section.title}</h3>
-                          <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => toggleSection(section.id)}>
-                            {section.expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                          <h3 className="font-semibold text-sm">
+                            {section.title}
+                          </h3>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-6 w-6"
+                            onClick={() => toggleSection(section.id)}
+                          >
+                            {section.expanded ? (
+                              <ChevronUp className="w-4 h-4" />
+                            ) : (
+                              <ChevronDown className="w-4 h-4" />
+                            )}
                           </Button>
                         </div>
                       </div>
                       {section.expanded && (
                         <CardContent className="p-4 space-y-3">
                           {(resume.content.awards || []).map((award, index) => (
-                            <div key={award.id} className="border p-3 rounded-md bg-gray-50">
+                            <div
+                              key={award.id}
+                              className="border p-3 rounded-md bg-gray-50"
+                            >
                               <div className="grid grid-cols-2 gap-3">
                                 <div className="col-span-2">
-                                  <Label className="text-xs">Award Title *</Label>
-                                  <Input value={award.title} onChange={(e) => { const updated = [...(resume.content.awards || [])]; updated[index] = { ...award, title: e.target.value }; setResume((prev) => prev ? { ...prev, content: { ...prev.content, awards: updated } } : null); setHasChanges(true); }} className="mt-1 h-9 text-sm" placeholder="Employee of the Year" />
+                                  <Label className="text-xs">
+                                    Award Title *
+                                  </Label>
+                                  <Input
+                                    value={award.title}
+                                    onChange={(e) => {
+                                      const updated = [
+                                        ...(resume.content.awards || []),
+                                      ];
+                                      updated[index] = {
+                                        ...award,
+                                        title: e.target.value,
+                                      };
+                                      setResume((prev) =>
+                                        prev
+                                          ? {
+                                              ...prev,
+                                              content: {
+                                                ...prev.content,
+                                                awards: updated,
+                                              },
+                                            }
+                                          : null
+                                      );
+                                      setHasChanges(true);
+                                    }}
+                                    className="mt-1 h-9 text-sm"
+                                    placeholder="Employee of the Year"
+                                  />
                                 </div>
                                 <div>
                                   <Label className="text-xs">Issuer *</Label>
-                                  <Input value={award.issuer} onChange={(e) => { const updated = [...(resume.content.awards || [])]; updated[index] = { ...award, issuer: e.target.value }; setResume((prev) => prev ? { ...prev, content: { ...prev.content, awards: updated } } : null); setHasChanges(true); }} className="mt-1 h-9 text-sm" placeholder="Company Name" />
+                                  <Input
+                                    value={award.issuer}
+                                    onChange={(e) => {
+                                      const updated = [
+                                        ...(resume.content.awards || []),
+                                      ];
+                                      updated[index] = {
+                                        ...award,
+                                        issuer: e.target.value,
+                                      };
+                                      setResume((prev) =>
+                                        prev
+                                          ? {
+                                              ...prev,
+                                              content: {
+                                                ...prev.content,
+                                                awards: updated,
+                                              },
+                                            }
+                                          : null
+                                      );
+                                      setHasChanges(true);
+                                    }}
+                                    className="mt-1 h-9 text-sm"
+                                    placeholder="Company Name"
+                                  />
                                 </div>
                                 <div>
                                   <Label className="text-xs">Date</Label>
-                                  <Input value={award.date || ""} onChange={(e) => { const updated = [...(resume.content.awards || [])]; updated[index] = { ...award, date: e.target.value }; setResume((prev) => prev ? { ...prev, content: { ...prev.content, awards: updated } } : null); setHasChanges(true); }} className="mt-1 h-9 text-sm" type="month" />
+                                  <Input
+                                    value={award.date || ""}
+                                    onChange={(e) => {
+                                      const updated = [
+                                        ...(resume.content.awards || []),
+                                      ];
+                                      updated[index] = {
+                                        ...award,
+                                        date: e.target.value,
+                                      };
+                                      setResume((prev) =>
+                                        prev
+                                          ? {
+                                              ...prev,
+                                              content: {
+                                                ...prev.content,
+                                                awards: updated,
+                                              },
+                                            }
+                                          : null
+                                      );
+                                      setHasChanges(true);
+                                    }}
+                                    className="mt-1 h-9 text-sm"
+                                    type="month"
+                                  />
                                 </div>
                                 <div className="col-span-2">
-                                  <Label className="text-xs">Description (Optional)</Label>
-                                  <Input value={award.description || ""} onChange={(e) => { const updated = [...(resume.content.awards || [])]; updated[index] = { ...award, description: e.target.value }; setResume((prev) => prev ? { ...prev, content: { ...prev.content, awards: updated } } : null); setHasChanges(true); }} className="mt-1 h-9 text-sm" placeholder="Brief description..." />
+                                  <Label className="text-xs">
+                                    Description (Optional)
+                                  </Label>
+                                  <Input
+                                    value={award.description || ""}
+                                    onChange={(e) => {
+                                      const updated = [
+                                        ...(resume.content.awards || []),
+                                      ];
+                                      updated[index] = {
+                                        ...award,
+                                        description: e.target.value,
+                                      };
+                                      setResume((prev) =>
+                                        prev
+                                          ? {
+                                              ...prev,
+                                              content: {
+                                                ...prev.content,
+                                                awards: updated,
+                                              },
+                                            }
+                                          : null
+                                      );
+                                      setHasChanges(true);
+                                    }}
+                                    className="mt-1 h-9 text-sm"
+                                    placeholder="Brief description..."
+                                  />
                                 </div>
                               </div>
-                              <Button variant="outline" size="sm" onClick={() => { setResume((prev) => prev ? { ...prev, content: { ...prev.content, awards: prev.content.awards?.filter((_, i) => i !== index) || [] } } : null); setHasChanges(true); }} className="w-full mt-3 border-red-300 text-red-700 hover:bg-red-50">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  setResume((prev) =>
+                                    prev
+                                      ? {
+                                          ...prev,
+                                          content: {
+                                            ...prev.content,
+                                            awards:
+                                              prev.content.awards?.filter(
+                                                (_, i) => i !== index
+                                              ) || [],
+                                          },
+                                        }
+                                      : null
+                                  );
+                                  setHasChanges(true);
+                                }}
+                                className="w-full mt-3 border-red-300 text-red-700 hover:bg-red-50"
+                              >
                                 <Trash2 className="w-4 h-4 mr-2" />
                                 Remove
                               </Button>
                             </div>
                           ))}
-                          <Button onClick={() => { const nanoid = () => Math.random().toString(36).substring(2, 9); setResume((prev) => prev ? { ...prev, content: { ...prev.content, awards: [...(prev.content.awards || []), { id: nanoid(), title: "", issuer: "", date: "", description: "" }] } } : null); setHasChanges(true); }} className="w-full bg-purple-600 hover:bg-purple-700 text-white">
+                          <Button
+                            onClick={() => {
+                              const nanoid = () =>
+                                Math.random().toString(36).substring(2, 9);
+                              setResume((prev) =>
+                                prev
+                                  ? {
+                                      ...prev,
+                                      content: {
+                                        ...prev.content,
+                                        awards: [
+                                          ...(prev.content.awards || []),
+                                          {
+                                            id: nanoid(),
+                                            title: "",
+                                            issuer: "",
+                                            date: "",
+                                            description: "",
+                                          },
+                                        ],
+                                      },
+                                    }
+                                  : null
+                              );
+                              setHasChanges(true);
+                            }}
+                            className="w-full bg-purple-600 hover:bg-purple-700 text-white"
+                          >
                             <Plus className="w-4 h-4 mr-2" />
                             Add Award
                           </Button>
@@ -2958,49 +3496,251 @@ export default function EditResumePage() {
                 // References Section
                 if (section.type === "references") {
                   return (
-                    <Card key={section.id} className="border" draggable onDragStart={() => handleDragStart(section.id)} onDragOver={(e) => handleDragOver(e, section.id)} onDragLeave={handleDragLeave} onDragEnd={handleDragEnd}>
+                    <Card
+                      key={section.id}
+                      className="border"
+                      draggable
+                      onDragStart={() => handleDragStart(section.id)}
+                      onDragOver={(e) => handleDragOver(e, section.id)}
+                      onDragLeave={handleDragLeave}
+                      onDragEnd={handleDragEnd}
+                    >
                       <div className="flex items-center justify-between p-4 border-b bg-gray-50">
                         <div className="flex items-center gap-2 flex-1">
                           <GripVertical className="w-4 h-4 text-gray-400 cursor-grab" />
-                          <h3 className="font-semibold text-sm">{section.title}</h3>
-                          <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => toggleSection(section.id)}>
-                            {section.expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                          <h3 className="font-semibold text-sm">
+                            {section.title}
+                          </h3>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-6 w-6"
+                            onClick={() => toggleSection(section.id)}
+                          >
+                            {section.expanded ? (
+                              <ChevronUp className="w-4 h-4" />
+                            ) : (
+                              <ChevronDown className="w-4 h-4" />
+                            )}
                           </Button>
                         </div>
                       </div>
                       {section.expanded && (
                         <CardContent className="p-4 space-y-3">
-                          {(resume.content.references || []).map((ref, index) => (
-                            <div key={ref.id} className="border p-3 rounded-md bg-gray-50">
-                              <div className="grid grid-cols-2 gap-3">
-                                <div className="col-span-2">
-                                  <Label className="text-xs">Name *</Label>
-                                  <Input value={ref.name} onChange={(e) => { const updated = [...(resume.content.references || [])]; updated[index] = { ...ref, name: e.target.value }; setResume((prev) => prev ? { ...prev, content: { ...prev.content, references: updated } } : null); setHasChanges(true); }} className="mt-1 h-9 text-sm" placeholder="John Smith" />
+                          {(resume.content.references || []).map(
+                            (ref, index) => (
+                              <div
+                                key={ref.id}
+                                className="border p-3 rounded-md bg-gray-50"
+                              >
+                                <div className="grid grid-cols-2 gap-3">
+                                  <div className="col-span-2">
+                                    <Label className="text-xs">Name *</Label>
+                                    <Input
+                                      value={ref.name}
+                                      onChange={(e) => {
+                                        const updated = [
+                                          ...(resume.content.references || []),
+                                        ];
+                                        updated[index] = {
+                                          ...ref,
+                                          name: e.target.value,
+                                        };
+                                        setResume((prev) =>
+                                          prev
+                                            ? {
+                                                ...prev,
+                                                content: {
+                                                  ...prev.content,
+                                                  references: updated,
+                                                },
+                                              }
+                                            : null
+                                        );
+                                        setHasChanges(true);
+                                      }}
+                                      className="mt-1 h-9 text-sm"
+                                      placeholder="John Smith"
+                                    />
+                                  </div>
+                                  <div>
+                                    <Label className="text-xs">
+                                      Position *
+                                    </Label>
+                                    <Input
+                                      value={ref.position}
+                                      onChange={(e) => {
+                                        const updated = [
+                                          ...(resume.content.references || []),
+                                        ];
+                                        updated[index] = {
+                                          ...ref,
+                                          position: e.target.value,
+                                        };
+                                        setResume((prev) =>
+                                          prev
+                                            ? {
+                                                ...prev,
+                                                content: {
+                                                  ...prev.content,
+                                                  references: updated,
+                                                },
+                                              }
+                                            : null
+                                        );
+                                        setHasChanges(true);
+                                      }}
+                                      className="mt-1 h-9 text-sm"
+                                      placeholder="Engineering Manager"
+                                    />
+                                  </div>
+                                  <div>
+                                    <Label className="text-xs">Company *</Label>
+                                    <Input
+                                      value={ref.company}
+                                      onChange={(e) => {
+                                        const updated = [
+                                          ...(resume.content.references || []),
+                                        ];
+                                        updated[index] = {
+                                          ...ref,
+                                          company: e.target.value,
+                                        };
+                                        setResume((prev) =>
+                                          prev
+                                            ? {
+                                                ...prev,
+                                                content: {
+                                                  ...prev.content,
+                                                  references: updated,
+                                                },
+                                              }
+                                            : null
+                                        );
+                                        setHasChanges(true);
+                                      }}
+                                      className="mt-1 h-9 text-sm"
+                                      placeholder="Company Name"
+                                    />
+                                  </div>
+                                  <div>
+                                    <Label className="text-xs">Email</Label>
+                                    <Input
+                                      value={ref.email || ""}
+                                      onChange={(e) => {
+                                        const updated = [
+                                          ...(resume.content.references || []),
+                                        ];
+                                        updated[index] = {
+                                          ...ref,
+                                          email: e.target.value,
+                                        };
+                                        setResume((prev) =>
+                                          prev
+                                            ? {
+                                                ...prev,
+                                                content: {
+                                                  ...prev.content,
+                                                  references: updated,
+                                                },
+                                              }
+                                            : null
+                                        );
+                                        setHasChanges(true);
+                                      }}
+                                      className="mt-1 h-9 text-sm"
+                                      type="email"
+                                      placeholder="email@example.com"
+                                    />
+                                  </div>
+                                  <div>
+                                    <Label className="text-xs">Phone</Label>
+                                    <Input
+                                      value={ref.phone || ""}
+                                      onChange={(e) => {
+                                        const updated = [
+                                          ...(resume.content.references || []),
+                                        ];
+                                        updated[index] = {
+                                          ...ref,
+                                          phone: e.target.value,
+                                        };
+                                        setResume((prev) =>
+                                          prev
+                                            ? {
+                                                ...prev,
+                                                content: {
+                                                  ...prev.content,
+                                                  references: updated,
+                                                },
+                                              }
+                                            : null
+                                        );
+                                        setHasChanges(true);
+                                      }}
+                                      className="mt-1 h-9 text-sm"
+                                      type="tel"
+                                      placeholder="+1 (555) 123-4567"
+                                    />
+                                  </div>
                                 </div>
-                                <div>
-                                  <Label className="text-xs">Position *</Label>
-                                  <Input value={ref.position} onChange={(e) => { const updated = [...(resume.content.references || [])]; updated[index] = { ...ref, position: e.target.value }; setResume((prev) => prev ? { ...prev, content: { ...prev.content, references: updated } } : null); setHasChanges(true); }} className="mt-1 h-9 text-sm" placeholder="Engineering Manager" />
-                                </div>
-                                <div>
-                                  <Label className="text-xs">Company *</Label>
-                                  <Input value={ref.company} onChange={(e) => { const updated = [...(resume.content.references || [])]; updated[index] = { ...ref, company: e.target.value }; setResume((prev) => prev ? { ...prev, content: { ...prev.content, references: updated } } : null); setHasChanges(true); }} className="mt-1 h-9 text-sm" placeholder="Company Name" />
-                                </div>
-                                <div>
-                                  <Label className="text-xs">Email</Label>
-                                  <Input value={ref.email || ""} onChange={(e) => { const updated = [...(resume.content.references || [])]; updated[index] = { ...ref, email: e.target.value }; setResume((prev) => prev ? { ...prev, content: { ...prev.content, references: updated } } : null); setHasChanges(true); }} className="mt-1 h-9 text-sm" type="email" placeholder="email@example.com" />
-                                </div>
-                                <div>
-                                  <Label className="text-xs">Phone</Label>
-                                  <Input value={ref.phone || ""} onChange={(e) => { const updated = [...(resume.content.references || [])]; updated[index] = { ...ref, phone: e.target.value }; setResume((prev) => prev ? { ...prev, content: { ...prev.content, references: updated } } : null); setHasChanges(true); }} className="mt-1 h-9 text-sm" type="tel" placeholder="+1 (555) 123-4567" />
-                                </div>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    setResume((prev) =>
+                                      prev
+                                        ? {
+                                            ...prev,
+                                            content: {
+                                              ...prev.content,
+                                              references:
+                                                prev.content.references?.filter(
+                                                  (_, i) => i !== index
+                                                ) || [],
+                                            },
+                                          }
+                                        : null
+                                    );
+                                    setHasChanges(true);
+                                  }}
+                                  className="w-full mt-3 border-red-300 text-red-700 hover:bg-red-50"
+                                >
+                                  <Trash2 className="w-4 h-4 mr-2" />
+                                  Remove
+                                </Button>
                               </div>
-                              <Button variant="outline" size="sm" onClick={() => { setResume((prev) => prev ? { ...prev, content: { ...prev.content, references: prev.content.references?.filter((_, i) => i !== index) || [] } } : null); setHasChanges(true); }} className="w-full mt-3 border-red-300 text-red-700 hover:bg-red-50">
-                                <Trash2 className="w-4 h-4 mr-2" />
-                                Remove
-                              </Button>
-                            </div>
-                          ))}
-                          <Button onClick={() => { const nanoid = () => Math.random().toString(36).substring(2, 9); setResume((prev) => prev ? { ...prev, content: { ...prev.content, references: [...(prev.content.references || []), { id: nanoid(), name: "", position: "", company: "", email: "", phone: "" }] } } : null); setHasChanges(true); }} className="w-full bg-purple-600 hover:bg-purple-700 text-white">
+                            )
+                          )}
+                          <Button
+                            onClick={() => {
+                              const nanoid = () =>
+                                Math.random().toString(36).substring(2, 9);
+                              setResume((prev) =>
+                                prev
+                                  ? {
+                                      ...prev,
+                                      content: {
+                                        ...prev.content,
+                                        references: [
+                                          ...(prev.content.references || []),
+                                          {
+                                            id: nanoid(),
+                                            name: "",
+                                            position: "",
+                                            company: "",
+                                            email: "",
+                                            phone: "",
+                                          },
+                                        ],
+                                      },
+                                    }
+                                  : null
+                              );
+                              setHasChanges(true);
+                            }}
+                            className="w-full bg-purple-600 hover:bg-purple-700 text-white"
+                          >
                             <Plus className="w-4 h-4 mr-2" />
                             Add Reference
                           </Button>
