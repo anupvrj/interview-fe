@@ -63,9 +63,7 @@ export function RichTextEditor({
     // Only update if content actually changed
     if (newContent !== currentContent) {
       const { from, to } = editor.state.selection;
-      editor.commands.setContent(newContent, false, {
-        preserveWhitespace: "full",
-      });
+      editor.commands.setContent(newContent);
       // Restore cursor position if possible
       try {
         editor.commands.setTextSelection({ from, to });

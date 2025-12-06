@@ -561,7 +561,7 @@ export interface Resume {
       startDate: string;
       endDate?: string;
       current: boolean;
-      description: string[];
+      description: string[] | string; // Support both array (old) and HTML string (new)
       achievements?: string[];
     }>;
     education: Array<{
