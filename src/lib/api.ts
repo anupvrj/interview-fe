@@ -493,4 +493,332 @@ export const paymentApi = {
   },
 };
 
+// Resume Types
+export interface ResumeTemplate {
+  id: string;
+  name: string;
+  category: "simple" | "modern" | "creative";
+  description: string;
+  preview: string;
+  colors: {
+    primary: string;
+    secondary: string;
+    accent: string;
+    text: string;
+    background: string;
+  };
+  layout: {
+    headerStyle: "centered" | "left" | "two-column";
+    sectionSpacing: number;
+    fontFamily: string;
+    fontSize: {
+      heading: number;
+      subheading: number;
+      body: number;
+    };
+  };
+  atsOptimized: boolean;
+}
+
+export interface Resume {
+  _id: string;
+  resumeId: string;
+  userId: string;
+  title: string;
+  templateId: string;
+  content: {
+    personalInfo: {
+      fullName?: string;
+      email?: string;
+      phone?: string;
+      location?: string;
+      linkedin?: string;
+      github?: string;
+      portfolio?: string;
+      dateOfBirth?: string;
+      nationality?: string;
+      passport?: string;
+      maritalStatus?: string;
+      militaryService?: string;
+      drivingLicense?: string;
+      gender?: string;
+      disability?: string;
+      visa?: string;
+      website?: string;
+      medium?: string;
+      orcid?: string;
+      skype?: string;
+      bluesky?: string;
+      threads?: string;
+      x?: string;
+    };
+    profileSummary?: string;
+    experience: Array<{
+      id: string;
+      company: string;
+      position: string;
+      location?: string;
+      startDate: string;
+      endDate?: string;
+      current: boolean;
+      description: string[];
+      achievements?: string[];
+    }>;
+    education: Array<{
+      id: string;
+      institution: string;
+      degree: string;
+      field?: string;
+      location?: string;
+      startDate: string;
+      endDate?: string;
+      gpa?: string;
+      honors?: string[];
+    }>;
+    skills: {
+      technical: string[] | string; // Support both array (old) and HTML string (new)
+      soft: string[] | string; // Support both array (old) and HTML string (new)
+      languages?: string[];
+      certifications?: Array<{
+        name: string;
+        issuer: string;
+        date?: string;
+        expiryDate?: string;
+      }>;
+    };
+    projects?: Array<{
+      id: string;
+      name: string;
+      description: string;
+      technologies: string[];
+      link?: string;
+      github?: string;
+    }>;
+    achievements?: Array<{
+      id: string;
+      title: string;
+      description: string;
+      date?: string;
+    }>;
+    certificates?: Array<{
+      id: string;
+      title: string;
+      issuer: string;
+      issueDate?: string;
+      expiryDate?: string;
+    }>;
+    awards?: Array<{
+      id: string;
+      title: string;
+      issuer: string;
+      date?: string;
+      description?: string;
+    }>;
+    interests?: string;
+    references?: Array<{
+      id: string;
+      name: string;
+      position: string;
+      company: string;
+      email?: string;
+      phone?: string;
+    }>;
+    publications?: Array<{
+      id: string;
+      title: string;
+      publisher: string;
+      date?: string;
+      link?: string;
+    }>;
+    courses?: Array<{
+      id: string;
+      name: string;
+      institution: string;
+      date?: string;
+      description?: string;
+    }>;
+    organisations?: Array<{
+      id: string;
+      name: string;
+      role: string;
+      startDate?: string;
+      endDate?: string;
+      description?: string;
+    }>;
+    declaration?: string;
+    languages?: string;
+  };
+  sectionOrder?: Array<{
+    id: string;
+    type: string;
+    title: string;
+    visible: boolean;
+    column?: "left" | "right"; // For double column layout
+  }>;
+  layout?: {
+    type: "single" | "double";
+    columnWidths?: {
+      left: number;
+      right: number;
+    };
+    padding?: {
+      top: number;
+      bottom: number;
+      left: number;
+      right: number;
+    };
+  };
+  atsScore?: number;
+  atsFeedback?: {
+    score: number;
+    strengths: string[];
+    weaknesses: string[];
+    suggestions: string[];
+  };
+  isDefault?: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export const resumeApi = {
+  getTemplates: async (): Promise<ResumeTemplate[]> => {
+    const response = await apiClient.get<{ data: ResumeTemplate[] }>(
+      "/templates"
+    );
+    return response.data.data;
+  },
+
+  getTemplate: async (templateId: string): Promise<ResumeTemplate> => {
+    const response = await apiClient.get<{ data: ResumeTemplate }>(
+      `/templates/${templateId}`
+    );
+    return response.data.data;
+  },
+
+  create: async (
+    userId: string,
+    data: {
+      title?: string;
+      templateId: string;
+      content?: Partial<Resume["content"]>;
+    }
+  ): Promise<Resume> => {
+    const response = await apiClient.post<{ data: Resume }>(
+      `/users/${userId}/resumes`,
+      data
+    );
+    return response.data.data;
+  },
+
+  list: async (userId: string): Promise<Resume[]> => {
+    const response = await apiClient.get<{ data: Resume[] }>(
+      `/users/${userId}/resumes`
+    );
+    return response.data.data;
+  },
+
+  get: async (resumeId: string): Promise<Resume> => {
+    const response = await apiClient.get<{ data: Resume }>(
+      `/resumes/${resumeId}`
+    );
+    return response.data.data;
+  },
+
+  update: async (
+    resumeId: string,
+    data: {
+      title?: string;
+      templateId?: string;
+      content?: Partial<Resume["content"]>;
+      sectionOrder?: Resume["sectionOrder"];
+      layout?: Resume["layout"];
+      isDefault?: boolean;
+    }
+  ): Promise<Resume> => {
+    const response = await apiClient.put<{ data: Resume }>(
+      `/resumes/${resumeId}`,
+      data,
+      {
+        headers: {
+          "Content-Type": "application/json",
+        },
+      }
+    );
+    return response.data.data;
+  },
+
+  delete: async (resumeId: string): Promise<void> => {
+    await apiClient.delete(`/resumes/${resumeId}`);
+  },
+
+  duplicate: async (resumeId: string, title?: string): Promise<Resume> => {
+    const response = await apiClient.post<{ data: Resume }>(
+      `/resumes/${resumeId}/duplicate`,
+      { title }
+    );
+    return response.data.data;
+  },
+
+  recalculateATS: async (resumeId: string): Promise<Resume> => {
+    const response = await apiClient.post<{ data: Resume }>(
+      `/resumes/${resumeId}/ats-score`
+    );
+    return response.data.data;
+  },
+
+  getPresignedUploadUrl: async (
+    resumeId: string
+  ): Promise<{ uploadUrl: string; s3Key: string }> => {
+    const response = await apiClient.get<{
+      data: { uploadUrl: string; s3Key: string };
+    }>(`/resumes/${resumeId}/pdf-upload-url`);
+    return response.data.data;
+  },
+
+  confirmPDFUpload: async (
+    resumeId: string,
+    s3Key: string
+  ): Promise<{ downloadUrl: string; s3Key: string }> => {
+    const response = await apiClient.post<{
+      data: { downloadUrl: string; s3Key: string };
+    }>(`/resumes/${resumeId}/confirm-pdf-upload`, { s3Key });
+    return response.data.data;
+  },
+
+  downloadPDF: async (resumeId: string): Promise<string> => {
+    const response = await apiClient.get<{ data: { pdfUrl: string } }>(
+      `/resumes/${resumeId}/download-pdf`
+    );
+    return response.data.data.pdfUrl;
+  },
+
+  generatePDF: async (
+    resumeId: string,
+    htmlContent: string,
+    padding?: {
+      top: number;
+      bottom: number;
+      left: number;
+      right: number;
+    }
+  ): Promise<{ downloadUrl: string; s3Key: string }> => {
+    const response = await apiClient.post<{
+      data: { downloadUrl: string; s3Key: string };
+    }>(
+      `/resumes/${resumeId}/generate-pdf`,
+      {
+        htmlContent,
+        padding,
+      },
+      {
+        headers: {
+          "Content-Type": "application/json",
+        },
+        timeout: 60000, // 60 seconds for PDF generation
+      }
+    );
+    return response.data.data;
+  },
+};
+
 export default apiClient;
