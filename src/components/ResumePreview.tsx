@@ -1406,13 +1406,9 @@ export function ResumePreview({
             width: "210mm",
             maxWidth: "210mm",
             minHeight: "297mm",
-            padding: `${
-              (layout || resume.layout)?.padding?.top || 8
-            }mm ${
+            padding: `${(layout || resume.layout)?.padding?.top || 8}mm ${
               (layout || resume.layout)?.padding?.right || 8
-            }mm ${
-              (layout || resume.layout)?.padding?.bottom || 8
-            }mm ${
+            }mm ${(layout || resume.layout)?.padding?.bottom || 8}mm ${
               (layout || resume.layout)?.padding?.left || 8
             }mm`,
             boxSizing: "border-box",
