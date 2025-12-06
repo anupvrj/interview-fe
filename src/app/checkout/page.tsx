@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import { Loader2, Check, X, ArrowLeft, Sparkles } from "lucide-react";
@@ -17,7 +17,7 @@ declare global {
   }
 }
 
-export default function CheckoutPage() {
+function CheckoutPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user, isLoaded } = useUser();
@@ -280,5 +280,19 @@ export default function CheckoutPage() {
         </div>
       </div>
     </>
+  );
+}
+
+export default function CheckoutPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center min-h-screen">
+          <Loader2 className="w-8 h-8 animate-spin text-purple-600" />
+        </div>
+      }
+    >
+      <CheckoutPageContent />
+    </Suspense>
   );
 }
