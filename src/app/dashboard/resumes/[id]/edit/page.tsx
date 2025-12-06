@@ -110,6 +110,7 @@ export default function EditResumePage() {
         await resumeApi.update(resumeId, {
           title: resume.title,
           content: resume.content,
+          profileSummary: resume.profileSummary,
           sectionOrder: sectionOrderData,
           layout: layout,
         });
