@@ -17,10 +17,12 @@ import { ResumeTemplate, resumeApi } from "@/lib/api";
 import { TemplatePreview } from "@/components/TemplatePreview";
 
 const categoryLabels = {
-  simple: "Simple",
+  simple: "Popular",
   modern: "Modern",
   creative: "Creative",
 };
+
+type FilterCategory = "all" | "simple" | "modern" | "creative";
 
 export default function NewResumePage() {
   const { user, isLoaded } = useUser();
@@ -29,6 +31,7 @@ export default function NewResumePage() {
   const [loading, setLoading] = useState(true);
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  const [activeFilter, setActiveFilter] = useState<FilterCategory>("all");
 
   useEffect(() => {
     if (isLoaded && user) {
@@ -78,11 +81,18 @@ export default function NewResumePage() {
     );
   }
 
-  const categories = ["simple", "modern", "creative"] as const;
-  const templatesByCategory = categories.map((cat) => ({
-    category: cat,
-    templates: templates.filter((t) => t.category === cat),
-  }));
+  // Filter templates based on active filter
+  const filteredTemplates =
+    activeFilter === "all"
+      ? templates
+      : templates.filter((t) => t.category === activeFilter);
+
+  const filterButtons: { id: FilterCategory; label: string }[] = [
+    { id: "all", label: "All" },
+    { id: "simple", label: "Popular" },
+    { id: "modern", label: "Modern" },
+    { id: "creative", label: "Creative" },
+  ];
 
   return (
     <div className="w-full max-w-7xl mx-auto space-y-4 lg:space-y-6">
@@ -138,20 +148,47 @@ export default function NewResumePage() {
         </Card>
       )}
 
-      {/* Templates by Category */}
-      {templatesByCategory.map(({ category, templates: categoryTemplates }) => (
-        <div key={category} className="space-y-4">
-          <div className="flex items-center gap-2">
-            <h2 className="text-xl font-bold text-gray-900">
-              {categoryLabels[category]} Templates
-            </h2>
-            <span className="px-2 py-1 text-xs font-semibold bg-gray-100 text-gray-600 rounded-full">
-              {categoryTemplates.length}
-            </span>
-          </div>
+      {/* Filter Buttons */}
+      <div className="flex items-center gap-3 flex-wrap">
+        {filterButtons.map((filter) => (
+          <Button
+            key={filter.id}
+            onClick={() => setActiveFilter(filter.id)}
+            variant={activeFilter === filter.id ? "default" : "outline"}
+            className={
+              activeFilter === filter.id
+                ? "bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white"
+                : "border-gray-300 hover:border-purple-400"
+            }
+          >
+            {filter.label}
+            {activeFilter === filter.id && (
+              <span className="ml-2 px-2 py-0.5 text-xs bg-white/20 rounded-full">
+                {filter.id === "all"
+                  ? templates.length
+                  : templates.filter((t) => t.category === filter.id).length}
+              </span>
+            )}
+          </Button>
+        ))}
+      </div>
 
+      {/* Templates Grid */}
+      <div className="space-y-4">
+        <div className="flex items-center gap-2">
+          <h2 className="text-xl font-bold text-gray-900">
+            {activeFilter === "all"
+              ? "All Templates"
+              : `${categoryLabels[activeFilter]} Templates`}
+          </h2>
+          <span className="px-2 py-1 text-xs font-semibold bg-gray-100 text-gray-600 rounded-full">
+            {filteredTemplates.length}
+          </span>
+        </div>
+
+        {filteredTemplates.length > 0 ? (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 lg:gap-6">
-            {categoryTemplates.map((template) => {
+            {filteredTemplates.map((template) => {
               const isSelected = selectedTemplate === template.id;
               return (
                 <Card
@@ -165,7 +202,10 @@ export default function NewResumePage() {
                 >
                   <CardContent className="p-0">
                     {/* Template Preview */}
-                    <TemplatePreview template={template} isSelected={isSelected} />
+                    <TemplatePreview
+                      template={template}
+                      isSelected={isSelected}
+                    />
 
                     {/* Template Info */}
                     <div className="p-4">
@@ -197,8 +237,14 @@ export default function NewResumePage() {
               );
             })}
           </div>
-        </div>
-      ))}
+        ) : (
+          <div className="text-center py-12">
+            <p className="text-gray-500">
+              No templates found in this category.
+            </p>
+          </div>
+        )}
+      </div>
 
       {/* Info Card */}
       <Card className="border-2 border-blue-200 bg-blue-50/50">

@@ -77,9 +77,24 @@ export default function ResumesPage() {
       setDownloadingId(resumeId);
       const pdfUrl = await resumeApi.downloadPDF(resumeId);
       window.open(pdfUrl, "_blank");
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error downloading PDF:", error);
-      alert("Failed to download PDF. Please try again.");
+
+      // If PDF doesn't exist, redirect to editor to generate it
+      if (
+        error.message?.includes("PDF not found") ||
+        error.response?.status === 404
+      ) {
+        if (
+          confirm(
+            "PDF not generated yet. Would you like to open the editor to download?"
+          )
+        ) {
+          window.location.href = `/dashboard/resumes/${resumeId}/edit`;
+        }
+      } else {
+        alert("Failed to download PDF. Please try again.");
+      }
     } finally {
       setDownloadingId(null);
     }
@@ -247,28 +262,70 @@ export default function ResumesPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
           {resumes.map((resume) => (
             <Card
               key={resume._id}
-              className="border-2 shadow-lg bg-white/80 backdrop-blur-sm hover:shadow-xl transition-all group"
+              className="border shadow-md bg-white/80 backdrop-blur-sm hover:shadow-lg transition-all group"
             >
-              <CardContent className="p-4 lg:p-6">
-                <div className="flex items-start justify-between mb-4">
+              <CardContent className="p-3">
+                {/* Resume Thumbnail - 50% Reduced Size */}
+                {resume.thumbnailS3Key ? (
+                  <div className="mb-2 relative aspect-[210/297] bg-gray-100 rounded-md overflow-hidden border border-gray-200">
+                    <img
+                      src={`${process.env.NEXT_PUBLIC_API_URL}/resumes/${resume.resumeId}/thumbnail-url`}
+                      alt={resume.title}
+                      className="w-full h-full object-cover object-top"
+                      onLoad={() => {
+                        console.log(
+                          "Thumbnail loaded successfully for:",
+                          resume.title
+                        );
+                      }}
+                      onError={(e) => {
+                        console.error(
+                          "Thumbnail failed to load for:",
+                          resume.title
+                        );
+                        // Fallback to icon if image fails to load
+                        e.currentTarget.style.display = "none";
+                        const fallback = e.currentTarget.nextElementSibling;
+                        if (fallback) {
+                          (fallback as HTMLElement).style.display = "flex";
+                        }
+                      }}
+                    />
+                    <div className="hidden w-full h-full absolute inset-0 items-center justify-center bg-gradient-to-br from-purple-50 to-blue-50">
+                      <FileText className="w-8 h-8 text-purple-300" />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mb-2 aspect-[210/297] bg-gradient-to-br from-purple-50 to-blue-50 rounded-md flex items-center justify-center border border-gray-200">
+                    <div className="text-center px-2">
+                      <FileText className="w-8 h-8 text-purple-300 mx-auto mb-1" />
+                      <p className="text-[10px] text-gray-500 leading-tight">
+                        No preview
+                      </p>
+                      <p className="text-[9px] text-gray-400 leading-tight">
+                        Download PDF
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex items-start justify-between mb-2">
                   <div className="flex-1 min-w-0">
-                    <h3 className="text-lg font-bold text-gray-900 mb-1 truncate">
+                    <h3 className="text-sm font-bold text-gray-900 mb-0.5 truncate">
                       {resume.title}
                     </h3>
-                    <p className="text-sm text-gray-600 mb-2">
+                    <p className="text-[11px] text-gray-600 mb-1">
                       {formatDate(resume.updatedAt)}
                     </p>
                     {resume.atsScore !== undefined && (
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-gray-500">
-                          ATS Score:
-                        </span>
+                      <div className="flex items-center gap-1">
+                        <span className="text-[10px] text-gray-500">ATS:</span>
                         <span
-                          className={`text-sm font-bold ${
+                          className={`text-xs font-bold ${
                             resume.atsScore >= 80
                               ? "text-green-600"
                               : resume.atsScore >= 70
@@ -282,24 +339,24 @@ export default function ResumesPage() {
                     )}
                   </div>
                   {resume.isDefault && (
-                    <span className="px-2 py-1 text-xs font-semibold bg-purple-100 text-purple-700 rounded-full">
+                    <span className="px-1.5 py-0.5 text-[9px] font-semibold bg-purple-100 text-purple-700 rounded-full">
                       Default
                     </span>
                   )}
                 </div>
 
-                <div className="flex flex-wrap gap-2 mt-4">
+                <div className="flex flex-wrap gap-1 mt-2">
                   <Link
                     href={`/dashboard/resumes/${resume.resumeId}/edit`}
-                    className="flex-1 min-w-[80px] sm:min-w-[100px]"
+                    className="flex-1"
                   >
                     <Button
                       variant="outline"
                       size="sm"
-                      className="w-full border-purple-300 text-purple-700 hover:bg-purple-50 text-xs sm:text-sm"
+                      className="w-full h-7 px-2 border-purple-300 text-purple-700 hover:bg-purple-50 text-[10px]"
                     >
-                      <Edit className="w-3 h-3 mr-1 sm:mr-1.5" />
-                      <span className="hidden sm:inline">Edit</span>
+                      <Edit className="w-3 h-3 mr-0.5" />
+                      Edit
                     </Button>
                   </Link>
                   <Button
@@ -307,36 +364,36 @@ export default function ResumesPage() {
                     size="sm"
                     onClick={() => handleDownload(resume.resumeId)}
                     disabled={downloadingId === resume.resumeId}
-                    className="flex-1 min-w-[80px] sm:min-w-[100px] border-blue-300 text-blue-700 hover:bg-blue-50 text-xs sm:text-sm"
+                    className="flex-1 h-7 px-2 border-blue-300 text-blue-700 hover:bg-blue-50 text-[10px]"
                   >
                     {downloadingId === resume.resumeId ? (
-                      <Loader2 className="w-3 h-3 mr-1 sm:mr-1.5 animate-spin" />
+                      <Loader2 className="w-3 h-3 mr-0.5 animate-spin" />
                     ) : (
-                      <Download className="w-3 h-3 mr-1 sm:mr-1.5" />
+                      <Download className="w-3 h-3 mr-0.5" />
                     )}
-                    <span className="hidden sm:inline">PDF</span>
+                    PDF
                   </Button>
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => handleDuplicate(resume.resumeId)}
-                    className="border-gray-300 text-gray-700 hover:bg-gray-50 flex-shrink-0"
+                    className="h-7 px-2 border-gray-300 text-gray-700 hover:bg-gray-50"
                     title="Duplicate"
                   >
-                    <Copy className="w-3 h-3 sm:w-4 sm:h-4" />
+                    <Copy className="w-3 h-3" />
                   </Button>
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => handleDelete(resume.resumeId)}
                     disabled={deletingId === resume.resumeId}
-                    className="border-red-300 text-red-700 hover:bg-red-50 flex-shrink-0"
+                    className="h-7 px-2 border-red-300 text-red-700 hover:bg-red-50"
                     title="Delete"
                   >
                     {deletingId === resume.resumeId ? (
-                      <Loader2 className="w-3 h-3 sm:w-4 sm:h-4 animate-spin" />
+                      <Loader2 className="w-3 h-3 animate-spin" />
                     ) : (
-                      <Trash2 className="w-3 h-3 sm:w-4 sm:h-4" />
+                      <Trash2 className="w-3 h-3" />
                     )}
                   </Button>
                 </div>

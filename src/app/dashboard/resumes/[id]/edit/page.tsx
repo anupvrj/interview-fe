@@ -26,6 +26,8 @@ import {
 import { Resume, ResumeTemplate, resumeApi } from "@/lib/api";
 import { ResumePreview } from "@/components/ResumePreview";
 import { RichTextEditor } from "@/components/RichTextEditor";
+import { ExecutiveSkills } from "@/components/resume-editor/ExecutiveSkills";
+import { captureAndUploadThumbnail } from "@/lib/resume-thumbnail";
 
 interface Section {
   id: string;
@@ -272,27 +274,51 @@ export default function EditResumePage() {
     try {
       setDownloading(true);
 
-      // Get the preview element's HTML
-      const previewElement = document.getElementById(
-        "resume-preview-container"
-      );
-      if (!previewElement) {
+      // Get ALL page elements (we now have multiple pages)
+      const page1Element = document.getElementById("resume-preview-container");
+
+      // Get all pages: first page + additional pages
+      const allPageElements: HTMLElement[] = [];
+      if (page1Element) {
+        allPageElements.push(page1Element as HTMLElement);
+      }
+
+      // Find additional pages (resume-preview-page-2, resume-preview-page-3, etc.)
+      let pageNum = 2;
+      while (true) {
+        const pageElement = document.getElementById(
+          `resume-preview-page-${pageNum}`
+        );
+        if (!pageElement) break;
+        allPageElements.push(pageElement as HTMLElement);
+        pageNum++;
+      }
+
+      if (allPageElements.length === 0) {
         throw new Error("Preview element not found");
       }
 
-      // Clone the element to clean it for PDF generation
-      const clonedElement = previewElement.cloneNode(true) as HTMLElement;
+      console.log(`Found ${allPageElements.length} page(s) to export`);
 
-      // Remove preview-specific constraints that break multi-page PDFs
-      clonedElement.style.height = "auto";
-      clonedElement.style.maxHeight = "none";
-      clonedElement.style.overflow = "visible";
-      clonedElement.style.padding = "0";
-      clonedElement.style.pageBreakInside = "auto";
-      clonedElement.classList.remove("shadow-2xl", "mx-auto");
+      // Combine all pages into a single HTML document
+      let combinedHTML = "";
+
+      allPageElements.forEach((pageElement, index) => {
+        const clonedPage = pageElement.cloneNode(true) as HTMLElement;
+
+        // Keep the original styling but remove shadow
+        clonedPage.classList.remove("shadow-2xl", "mx-auto");
+
+        // Add page break before each page except the first
+        if (index > 0) {
+          combinedHTML += '<div style="page-break-before: always;"></div>';
+        }
+
+        combinedHTML += clonedPage.outerHTML;
+      });
 
       // Get the cleaned HTML content
-      const htmlContent = clonedElement.innerHTML;
+      const htmlContent = combinedHTML;
 
       // Send HTML to backend for PDF generation with Puppeteer
       // Backend will generate pixel-perfect PDF matching the browser preview
@@ -304,6 +330,42 @@ export default function EditResumePage() {
 
       // Open the PDF in a new tab
       window.open(downloadUrl, "_blank");
+
+      // Capture and upload thumbnail (run in background, don't block user)
+      // Use setTimeout to let the page render completely before capturing
+      setTimeout(async () => {
+        try {
+          // Verify element exists
+          const previewElement = document.getElementById(
+            "resume-preview-container"
+          );
+          if (!previewElement) {
+            console.error(
+              "Resume preview element not found for thumbnail capture"
+            );
+            return;
+          }
+
+          console.log("Starting thumbnail capture for resume:", resumeId);
+          console.log("Preview element found:", previewElement);
+
+          const result = await captureAndUploadThumbnail(resumeId);
+
+          if (result.success) {
+            console.log(
+              "✅ Thumbnail uploaded successfully!",
+              result.thumbnailUrl
+            );
+            // Reload the resume to get updated data with thumbnail
+            const updatedResume = await resumeApi.get(resumeId);
+            setResume(updatedResume);
+          } else {
+            console.error("❌ Failed to upload thumbnail:", result.error);
+          }
+        } catch (error) {
+          console.error("❌ Error capturing thumbnail:", error);
+        }
+      }, 2000); // Increased delay to ensure rendering is complete
     } catch (error) {
       console.error("Error generating PDF:", error);
       alert("Failed to generate PDF. Please try again.");
@@ -2466,10 +2528,25 @@ export default function EditResumePage() {
 
                 // Skills Section
                 if (section.type === "skills") {
-                  const combinedSkills =
-                    typeof resume.content.skills.technical === "string"
-                      ? resume.content.skills.technical
-                      : resume.content.skills.technical.join(", ");
+                  // Check if it's Executive template (uses new structure with items array)
+                  const isExecutiveTemplate = resume.templateId === "executive";
+
+                  // Get skills based on structure
+                  let skillsData: any = null;
+                  if (isExecutiveTemplate) {
+                    // For Executive: Get from sections array or initialize
+                    const skillsSection = (
+                      resume.content as any
+                    ).sections?.find((s: any) => s.type === "skills");
+                    skillsData = skillsSection?.items || [];
+                  } else {
+                    // For other templates: Get from old structure
+                    const combinedSkills =
+                      typeof resume.content.skills.technical === "string"
+                        ? resume.content.skills.technical
+                        : resume.content.skills.technical.join(", ");
+                    skillsData = combinedSkills;
+                  }
 
                   return (
                     <Card
@@ -2563,22 +2640,63 @@ export default function EditResumePage() {
                       </div>
                       {section.expanded && (
                         <CardContent className="p-4 space-y-4">
-                          <div>
-                            <RichTextEditor
-                              value={combinedSkills}
-                              onChange={(html) =>
+                          {isExecutiveTemplate ? (
+                            // Executive Template: Skill items with ratings
+                            <ExecutiveSkills
+                              skills={skillsData}
+                              onChange={(updatedSkills) => {
+                                // Update or create sections array
+                                const currentContent = resume.content as any;
+                                const sections = currentContent.sections || [];
+                                const skillsSectionIndex = sections.findIndex(
+                                  (s: any) => s.type === "skills"
+                                );
+
+                                let updatedSections;
+                                if (skillsSectionIndex >= 0) {
+                                  // Update existing section
+                                  updatedSections = [...sections];
+                                  updatedSections[skillsSectionIndex] = {
+                                    ...updatedSections[skillsSectionIndex],
+                                    items: updatedSkills,
+                                  };
+                                } else {
+                                  // Create new section
+                                  updatedSections = [
+                                    ...sections,
+                                    {
+                                      type: "skills",
+                                      title: section.title,
+                                      items: updatedSkills,
+                                    },
+                                  ];
+                                }
+
                                 updateContent({
-                                  skills: {
-                                    ...resume.content.skills,
-                                    technical: html,
-                                    soft: html,
-                                  },
-                                })
-                              }
-                              placeholder="List your skills..."
-                              className="mt-1"
+                                  ...currentContent,
+                                  sections: updatedSections,
+                                });
+                              }}
                             />
-                          </div>
+                          ) : (
+                            // Other Templates: Rich text editor
+                            <div>
+                              <RichTextEditor
+                                value={skillsData}
+                                onChange={(html) =>
+                                  updateContent({
+                                    skills: {
+                                      ...resume.content.skills,
+                                      technical: html,
+                                      soft: html,
+                                    },
+                                  })
+                                }
+                                placeholder="List your skills..."
+                                className="mt-1"
+                              />
+                            </div>
+                          )}
                         </CardContent>
                       )}
                     </Card>

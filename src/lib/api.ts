@@ -535,6 +535,7 @@ export interface Resume {
       linkedin?: string;
       github?: string;
       portfolio?: string;
+      profilePicture?: string; // S3 key for profile picture
       dateOfBirth?: string;
       nationality?: string;
       passport?: string;
@@ -678,6 +679,8 @@ export interface Resume {
     suggestions: string[];
   };
   isDefault?: boolean;
+  pdfS3Key?: string; // S3 key for generated PDF
+  thumbnailS3Key?: string; // S3 key for resume thumbnail
   createdAt: string;
   updatedAt: string;
 }

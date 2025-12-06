@@ -3,7 +3,7 @@
  * Renders a visual preview of the resume matching the template design
  */
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Resume, ResumeTemplate } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { ZoomIn, ZoomOut, RotateCcw } from "lucide-react";
@@ -26,7 +26,8 @@ interface Section {
     | "organisations"
     | "publications"
     | "references"
-    | "declaration";
+    | "declaration"
+    | "quote";
   title: string;
   visible: boolean;
   expanded?: boolean;
@@ -59,6 +60,10 @@ export function ResumePreview({
   layout,
 }: ResumePreviewProps) {
   const [zoomLevel, setZoomLevel] = useState(100);
+  const [dynamicPages, setDynamicPages] = useState<
+    Array<{ leftIds: string[]; rightIds: string[] }>
+  >([]);
+  const measureContainerRef = useRef<HTMLDivElement>(null);
 
   // Use provided template or show placeholder
   const resumeTemplate = template;
@@ -84,6 +89,149 @@ export function ResumePreview({
   const handleResetZoom = () => {
     setZoomLevel(100);
   };
+
+  // Executive template uses the same page break logic as other templates
+
+  // Dynamic page calculation based on actual rendered heights
+  useEffect(() => {
+    if (!measureContainerRef.current) return;
+
+    const calculatePages = () => {
+      const container = measureContainerRef.current;
+      if (!container) return;
+
+      // Get all section elements
+      const leftSections = Array.from(
+        container.querySelectorAll('[data-column="left"]')
+      );
+      const rightSections = Array.from(
+        container.querySelectorAll('[data-column="right"]')
+      );
+      const headerElement = container.querySelector('[data-section="header"]');
+
+      // A4 page height in pixels (297mm at 96dpi)
+      const PAGE_HEIGHT_MM = 297;
+      const MM_TO_PX = 3.7795275591; // 1mm = 3.78px at 96dpi
+      const PAGE_HEIGHT_PX = PAGE_HEIGHT_MM * MM_TO_PX;
+
+      // Get padding from layout
+      const paddingTop =
+        ((layout || resume.layout)?.padding?.top || 8) * MM_TO_PX;
+      const paddingBottom =
+        ((layout || resume.layout)?.padding?.bottom || 8) * MM_TO_PX;
+      const availableHeight = PAGE_HEIGHT_PX - paddingTop - paddingBottom;
+
+      const pages: Array<{ leftIds: string[]; rightIds: string[] }> = [];
+      let currentPage = { leftIds: [] as string[], rightIds: [] as string[] };
+      let currentLeftHeight = 0;
+      let currentRightHeight = 0;
+
+      // Add header height (always on first page)
+      if (headerElement) {
+        const headerHeight = headerElement.getBoundingClientRect().height;
+        currentLeftHeight += headerHeight + 10; // Add margin
+        currentRightHeight += headerHeight + 10;
+      }
+
+      // Build array of sections with their heights
+      const leftSectionData = leftSections.map((el) => ({
+        id: el.getAttribute("data-section-id") || "",
+        height: el.getBoundingClientRect().height,
+      }));
+
+      const rightSectionData = rightSections.map((el) => ({
+        id: el.getAttribute("data-section-id") || "",
+        height: el.getBoundingClientRect().height,
+      }));
+
+      let leftIndex = 0;
+      let rightIndex = 0;
+
+      // Process sections together, considering both columns
+      while (
+        leftIndex < leftSectionData.length ||
+        rightIndex < rightSectionData.length
+      ) {
+        let needNewPage = false;
+
+        // Check if current left section fits
+        if (leftIndex < leftSectionData.length) {
+          const leftSection = leftSectionData[leftIndex];
+          if (currentLeftHeight + leftSection.height > availableHeight) {
+            needNewPage = true;
+          }
+        }
+
+        // Check if current right section fits
+        if (rightIndex < rightSectionData.length) {
+          const rightSection = rightSectionData[rightIndex];
+          if (currentRightHeight + rightSection.height > availableHeight) {
+            needNewPage = true;
+          }
+        }
+
+        // If either column needs a new page and current page has content, create new page
+        if (
+          needNewPage &&
+          (currentPage.leftIds.length > 0 || currentPage.rightIds.length > 0)
+        ) {
+          pages.push({ ...currentPage });
+          currentPage = { leftIds: [], rightIds: [] };
+          currentLeftHeight = 0;
+          currentRightHeight = 0;
+        }
+
+        // Add left section if available and fits
+        if (leftIndex < leftSectionData.length) {
+          const leftSection = leftSectionData[leftIndex];
+          if (
+            currentLeftHeight + leftSection.height <= availableHeight ||
+            currentPage.leftIds.length === 0
+          ) {
+            currentPage.leftIds.push(leftSection.id);
+            currentLeftHeight += leftSection.height + 10; // Add gap
+            leftIndex++;
+          }
+        }
+
+        // Add right section if available and fits
+        if (rightIndex < rightSectionData.length) {
+          const rightSection = rightSectionData[rightIndex];
+          if (
+            currentRightHeight + rightSection.height <= availableHeight ||
+            currentPage.rightIds.length === 0
+          ) {
+            currentPage.rightIds.push(rightSection.id);
+            currentRightHeight += rightSection.height + 10; // Add gap
+            rightIndex++;
+          }
+        }
+
+        // Safety break
+        if (
+          leftIndex >= leftSectionData.length &&
+          rightIndex >= rightSectionData.length
+        ) {
+          break;
+        }
+      }
+
+      // Add the last page if it has content
+      if (currentPage.leftIds.length > 0 || currentPage.rightIds.length > 0) {
+        pages.push(currentPage);
+      }
+
+      console.log("Calculated pages:", pages);
+      setDynamicPages(
+        pages.length > 0 ? pages : [{ leftIds: [], rightIds: [] }]
+      );
+    };
+
+    // Run calculation after a small delay to ensure rendering is complete
+    const timeout = setTimeout(calculatePages, 300);
+
+    return () => clearTimeout(timeout);
+  }, [resume, layout, sections]);
 
   const colors = resumeTemplate.colors;
   const templateLayout = resumeTemplate.layout;
@@ -176,8 +324,115 @@ export function ResumePreview({
   // Helper function to render section content with custom title
   const renderSectionContent = (section: Section) => {
     const sectionTitle = section.title; // Use custom title from section
+    const isExecutive = resume.templateId === "executive";
+
     switch (section.type) {
       case "personalInfo":
+        if (isExecutive) {
+          return (
+            <>
+              {/* Executive Template Header */}
+              <div style={{ marginBottom: "12px" }}>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "baseline",
+                    gap: "10px",
+                    marginBottom: "8px",
+                  }}
+                >
+                  {personalInfo.fullName && (
+                    <h1
+                      style={{
+                        fontSize: "28pt",
+                        fontWeight: "bold",
+                        color: "#000000",
+                        margin: 0,
+                      }}
+                    >
+                      {personalInfo.fullName}
+                    </h1>
+                  )}
+                  {personalInfo.portfolio && (
+                    <div
+                      style={{
+                        fontSize: "20pt",
+                        fontStyle: "italic",
+                        color: "#000000",
+                      }}
+                    >
+                      {personalInfo.portfolio}
+                    </div>
+                  )}
+                </div>
+
+                {/* Contact Info - 2 columns, simple icons */}
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr",
+                    gap: "4px 20px",
+                    fontSize: "10pt",
+                  }}
+                >
+                  {personalInfo.location && (
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "6px",
+                      }}
+                    >
+                      <span style={{ fontSize: "10pt" }}>📍</span>
+                      <span>{personalInfo.location}</span>
+                    </div>
+                  )}
+                  {personalInfo.email && (
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "6px",
+                      }}
+                    >
+                      <span style={{ fontSize: "10pt" }}>✉️</span>
+                      <span>{personalInfo.email}</span>
+                    </div>
+                  )}
+                  {personalInfo.phone && (
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "6px",
+                      }}
+                    >
+                      <span style={{ fontSize: "10pt" }}>📞</span>
+                      <span>{personalInfo.phone}</span>
+                    </div>
+                  )}
+                  {personalInfo.linkedin && (
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "6px",
+                      }}
+                    >
+                      <span style={{ fontSize: "10pt" }}>🔗</span>
+                      <span>
+                        {personalInfo.linkedin.replace(
+                          /^https?:\/\/(www\.)?linkedin\.com\/in\//,
+                          ""
+                        )}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </>
+          );
+        }
         return (
           <>
             {/* Header Section - Matching CV Style */}
@@ -415,6 +670,33 @@ export function ResumePreview({
         );
 
       case "profileSummary":
+        if (isExecutive) {
+          return (
+            <>
+              {resume.profileSummary && (
+                <div style={{ marginBottom: "12px" }}>
+                  <div
+                    style={{
+                      fontSize: "12pt",
+                      fontWeight: "bold",
+                      marginBottom: "6px",
+                      paddingBottom: "2px",
+                      borderBottom: "3px solid #000000",
+                    }}
+                  >
+                    {sectionTitle}
+                  </div>
+                  <div
+                    style={{ textAlign: "justify", lineHeight: "1.4" }}
+                    dangerouslySetInnerHTML={{
+                      __html: resume.profileSummary || "",
+                    }}
+                  />
+                </div>
+              )}
+            </>
+          );
+        }
         return (
           <>
             {resume.profileSummary && (
@@ -452,6 +734,87 @@ export function ResumePreview({
         );
 
       case "experience":
+        if (isExecutive) {
+          return (
+            resume.content.experience.length > 0 && (
+              <div style={{ marginBottom: "12px" }}>
+                <div
+                  style={{
+                    fontSize: "12pt",
+                    fontWeight: "bold",
+                    marginBottom: "6px",
+                    paddingBottom: "2px",
+                    borderBottom: "3px solid #000000",
+                  }}
+                >
+                  {sectionTitle}
+                </div>
+                {resume.content.experience.map((exp) => (
+                  <div
+                    key={exp.id || `exp-${exp.position}-${exp.company}`}
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "140px 1fr",
+                      gap: "15px",
+                      marginBottom: "6px",
+                    }}
+                  >
+                    <div style={{ fontSize: "10pt" }}>
+                      <div
+                        style={{ fontWeight: "normal", marginBottom: "2px" }}
+                      >
+                        {exp.startDate && (
+                          <>
+                            {exp.startDate} –{" "}
+                            {exp.current ? "Present" : exp.endDate || ""}
+                          </>
+                        )}
+                      </div>
+                      {exp.location && (
+                        <div style={{ color: "#333333", fontSize: "9pt" }}>
+                          {exp.location}
+                        </div>
+                      )}
+                    </div>
+                    <div style={{ fontSize: "10pt" }}>
+                      <div
+                        style={{
+                          fontWeight: "bold",
+                          fontSize: "11pt",
+                          marginBottom: "2px",
+                        }}
+                      >
+                        {exp.position}
+                      </div>
+                      {exp.company && (
+                        <div
+                          style={{
+                            fontStyle: "italic",
+                            color: "#333333",
+                            marginBottom: "4px",
+                          }}
+                        >
+                          {exp.company}
+                        </div>
+                      )}
+                      {exp.description && (
+                        <div
+                          dangerouslySetInnerHTML={{
+                            __html: Array.isArray(exp.description)
+                              ? exp.description
+                                  .map((d) => `<p>${d}</p>`)
+                                  .join("")
+                              : exp.description || "",
+                          }}
+                        />
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )
+          );
+        }
         return (
           resume.content.experience.length > 0 && (
             <div style={{ marginBottom: "8px" }}>
@@ -533,6 +896,80 @@ export function ResumePreview({
         );
 
       case "education":
+        if (isExecutive) {
+          return (
+            resume.content.education.length > 0 && (
+              <div style={{ marginBottom: "12px" }}>
+                <div
+                  style={{
+                    fontSize: "12pt",
+                    fontWeight: "bold",
+                    marginBottom: "6px",
+                    paddingBottom: "2px",
+                    borderBottom: "3px solid #000000",
+                  }}
+                >
+                  {sectionTitle}
+                </div>
+                {resume.content.education.map((edu, index) => (
+                  <div
+                    key={edu.id || index}
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "140px 1fr",
+                      gap: "15px",
+                      marginBottom: "6px",
+                    }}
+                  >
+                    <div style={{ fontSize: "10pt" }}>
+                      <div
+                        style={{ fontWeight: "normal", marginBottom: "2px" }}
+                      >
+                        {edu.startDate && (
+                          <>
+                            {edu.startDate} – {edu.endDate || "Present"}
+                          </>
+                        )}
+                      </div>
+                      {edu.location && (
+                        <div style={{ color: "#333333", fontSize: "9pt" }}>
+                          {edu.location}
+                        </div>
+                      )}
+                    </div>
+                    <div style={{ fontSize: "10pt" }}>
+                      <div
+                        style={{
+                          fontWeight: "bold",
+                          fontSize: "11pt",
+                          marginBottom: "2px",
+                        }}
+                      >
+                        {edu.degree}
+                        {edu.field && (
+                          <span style={{ fontWeight: "normal" }}>
+                            {" "}
+                            - {edu.field}
+                          </span>
+                        )}
+                      </div>
+                      {edu.institution && (
+                        <div
+                          style={{
+                            fontStyle: "italic",
+                            color: "#333333",
+                          }}
+                        >
+                          {edu.institution}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )
+          );
+        }
         return (
           resume.content.education.length > 0 && (
             <div style={{ marginBottom: "8px" }}>
@@ -599,6 +1036,110 @@ export function ResumePreview({
             ? technicalSkills.trim().length > 0
             : technicalSkills.length > 0;
 
+        if (isExecutive) {
+          // Parse skills from sections array or HTML string for executive template
+          let skillItems: any[] = [];
+
+          // Try to get from sections array first (new structure)
+          const skillsSection = (resume.content as any).sections?.find(
+            (s: any) => s.type === "skills"
+          );
+
+          if (skillsSection?.items && skillsSection.items.length > 0) {
+            skillItems = skillsSection.items;
+          }
+          // Fallback to parsing from HTML string (old structure)
+          else if (
+            typeof technicalSkills === "string" &&
+            technicalSkills.trim()
+          ) {
+            // Strip HTML tags and split by newlines or list items
+            const skillsText = technicalSkills
+              .replace(/<[^>]*>/g, "") // Remove HTML tags
+              .replace(/•/g, "\n") // Replace bullets with newlines
+              .trim();
+
+            const skills = skillsText
+              .split("\n")
+              .filter((s: string) => s.trim())
+              .map((s: string) => s.trim());
+
+            skillItems = skills.map((skill: string) => ({
+              name: skill,
+              level: 4, // Default level
+            }));
+          } else if (Array.isArray(technicalSkills)) {
+            skillItems = technicalSkills.map((skill: string) => ({
+              name: skill,
+              level: 4,
+            }));
+          }
+
+          return (
+            skillItems.length > 0 && (
+              <div style={{ marginBottom: "12px" }}>
+                <div
+                  style={{
+                    fontSize: "12pt",
+                    fontWeight: "bold",
+                    marginBottom: "6px",
+                    paddingBottom: "2px",
+                    borderBottom: "3px solid #000000",
+                  }}
+                >
+                  {sectionTitle}
+                </div>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr",
+                    gap: "6px 20px",
+                  }}
+                >
+                  {skillItems.map((item: any, index: number) => {
+                    const level = item.level || 4;
+                    const maxDots = 5;
+                    return (
+                      <div
+                        key={index}
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                        }}
+                      >
+                        <div style={{ flex: 1, fontSize: "10pt" }}>
+                          {item.name}
+                        </div>
+                        <div
+                          style={{
+                            display: "flex",
+                            gap: "3px",
+                            marginLeft: "10px",
+                          }}
+                        >
+                          {Array.from({ length: maxDots }, (_, i) => (
+                            <div
+                              key={i}
+                              style={{
+                                width: "8px",
+                                height: "8px",
+                                borderRadius: "50%",
+                                backgroundColor:
+                                  i < level ? "#000000" : "#cccccc",
+                              }}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )
+          );
+        }
+
         return (
           hasSkills && (
             <div style={{ marginBottom: "8px" }}>
@@ -657,6 +1198,60 @@ export function ResumePreview({
       }
 
       case "projects":
+        if (isExecutive) {
+          return (
+            resume.content.projects &&
+            resume.content.projects.length > 0 && (
+              <div style={{ marginBottom: "12px" }}>
+                <div
+                  style={{
+                    fontSize: "12pt",
+                    fontWeight: "bold",
+                    marginBottom: "6px",
+                    paddingBottom: "2px",
+                    borderBottom: "3px solid #000000",
+                  }}
+                >
+                  {sectionTitle}
+                </div>
+                {resume.content.projects.map((project, index) => (
+                  <div
+                    key={project.id || index}
+                    style={{ marginBottom: "6px" }}
+                  >
+                    <div
+                      style={{
+                        fontWeight: "bold",
+                        fontSize: "10pt",
+                        marginBottom: "2px",
+                      }}
+                    >
+                      {project.name}
+                    </div>
+                    <div
+                      style={{ fontSize: "10pt" }}
+                      dangerouslySetInnerHTML={{
+                        __html: project.description || "",
+                      }}
+                    />
+                    {project.technologies &&
+                      project.technologies.length > 0 && (
+                        <div
+                          style={{
+                            fontSize: "9pt",
+                            color: "#666666",
+                            marginTop: "2px",
+                          }}
+                        >
+                          Technologies: {project.technologies.join(", ")}
+                        </div>
+                      )}
+                  </div>
+                ))}
+              </div>
+            )
+          );
+        }
         return (
           resume.content.projects &&
           resume.content.projects.length > 0 && (
@@ -718,6 +1313,47 @@ export function ResumePreview({
         );
 
       case "achievements":
+        if (isExecutive) {
+          return (
+            resume.content.achievements &&
+            resume.content.achievements.length > 0 && (
+              <div style={{ marginBottom: "12px" }}>
+                <div
+                  style={{
+                    fontSize: "12pt",
+                    fontWeight: "bold",
+                    marginBottom: "6px",
+                    paddingBottom: "2px",
+                    borderBottom: "3px solid #000000",
+                  }}
+                >
+                  {sectionTitle}
+                </div>
+                {resume.content.achievements.map((achievement, index) => (
+                  <div
+                    key={achievement.id || index}
+                    style={{ marginBottom: "4px" }}
+                  >
+                    <div style={{ fontSize: "10pt" }}>
+                      • {achievement.title}
+                    </div>
+                    {achievement.description && (
+                      <div
+                        style={{
+                          fontSize: "9pt",
+                          color: "#666666",
+                          marginLeft: "12px",
+                        }}
+                      >
+                        {achievement.description}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )
+          );
+        }
         return (
           resume.content.achievements &&
           resume.content.achievements.length > 0 && (
@@ -769,6 +1405,62 @@ export function ResumePreview({
         );
 
       case "certificates":
+        if (isExecutive) {
+          // Try to get from sections array first (new structure)
+          const certSection = (resume.content as any).sections?.find(
+            (s: any) => s.type === "certifications"
+          );
+
+          const certItems = certSection?.items || resume.content.certificates;
+
+          return (
+            certItems &&
+            certItems.length > 0 && (
+              <div style={{ marginBottom: "12px" }}>
+                <div
+                  style={{
+                    fontSize: "12pt",
+                    fontWeight: "bold",
+                    marginBottom: "6px",
+                    paddingBottom: "2px",
+                    borderBottom: "3px solid #000000",
+                  }}
+                >
+                  {certSection?.title || sectionTitle}
+                </div>
+                {certItems.map((cert: any, index: number) => (
+                  <div key={cert.id || index} style={{ marginBottom: "6px" }}>
+                    <div style={{ fontWeight: "bold", fontSize: "10pt" }}>
+                      {cert.title}
+                    </div>
+                    {cert.issuer && (
+                      <div
+                        style={{
+                          fontStyle: "italic",
+                          color: "#333333",
+                          fontSize: "9pt",
+                        }}
+                      >
+                        {cert.issuer}
+                      </div>
+                    )}
+                    {(cert.issueDate || cert.date) && (
+                      <div
+                        style={{
+                          color: "#666666",
+                          fontSize: "9pt",
+                        }}
+                      >
+                        {cert.issueDate || cert.date}
+                        {cert.expiryDate && ` - ${cert.expiryDate}`}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )
+          );
+        }
         return (
           resume.content.certificates &&
           resume.content.certificates.length > 0 && (
@@ -851,6 +1543,62 @@ export function ResumePreview({
         );
 
       case "awards":
+        if (isExecutive) {
+          // Try to get from sections array first (new structure)
+          const awardsSection = (resume.content as any).sections?.find(
+            (s: any) => s.type === "awards"
+          );
+
+          const awardItems = awardsSection?.items || resume.content.awards;
+
+          return (
+            awardItems &&
+            awardItems.length > 0 && (
+              <div style={{ marginBottom: "12px" }}>
+                <div
+                  style={{
+                    fontSize: "12pt",
+                    fontWeight: "bold",
+                    marginBottom: "6px",
+                    paddingBottom: "2px",
+                    borderBottom: "3px solid #000000",
+                  }}
+                >
+                  {awardsSection?.title || sectionTitle}
+                </div>
+                {awardItems.map((award: any, index: number) => (
+                  <div key={award.id || index} style={{ marginBottom: "6px" }}>
+                    <div style={{ fontWeight: "bold", fontSize: "10pt" }}>
+                      {award.title}
+                    </div>
+                    {award.issuer && (
+                      <div
+                        style={{
+                          fontStyle: "italic",
+                          color: "#333333",
+                          fontSize: "9pt",
+                        }}
+                      >
+                        {award.issuer}
+                      </div>
+                    )}
+                    {award.description && (
+                      <div
+                        style={{
+                          fontSize: "9pt",
+                          color: "#666666",
+                          marginTop: "2px",
+                        }}
+                      >
+                        {award.description}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )
+          );
+        }
         return (
           resume.content.awards &&
           resume.content.awards.length > 0 && (
@@ -928,6 +1676,35 @@ export function ResumePreview({
         );
 
       case "interests":
+        if (isExecutive) {
+          return (
+            resume.content.interests && (
+              <div style={{ marginBottom: "12px" }}>
+                <div
+                  style={{
+                    fontSize: "12pt",
+                    fontWeight: "bold",
+                    marginBottom: "6px",
+                    paddingBottom: "2px",
+                    borderBottom: "3px solid #000000",
+                  }}
+                >
+                  {sectionTitle}
+                </div>
+                <div
+                  style={{
+                    fontSize: "10pt",
+                    color: "#000000",
+                    lineHeight: "1.4",
+                  }}
+                  dangerouslySetInnerHTML={{
+                    __html: resume.content.interests || "",
+                  }}
+                />
+              </div>
+            )
+          );
+        }
         return (
           resume.content.interests && (
             <div style={{ marginBottom: "8px" }}>
@@ -1253,6 +2030,35 @@ export function ResumePreview({
         );
 
       case "declaration":
+        if (isExecutive) {
+          return (
+            resume.content.declaration && (
+              <div style={{ marginBottom: "12px" }}>
+                <div
+                  style={{
+                    fontSize: "12pt",
+                    fontWeight: "bold",
+                    marginBottom: "6px",
+                    paddingBottom: "2px",
+                    borderBottom: "3px solid #000000",
+                  }}
+                >
+                  {sectionTitle}
+                </div>
+                <p
+                  style={{
+                    fontSize: "10pt",
+                    color: "#000000",
+                    lineHeight: "1.4",
+                    textAlign: "justify",
+                  }}
+                >
+                  {resume.content.declaration}
+                </p>
+              </div>
+            )
+          );
+        }
         return (
           resume.content.declaration && (
             <div style={{ marginBottom: "8px" }}>
@@ -1287,6 +2093,63 @@ export function ResumePreview({
         );
 
       case "languages":
+        if (isExecutive) {
+          // Try to get from sections array first (new structure)
+          const languagesSection = (resume.content as any).sections?.find(
+            (s: any) => s.type === "languages"
+          );
+
+          let langItems: any[] = [];
+          if (languagesSection?.items && languagesSection.items.length > 0) {
+            langItems = languagesSection.items;
+          } else if (
+            resume.content.skills?.languages &&
+            Array.isArray(resume.content.skills.languages)
+          ) {
+            // Fallback to skills.languages array
+            langItems = resume.content.skills.languages.map((lang: string) => ({
+              name: lang,
+            }));
+          } else if (resume.content.languages) {
+            // Fallback to HTML string
+            const langText = (resume.content.languages as string)
+              .replace(/<[^>]*>/g, "")
+              .trim();
+            const langs = langText.split("\n").filter((s: string) => s.trim());
+            langItems = langs.map((lang: string) => ({ name: lang.trim() }));
+          }
+
+          return (
+            langItems.length > 0 && (
+              <div style={{ marginBottom: "12px" }}>
+                <div
+                  style={{
+                    fontSize: "12pt",
+                    fontWeight: "bold",
+                    marginBottom: "6px",
+                    paddingBottom: "2px",
+                    borderBottom: "3px solid #000000",
+                  }}
+                >
+                  {sectionTitle}
+                </div>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(3, 1fr)",
+                    gap: "6px",
+                  }}
+                >
+                  {langItems.map((item: any, index: number) => (
+                    <div key={index} style={{ fontSize: "10pt" }}>
+                      • {item.name || item}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )
+          );
+        }
         return (
           resume.content.languages && (
             <div style={{ marginBottom: "8px" }}>
@@ -1319,6 +2182,59 @@ export function ResumePreview({
             </div>
           )
         );
+
+      case "quote":
+        if (isExecutive) {
+          // Try to get from sections array (executive template structure)
+          const quoteSection = (resume.content as any).sections?.find(
+            (s: any) =>
+              s.type === "quote" || s.title?.toLowerCase().includes("quote")
+          );
+
+          const quote = quoteSection?.items?.[0];
+
+          if (!quote) return null;
+
+          return (
+            <div style={{ marginBottom: "12px" }}>
+              <div
+                style={{
+                  fontSize: "12pt",
+                  fontWeight: "bold",
+                  marginBottom: "6px",
+                  paddingBottom: "2px",
+                  borderBottom: "3px solid #000000",
+                }}
+              >
+                {quoteSection?.title || sectionTitle}
+              </div>
+              {(quote.author || quote.name) && (
+                <div
+                  style={{
+                    fontWeight: "bold",
+                    fontSize: "10pt",
+                    marginBottom: "3px",
+                  }}
+                >
+                  {quote.author || quote.name}
+                </div>
+              )}
+              {(quote.text || quote.description) && (
+                <div
+                  style={{
+                    fontStyle: "italic",
+                    color: "#333333",
+                    lineHeight: "1.4",
+                    fontSize: "10pt",
+                  }}
+                >
+                  {quote.text || quote.description}
+                </div>
+              )}
+            </div>
+          );
+        }
+        return null;
 
       // Default handler for any future section types
       default:
@@ -1389,84 +2305,296 @@ export function ResumePreview({
         </div>
       </div>
 
-      {/* Scrollable Preview Container */}
+      {/* Scrollable Preview Container with Real A4 Pages */}
       <div
         className="flex-1 overflow-auto bg-gray-200 p-4"
         suppressHydrationWarning
       >
+        {/* Container for pages with zoom */}
+        {/* Hidden measurement container */}
         <div
-          id="resume-preview-container"
-          className="mx-auto bg-white shadow-2xl transition-transform duration-200"
+          ref={measureContainerRef}
           style={{
-            transform: `scale(${zoomLevel / 100})`,
-            transformOrigin: "top center",
-            fontFamily: templateLayout.fontFamily,
-            backgroundColor: colors.background,
-            color: colors.text,
+            position: "absolute",
+            top: 0,
+            left: "-9999px",
             width: "210mm",
-            maxWidth: "210mm",
-            minHeight: "297mm",
-            padding: `${(layout || resume.layout)?.padding?.top || 8}mm ${
-              (layout || resume.layout)?.padding?.right || 8
-            }mm ${(layout || resume.layout)?.padding?.bottom || 8}mm ${
-              (layout || resume.layout)?.padding?.left || 8
-            }mm`,
-            boxSizing: "border-box",
+            visibility: "hidden",
+            fontFamily:
+              resume.templateId === "executive"
+                ? "'Times New Roman', Times, serif"
+                : templateLayout.fontFamily,
+            fontSize: resume.templateId === "executive" ? "10pt" : "inherit",
+            lineHeight: resume.templateId === "executive" ? "1.4" : undefined,
           }}
-          suppressHydrationWarning
         >
-          {/* Render header section (always full width at top) */}
           {(() => {
             const { headerSection, leftColumn, rightColumn } =
               getHeaderAndBodySections();
 
+            const paddingStyle = `${
+              (layout || resume.layout)?.padding?.top || 8
+            }mm ${(layout || resume.layout)?.padding?.right || 8}mm ${
+              (layout || resume.layout)?.padding?.bottom || 8
+            }mm ${(layout || resume.layout)?.padding?.left || 8}mm`;
+
             return (
-              <>
-                {/* Header Section - Always Full Width (Only Personal Info) */}
+              <div style={{ padding: paddingStyle }}>
                 {headerSection && (
-                  <div style={{ width: "100%", marginBottom: "10px" }}>
+                  <div data-section="header" style={{ marginBottom: "10px" }}>
                     {renderSectionContent(headerSection)}
                   </div>
                 )}
-
-                {/* Body Sections - Single or Double Column (Profile Summary and all others) */}
-                {resumeLayout.type === "double" ? (
-                  <div
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: `${
-                        resumeLayout.columnWidths?.left || 60
-                      }% ${resumeLayout.columnWidths?.right || 40}%`,
-                      gap: "12px",
-                      alignItems: "start",
-                    }}
-                  >
-                    {/* Left Column */}
-                    <div>
-                      {leftColumn.map((section) => (
-                        <div key={section.id} style={{ breakInside: "auto" }}>
-                          {renderSectionContent(section)}
-                        </div>
-                      ))}
-                    </div>
-                    {/* Right Column */}
+                <div
+                  style={{
+                    display: resumeLayout.type === "double" ? "grid" : "block",
+                    gridTemplateColumns:
+                      resumeLayout.type === "double"
+                        ? `${resumeLayout.columnWidths?.left || 60}% ${
+                            resumeLayout.columnWidths?.right || 40
+                          }%`
+                        : undefined,
+                    gap: resumeLayout.type === "double" ? "12px" : undefined,
+                  }}
+                >
+                  <div>
+                    {leftColumn.map((section) => (
+                      <div
+                        key={section.id}
+                        data-column="left"
+                        data-section-id={section.id}
+                        style={{ marginBottom: "10px" }}
+                      >
+                        {renderSectionContent(section)}
+                      </div>
+                    ))}
+                  </div>
+                  {resumeLayout.type === "double" && (
                     <div>
                       {rightColumn.map((section) => (
-                        <div key={section.id} style={{ breakInside: "auto" }}>
+                        <div
+                          key={section.id}
+                          data-column="right"
+                          data-section-id={section.id}
+                          style={{ marginBottom: "10px" }}
+                        >
                           {renderSectionContent(section)}
                         </div>
                       ))}
                     </div>
-                  </div>
-                ) : (
-                  /* Single Column Layout */
-                  leftColumn.map((section) => (
-                    <div key={section.id}>{renderSectionContent(section)}</div>
-                  ))
-                )}
-              </>
+                  )}
+                </div>
+              </div>
             );
           })()}
+        </div>
+
+        {/* Dynamic pages with real gaps */}
+        <div
+          className="mx-auto space-y-6"
+          style={{
+            transform: `scale(${zoomLevel / 100})`,
+            transformOrigin: "top center",
+            transition: "transform 200ms",
+          }}
+        >
+          {dynamicPages.length > 0
+            ? dynamicPages.map((page, pageIndex) => {
+                const { headerSection, leftColumn, rightColumn } =
+                  getHeaderAndBodySections();
+
+                const paddingStyle = `${
+                  (layout || resume.layout)?.padding?.top || 8
+                }mm ${(layout || resume.layout)?.padding?.right || 8}mm ${
+                  (layout || resume.layout)?.padding?.bottom || 8
+                }mm ${(layout || resume.layout)?.padding?.left || 8}mm`;
+
+                const pageSections = {
+                  left: leftColumn.filter((s) => page.leftIds.includes(s.id)),
+                  right: rightColumn.filter((s) =>
+                    page.rightIds.includes(s.id)
+                  ),
+                };
+
+                const isExecutive = resume.templateId === "executive";
+                return (
+                  <div
+                    key={pageIndex}
+                    id={
+                      pageIndex === 0
+                        ? "resume-preview-container"
+                        : `resume-preview-page-${pageIndex + 1}`
+                    }
+                    className="bg-white shadow-lg"
+                    style={{
+                      fontFamily: isExecutive
+                        ? "'Times New Roman', Times, serif"
+                        : templateLayout.fontFamily,
+                      backgroundColor: isExecutive
+                        ? "#ffffff"
+                        : colors.background,
+                      color: isExecutive ? "#000000" : colors.text,
+                      width: "210mm",
+                      maxWidth: "210mm",
+                      minHeight: "297mm",
+                      padding: paddingStyle,
+                      boxSizing: "border-box",
+                      pageBreakAfter: "always",
+                      fontSize: isExecutive ? "10pt" : undefined,
+                      lineHeight: isExecutive ? "1.4" : undefined,
+                    }}
+                    suppressHydrationWarning
+                  >
+                    {/* Header only on first page */}
+                    {pageIndex === 0 && headerSection && (
+                      <div
+                        style={{
+                          width: "100%",
+                          marginBottom: "10px",
+                          pageBreakInside: "avoid",
+                        }}
+                      >
+                        {renderSectionContent(headerSection)}
+                      </div>
+                    )}
+
+                    {/* Page content */}
+                    {resumeLayout.type === "double" ? (
+                      <div
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: `${
+                            resumeLayout.columnWidths?.left || 60
+                          }% ${resumeLayout.columnWidths?.right || 40}%`,
+                          gap: "12px",
+                          alignItems: "start",
+                        }}
+                      >
+                        <div>
+                          {pageSections.left.map((section) => (
+                            <div
+                              key={section.id}
+                              style={{ pageBreakInside: "avoid" }}
+                            >
+                              {renderSectionContent(section)}
+                            </div>
+                          ))}
+                        </div>
+                        <div>
+                          {pageSections.right.map((section) => (
+                            <div
+                              key={section.id}
+                              style={{ pageBreakInside: "avoid" }}
+                            >
+                              {renderSectionContent(section)}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      pageSections.left.map((section) => (
+                        <div
+                          key={section.id}
+                          style={{ pageBreakInside: "avoid" }}
+                        >
+                          {renderSectionContent(section)}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                );
+              })
+            : /* Fallback: render all content in one page */
+              (() => {
+                const { headerSection, leftColumn, rightColumn } =
+                  getHeaderAndBodySections();
+
+                const paddingStyle = `${
+                  (layout || resume.layout)?.padding?.top || 8
+                }mm ${(layout || resume.layout)?.padding?.right || 8}mm ${
+                  (layout || resume.layout)?.padding?.bottom || 8
+                }mm ${(layout || resume.layout)?.padding?.left || 8}mm`;
+
+                const isExecutive = resume.templateId === "executive";
+                return (
+                  <div
+                    id="resume-preview-container"
+                    className="bg-white shadow-lg"
+                    style={{
+                      fontFamily: isExecutive
+                        ? "'Times New Roman', Times, serif"
+                        : templateLayout.fontFamily,
+                      backgroundColor: isExecutive
+                        ? "#ffffff"
+                        : colors.background,
+                      color: isExecutive ? "#000000" : colors.text,
+                      width: "210mm",
+                      maxWidth: "210mm",
+                      minHeight: "297mm",
+                      padding: paddingStyle,
+                      boxSizing: "border-box",
+                      fontSize: isExecutive ? "10pt" : undefined,
+                      lineHeight: isExecutive ? "1.4" : undefined,
+                    }}
+                    suppressHydrationWarning
+                  >
+                    {headerSection && (
+                      <div
+                        style={{
+                          width: "100%",
+                          marginBottom: "10px",
+                          pageBreakInside: "avoid",
+                        }}
+                      >
+                        {renderSectionContent(headerSection)}
+                      </div>
+                    )}
+
+                    {resumeLayout.type === "double" ? (
+                      <div
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: `${
+                            resumeLayout.columnWidths?.left || 60
+                          }% ${resumeLayout.columnWidths?.right || 40}%`,
+                          gap: "12px",
+                          alignItems: "start",
+                        }}
+                      >
+                        <div>
+                          {leftColumn.map((section) => (
+                            <div
+                              key={section.id}
+                              style={{ pageBreakInside: "avoid" }}
+                            >
+                              {renderSectionContent(section)}
+                            </div>
+                          ))}
+                        </div>
+                        <div>
+                          {rightColumn.map((section) => (
+                            <div
+                              key={section.id}
+                              style={{ pageBreakInside: "avoid" }}
+                            >
+                              {renderSectionContent(section)}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      leftColumn.map((section) => (
+                        <div
+                          key={section.id}
+                          style={{ pageBreakInside: "avoid" }}
+                        >
+                          {renderSectionContent(section)}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                );
+              })()}
         </div>
       </div>
     </div>
