@@ -43,7 +43,7 @@ export async function generatePDFFromElement(
     const opt = {
       margin: 0,
       filename: filename,
-      image: { type: "jpeg", quality: 0.98 },
+      image: { type: "jpeg" as const, quality: 0.98 },
       html2canvas: {
         scale: 2,
         useCORS: true,
@@ -57,9 +57,9 @@ export async function generatePDFFromElement(
         scrollX: 0,
       },
       jsPDF: {
-        unit: "mm",
-        format: [210, 297], // Exact A4 dimensions
-        orientation: "portrait",
+        unit: "mm" as const,
+        format: [210, 297] as [number, number], // Exact A4 dimensions
+        orientation: "portrait" as const,
         compress: true,
       },
       pagebreak: {

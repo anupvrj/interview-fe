@@ -552,7 +552,6 @@ export interface Resume {
       threads?: string;
       x?: string;
     };
-    profileSummary?: string;
     experience: Array<{
       id: string;
       company: string;
@@ -561,7 +560,7 @@ export interface Resume {
       startDate: string;
       endDate?: string;
       current: boolean;
-      description: string[];
+      description: string | string[]; // Support both HTML string and array
       achievements?: string[];
     }>;
     education: Array<{
@@ -650,6 +649,7 @@ export interface Resume {
     declaration?: string;
     languages?: string;
   };
+  profileSummary?: string; // Top-level field, separate from personalInfo
   sectionOrder?: Array<{
     id: string;
     type: string;
@@ -732,6 +732,7 @@ export const resumeApi = {
       title?: string;
       templateId?: string;
       content?: Partial<Resume["content"]>;
+      profileSummary?: string;
       sectionOrder?: Resume["sectionOrder"];
       layout?: Resume["layout"];
       isDefault?: boolean;

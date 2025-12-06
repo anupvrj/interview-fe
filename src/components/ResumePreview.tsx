@@ -43,6 +43,12 @@ interface ResumePreviewProps {
       left: number;
       right: number;
     };
+    padding?: {
+      top: number;
+      bottom: number;
+      left: number;
+      right: number;
+    };
   };
 }
 
@@ -411,7 +417,7 @@ export function ResumePreview({
       case "profileSummary":
         return (
           <>
-            {resume.content.profileSummary && (
+            {resume.profileSummary && (
               <div style={{ marginBottom: "8px" }}>
                 <h2
                   style={{
@@ -437,7 +443,7 @@ export function ResumePreview({
                     textAlign: "justify",
                   }}
                   dangerouslySetInnerHTML={{
-                    __html: resume.content.profileSummary || "",
+                    __html: resume.profileSummary || "",
                   }}
                 />
               </div>
@@ -1400,10 +1406,14 @@ export function ResumePreview({
             width: "210mm",
             maxWidth: "210mm",
             minHeight: "297mm",
-            padding: `${resumeLayout.padding?.top || 8}mm ${
-              resumeLayout.padding?.right || 8
-            }mm ${resumeLayout.padding?.bottom || 8}mm ${
-              resumeLayout.padding?.left || 8
+            padding: `${
+              (layout || resume.layout)?.padding?.top || 8
+            }mm ${
+              (layout || resume.layout)?.padding?.right || 8
+            }mm ${
+              (layout || resume.layout)?.padding?.bottom || 8
+            }mm ${
+              (layout || resume.layout)?.padding?.left || 8
             }mm`,
             boxSizing: "border-box",
           }}

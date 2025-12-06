@@ -1979,12 +1979,18 @@ export default function EditResumePage() {
                             Profile Summary
                           </Label>
                           <RichTextEditor
-                            value={resume.content.profileSummary || ""}
-                            onChange={(html) =>
-                              updateContent({
-                                profileSummary: html,
-                              })
-                            }
+                            value={resume.profileSummary || ""}
+                            onChange={(html) => {
+                              setResume((prev) =>
+                                prev
+                                  ? {
+                                      ...prev,
+                                      profileSummary: html,
+                                    }
+                                  : null
+                              );
+                              setHasChanges(true);
+                            }}
                             placeholder="Write a brief professional summary that highlights your experience, skills, and career goals..."
                             className="mt-1"
                           />
