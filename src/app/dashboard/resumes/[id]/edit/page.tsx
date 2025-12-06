@@ -2820,7 +2820,9 @@ export default function EditResumePage() {
                         <CardContent className="p-4 space-y-3">
                           {(resume.content.certificates || []).map(
                             (cert, index) => {
-                              const today = new Date().toISOString().slice(0, 7); // YYYY-MM format
+                              const today = new Date()
+                                .toISOString()
+                                .slice(0, 7); // YYYY-MM format
                               return (
                                 <div
                                   key={cert.id}
@@ -2860,7 +2862,9 @@ export default function EditResumePage() {
                                       />
                                     </div>
                                     <div>
-                                      <Label className="text-xs">Issuer *</Label>
+                                      <Label className="text-xs">
+                                        Issuer *
+                                      </Label>
                                       <Input
                                         value={cert.issuer}
                                         onChange={(e) => {
