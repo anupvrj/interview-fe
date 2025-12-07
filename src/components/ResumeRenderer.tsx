@@ -199,21 +199,11 @@ export function ResumeRenderer({
             rightColumn.push(section);
           }
         } else {
-          // Standard templates: Heuristic distribution instead of alternating
-          // Left Column (Main, typically 60-70%): Experience, Projects, Profile
-          // Right Column (Side, typically 30-40%): Skills, Education, Languages, etc.
-          const mainSections = [
-            "profileSummary",
-            "experience",
-            "projects",
-            "publications",
-            "declaration", // Usually at bottom of main content
-          ];
-
-          if (mainSections.includes(section.type)) {
+          // Standard templates: True alternating distribution
+          // 1→left, 2→right, 3→left, 4→right, etc.
+          if (index % 2 === 0) {
             leftColumn.push(section);
           } else {
-            // Right column: Education, Skills, Languages, Awards, Interests, Certs, etc.
             rightColumn.push(section);
           }
         }
@@ -760,7 +750,7 @@ export function ResumeRenderer({
                   key={index}
                   style={{
                     marginBottom: "16px",
-                    pageBreakInside: "avoid",
+                    pageBreakInside: "auto", // Allow splitting for better pagination
                     display:
                       templateStyle.timelineLayout.type === "grid"
                         ? "grid"
@@ -945,7 +935,7 @@ export function ResumeRenderer({
                   key={index}
                   style={{
                     marginBottom: "6px",
-                    pageBreakInside: "avoid",
+                    pageBreakInside: "auto", // Allow splitting for better pagination
                     display:
                       templateStyle.timelineLayout.type === "grid"
                         ? "grid"
@@ -1207,7 +1197,7 @@ export function ResumeRenderer({
                   key={index}
                   style={{
                     marginBottom: "16px",
-                    pageBreakInside: "avoid",
+                    pageBreakInside: "auto", // Allow splitting for better pagination
                   }}
                 >
                   <div
