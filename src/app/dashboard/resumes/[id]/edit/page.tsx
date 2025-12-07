@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   ArrowLeft,
   Save,
@@ -23,10 +24,12 @@ import {
   X,
   Check,
 } from "lucide-react";
-import { Resume, ResumeTemplate, resumeApi } from "@/lib/api";
+import { Resume, ResumeTemplate, resumeApi, apiClient } from "@/lib/api";
 import { ResumePreview } from "@/components/ResumePreview";
 import { RichTextEditor } from "@/components/RichTextEditor";
 import { ExecutiveSkills } from "@/components/resume-editor/ExecutiveSkills";
+import { LanguageRating } from "@/components/resume-editor/LanguageRating";
+import { LanguagesEditor } from "@/components/LanguagesEditor";
 import { captureAndUploadThumbnail } from "@/lib/resume-thumbnail";
 
 interface Section {
@@ -133,6 +136,26 @@ export default function EditResumePage() {
     try {
       setLoading(true);
       const resumeData = await resumeApi.get(resumeId);
+
+      // Normalize profileSummary - check multiple locations
+      if (!resumeData.profileSummary) {
+        // Check content.profileSummary
+        if ((resumeData.content as any).profileSummary) {
+          resumeData.profileSummary = (
+            resumeData.content as any
+          ).profileSummary;
+        }
+        // Check sections array
+        else {
+          const profileSection = (resumeData.content as any).sections?.find(
+            (s: any) => s.type === "profileSummary"
+          );
+          if (profileSection?.content) {
+            resumeData.profileSummary = profileSection.content;
+          }
+        }
+      }
+
       setResume(resumeData);
 
       // Load layout from database or use default
@@ -150,11 +173,20 @@ export default function EditResumePage() {
             right: 10,
           },
         });
-      } else {
+      }
+
+      // Load template by templateId first to get padding configuration
+      const templateList = await resumeApi.getTemplates();
+      const foundTemplate = templateList.find(
+        (t) => t.id === resumeData.templateId
+      );
+
+      // Set default layout if not provided, using optimized padding
+      if (!resumeData.layout) {
         setLayout({
           type: "single",
           columnWidths: { left: 60, right: 40 },
-          padding: { top: 10, bottom: 10, left: 10, right: 10 },
+          padding: { top: 5, bottom: 5, left: 8, right: 8 },
         });
       }
 
@@ -212,9 +244,72 @@ export default function EditResumePage() {
             expanded: false,
           },
           {
+            id: "languages",
+            type: "languages",
+            title: "Languages",
+            visible: false,
+            expanded: false,
+          },
+          {
+            id: "certificates",
+            type: "certificates",
+            title: "Certificates",
+            visible: false,
+            expanded: false,
+          },
+          {
+            id: "awards",
+            type: "awards",
+            title: "Awards",
+            visible: false,
+            expanded: false,
+          },
+          {
             id: "achievements",
             type: "achievements",
             title: "Achievements",
+            visible: false,
+            expanded: false,
+          },
+          {
+            id: "interests",
+            type: "interests",
+            title: "Interests",
+            visible: false,
+            expanded: false,
+          },
+          {
+            id: "courses",
+            type: "courses",
+            title: "Courses",
+            visible: false,
+            expanded: false,
+          },
+          {
+            id: "organisations",
+            type: "organisations",
+            title: "Organisations",
+            visible: false,
+            expanded: false,
+          },
+          {
+            id: "publications",
+            type: "publications",
+            title: "Publications",
+            visible: false,
+            expanded: false,
+          },
+          {
+            id: "references",
+            type: "references",
+            title: "References",
+            visible: false,
+            expanded: false,
+          },
+          {
+            id: "declaration",
+            type: "declaration",
+            title: "Declaration",
             visible: false,
             expanded: false,
           },
@@ -222,11 +317,7 @@ export default function EditResumePage() {
         setSections(defaultSections);
       }
 
-      // Load template by templateId
-      const templateList = await resumeApi.getTemplates();
-      const foundTemplate = templateList.find(
-        (t) => t.id === resumeData.templateId
-      );
+      // Template was already loaded above
       if (foundTemplate) {
         setTemplate(foundTemplate);
       }
@@ -275,81 +366,155 @@ export default function EditResumePage() {
       setDownloading(true);
 
       // Get ALL page elements (we now have multiple pages)
-      const page1Element = document.getElementById("resume-preview-container");
+      // Use unique ID per resume to avoid conflicts
+      const previewContainerId = `resume-preview-container-${resumeId}`;
+      const page1Element = document.getElementById(previewContainerId);
 
-      // Get all pages: first page + additional pages
-      const allPageElements: HTMLElement[] = [];
+      // Store current zoom level and reset to 100% for PDF generation
+      let originalTransform = "";
       if (page1Element) {
-        allPageElements.push(page1Element as HTMLElement);
+        originalTransform = page1Element.style.transform;
+        page1Element.style.transform = "scale(1)"; // Reset to 100%
+
+        // Wait a moment for the DOM to update
+        await new Promise((resolve) => setTimeout(resolve, 100));
       }
 
-      // Find additional pages (resume-preview-page-2, resume-preview-page-3, etc.)
-      let pageNum = 2;
-      while (true) {
-        const pageElement = document.getElementById(
-          `resume-preview-page-${pageNum}`
-        );
-        if (!pageElement) break;
-        allPageElements.push(pageElement as HTMLElement);
-        pageNum++;
-      }
-
-      if (allPageElements.length === 0) {
-        throw new Error("Preview element not found");
-      }
-
-      console.log(`Found ${allPageElements.length} page(s) to export`);
-
-      // Combine all pages into a single HTML document
-      let combinedHTML = "";
-
-      allPageElements.forEach((pageElement, index) => {
-        const clonedPage = pageElement.cloneNode(true) as HTMLElement;
-
-        // Keep the original styling but remove shadow
-        clonedPage.classList.remove("shadow-2xl", "mx-auto");
-
-        // Add page break before each page except the first
-        if (index > 0) {
-          combinedHTML += '<div style="page-break-before: always;"></div>';
+      try {
+        // Get all pages: first page + additional pages
+        const allPageElements: HTMLElement[] = [];
+        if (page1Element) {
+          allPageElements.push(page1Element as HTMLElement);
         }
 
-        combinedHTML += clonedPage.outerHTML;
-      });
+        // Find additional pages (resume-preview-container-{id}-page-2, etc.)
+        let pageNum = 2;
+        while (true) {
+          const pageElement = document.getElementById(
+            `${previewContainerId}-page-${pageNum}`
+          );
+          if (!pageElement) break;
+          allPageElements.push(pageElement as HTMLElement);
+          pageNum++;
+        }
 
-      // Get the cleaned HTML content
-      const htmlContent = combinedHTML;
+        if (allPageElements.length === 0) {
+          throw new Error("Preview element not found");
+        }
 
-      // Send HTML to backend for PDF generation with Puppeteer
-      // Backend will generate pixel-perfect PDF matching the browser preview
-      const { downloadUrl } = await resumeApi.generatePDF(
-        resumeId,
-        htmlContent,
-        layout?.padding
-      );
+        console.log(`Found ${allPageElements.length} page(s) to export`);
 
-      // Open the PDF in a new tab
-      window.open(downloadUrl, "_blank");
+        // Wait for all images to load before capturing HTML
+        const allImages: HTMLImageElement[] = [];
+        allPageElements.forEach((pageElement) => {
+          const images = pageElement.querySelectorAll("img");
+          allImages.push(...Array.from(images));
+        });
+
+        await Promise.all(
+          allImages.map((img) => {
+            return new Promise<void>((resolve) => {
+              if (img.complete && img.naturalHeight !== 0) {
+                resolve();
+              } else {
+                img.onload = () => {
+                  resolve();
+                };
+                img.onerror = () => {
+                  resolve(); // Continue even if image fails
+                };
+                // Timeout after 5 seconds
+                setTimeout(() => {
+                  resolve();
+                }, 5000);
+              }
+            });
+          })
+        );
+
+        // Combine all pages into a single HTML document
+        let combinedHTML = "";
+
+        allPageElements.forEach((pageElement, index) => {
+          const clonedPage = pageElement.cloneNode(true) as HTMLElement;
+
+          // Keep the original styling but remove shadow
+          clonedPage.classList.remove("shadow-2xl", "mx-auto");
+
+          // Ensure all images in the cloned element have their src attributes preserved
+          const originalImages = pageElement.querySelectorAll("img");
+          const clonedImages = clonedPage.querySelectorAll("img");
+
+          originalImages.forEach((originalImg, imgIndex) => {
+            if (clonedImages[imgIndex]) {
+              clonedImages[imgIndex].src = originalImg.src;
+              clonedImages[imgIndex].setAttribute("crossorigin", "anonymous");
+            }
+          });
+
+          // Add page break before each page except the first
+          if (index > 0) {
+            combinedHTML += '<div style="page-break-before: always;"></div>';
+          }
+
+          combinedHTML += clonedPage.outerHTML;
+        });
+
+        // Get the cleaned HTML content
+        const htmlContent = combinedHTML;
+
+        // Send HTML to backend for PDF generation with Puppeteer
+        // Backend will generate pixel-perfect PDF matching the browser preview
+        const { downloadUrl } = await resumeApi.generatePDF(
+          resumeId,
+          htmlContent,
+          layout?.padding
+        );
+
+        // Open the PDF in a new tab
+        window.open(downloadUrl, "_blank");
+      } finally {
+        // Restore original zoom level
+        if (page1Element && originalTransform) {
+          page1Element.style.transform = originalTransform;
+        }
+      }
 
       // Capture and upload thumbnail (run in background, don't block user)
       // Use setTimeout to let the page render completely before capturing
+      // Store resumeId in closure to ensure we capture the correct resume
+      const currentResumeId = resumeId;
       setTimeout(async () => {
         try {
-          // Verify element exists
-          const previewElement = document.getElementById(
-            "resume-preview-container"
-          );
-          if (!previewElement) {
-            console.error(
-              "Resume preview element not found for thumbnail capture"
+          // Verify we're still on the same resume (user might have navigated away)
+          if (currentResumeId !== resumeId) {
+            console.log(
+              "Resume changed, skipping thumbnail capture for:",
+              currentResumeId
             );
             return;
           }
 
-          console.log("Starting thumbnail capture for resume:", resumeId);
+          // Use unique ID per resume to avoid capturing wrong resume
+          const previewContainerId = `resume-preview-container-${currentResumeId}`;
+          const previewElement = document.getElementById(previewContainerId);
+          if (!previewElement) {
+            console.error(
+              `Resume preview element not found for thumbnail capture: ${previewContainerId}`
+            );
+            return;
+          }
+
+          console.log(
+            "Starting thumbnail capture for resume:",
+            currentResumeId
+          );
           console.log("Preview element found:", previewElement);
 
-          const result = await captureAndUploadThumbnail(resumeId);
+          const result = await captureAndUploadThumbnail(
+            currentResumeId,
+            previewContainerId
+          );
 
           if (result.success) {
             console.log(
@@ -365,7 +530,7 @@ export default function EditResumePage() {
         } catch (error) {
           console.error("❌ Error capturing thumbnail:", error);
         }
-      }, 2000); // Increased delay to ensure rendering is complete
+      }, 8000); // Extended delay to ensure profile pictures and all images are fully loaded
     } catch (error) {
       console.error("Error generating PDF:", error);
       alert("Failed to generate PDF. Please try again.");
@@ -389,6 +554,28 @@ export default function EditResumePage() {
         s.id === sectionId ? { ...s, expanded: !s.expanded } : s
       )
     );
+  };
+
+  const deleteSection = (sectionId: string) => {
+    // Prevent deletion of essential sections
+    const essentialSections = ["personalInfo", "experience", "education"];
+    const sectionToDelete = sections.find((s) => s.id === sectionId);
+
+    if (essentialSections.includes(sectionToDelete?.type || "")) {
+      alert(
+        "Cannot delete essential sections like Personal Info, Experience, and Education."
+      );
+      return;
+    }
+
+    if (
+      confirm(
+        `Are you sure you want to delete the "${sectionToDelete?.title}" section? This action cannot be undone.`
+      )
+    ) {
+      setSections((prev) => prev.filter((s) => s.id !== sectionId));
+      setHasChanges(true);
+    }
   };
 
   const startEditingSectionTitle = (
@@ -812,16 +999,16 @@ export default function EditResumePage() {
                             onClick={() => {
                               const newTop = Math.max(
                                 0,
-                                (layout.padding?.top || 20) - 5
+                                (layout.padding?.top || 5) - 1
                               );
                               setLayout({
                                 ...layout,
                                 padding: {
                                   ...layout.padding,
                                   top: newTop,
-                                  bottom: layout.padding?.bottom || 20,
-                                  left: layout.padding?.left || 20,
-                                  right: layout.padding?.right || 20,
+                                  bottom: layout.padding?.bottom || 5,
+                                  left: layout.padding?.left || 8,
+                                  right: layout.padding?.right || 8,
                                 },
                               });
                               setHasChanges(true);
@@ -833,7 +1020,7 @@ export default function EditResumePage() {
                             type="number"
                             min="0"
                             max="50"
-                            value={layout.padding?.top || 20}
+                            value={layout.padding?.top || 5}
                             onChange={(e) => {
                               const value = Math.max(
                                 0,
@@ -844,9 +1031,9 @@ export default function EditResumePage() {
                                 padding: {
                                   ...layout.padding,
                                   top: value,
-                                  bottom: layout.padding?.bottom || 20,
-                                  left: layout.padding?.left || 20,
-                                  right: layout.padding?.right || 20,
+                                  bottom: layout.padding?.bottom || 5,
+                                  left: layout.padding?.left || 8,
+                                  right: layout.padding?.right || 8,
                                 },
                               });
                               setHasChanges(true);
@@ -860,16 +1047,16 @@ export default function EditResumePage() {
                             onClick={() => {
                               const newTop = Math.min(
                                 50,
-                                (layout.padding?.top || 20) + 5
+                                (layout.padding?.top || 5) + 1
                               );
                               setLayout({
                                 ...layout,
                                 padding: {
                                   ...layout.padding,
                                   top: newTop,
-                                  bottom: layout.padding?.bottom || 20,
-                                  left: layout.padding?.left || 20,
-                                  right: layout.padding?.right || 20,
+                                  bottom: layout.padding?.bottom || 5,
+                                  left: layout.padding?.left || 8,
+                                  right: layout.padding?.right || 8,
                                 },
                               });
                               setHasChanges(true);
@@ -889,7 +1076,7 @@ export default function EditResumePage() {
                             onClick={() => {
                               const newBottom = Math.max(
                                 0,
-                                (layout.padding?.bottom || 20) - 5
+                                (layout.padding?.bottom || 5) - 1
                               );
                               setLayout({
                                 ...layout,
@@ -910,7 +1097,7 @@ export default function EditResumePage() {
                             type="number"
                             min="0"
                             max="50"
-                            value={layout.padding?.bottom || 20}
+                            value={layout.padding?.bottom || 5}
                             onChange={(e) => {
                               const value = Math.max(
                                 0,
@@ -937,7 +1124,7 @@ export default function EditResumePage() {
                             onClick={() => {
                               const newBottom = Math.min(
                                 50,
-                                (layout.padding?.bottom || 20) + 5
+                                (layout.padding?.bottom || 5) + 1
                               );
                               setLayout({
                                 ...layout,
@@ -1209,6 +1396,80 @@ export default function EditResumePage() {
                       {/* Expanded Edit View */}
                       {editingPersonalInfo && (
                         <CardContent className="p-4 space-y-4">
+                          {/* Profile Picture Upload */}
+                          <div className="flex items-center gap-4">
+                            <div className="flex-shrink-0">
+                              {personalInfo.profilePicture ? (
+                                <img
+                                  src={personalInfo.profilePicture}
+                                  alt="Profile"
+                                  className="w-24 h-24 rounded-full object-cover border-2 border-gray-200"
+                                />
+                              ) : (
+                                <div className="w-24 h-24 rounded-full bg-gray-200 flex items-center justify-center border-2 border-gray-300">
+                                  <span className="text-3xl">👤</span>
+                                </div>
+                              )}
+                            </div>
+                            <div className="flex-1">
+                              <Label className="text-xs mb-2 block">
+                                Profile Picture
+                              </Label>
+                              <input
+                                type="file"
+                                accept="image/*"
+                                onChange={async (e) => {
+                                  const file = e.target.files?.[0];
+                                  if (!file || !resume) return;
+
+                                  try {
+                                    const formData = new FormData();
+                                    formData.append("file", file);
+
+                                    const response = await apiClient.post<{
+                                      success: boolean;
+                                      message: string;
+                                      data: { profilePictureUrl: string };
+                                    }>(
+                                      `/resumes/${resume.resumeId}/profile-picture`,
+                                      formData,
+                                      {
+                                        headers: {
+                                          "Content-Type": "multipart/form-data",
+                                        },
+                                      }
+                                    );
+
+                                    if (
+                                      response.data.success &&
+                                      response.data.data?.profilePictureUrl
+                                    ) {
+                                      updateContent({
+                                        personalInfo: {
+                                          ...personalInfo,
+                                          profilePicture:
+                                            response.data.data
+                                              .profilePictureUrl,
+                                        },
+                                      });
+                                    }
+                                  } catch (error) {
+                                    console.error(
+                                      "Error uploading profile picture:",
+                                      error
+                                    );
+                                    alert(
+                                      "Failed to upload profile picture. Please try again."
+                                    );
+                                  }
+                                }}
+                                className="text-xs"
+                              />
+                              <p className="text-xs text-gray-500 mt-1">
+                                Upload a professional headshot (JPG, PNG)
+                              </p>
+                            </div>
+                          </div>
                           <div className="grid grid-cols-2 gap-4">
                             <div>
                               <Label htmlFor="fullName" className="text-xs">
@@ -2024,6 +2285,15 @@ export default function EditResumePage() {
                           <Button
                             size="icon"
                             variant="ghost"
+                            className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-50"
+                            onClick={() => deleteSection(section.id)}
+                            title="Delete Section"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
                             className="h-6 w-6"
                             onClick={() => toggleSection(section.id)}
                           >
@@ -2140,6 +2410,15 @@ export default function EditResumePage() {
                               </Button>
                             </>
                           )}
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-50"
+                            onClick={() => deleteSection(section.id)}
+                            title="Delete Section"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </Button>
                           <Button
                             size="icon"
                             variant="ghost"
@@ -2389,6 +2668,15 @@ export default function EditResumePage() {
                           <Button
                             size="icon"
                             variant="ghost"
+                            className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-50"
+                            onClick={() => deleteSection(section.id)}
+                            title="Delete Section"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
                             className="h-6 w-6"
                             onClick={() => toggleSection(section.id)}
                           >
@@ -2627,6 +2915,15 @@ export default function EditResumePage() {
                           <Button
                             size="icon"
                             variant="ghost"
+                            className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-50"
+                            onClick={() => deleteSection(section.id)}
+                            title="Delete Section"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
                             className="h-6 w-6"
                             onClick={() => toggleSection(section.id)}
                           >
@@ -2784,6 +3081,15 @@ export default function EditResumePage() {
                           <Button
                             size="icon"
                             variant="ghost"
+                            className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-50"
+                            onClick={() => deleteSection(section.id)}
+                            title="Delete Section"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
                             className="h-6 w-6"
                             onClick={() => toggleSection(section.id)}
                           >
@@ -2923,9 +3229,69 @@ export default function EditResumePage() {
                       <div className="flex items-center justify-between p-4 border-b bg-gray-50">
                         <div className="flex items-center gap-2 flex-1">
                           <GripVertical className="w-4 h-4 text-gray-400 cursor-grab" />
-                          <h3 className="font-semibold text-sm">
-                            {section.title}
-                          </h3>
+                          {editingSectionTitle === section.id ? (
+                            <div className="flex items-center gap-2 flex-1">
+                              <Input
+                                value={sectionTitleValue}
+                                onChange={(e) =>
+                                  setSectionTitleValue(e.target.value)
+                                }
+                                className="h-8 text-sm font-semibold"
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") {
+                                    saveSectionTitle(section.id);
+                                  } else if (e.key === "Escape") {
+                                    setEditingSectionTitle(null);
+                                  }
+                                }}
+                                autoFocus
+                              />
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-6 w-6"
+                                onClick={() => saveSectionTitle(section.id)}
+                              >
+                                <Check className="w-3 h-3" />
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-6 w-6"
+                                onClick={() => setEditingSectionTitle(null)}
+                              >
+                                <X className="w-3 h-3" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <>
+                              <h3 className="font-semibold text-sm flex-1">
+                                {section.title}
+                              </h3>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-6 w-6"
+                                onClick={() =>
+                                  startEditingSectionTitle(
+                                    section.id,
+                                    section.title
+                                  )
+                                }
+                              >
+                                <Edit className="w-3 h-3" />
+                              </Button>
+                            </>
+                          )}
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-50"
+                            onClick={() => deleteSection(section.id)}
+                            title="Delete Section"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </Button>
                           <Button
                             size="icon"
                             variant="ghost"
@@ -3231,9 +3597,69 @@ export default function EditResumePage() {
                       <div className="flex items-center justify-between p-4 border-b bg-gray-50">
                         <div className="flex items-center gap-2 flex-1">
                           <GripVertical className="w-4 h-4 text-gray-400 cursor-grab" />
-                          <h3 className="font-semibold text-sm">
-                            {section.title}
-                          </h3>
+                          {editingSectionTitle === section.id ? (
+                            <div className="flex items-center gap-2 flex-1">
+                              <Input
+                                value={sectionTitleValue}
+                                onChange={(e) =>
+                                  setSectionTitleValue(e.target.value)
+                                }
+                                className="h-8 text-sm font-semibold"
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") {
+                                    saveSectionTitle(section.id);
+                                  } else if (e.key === "Escape") {
+                                    setEditingSectionTitle(null);
+                                  }
+                                }}
+                                autoFocus
+                              />
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-6 w-6"
+                                onClick={() => saveSectionTitle(section.id)}
+                              >
+                                <Check className="w-3 h-3" />
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-6 w-6"
+                                onClick={() => setEditingSectionTitle(null)}
+                              >
+                                <X className="w-3 h-3" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <>
+                              <h3 className="font-semibold text-sm flex-1">
+                                {section.title}
+                              </h3>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-6 w-6"
+                                onClick={() =>
+                                  startEditingSectionTitle(
+                                    section.id,
+                                    section.title
+                                  )
+                                }
+                              >
+                                <Edit className="w-3 h-3" />
+                              </Button>
+                            </>
+                          )}
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-50"
+                            onClick={() => deleteSection(section.id)}
+                            title="Delete Section"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </Button>
                           <Button
                             size="icon"
                             variant="ghost"
@@ -3291,9 +3717,69 @@ export default function EditResumePage() {
                       <div className="flex items-center justify-between p-4 border-b bg-gray-50">
                         <div className="flex items-center gap-2 flex-1">
                           <GripVertical className="w-4 h-4 text-gray-400 cursor-grab" />
-                          <h3 className="font-semibold text-sm">
-                            {section.title}
-                          </h3>
+                          {editingSectionTitle === section.id ? (
+                            <div className="flex items-center gap-2 flex-1">
+                              <Input
+                                value={sectionTitleValue}
+                                onChange={(e) =>
+                                  setSectionTitleValue(e.target.value)
+                                }
+                                className="h-8 text-sm font-semibold"
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") {
+                                    saveSectionTitle(section.id);
+                                  } else if (e.key === "Escape") {
+                                    setEditingSectionTitle(null);
+                                  }
+                                }}
+                                autoFocus
+                              />
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-6 w-6"
+                                onClick={() => saveSectionTitle(section.id)}
+                              >
+                                <Check className="w-3 h-3" />
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-6 w-6"
+                                onClick={() => setEditingSectionTitle(null)}
+                              >
+                                <X className="w-3 h-3" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <>
+                              <h3 className="font-semibold text-sm flex-1">
+                                {section.title}
+                              </h3>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-6 w-6"
+                                onClick={() =>
+                                  startEditingSectionTitle(
+                                    section.id,
+                                    section.title
+                                  )
+                                }
+                              >
+                                <Edit className="w-3 h-3" />
+                              </Button>
+                            </>
+                          )}
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-50"
+                            onClick={() => deleteSection(section.id)}
+                            title="Delete Section"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </Button>
                           <Button
                             size="icon"
                             variant="ghost"
@@ -3351,9 +3837,69 @@ export default function EditResumePage() {
                       <div className="flex items-center justify-between p-4 border-b bg-gray-50">
                         <div className="flex items-center gap-2 flex-1">
                           <GripVertical className="w-4 h-4 text-gray-400 cursor-grab" />
-                          <h3 className="font-semibold text-sm">
-                            {section.title}
-                          </h3>
+                          {editingSectionTitle === section.id ? (
+                            <div className="flex items-center gap-2 flex-1">
+                              <Input
+                                value={sectionTitleValue}
+                                onChange={(e) =>
+                                  setSectionTitleValue(e.target.value)
+                                }
+                                className="h-8 text-sm font-semibold"
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") {
+                                    saveSectionTitle(section.id);
+                                  } else if (e.key === "Escape") {
+                                    setEditingSectionTitle(null);
+                                  }
+                                }}
+                                autoFocus
+                              />
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-6 w-6"
+                                onClick={() => saveSectionTitle(section.id)}
+                              >
+                                <Check className="w-3 h-3" />
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-6 w-6"
+                                onClick={() => setEditingSectionTitle(null)}
+                              >
+                                <X className="w-3 h-3" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <>
+                              <h3 className="font-semibold text-sm flex-1">
+                                {section.title}
+                              </h3>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-6 w-6"
+                                onClick={() =>
+                                  startEditingSectionTitle(
+                                    section.id,
+                                    section.title
+                                  )
+                                }
+                              >
+                                <Edit className="w-3 h-3" />
+                              </Button>
+                            </>
+                          )}
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-50"
+                            onClick={() => deleteSection(section.id)}
+                            title="Delete Section"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </Button>
                           <Button
                             size="icon"
                             variant="ghost"
@@ -3370,25 +3916,26 @@ export default function EditResumePage() {
                       </div>
                       {section.expanded && (
                         <CardContent className="p-4">
-                          <Label className="text-xs">Languages</Label>
-                          <RichTextEditor
-                            value={resume.content.languages || ""}
-                            onChange={(html) => {
-                              setResume((prev) =>
-                                prev
-                                  ? {
-                                      ...prev,
-                                      content: {
-                                        ...prev.content,
-                                        languages: html,
-                                      },
-                                    }
-                                  : null
-                              );
-                              setHasChanges(true);
+                          <LanguagesEditor
+                            languages={
+                              Array.isArray(resume.content.languages)
+                                ? resume.content.languages.map((lang: any) => ({
+                                    id:
+                                      lang.id ||
+                                      `lang-${Date.now()}-${Math.random()}`,
+                                    name: lang.name || "",
+                                    proficiency:
+                                      typeof lang.proficiency === "number"
+                                        ? lang.proficiency
+                                        : typeof lang.level === "number"
+                                        ? lang.level
+                                        : undefined, // No default proficiency
+                                  }))
+                                : []
+                            }
+                            onChange={(updatedLanguages) => {
+                              updateContent({ languages: updatedLanguages });
                             }}
-                            placeholder="List languages you know..."
-                            className="mt-1"
                           />
                         </CardContent>
                       )}
@@ -3411,9 +3958,69 @@ export default function EditResumePage() {
                       <div className="flex items-center justify-between p-4 border-b bg-gray-50">
                         <div className="flex items-center gap-2 flex-1">
                           <GripVertical className="w-4 h-4 text-gray-400 cursor-grab" />
-                          <h3 className="font-semibold text-sm">
-                            {section.title}
-                          </h3>
+                          {editingSectionTitle === section.id ? (
+                            <div className="flex items-center gap-2 flex-1">
+                              <Input
+                                value={sectionTitleValue}
+                                onChange={(e) =>
+                                  setSectionTitleValue(e.target.value)
+                                }
+                                className="h-8 text-sm font-semibold"
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") {
+                                    saveSectionTitle(section.id);
+                                  } else if (e.key === "Escape") {
+                                    setEditingSectionTitle(null);
+                                  }
+                                }}
+                                autoFocus
+                              />
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-6 w-6"
+                                onClick={() => saveSectionTitle(section.id)}
+                              >
+                                <Check className="w-3 h-3" />
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-6 w-6"
+                                onClick={() => setEditingSectionTitle(null)}
+                              >
+                                <X className="w-3 h-3" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <>
+                              <h3 className="font-semibold text-sm flex-1">
+                                {section.title}
+                              </h3>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-6 w-6"
+                                onClick={() =>
+                                  startEditingSectionTitle(
+                                    section.id,
+                                    section.title
+                                  )
+                                }
+                              >
+                                <Edit className="w-3 h-3" />
+                              </Button>
+                            </>
+                          )}
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-50"
+                            onClick={() => deleteSection(section.id)}
+                            title="Delete Section"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </Button>
                           <Button
                             size="icon"
                             variant="ghost"
@@ -3636,9 +4243,69 @@ export default function EditResumePage() {
                       <div className="flex items-center justify-between p-4 border-b bg-gray-50">
                         <div className="flex items-center gap-2 flex-1">
                           <GripVertical className="w-4 h-4 text-gray-400 cursor-grab" />
-                          <h3 className="font-semibold text-sm">
-                            {section.title}
-                          </h3>
+                          {editingSectionTitle === section.id ? (
+                            <div className="flex items-center gap-2 flex-1">
+                              <Input
+                                value={sectionTitleValue}
+                                onChange={(e) =>
+                                  setSectionTitleValue(e.target.value)
+                                }
+                                className="h-8 text-sm font-semibold"
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") {
+                                    saveSectionTitle(section.id);
+                                  } else if (e.key === "Escape") {
+                                    setEditingSectionTitle(null);
+                                  }
+                                }}
+                                autoFocus
+                              />
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-6 w-6"
+                                onClick={() => saveSectionTitle(section.id)}
+                              >
+                                <Check className="w-3 h-3" />
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-6 w-6"
+                                onClick={() => setEditingSectionTitle(null)}
+                              >
+                                <X className="w-3 h-3" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <>
+                              <h3 className="font-semibold text-sm flex-1">
+                                {section.title}
+                              </h3>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-6 w-6"
+                                onClick={() =>
+                                  startEditingSectionTitle(
+                                    section.id,
+                                    section.title
+                                  )
+                                }
+                              >
+                                <Edit className="w-3 h-3" />
+                              </Button>
+                            </>
+                          )}
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-50"
+                            onClick={() => deleteSection(section.id)}
+                            title="Delete Section"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </Button>
                           <Button
                             size="icon"
                             variant="ghost"
@@ -3878,7 +4545,753 @@ export default function EditResumePage() {
                   );
                 }
 
-                // Default handler for any remaining sections (publications, courses, organisations)
+                // Courses Section
+                if (section.type === "courses") {
+                  return (
+                    <Card
+                      key={section.id}
+                      className="border"
+                      draggable
+                      onDragStart={() => handleDragStart(section.id)}
+                      onDragOver={(e) => handleDragOver(e, section.id)}
+                      onDragLeave={handleDragLeave}
+                      onDragEnd={handleDragEnd}
+                    >
+                      <div className="flex items-center justify-between p-4 border-b bg-gray-50">
+                        <div className="flex items-center gap-2 flex-1">
+                          <GripVertical className="w-4 h-4 text-gray-400 cursor-grab" />
+                          {editingSectionTitle === section.id ? (
+                            <div className="flex items-center gap-2 flex-1">
+                              <Input
+                                value={sectionTitleValue}
+                                onChange={(e) =>
+                                  setSectionTitleValue(e.target.value)
+                                }
+                                className="h-8 text-sm font-semibold"
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") {
+                                    saveSectionTitle(section.id);
+                                  } else if (e.key === "Escape") {
+                                    setEditingSectionTitle(null);
+                                  }
+                                }}
+                                autoFocus
+                              />
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-6 w-6"
+                                onClick={() => saveSectionTitle(section.id)}
+                              >
+                                <Check className="w-3 h-3" />
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-6 w-6"
+                                onClick={() => setEditingSectionTitle(null)}
+                              >
+                                <X className="w-3 h-3" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <>
+                              <h3 className="font-semibold text-sm flex-1">
+                                {section.title}
+                              </h3>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-6 w-6"
+                                onClick={() =>
+                                  startEditingSectionTitle(
+                                    section.id,
+                                    section.title
+                                  )
+                                }
+                              >
+                                <Edit className="w-3 h-3" />
+                              </Button>
+                            </>
+                          )}
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-50"
+                            onClick={() => deleteSection(section.id)}
+                            title="Delete Section"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-6 w-6"
+                            onClick={() => toggleSection(section.id)}
+                          >
+                            {section.expanded ? (
+                              <ChevronUp className="w-4 h-4" />
+                            ) : (
+                              <ChevronDown className="w-4 h-4" />
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                      {section.expanded && (
+                        <CardContent className="p-4 space-y-4">
+                          <Button
+                            size="sm"
+                            onClick={() => {
+                              const nanoid = () =>
+                                Math.random().toString(36).substring(2, 9);
+                              const newCourse = {
+                                id: nanoid(),
+                                name: "",
+                                institution: "",
+                                date: "",
+                                description: "",
+                              };
+                              updateContent({
+                                courses: [
+                                  ...(resume.content.courses || []),
+                                  newCourse,
+                                ],
+                              });
+                            }}
+                          >
+                            <Plus className="w-4 h-4 mr-2" />
+                            Add Course
+                          </Button>
+                          {(resume.content.courses || []).map(
+                            (course: any, index: number) => (
+                              <div
+                                key={course.id}
+                                className="border rounded p-3 space-y-2"
+                              >
+                                <div className="flex justify-between items-center">
+                                  <h4 className="font-medium text-sm">
+                                    Course {index + 1}
+                                  </h4>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => {
+                                      const updatedCourses =
+                                        resume.content.courses?.filter(
+                                          (c: any) => c.id !== course.id
+                                        );
+                                      updateContent({
+                                        courses: updatedCourses,
+                                      });
+                                    }}
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                </div>
+                                <div className="grid grid-cols-2 gap-2">
+                                  <div>
+                                    <Label className="text-xs">
+                                      Course Name
+                                    </Label>
+                                    <Input
+                                      value={course.name || ""}
+                                      onChange={(e) => {
+                                        const updatedCourses =
+                                          resume.content.courses?.map(
+                                            (c: any) =>
+                                              c.id === course.id
+                                                ? { ...c, name: e.target.value }
+                                                : c
+                                          );
+                                        updateContent({
+                                          courses: updatedCourses,
+                                        });
+                                      }}
+                                      placeholder="e.g., AWS Solutions Architect"
+                                    />
+                                  </div>
+                                  <div>
+                                    <Label className="text-xs">
+                                      Institution
+                                    </Label>
+                                    <Input
+                                      value={course.institution || ""}
+                                      onChange={(e) => {
+                                        const updatedCourses =
+                                          resume.content.courses?.map(
+                                            (c: any) =>
+                                              c.id === course.id
+                                                ? {
+                                                    ...c,
+                                                    institution: e.target.value,
+                                                  }
+                                                : c
+                                          );
+                                        updateContent({
+                                          courses: updatedCourses,
+                                        });
+                                      }}
+                                      placeholder="e.g., Amazon Web Services"
+                                    />
+                                  </div>
+                                </div>
+                                <div>
+                                  <Label className="text-xs">Date</Label>
+                                  <Input
+                                    value={course.date || ""}
+                                    onChange={(e) => {
+                                      const updatedCourses =
+                                        resume.content.courses?.map((c: any) =>
+                                          c.id === course.id
+                                            ? { ...c, date: e.target.value }
+                                            : c
+                                        );
+                                      updateContent({
+                                        courses: updatedCourses,
+                                      });
+                                    }}
+                                    placeholder="e.g., 2023"
+                                  />
+                                </div>
+                                <div>
+                                  <Label className="text-xs">
+                                    Description (Optional)
+                                  </Label>
+                                  <Textarea
+                                    value={course.description || ""}
+                                    onChange={(e) => {
+                                      const updatedCourses =
+                                        resume.content.courses?.map((c: any) =>
+                                          c.id === course.id
+                                            ? {
+                                                ...c,
+                                                description: e.target.value,
+                                              }
+                                            : c
+                                        );
+                                      updateContent({
+                                        courses: updatedCourses,
+                                      });
+                                    }}
+                                    placeholder="Brief description of the course..."
+                                    rows={2}
+                                  />
+                                </div>
+                              </div>
+                            )
+                          )}
+                        </CardContent>
+                      )}
+                    </Card>
+                  );
+                }
+
+                // Organizations Section
+                if (section.type === "organisations") {
+                  return (
+                    <Card
+                      key={section.id}
+                      className="border"
+                      draggable
+                      onDragStart={() => handleDragStart(section.id)}
+                      onDragOver={(e) => handleDragOver(e, section.id)}
+                      onDragLeave={handleDragLeave}
+                      onDragEnd={handleDragEnd}
+                    >
+                      <div className="flex items-center justify-between p-4 border-b bg-gray-50">
+                        <div className="flex items-center gap-2 flex-1">
+                          <GripVertical className="w-4 h-4 text-gray-400 cursor-grab" />
+                          {editingSectionTitle === section.id ? (
+                            <div className="flex items-center gap-2 flex-1">
+                              <Input
+                                value={sectionTitleValue}
+                                onChange={(e) =>
+                                  setSectionTitleValue(e.target.value)
+                                }
+                                className="h-8 text-sm font-semibold"
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") {
+                                    saveSectionTitle(section.id);
+                                  } else if (e.key === "Escape") {
+                                    setEditingSectionTitle(null);
+                                  }
+                                }}
+                                autoFocus
+                              />
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-6 w-6"
+                                onClick={() => saveSectionTitle(section.id)}
+                              >
+                                <Check className="w-3 h-3" />
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-6 w-6"
+                                onClick={() => setEditingSectionTitle(null)}
+                              >
+                                <X className="w-3 h-3" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <>
+                              <h3 className="font-semibold text-sm flex-1">
+                                {section.title}
+                              </h3>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-6 w-6"
+                                onClick={() =>
+                                  startEditingSectionTitle(
+                                    section.id,
+                                    section.title
+                                  )
+                                }
+                              >
+                                <Edit className="w-3 h-3" />
+                              </Button>
+                            </>
+                          )}
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-50"
+                            onClick={() => deleteSection(section.id)}
+                            title="Delete Section"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-6 w-6"
+                            onClick={() => toggleSection(section.id)}
+                          >
+                            {section.expanded ? (
+                              <ChevronUp className="w-4 h-4" />
+                            ) : (
+                              <ChevronDown className="w-4 h-4" />
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                      {section.expanded && (
+                        <CardContent className="p-4 space-y-4">
+                          <Button
+                            size="sm"
+                            onClick={() => {
+                              const nanoid = () =>
+                                Math.random().toString(36).substring(2, 9);
+                              const newOrganisation = {
+                                id: nanoid(),
+                                name: "",
+                                role: "",
+                                startDate: "",
+                                endDate: "",
+                                description: "",
+                              };
+                              updateContent({
+                                organisations: [
+                                  ...(resume.content.organisations || []),
+                                  newOrganisation,
+                                ],
+                              });
+                            }}
+                          >
+                            <Plus className="w-4 h-4 mr-2" />
+                            Add Organisation
+                          </Button>
+                          {(resume.content.organisations || []).map(
+                            (org: any, index: number) => (
+                              <div
+                                key={org.id}
+                                className="border rounded p-3 space-y-2"
+                              >
+                                <div className="flex justify-between items-center">
+                                  <h4 className="font-medium text-sm">
+                                    Organisation {index + 1}
+                                  </h4>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => {
+                                      const updatedOrganisations =
+                                        resume.content.organisations?.filter(
+                                          (o: any) => o.id !== org.id
+                                        );
+                                      updateContent({
+                                        organisations: updatedOrganisations,
+                                      });
+                                    }}
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                </div>
+                                <div className="grid grid-cols-2 gap-2">
+                                  <div>
+                                    <Label className="text-xs">
+                                      Organisation Name
+                                    </Label>
+                                    <Input
+                                      value={org.name || ""}
+                                      onChange={(e) => {
+                                        const updatedOrganisations =
+                                          resume.content.organisations?.map(
+                                            (o: any) =>
+                                              o.id === org.id
+                                                ? { ...o, name: e.target.value }
+                                                : o
+                                          );
+                                        updateContent({
+                                          organisations: updatedOrganisations,
+                                        });
+                                      }}
+                                      placeholder="e.g., IEEE Computer Society"
+                                    />
+                                  </div>
+                                  <div>
+                                    <Label className="text-xs">
+                                      Role/Position
+                                    </Label>
+                                    <Input
+                                      value={org.role || ""}
+                                      onChange={(e) => {
+                                        const updatedOrganisations =
+                                          resume.content.organisations?.map(
+                                            (o: any) =>
+                                              o.id === org.id
+                                                ? { ...o, role: e.target.value }
+                                                : o
+                                          );
+                                        updateContent({
+                                          organisations: updatedOrganisations,
+                                        });
+                                      }}
+                                      placeholder="e.g., Member, Volunteer"
+                                    />
+                                  </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-2">
+                                  <div>
+                                    <Label className="text-xs">
+                                      Start Date
+                                    </Label>
+                                    <Input
+                                      value={org.startDate || ""}
+                                      onChange={(e) => {
+                                        const updatedOrganisations =
+                                          resume.content.organisations?.map(
+                                            (o: any) =>
+                                              o.id === org.id
+                                                ? {
+                                                    ...o,
+                                                    startDate: e.target.value,
+                                                  }
+                                                : o
+                                          );
+                                        updateContent({
+                                          organisations: updatedOrganisations,
+                                        });
+                                      }}
+                                      placeholder="e.g., Jan 2020"
+                                    />
+                                  </div>
+                                  <div>
+                                    <Label className="text-xs">End Date</Label>
+                                    <Input
+                                      value={org.endDate || ""}
+                                      onChange={(e) => {
+                                        const updatedOrganisations =
+                                          resume.content.organisations?.map(
+                                            (o: any) =>
+                                              o.id === org.id
+                                                ? {
+                                                    ...o,
+                                                    endDate: e.target.value,
+                                                  }
+                                                : o
+                                          );
+                                        updateContent({
+                                          organisations: updatedOrganisations,
+                                        });
+                                      }}
+                                      placeholder="e.g., Present"
+                                    />
+                                  </div>
+                                </div>
+                                <div>
+                                  <Label className="text-xs">
+                                    Description (Optional)
+                                  </Label>
+                                  <Textarea
+                                    value={org.description || ""}
+                                    onChange={(e) => {
+                                      const updatedOrganisations =
+                                        resume.content.organisations?.map(
+                                          (o: any) =>
+                                            o.id === org.id
+                                              ? {
+                                                  ...o,
+                                                  description: e.target.value,
+                                                }
+                                              : o
+                                        );
+                                      updateContent({
+                                        organisations: updatedOrganisations,
+                                      });
+                                    }}
+                                    placeholder="Brief description of your role and contributions..."
+                                    rows={2}
+                                  />
+                                </div>
+                              </div>
+                            )
+                          )}
+                        </CardContent>
+                      )}
+                    </Card>
+                  );
+                }
+
+                // Publications Section
+                if (section.type === "publications") {
+                  return (
+                    <Card
+                      key={section.id}
+                      className="border"
+                      draggable
+                      onDragStart={() => handleDragStart(section.id)}
+                      onDragOver={(e) => handleDragOver(e, section.id)}
+                      onDragLeave={handleDragLeave}
+                      onDragEnd={handleDragEnd}
+                    >
+                      <div className="flex items-center justify-between p-4 border-b bg-gray-50">
+                        <div className="flex items-center gap-2 flex-1">
+                          <GripVertical className="w-4 h-4 text-gray-400 cursor-grab" />
+                          {editingSectionTitle === section.id ? (
+                            <div className="flex items-center gap-2 flex-1">
+                              <Input
+                                value={sectionTitleValue}
+                                onChange={(e) =>
+                                  setSectionTitleValue(e.target.value)
+                                }
+                                className="h-8 text-sm font-semibold"
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") {
+                                    saveSectionTitle(section.id);
+                                  } else if (e.key === "Escape") {
+                                    setEditingSectionTitle(null);
+                                  }
+                                }}
+                                autoFocus
+                              />
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-6 w-6"
+                                onClick={() => saveSectionTitle(section.id)}
+                              >
+                                <Check className="w-3 h-3" />
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-6 w-6"
+                                onClick={() => setEditingSectionTitle(null)}
+                              >
+                                <X className="w-3 h-3" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <>
+                              <h3 className="font-semibold text-sm flex-1">
+                                {section.title}
+                              </h3>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-6 w-6"
+                                onClick={() =>
+                                  startEditingSectionTitle(
+                                    section.id,
+                                    section.title
+                                  )
+                                }
+                              >
+                                <Edit className="w-3 h-3" />
+                              </Button>
+                            </>
+                          )}
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-50"
+                            onClick={() => deleteSection(section.id)}
+                            title="Delete Section"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-6 w-6"
+                            onClick={() => toggleSection(section.id)}
+                          >
+                            {section.expanded ? (
+                              <ChevronUp className="w-4 h-4" />
+                            ) : (
+                              <ChevronDown className="w-4 h-4" />
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                      {section.expanded && (
+                        <CardContent className="p-4 space-y-4">
+                          <Button
+                            size="sm"
+                            onClick={() => {
+                              const nanoid = () =>
+                                Math.random().toString(36).substring(2, 9);
+                              const newPublication = {
+                                id: nanoid(),
+                                title: "",
+                                publisher: "",
+                                date: "",
+                                link: "",
+                              };
+                              updateContent({
+                                publications: [
+                                  ...(resume.content.publications || []),
+                                  newPublication,
+                                ],
+                              });
+                            }}
+                          >
+                            <Plus className="w-4 h-4 mr-2" />
+                            Add Publication
+                          </Button>
+                          {(resume.content.publications || []).map(
+                            (pub: any, index: number) => (
+                              <div
+                                key={pub.id}
+                                className="border rounded p-3 space-y-2"
+                              >
+                                <div className="flex justify-between items-center">
+                                  <h4 className="font-medium text-sm">
+                                    Publication {index + 1}
+                                  </h4>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => {
+                                      const updatedPublications =
+                                        resume.content.publications?.filter(
+                                          (p: any) => p.id !== pub.id
+                                        );
+                                      updateContent({
+                                        publications: updatedPublications,
+                                      });
+                                    }}
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                </div>
+                                <div>
+                                  <Label className="text-xs">Title</Label>
+                                  <Input
+                                    value={pub.title || ""}
+                                    onChange={(e) => {
+                                      const updatedPublications =
+                                        resume.content.publications?.map(
+                                          (p: any) =>
+                                            p.id === pub.id
+                                              ? { ...p, title: e.target.value }
+                                              : p
+                                        );
+                                      updateContent({
+                                        publications: updatedPublications,
+                                      });
+                                    }}
+                                    placeholder="e.g., Machine Learning in Cloud Computing"
+                                  />
+                                </div>
+                                <div className="grid grid-cols-2 gap-2">
+                                  <div>
+                                    <Label className="text-xs">Publisher</Label>
+                                    <Input
+                                      value={pub.publisher || ""}
+                                      onChange={(e) => {
+                                        const updatedPublications =
+                                          resume.content.publications?.map(
+                                            (p: any) =>
+                                              p.id === pub.id
+                                                ? {
+                                                    ...p,
+                                                    publisher: e.target.value,
+                                                  }
+                                                : p
+                                          );
+                                        updateContent({
+                                          publications: updatedPublications,
+                                        });
+                                      }}
+                                      placeholder="e.g., IEEE Transactions"
+                                    />
+                                  </div>
+                                  <div>
+                                    <Label className="text-xs">Date</Label>
+                                    <Input
+                                      value={pub.date || ""}
+                                      onChange={(e) => {
+                                        const updatedPublications =
+                                          resume.content.publications?.map(
+                                            (p: any) =>
+                                              p.id === pub.id
+                                                ? { ...p, date: e.target.value }
+                                                : p
+                                          );
+                                        updateContent({
+                                          publications: updatedPublications,
+                                        });
+                                      }}
+                                      placeholder="e.g., March 2023"
+                                    />
+                                  </div>
+                                </div>
+                                <div>
+                                  <Label className="text-xs">
+                                    Link (Optional)
+                                  </Label>
+                                  <Input
+                                    value={pub.link || ""}
+                                    onChange={(e) => {
+                                      const updatedPublications =
+                                        resume.content.publications?.map(
+                                          (p: any) =>
+                                            p.id === pub.id
+                                              ? { ...p, link: e.target.value }
+                                              : p
+                                        );
+                                      updateContent({
+                                        publications: updatedPublications,
+                                      });
+                                    }}
+                                    placeholder="e.g., https://doi.org/10.1109/..."
+                                  />
+                                </div>
+                              </div>
+                            )
+                          )}
+                        </CardContent>
+                      )}
+                    </Card>
+                  );
+                }
+
+                // Default handler for any remaining sections
                 return null;
               })}
 

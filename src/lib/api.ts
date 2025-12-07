@@ -578,7 +578,7 @@ export interface Resume {
     skills: {
       technical: string[] | string; // Support both array (old) and HTML string (new)
       soft: string[] | string; // Support both array (old) and HTML string (new)
-      languages?: string[];
+      languages?: string[] | Array<{ name: string; level?: number }>; // Support both array of strings and objects
       certifications?: Array<{
         name: string;
         issuer: string;
@@ -648,7 +648,7 @@ export interface Resume {
       description?: string;
     }>;
     declaration?: string;
-    languages?: string;
+    languages?: string | Array<{ name: string; level?: number }>; // HTML, plain text, or array of objects
   };
   profileSummary?: string; // Top-level field, separate from personalInfo
   sectionOrder?: Array<{
