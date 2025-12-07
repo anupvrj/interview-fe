@@ -195,7 +195,7 @@ export const PaginatedPreview: React.FC<PaginatedPreviewProps> = ({
       page.setAttribute("style", pageStyle);
       page.style.minHeight = "297mm";
       page.style.height = "auto";
-      page.style.overflow = "hidden";
+      page.style.overflow = "visible";
       page.style.marginBottom = "20px";
       page.style.position = "relative";
       page.style.background = "white";
