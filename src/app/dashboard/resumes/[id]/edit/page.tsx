@@ -27,6 +27,7 @@ import {
 import { Resume, ResumeTemplate, resumeApi, apiClient } from "@/lib/api";
 import { ResumePreview } from "@/components/ResumePreview";
 import { RichTextEditor } from "@/components/RichTextEditor";
+import { getExtendedTemplate } from "@/lib/templateConfigs";
 import { ExecutiveSkills } from "@/components/resume-editor/ExecutiveSkills";
 import { LanguageRating } from "@/components/resume-editor/LanguageRating";
 import { LanguagesEditor } from "@/components/LanguagesEditor";
@@ -199,122 +200,140 @@ export default function EditResumePage() {
           })) as Section[]
         );
       } else {
-        // Initialize default sections if not in database
-        const defaultSections: Section[] = [
-          {
-            id: "personalInfo",
-            type: "personalInfo",
-            title: "Personal Information",
-            visible: true,
-            expanded: false, // Start collapsed (compact view)
-          },
-          {
-            id: "profileSummary",
-            type: "profileSummary",
-            title: "Profile Summary",
-            visible: true,
-            expanded: true,
-          },
-          {
-            id: "experience",
-            type: "experience",
-            title: "Experience",
-            visible: true,
-            expanded: true,
-          },
-          {
-            id: "education",
-            type: "education",
-            title: "Education",
-            visible: true,
-            expanded: true,
-          },
-          {
-            id: "skills",
-            type: "skills",
-            title: "Skills",
-            visible: true,
-            expanded: true,
-          },
-          {
-            id: "projects",
-            type: "projects",
-            title: "Projects",
-            visible: false,
-            expanded: false,
-          },
-          {
-            id: "languages",
-            type: "languages",
-            title: "Languages",
-            visible: false,
-            expanded: false,
-          },
-          {
-            id: "certificates",
-            type: "certificates",
-            title: "Certificates",
-            visible: false,
-            expanded: false,
-          },
-          {
-            id: "awards",
-            type: "awards",
-            title: "Awards",
-            visible: false,
-            expanded: false,
-          },
-          {
-            id: "achievements",
-            type: "achievements",
-            title: "Achievements",
-            visible: false,
-            expanded: false,
-          },
-          {
-            id: "interests",
-            type: "interests",
-            title: "Interests",
-            visible: false,
-            expanded: false,
-          },
-          {
-            id: "courses",
-            type: "courses",
-            title: "Courses",
-            visible: false,
-            expanded: false,
-          },
-          {
-            id: "organisations",
-            type: "organisations",
-            title: "Organisations",
-            visible: false,
-            expanded: false,
-          },
-          {
-            id: "publications",
-            type: "publications",
-            title: "Publications",
-            visible: false,
-            expanded: false,
-          },
-          {
-            id: "references",
-            type: "references",
-            title: "References",
-            visible: false,
-            expanded: false,
-          },
-          {
-            id: "declaration",
-            type: "declaration",
-            title: "Declaration",
-            visible: false,
-            expanded: false,
-          },
-        ];
-        setSections(defaultSections);
+        // Initialize template-specific default sections if not in database
+        const getDefaultSections = (): Section[] => {
+          // Get extended template configuration
+          if (foundTemplate) {
+            const extendedTemplate = getExtendedTemplate(foundTemplate);
+
+            // Check if template has specific default section order
+            if (extendedTemplate.defaultSectionOrder) {
+              return extendedTemplate.defaultSectionOrder.map((section) => ({
+                ...section,
+                type: section.type as Section["type"], // Cast to proper type
+                expanded: section.visible, // Expand visible sections by default
+              }));
+            }
+          }
+
+          // Fallback to generic default sections
+          return [
+            {
+              id: "personalInfo",
+              type: "personalInfo",
+              title: "Personal Information",
+              visible: true,
+              expanded: false, // Start collapsed (compact view)
+            },
+            {
+              id: "profileSummary",
+              type: "profileSummary",
+              title: "Profile Summary",
+              visible: true,
+              expanded: true,
+            },
+            {
+              id: "experience",
+              type: "experience",
+              title: "Experience",
+              visible: true,
+              expanded: true,
+            },
+            {
+              id: "education",
+              type: "education",
+              title: "Education",
+              visible: true,
+              expanded: true,
+            },
+            {
+              id: "skills",
+              type: "skills",
+              title: "Skills",
+              visible: true,
+              expanded: true,
+            },
+            {
+              id: "projects",
+              type: "projects",
+              title: "Projects",
+              visible: false,
+              expanded: false,
+            },
+            {
+              id: "languages",
+              type: "languages",
+              title: "Languages",
+              visible: false,
+              expanded: false,
+            },
+            {
+              id: "certificates",
+              type: "certificates",
+              title: "Certificates",
+              visible: false,
+              expanded: false,
+            },
+            {
+              id: "awards",
+              type: "awards",
+              title: "Awards",
+              visible: false,
+              expanded: false,
+            },
+            {
+              id: "achievements",
+              type: "achievements",
+              title: "Achievements",
+              visible: false,
+              expanded: false,
+            },
+            {
+              id: "interests",
+              type: "interests",
+              title: "Interests",
+              visible: false,
+              expanded: false,
+            },
+            {
+              id: "courses",
+              type: "courses",
+              title: "Courses",
+              visible: false,
+              expanded: false,
+            },
+            {
+              id: "organisations",
+              type: "organisations",
+              title: "Organisations",
+              visible: false,
+              expanded: false,
+            },
+            {
+              id: "publications",
+              type: "publications",
+              title: "Publications",
+              visible: false,
+              expanded: false,
+            },
+            {
+              id: "references",
+              type: "references",
+              title: "References",
+              visible: false,
+              expanded: false,
+            },
+            {
+              id: "declaration",
+              type: "declaration",
+              title: "Declaration",
+              visible: false,
+              expanded: false,
+            },
+          ];
+        };
+
+        setSections(getDefaultSections());
       }
 
       // Template was already loaded above

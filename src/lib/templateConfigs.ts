@@ -82,33 +82,39 @@ export const TEMPLATE_CONFIGS: Record<
         text: "#000000",
         background: "#ffffff",
       },
-      headerStyle: "left",
+      headerStyle: "left", // Clean slate specific: left-aligned header
       sectionSpacing: 10,
       padding: { top: 8, bottom: 8, left: 8, right: 8 },
       sectionHeader: {
         style: "border-top-bottom",
         borderWidth: 1,
         borderColor: "#000000",
-        textAlign: "center",
+        textAlign: "center", // Clean slate specific: centered section headers
         fontSize: 13,
         fontWeight: "bold",
         marginBottom: "12px",
         paddingTop: "8px",
         paddingBottom: "8px",
-        textTransform: "uppercase",
+        textTransform: "uppercase", // Clean slate specific: uppercase headers
       },
       skillsDisplay: {
-        type: "list",
+        type: "list", // Clean slate specific: list format for skills
         showRatings: false,
       },
       timelineLayout: {
         type: "vertical",
-        datePosition: "right", // Dates on right as per image
+        datePosition: "right", // Clean slate specific: dates on right
       },
       contactDisplay: {
-        type: "icons",
+        type: "icons", // Clean slate specific: icons for contact
         layout: "horizontal",
       },
+    },
+    layout: {
+      fontFamily: "Arial, sans-serif",
+      fontSize: { heading: 28, subheading: 16, body: 11 },
+      headerStyle: "left",
+      sectionSpacing: 10,
     },
     rendering: {
       pageBreak: {
@@ -118,6 +124,79 @@ export const TEMPLATE_CONFIGS: Record<
       dataStructure: "legacy",
       features: {},
     },
+    defaultSectionOrder: [
+      {
+        id: "personalInfo",
+        type: "personalInfo",
+        title: "Personal Information",
+        visible: true,
+      },
+      {
+        id: "profileSummary",
+        type: "profileSummary",
+        title: "Profile",
+        visible: true,
+      },
+      {
+        id: "skills",
+        type: "skills",
+        title: "Technical Skills",
+        visible: true,
+      },
+      {
+        id: "experience",
+        type: "experience",
+        title: "Professional Experience",
+        visible: true,
+      },
+      { id: "education", type: "education", title: "Education", visible: true },
+      {
+        id: "certificates",
+        type: "certificates",
+        title: "Certifications",
+        visible: true,
+      },
+      {
+        id: "projects",
+        type: "projects",
+        title: "Key Technical Projects",
+        visible: true,
+      },
+      {
+        id: "interests",
+        type: "interests",
+        title: "Interests & Activities",
+        visible: true,
+      },
+      { id: "languages", type: "languages", title: "Languages", visible: true },
+      { id: "awards", type: "awards", title: "Awards", visible: true },
+      // Additional sections that can be added
+      { id: "courses", type: "courses", title: "Courses", visible: false },
+      {
+        id: "organisations",
+        type: "organisations",
+        title: "Organizations",
+        visible: false,
+      },
+      {
+        id: "publications",
+        type: "publications",
+        title: "Publications",
+        visible: false,
+      },
+      {
+        id: "references",
+        type: "references",
+        title: "References",
+        visible: false,
+      },
+      {
+        id: "declaration",
+        type: "declaration",
+        title: "Declaration",
+        visible: false,
+      },
+    ],
   },
 
   classic: {
@@ -368,6 +447,12 @@ export const TEMPLATE_CONFIGS: Record<
         layout: "vertical",
       },
     },
+    layout: {
+      fontFamily: "Arial, Helvetica, sans-serif",
+      fontSize: { heading: 22, subheading: 16, body: 11 },
+      headerStyle: "two-column", // Atlantic Blue specific: two-column header
+      sectionSpacing: 10,
+    },
     rendering: {
       pageBreak: {
         enabled: true,
@@ -396,6 +481,7 @@ export function getExtendedTemplate(baseTemplate: any): ExtendedResumeTemplate {
     ...baseTemplate,
     style: config.style,
     rendering: config.rendering,
+    defaultSectionOrder: config.defaultSectionOrder,
   };
 }
 

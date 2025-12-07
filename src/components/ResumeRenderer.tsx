@@ -78,41 +78,54 @@ export function ResumeRenderer({
   const templateStyle = getTemplateStyle(extendedTemplate);
   const resumeLayout = layout || resume.layout || { type: "single" };
 
-  // Default sections if not provided
-  const defaultSections: Section[] = [
-    {
-      id: "personalInfo",
-      type: "personalInfo",
-      title: "Personal Information",
-      visible: true,
-    },
-    {
-      id: "profileSummary",
-      type: "profileSummary",
-      title: "Profile Summary",
-      visible: true,
-    },
-    {
-      id: "experience",
-      type: "experience",
-      title: "Professional Experience",
-      visible: true,
-    },
-    { id: "education", type: "education", title: "Education", visible: true },
-    { id: "skills", type: "skills", title: "Technical Skills", visible: true },
-    {
-      id: "projects",
-      type: "projects",
-      title: "Key Technical Projects",
-      visible: true,
-    },
-    { id: "languages", type: "languages", title: "Languages", visible: true },
-    { id: "awards", type: "awards", title: "Awards", visible: true },
-  ];
+  // Get template-specific default sections or use generic defaults
+  const getDefaultSections = (): Section[] => {
+    // Check if template has specific default section order
+    if (extendedTemplate.defaultSectionOrder) {
+      return extendedTemplate.defaultSectionOrder;
+    }
+
+    // Fallback to generic default sections
+    return [
+      {
+        id: "personalInfo",
+        type: "personalInfo",
+        title: "Personal Information",
+        visible: true,
+      },
+      {
+        id: "profileSummary",
+        type: "profileSummary",
+        title: "Profile Summary",
+        visible: true,
+      },
+      {
+        id: "experience",
+        type: "experience",
+        title: "Professional Experience",
+        visible: true,
+      },
+      { id: "education", type: "education", title: "Education", visible: true },
+      {
+        id: "skills",
+        type: "skills",
+        title: "Technical Skills",
+        visible: true,
+      },
+      {
+        id: "projects",
+        type: "projects",
+        title: "Key Technical Projects",
+        visible: true,
+      },
+      { id: "languages", type: "languages", title: "Languages", visible: true },
+      { id: "awards", type: "awards", title: "Awards", visible: true },
+    ];
+  };
 
   const displaySections = useMemo(
-    () => (sections && sections.length > 0 ? sections : defaultSections),
-    [sections]
+    () => (sections && sections.length > 0 ? sections : getDefaultSections()),
+    [sections, extendedTemplate.defaultSectionOrder]
   );
 
   const visibleSections = useMemo(

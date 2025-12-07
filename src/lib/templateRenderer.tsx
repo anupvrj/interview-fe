@@ -97,6 +97,12 @@ export interface ExtendedResumeTemplate extends ResumeTemplate {
       twoColumnLayout?: boolean;
     };
   };
+  defaultSectionOrder?: Array<{
+    id: string;
+    type: string;
+    title: string;
+    visible: boolean;
+  }>;
 }
 
 export interface RenderContext {
@@ -115,10 +121,82 @@ export function getTemplateStyle(
   template: ResumeTemplate | ExtendedResumeTemplate
 ): TemplateStyleConfig {
   if ("style" in template && template.style) {
-    return template.style;
+    // For extended templates, ensure all properties exist by merging with defaults
+    const defaultStyle: TemplateStyleConfig = {
+      fontFamily: template.layout?.fontFamily || "Arial, sans-serif",
+      fontSize: {
+        heading: template.layout?.fontSize?.heading || 24,
+        subheading: template.layout?.fontSize?.subheading || 18,
+        body: template.layout?.fontSize?.body || 12,
+        small: (template.layout?.fontSize?.body || 12) - 2,
+      },
+      lineHeight: 1.4,
+      colors: template.colors || {
+        primary: "#000000",
+        secondary: "#333333",
+        accent: "#666666",
+        text: "#000000",
+        background: "#ffffff",
+      },
+      headerStyle: template.layout?.headerStyle || "left",
+      sectionSpacing: template.layout?.sectionSpacing || 10,
+      padding: { top: 8, bottom: 8, left: 8, right: 8 },
+      sectionHeader: {
+        style: "border-top-bottom",
+        textAlign: "center",
+        fontSize: 13,
+        fontWeight: "bold",
+      },
+      skillsDisplay: {
+        type: "list",
+        showRatings: false,
+      },
+      timelineLayout: {
+        type: "vertical",
+        datePosition: "left",
+      },
+      contactDisplay: {
+        type: "text",
+        layout: "horizontal",
+      },
+    };
+
+    // Deep merge template.style with defaults to ensure template-specific styles take precedence
+    return {
+      ...defaultStyle,
+      ...template.style,
+      fontSize: {
+        ...defaultStyle.fontSize,
+        ...template.style.fontSize,
+      },
+      colors: {
+        ...defaultStyle.colors,
+        ...template.style.colors,
+      },
+      padding: {
+        ...defaultStyle.padding,
+        ...template.style.padding,
+      },
+      sectionHeader: {
+        ...defaultStyle.sectionHeader,
+        ...template.style.sectionHeader,
+      },
+      skillsDisplay: {
+        ...defaultStyle.skillsDisplay,
+        ...template.style.skillsDisplay,
+      },
+      timelineLayout: {
+        ...defaultStyle.timelineLayout,
+        ...template.style.timelineLayout,
+      },
+      contactDisplay: {
+        ...defaultStyle.contactDisplay,
+        ...template.style.contactDisplay,
+      },
+    };
   }
 
-  // Fallback to basic template config
+  // Fallback to basic template config for legacy templates
   return {
     fontFamily: template.layout.fontFamily,
     fontSize: {
