@@ -3,11 +3,11 @@
  * Configuration-driven resume preview that works with all templates
  */
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Resume, ResumeTemplate } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { ZoomIn, ZoomOut, RotateCcw } from "lucide-react";
-import { ResumeRenderer } from "./ResumeRenderer";
+import { PaginatedPreview } from "./PaginatedPreview";
 
 interface Section {
   id: string;
@@ -61,6 +61,33 @@ export function ResumePreview({
   layout,
 }: ResumePreviewProps) {
   const [zoomLevel, setZoomLevel] = useState(100);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Handle pinch-to-zoom
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const handleWheel = (e: WheelEvent) => {
+      if (e.ctrlKey) {
+        e.preventDefault();
+        setZoomLevel((prev) => {
+          // Adjust sensitivity as needed
+          const delta = -e.deltaY * 0.5;
+          const newZoom = prev + delta;
+          // Clamp between 50% and 200%
+          return Math.min(Math.max(Math.round(newZoom), 50), 200);
+        });
+      }
+    };
+
+    // Add event listener with passive: false to allow preventing default
+    container.addEventListener("wheel", handleWheel, { passive: false });
+
+    return () => {
+      container.removeEventListener("wheel", handleWheel);
+    };
+  }, []);
 
   // Use provided template or show placeholder
   if (!template) {
@@ -128,32 +155,40 @@ export function ResumePreview({
       </div>
 
       {/* Scrollable Preview Container */}
-      <div className="flex-1 overflow-auto bg-gray-200">
-        {/* Zoom Container - maintains centering at all zoom levels */}
+      <div ref={containerRef} className="flex-1 overflow-auto bg-gray-200">
+        {/* Zoom Container - handles centering and sizing */}
         <div
-          className="flex justify-center items-start min-h-full"
+          className="flex items-start min-h-full"
           style={{
-            padding: `${Math.max(20, 20 * (zoomLevel / 100))}px`,
+            padding: "40px",
+            width: "max-content",
+            minWidth: "100%",
+            justifyContent: "center",
           }}
         >
-          {/* Resume Container */}
+          {/* Resume Container Wrapper for Scale */}
           <div
-            id={`resume-preview-container-${resume.resumeId}`}
-            className="bg-white shadow-lg"
             style={{
-              width: "210mm",
-              maxWidth: "210mm",
-              transform: `scale(${zoomLevel / 100})`,
-              transformOrigin: "center center",
-              transition: "transform 200ms",
+              width: `${210 * (zoomLevel / 100)}mm`,
+              position: "relative",
             }}
           >
-            <ResumeRenderer
-              resume={resume}
-              template={template}
-              sections={sections}
-              layout={layout}
-            />
+            <div
+              id={`resume-preview-container-${resume.resumeId}`}
+              style={{
+                width: "210mm",
+                transform: `scale(${zoomLevel / 100})`,
+                transformOrigin: "top left",
+                transition: "transform 200ms",
+              }}
+            >
+              <PaginatedPreview
+                resume={resume}
+                template={template}
+                sections={sections}
+                layout={layout}
+              />
+            </div>
           </div>
         </div>
       </div>

@@ -75,8 +75,14 @@ export function ResumeRenderer({
   layout,
 }: ResumeRendererProps) {
   const extendedTemplate = getExtendedTemplate(template);
-  const templateStyle = getTemplateStyle(extendedTemplate);
+  const baseTemplateStyle = getTemplateStyle(extendedTemplate);
   const resumeLayout = layout || resume.layout || { type: "single" };
+
+  // Merge custom layout padding into template style
+  const templateStyle = {
+    ...baseTemplateStyle,
+    padding: resumeLayout.padding || baseTemplateStyle.padding,
+  };
 
   // Get template-specific default sections or use generic defaults
   const getDefaultSections = (): Section[] => {
@@ -193,10 +199,21 @@ export function ResumeRenderer({
             rightColumn.push(section);
           }
         } else {
-          // Standard templates: simple alternating distribution
-          if (index % 2 === 0) {
+          // Standard templates: Heuristic distribution instead of alternating
+          // Left Column (Main, typically 60-70%): Experience, Projects, Profile
+          // Right Column (Side, typically 30-40%): Skills, Education, Languages, etc.
+          const mainSections = [
+            "profileSummary",
+            "experience",
+            "projects",
+            "publications",
+            "declaration", // Usually at bottom of main content
+          ];
+
+          if (mainSections.includes(section.type)) {
             leftColumn.push(section);
           } else {
+            // Right column: Education, Skills, Languages, Awards, Interests, Certs, etc.
             rightColumn.push(section);
           }
         }
@@ -2160,16 +2177,48 @@ export function ResumeRenderer({
           @media print {
             @page {
               size: A4;
+              margin: ${templateStyle.padding.top}mm ${templateStyle.padding.right}mm ${templateStyle.padding.bottom}mm ${templateStyle.padding.left}mm;
+            }
+            
+            html, body {
+              width: 210mm;
+              height: 100%;
               margin: 0;
+              padding: 0;
+              overflow: visible;
             }
-            
+
             .resume-page {
-              page-break-after: always;
-              page-break-inside: avoid;
+              width: 100% !important;
+              min-height: 0 !important;
+              height: auto !important;
+              margin: 0 !important;
+              padding: 0 !important; /* Reset padding to prevent overflow issues */
+              overflow: visible !important;
+              border: none !important;
+              box-shadow: none !important;
+              display: block !important;
+              page-break-after: auto !important; /* Let content flow naturally */
+              page-break-inside: auto !important;
             }
             
+            /* Re-apply padding to a proper content wrapper if needed, or rely on template styles 
+               But template styles are inline. We need to ensure they don't conflict.
+               Actually, if we remove padding from .resume-page, content will hit edges.
+               We should respect template padding. 
+            */
+             
+            .resume-page {
+               /* Resetting only problematic properties */
+               min-height: auto !important;
+               height: auto !important;
+               overflow: visible !important;
+               page-break-after: auto !important;
+               page-break-inside: auto !important;
+            }
+
             .resume-page:last-child {
-              page-break-after: auto;
+              page-break-after: auto !important;
             }
             
             /* Remove visual page break lines in print */
@@ -2181,11 +2230,21 @@ export function ResumeRenderer({
               background-image: none;
             }
             
-            /* Prevent sections from breaking awkwardly */
+            /* Allow sections to break naturally */
             [data-section] {
-              page-break-inside: avoid;
-              break-inside: avoid;
+              page-break-inside: auto !important;
+              break-inside: auto !important;
+              page-break-before: auto !important;
+              page-break-after: auto !important;
+              display: block !important; /* Ensure block flow */
             }
+            
+            /* Allow lists to break */
+            ul, ol, li {
+                page-break-inside: auto !important;
+                break-inside: auto !important;
+            }
+          }
             
             /* Allow natural page breaks for long content */
             .resume-content {
@@ -2294,7 +2353,7 @@ export function ResumeRenderer({
                 </div>
               </div>
             ) : (
-              <div>
+              <>
                 {leftColumn
                   .filter((section) => page.sections.includes(section.id))
                   .map((section) => (
@@ -2302,7 +2361,7 @@ export function ResumeRenderer({
                       {renderSectionContent(section)}
                     </div>
                   ))}
-              </div>
+              </>
             )}
           </div>
         ))}

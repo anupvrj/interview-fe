@@ -84,7 +84,7 @@ export const TEMPLATE_CONFIGS: Record<
       },
       headerStyle: "left", // Clean slate specific: left-aligned header
       sectionSpacing: 10,
-      padding: { top: 8, bottom: 8, left: 8, right: 8 },
+      padding: { top: 20, bottom: 20, left: 20, right: 20 },
       sectionHeader: {
         style: "border-top-bottom",
         borderWidth: 1,
