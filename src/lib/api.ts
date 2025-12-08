@@ -827,4 +827,97 @@ export const resumeApi = {
   },
 };
 
+// Jobs API
+export const jobsApi = {
+  getPreferences: async (): Promise<{
+    preferredTitles: string[];
+    locations: string[];
+    experienceBand: string;
+    remoteOnly: boolean;
+    minSalary?: number;
+    keywords: string[];
+  }> => {
+    const response = await apiClient.get("/jobs/preferences");
+    return response.data.preferences;
+  },
+
+  updatePreferences: async (preferences: {
+    preferredTitles: string[];
+    locations: string[];
+    experienceBand: string;
+    remoteOnly: boolean;
+    minSalary?: number;
+    keywords: string[];
+  }): Promise<{
+    preferredTitles: string[];
+    locations: string[];
+    experienceBand: string;
+    remoteOnly: boolean;
+    minSalary?: number;
+    keywords: string[];
+  }> => {
+    const response = await apiClient.post("/jobs/preferences", preferences);
+    return response.data.preferences;
+  },
+
+  getRecommended: async (
+    page = 1,
+    limit = 20
+  ): Promise<{
+    jobs: Array<{
+      id: string;
+      title: string;
+      company: string;
+      location: string;
+      remote: boolean;
+      jobType: string;
+      url: string;
+      postedAt: string;
+      fitScore: number;
+      atsMatch: number;
+      readiness: number;
+      missingSkills: string[];
+      strengths: string[];
+    }>;
+    pagination: {
+      page: number;
+      limit: number;
+      total: number;
+      totalPages: number;
+    };
+  }> => {
+    const response = await apiClient.get(
+      `/jobs/recommended?page=${page}&limit=${limit}`
+    );
+    return response.data;
+  },
+
+  getById: async (
+    jobId: string
+  ): Promise<{
+    id: string;
+    title: string;
+    company: string;
+    location: string;
+    remote: boolean;
+    jobType: string;
+    url: string;
+    postedAt: string;
+    description?: string;
+    salary?: {
+      min?: number;
+      max?: number;
+      currency?: string;
+    };
+    fitScore: number;
+    atsMatch: number;
+    readiness: number;
+    missingSkills: string[];
+    strengths: string[];
+  }> => {
+    const response = await apiClient.get(`/jobs/${jobId}`);
+    return response.data.job;
+  },
+};
+
 export default apiClient;

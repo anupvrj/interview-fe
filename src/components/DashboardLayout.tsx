@@ -16,6 +16,7 @@ import {
   Sparkles,
   PlayCircle,
   FileEdit,
+  Briefcase,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -38,6 +39,11 @@ const menuItems = [
     title: "Resumes",
     href: "/dashboard/resumes",
     icon: FileEdit,
+  },
+  {
+    title: "Jobs",
+    href: "/dashboard/jobs",
+    icon: Briefcase,
   },
   {
     title: "Analytics",
