@@ -827,6 +827,36 @@ export const resumeApi = {
   },
 };
 
+// Resume Data Extraction API
+export const resumeDataExtractionApi = {
+  extractResumeData: async (
+    templateId: string,
+    resumeText?: string
+  ): Promise<{
+    sections: Record<
+      string,
+      {
+        sectionType: string;
+        content: string | any;
+        format: "html" | "list" | "paragraph" | "structured";
+      }
+    >;
+    templateId: string;
+  }> => {
+    const response = await apiClient.post(
+      "/extract-resume-data",
+      {
+        templateId,
+        resumeText: resumeText || undefined,
+      },
+      {
+        timeout: 120000, // 120 seconds (2 minutes) for AI extraction
+      }
+    );
+    return response.data.data;
+  },
+};
+
 // Content API
 export const contentApi = {
   refineContent: async (

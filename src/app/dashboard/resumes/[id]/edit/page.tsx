@@ -2846,10 +2846,14 @@ export default function EditResumePage() {
                     skillsData = skillsSection?.items || [];
                   } else {
                     // For other templates: Get from old structure
-                    const combinedSkills =
-                      typeof resume.content.skills.technical === "string"
-                        ? resume.content.skills.technical
-                        : resume.content.skills.technical.join(", ");
+                    const technicalSkills = resume.content.skills?.technical;
+                    const combinedSkills = !technicalSkills
+                      ? ""
+                      : typeof technicalSkills === "string"
+                      ? technicalSkills
+                      : Array.isArray(technicalSkills)
+                      ? technicalSkills.join(", ")
+                      : "";
                     skillsData = combinedSkills;
                   }
 
