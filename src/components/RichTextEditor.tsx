@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Underline from "@tiptap/extension-underline";
@@ -16,7 +16,10 @@ import {
   Heading3,
   Undo,
   Redo,
+  Sparkles,
+  Loader2,
 } from "lucide-react";
+import { contentApi } from "@/lib/api";
 
 interface RichTextEditorProps {
   readonly value: string;
@@ -31,6 +34,7 @@ export function RichTextEditor({
   placeholder = "Enter text...",
   className = "",
 }: RichTextEditorProps) {
+  const [isRefining, setIsRefining] = useState(false);
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -73,6 +77,32 @@ export function RichTextEditor({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value]);
+
+  // AI Content Refinement
+  const handleAIRefine = async () => {
+    if (!editor || isRefining) return;
+
+    const currentContent = editor.getHTML();
+    const plainText = currentContent.replaceAll(/<[^>]*>/g, "").trim();
+
+    if (!plainText) {
+      return;
+    }
+
+    setIsRefining(true);
+    try {
+      const result = await contentApi.refineContent(currentContent);
+
+      // Update editor with refined content
+      editor.commands.setContent(result.refinedContent);
+      onChange(result.refinedContent);
+    } catch (error) {
+      console.error("Error refining content:", error);
+      // Could add a toast notification here
+    } finally {
+      setIsRefining(false);
+    }
+  };
 
   if (!editor) {
     return null;
@@ -204,8 +234,25 @@ export function RichTextEditor({
       </div>
 
       {/* Editor Content */}
-      <div className="bg-white rounded-b-md">
+      <div className="bg-white rounded-b-md relative">
         <EditorContent editor={editor} />
+
+        {/* AI Refine Button - Positioned in bottom-right corner */}
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="absolute bottom-3 right-3 h-8 w-8 p-0 bg-gradient-to-r from-purple-500 to-blue-500 text-white border-0 hover:from-purple-600 hover:to-blue-600 shadow-lg hover:shadow-xl transition-all duration-200"
+          onClick={handleAIRefine}
+          disabled={isRefining || !value?.trim()}
+          title="AI Refine - Make content more professional and resume-friendly"
+        >
+          {isRefining ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : (
+            <Sparkles className="w-4 h-4" />
+          )}
+        </Button>
       </div>
 
       <style
@@ -215,6 +262,7 @@ export function RichTextEditor({
           outline: none;
           min-height: 120px;
           padding: 12px;
+          padding-bottom: 50px; /* Extra padding to avoid overlap with AI button */
         }
         .rich-text-editor .ProseMirror p.is-editor-empty:first-child::before {
           color: #9ca3af;

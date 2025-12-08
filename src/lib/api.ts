@@ -827,4 +827,26 @@ export const resumeApi = {
   },
 };
 
+// Content API
+export const contentApi = {
+  refineContent: async (
+    content: string,
+    contentType?: "paragraph" | "list" | "auto"
+  ): Promise<{
+    originalContent: string;
+    refinedContent: string;
+    contentType: "paragraph" | "list";
+    wordCount: {
+      original: number;
+      refined: number;
+    };
+  }> => {
+    const response = await apiClient.post("/refine-content", {
+      content,
+      contentType: contentType || "auto",
+    });
+    return response.data.data;
+  },
+};
+
 export default apiClient;
