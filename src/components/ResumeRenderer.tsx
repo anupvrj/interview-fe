@@ -679,6 +679,7 @@ export function ResumeRenderer({
           >
             {renderSectionHeader(section.title, isInSidebar, section.type)}
             <div
+              className="resume-content"
               style={{
                 fontSize: `${templateStyle.fontSize.body}px`,
                 lineHeight: templateStyle.lineHeight,
@@ -806,6 +807,7 @@ export function ResumeRenderer({
                         )}
                         {exp.description && (
                           <div
+                            className="resume-content"
                             style={{
                               fontSize: `${templateStyle.fontSize.body}px`,
                               lineHeight: templateStyle.lineHeight,
@@ -1150,6 +1152,7 @@ export function ResumeRenderer({
                           ? templateStyle.colors.sidebarText
                           : templateStyle.colors.text,
                       }}
+                      className="resume-content"
                       dangerouslySetInnerHTML={{ __html: skillsData.technical }}
                     />
                   ) : (
@@ -1214,6 +1217,7 @@ export function ResumeRenderer({
                   </div>
                   {project.description && (
                     <div
+                      className="resume-content"
                       style={{
                         fontSize: `${templateStyle.fontSize.body}px`,
                         lineHeight: templateStyle.lineHeight,
@@ -1295,6 +1299,7 @@ export function ResumeRenderer({
                     : templateStyle.colors.text,
                   lineHeight: "1.4",
                 }}
+                className="resume-content"
                 dangerouslySetInnerHTML={{ __html: resume.content.languages }}
               />
             </div>
@@ -1474,6 +1479,7 @@ export function ResumeRenderer({
                         marginTop: "4px",
                         lineHeight: "1.4",
                       }}
+                      className="resume-content"
                       dangerouslySetInnerHTML={{
                         __html: award.description,
                       }}
@@ -1618,6 +1624,7 @@ export function ResumeRenderer({
                     : templateStyle.colors.text,
                   lineHeight: "1.4",
                 }}
+                className="resume-content"
                 dangerouslySetInnerHTML={{ __html: achievementsString }}
               />
             </div>
@@ -1713,7 +1720,10 @@ export function ResumeRenderer({
               }}
             >
               {typeof interestsData === "string" ? (
-                <div dangerouslySetInnerHTML={{ __html: interestsData }} />
+                <div
+                  className="resume-content"
+                  dangerouslySetInnerHTML={{ __html: interestsData }}
+                />
               ) : (
                 (interestsData as string[]).join(", ")
               )}
@@ -1803,6 +1813,7 @@ export function ResumeRenderer({
                         marginTop: "4px",
                         lineHeight: "1.4",
                       }}
+                      className="resume-content"
                       dangerouslySetInnerHTML={{ __html: course.description }}
                     />
                   )}
@@ -2033,6 +2044,7 @@ export function ResumeRenderer({
           >
             {renderSectionHeader(section.title, isInSidebar, section.type)}
             <div
+              className="resume-content"
               style={{
                 fontSize: `${templateStyle.fontSize.body}px`,
                 color: isInSidebar
@@ -2040,9 +2052,8 @@ export function ResumeRenderer({
                   : templateStyle.colors.text,
                 lineHeight: "1.4",
               }}
-            >
-              {declarationText}
-            </div>
+              dangerouslySetInnerHTML={{ __html: declarationText }}
+            />
           </div>
         );
 
@@ -2129,9 +2140,72 @@ export function ResumeRenderer({
       <style
         dangerouslySetInnerHTML={{
           __html: `
+          /* Global list styles for all content in resume - scoped to resume container */
+          .resume-content ul, 
+          .resume-content ol,
+          .resume-page ul,
+          .resume-page ol,
+          ul, 
+          ol {
+            margin: 4px 0 8px 0 !important;
+            padding-left: 20px !important;
+            list-style-position: outside !important;
+            list-style: disc outside !important;
+          }
+          
+          .resume-content ul,
+          .resume-page ul,
+          ul {
+            list-style-type: disc !important;
+          }
+          
+          .resume-content ol,
+          .resume-page ol,
+          ol {
+            list-style-type: decimal !important;
+          }
+          
+          .resume-content li,
+          .resume-page li,
+          li {
+            margin-bottom: 2px !important;
+            line-height: 1.4 !important;
+            display: list-item !important;
+            list-style-position: outside !important;
+            list-style: inherit !important;
+          }
+          
+          .resume-content ul ul, 
+          .resume-content ol ol, 
+          .resume-content ul ol, 
+          .resume-content ol ul,
+          .resume-page ul ul,
+          .resume-page ol ol,
+          ul ul, 
+          ol ol, 
+          ul ol, 
+          ol ul {
+            margin: 2px 0 !important;
+            padding-left: 18px !important;
+          }
+          
+          .resume-content ul ul,
+          .resume-page ul ul,
+          ul ul {
+            list-style-type: circle !important;
+          }
+          
+          .resume-content ul ul ul,
+          .resume-page ul ul ul,
+          ul ul ul {
+            list-style-type: square !important;
+          }
+          
+          /* Also apply to resume-content class for specificity */
           .resume-content ul, .resume-content ol {
             margin: 4px 0 8px 0 !important;
             padding-left: 20px !important;
+            list-style-position: outside !important;
           }
           
           .resume-content ul {
@@ -2146,6 +2220,7 @@ export function ResumeRenderer({
             margin-bottom: 2px !important;
             line-height: 1.4 !important;
             display: list-item !important;
+            list-style-position: outside !important;
           }
           
           .resume-content ul ul, .resume-content ol ol, .resume-content ul ol, .resume-content ol ul {
