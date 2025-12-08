@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   ArrowLeft,
   Save,
@@ -29,7 +28,6 @@ import { ResumePreview } from "@/components/ResumePreview";
 import { RichTextEditor } from "@/components/RichTextEditor";
 import { getExtendedTemplate } from "@/lib/templateConfigs";
 import { ExecutiveSkills } from "@/components/resume-editor/ExecutiveSkills";
-import { LanguageRating } from "@/components/resume-editor/LanguageRating";
 import { LanguagesEditor } from "@/components/LanguagesEditor";
 import { captureAndUploadThumbnail } from "@/lib/resume-thumbnail";
 
@@ -3816,16 +3814,16 @@ export default function EditResumePage() {
                       {section.expanded && (
                         <CardContent className="p-4">
                           <Label className="text-xs">Declaration</Label>
-                          <Input
+                          <RichTextEditor
                             value={resume.content.declaration || ""}
-                            onChange={(e) => {
+                            onChange={(html) => {
                               setResume((prev) =>
                                 prev
                                   ? {
                                       ...prev,
                                       content: {
                                         ...prev.content,
-                                        declaration: e.target.value,
+                                        declaration: html,
                                       },
                                     }
                                   : null
@@ -3833,7 +3831,7 @@ export default function EditResumePage() {
                               setHasChanges(true);
                             }}
                             placeholder="I hereby declare that..."
-                            className="mt-1 h-9 text-sm"
+                            className="mt-1"
                           />
                         </CardContent>
                       )}
@@ -4155,15 +4153,15 @@ export default function EditResumePage() {
                                   <Label className="text-xs">
                                     Description (Optional)
                                   </Label>
-                                  <Input
+                                  <RichTextEditor
                                     value={award.description || ""}
-                                    onChange={(e) => {
+                                    onChange={(html) => {
                                       const updated = [
                                         ...(resume.content.awards || []),
                                       ];
                                       updated[index] = {
                                         ...award,
-                                        description: e.target.value,
+                                        description: html,
                                       };
                                       setResume((prev) =>
                                         prev
@@ -4178,7 +4176,7 @@ export default function EditResumePage() {
                                       );
                                       setHasChanges(true);
                                     }}
-                                    className="mt-1 h-9 text-sm"
+                                    className="mt-1"
                                     placeholder="Brief description..."
                                   />
                                 </div>
@@ -4776,15 +4774,15 @@ export default function EditResumePage() {
                                   <Label className="text-xs">
                                     Description (Optional)
                                   </Label>
-                                  <Textarea
+                                  <RichTextEditor
                                     value={course.description || ""}
-                                    onChange={(e) => {
+                                    onChange={(html) => {
                                       const updatedCourses =
                                         resume.content.courses?.map((c: any) =>
                                           c.id === course.id
                                             ? {
                                                 ...c,
-                                                description: e.target.value,
+                                                description: html,
                                               }
                                             : c
                                         );
@@ -4793,7 +4791,7 @@ export default function EditResumePage() {
                                       });
                                     }}
                                     placeholder="Brief description of the course..."
-                                    rows={2}
+                                    className="mt-1"
                                   />
                                 </div>
                               </div>
@@ -5045,16 +5043,16 @@ export default function EditResumePage() {
                                   <Label className="text-xs">
                                     Description (Optional)
                                   </Label>
-                                  <Textarea
+                                  <RichTextEditor
                                     value={org.description || ""}
-                                    onChange={(e) => {
+                                    onChange={(html) => {
                                       const updatedOrganisations =
                                         resume.content.organisations?.map(
                                           (o: any) =>
                                             o.id === org.id
                                               ? {
                                                   ...o,
-                                                  description: e.target.value,
+                                                  description: html,
                                                 }
                                               : o
                                         );
@@ -5063,7 +5061,7 @@ export default function EditResumePage() {
                                       });
                                     }}
                                     placeholder="Brief description of your role and contributions..."
-                                    rows={2}
+                                    className="mt-1"
                                   />
                                 </div>
                               </div>

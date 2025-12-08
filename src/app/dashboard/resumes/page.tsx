@@ -269,49 +269,51 @@ export default function ResumesPage() {
               className="border shadow-md bg-white/80 backdrop-blur-sm hover:shadow-lg transition-all group"
             >
               <CardContent className="p-3">
-                {/* Resume Thumbnail - 50% Reduced Size */}
-                {resume.thumbnailS3Key ? (
-                  <div className="mb-2 relative aspect-[210/297] bg-gray-100 rounded-md overflow-hidden border border-gray-200">
-                    <img
-                      src={`${process.env.NEXT_PUBLIC_API_URL}/resumes/${resume.resumeId}/thumbnail-url`}
-                      alt={resume.title}
-                      className="w-full h-full object-cover object-top"
-                      onLoad={() => {
-                        console.log(
-                          "Thumbnail loaded successfully for:",
-                          resume.title
-                        );
-                      }}
-                      onError={(e) => {
-                        console.error(
-                          "Thumbnail failed to load for:",
-                          resume.title
-                        );
-                        // Fallback to icon if image fails to load
-                        e.currentTarget.style.display = "none";
-                        const fallback = e.currentTarget.nextElementSibling;
-                        if (fallback) {
-                          (fallback as HTMLElement).style.display = "flex";
-                        }
-                      }}
-                    />
-                    <div className="hidden w-full h-full absolute inset-0 items-center justify-center bg-gradient-to-br from-purple-50 to-blue-50">
-                      <FileText className="w-8 h-8 text-purple-300" />
+                {/* Resume Thumbnail - 50% Reduced Size - Clickable */}
+                <Link href={`/dashboard/resumes/${resume.resumeId}/edit`}>
+                  {resume.thumbnailS3Key ? (
+                    <div className="mb-2 relative aspect-[210/297] bg-gray-100 rounded-md overflow-hidden border border-gray-200 cursor-pointer hover:border-purple-400 hover:shadow-md transition-all group">
+                      <img
+                        src={`${process.env.NEXT_PUBLIC_API_URL}/resumes/${resume.resumeId}/thumbnail-url`}
+                        alt={resume.title}
+                        className="w-full h-full object-cover object-top group-hover:opacity-90 transition-opacity"
+                        onLoad={() => {
+                          console.log(
+                            "Thumbnail loaded successfully for:",
+                            resume.title
+                          );
+                        }}
+                        onError={(e) => {
+                          console.error(
+                            "Thumbnail failed to load for:",
+                            resume.title
+                          );
+                          // Fallback to icon if image fails to load
+                          e.currentTarget.style.display = "none";
+                          const fallback = e.currentTarget.nextElementSibling;
+                          if (fallback) {
+                            (fallback as HTMLElement).style.display = "flex";
+                          }
+                        }}
+                      />
+                      <div className="hidden w-full h-full absolute inset-0 items-center justify-center bg-gradient-to-br from-purple-50 to-blue-50">
+                        <FileText className="w-8 h-8 text-purple-300" />
+                      </div>
                     </div>
-                  </div>
-                ) : (
-                  <div className="mb-2 aspect-[210/297] bg-gradient-to-br from-purple-50 to-blue-50 rounded-md flex items-center justify-center border border-gray-200">
-                    <div className="text-center px-2">
-                      <FileText className="w-8 h-8 text-purple-300 mx-auto mb-1" />
-                      <p className="text-[10px] text-gray-500 leading-tight">
-                        No preview
-                      </p>
-                      <p className="text-[9px] text-gray-400 leading-tight">
-                        Download PDF
-                      </p>
+                  ) : (
+                    <div className="mb-2 aspect-[210/297] bg-gradient-to-br from-purple-50 to-blue-50 rounded-md flex items-center justify-center border border-gray-200 cursor-pointer hover:border-purple-400 hover:shadow-md transition-all">
+                      <div className="text-center px-2">
+                        <FileText className="w-8 h-8 text-purple-300 mx-auto mb-1" />
+                        <p className="text-[10px] text-gray-500 leading-tight">
+                          No preview
+                        </p>
+                        <p className="text-[9px] text-gray-400 leading-tight">
+                          Download PDF
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
+                </Link>
 
                 <div className="flex items-start justify-between mb-2">
                   <div className="flex-1 min-w-0">
