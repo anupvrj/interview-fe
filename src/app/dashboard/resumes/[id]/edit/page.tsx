@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useUser } from "@clerk/nextjs";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
@@ -28,9 +28,11 @@ import { ResumePreview } from "@/components/ResumePreview";
 import { RichTextEditor } from "@/components/RichTextEditor";
 import { getExtendedTemplate } from "@/lib/templateConfigs";
 import { ExecutiveSkills } from "@/components/resume-editor/ExecutiveSkills";
+import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import { LanguagesEditor } from "@/components/LanguagesEditor";
 import { captureAndUploadThumbnail } from "@/lib/resume-thumbnail";
 import { ATSFeedback } from "@/components/ATSFeedback";
+import { ProfilePictureCropper } from "@/components/ProfilePictureCropper";
 
 interface Section {
   id: string;
@@ -87,6 +89,14 @@ export default function EditResumePage() {
   // Initialize sections as empty - will be populated from database
   const [sections, setSections] = useState<Section[]>([]);
   const [viewMode, setViewMode] = useState<"edit" | "ats">("edit");
+  
+  // Delete section dialog state
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [sectionToDelete, setSectionToDelete] = useState<{
+    id: string;
+    title: string;
+    type: string;
+  } | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -174,6 +184,12 @@ export default function EditResumePage() {
           visible: s.visible,
         }));
 
+        // Log customSections before saving
+        console.log("💾 [Autosave] Saving resume with customSections:", {
+          customSectionsCount: resume.content.customSections?.length || 0,
+          customSections: resume.content.customSections,
+        });
+
         await resumeApi.update(resumeId, {
           title: resume.title,
           content: resume.content,
@@ -230,6 +246,18 @@ export default function EditResumePage() {
         }
       }
 
+      // Ensure customSections is properly initialized
+      if (!resumeData.content.customSections) {
+        resumeData.content.customSections = [];
+      }
+      
+      // Log for debugging
+      console.log("📋 [Load Resume] Initial resume data:", {
+        hasCustomSections: !!resumeData.content.customSections,
+        customSectionsCount: resumeData.content.customSections?.length || 0,
+        customSections: resumeData.content.customSections,
+      });
+
       setResume(resumeData);
 
       // Load layout from database or use default
@@ -266,12 +294,87 @@ export default function EditResumePage() {
 
       // Load section order from database or use default
       if (resumeData.sectionOrder && resumeData.sectionOrder.length > 0) {
-        setSections(
-          resumeData.sectionOrder.map((s) => ({
-            ...s,
-            expanded: true,
-          })) as Section[]
-        );
+        const loadedSections = resumeData.sectionOrder.map((s) => ({
+          ...s,
+          expanded: true,
+        })) as Section[];
+        
+        // Ensure all custom sections in sectionOrder have corresponding entries in customSections
+        const customSections = resumeData.content.customSections || [];
+        const customSectionIds = new Set(customSections.map((cs: any) => cs.id));
+        
+        // Log for debugging
+        console.log("📋 Loading custom sections:", {
+          sectionOrderCustomSections: loadedSections.filter(s => s.type === "custom"),
+          customSectionsInDB: customSections,
+          customSectionIds: Array.from(customSectionIds),
+        });
+        
+        const missingCustomSections = loadedSections
+          .filter((s) => s.type === "custom" && !customSectionIds.has(s.id))
+          .map((s) => ({
+            id: s.id,
+            title: s.title,
+            content: "", // Initialize with empty content
+          }));
+        
+        if (missingCustomSections.length > 0) {
+          console.log("⚠️ Found missing custom sections, initializing:", missingCustomSections);
+          // Update resume data to include missing custom sections
+          resumeData.content.customSections = [
+            ...customSections,
+            ...missingCustomSections,
+          ];
+          setResume(resumeData);
+          
+          // Immediately save missing custom sections to database to prevent data loss on reload
+          (async () => {
+            try {
+              const sectionOrderData = loadedSections.map((s) => ({
+                id: s.id,
+                type: s.type,
+                title: s.title,
+                visible: s.visible,
+              }));
+              
+              await resumeApi.update(resumeId, {
+                content: resumeData.content,
+                sectionOrder: sectionOrderData,
+              });
+              console.log("✅ Initialized missing custom sections in database");
+            } catch (error) {
+              console.error("Error saving missing custom sections:", error);
+              // Don't block the UI - autosave will handle it
+              setHasChanges(true);
+            }
+          })();
+        } else {
+          // All custom sections exist, ensure resume state has the latest customSections
+          console.log("✅ All custom sections found in database:", customSections);
+          // Update resume state to ensure customSections are preserved
+          // Use a single update to ensure both resume and sections are in sync
+          setResume((prevResume) => {
+            if (!prevResume) {
+              return {
+                ...resumeData,
+                content: {
+                  ...resumeData.content,
+                  customSections: customSections,
+                },
+              };
+            }
+            return {
+              ...prevResume,
+              content: {
+                ...prevResume.content,
+                customSections: customSections, // Ensure customSections are preserved from database
+              },
+            };
+          });
+        }
+        
+        // Set sections after resume state is updated to ensure they're in sync
+        setSections(loadedSections);
       } else {
         // Initialize template-specific default sections if not in database
         const getDefaultSections = (): Section[] => {
@@ -636,9 +739,33 @@ export default function EditResumePage() {
 
   const updateContent = (updates: Partial<Resume["content"]>) => {
     if (!resume) return;
+    
+    // Deep merge customSections if it's being updated
+    let mergedContent = { ...resume.content, ...updates };
+    if (updates.customSections) {
+      // Ensure we're preserving existing customSections and merging properly
+      const existingCustomSections = resume.content.customSections || [];
+      const updatedCustomSections = updates.customSections;
+      
+      // Merge: keep existing sections that aren't being updated, add/update new ones
+      const mergedCustomSections = [...existingCustomSections];
+      updatedCustomSections.forEach((updated: any) => {
+        const existingIndex = mergedCustomSections.findIndex(
+          (cs: any) => cs.id === updated.id
+        );
+        if (existingIndex >= 0) {
+          mergedCustomSections[existingIndex] = updated;
+        } else {
+          mergedCustomSections.push(updated);
+        }
+      });
+      
+      mergedContent.customSections = mergedCustomSections;
+    }
+    
     setResume({
       ...resume,
-      content: { ...resume.content, ...updates },
+      content: mergedContent,
     });
     setHasChanges(true);
   };
@@ -654,34 +781,60 @@ export default function EditResumePage() {
   const deleteSection = (sectionId: string) => {
     // Prevent deletion of essential sections
     const essentialSections = ["personalInfo", "experience", "education"];
-    const sectionToDelete = sections.find((s) => s.id === sectionId);
+    const section = sections.find((s) => s.id === sectionId);
 
-    if (essentialSections.includes(sectionToDelete?.type || "")) {
-      alert(
-        "Cannot delete essential sections like Personal Info, Experience, and Education."
-      );
+    if (!section) return;
+
+    if (essentialSections.includes(section.type || "")) {
+      // Show error dialog for essential sections
+      setSectionToDelete({
+        id: sectionId,
+        title: section.title,
+        type: section.type,
+      });
+      setDeleteDialogOpen(true);
+      return;
+    }
+
+    // Open confirmation dialog for non-essential sections
+    setSectionToDelete({
+      id: sectionId,
+      title: section.title,
+      type: section.type,
+    });
+    setDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = () => {
+    if (!sectionToDelete) return;
+
+    const essentialSections = ["personalInfo", "experience", "education"];
+    
+    // If it's an essential section, just close the dialog (error was shown)
+    if (essentialSections.includes(sectionToDelete.type)) {
+      setDeleteDialogOpen(false);
+      setSectionToDelete(null);
       return;
     }
 
     // If deleting a custom section, also remove its data from customSections
-    if (sectionToDelete?.type === "custom" && resume) {
+    if (sectionToDelete.type === "custom" && resume) {
       const updatedCustomSections =
         resume.content.customSections?.filter(
-          (cs: any) => cs.id !== sectionId
+          (cs: any) => cs.id !== sectionToDelete.id
         ) || [];
       updateContent({
         customSections: updatedCustomSections,
       });
     }
 
-    if (
-      confirm(
-        `Are you sure you want to delete the "${sectionToDelete?.title}" section? This action cannot be undone.`
-      )
-    ) {
-      setSections((prev) => prev.filter((s) => s.id !== sectionId));
-      setHasChanges(true);
-    }
+    // Remove the section
+    setSections((prev) => prev.filter((s) => s.id !== sectionToDelete.id));
+    setHasChanges(true);
+    
+    // Close dialog and reset state
+    setDeleteDialogOpen(false);
+    setSectionToDelete(null);
   };
 
   const startEditingSectionTitle = (
@@ -755,24 +908,50 @@ export default function EditResumePage() {
       publications: "Publications",
       references: "References",
       declaration: "Declaration",
-      spacer: "Spacer",
+      spacer: "Column Placeholder", // Can be added multiple times
       custom: "Custom Section",
     };
 
+    const sectionId = `${type}_${Date.now()}`;
     const newSection: Section = {
-      id: `${type}_${Date.now()}`,
+      id: sectionId,
       type,
       title: titleMap[type] || type.charAt(0).toUpperCase() + type.slice(1),
       visible: true,
       expanded: true,
     };
     setSections([...sections, newSection]);
+    
+    // If it's a custom section, initialize it in customSections with empty content
+    if (type === "custom" && resume) {
+      const currentCustomSections = resume.content.customSections || [];
+      const existingIndex = currentCustomSections.findIndex(
+        (cs: any) => cs.id === sectionId
+      );
+      
+      if (existingIndex < 0) {
+        updateContent({
+          customSections: [
+            ...currentCustomSections,
+            {
+              id: sectionId,
+              title: newSection.title,
+              content: "", // Initialize with empty content
+            },
+          ],
+        });
+      }
+    }
+    
     setHasChanges(true);
   };
 
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [editingPersonalInfo, setEditingPersonalInfo] = useState(false);
   const [layoutExpanded, setLayoutExpanded] = useState(true);
+  const profilePictureInputRef = useRef<HTMLInputElement>(null);
+  const [cropperOpen, setCropperOpen] = useState(false);
+  const [imageToCrop, setImageToCrop] = useState<string | null>(null);
 
   const handleDragStart = (sectionId: string) => {
     setDraggedSection(sectionId);
@@ -1621,52 +1800,21 @@ export default function EditResumePage() {
                                 Profile Picture
                               </Label>
                               <input
+                                ref={profilePictureInputRef}
                                 type="file"
                                 accept="image/*"
                                 onChange={async (e) => {
                                   const file = e.target.files?.[0];
                                   if (!file || !resume) return;
 
-                                  try {
-                                    const formData = new FormData();
-                                    formData.append("file", file);
-
-                                    const response = await apiClient.post<{
-                                      success: boolean;
-                                      message: string;
-                                      data: { profilePictureUrl: string };
-                                    }>(
-                                      `/resumes/${resume.resumeId}/profile-picture`,
-                                      formData,
-                                      {
-                                        headers: {
-                                          "Content-Type": "multipart/form-data",
-                                        },
-                                      }
-                                    );
-
-                                    if (
-                                      response.data.success &&
-                                      response.data.data?.profilePictureUrl
-                                    ) {
-                                      updateContent({
-                                        personalInfo: {
-                                          ...personalInfo,
-                                          profilePicture:
-                                            response.data.data
-                                              .profilePictureUrl,
-                                        },
-                                      });
-                                    }
-                                  } catch (error) {
-                                    console.error(
-                                      "Error uploading profile picture:",
-                                      error
-                                    );
-                                    alert(
-                                      "Failed to upload profile picture. Please try again."
-                                    );
-                                  }
+                                  // Create a preview URL for the cropper
+                                  const reader = new FileReader();
+                                  reader.onload = (event) => {
+                                    const imageUrl = event.target?.result as string;
+                                    setImageToCrop(imageUrl);
+                                    setCropperOpen(true);
+                                  };
+                                  reader.readAsDataURL(file);
                                 }}
                                 className="text-xs"
                               />
@@ -1675,6 +1823,74 @@ export default function EditResumePage() {
                               </p>
                             </div>
                           </div>
+                          
+                          {/* Profile Picture Cropper Dialog */}
+                          {imageToCrop && (
+                            <ProfilePictureCropper
+                              open={cropperOpen}
+                              onOpenChange={(open) => {
+                                setCropperOpen(open);
+                                if (!open) {
+                                  // Reset file input when dialog closes
+                                  if (profilePictureInputRef.current) {
+                                    profilePictureInputRef.current.value = "";
+                                  }
+                                  setImageToCrop(null);
+                                }
+                              }}
+                              imageSrc={imageToCrop}
+                              onCropComplete={async (croppedImageUrl) => {
+                                if (!resume) return;
+
+                                try {
+                                  // Convert data URL to blob
+                                  const response = await fetch(croppedImageUrl);
+                                  const blob = await response.blob();
+                                  
+                                  // Create FormData and upload
+                                  const formData = new FormData();
+                                  formData.append("file", blob, "profile-picture.jpg");
+
+                                  const uploadResponse = await apiClient.post<{
+                                    success: boolean;
+                                    message: string;
+                                    data: { profilePictureUrl: string };
+                                  }>(
+                                    `/resumes/${resume.resumeId}/profile-picture`,
+                                    formData,
+                                    {
+                                      headers: {
+                                        "Content-Type": "multipart/form-data",
+                                      },
+                                    }
+                                  );
+
+                                  if (
+                                    uploadResponse.data.success &&
+                                    uploadResponse.data.data?.profilePictureUrl
+                                  ) {
+                                    updateContent({
+                                      personalInfo: {
+                                        ...personalInfo,
+                                        profilePicture:
+                                          uploadResponse.data.data
+                                            .profilePictureUrl,
+                                      },
+                                    });
+                                  }
+                                } catch (error) {
+                                  console.error(
+                                    "Error uploading cropped profile picture:",
+                                    error
+                                  );
+                                  alert(
+                                    "Failed to upload profile picture. Please try again."
+                                  );
+                                }
+                              }}
+                            />
+                          )}
+                          
                           <div className="grid grid-cols-2 gap-4">
                             <div>
                               <Label htmlFor="fullName" className="text-xs">
@@ -1710,6 +1926,25 @@ export default function EditResumePage() {
                                   })
                                 }
                                 className="mt-1 h-9 text-sm"
+                              />
+                            </div>
+                            <div>
+                              <Label htmlFor="yearsOfExperience" className="text-xs">
+                                Experience
+                              </Label>
+                              <Input
+                                id="yearsOfExperience"
+                                value={personalInfo.yearsOfExperience || ""}
+                                onChange={(e) =>
+                                  updateContent({
+                                    personalInfo: {
+                                      ...personalInfo,
+                                      yearsOfExperience: e.target.value,
+                                    },
+                                  })
+                                }
+                                className="mt-1 h-9 text-sm"
+                                placeholder="e.g., 5 years, 3+ years"
                               />
                             </div>
                             <div>
@@ -1807,342 +2042,232 @@ export default function EditResumePage() {
 
                           {/* Additional Personal Information */}
                           <div className="pt-4 border-t">
-                            <Label className="text-xs font-semibold mb-2 block">
-                              Personal Information
+                            <Label className="text-xs font-semibold mb-3 block">
+                              Additional Personal Information
                             </Label>
-                            <div className="flex flex-wrap gap-2">
-                              {!personalInfo.dateOfBirth && (
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="sm"
-                                  className="h-8 text-xs"
-                                  onClick={() =>
+                            
+                            {/* Show all additional fields - always visible */}
+                            <div className="grid grid-cols-2 gap-4">
+                              <div>
+                                <Label className="text-xs">Date of Birth</Label>
+                                <Input
+                                  value={personalInfo.dateOfBirth || ""}
+                                  onChange={(e) =>
                                     updateContent({
                                       personalInfo: {
                                         ...personalInfo,
-                                        dateOfBirth: "",
+                                        dateOfBirth: e.target.value,
                                       },
                                     })
                                   }
-                                >
-                                  + Date of Birth
-                                </Button>
-                              )}
-                              {!personalInfo.nationality && (
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="sm"
-                                  className="h-8 text-xs"
-                                  onClick={() =>
+                                  className="mt-1 h-9 text-sm"
+                                  type="date"
+                                  placeholder="Select date"
+                                />
+                              </div>
+                              <div>
+                                <Label className="text-xs">Nationality</Label>
+                                <Input
+                                  value={personalInfo.nationality || ""}
+                                  onChange={(e) =>
                                     updateContent({
                                       personalInfo: {
                                         ...personalInfo,
-                                        nationality: "",
+                                        nationality: e.target.value,
                                       },
                                     })
                                   }
-                                >
-                                  + Nationality
-                                </Button>
-                              )}
-                              {!personalInfo.passport && (
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="sm"
-                                  className="h-8 text-xs"
-                                  onClick={() =>
+                                  className="mt-1 h-9 text-sm"
+                                  placeholder="e.g., American, Indian"
+                                />
+                              </div>
+                              <div>
+                                <Label className="text-xs">Passport/ID Number (Legacy)</Label>
+                                <Input
+                                  value={personalInfo.passport || ""}
+                                  onChange={(e) =>
                                     updateContent({
                                       personalInfo: {
                                         ...personalInfo,
-                                        passport: "",
+                                        passport: e.target.value,
                                       },
                                     })
                                   }
-                                >
-                                  + Passport or Id
-                                </Button>
-                              )}
-                              {!personalInfo.maritalStatus && (
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="sm"
-                                  className="h-8 text-xs"
-                                  onClick={() =>
+                                  className="mt-1 h-9 text-sm"
+                                  placeholder="Passport or ID number"
+                                />
+                              </div>
+                              <div>
+                                <Label className="text-xs">Marital Status</Label>
+                                <Input
+                                  value={personalInfo.maritalStatus || ""}
+                                  onChange={(e) =>
                                     updateContent({
                                       personalInfo: {
                                         ...personalInfo,
-                                        maritalStatus: "",
+                                        maritalStatus: e.target.value,
                                       },
                                     })
                                   }
-                                >
-                                  + Marital status
-                                </Button>
-                              )}
-                              {!personalInfo.militaryService && (
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="sm"
-                                  className="h-8 text-xs"
-                                  onClick={() =>
+                                  className="mt-1 h-9 text-sm"
+                                  placeholder="e.g., Single, Married"
+                                />
+                              </div>
+                              <div>
+                                <Label className="text-xs">Military Service</Label>
+                                <Input
+                                  value={personalInfo.militaryService || ""}
+                                  onChange={(e) =>
                                     updateContent({
                                       personalInfo: {
                                         ...personalInfo,
-                                        militaryService: "",
+                                        militaryService: e.target.value,
                                       },
                                     })
                                   }
-                                >
-                                  + Military Service
-                                </Button>
-                              )}
-                              {!personalInfo.drivingLicense && (
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="sm"
-                                  className="h-8 text-xs"
-                                  onClick={() =>
+                                  className="mt-1 h-9 text-sm"
+                                  placeholder="Military service details"
+                                />
+                              </div>
+                              <div>
+                                <Label className="text-xs">Driving License</Label>
+                                <Input
+                                  value={personalInfo.drivingLicense || ""}
+                                  onChange={(e) =>
                                     updateContent({
                                       personalInfo: {
                                         ...personalInfo,
-                                        drivingLicense: "",
+                                        drivingLicense: e.target.value,
                                       },
                                     })
                                   }
-                                >
-                                  + Driving License
-                                </Button>
-                              )}
-                              {!personalInfo.gender && (
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="sm"
-                                  className="h-8 text-xs"
-                                  onClick={() =>
+                                  className="mt-1 h-9 text-sm"
+                                  placeholder="License number or class"
+                                />
+                              </div>
+                              <div>
+                                <Label className="text-xs">Gender/Pronoun</Label>
+                                <Input
+                                  value={personalInfo.gender || ""}
+                                  onChange={(e) =>
                                     updateContent({
                                       personalInfo: {
                                         ...personalInfo,
-                                        gender: "",
+                                        gender: e.target.value,
                                       },
                                     })
                                   }
-                                >
-                                  + Gender/Pronoun
-                                </Button>
-                              )}
-                              {!personalInfo.disability && (
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="sm"
-                                  className="h-8 text-xs"
-                                  onClick={() =>
+                                  className="mt-1 h-9 text-sm"
+                                  placeholder="e.g., Male, Female, Non-binary"
+                                />
+                              </div>
+                              <div>
+                                <Label className="text-xs">Disability</Label>
+                                <Input
+                                  value={personalInfo.disability || ""}
+                                  onChange={(e) =>
                                     updateContent({
                                       personalInfo: {
                                         ...personalInfo,
-                                        disability: "",
+                                        disability: e.target.value,
                                       },
                                     })
                                   }
-                                >
-                                  + Disability
-                                </Button>
-                              )}
-                              {!personalInfo.visa && (
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="sm"
-                                  className="h-8 text-xs"
-                                  onClick={() =>
+                                  className="mt-1 h-9 text-sm"
+                                  placeholder="Disability status (optional)"
+                                />
+                              </div>
+                              <div>
+                                <Label className="text-xs">Visa Status</Label>
+                                <Input
+                                  value={personalInfo.visa || ""}
+                                  onChange={(e) =>
                                     updateContent({
                                       personalInfo: {
                                         ...personalInfo,
-                                        visa: "",
+                                        visa: e.target.value,
                                       },
                                     })
                                   }
-                                >
-                                  + Visa
-                                </Button>
-                              )}
+                                  className="mt-1 h-9 text-sm"
+                                  placeholder="e.g., Work Visa, Permanent Resident"
+                                />
+                              </div>
                             </div>
 
-                            {/* Show fields that have been added */}
-                            <div className="mt-3 space-y-2">
-                              {personalInfo.dateOfBirth !== undefined && (
+                            {/* Passport Details Sub-section */}
+                            <div className="pt-4 border-t mt-4">
+                              <Label className="text-xs font-semibold mb-3 block">
+                                Passport Details
+                              </Label>
+                              <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                  <Label className="text-xs">
-                                    Date of Birth
-                                  </Label>
+                                  <Label className="text-xs">Passport No.</Label>
                                   <Input
-                                    value={personalInfo.dateOfBirth || ""}
+                                    value={personalInfo.passportNo || ""}
                                     onChange={(e) =>
                                       updateContent({
                                         personalInfo: {
                                           ...personalInfo,
-                                          dateOfBirth: e.target.value,
+                                          passportNo: e.target.value,
                                         },
                                       })
                                     }
-                                    className="mt-1 h-8 text-sm"
+                                    className="mt-1 h-9 text-sm"
+                                    placeholder="e.g., V0305854"
+                                  />
+                                </div>
+                                <div>
+                                  <Label className="text-xs">Place of Issue</Label>
+                                  <Input
+                                    value={personalInfo.passportPlaceOfIssue || ""}
+                                    onChange={(e) =>
+                                      updateContent({
+                                        personalInfo: {
+                                          ...personalInfo,
+                                          passportPlaceOfIssue: e.target.value,
+                                        },
+                                      })
+                                    }
+                                    className="mt-1 h-9 text-sm"
+                                    placeholder="e.g., Lucknow"
+                                  />
+                                </div>
+                                <div>
+                                  <Label className="text-xs">Date of Issue</Label>
+                                  <Input
+                                    value={personalInfo.passportDateOfIssue || ""}
+                                    onChange={(e) =>
+                                      updateContent({
+                                        personalInfo: {
+                                          ...personalInfo,
+                                          passportDateOfIssue: e.target.value,
+                                        },
+                                      })
+                                    }
+                                    className="mt-1 h-9 text-sm"
                                     type="date"
+                                    placeholder="Select date"
                                   />
                                 </div>
-                              )}
-                              {personalInfo.nationality !== undefined && (
                                 <div>
-                                  <Label className="text-xs">Nationality</Label>
+                                  <Label className="text-xs">Date of Expiry</Label>
                                   <Input
-                                    value={personalInfo.nationality || ""}
+                                    value={personalInfo.passportDateOfExpiry || ""}
                                     onChange={(e) =>
                                       updateContent({
                                         personalInfo: {
                                           ...personalInfo,
-                                          nationality: e.target.value,
+                                          passportDateOfExpiry: e.target.value,
                                         },
                                       })
                                     }
-                                    className="mt-1 h-8 text-sm"
+                                    className="mt-1 h-9 text-sm"
+                                    type="date"
+                                    placeholder="Select date"
                                   />
                                 </div>
-                              )}
-                              {personalInfo.passport !== undefined && (
-                                <div>
-                                  <Label className="text-xs">
-                                    Passport or Id
-                                  </Label>
-                                  <Input
-                                    value={personalInfo.passport || ""}
-                                    onChange={(e) =>
-                                      updateContent({
-                                        personalInfo: {
-                                          ...personalInfo,
-                                          passport: e.target.value,
-                                        },
-                                      })
-                                    }
-                                    className="mt-1 h-8 text-sm"
-                                  />
-                                </div>
-                              )}
-                              {personalInfo.maritalStatus !== undefined && (
-                                <div>
-                                  <Label className="text-xs">
-                                    Marital Status
-                                  </Label>
-                                  <Input
-                                    value={personalInfo.maritalStatus || ""}
-                                    onChange={(e) =>
-                                      updateContent({
-                                        personalInfo: {
-                                          ...personalInfo,
-                                          maritalStatus: e.target.value,
-                                        },
-                                      })
-                                    }
-                                    className="mt-1 h-8 text-sm"
-                                  />
-                                </div>
-                              )}
-                              {personalInfo.militaryService !== undefined && (
-                                <div>
-                                  <Label className="text-xs">
-                                    Military Service
-                                  </Label>
-                                  <Input
-                                    value={personalInfo.militaryService || ""}
-                                    onChange={(e) =>
-                                      updateContent({
-                                        personalInfo: {
-                                          ...personalInfo,
-                                          militaryService: e.target.value,
-                                        },
-                                      })
-                                    }
-                                    className="mt-1 h-8 text-sm"
-                                  />
-                                </div>
-                              )}
-                              {personalInfo.drivingLicense !== undefined && (
-                                <div>
-                                  <Label className="text-xs">
-                                    Driving License
-                                  </Label>
-                                  <Input
-                                    value={personalInfo.drivingLicense || ""}
-                                    onChange={(e) =>
-                                      updateContent({
-                                        personalInfo: {
-                                          ...personalInfo,
-                                          drivingLicense: e.target.value,
-                                        },
-                                      })
-                                    }
-                                    className="mt-1 h-8 text-sm"
-                                  />
-                                </div>
-                              )}
-                              {personalInfo.gender !== undefined && (
-                                <div>
-                                  <Label className="text-xs">
-                                    Gender/Pronoun
-                                  </Label>
-                                  <Input
-                                    value={personalInfo.gender || ""}
-                                    onChange={(e) =>
-                                      updateContent({
-                                        personalInfo: {
-                                          ...personalInfo,
-                                          gender: e.target.value,
-                                        },
-                                      })
-                                    }
-                                    className="mt-1 h-8 text-sm"
-                                  />
-                                </div>
-                              )}
-                              {personalInfo.disability !== undefined && (
-                                <div>
-                                  <Label className="text-xs">Disability</Label>
-                                  <Input
-                                    value={personalInfo.disability || ""}
-                                    onChange={(e) =>
-                                      updateContent({
-                                        personalInfo: {
-                                          ...personalInfo,
-                                          disability: e.target.value,
-                                        },
-                                      })
-                                    }
-                                    className="mt-1 h-8 text-sm"
-                                  />
-                                </div>
-                              )}
-                              {personalInfo.visa !== undefined && (
-                                <div>
-                                  <Label className="text-xs">Visa</Label>
-                                  <Input
-                                    value={personalInfo.visa || ""}
-                                    onChange={(e) =>
-                                      updateContent({
-                                        personalInfo: {
-                                          ...personalInfo,
-                                          visa: e.target.value,
-                                        },
-                                      })
-                                    }
-                                    className="mt-1 h-8 text-sm"
-                                  />
-                                </div>
-                              )}
+                              </div>
                             </div>
                           </div>
 
@@ -3936,6 +4061,19 @@ export default function EditResumePage() {
                     (cs: any) => cs.id === section.id
                   );
                   const customContent = customSectionData?.content || "";
+                  
+                  // Debug logging
+                  if (process.env.NODE_ENV === "development") {
+                    console.log("🔍 [Custom Section Edit]", {
+                      sectionId: section.id,
+                      sectionTitle: section.title,
+                      hasResume: !!resume,
+                      customSectionsInResume: resume?.content.customSections?.length || 0,
+                      foundCustomSection: !!customSectionData,
+                      customContentLength: customContent.length,
+                      customContentPreview: customContent.substring(0, 50),
+                    });
+                  }
 
                   return (
                     <Card
@@ -4035,6 +4173,7 @@ export default function EditResumePage() {
                       {section.expanded && (
                         <CardContent className="p-4 space-y-4">
                           <RichTextEditor
+                            key={`${section.id}-${customContent.length > 0 ? 'loaded' : 'empty'}`}
                             value={customContent}
                             onChange={(html) => {
                               if (!resume) return;
@@ -4075,7 +4214,7 @@ export default function EditResumePage() {
                   );
                 }
 
-                // Spacer Section - for column alignment and even distribution
+                // Column Placeholder Section - for column alignment and even distribution
                 if (section.type === "spacer") {
                   return (
                     <Card
@@ -4124,7 +4263,7 @@ export default function EditResumePage() {
                       {section.expanded && (
                         <CardContent className="p-2">
                           <div className="text-xs text-gray-500 text-center py-1">
-                            <p>Spacer for column alignment (5px margin)</p>
+                            <p>Column Placeholder for column alignment (5px margin)</p>
                             <p className="text-xs text-gray-400 mt-1">
                               Use this to evenly distribute sections in columns
                             </p>
@@ -5780,7 +5919,7 @@ export default function EditResumePage() {
                       },
                       {
                         type: "spacer" as const,
-                        label: "Spacer",
+                        label: "Column Placeholder",
                         icon: "↔️",
                       },
                       {
@@ -5789,9 +5928,11 @@ export default function EditResumePage() {
                         icon: "📝",
                       },
                     ].map((section) => {
-                      const alreadyAdded = sections.find(
-                        (s) => s.type === section.type && s.visible
-                      );
+                      // Allow multiple spacers and custom sections, but prevent duplicates of other sections
+                      const allowMultiple = section.type === "spacer" || section.type === "custom";
+                      const alreadyAdded = allowMultiple
+                        ? false // Always allow adding spacers and custom sections
+                        : sections.find((s) => s.type === section.type && s.visible);
                       return (
                         <Button
                           key={section.type}
@@ -5848,6 +5989,46 @@ export default function EditResumePage() {
           </div>
         </div>
       </div>
+
+      {/* Delete Section Confirmation Dialog */}
+      <ConfirmationDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        title={
+          sectionToDelete &&
+          ["personalInfo", "experience", "education"].includes(
+            sectionToDelete.type
+          )
+            ? "Cannot Delete Essential Section"
+            : "Delete Section"
+        }
+        description={
+          sectionToDelete &&
+          ["personalInfo", "experience", "education"].includes(
+            sectionToDelete.type
+          )
+            ? "Cannot delete essential sections like Personal Info, Experience, and Education. These sections are required for your resume."
+            : `Are you sure you want to delete the "${sectionToDelete?.title}" section? This action cannot be undone.`
+        }
+        confirmText={
+          sectionToDelete &&
+          ["personalInfo", "experience", "education"].includes(
+            sectionToDelete.type
+          )
+            ? "OK"
+            : "Delete"
+        }
+        cancelText="Cancel"
+        onConfirm={handleConfirmDelete}
+        variant={
+          sectionToDelete &&
+          ["personalInfo", "experience", "education"].includes(
+            sectionToDelete.type
+          )
+            ? "default"
+            : "destructive"
+        }
+      />
     </div>
   );
 }

@@ -22,6 +22,7 @@ import {
   MapPin,
   Linkedin,
   ExternalLink,
+  Github,
 } from "lucide-react";
 
 interface Section {
@@ -172,6 +173,9 @@ export function ResumeRenderer({
     const leftColumn: Section[] = [];
     const rightColumn: Section[] = [];
 
+    // Track position for alternating distribution (for Atlantic Blue)
+    let nonPersonalInfoIndex = 0;
+    
     bodySections.forEach((section, index) => {
       // Use explicit column assignment if available
       if (section.column === "left") {
@@ -182,21 +186,19 @@ export function ResumeRenderer({
         // Dynamic flowing distribution: 1→left, 2→right, 3→left, 4→right, etc.
         // This ensures even distribution regardless of section types
         if (templateStyle.headerStyle === "two-column") {
-          // Atlantic Blue: specific section distribution based on original design
-          const leftColumnSections = [
-            "personalInfo",
-            "profileSummary",
-            "languages",
-            "awards",
-            "certificates",
-            "interests",
-          ];
-
-          if (leftColumnSections.includes(section.type)) {
+          // Atlantic Blue: Keep only personalInfo fixed in left column, rest flow evenly
+          if (section.type === "personalInfo") {
+            // PersonalInfo always goes to left column (sidebar)
             leftColumn.push(section);
           } else {
-            // Right column: experience, education, skills, projects, etc.
-            rightColumn.push(section);
+            // All other sections alternate evenly: 1→right, 2→left, 3→right, 4→left, etc.
+            // Start with right column (index 0 → right, index 1 → left, etc.)
+            if (nonPersonalInfoIndex % 2 === 0) {
+              rightColumn.push(section);
+            } else {
+              leftColumn.push(section);
+            }
+            nonPersonalInfoIndex++;
           }
         } else {
           // Standard templates: True alternating distribution
@@ -234,6 +236,8 @@ export function ResumeRenderer({
       publications: FileText,
       references: User,
       declaration: FileText,
+      custom: FileText,
+      spacer: FileText,
     };
     return iconMap[sectionType] || FileText;
   };
@@ -384,6 +388,148 @@ export function ResumeRenderer({
     }
   };
 
+  // Render additional personal information fields
+  const renderAdditionalPersonalInfo = (isInSidebar: boolean = false) => {
+    const personalInfo = resume.content.personalInfo;
+    const additionalFields: Array<{ label: string; value: string | undefined }> = [];
+
+    if (personalInfo.dateOfBirth) {
+      // Format date from YYYY-MM-DD to DD-MM-YYYY if needed
+      let formattedDate = personalInfo.dateOfBirth;
+      if (personalInfo.dateOfBirth.match(/^\d{4}-\d{2}-\d{2}$/)) {
+        const [year, month, day] = personalInfo.dateOfBirth.split('-');
+        formattedDate = `${day}-${month}-${year}`;
+      }
+      additionalFields.push({ label: "Date of Birth", value: formattedDate });
+    }
+    // Legacy passport field (for backward compatibility)
+    if (personalInfo.passport && !personalInfo.passportNo) {
+      additionalFields.push({ label: "Passport Number", value: personalInfo.passport });
+    }
+    if (personalInfo.maritalStatus) {
+      additionalFields.push({ label: "Marital Status", value: personalInfo.maritalStatus });
+    }
+    if (personalInfo.gender) {
+      additionalFields.push({ label: "Gender", value: personalInfo.gender });
+    }
+    if (personalInfo.visa) {
+      additionalFields.push({ label: "Visa Status", value: personalInfo.visa });
+    }
+    if (personalInfo.nationality) {
+      additionalFields.push({ label: "Nationality", value: personalInfo.nationality });
+    }
+    if (personalInfo.militaryService) {
+      additionalFields.push({ label: "Military Service", value: personalInfo.militaryService });
+    }
+    if (personalInfo.drivingLicense) {
+      additionalFields.push({ label: "Driving License", value: personalInfo.drivingLicense });
+    }
+    if (personalInfo.disability) {
+      additionalFields.push({ label: "Disability", value: personalInfo.disability });
+    }
+
+    // Render passport details sub-section if available
+    const renderPassportDetails = () => {
+      if (!personalInfo.passportNo) {
+        return null;
+      }
+
+      const formatDate = (dateStr: string | undefined) => {
+        if (!dateStr) return "";
+        // Format from YYYY-MM-DD to DD/MM/YYYY if needed
+        if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
+          const [year, month, day] = dateStr.split('-');
+          return `${day}/${month}/${year}`;
+        }
+        return dateStr;
+      };
+
+      const passportFields: Array<{ label: string; value: string | undefined }> = [];
+      
+      if (personalInfo.passportNo) {
+        passportFields.push({ label: "Passport No.", value: personalInfo.passportNo });
+      }
+      if (personalInfo.passportPlaceOfIssue) {
+        passportFields.push({ label: "Place of Issue", value: personalInfo.passportPlaceOfIssue });
+      }
+      if (personalInfo.passportDateOfIssue) {
+        passportFields.push({ label: "Date of Issue", value: formatDate(personalInfo.passportDateOfIssue) });
+      }
+      if (personalInfo.passportDateOfExpiry) {
+        passportFields.push({ label: "Date of Expiry", value: formatDate(personalInfo.passportDateOfExpiry) });
+      }
+
+      if (passportFields.length === 0) {
+        return null;
+      }
+
+      return (
+        <div style={{ marginTop: "12px" }}>
+          <div
+            style={{
+              fontSize: `${templateStyle.fontSize.small}px`,
+              fontWeight: "bold",
+              marginBottom: "8px",
+              color: isInSidebar
+                ? templateStyle.colors.sidebarText || "#ffffff"
+                : templateStyle.colors.text,
+              fontFamily: templateStyle.fontFamily,
+            }}
+          >
+            Passport Details
+          </div>
+          {passportFields.map((field, index) => (
+            <div
+              key={index}
+              style={{
+                marginBottom: "3px",
+                fontSize: `${templateStyle.fontSize.small}px`,
+                lineHeight: "1.4",
+                color: isInSidebar
+                  ? templateStyle.colors.sidebarText || "#ffffff"
+                  : templateStyle.colors.text,
+                fontFamily: templateStyle.fontFamily,
+              }}
+            >
+              <span style={{ fontWeight: "bold" }}>{field.label}</span> - {field.value}
+            </div>
+          ))}
+        </div>
+      );
+    };
+
+    if (additionalFields.length === 0 && !personalInfo.passportNo) {
+      return null;
+    }
+
+    return (
+      <div
+        style={{
+          marginTop: "12px",
+          fontSize: `${templateStyle.fontSize.small}px`,
+          lineHeight: "1.4",
+          color: isInSidebar
+            ? templateStyle.colors.sidebarText || "#ffffff"
+            : templateStyle.colors.text,
+          fontFamily: templateStyle.fontFamily,
+        }}
+      >
+        {additionalFields.map((field, index) => (
+          <div key={index} style={{ marginBottom: "3px" }}>
+            <span style={{ fontWeight: "bold" }}>{field.label}</span>
+            {field.value && (
+              <>
+                {" - "}
+                <span>{field.value}</span>
+              </>
+            )}
+          </div>
+        ))}
+        {renderPassportDetails()}
+      </div>
+    );
+  };
+
   // Render contact information based on template configuration
   const renderContactInfo = () => {
     const personalInfo = resume.content.personalInfo;
@@ -410,6 +556,16 @@ export function ResumeRenderer({
         href: personalInfo.linkedin?.startsWith("http")
           ? personalInfo.linkedin
           : `https://linkedin.com/in/${personalInfo.linkedin}`,
+      },
+      {
+        type: "github",
+        value: personalInfo.github,
+        icon: Github,
+        href: personalInfo.github?.startsWith("http")
+          ? personalInfo.github
+          : personalInfo.github?.startsWith("@")
+          ? `https://github.com/${personalInfo.github.slice(1)}`
+          : `https://github.com/${personalInfo.github}`,
       },
       {
         type: "website",
@@ -550,10 +706,21 @@ export function ResumeRenderer({
                     style={{
                       fontSize: `${templateStyle.fontSize.subheading}px`,
                       color: templateStyle.colors.sidebarText || "#ffffff",
-                      margin: "0 0 20px 0",
+                      margin: "0 0 8px 0",
                     }}
                   >
                     {resume.content.personalInfo.portfolio}
+                  </p>
+                )}
+                {resume.content.personalInfo.yearsOfExperience && (
+                  <p
+                    style={{
+                      fontSize: `${templateStyle.fontSize.subheading}px`,
+                      color: templateStyle.colors.sidebarText || "#ffffff",
+                      margin: "0 0 20px 0",
+                    }}
+                  >
+                    Experience: {resume.content.personalInfo.yearsOfExperience}
                   </p>
                 )}
               </div>
@@ -577,6 +744,7 @@ export function ResumeRenderer({
               )}
 
               {renderContactInfo()}
+              {renderAdditionalPersonalInfo(true)}
             </div>
           );
         }
@@ -613,7 +781,7 @@ export function ResumeRenderer({
                   style={{
                     fontSize: `${templateStyle.fontSize.subheading}px`,
                     color: templateStyle.colors.secondary,
-                    margin: "0 0 12px 0",
+                    margin: "0 0 6px 0",
                     fontFamily: templateStyle.fontFamily,
                     fontStyle: "italic",
                   }}
@@ -621,7 +789,21 @@ export function ResumeRenderer({
                   {resume.content.personalInfo.portfolio}
                 </p>
               )}
+              {resume.content.personalInfo.yearsOfExperience && (
+                <p
+                  style={{
+                    fontSize: `${templateStyle.fontSize.subheading}px`,
+                    color: templateStyle.colors.secondary,
+                    margin: "0 0 12px 0",
+                    fontFamily: templateStyle.fontFamily,
+                    fontStyle: "italic",
+                  }}
+                >
+                  Experience: {resume.content.personalInfo.yearsOfExperience}
+                </p>
+              )}
               {renderContactInfo()}
+              {renderAdditionalPersonalInfo(isInSidebar)}
             </div>
           </div>
         );
@@ -2057,7 +2239,26 @@ export function ResumeRenderer({
         const customSectionData = resume.content.customSections?.find(
           (cs: any) => cs.id === section.id
         );
-        if (!customSectionData || !customSectionData.content) {
+        
+        // Debug logging
+        if (process.env.NODE_ENV === "development") {
+          console.log("🔍 [Custom Section Render]", {
+            sectionId: section.id,
+            sectionTitle: section.title,
+            customSectionsInResume: resume.content.customSections,
+            foundCustomSection: customSectionData,
+            hasContent: customSectionData?.content ? true : false,
+            contentLength: customSectionData?.content?.length || 0,
+          });
+        }
+        
+        if (!customSectionData) {
+          console.warn(`⚠️ Custom section data not found for section ID: ${section.id}`);
+          return null;
+        }
+        
+        if (!customSectionData.content || customSectionData.content.trim() === "") {
+          console.warn(`⚠️ Custom section has no content for section ID: ${section.id}`);
           return null;
         }
 
