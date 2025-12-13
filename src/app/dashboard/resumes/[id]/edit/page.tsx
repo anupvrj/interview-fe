@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useUser } from "@clerk/nextjs";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
@@ -99,6 +99,65 @@ export default function EditResumePage() {
     }
   }, [mounted, isLoaded, user, resumeId]);
 
+  // Helper function to poll for ATS score update
+  const pollForATSScore = useCallback(() => {
+    console.log("🚀 [ATS Poll] Function invoked - Starting ATS score polling for resume:", resumeId);
+    let attempts = 0;
+    const maxAttempts = 15; // 30 seconds total (15 * 2 seconds)
+    const pollInterval = 2000; // 2 seconds
+
+    const poll = async () => {
+      try {
+        attempts++;
+        console.log(`📡 [ATS Poll] Attempt ${attempts}/${maxAttempts} - About to call API: GET /resumes/${resumeId}`);
+        console.log(`📡 [ATS Poll] Making API request now...`);
+        const updatedResume = await resumeApi.get(resumeId);
+        console.log(`📥 [ATS Poll] API response received!`);
+        console.log(`📥 [ATS Poll] ATS score: ${updatedResume.atsScore}, hasFeedback: ${!!updatedResume.atsFeedback}`);
+        
+        if (updatedResume.atsScore !== undefined && updatedResume.atsScore !== null) {
+          // ATS score is ready, update ONLY ATS-related fields to avoid triggering content change detection
+          // This prevents the autosave loop caused by HTML whitespace differences
+          // Use functional update to ensure we have the latest resume state
+          setResume((currentResume) => {
+            if (!currentResume) return currentResume;
+            // Only update if ATS score actually changed to avoid unnecessary re-renders
+            if (currentResume.atsScore === updatedResume.atsScore) {
+              return currentResume;
+            }
+            return {
+              ...currentResume,
+              atsScore: updatedResume.atsScore,
+              atsFeedback: updatedResume.atsFeedback,
+            };
+          });
+          console.log("✅ [ATS Poll] ATS score updated successfully:", updatedResume.atsScore);
+          return; // Success - stop polling
+        }
+        
+        console.log(`⏳ [ATS Poll] ATS score not ready yet, will retry in ${pollInterval}ms...`);
+        if (attempts < maxAttempts) {
+          setTimeout(poll, pollInterval);
+        } else {
+          console.log("⚠️ [ATS Poll] Max attempts reached - ATS score calculation taking longer than expected");
+        }
+      } catch (error) {
+        console.error("❌ [ATS Poll] Error polling for ATS score:", error);
+        if (attempts < maxAttempts) {
+          console.log(`🔄 [ATS Poll] Retrying in ${pollInterval}ms after error...`);
+          setTimeout(poll, pollInterval);
+        }
+      }
+    };
+
+    // Start polling after a short delay (give backend time to start calculation)
+    console.log("⏰ [ATS Poll] Scheduling first poll in 1 second...");
+    setTimeout(() => {
+      console.log("⏰ [ATS Poll] Timer fired! Starting first poll now...");
+      poll();
+    }, 1000);
+  }, [resumeId]);
+
   // Autosave effect - saves 5 seconds after last change
   useEffect(() => {
     if (!hasChanges || !resume || !layout || sections.length === 0) {
@@ -125,6 +184,18 @@ export default function EditResumePage() {
 
         setHasChanges(false);
         setLastSaved(new Date());
+
+        // Poll for ATS score update (calculated asynchronously in background)
+        console.log("✅ [Autosave] Autosave completed successfully");
+        console.log("🚀 [Autosave] About to call pollForATSScore()...");
+        console.log("🔧 [Autosave] pollForATSScore type:", typeof pollForATSScore);
+        console.log("🔧 [Autosave] resumeId:", resumeId);
+        if (typeof pollForATSScore === 'function') {
+          pollForATSScore();
+          console.log("✅ [Autosave] pollForATSScore() called successfully");
+        } else {
+          console.error("❌ [Autosave] pollForATSScore is not a function! Type:", typeof pollForATSScore);
+        }
       } catch (error) {
         console.error("Autosave failed:", error);
       } finally {
@@ -133,7 +204,7 @@ export default function EditResumePage() {
     }, 5000); // 5 seconds after last change
 
     return () => clearTimeout(autoSaveTimer);
-  }, [hasChanges, resume, layout, sections, resumeId]);
+  }, [hasChanges, resume, layout, sections, resumeId, pollForATSScore]);
 
   const loadResume = async () => {
     try {
@@ -374,6 +445,9 @@ export default function EditResumePage() {
       });
       setHasChanges(false);
       await loadResume();
+
+      // Poll for ATS score update (calculated asynchronously in background)
+      pollForATSScore();
     } catch (error) {
       console.error("Error saving resume:", error);
       alert("Failed to save resume. Please try again.");
