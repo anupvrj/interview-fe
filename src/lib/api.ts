@@ -575,17 +575,7 @@ export interface Resume {
       gpa?: string;
       honors?: string[];
     }>;
-    skills: {
-      technical: string[] | string; // Support both array (old) and HTML string (new)
-      soft: string[] | string; // Support both array (old) and HTML string (new)
-      languages?: string[] | Array<{ name: string; level?: number }>; // Support both array of strings and objects
-      certifications?: Array<{
-        name: string;
-        issuer: string;
-        date?: string;
-        expiryDate?: string;
-      }>;
-    };
+    skills?: string | string[]; // Consolidated skills field (supports both string and array)
     projects?: Array<{
       id: string;
       name: string;

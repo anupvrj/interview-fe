@@ -1307,12 +1307,15 @@ export function ResumeRenderer({
         ) {
           languagesData = resume.content.languages;
         }
-        // 3. Check skills.languages (old structure)
+        // 3. Check skills.languages (old structure - only if skills is an object)
         else if (
-          resume.content.skills?.languages &&
-          Array.isArray(resume.content.skills.languages)
+          typeof resume.content.skills === "object" &&
+          resume.content.skills !== null &&
+          !Array.isArray(resume.content.skills) &&
+          "languages" in resume.content.skills &&
+          Array.isArray((resume.content.skills as any).languages)
         ) {
-          languagesData = resume.content.skills.languages;
+          languagesData = (resume.content.skills as any).languages;
         }
         // 4. Check if it's a string (rich text format)
         else if (

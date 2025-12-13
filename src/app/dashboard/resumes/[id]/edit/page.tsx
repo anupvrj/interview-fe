@@ -590,7 +590,7 @@ export default function EditResumePage() {
     }
 
     // If deleting a custom section, also remove its data from customSections
-    if (sectionToDelete?.type === "custom") {
+    if (sectionToDelete?.type === "custom" && resume) {
       const updatedCustomSections =
         resume.content.customSections?.filter(
           (cs: any) => cs.id !== sectionId
@@ -628,7 +628,7 @@ export default function EditResumePage() {
     );
 
     // If it's a custom section, also update the title in customSections
-    if (section?.type === "custom") {
+    if (section?.type === "custom" && resume) {
       const currentCustomSections = resume.content.customSections || [];
       const existingIndex = currentCustomSections.findIndex(
         (cs: any) => cs.id === sectionId
@@ -734,6 +734,12 @@ export default function EditResumePage() {
     setDraggedSection(null);
     setDragOverId(null);
     setHasChanges(true);
+  };
+
+  const handleDrop = (e: React.DragEvent, targetId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    handleDragEnd();
   };
 
   if (
@@ -3852,7 +3858,7 @@ export default function EditResumePage() {
 
                 // Custom Section - with rich text editor
                 if (section.type === "custom") {
-                  const customSectionData = resume.content.customSections?.find(
+                  const customSectionData = resume?.content.customSections?.find(
                     (cs: any) => cs.id === section.id
                   );
                   const customContent = customSectionData?.content || "";
@@ -3957,6 +3963,7 @@ export default function EditResumePage() {
                           <RichTextEditor
                             value={customContent}
                             onChange={(html) => {
+                              if (!resume) return;
                               const currentCustomSections =
                                 resume.content.customSections || [];
                               const existingIndex = currentCustomSections.findIndex(
