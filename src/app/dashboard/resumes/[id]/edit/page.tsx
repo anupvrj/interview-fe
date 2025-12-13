@@ -30,6 +30,7 @@ import { getExtendedTemplate } from "@/lib/templateConfigs";
 import { ExecutiveSkills } from "@/components/resume-editor/ExecutiveSkills";
 import { LanguagesEditor } from "@/components/LanguagesEditor";
 import { captureAndUploadThumbnail } from "@/lib/resume-thumbnail";
+import { ATSFeedback } from "@/components/ATSFeedback";
 
 interface Section {
   id: string;
@@ -49,7 +50,9 @@ interface Section {
     | "organisations"
     | "publications"
     | "references"
-    | "declaration";
+    | "declaration"
+    | "spacer"
+    | "custom";
   title: string;
   visible: boolean;
   expanded: boolean;
@@ -83,6 +86,7 @@ export default function EditResumePage() {
 
   // Initialize sections as empty - will be populated from database
   const [sections, setSections] = useState<Section[]>([]);
+  const [viewMode, setViewMode] = useState<"edit" | "ats">("edit");
 
   useEffect(() => {
     setMounted(true);
@@ -585,6 +589,17 @@ export default function EditResumePage() {
       return;
     }
 
+    // If deleting a custom section, also remove its data from customSections
+    if (sectionToDelete?.type === "custom") {
+      const updatedCustomSections =
+        resume.content.customSections?.filter(
+          (cs: any) => cs.id !== sectionId
+        ) || [];
+      updateContent({
+        customSections: updatedCustomSections,
+      });
+    }
+
     if (
       confirm(
         `Are you sure you want to delete the "${sectionToDelete?.title}" section? This action cannot be undone.`
@@ -604,13 +619,47 @@ export default function EditResumePage() {
   };
 
   const saveSectionTitle = (sectionId: string) => {
+    const section = sections.find((s) => s.id === sectionId);
+    
     setSections(
       sections.map((s) =>
         s.id === sectionId ? { ...s, title: sectionTitleValue } : s
       )
     );
+
+    // If it's a custom section, also update the title in customSections
+    if (section?.type === "custom") {
+      const currentCustomSections = resume.content.customSections || [];
+      const existingIndex = currentCustomSections.findIndex(
+        (cs: any) => cs.id === sectionId
+      );
+
+      let updatedCustomSections;
+      if (existingIndex >= 0) {
+        updatedCustomSections = [...currentCustomSections];
+        updatedCustomSections[existingIndex] = {
+          ...updatedCustomSections[existingIndex],
+          title: sectionTitleValue,
+        };
+      } else {
+        updatedCustomSections = [
+          ...currentCustomSections,
+          {
+            id: sectionId,
+            title: sectionTitleValue,
+            content: "",
+          },
+        ];
+      }
+
+      updateContent({
+        customSections: updatedCustomSections,
+      });
+    }
+
     setEditingSectionTitle(null);
     setSectionTitleValue("");
+    setHasChanges(true);
   };
 
   const addSection = (type: Section["type"]) => {
@@ -632,6 +681,8 @@ export default function EditResumePage() {
       publications: "Publications",
       references: "References",
       declaration: "Declaration",
+      spacer: "Spacer",
+      custom: "Custom Section",
     };
 
     const newSection: Section = {
@@ -712,6 +763,7 @@ export default function EditResumePage() {
       <div className="bg-white border-b shadow-sm z-10">
         <div className="max-w-full mx-auto px-4 py-3">
           <div className="flex items-center justify-between gap-4">
+            {/* Left Section: Back Button + Title */}
             <div className="flex items-center gap-4 flex-1 min-w-0">
               <Link href="/dashboard/resumes">
                 <Button variant="ghost" size="icon" className="flex-shrink-0">
@@ -728,7 +780,28 @@ export default function EditResumePage() {
                 placeholder="Resume Title"
               />
             </div>
-            <div className="flex items-center gap-2">
+            
+            {/* Middle Section: ATS Score (Centered) */}
+            <div className="flex items-center justify-center flex-1">
+              {resume.atsScore !== undefined && resume.atsScore !== null && (
+                <div
+                  className={`px-4 py-2 rounded-lg border-2 font-semibold text-sm flex items-center gap-2 ${
+                    resume.atsScore >= 80
+                      ? "bg-green-50 text-green-700 border-green-300"
+                      : resume.atsScore >= 60
+                      ? "bg-yellow-50 text-yellow-700 border-yellow-300"
+                      : "bg-red-50 text-red-700 border-red-300"
+                  }`}
+                >
+                  <span>ATS Score:</span>
+                  <span className="text-xl font-bold">{resume.atsScore}</span>
+                  <span className="text-xs opacity-70">/100</span>
+                </div>
+              )}
+            </div>
+            
+            {/* Right Section: Autosave Status + Buttons */}
+            <div className="flex items-center gap-2 flex-1 justify-end">
               {/* Autosave Status */}
               {autoSaving && (
                 <span className="text-sm text-gray-500 flex items-center">
@@ -787,7 +860,42 @@ export default function EditResumePage() {
       <div className="flex-1 flex overflow-hidden">
         {/* Left Panel: Edit Form */}
         <div className="w-1/2 border-r bg-white overflow-y-auto">
-          <div className="p-6 space-y-4">
+          {/* Toggle between Edit Resume and ATS Report */}
+          <div className="border-b bg-gray-50">
+            <div className="flex">
+              <button
+                onClick={() => setViewMode("edit")}
+                className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
+                  viewMode === "edit"
+                    ? "bg-white text-purple-600 border-b-2 border-purple-600"
+                    : "text-gray-600 hover:text-gray-900"
+                }`}
+              >
+                Edit Resume
+              </button>
+              <button
+                onClick={() => setViewMode("ats")}
+                className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
+                  viewMode === "ats"
+                    ? "bg-white text-purple-600 border-b-2 border-purple-600"
+                    : "text-gray-600 hover:text-gray-900"
+                }`}
+              >
+                ATS Report
+              </button>
+            </div>
+          </div>
+
+          {viewMode === "ats" ? (
+            resume.atsFeedback ? (
+              <ATSFeedback feedback={resume.atsFeedback} />
+            ) : (
+              <div className="p-6 text-center text-gray-500">
+                <p>No ATS feedback available. Please calculate ATS score first.</p>
+              </div>
+            )
+          ) : (
+            <div className="p-6 space-y-4">
             {/* Layout Controls */}
             <Card className="border-2">
               <div className="flex items-center justify-between p-4 border-b bg-gray-50">
@@ -2845,16 +2953,39 @@ export default function EditResumePage() {
                     ).sections?.find((s: any) => s.type === "skills");
                     skillsData = skillsSection?.items || [];
                   } else {
-                    // For other templates: Get from old structure
-                    const technicalSkills = resume.content.skills?.technical;
-                    const combinedSkills = !technicalSkills
-                      ? ""
-                      : typeof technicalSkills === "string"
-                      ? technicalSkills
-                      : Array.isArray(technicalSkills)
-                      ? technicalSkills.join(", ")
-                      : "";
-                    skillsData = combinedSkills;
+                    // For other templates: Get from new single skills field (with backward compatibility)
+                    const skillsField = resume.content.skills;
+                    if (typeof skillsField === "string") {
+                      skillsData = skillsField;
+                    } else if (Array.isArray(skillsField)) {
+                      skillsData = skillsField.join(", ");
+                    } else if (typeof skillsField === "object" && skillsField !== null) {
+                      // Old structure: backward compatibility - merge technical and soft
+                      const oldSkills = skillsField as any;
+                      const technicalSkills = oldSkills.technical;
+                      const softSkills = oldSkills.soft;
+                      const combined: string[] = [];
+                      
+                      if (technicalSkills) {
+                        if (Array.isArray(technicalSkills)) {
+                          combined.push(...technicalSkills);
+                        } else if (typeof technicalSkills === "string") {
+                          combined.push(technicalSkills);
+                        }
+                      }
+                      
+                      if (softSkills) {
+                        if (Array.isArray(softSkills)) {
+                          combined.push(...softSkills);
+                        } else if (typeof softSkills === "string") {
+                          combined.push(softSkills);
+                        }
+                      }
+                      
+                      skillsData = combined.join(", ");
+                    } else {
+                      skillsData = "";
+                    }
                   }
 
                   return (
@@ -3003,11 +3134,7 @@ export default function EditResumePage() {
                                 value={skillsData}
                                 onChange={(html) =>
                                   updateContent({
-                                    skills: {
-                                      ...resume.content.skills,
-                                      technical: html,
-                                      soft: html,
-                                    },
+                                    skills: html, // New structure: single skills field
                                   })
                                 }
                                 placeholder="List your skills..."
@@ -3717,6 +3844,210 @@ export default function EditResumePage() {
                             placeholder="List your interests..."
                             className="mt-1"
                           />
+                        </CardContent>
+                      )}
+                    </Card>
+                  );
+                }
+
+                // Custom Section - with rich text editor
+                if (section.type === "custom") {
+                  const customSectionData = resume.content.customSections?.find(
+                    (cs: any) => cs.id === section.id
+                  );
+                  const customContent = customSectionData?.content || "";
+
+                  return (
+                    <Card
+                      key={section.id}
+                      className={`border transition-all ${
+                        dragOverId === section.id &&
+                        draggedSection !== section.id
+                          ? "border-purple-400 border-2 shadow-md"
+                          : ""
+                      }`}
+                      draggable
+                      onDragStart={() => handleDragStart(section.id)}
+                      onDragOver={(e) => handleDragOver(e, section.id)}
+                      onDragEnd={handleDragEnd}
+                      onDrop={(e) => handleDrop(e, section.id)}
+                    >
+                      <div className="flex items-center justify-between p-4 border-b bg-gray-50">
+                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                          <GripVertical className="w-4 h-4 text-gray-400 cursor-grab active:cursor-grabbing" />
+                          {editingSectionTitle === section.id ? (
+                            <div className="flex items-center gap-2 flex-1">
+                              <Input
+                                value={sectionTitleValue}
+                                onChange={(e) =>
+                                  setSectionTitleValue(e.target.value)
+                                }
+                                className="h-8 text-sm font-semibold"
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") {
+                                    saveSectionTitle(section.id);
+                                  } else if (e.key === "Escape") {
+                                    setEditingSectionTitle(null);
+                                  }
+                                }}
+                                autoFocus
+                              />
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-6 w-6"
+                                onClick={() => saveSectionTitle(section.id)}
+                              >
+                                <Check className="w-3 h-3" />
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-6 w-6"
+                                onClick={() => setEditingSectionTitle(null)}
+                              >
+                                <X className="w-3 h-3" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <>
+                              <h3 className="font-semibold text-sm flex-1">
+                                {section.title}
+                              </h3>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-6 w-6"
+                                onClick={() =>
+                                  startEditingSectionTitle(
+                                    section.id,
+                                    section.title
+                                  )
+                                }
+                              >
+                                <Edit className="w-3 h-3" />
+                              </Button>
+                            </>
+                          )}
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-50"
+                            onClick={() => deleteSection(section.id)}
+                            title="Delete Section"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-6 w-6"
+                            onClick={() => toggleSection(section.id)}
+                          >
+                            {section.expanded ? (
+                              <ChevronUp className="w-4 h-4" />
+                            ) : (
+                              <ChevronDown className="w-4 h-4" />
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                      {section.expanded && (
+                        <CardContent className="p-4 space-y-4">
+                          <RichTextEditor
+                            value={customContent}
+                            onChange={(html) => {
+                              const currentCustomSections =
+                                resume.content.customSections || [];
+                              const existingIndex = currentCustomSections.findIndex(
+                                (cs: any) => cs.id === section.id
+                              );
+
+                              let updatedCustomSections;
+                              if (existingIndex >= 0) {
+                                updatedCustomSections = [...currentCustomSections];
+                                updatedCustomSections[existingIndex] = {
+                                  ...updatedCustomSections[existingIndex],
+                                  content: html,
+                                };
+                              } else {
+                                updatedCustomSections = [
+                                  ...currentCustomSections,
+                                  {
+                                    id: section.id,
+                                    title: section.title,
+                                    content: html,
+                                  },
+                                ];
+                              }
+
+                              updateContent({
+                                customSections: updatedCustomSections,
+                              });
+                            }}
+                            placeholder="Add your custom content here..."
+                            className="mt-1"
+                          />
+                        </CardContent>
+                      )}
+                    </Card>
+                  );
+                }
+
+                // Spacer Section - for column alignment and even distribution
+                if (section.type === "spacer") {
+                  return (
+                    <Card
+                      key={section.id}
+                      className={`border transition-all ${
+                        dragOverId === section.id &&
+                        draggedSection !== section.id
+                          ? "border-purple-400 border-2 shadow-md"
+                          : ""
+                      }`}
+                      draggable
+                      onDragStart={() => handleDragStart(section.id)}
+                      onDragOver={(e) => handleDragOver(e, section.id)}
+                      onDragEnd={handleDragEnd}
+                      onDrop={(e) => handleDrop(e, section.id)}
+                    >
+                      <div className="flex items-center justify-between p-2 border-b bg-gray-50">
+                        <div className="flex items-center gap-2 flex-1">
+                          <GripVertical className="w-4 h-4 text-gray-400 cursor-grab active:cursor-grabbing" />
+                          <h3 className="font-semibold text-sm text-gray-500">
+                            {section.title}
+                          </h3>
+                        </div>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-6 w-6"
+                          onClick={() => toggleSection(section.id)}
+                        >
+                          {section.expanded ? (
+                            <ChevronUp className="w-4 h-4" />
+                          ) : (
+                            <ChevronDown className="w-4 h-4" />
+                          )}
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-50"
+                          onClick={() => deleteSection(section.id)}
+                          title="Delete Section"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </Button>
+                      </div>
+                      {section.expanded && (
+                        <CardContent className="p-2">
+                          <div className="text-xs text-gray-500 text-center py-1">
+                            <p>Spacer for column alignment (5px margin)</p>
+                            <p className="text-xs text-gray-400 mt-1">
+                              Use this to evenly distribute sections in columns
+                            </p>
+                          </div>
                         </CardContent>
                       )}
                     </Card>
@@ -5366,6 +5697,16 @@ export default function EditResumePage() {
                         label: "Declaration",
                         icon: "✍️",
                       },
+                      {
+                        type: "spacer" as const,
+                        label: "Spacer",
+                        icon: "↔️",
+                      },
+                      {
+                        type: "custom" as const,
+                        label: "Custom Section",
+                        icon: "📝",
+                      },
                     ].map((section) => {
                       const alreadyAdded = sections.find(
                         (s) => s.type === section.type && s.visible
@@ -5397,6 +5738,7 @@ export default function EditResumePage() {
               </CardContent>
             </Card>
           </div>
+          )}
         </div>
 
         {/* Right Panel: Preview */}

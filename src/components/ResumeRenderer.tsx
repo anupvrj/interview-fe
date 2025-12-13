@@ -1065,7 +1065,7 @@ export function ResumeRenderer({
           );
           skillItems = skillsSection?.items || [];
         } else {
-          // Other templates: Get from direct skills object
+          // Other templates: Get from direct skills field (new structure: single field)
           skillsData = resume.content.skills;
           if (!skillsData) return null;
         }
@@ -1145,28 +1145,65 @@ export function ResumeRenderer({
               ) : (
                 // Other templates: Render as text/HTML
                 <>
-                  {typeof skillsData.technical === "string" ? (
-                    <div
-                      style={{
-                        color: isInSidebar
-                          ? templateStyle.colors.sidebarText
-                          : templateStyle.colors.text,
-                      }}
-                      className="resume-content"
-                      dangerouslySetInnerHTML={{ __html: skillsData.technical }}
-                    />
-                  ) : (
-                    <div>
-                      {skillsData.technical?.map(
-                        (skill: any, index: number) => (
-                          <span key={index}>
-                            {skill}
-                            {index < skillsData.technical.length - 1 && ", "}
-                          </span>
-                        )
-                      )}
-                    </div>
-                  )}
+                  {(() => {
+                    // New structure: single skills field (string or array)
+                    if (typeof skillsData === "string") {
+                      return (
+                        <div
+                          style={{
+                            color: isInSidebar
+                              ? templateStyle.colors.sidebarText
+                              : templateStyle.colors.text,
+                          }}
+                          className="resume-content"
+                          dangerouslySetInnerHTML={{ __html: skillsData }}
+                        />
+                      );
+                    } else if (Array.isArray(skillsData)) {
+                      return (
+                        <div>
+                          {skillsData.map((skill: any, index: number) => (
+                            <span key={index}>
+                              {skill}
+                              {index < skillsData.length - 1 && ", "}
+                            </span>
+                          ))}
+                        </div>
+                      );
+                    }
+                    // Old structure: backward compatibility - merge technical and soft
+                    else if (typeof skillsData === "object" && skillsData !== null) {
+                      const oldSkills = skillsData as any;
+                      // Prefer technical, fallback to soft
+                      const primarySkills = oldSkills.technical || oldSkills.soft;
+                      
+                      if (typeof primarySkills === "string") {
+                        return (
+                          <div
+                            style={{
+                              color: isInSidebar
+                                ? templateStyle.colors.sidebarText
+                                : templateStyle.colors.text,
+                            }}
+                            className="resume-content"
+                            dangerouslySetInnerHTML={{ __html: primarySkills }}
+                          />
+                        );
+                      } else if (Array.isArray(primarySkills)) {
+                        return (
+                          <div>
+                            {primarySkills.map((skill: any, index: number) => (
+                              <span key={index}>
+                                {skill}
+                                {index < primarySkills.length - 1 && ", "}
+                              </span>
+                            ))}
+                          </div>
+                        );
+                      }
+                    }
+                    return null;
+                  })()}
                 </>
               )}
             </div>
@@ -1996,6 +2033,60 @@ export function ResumeRenderer({
                 </div>
               ))}
             </div>
+          </div>
+        );
+
+      case "spacer":
+        // Spacer section - renders as a small margin for column alignment
+        return (
+          <div
+            key={section.id}
+            style={{
+              marginTop: "5px",
+              marginBottom: "5px",
+              height: "5px",
+            }}
+          />
+        );
+
+      case "custom":
+        // Custom section - renders HTML content from customSections
+        const customSectionData = resume.content.customSections?.find(
+          (cs: any) => cs.id === section.id
+        );
+        if (!customSectionData || !customSectionData.content) {
+          return null;
+        }
+
+        return (
+          <div
+            key={section.id}
+            style={{
+              marginBottom: `${
+                isInSidebar && templateStyle.headerStyle === "two-column"
+                  ? templateStyle.sectionSpacing * 2
+                  : templateStyle.sectionSpacing
+              }px`,
+              ...(isInSidebar &&
+                templateStyle.headerStyle === "two-column" && {
+                  paddingTop: "15px",
+                  paddingBottom: "15px",
+                }),
+              ...sidebarStyle,
+            }}
+          >
+            {renderSectionHeader(section.title, isInSidebar, section.type)}
+            <div
+              style={{
+                fontSize: `${templateStyle.fontSize.body}px`,
+                lineHeight: templateStyle.lineHeight,
+                color: isInSidebar
+                  ? templateStyle.colors.sidebarText
+                  : templateStyle.colors.text,
+              }}
+              className="resume-content"
+              dangerouslySetInnerHTML={{ __html: customSectionData.content }}
+            />
           </div>
         );
 

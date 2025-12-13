@@ -649,6 +649,11 @@ export interface Resume {
     }>;
     declaration?: string;
     languages?: string | Array<{ name: string; level?: number }>; // HTML, plain text, or array of objects
+    customSections?: Array<{
+      id: string;
+      title: string;
+      content: string; // HTML content
+    }>;
   };
   profileSummary?: string; // Top-level field, separate from personalInfo
   sectionOrder?: Array<{
@@ -677,6 +682,12 @@ export interface Resume {
     strengths: string[];
     weaknesses: string[];
     suggestions: string[];
+    details?: {
+      formatting?: { score: number; issues: string[] };
+      content?: { score: number; issues: string[] };
+      keywords?: { score: number; issues: string[] };
+      structure?: { score: number; issues: string[] };
+    };
   };
   isDefault?: boolean;
   pdfS3Key?: string; // S3 key for generated PDF

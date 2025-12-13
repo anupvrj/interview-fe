@@ -179,35 +179,15 @@ export default function NewResumePage() {
           content.personalInfo = sectionData.content;
         }
       }
-      // Handle technicalSkills - map to skills.technical
+      // Handle technicalSkills - map to single skills field
       else if (sectionType === "technicalSkills") {
-        if (Array.isArray(sectionData.content)) {
-          // Initialize skills object if it doesn't exist
-          if (!content.skills) {
-            content.skills = { technical: [], soft: [] };
-          }
-          content.skills.technical = sectionData.content;
-        } else if (typeof sectionData.content === "string") {
-          if (!content.skills) {
-            content.skills = { technical: "", soft: "" };
-          }
-          content.skills.technical = sectionData.content;
-        }
+        // New structure: single skills field
+        content.skills = sectionData.content;
       }
-      // Handle skills - map to skills.technical (for templates that use "skills")
+      // Handle skills - map to single skills field
       else if (sectionType === "skills") {
-        if (Array.isArray(sectionData.content)) {
-          // Initialize skills object if it doesn't exist
-          if (!content.skills) {
-            content.skills = { technical: [], soft: [] };
-          }
-          content.skills.technical = sectionData.content;
-        } else if (typeof sectionData.content === "string") {
-          if (!content.skills) {
-            content.skills = { technical: "", soft: "" };
-          }
-          content.skills.technical = sectionData.content;
-        }
+        // New structure: single skills field
+        content.skills = sectionData.content;
       }
       // Handle array-based structured data (experience, education, projects, etc.)
       else if (

@@ -5,6 +5,7 @@ import { useUser } from "@clerk/nextjs";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import {
   FileEdit,
   Plus,
@@ -26,6 +27,8 @@ export default function ResumesPage() {
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [resumeToDelete, setResumeToDelete] = useState<string | null>(null);
 
   useEffect(() => {
     if (isLoaded && user) {
@@ -47,13 +50,20 @@ export default function ResumesPage() {
     }
   };
 
-  const handleDelete = async (resumeId: string) => {
-    if (!confirm("Are you sure you want to delete this resume?")) return;
+  const handleDeleteClick = (resumeId: string) => {
+    setResumeToDelete(resumeId);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDelete = async () => {
+    if (!resumeToDelete) return;
 
     try {
-      setDeletingId(resumeId);
-      await resumeApi.delete(resumeId);
+      setDeletingId(resumeToDelete);
+      await resumeApi.delete(resumeToDelete);
       await loadResumes();
+      setDeleteDialogOpen(false);
+      setResumeToDelete(null);
     } catch (error) {
       console.error("Error deleting resume:", error);
       alert("Failed to delete resume. Please try again.");
@@ -387,7 +397,7 @@ export default function ResumesPage() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => handleDelete(resume.resumeId)}
+                    onClick={() => handleDeleteClick(resume.resumeId)}
                     disabled={deletingId === resume.resumeId}
                     className="h-7 px-2 border-red-300 text-red-700 hover:bg-red-50"
                     title="Delete"
@@ -404,6 +414,19 @@ export default function ResumesPage() {
           ))}
         </div>
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmationDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        title="Delete Resume"
+        description="Are you sure you want to delete this resume? This action cannot be undone and all data will be permanently lost."
+        confirmText="Delete"
+        cancelText="Cancel"
+        onConfirm={handleDelete}
+        variant="destructive"
+        isLoading={deletingId !== null}
+      />
     </div>
   );
 }
