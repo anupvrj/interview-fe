@@ -114,6 +114,7 @@ export default function NewResumePage() {
 
     try {
       setCreating(true);
+      setStep("processing");
 
       // Extract resume data (with or without uploaded resume)
       const extractedData = await resumeDataExtractionApi.extractResumeData(
@@ -132,10 +133,14 @@ export default function NewResumePage() {
     } catch (error: any) {
       console.error("Error creating resume:", error);
 
+      // Reset step back to upload so user can try again
+      setStep("upload");
+
       // Check if it's a timeout error
       if (
         error?.code === "ECONNABORTED" ||
-        error?.message?.includes("timeout")
+        error?.message?.includes("timeout") ||
+        error?.message?.includes("Request timeout")
       ) {
         alert(
           "Resume extraction is taking longer than expected. This might be due to a large PDF or slow network. Please try again or upload a smaller PDF."
