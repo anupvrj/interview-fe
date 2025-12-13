@@ -28,7 +28,9 @@ interface Section {
     | "publications"
     | "references"
     | "declaration"
-    | "quote";
+    | "quote"
+    | "spacer"
+    | "custom";
   title: string;
   visible: boolean;
   expanded?: boolean;
