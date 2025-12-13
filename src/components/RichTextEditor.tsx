@@ -57,14 +57,25 @@ export function RichTextEditor({
     immediatelyRender: false, // Fix SSR hydration mismatch
   });
 
+  // Normalize HTML content for comparison (remove extra whitespace)
+  const normalizeHTML = (html: string): string => {
+    if (!html) return "";
+    // Remove leading/trailing whitespace from text nodes
+    // This helps prevent false positives when comparing HTML with whitespace differences
+    return html
+      .replace(/>\s+</g, "><") // Remove whitespace between tags
+      .replace(/\s+/g, " ") // Normalize multiple spaces to single space
+      .trim();
+  };
+
   // Update editor content when value prop changes (but avoid infinite loops)
   useEffect(() => {
     if (!editor) return;
 
-    const currentContent = editor.getHTML();
-    const newContent = value || "";
+    const currentContent = normalizeHTML(editor.getHTML());
+    const newContent = normalizeHTML(value || "");
 
-    // Only update if content actually changed
+    // Only update if content actually changed (after normalization)
     if (newContent !== currentContent) {
       const { from, to } = editor.state.selection;
       editor.commands.setContent(newContent);
