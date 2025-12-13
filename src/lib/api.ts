@@ -851,7 +851,7 @@ export const resumeDataExtractionApi = {
         resumeText: resumeText || undefined,
       },
       {
-        timeout: 120000, // 120 seconds (2 minutes) for AI extraction
+        timeout: 180000, // 180 seconds (3 minutes) for AI extraction
       }
     );
     return response.data.data;
