@@ -37,22 +37,48 @@ const ProfilePictureImage = ({
   style: React.CSSProperties;
 }) => {
   const [imageKey, setImageKey] = useState(0);
+  const [retryCount, setRetryCount] = useState(0);
   const imageRef = useRef<HTMLImageElement>(null);
   const previousSrcRef = useRef<string>("");
+  const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Force re-render when src changes
   useEffect(() => {
     if (src && src !== previousSrcRef.current) {
       previousSrcRef.current = src;
+      setRetryCount(0);
       // Force image reload by updating key
       setImageKey((prev) => prev + 1);
+
+      // Clear any pending retries
+      if (retryTimeoutRef.current) {
+        clearTimeout(retryTimeoutRef.current);
+        retryTimeoutRef.current = null;
+      }
     }
   }, [src]);
 
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (retryTimeoutRef.current) {
+        clearTimeout(retryTimeoutRef.current);
+      }
+    };
+  }, []);
+
   const handleError = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
     const target = e.target as HTMLImageElement;
-    // Retry with fresh cache-busting parameter (only for non-presigned URLs)
-    if (target && src && !src.includes("X-Amz-Signature")) {
+
+    // For S3 presigned URLs, retry after a delay (image might still be uploading)
+    if (target && src && src.includes("X-Amz-Signature") && retryCount < 3) {
+      const delay = (retryCount + 1) * 2000; // 2s, 4s, 6s
+      retryTimeoutRef.current = setTimeout(() => {
+        setRetryCount((prev) => prev + 1);
+        setImageKey((prev) => prev + 1); // Force reload by changing key
+      }, delay);
+    } else if (target && src && !src.includes("X-Amz-Signature")) {
+      // For non-presigned URLs, retry immediately with cache-busting
       const separator = src.includes("?") ? "&" : "?";
       target.src = `${src}${separator}_retry=${Date.now()}`;
     }
@@ -102,7 +128,7 @@ const ProfilePictureImage = ({
   return (
     <img
       ref={imageRef}
-      key={`profile-img-${src}-${imageKey}`}
+      key={`profile-img-${src}-${imageKey}-${retryCount}`}
       src={finalSrc}
       alt={alt}
       crossOrigin="anonymous"
