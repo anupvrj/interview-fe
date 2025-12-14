@@ -535,10 +535,15 @@ export interface Resume {
       linkedin?: string;
       github?: string;
       portfolio?: string;
+      yearsOfExperience?: string; // Years of experience (e.g., "5 years", "3+ years")
       profilePicture?: string; // S3 key for profile picture
       dateOfBirth?: string;
       nationality?: string;
       passport?: string;
+      passportNo?: string;
+      passportPlaceOfIssue?: string;
+      passportDateOfIssue?: string;
+      passportDateOfExpiry?: string;
       maritalStatus?: string;
       militaryService?: string;
       drivingLicense?: string;
@@ -673,10 +678,10 @@ export interface Resume {
     weaknesses: string[];
     suggestions: string[];
     details?: {
-      formatting?: { score: number; issues: string[] };
-      content?: { score: number; issues: string[] };
-      keywords?: { score: number; issues: string[] };
-      structure?: { score: number; issues: string[] };
+      formatting?: { score: number; issues: string[]; improvements: string[] };
+      content?: { score: number; issues: string[]; improvements: string[] };
+      keywords?: { score: number; issues: string[]; improvements: string[] };
+      structure?: { score: number; issues: string[]; improvements: string[] };
     };
   };
   isDefault?: boolean;
@@ -768,7 +773,11 @@ export const resumeApi = {
 
   recalculateATS: async (resumeId: string): Promise<Resume> => {
     const response = await apiClient.post<{ data: Resume }>(
-      `/resumes/${resumeId}/ats-score`
+      `/resumes/${resumeId}/ats-score`,
+      {},
+      {
+        timeout: 180000, // 3 minutes (180 seconds) for ATS score calculation
+      }
     );
     return response.data.data;
   },

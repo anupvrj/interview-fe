@@ -114,13 +114,23 @@ export default function DashboardPage() {
         completed.length > 0 ? Math.round(totalScore / completed.length) : 0;
 
       const scores = completed.map((i) => i.report?.overallScore || 0);
-      const recentAvg =
-        scores.slice(-3).reduce((a, b) => a + b, 0) /
-        Math.min(3, scores.length);
-      const initialAvg =
-        scores.slice(0, 3).reduce((a, b) => a + b, 0) /
-        Math.min(3, scores.length);
-      const improvement = recentAvg - initialAvg;
+
+      // Calculate improvement only if we have enough data
+      let improvement = 0;
+      if (scores.length >= 3) {
+        const recentScores = scores.slice(-3);
+        const initialScores = scores.slice(0, 3);
+        const recentAvg =
+          recentScores.reduce((a, b) => a + b, 0) / recentScores.length;
+        const initialAvg =
+          initialScores.reduce((a, b) => a + b, 0) / initialScores.length;
+        improvement = recentAvg - initialAvg;
+
+        // Check for NaN and set to 0 if invalid
+        if (isNaN(improvement) || !isFinite(improvement)) {
+          improvement = 0;
+        }
+      }
 
       setStats({
         totalInterviews: userInterviews.length,
@@ -521,8 +531,14 @@ export default function DashboardPage() {
               Improvement
             </CardDescription>
             <CardTitle className="text-2xl lg:text-3xl font-bold text-gray-900 mt-2">
-              {stats.improvement > 0 ? "+" : ""}
-              {stats.improvement}%
+              {stats.improvement !== undefined && !isNaN(stats.improvement) ? (
+                <>
+                  {stats.improvement > 0 ? "+" : ""}
+                  {stats.improvement}%
+                </>
+              ) : (
+                "0%"
+              )}
             </CardTitle>
           </CardHeader>
           <CardContent>

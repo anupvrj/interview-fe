@@ -22,6 +22,7 @@ import {
   MapPin,
   Linkedin,
   ExternalLink,
+  Github,
 } from "lucide-react";
 
 interface Section {
@@ -172,6 +173,9 @@ export function ResumeRenderer({
     const leftColumn: Section[] = [];
     const rightColumn: Section[] = [];
 
+    // Track position for alternating distribution (for Atlantic Blue)
+    let nonPersonalInfoIndex = 0;
+
     bodySections.forEach((section, index) => {
       // Use explicit column assignment if available
       if (section.column === "left") {
@@ -182,21 +186,19 @@ export function ResumeRenderer({
         // Dynamic flowing distribution: 1→left, 2→right, 3→left, 4→right, etc.
         // This ensures even distribution regardless of section types
         if (templateStyle.headerStyle === "two-column") {
-          // Atlantic Blue: specific section distribution based on original design
-          const leftColumnSections = [
-            "personalInfo",
-            "profileSummary",
-            "languages",
-            "awards",
-            "certificates",
-            "interests",
-          ];
-
-          if (leftColumnSections.includes(section.type)) {
+          // Atlantic Blue: Keep only personalInfo fixed in left column, rest flow evenly
+          if (section.type === "personalInfo") {
+            // PersonalInfo always goes to left column (sidebar)
             leftColumn.push(section);
           } else {
-            // Right column: experience, education, skills, projects, etc.
-            rightColumn.push(section);
+            // All other sections alternate evenly: 1→right, 2→left, 3→right, 4→left, etc.
+            // Start with right column (index 0 → right, index 1 → left, etc.)
+            if (nonPersonalInfoIndex % 2 === 0) {
+              rightColumn.push(section);
+            } else {
+              leftColumn.push(section);
+            }
+            nonPersonalInfoIndex++;
           }
         } else {
           // Standard templates: True alternating distribution
@@ -234,6 +236,8 @@ export function ResumeRenderer({
       publications: FileText,
       references: User,
       declaration: FileText,
+      custom: FileText,
+      spacer: FileText,
     };
     return iconMap[sectionType] || FileText;
   };
@@ -324,8 +328,19 @@ export function ResumeRenderer({
                 : headerConfig.backgroundColor ||
                   templateStyle.colors.sectionHeaderBg ||
                   "#f0f0f0",
-              padding: isInSidebar ? "8px 12px" : "8px 12px",
-              borderRadius: isInSidebar ? "4px" : "4px",
+              padding: isInSidebar
+                ? "8px 12px"
+                : `${headerConfig.paddingTop || "8px"} ${
+                    headerConfig.paddingRight || "12px"
+                  } ${headerConfig.paddingBottom || "8px"} ${
+                    headerConfig.paddingLeft || "12px"
+                  }`,
+              borderRadius:
+                headerConfig.borderRadius !== undefined
+                  ? `${headerConfig.borderRadius}px`
+                  : isInSidebar
+                  ? "4px"
+                  : "0px",
               boxShadow: isInSidebar ? "0 2px 4px rgba(0, 0, 0, 0.2)" : "none",
             }}
           >
@@ -384,6 +399,185 @@ export function ResumeRenderer({
     }
   };
 
+  // Render additional personal information fields
+  const renderAdditionalPersonalInfo = (isInSidebar: boolean = false) => {
+    const personalInfo = resume.content.personalInfo;
+    const additionalFields: Array<{
+      label: string;
+      value: string | undefined;
+    }> = [];
+
+    if (personalInfo.dateOfBirth) {
+      // Format date from YYYY-MM-DD to DD-MM-YYYY if needed
+      let formattedDate = personalInfo.dateOfBirth;
+      if (personalInfo.dateOfBirth.match(/^\d{4}-\d{2}-\d{2}$/)) {
+        const [year, month, day] = personalInfo.dateOfBirth.split("-");
+        formattedDate = `${day}-${month}-${year}`;
+      }
+      additionalFields.push({ label: "Date of Birth", value: formattedDate });
+    }
+    // Legacy passport field (for backward compatibility)
+    if (personalInfo.passport && !personalInfo.passportNo) {
+      additionalFields.push({
+        label: "Passport Number",
+        value: personalInfo.passport,
+      });
+    }
+    if (personalInfo.maritalStatus) {
+      additionalFields.push({
+        label: "Marital Status",
+        value: personalInfo.maritalStatus,
+      });
+    }
+    if (personalInfo.gender) {
+      additionalFields.push({ label: "Gender", value: personalInfo.gender });
+    }
+    if (personalInfo.visa) {
+      additionalFields.push({ label: "Visa Status", value: personalInfo.visa });
+    }
+    if (personalInfo.nationality) {
+      additionalFields.push({
+        label: "Nationality",
+        value: personalInfo.nationality,
+      });
+    }
+    if (personalInfo.militaryService) {
+      additionalFields.push({
+        label: "Military Service",
+        value: personalInfo.militaryService,
+      });
+    }
+    if (personalInfo.drivingLicense) {
+      additionalFields.push({
+        label: "Driving License",
+        value: personalInfo.drivingLicense,
+      });
+    }
+    if (personalInfo.disability) {
+      additionalFields.push({
+        label: "Disability",
+        value: personalInfo.disability,
+      });
+    }
+
+    // Render passport details sub-section if available
+    const renderPassportDetails = () => {
+      if (!personalInfo.passportNo) {
+        return null;
+      }
+
+      const formatDate = (dateStr: string | undefined) => {
+        if (!dateStr) return "";
+        // Format from YYYY-MM-DD to DD/MM/YYYY if needed
+        if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
+          const [year, month, day] = dateStr.split("-");
+          return `${day}/${month}/${year}`;
+        }
+        return dateStr;
+      };
+
+      const passportFields: Array<{
+        label: string;
+        value: string | undefined;
+      }> = [];
+
+      if (personalInfo.passportNo) {
+        passportFields.push({
+          label: "Passport No.",
+          value: personalInfo.passportNo,
+        });
+      }
+      if (personalInfo.passportPlaceOfIssue) {
+        passportFields.push({
+          label: "Place of Issue",
+          value: personalInfo.passportPlaceOfIssue,
+        });
+      }
+      if (personalInfo.passportDateOfIssue) {
+        passportFields.push({
+          label: "Date of Issue",
+          value: formatDate(personalInfo.passportDateOfIssue),
+        });
+      }
+      if (personalInfo.passportDateOfExpiry) {
+        passportFields.push({
+          label: "Date of Expiry",
+          value: formatDate(personalInfo.passportDateOfExpiry),
+        });
+      }
+
+      if (passportFields.length === 0) {
+        return null;
+      }
+
+      return (
+        <div style={{ marginTop: "12px" }}>
+          <div
+            style={{
+              fontSize: `${templateStyle.fontSize.small}px`,
+              fontWeight: "bold",
+              marginBottom: "8px",
+              color: isInSidebar
+                ? templateStyle.colors.sidebarText || "#ffffff"
+                : templateStyle.colors.text,
+              fontFamily: templateStyle.fontFamily,
+            }}
+          >
+            Passport Details
+          </div>
+          {passportFields.map((field, index) => (
+            <div
+              key={index}
+              style={{
+                marginBottom: "3px",
+                fontSize: `${templateStyle.fontSize.small}px`,
+                lineHeight: "1.4",
+                color: isInSidebar
+                  ? templateStyle.colors.sidebarText || "#ffffff"
+                  : templateStyle.colors.text,
+                fontFamily: templateStyle.fontFamily,
+              }}
+            >
+              <span style={{ fontWeight: "bold" }}>{field.label}</span> -{" "}
+              {field.value}
+            </div>
+          ))}
+        </div>
+      );
+    };
+
+    if (additionalFields.length === 0 && !personalInfo.passportNo) {
+      return null;
+    }
+
+    return (
+      <div
+        style={{
+          marginTop: "12px",
+          fontSize: `${templateStyle.fontSize.small}px`,
+          lineHeight: "1.4",
+          color: isInSidebar
+            ? templateStyle.colors.sidebarText || "#ffffff"
+            : templateStyle.colors.text,
+          fontFamily: templateStyle.fontFamily,
+        }}
+      >
+        {additionalFields.map((field, index) => (
+          <div key={index} style={{ marginBottom: "3px" }}>
+            <span style={{ fontWeight: "bold" }}>{field.label}</span>
+            {field.value && (
+              <>
+                {" - "}
+                <span>{field.value}</span>
+              </>
+            )}
+          </div>
+        ))}
+        {renderPassportDetails()}
+      </div>
+    );
+  };
+
   // Render contact information based on template configuration
   const renderContactInfo = () => {
     const personalInfo = resume.content.personalInfo;
@@ -410,6 +604,16 @@ export function ResumeRenderer({
         href: personalInfo.linkedin?.startsWith("http")
           ? personalInfo.linkedin
           : `https://linkedin.com/in/${personalInfo.linkedin}`,
+      },
+      {
+        type: "github",
+        value: personalInfo.github,
+        icon: Github,
+        href: personalInfo.github?.startsWith("http")
+          ? personalInfo.github
+          : personalInfo.github?.startsWith("@")
+          ? `https://github.com/${personalInfo.github.slice(1)}`
+          : `https://github.com/${personalInfo.github}`,
       },
       {
         type: "website",
@@ -550,10 +754,21 @@ export function ResumeRenderer({
                     style={{
                       fontSize: `${templateStyle.fontSize.subheading}px`,
                       color: templateStyle.colors.sidebarText || "#ffffff",
-                      margin: "0 0 20px 0",
+                      margin: "0 0 8px 0",
                     }}
                   >
                     {resume.content.personalInfo.portfolio}
+                  </p>
+                )}
+                {resume.content.personalInfo.yearsOfExperience && (
+                  <p
+                    style={{
+                      fontSize: `${templateStyle.fontSize.subheading}px`,
+                      color: templateStyle.colors.sidebarText || "#ffffff",
+                      margin: "0 0 20px 0",
+                    }}
+                  >
+                    Experience: {resume.content.personalInfo.yearsOfExperience}
                   </p>
                 )}
               </div>
@@ -577,6 +792,409 @@ export function ResumeRenderer({
               )}
 
               {renderContactInfo()}
+              {renderAdditionalPersonalInfo(true)}
+            </div>
+          );
+        }
+
+        // Mercury template header - special layout with profile picture on left
+        if (resume.templateId === "mercury") {
+          const headerBackground =
+            templateStyle.colors.headerBackground || "#f5f5f5";
+          const paddingLeft = templateStyle.padding?.left || 20;
+          const paddingRight = templateStyle.padding?.right || 20;
+
+          // Render contact info for Mercury (two per line)
+          const renderMercuryContactInfo = () => {
+            const personalInfo = resume.content.personalInfo;
+            const contactItems = [
+              {
+                type: "email",
+                value: personalInfo.email,
+                icon: Mail,
+                href: `mailto:${personalInfo.email}`,
+              },
+              {
+                type: "phone",
+                value: personalInfo.phone,
+                icon: Phone,
+                href: `tel:${personalInfo.phone}`,
+              },
+              { type: "location", value: personalInfo.location, icon: MapPin },
+              {
+                type: "linkedin",
+                value: personalInfo.linkedin,
+                icon: Linkedin,
+                href: personalInfo.linkedin?.startsWith("http")
+                  ? personalInfo.linkedin
+                  : `https://linkedin.com/in/${personalInfo.linkedin}`,
+              },
+              {
+                type: "website",
+                value: personalInfo.website,
+                icon: ExternalLink,
+                href: personalInfo.website?.startsWith("http")
+                  ? personalInfo.website
+                  : `https://${personalInfo.website}`,
+              },
+            ].filter((item) => item.value);
+
+            // Group items into pairs for two-per-line display
+            const pairs: (typeof contactItems)[] = [];
+            for (let i = 0; i < contactItems.length; i += 2) {
+              pairs.push(contactItems.slice(i, i + 2));
+            }
+
+            return (
+              <div style={{ marginTop: "8px" }}>
+                {pairs.map((pair, pairIndex) => (
+                  <div
+                    key={pairIndex}
+                    style={{
+                      display: "flex",
+                      gap: "16px",
+                      marginBottom: "4px",
+                      flexWrap: "wrap",
+                    }}
+                  >
+                    {pair.map((item, itemIndex) => {
+                      const IconComponent = item.icon;
+                      const content = (
+                        <div
+                          key={itemIndex}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "4px",
+                          }}
+                        >
+                          <IconComponent size={12} />
+                          <span
+                            style={{
+                              fontSize: `${templateStyle.fontSize.small}px`,
+                              fontFamily: templateStyle.fontFamily,
+                            }}
+                          >
+                            {item.value}
+                          </span>
+                        </div>
+                      );
+
+                      return item.href ? (
+                        <a
+                          key={itemIndex}
+                          href={item.href}
+                          style={{ textDecoration: "none", color: "inherit" }}
+                        >
+                          {content}
+                        </a>
+                      ) : (
+                        content
+                      );
+                    })}
+                  </div>
+                ))}
+              </div>
+            );
+          };
+
+          // Render additional personal info for Mercury (two per line)
+          const renderMercuryAdditionalInfo = () => {
+            const personalInfo = resume.content.personalInfo;
+            const additionalFields: Array<{
+              label: string;
+              value: string | undefined;
+            }> = [];
+
+            if (personalInfo.dateOfBirth) {
+              let formattedDate = personalInfo.dateOfBirth;
+              if (personalInfo.dateOfBirth.match(/^\d{4}-\d{2}-\d{2}$/)) {
+                const [year, month, day] = personalInfo.dateOfBirth.split("-");
+                formattedDate = `${day}-${month}-${year}`;
+              }
+              additionalFields.push({
+                label: "Date of Birth",
+                value: formattedDate,
+              });
+            }
+            if (personalInfo.maritalStatus) {
+              additionalFields.push({
+                label: "Marital Status",
+                value: personalInfo.maritalStatus,
+              });
+            }
+            if (personalInfo.gender) {
+              additionalFields.push({
+                label: "Gender",
+                value: personalInfo.gender,
+              });
+            }
+            if (personalInfo.visa) {
+              additionalFields.push({
+                label: "Visa Status",
+                value: personalInfo.visa,
+              });
+            }
+            if (personalInfo.nationality) {
+              additionalFields.push({
+                label: "Nationality",
+                value: personalInfo.nationality,
+              });
+            }
+            if (personalInfo.militaryService) {
+              additionalFields.push({
+                label: "Military Service",
+                value: personalInfo.militaryService,
+              });
+            }
+            if (personalInfo.drivingLicense) {
+              additionalFields.push({
+                label: "Driving License",
+                value: personalInfo.drivingLicense,
+              });
+            }
+            if (personalInfo.disability) {
+              additionalFields.push({
+                label: "Disability",
+                value: personalInfo.disability,
+              });
+            }
+
+            if (additionalFields.length === 0) {
+              return null;
+            }
+
+            // Group into pairs
+            const pairs: (typeof additionalFields)[] = [];
+            for (let i = 0; i < additionalFields.length; i += 2) {
+              pairs.push(additionalFields.slice(i, i + 2));
+            }
+
+            return (
+              <div style={{ marginTop: "8px" }}>
+                {pairs.map((pair, pairIndex) => (
+                  <div
+                    key={pairIndex}
+                    style={{
+                      display: "flex",
+                      gap: "16px",
+                      marginBottom: "3px",
+                      fontSize: `${templateStyle.fontSize.small}px`,
+                      lineHeight: "1.4",
+                      fontFamily: templateStyle.fontFamily,
+                    }}
+                  >
+                    {pair.map((field, fieldIndex) => (
+                      <div key={fieldIndex}>
+                        <span style={{ fontWeight: "bold" }}>
+                          {field.label}
+                        </span>
+                        {field.value && (
+                          <>
+                            {" - "}
+                            <span>{field.value}</span>
+                          </>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            );
+          };
+
+          // Render passport details for Mercury (two per line)
+          const renderMercuryPassportDetails = () => {
+            const personalInfo = resume.content.personalInfo;
+            if (!personalInfo.passportNo) {
+              return null;
+            }
+
+            const formatDate = (dateStr: string | undefined) => {
+              if (!dateStr) return "";
+              if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
+                const [year, month, day] = dateStr.split("-");
+                return `${day}/${month}/${year}`;
+              }
+              return dateStr;
+            };
+
+            const passportFields: Array<{
+              label: string;
+              value: string | undefined;
+            }> = [];
+            if (personalInfo.passportNo) {
+              passportFields.push({
+                label: "Passport No.",
+                value: personalInfo.passportNo,
+              });
+            }
+            if (personalInfo.passportPlaceOfIssue) {
+              passportFields.push({
+                label: "Place of Issue",
+                value: personalInfo.passportPlaceOfIssue,
+              });
+            }
+            if (personalInfo.passportDateOfIssue) {
+              passportFields.push({
+                label: "Date of Issue",
+                value: formatDate(personalInfo.passportDateOfIssue),
+              });
+            }
+            if (personalInfo.passportDateOfExpiry) {
+              passportFields.push({
+                label: "Date of Expiry",
+                value: formatDate(personalInfo.passportDateOfExpiry),
+              });
+            }
+
+            if (passportFields.length === 0) {
+              return null;
+            }
+
+            // Group into pairs
+            const pairs: (typeof passportFields)[] = [];
+            for (let i = 0; i < passportFields.length; i += 2) {
+              pairs.push(passportFields.slice(i, i + 2));
+            }
+
+            return (
+              <div style={{ marginTop: "8px" }}>
+                <div
+                  style={{
+                    fontSize: `${templateStyle.fontSize.small}px`,
+                    fontWeight: "bold",
+                    marginBottom: "4px",
+                    fontFamily: templateStyle.fontFamily,
+                  }}
+                >
+                  Passport Details
+                </div>
+                {pairs.map((pair, pairIndex) => (
+                  <div
+                    key={pairIndex}
+                    style={{
+                      display: "flex",
+                      gap: "16px",
+                      marginBottom: "3px",
+                      fontSize: `${templateStyle.fontSize.small}px`,
+                      lineHeight: "1.4",
+                      fontFamily: templateStyle.fontFamily,
+                    }}
+                  >
+                    {pair.map((field, fieldIndex) => (
+                      <div key={fieldIndex}>
+                        <span style={{ fontWeight: "bold" }}>
+                          {field.label}
+                        </span>{" "}
+                        - {field.value}
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            );
+          };
+
+          // Placeholder avatar when no profile picture
+          const renderPlaceholderAvatar = () => (
+            <svg
+              width="120"
+              height="120"
+              viewBox="0 0 120 120"
+              style={{
+                borderRadius: "50%",
+                backgroundColor: "#e5e7eb",
+              }}
+            >
+              <circle cx="60" cy="45" r="20" fill="#9ca3af" />
+              <ellipse cx="60" cy="95" rx="30" ry="25" fill="#9ca3af" />
+            </svg>
+          );
+
+          return (
+            <div
+              style={{
+                marginBottom: `${templateStyle.sectionSpacing}px`,
+                marginLeft: `-${paddingLeft}mm`,
+                marginRight: `-${paddingRight}mm`,
+                marginTop: `-${templateStyle.padding?.top || 20}mm`,
+                backgroundColor: headerBackground,
+                padding: `32px ${paddingLeft}mm`,
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "20px",
+                }}
+              >
+                {/* Profile Picture on Left */}
+                <div style={{ flexShrink: 0 }}>
+                  {resume.content.personalInfo.profilePicture ? (
+                    <img
+                      src={resume.content.personalInfo.profilePicture}
+                      alt="Profile"
+                      crossOrigin="anonymous"
+                      style={{
+                        width: "120px",
+                        height: "120px",
+                        borderRadius: "50%",
+                        objectFit: "cover",
+                        border: "2px solid #e5e7eb",
+                      }}
+                    />
+                  ) : (
+                    renderPlaceholderAvatar()
+                  )}
+                </div>
+
+                {/* Name, Title, Contact on Right */}
+                <div style={{ flex: 1 }}>
+                  {resume.content.personalInfo.fullName && (
+                    <h1
+                      style={{
+                        fontSize: `${templateStyle.fontSize.heading}px`,
+                        fontWeight: "bold",
+                        color: templateStyle.colors.text,
+                        margin: "0 0 4px 0",
+                        fontFamily: templateStyle.fontFamily,
+                      }}
+                    >
+                      {resume.content.personalInfo.fullName}
+                    </h1>
+                  )}
+                  {resume.content.personalInfo.portfolio && (
+                    <p
+                      style={{
+                        fontSize: `${templateStyle.fontSize.subheading}px`,
+                        color: templateStyle.colors.secondary,
+                        margin: "0 0 4px 0",
+                        fontFamily: templateStyle.fontFamily,
+                      }}
+                    >
+                      {resume.content.personalInfo.portfolio}
+                    </p>
+                  )}
+                  {resume.content.personalInfo.yearsOfExperience && (
+                    <p
+                      style={{
+                        fontSize: `${templateStyle.fontSize.subheading}px`,
+                        color: templateStyle.colors.secondary,
+                        margin: "0 0 4px 0",
+                        fontFamily: templateStyle.fontFamily,
+                      }}
+                    >
+                      <span style={{ fontWeight: "bold" }}>Experience:</span>{" "}
+                      {resume.content.personalInfo.yearsOfExperience}
+                    </p>
+                  )}
+                  {renderMercuryContactInfo()}
+                  {renderMercuryAdditionalInfo()}
+                  {renderMercuryPassportDetails()}
+                </div>
+              </div>
             </div>
           );
         }
@@ -613,7 +1231,7 @@ export function ResumeRenderer({
                   style={{
                     fontSize: `${templateStyle.fontSize.subheading}px`,
                     color: templateStyle.colors.secondary,
-                    margin: "0 0 12px 0",
+                    margin: "0 0 6px 0",
                     fontFamily: templateStyle.fontFamily,
                     fontStyle: "italic",
                   }}
@@ -621,7 +1239,21 @@ export function ResumeRenderer({
                   {resume.content.personalInfo.portfolio}
                 </p>
               )}
+              {resume.content.personalInfo.yearsOfExperience && (
+                <p
+                  style={{
+                    fontSize: `${templateStyle.fontSize.subheading}px`,
+                    color: templateStyle.colors.secondary,
+                    margin: "0 0 12px 0",
+                    fontFamily: templateStyle.fontFamily,
+                    fontStyle: "italic",
+                  }}
+                >
+                  Experience: {resume.content.personalInfo.yearsOfExperience}
+                </p>
+              )}
               {renderContactInfo()}
+              {renderAdditionalPersonalInfo(isInSidebar)}
             </div>
           </div>
         );
@@ -807,13 +1439,14 @@ export function ResumeRenderer({
                         )}
                         {exp.description && (
                           <div
-                            className="resume-content"
+                            className="resume-content mercury-experience-content"
                             style={{
                               fontSize: `${templateStyle.fontSize.body}px`,
                               lineHeight: templateStyle.lineHeight,
                               color: isInSidebar
                                 ? templateStyle.colors.sidebarText
                                 : templateStyle.colors.text,
+                              fontFamily: templateStyle.fontFamily, // Consistent font family
                             }}
                             dangerouslySetInnerHTML={{
                               __html: Array.isArray(exp.description)
@@ -1142,6 +1775,113 @@ export function ResumeRenderer({
                     );
                   })}
                 </div>
+              ) : resume.templateId === "mercury" ? (
+                // Mercury template: 3-column layout with circular bullets
+                <>
+                  {(() => {
+                    if (!skillsData) return null;
+
+                    // Parse HTML string to extract list items
+                    let listItems: string[] = [];
+
+                    if (typeof skillsData === "string") {
+                      try {
+                        const parser = new DOMParser();
+                        const doc = parser.parseFromString(
+                          skillsData,
+                          "text/html"
+                        );
+
+                        // Extract from ul/ol > li (direct children only)
+                        const listElements =
+                          doc.querySelectorAll("ul > li, ol > li");
+                        if (listElements.length > 0) {
+                          listItems = Array.from(listElements)
+                            .map((el) => {
+                              return el.textContent?.trim() || "";
+                            })
+                            .filter((text) => text.length > 0);
+                        } else {
+                          // Fallback: extract from p tags if no list items
+                          const paragraphs = doc.querySelectorAll("p");
+                          if (paragraphs.length > 0) {
+                            listItems = Array.from(paragraphs)
+                              .map((el) => {
+                                return el.textContent?.trim() || "";
+                              })
+                              .filter((text) => text.length > 0);
+                          }
+                        }
+                      } catch (error) {
+                        console.error("Error parsing skills HTML:", error);
+                      }
+                    } else if (Array.isArray(skillsData)) {
+                      listItems = skillsData
+                        .map((skill: any) =>
+                          typeof skill === "string" ? skill : String(skill)
+                        )
+                        .filter((text: string) => text.length > 0);
+                    }
+
+                    if (listItems.length === 0) return null;
+
+                    // Remove duplicates using Set
+                    const seenItems = new Set<string>();
+                    const uniqueItems = listItems.filter((item) => {
+                      if (seenItems.has(item)) return false;
+                      seenItems.add(item);
+                      return true;
+                    });
+
+                    // Distribute items into 3 columns using round-robin
+                    const columns: string[][] = [[], [], []];
+                    uniqueItems.forEach((item, index) => {
+                      const columnIndex = index % 3;
+                      columns[columnIndex].push(item);
+                    });
+
+                    return (
+                      <div
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: "repeat(3, 1fr)",
+                          gap: "8px 16px",
+                          fontFamily: templateStyle.fontFamily, // Arial, Calibri for Mercury
+                        }}
+                      >
+                        {columns.map((column, colIndex) => (
+                          <div key={colIndex}>
+                            {column.map((item, itemIndex) => (
+                              <div
+                                key={`${colIndex}-${itemIndex}`}
+                                style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: "6px",
+                                  marginBottom: "4px",
+                                  fontSize: `${templateStyle.fontSize.body}px`,
+                                }}
+                              >
+                                <div
+                                  style={{
+                                    width: "6px",
+                                    height: "6px",
+                                    borderRadius: "50%",
+                                    backgroundColor:
+                                      templateStyle.colors.primary,
+                                    flexShrink: 0,
+                                    marginTop: "2px", // Align with text baseline
+                                  }}
+                                />
+                                <span>{item}</span>
+                              </div>
+                            ))}
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()}
+                </>
               ) : (
                 // Other templates: Render as text/HTML
                 <>
@@ -1172,11 +1912,15 @@ export function ResumeRenderer({
                       );
                     }
                     // Old structure: backward compatibility - merge technical and soft
-                    else if (typeof skillsData === "object" && skillsData !== null) {
+                    else if (
+                      typeof skillsData === "object" &&
+                      skillsData !== null
+                    ) {
                       const oldSkills = skillsData as any;
                       // Prefer technical, fallback to soft
-                      const primarySkills = oldSkills.technical || oldSkills.soft;
-                      
+                      const primarySkills =
+                        oldSkills.technical || oldSkills.soft;
+
                       if (typeof primarySkills === "string") {
                         return (
                           <div
@@ -1185,7 +1929,7 @@ export function ResumeRenderer({
                                 ? templateStyle.colors.sidebarText
                                 : templateStyle.colors.text,
                             }}
-                            className="resume-content"
+                            className="resume-content mercury-education-content"
                             dangerouslySetInnerHTML={{ __html: primarySkills }}
                           />
                         );
@@ -1519,7 +2263,7 @@ export function ResumeRenderer({
                         marginTop: "4px",
                         lineHeight: "1.4",
                       }}
-                      className="resume-content"
+                      className="resume-content mercury-awards-content"
                       dangerouslySetInnerHTML={{
                         __html: award.description,
                       }}
@@ -2057,7 +2801,33 @@ export function ResumeRenderer({
         const customSectionData = resume.content.customSections?.find(
           (cs: any) => cs.id === section.id
         );
-        if (!customSectionData || !customSectionData.content) {
+
+        // Debug logging
+        if (process.env.NODE_ENV === "development") {
+          console.log("🔍 [Custom Section Render]", {
+            sectionId: section.id,
+            sectionTitle: section.title,
+            customSectionsInResume: resume.content.customSections,
+            foundCustomSection: customSectionData,
+            hasContent: customSectionData?.content ? true : false,
+            contentLength: customSectionData?.content?.length || 0,
+          });
+        }
+
+        if (!customSectionData) {
+          console.warn(
+            `⚠️ Custom section data not found for section ID: ${section.id}`
+          );
+          return null;
+        }
+
+        if (
+          !customSectionData.content ||
+          customSectionData.content.trim() === ""
+        ) {
+          console.warn(
+            `⚠️ Custom section has no content for section ID: ${section.id}`
+          );
           return null;
         }
 

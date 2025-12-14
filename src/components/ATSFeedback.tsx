@@ -26,10 +26,10 @@ interface ATSFeedback {
   weaknesses: string[];
   suggestions: string[];
   details?: {
-    formatting?: { score: number; issues: string[] };
-    content?: { score: number; issues: string[] };
-    keywords?: { score: number; issues: string[] };
-    structure?: { score: number; issues: string[] };
+    formatting?: { score: number; issues: string[]; improvements: string[] };
+    content?: { score: number; issues: string[]; improvements: string[] };
+    keywords?: { score: number; issues: string[]; improvements: string[] };
+    structure?: { score: number; issues: string[]; improvements: string[] };
   };
 }
 
@@ -323,6 +323,207 @@ export function ATSFeedback({ feedback }: ATSFeedbackProps) {
               </Card>
             );
           })()}
+        </div>
+      )}
+
+      {/* Category-wise Improvements */}
+      {feedback.details && (
+        <div className="space-y-4">
+          {/* Formatting Improvements */}
+          {feedback.details.formatting?.improvements && 
+           feedback.details.formatting.improvements.length > 0 && (
+            <Card className="border-orange-200 bg-orange-50/50">
+              <CardContent className="p-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <AlertCircle className="w-5 h-5 text-orange-600" />
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    Formatting - Areas for Improvement
+                  </h3>
+                </div>
+                <ul className="space-y-3" style={listStyleReset}>
+                  {feedback.details.formatting.improvements.map((improvement, index) => (
+                    <li
+                      key={index}
+                      className="flex items-center gap-3 text-gray-700"
+                      style={{ 
+                        ...listStyleReset, 
+                        display: "flex", 
+                        alignItems: "center",
+                        flexWrap: "nowrap",
+                        width: "100%"
+                      }}
+                    >
+                      <div 
+                        className="w-5 h-5 rounded-full bg-orange-500 flex items-center justify-center flex-shrink-0" 
+                        style={{ 
+                          flexShrink: 0, 
+                          minWidth: "20px",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center"
+                        }}
+                      >
+                        <AlertCircle className="w-3.5 h-3.5 text-white" style={{ display: "block" }} />
+                      </div>
+                      <span 
+                        className="leading-relaxed" 
+                        style={{ flex: "1 1 auto", minWidth: 0, wordBreak: "break-word" }}
+                      >
+                        {improvement}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Content Improvements */}
+          {feedback.details.content?.improvements && 
+           feedback.details.content.improvements.length > 0 && (
+            <Card className="border-orange-200 bg-orange-50/50">
+              <CardContent className="p-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <AlertCircle className="w-5 h-5 text-orange-600" />
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    Content - Areas for Improvement
+                  </h3>
+                </div>
+                <ul className="space-y-3" style={listStyleReset}>
+                  {feedback.details.content.improvements.map((improvement, index) => (
+                    <li
+                      key={index}
+                      className="flex items-center gap-3 text-gray-700"
+                      style={{ 
+                        ...listStyleReset, 
+                        display: "flex", 
+                        alignItems: "center",
+                        flexWrap: "nowrap",
+                        width: "100%"
+                      }}
+                    >
+                      <div 
+                        className="w-5 h-5 rounded-full bg-orange-500 flex items-center justify-center flex-shrink-0" 
+                        style={{ 
+                          flexShrink: 0, 
+                          minWidth: "20px",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center"
+                        }}
+                      >
+                        <AlertCircle className="w-3.5 h-3.5 text-white" style={{ display: "block" }} />
+                      </div>
+                      <span 
+                        className="leading-relaxed" 
+                        style={{ flex: "1 1 auto", minWidth: 0, wordBreak: "break-word" }}
+                      >
+                        {improvement}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Keywords Improvements */}
+          {feedback.details.keywords?.improvements && 
+           feedback.details.keywords.improvements.length > 0 && (
+            <Card className="border-orange-200 bg-orange-50/50">
+              <CardContent className="p-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <AlertCircle className="w-5 h-5 text-orange-600" />
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    Keywords - Areas for Improvement
+                  </h3>
+                </div>
+                <ul className="space-y-3" style={listStyleReset}>
+                  {feedback.details.keywords.improvements.map((improvement, index) => (
+                    <li
+                      key={index}
+                      className="flex items-center gap-3 text-gray-700"
+                      style={{ 
+                        ...listStyleReset, 
+                        display: "flex", 
+                        alignItems: "center",
+                        flexWrap: "nowrap",
+                        width: "100%"
+                      }}
+                    >
+                      <div 
+                        className="w-5 h-5 rounded-full bg-orange-500 flex items-center justify-center flex-shrink-0" 
+                        style={{ 
+                          flexShrink: 0, 
+                          minWidth: "20px",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center"
+                        }}
+                      >
+                        <AlertCircle className="w-3.5 h-3.5 text-white" style={{ display: "block" }} />
+                      </div>
+                      <span 
+                        className="leading-relaxed" 
+                        style={{ flex: "1 1 auto", minWidth: 0, wordBreak: "break-word" }}
+                      >
+                        {improvement}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Structure Improvements */}
+          {feedback.details.structure?.improvements && 
+           feedback.details.structure.improvements.length > 0 && (
+            <Card className="border-orange-200 bg-orange-50/50">
+              <CardContent className="p-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <AlertCircle className="w-5 h-5 text-orange-600" />
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    Structure - Areas for Improvement
+                  </h3>
+                </div>
+                <ul className="space-y-3" style={listStyleReset}>
+                  {feedback.details.structure.improvements.map((improvement, index) => (
+                    <li
+                      key={index}
+                      className="flex items-center gap-3 text-gray-700"
+                      style={{ 
+                        ...listStyleReset, 
+                        display: "flex", 
+                        alignItems: "center",
+                        flexWrap: "nowrap",
+                        width: "100%"
+                      }}
+                    >
+                      <div 
+                        className="w-5 h-5 rounded-full bg-orange-500 flex items-center justify-center flex-shrink-0" 
+                        style={{ 
+                          flexShrink: 0, 
+                          minWidth: "20px",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center"
+                        }}
+                      >
+                        <AlertCircle className="w-3.5 h-3.5 text-white" style={{ display: "block" }} />
+                      </div>
+                      <span 
+                        className="leading-relaxed" 
+                        style={{ flex: "1 1 auto", minWidth: 0, wordBreak: "break-word" }}
+                      >
+                        {improvement}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
+          )}
         </div>
       )}
 

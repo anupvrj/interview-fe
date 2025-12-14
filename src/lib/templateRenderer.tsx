@@ -28,6 +28,7 @@ export interface TemplateStyleConfig {
     sidebarBackground?: string;
     sidebarText?: string;
     sectionHeaderBg?: string;
+    headerBackground?: string;
   };
   headerStyle: "centered" | "left" | "two-column";
   sectionSpacing: number;
@@ -53,6 +54,10 @@ export interface TemplateStyleConfig {
     marginBottom?: string;
     paddingBottom?: string;
     paddingTop?: string;
+    paddingLeft?: string;
+    paddingRight?: string;
+    borderRadius?: string;
+    letterSpacing?: string;
     textTransform?: "none" | "uppercase" | "lowercase" | "capitalize";
   };
   skillsDisplay: {
