@@ -125,6 +125,20 @@ const ProfilePictureImage = ({
     return `${src}${separator}_v=${imageKey}`;
   }, [src, imageKey, isPresignedUrl]);
 
+  // Force image to load after mount - ensures image loads even if React doesn't trigger it
+  useEffect(() => {
+    if (imageRef.current && finalSrc) {
+      const img = imageRef.current;
+      // Small delay to ensure element is fully mounted
+      const timeout = setTimeout(() => {
+        if (img && finalSrc && img.src !== finalSrc) {
+          img.src = finalSrc;
+        }
+      }, 10);
+      return () => clearTimeout(timeout);
+    }
+  }, [finalSrc]);
+
   return (
     <img
       ref={imageRef}
