@@ -2023,14 +2023,30 @@ export default function EditResumePage() {
                                       uploadResponse.data.data
                                         ?.profilePictureUrl
                                     ) {
-                                      updateContent({
-                                        personalInfo: {
-                                          ...personalInfo,
-                                          profilePicture:
-                                            uploadResponse.data.data
-                                              .profilePictureUrl,
-                                        },
+                                      const profilePictureUrl =
+                                        uploadResponse.data.data
+                                          .profilePictureUrl;
+
+                                      // Update resume state with new profile picture URL
+                                      // Use functional update to ensure we have the latest state and force re-render
+                                      setResume((prevResume) => {
+                                        if (!prevResume) return prevResume;
+                                        return {
+                                          ...prevResume,
+                                          content: {
+                                            ...prevResume.content,
+                                            personalInfo: {
+                                              ...prevResume.content
+                                                .personalInfo,
+                                              profilePicture: profilePictureUrl,
+                                            },
+                                          },
+                                        };
                                       });
+
+                                      // Trigger hasChanges to enable autosave
+                                      setHasChanges(true);
+
                                       // Keep the filename after successful upload
                                       // Don't reset it - we want to show the filename
                                     }

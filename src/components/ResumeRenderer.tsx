@@ -777,6 +777,7 @@ export function ResumeRenderer({
               {resume.content.personalInfo.profilePicture && (
                 <div style={{ textAlign: "center", marginBottom: "20px" }}>
                   <img
+                    key={`profile-${resume.content.personalInfo.profilePicture}`}
                     src={resume.content.personalInfo.profilePicture}
                     alt="Profile"
                     crossOrigin="anonymous"
@@ -1134,6 +1135,7 @@ export function ResumeRenderer({
                 <div style={{ flexShrink: 0 }}>
                   {resume.content.personalInfo.profilePicture ? (
                     <img
+                      key={`profile-${resume.content.personalInfo.profilePicture}`}
                       src={resume.content.personalInfo.profilePicture}
                       alt="Profile"
                       crossOrigin="anonymous"
