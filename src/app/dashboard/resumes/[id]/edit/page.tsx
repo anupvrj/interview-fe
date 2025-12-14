@@ -2048,9 +2048,13 @@ export default function EditResumePage() {
                                         };
                                       });
 
-                                      // Force resume preview to re-render by updating key
-                                      // This ensures the image loads immediately after upload
-                                      setPreviewKey((prev) => prev + 1);
+                                      // Wait a moment for S3 to propagate the file, then force re-render
+                                      // This ensures the image is available before we try to load it
+                                      setTimeout(() => {
+                                        // Force resume preview to re-render by updating key
+                                        // This ensures the image loads immediately after upload
+                                        setPreviewKey((prev) => prev + 1);
+                                      }, 500);
 
                                       // Trigger hasChanges to enable autosave
                                       setHasChanges(true);

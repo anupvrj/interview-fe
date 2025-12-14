@@ -25,133 +25,6 @@ import {
   Github,
 } from "lucide-react";
 
-// Profile Picture Image Component with forced re-render on URL change
-// Handles S3 presigned URLs correctly by preserving their signature
-const ProfilePictureImage = ({
-  src,
-  alt,
-  style,
-}: {
-  src: string;
-  alt: string;
-  style: React.CSSProperties;
-}) => {
-  const [imageKey, setImageKey] = useState(0);
-  const [retryCount, setRetryCount] = useState(0);
-  const imageRef = useRef<HTMLImageElement>(null);
-  const previousSrcRef = useRef<string>("");
-  const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-  // Force re-render when src changes
-  useEffect(() => {
-    if (src && src !== previousSrcRef.current) {
-      previousSrcRef.current = src;
-      setRetryCount(0);
-      // Force image reload by updating key
-      setImageKey((prev) => prev + 1);
-
-      // Clear any pending retries
-      if (retryTimeoutRef.current) {
-        clearTimeout(retryTimeoutRef.current);
-        retryTimeoutRef.current = null;
-      }
-    }
-  }, [src]);
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (retryTimeoutRef.current) {
-        clearTimeout(retryTimeoutRef.current);
-      }
-    };
-  }, []);
-
-  const handleError = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
-    const target = e.target as HTMLImageElement;
-
-    // For S3 presigned URLs, retry after a delay (image might still be uploading)
-    if (target && src && src.includes("X-Amz-Signature") && retryCount < 3) {
-      const delay = (retryCount + 1) * 2000; // 2s, 4s, 6s
-      retryTimeoutRef.current = setTimeout(() => {
-        setRetryCount((prev) => prev + 1);
-        setImageKey((prev) => prev + 1); // Force reload by changing key
-      }, delay);
-    } else if (target && src && !src.includes("X-Amz-Signature")) {
-      // For non-presigned URLs, retry immediately with cache-busting
-      const separator = src.includes("?") ? "&" : "?";
-      target.src = `${src}${separator}_retry=${Date.now()}`;
-    }
-  };
-
-  // Check if this is an S3 presigned URL (don't add cache-busting to preserve signature)
-  const isPresignedUrl = useMemo(() => {
-    return (
-      src &&
-      (src.includes("X-Amz-Signature") ||
-        src.includes("s3.amazonaws.com") ||
-        src.includes("amazonaws.com"))
-    );
-  }, [src]);
-
-  // Show placeholder if no src
-  if (!src || src.trim() === "") {
-    return (
-      <div
-        style={{
-          ...style,
-          backgroundColor: "#e5e7eb",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          color: "#9ca3af",
-          fontSize: "24px",
-        }}
-      >
-        👤
-      </div>
-    );
-  }
-
-  // For S3 presigned URLs, don't modify the URL - just use key prop to force re-render
-  // For other URLs, add cache-busting if needed
-  const finalSrc = useMemo(() => {
-    if (isPresignedUrl) {
-      // Don't modify presigned URLs - they're already signed with specific parameters
-      return src;
-    }
-    // For non-presigned URLs, add cache-busting
-    const separator = src.includes("?") ? "&" : "?";
-    return `${src}${separator}_v=${imageKey}`;
-  }, [src, imageKey, isPresignedUrl]);
-
-  // Force image to load after mount - ensures image loads even if React doesn't trigger it
-  useEffect(() => {
-    if (imageRef.current && finalSrc) {
-      const img = imageRef.current;
-      // Small delay to ensure element is fully mounted
-      const timeout = setTimeout(() => {
-        if (img && finalSrc && img.src !== finalSrc) {
-          img.src = finalSrc;
-        }
-      }, 10);
-      return () => clearTimeout(timeout);
-    }
-  }, [finalSrc]);
-
-  return (
-    <img
-      ref={imageRef}
-      key={`profile-img-${src}-${imageKey}-${retryCount}`}
-      src={finalSrc}
-      alt={alt}
-      crossOrigin="anonymous"
-      style={style}
-      onError={handleError}
-    />
-  );
-};
-
 interface Section {
   id: string;
   type: string;
@@ -903,7 +776,7 @@ export function ResumeRenderer({
               {/* Profile Picture for Atlantic Blue */}
               <div style={{ textAlign: "center", marginBottom: "20px" }}>
                 {resume.content.personalInfo?.profilePicture ? (
-                  <ProfilePictureImage
+                  <img
                     src={resume.content.personalInfo.profilePicture}
                     alt="Profile"
                     style={{
@@ -1272,7 +1145,7 @@ export function ResumeRenderer({
                 {/* Profile Picture on Left */}
                 <div style={{ flexShrink: 0 }}>
                   {resume.content.personalInfo?.profilePicture ? (
-                    <ProfilePictureImage
+                    <img
                       src={resume.content.personalInfo.profilePicture}
                       alt="Profile"
                       style={{
