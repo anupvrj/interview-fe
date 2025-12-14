@@ -467,6 +467,114 @@ export const TEMPLATE_CONFIGS: Record<
     },
   },
 
+  mercury: {
+    style: {
+      fontFamily: "Arial, Calibri, sans-serif", // ATS-friendly fonts
+      fontSize: { heading: 24, subheading: 16, body: 11, small: 10 },
+      lineHeight: 1.5,
+      colors: {
+        primary: "#374151",
+        secondary: "#6b7280",
+        accent: "#9ca3af",
+        text: "#111827",
+        background: "#ffffff",
+        headerBackground: "#f5f5f5", // Light grey for header background
+      },
+      headerStyle: "left", // Single column with header at top
+      sectionSpacing: 20,
+      padding: { top: 20, bottom: 20, left: 20, right: 20 }, // 20mm padding
+      sectionHeader: {
+        style: "background",
+        backgroundColor: "#f5f5f5", // Light grey background
+        textAlign: "center",
+        fontSize: 14, // Consistent font size for all headers
+        fontWeight: "bold", // Consistent bold formatting
+        marginBottom: "12px",
+        paddingTop: "8px",
+        paddingBottom: "8px",
+        paddingLeft: "12px",
+        paddingRight: "12px",
+        textTransform: "uppercase",
+        borderRadius: "0px", // Consistent rectangular headers
+        letterSpacing: "0.5px", // Better readability for uppercase text
+      },
+      skillsDisplay: {
+        type: "list",
+        showRatings: false,
+      },
+      timelineLayout: {
+        type: "grid", // Two-column layout for Mercury: date/location on left, content on right
+        datePosition: "left",
+        dateWidth: 180, // Width for date and location column
+      },
+      contactDisplay: {
+        type: "icons",
+        layout: "horizontal",
+      },
+    },
+    layout: {
+      fontFamily: "Arial, Calibri, sans-serif", // ATS-friendly fonts
+      fontSize: { heading: 24, subheading: 16, body: 11 },
+      headerStyle: "left",
+      sectionSpacing: 20,
+    },
+    rendering: {
+      pageBreak: {
+        enabled: true,
+        calculateDynamically: true,
+      },
+      dataStructure: "legacy",
+      features: {
+        showPresent: true,
+      },
+    },
+    // Hard-coded section order for Mercury template
+    defaultSectionOrder: [
+      {
+        id: "personalInfo",
+        type: "personalInfo",
+        title: "Personal Information",
+        visible: true,
+      },
+      {
+        id: "profileSummary",
+        type: "profileSummary",
+        title: "Profile",
+        visible: true,
+      },
+      {
+        id: "experience",
+        type: "experience",
+        title: "Work Experience",
+        visible: true,
+      },
+      {
+        id: "education",
+        type: "education",
+        title: "Education",
+        visible: true,
+      },
+      {
+        id: "skills",
+        type: "skills",
+        title: "Skills",
+        visible: true,
+      },
+      {
+        id: "languages",
+        type: "languages",
+        title: "Languages",
+        visible: true,
+      },
+      {
+        id: "awards",
+        type: "awards",
+        title: "Awards",
+        visible: true,
+      },
+    ],
+  },
+
   // Add more templates here - they'll automatically work!
 };
 

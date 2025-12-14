@@ -773,7 +773,11 @@ export const resumeApi = {
 
   recalculateATS: async (resumeId: string): Promise<Resume> => {
     const response = await apiClient.post<{ data: Resume }>(
-      `/resumes/${resumeId}/ats-score`
+      `/resumes/${resumeId}/ats-score`,
+      {},
+      {
+        timeout: 180000, // 3 minutes (180 seconds) for ATS score calculation
+      }
     );
     return response.data.data;
   },

@@ -56,9 +56,15 @@ export default function AnalyticsPage() {
 
       let improvement = 0;
       if (completed.length >= 2) {
-        const firstScore = completed[completed.length - 1].report!.overallScore;
-        const lastScore = completed[0].report!.overallScore;
-        improvement = lastScore - firstScore;
+        const firstScore = completed[completed.length - 1].report?.overallScore;
+        const lastScore = completed[0].report?.overallScore;
+        if (firstScore !== undefined && lastScore !== undefined) {
+          improvement = lastScore - firstScore;
+          // Check for NaN and set to 0 if invalid
+          if (isNaN(improvement) || !isFinite(improvement)) {
+            improvement = 0;
+          }
+        }
       }
 
       setStats({
@@ -193,8 +199,14 @@ export default function AnalyticsPage() {
                 stats.improvement >= 0 ? "text-green-600" : "text-red-600"
               }`}
             >
-              {stats.improvement >= 0 ? "+" : ""}
-              {stats.improvement}%
+              {stats.improvement !== undefined && !isNaN(stats.improvement) ? (
+                <>
+                  {stats.improvement >= 0 ? "+" : ""}
+                  {stats.improvement}%
+                </>
+              ) : (
+                "0%"
+              )}
             </CardTitle>
           </CardHeader>
           <CardContent>
