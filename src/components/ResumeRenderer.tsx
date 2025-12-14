@@ -25,6 +25,93 @@ import {
   Github,
 } from "lucide-react";
 
+// Profile Picture Image Component with forced re-render on URL change
+// Handles S3 presigned URLs correctly by preserving their signature
+const ProfilePictureImage = ({
+  src,
+  alt,
+  style,
+}: {
+  src: string;
+  alt: string;
+  style: React.CSSProperties;
+}) => {
+  const [imageKey, setImageKey] = useState(0);
+  const imageRef = useRef<HTMLImageElement>(null);
+  const previousSrcRef = useRef<string>("");
+
+  // Force re-render when src changes
+  useEffect(() => {
+    if (src && src !== previousSrcRef.current) {
+      previousSrcRef.current = src;
+      // Force image reload by updating key
+      setImageKey((prev) => prev + 1);
+    }
+  }, [src]);
+
+  const handleError = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
+    const target = e.target as HTMLImageElement;
+    // Retry with fresh cache-busting parameter (only for non-presigned URLs)
+    if (target && src && !src.includes("X-Amz-Signature")) {
+      const separator = src.includes("?") ? "&" : "?";
+      target.src = `${src}${separator}_retry=${Date.now()}`;
+    }
+  };
+
+  // Check if this is an S3 presigned URL (don't add cache-busting to preserve signature)
+  const isPresignedUrl = useMemo(() => {
+    return (
+      src &&
+      (src.includes("X-Amz-Signature") ||
+        src.includes("s3.amazonaws.com") ||
+        src.includes("amazonaws.com"))
+    );
+  }, [src]);
+
+  // Show placeholder if no src
+  if (!src || src.trim() === "") {
+    return (
+      <div
+        style={{
+          ...style,
+          backgroundColor: "#e5e7eb",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          color: "#9ca3af",
+          fontSize: "24px",
+        }}
+      >
+        👤
+      </div>
+    );
+  }
+
+  // For S3 presigned URLs, don't modify the URL - just use key prop to force re-render
+  // For other URLs, add cache-busting if needed
+  const finalSrc = useMemo(() => {
+    if (isPresignedUrl) {
+      // Don't modify presigned URLs - they're already signed with specific parameters
+      return src;
+    }
+    // For non-presigned URLs, add cache-busting
+    const separator = src.includes("?") ? "&" : "?";
+    return `${src}${separator}_v=${imageKey}`;
+  }, [src, imageKey, isPresignedUrl]);
+
+  return (
+    <img
+      ref={imageRef}
+      key={`profile-img-${src}-${imageKey}`}
+      src={finalSrc}
+      alt={alt}
+      crossOrigin="anonymous"
+      style={style}
+      onError={handleError}
+    />
+  );
+};
+
 interface Section {
   id: string;
   type: string;
@@ -774,13 +861,11 @@ export function ResumeRenderer({
               </div>
 
               {/* Profile Picture for Atlantic Blue */}
-              {resume.content.personalInfo.profilePicture && (
-                <div style={{ textAlign: "center", marginBottom: "20px" }}>
-                  <img
-                    key={`profile-${resume.content.personalInfo.profilePicture}`}
+              <div style={{ textAlign: "center", marginBottom: "20px" }}>
+                {resume.content.personalInfo?.profilePicture ? (
+                  <ProfilePictureImage
                     src={resume.content.personalInfo.profilePicture}
                     alt="Profile"
-                    crossOrigin="anonymous"
                     style={{
                       width: "120px",
                       height: "120px",
@@ -789,8 +874,21 @@ export function ResumeRenderer({
                       border: "3px solid #ffffff",
                     }}
                   />
-                </div>
-              )}
+                ) : (
+                  <svg
+                    width="120"
+                    height="120"
+                    viewBox="0 0 120 120"
+                    style={{
+                      borderRadius: "50%",
+                      backgroundColor: "#e5e7eb",
+                    }}
+                  >
+                    <circle cx="60" cy="45" r="20" fill="#9ca3af" />
+                    <ellipse cx="60" cy="95" rx="30" ry="25" fill="#9ca3af" />
+                  </svg>
+                )}
+              </div>
 
               {renderContactInfo()}
               {renderAdditionalPersonalInfo(true)}
@@ -1133,12 +1231,10 @@ export function ResumeRenderer({
               >
                 {/* Profile Picture on Left */}
                 <div style={{ flexShrink: 0 }}>
-                  {resume.content.personalInfo.profilePicture ? (
-                    <img
-                      key={`profile-${resume.content.personalInfo.profilePicture}`}
+                  {resume.content.personalInfo?.profilePicture ? (
+                    <ProfilePictureImage
                       src={resume.content.personalInfo.profilePicture}
                       alt="Profile"
-                      crossOrigin="anonymous"
                       style={{
                         width: "120px",
                         height: "120px",
@@ -2231,6 +2327,24 @@ export function ResumeRenderer({
             }}
           >
             {renderSectionHeader(section.title, isInSidebar, section.type)}
+            {/* Add style tag to override CSS class color for sidebar */}
+            {isInSidebar && (
+              <style
+                dangerouslySetInnerHTML={{
+                  __html: `
+                    .awards-sidebar-content,
+                    .awards-sidebar-content *,
+                    .awards-sidebar-content p,
+                    .awards-sidebar-content span,
+                    .awards-sidebar-content div {
+                      color: ${
+                        templateStyle.colors.sidebarText || "#ffffff"
+                      } !important;
+                    }
+                  `,
+                }}
+              />
+            )}
             <div>
               {awardsData.map((award, index) => (
                 <div key={index} style={{ marginBottom: "8px" }}>
@@ -2249,7 +2363,9 @@ export function ResumeRenderer({
                     <div
                       style={{
                         fontSize: `${templateStyle.fontSize.small}px`,
-                        color: templateStyle.colors.secondary,
+                        color: isInSidebar
+                          ? templateStyle.colors.sidebarText || "#ffffff"
+                          : templateStyle.colors.secondary,
                       }}
                     >
                       {award.issuer} • {award.date}
@@ -2257,15 +2373,19 @@ export function ResumeRenderer({
                   )}
                   {award.description && (
                     <div
+                      className={
+                        isInSidebar
+                          ? "resume-content awards-sidebar-content"
+                          : "resume-content mercury-awards-content"
+                      }
                       style={{
                         fontSize: `${templateStyle.fontSize.small}px`,
                         color: isInSidebar
-                          ? templateStyle.colors.sidebarText
+                          ? templateStyle.colors.sidebarText || "#ffffff"
                           : templateStyle.colors.text,
                         marginTop: "4px",
                         lineHeight: "1.4",
                       }}
-                      className="resume-content mercury-awards-content"
                       dangerouslySetInnerHTML={{
                         __html: award.description,
                       }}

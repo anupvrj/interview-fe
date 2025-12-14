@@ -2028,7 +2028,8 @@ export default function EditResumePage() {
                                           .profilePictureUrl;
 
                                       // Update resume state with new profile picture URL
-                                      // Use functional update to ensure we have the latest state and force re-render
+                                      // ProfilePictureImage component will keep previous image visible
+                                      // until the new one loads, preventing alt text from showing
                                       setResume((prevResume) => {
                                         if (!prevResume) return prevResume;
                                         return {
@@ -2047,8 +2048,10 @@ export default function EditResumePage() {
                                       // Trigger hasChanges to enable autosave
                                       setHasChanges(true);
 
-                                      // Keep the filename after successful upload
-                                      // Don't reset it - we want to show the filename
+                                      console.log(
+                                        "Profile picture updated in state:",
+                                        profilePictureUrl
+                                      );
                                     }
                                   } catch (error) {
                                     console.error(
