@@ -79,6 +79,7 @@ export default function EditResumePage() {
   const [refreshingATS, setRefreshingATS] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [profilePictureFileName, setProfilePictureFileName] = useState("");
+  const [previewKey, setPreviewKey] = useState(0);
   const [editingSectionTitle, setEditingSectionTitle] = useState<string | null>(
     null
   );
@@ -196,6 +197,8 @@ export default function EditResumePage() {
       });
 
       setResume(resumeData);
+      // Force preview to re-render when resume loads
+      setPreviewKey((prev) => prev + 1);
 
       // Extract filename from profile picture URL if it exists
       if (resumeData.content.personalInfo?.profilePicture) {
@@ -341,6 +344,8 @@ export default function EditResumePage() {
             ...missingCustomSections,
           ];
           setResume(resumeData);
+          // Force preview to re-render when resume updates
+          setPreviewKey((prev) => prev + 1);
 
           // Immediately save missing custom sections to database to prevent data loss on reload
           (async () => {
@@ -2028,8 +2033,6 @@ export default function EditResumePage() {
                                           .profilePictureUrl;
 
                                       // Update resume state with new profile picture URL
-                                      // ProfilePictureImage component will keep previous image visible
-                                      // until the new one loads, preventing alt text from showing
                                       setResume((prevResume) => {
                                         if (!prevResume) return prevResume;
                                         return {
@@ -2044,6 +2047,10 @@ export default function EditResumePage() {
                                           },
                                         };
                                       });
+
+                                      // Force resume preview to re-render by updating key
+                                      // This ensures the image loads immediately after upload
+                                      setPreviewKey((prev) => prev + 1);
 
                                       // Trigger hasChanges to enable autosave
                                       setHasChanges(true);
@@ -6249,6 +6256,7 @@ export default function EditResumePage() {
           <div className="p-4">
             {template ? (
               <ResumePreview
+                key={`resume-preview-${previewKey}`}
                 resume={resume}
                 template={template}
                 sections={sections}
