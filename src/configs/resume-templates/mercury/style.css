@@ -1,0 +1,191 @@
+/**
+ * Mercury Template Styles
+ * ATS-optimized template with clean design
+ */
+
+/* Template Container */
+.mercury-template {
+  font-family: Arial, Calibri, sans-serif;
+  color: #111827;
+  background-color: #ffffff;
+  padding: 20px;
+  line-height: 1.5;
+}
+
+/* Header Styles - Left Aligned */
+.mercury-header {
+  text-align: left;
+  margin-bottom: 24px;
+}
+
+.mercury-name {
+  font-size: 24px;
+  font-weight: bold;
+  color: #374151;
+  margin-bottom: 8px;
+}
+
+.mercury-job-title {
+  font-size: 16px;
+  color: #6b7280;
+  margin-bottom: 12px;
+}
+
+.mercury-contact {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 11px;
+  color: #374151;
+  margin-top: 12px;
+}
+
+.mercury-contact-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Section Header Styles - Background */
+.mercury-section-header {
+  background-color: #f5f5f5;
+  text-align: center;
+  font-size: 14px;
+  font-weight: bold;
+  text-transform: uppercase;
+  padding: 8px 12px;
+  margin-bottom: 12px;
+  margin-top: 20px;
+  color: #374151;
+  letter-spacing: 0.5px;
+  border-radius: 0px;
+}
+
+/* Profile Summary */
+.mercury-summary {
+  font-size: 11px;
+  line-height: 1.6;
+  color: #111827;
+  margin-bottom: 16px;
+}
+
+/* Experience Styles - Grid Layout */
+.mercury-experience-item {
+  display: grid;
+  grid-template-columns: 180px 1fr;
+  gap: 16px;
+  margin-bottom: 16px;
+  page-break-inside: avoid;
+}
+
+.mercury-date-location-column {
+  font-size: 10px;
+  color: #6b7280;
+  line-height: 1.4;
+}
+
+.mercury-date {
+  font-weight: bold;
+  display: block;
+  margin-bottom: 4px;
+  color: #374151;
+}
+
+.mercury-location {
+  display: block;
+}
+
+.mercury-job-content {
+  flex: 1;
+}
+
+.mercury-job-title {
+  font-size: 11px;
+  font-weight: bold;
+  color: #111827;
+  margin-bottom: 2px;
+}
+
+.mercury-company {
+  font-size: 11px;
+  color: #374151;
+  margin-bottom: 8px;
+}
+
+.mercury-description {
+  font-size: 11px;
+  line-height: 1.5;
+  color: #111827;
+}
+
+.mercury-description ul {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.mercury-description li {
+  margin-bottom: 4px;
+}
+
+/* Skills Styles */
+.mercury-skills-list {
+  font-size: 11px;
+  color: #111827;
+  line-height: 1.6;
+}
+
+.mercury-skill-category {
+  margin-bottom: 10px;
+}
+
+.mercury-skill-category-name {
+  font-weight: bold;
+  color: #374151;
+  margin-bottom: 4px;
+}
+
+/* Education Styles */
+.mercury-education-item {
+  margin-bottom: 12px;
+}
+
+.mercury-degree {
+  font-size: 11px;
+  font-weight: bold;
+  color: #111827;
+  margin-bottom: 4px;
+}
+
+.mercury-institution {
+  font-size: 11px;
+  color: #374151;
+  margin-bottom: 4px;
+}
+
+.mercury-education-date {
+  font-size: 10px;
+  color: #6b7280;
+}
+
+/* ATS-Friendly Elements */
+.mercury-ats-friendly {
+  /* Clear structure for ATS parsing */
+  clear: both;
+  display: block;
+}
+
+/* Print Styles */
+@media print {
+  .mercury-template {
+    padding: 20mm;
+  }
+  
+  .mercury-experience-item {
+    page-break-inside: avoid;
+  }
+  
+  .mercury-section-header {
+    page-break-after: avoid;
+  }
+}
+

@@ -1,0 +1,182 @@
+/**
+ * Classic Template Styles
+ * Traditional resume with timeless design
+ */
+
+/* Template Container */
+.classic-template {
+  font-family: 'Times New Roman', Times, serif;
+  color: #000000;
+  background-color: #ffffff;
+  padding: 8px;
+  line-height: 1.4;
+}
+
+/* Header Styles - Centered */
+.classic-header {
+  text-align: center;
+  margin-bottom: 24px;
+  border-bottom: 2px solid #000000;
+  padding-bottom: 16px;
+}
+
+.classic-name {
+  font-size: 24px;
+  font-weight: bold;
+  color: #000000;
+  margin-bottom: 8px;
+  letter-spacing: 1px;
+}
+
+.classic-job-title {
+  font-size: 16px;
+  color: #666666;
+  margin-bottom: 12px;
+}
+
+.classic-contact {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  font-size: 11px;
+  color: #333333;
+  margin-top: 12px;
+}
+
+.classic-contact-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Section Header Styles */
+.classic-section-header {
+  font-size: 13px;
+  font-weight: bold;
+  text-transform: uppercase;
+  text-align: left;
+  border-bottom: 1px solid #000000;
+  padding-bottom: 4px;
+  margin-bottom: 12px;
+  margin-top: 18px;
+  color: #000000;
+}
+
+/* Profile Summary */
+.classic-summary {
+  font-size: 11px;
+  line-height: 1.6;
+  color: #000000;
+  margin-bottom: 16px;
+  text-align: justify;
+}
+
+/* Experience Styles */
+.classic-experience-item {
+  margin-bottom: 16px;
+  page-break-inside: avoid;
+}
+
+.classic-job-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 4px;
+}
+
+.classic-job-title {
+  font-size: 11px;
+  font-weight: bold;
+  color: #000000;
+}
+
+.classic-job-date {
+  font-size: 10px;
+  color: #666666;
+  font-style: italic;
+}
+
+.classic-company {
+  font-size: 11px;
+  color: #333333;
+  margin-bottom: 6px;
+  font-style: italic;
+}
+
+.classic-description {
+  font-size: 11px;
+  line-height: 1.5;
+  color: #000000;
+}
+
+.classic-description ul {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.classic-description li {
+  margin-bottom: 4px;
+}
+
+/* Skills Styles */
+.classic-skills-list {
+  font-size: 11px;
+  color: #000000;
+  line-height: 1.6;
+}
+
+.classic-skill-category {
+  margin-bottom: 8px;
+}
+
+.classic-skill-category-name {
+  font-weight: bold;
+  margin-bottom: 4px;
+}
+
+/* Education Styles */
+.classic-education-item {
+  margin-bottom: 12px;
+}
+
+.classic-degree {
+  font-size: 11px;
+  font-weight: bold;
+  color: #000000;
+  margin-bottom: 4px;
+}
+
+.classic-institution {
+  font-size: 11px;
+  color: #333333;
+  margin-bottom: 4px;
+}
+
+.classic-education-date {
+  font-size: 10px;
+  color: #666666;
+  font-style: italic;
+}
+
+/* Traditional Styling Elements */
+.classic-bullet {
+  color: #000000;
+  font-weight: bold;
+}
+
+/* Print Styles */
+@media print {
+  .classic-template {
+    padding: 8mm;
+  }
+  
+  .classic-section {
+    page-break-inside: avoid;
+  }
+  
+  .classic-header {
+    page-break-after: avoid;
+  }
+}
+

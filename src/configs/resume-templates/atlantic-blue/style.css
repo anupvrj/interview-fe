@@ -1,0 +1,175 @@
+/**
+ * Atlantic Blue Template Styles
+ * Modern two-column template with blue sidebar
+ */
+
+/* Template Container */
+.atlantic-blue-template {
+  font-family: Arial, Helvetica, sans-serif;
+  color: #000000;
+  background-color: #ffffff;
+  line-height: 1.4;
+}
+
+/* Header Styles */
+.atlantic-blue-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.atlantic-blue-header-left {
+  flex: 1;
+}
+
+.atlantic-blue-header-right {
+  flex: 1;
+  text-align: right;
+}
+
+.atlantic-blue-name {
+  font-size: 22px;
+  font-weight: bold;
+  color: #2c3e50;
+  margin-bottom: 8px;
+}
+
+.atlantic-blue-job-title {
+  font-size: 16px;
+  color: #3498db;
+  margin-bottom: 12px;
+}
+
+/* Sidebar Styles */
+.atlantic-blue-sidebar {
+  background-color: #2c3e50;
+  color: #ffffff;
+  padding: 20px;
+  min-height: 100%;
+}
+
+.atlantic-blue-sidebar-section {
+  margin-bottom: 24px;
+}
+
+.atlantic-blue-sidebar .section-header {
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: bold;
+  text-transform: uppercase;
+  margin-bottom: 12px;
+  padding: 8px 0;
+}
+
+/* Main Content Styles */
+.atlantic-blue-main-content {
+  padding: 20px;
+}
+
+.atlantic-blue-section {
+  margin-bottom: 20px;
+}
+
+/* Section Header Styles */
+.atlantic-blue-section-header {
+  background-color: #ecf0f1;
+  text-align: center;
+  font-size: 12px;
+  font-weight: bold;
+  text-transform: uppercase;
+  padding: 8px 12px;
+  margin-bottom: 12px;
+}
+
+/* Contact Info Styles */
+.atlantic-blue-contact {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.atlantic-blue-contact-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #ffffff;
+  font-size: 11px;
+}
+
+.atlantic-blue-contact-icon {
+  width: 16px;
+  height: 16px;
+  color: #3498db;
+}
+
+/* Skills Styles */
+.atlantic-blue-skills-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.atlantic-blue-skill-item {
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  font-size: 11px;
+}
+
+/* Experience Styles */
+.atlantic-blue-experience-item {
+  margin-bottom: 16px;
+}
+
+.atlantic-blue-job-title-exp {
+  font-size: 13px;
+  font-weight: bold;
+  color: #000000;
+  margin-bottom: 4px;
+}
+
+.atlantic-blue-company {
+  font-size: 12px;
+  color: #3498db;
+  margin-bottom: 4px;
+}
+
+.atlantic-blue-date-location {
+  font-size: 10px;
+  color: #666666;
+  margin-bottom: 8px;
+}
+
+.atlantic-blue-description {
+  font-size: 11px;
+  color: #000000;
+  line-height: 1.5;
+}
+
+/* Two Column Layout */
+.atlantic-blue-two-column {
+  display: flex;
+  gap: 0;
+}
+
+.atlantic-blue-left-column {
+  width: 35%;
+  background-color: #2c3e50;
+  color: #ffffff;
+}
+
+.atlantic-blue-right-column {
+  width: 65%;
+  background-color: #ffffff;
+}
+
+/* Responsive adjustments */
+@media print {
+  .atlantic-blue-template {
+    padding: 0;
+  }
+  
+  .atlantic-blue-two-column {
+    break-inside: avoid;
+  }
+}
+

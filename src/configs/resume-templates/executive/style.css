@@ -1,0 +1,214 @@
+/**
+ * Executive Template Styles
+ * Sophisticated template with Times New Roman font
+ */
+
+/* Template Container */
+.executive-template {
+  font-family: 'Times New Roman', Times, serif;
+  color: #000000;
+  background-color: #ffffff;
+  padding: 8px;
+  line-height: 1.4;
+}
+
+/* Header Styles */
+.executive-header {
+  text-align: left;
+  margin-bottom: 20px;
+  border-bottom: 2px solid #000000;
+  padding-bottom: 12px;
+}
+
+.executive-name {
+  font-size: 28px;
+  font-weight: bold;
+  color: #000000;
+  margin-bottom: 6px;
+  letter-spacing: 0.5px;
+}
+
+.executive-job-title {
+  font-size: 20px;
+  color: #333333;
+  margin-bottom: 10px;
+  font-weight: 500;
+}
+
+.executive-contact {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  font-size: 10px;
+  color: #666666;
+  margin-top: 10px;
+}
+
+.executive-contact-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Section Header Styles */
+.executive-section-header {
+  font-size: 12px;
+  font-weight: bold;
+  color: #000000;
+  border-bottom: 3px solid #000000;
+  padding-bottom: 4px;
+  margin-bottom: 12px;
+  margin-top: 16px;
+  text-align: left;
+}
+
+/* Profile Summary */
+.executive-summary {
+  font-size: 10px;
+  line-height: 1.6;
+  color: #000000;
+  margin-bottom: 16px;
+  text-align: justify;
+}
+
+/* Experience Styles - Grid Layout */
+.executive-experience-item {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: 12px;
+  margin-bottom: 16px;
+  page-break-inside: avoid;
+}
+
+.executive-date-location {
+  font-size: 9px;
+  color: #666666;
+  line-height: 1.4;
+}
+
+.executive-date {
+  font-weight: bold;
+  display: block;
+  margin-bottom: 2px;
+}
+
+.executive-location {
+  display: block;
+  font-style: italic;
+}
+
+.executive-job-content {
+  flex: 1;
+}
+
+.executive-job-title {
+  font-size: 10px;
+  font-weight: bold;
+  color: #000000;
+  margin-bottom: 2px;
+}
+
+.executive-company {
+  font-size: 10px;
+  color: #333333;
+  margin-bottom: 6px;
+  font-style: italic;
+}
+
+.executive-description {
+  font-size: 10px;
+  line-height: 1.5;
+  color: #000000;
+}
+
+.executive-description ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.executive-description li {
+  margin-bottom: 3px;
+}
+
+/* Skills Styles - Dots Rating */
+.executive-skills-container {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.executive-skill-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.executive-skill-name {
+  font-size: 10px;
+  color: #000000;
+  font-weight: 500;
+}
+
+.executive-skill-rating {
+  display: flex;
+  gap: 4px;
+}
+
+.executive-skill-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: #d0d0d0;
+}
+
+.executive-skill-dot.filled {
+  background-color: #000000;
+}
+
+/* Education Styles */
+.executive-education-item {
+  margin-bottom: 12px;
+}
+
+.executive-degree {
+  font-size: 10px;
+  font-weight: bold;
+  color: #000000;
+  margin-bottom: 3px;
+}
+
+.executive-institution {
+  font-size: 10px;
+  color: #333333;
+  margin-bottom: 3px;
+}
+
+.executive-education-date {
+  font-size: 9px;
+  color: #666666;
+}
+
+/* Elegant Dividers */
+.executive-divider {
+  height: 1px;
+  background: linear-gradient(to right, #000000, transparent);
+  margin: 16px 0;
+}
+
+/* Print Styles */
+@media print {
+  .executive-template {
+    padding: 8mm;
+  }
+  
+  .executive-experience-item {
+    page-break-inside: avoid;
+  }
+  
+  .executive-section-header {
+    page-break-after: avoid;
+  }
+}
+

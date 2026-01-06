@@ -1,0 +1,170 @@
+/**
+ * True Blue Template Styles
+ * Clean and straightforward professional template
+ */
+
+/* Template Container */
+.true-blue-template {
+  font-family: Arial, Helvetica, sans-serif;
+  color: #000000;
+  background-color: #ffffff;
+  padding: 8px;
+  line-height: 1.4;
+}
+
+/* Header Styles - Left Aligned */
+.true-blue-header {
+  text-align: left;
+  margin-bottom: 24px;
+  border-bottom: 1px solid #000000;
+  padding-bottom: 12px;
+}
+
+.true-blue-name {
+  font-size: 22px;
+  font-weight: bold;
+  color: #000000;
+  margin-bottom: 8px;
+}
+
+.true-blue-job-title {
+  font-size: 16px;
+  color: #5a5a5a;
+  margin-bottom: 12px;
+}
+
+.true-blue-contact {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 11px;
+  color: #000000;
+  margin-top: 12px;
+}
+
+.true-blue-contact-separator {
+  color: #5a5a5a;
+}
+
+/* Section Header Styles */
+.true-blue-section-header {
+  font-size: 12px;
+  font-weight: bold;
+  text-transform: uppercase;
+  text-align: left;
+  border-bottom: 1px solid #000000;
+  padding-bottom: 4px;
+  margin-bottom: 12px;
+  margin-top: 18px;
+  color: #000000;
+}
+
+/* Profile Summary */
+.true-blue-summary {
+  font-size: 11px;
+  line-height: 1.6;
+  color: #000000;
+  margin-bottom: 16px;
+}
+
+/* Experience Styles */
+.true-blue-experience-item {
+  margin-bottom: 16px;
+  page-break-inside: avoid;
+}
+
+.true-blue-job-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 4px;
+}
+
+.true-blue-job-title-exp {
+  font-size: 11px;
+  font-weight: bold;
+  color: #000000;
+}
+
+.true-blue-job-date {
+  font-size: 10px;
+  color: #5a5a5a;
+}
+
+.true-blue-company {
+  font-size: 11px;
+  color: #000000;
+  margin-bottom: 6px;
+}
+
+.true-blue-description {
+  font-size: 11px;
+  line-height: 1.5;
+  color: #000000;
+}
+
+.true-blue-description ul {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.true-blue-description li {
+  margin-bottom: 4px;
+}
+
+/* Skills Styles */
+.true-blue-skills-list {
+  font-size: 11px;
+  color: #000000;
+  line-height: 1.6;
+}
+
+.true-blue-skill-category {
+  margin-bottom: 8px;
+}
+
+.true-blue-skill-category-name {
+  font-weight: bold;
+  margin-bottom: 4px;
+}
+
+/* Education Styles */
+.true-blue-education-item {
+  margin-bottom: 12px;
+}
+
+.true-blue-degree {
+  font-size: 11px;
+  font-weight: bold;
+  color: #000000;
+  margin-bottom: 4px;
+}
+
+.true-blue-institution {
+  font-size: 11px;
+  color: #000000;
+  margin-bottom: 4px;
+}
+
+.true-blue-education-date {
+  font-size: 10px;
+  color: #5a5a5a;
+}
+
+/* Clean Design Elements */
+.true-blue-simple-divider {
+  height: 1px;
+  background-color: #e0e0e0;
+  margin: 12px 0;
+}
+
+/* Print Styles */
+@media print {
+  .true-blue-template {
+    padding: 8mm;
+  }
+
+  .true-blue-section {
+    page-break-inside: avoid;
+  }
+}

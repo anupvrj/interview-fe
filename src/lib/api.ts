@@ -692,18 +692,59 @@ export interface Resume {
 }
 
 export const resumeApi = {
+  /**
+   * Get All Templates
+   * Dynamically imports template configurations from individual folders
+   * This approach allows adding new templates without backend changes
+   */
   getTemplates: async (): Promise<ResumeTemplate[]> => {
-    const response = await apiClient.get<{ data: ResumeTemplate[] }>(
-      "/templates"
-    );
-    return response.data.data;
+    // Dynamically import all template configurations
+    const [
+      { atlanticblueConfig },
+      { cleanslateConfig },
+      { executiveConfig },
+      { classicConfig },
+      { corporateConfig },
+      { harvardConfig },
+      { trueblueConfig },
+      { mercuryConfig },
+    ] = await Promise.all([
+      import("../configs/resume-templates/atlantic-blue/config"),
+      import("../configs/resume-templates/clean-slate/config"),
+      import("../configs/resume-templates/executive/config"),
+      import("../configs/resume-templates/classic/config"),
+      import("../configs/resume-templates/corporate/config"),
+      import("../configs/resume-templates/harvard/config"),
+      import("../configs/resume-templates/true-blue/config"),
+      import("../configs/resume-templates/mercury/config"),
+    ]);
+
+    // Return array of base templates
+    return [
+      atlanticblueConfig.template,
+      cleanslateConfig.template,
+      executiveConfig.template,
+      classicConfig.template,
+      corporateConfig.template,
+      harvardConfig.template,
+      trueblueConfig.template,
+      mercuryConfig.template,
+    ].filter(Boolean) as ResumeTemplate[];
   },
 
+  /**
+   * Get Single Template
+   * Finds a specific template by ID from the available templates
+   */
   getTemplate: async (templateId: string): Promise<ResumeTemplate> => {
-    const response = await apiClient.get<{ data: ResumeTemplate }>(
-      `/templates/${templateId}`
-    );
-    return response.data.data;
+    const templates = await resumeApi.getTemplates();
+    const template = templates.find((t) => t.id === templateId);
+    
+    if (!template) {
+      throw new Error(`Template not found: ${templateId}`);
+    }
+    
+    return template;
   },
 
   create: async (
