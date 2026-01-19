@@ -1,9 +1,9 @@
 /**
  * Classic Template Configuration
- * 
+ *
  * Traditional resume template with Times New Roman font and centered header.
  * Features classic styling with border-bottom section headers.
- * 
+ *
  * @template classic
  * @category simple
  */
@@ -29,12 +29,12 @@ export const classicTemplate: ResumeTemplate = {
   },
   layout: {
     headerStyle: "centered",
-    sectionSpacing: 9,
-    fontFamily: "'Times New Roman', Times, serif",
+    sectionSpacing: 10,
+    fontFamily: "'Zilla Slab', serif",
     fontSize: {
-      heading: 24,
-      subheading: 16,
-      body: 11,
+      heading: 28,
+      subheading: 14,
+      body: 10.5,
     },
   },
   atsOptimized: true,
@@ -43,29 +43,30 @@ export const classicTemplate: ResumeTemplate = {
 export const classicExtendedConfig: Partial<ExtendedResumeTemplate> = {
   // Minimal style config for renderer (detailed CSS in style.css)
   style: {
-    fontFamily: "'Times New Roman', Times, serif",
-    fontSize: { heading: 24, subheading: 16, body: 11, small: 10 },
+    fontFamily: "'Zilla Slab', serif",
+    fontSize: { heading: 28, subheading: 14, body: 10.5, small: 9.5 },
     lineHeight: 1.4,
     colors: {
       primary: "#000000",
-      secondary: "#666666",
+      secondary: "#000000",
       accent: "#333333",
       text: "#000000",
       background: "#ffffff",
     },
     headerStyle: "centered",
-    sectionSpacing: 9,
+    sectionSpacing: 10,
     padding: { top: 8, bottom: 8, left: 8, right: 8 },
     sectionHeader: {
       style: "border-bottom",
-      borderWidth: 1,
+      borderWidth: 1.5,
       borderColor: "#000000",
       textAlign: "left",
-      fontSize: 13,
+      fontSize: 11,
       fontWeight: "bold",
       marginBottom: "8px",
-      paddingBottom: "4px",
+      paddingBottom: "3px",
       textTransform: "uppercase",
+      letterSpacing: "0.5px",
     },
     skillsDisplay: { type: "list", showRatings: false },
     timelineLayout: { type: "vertical", datePosition: "right" },
@@ -96,3 +97,7 @@ export const classicConfig: TemplateConfig = {
   extended: classicExtendedConfig,
 };
 
+/**
+ * Default export for dynamic imports
+ */
+export default classicConfig;

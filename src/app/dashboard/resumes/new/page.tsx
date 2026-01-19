@@ -106,7 +106,115 @@ export default function NewResumePage() {
 
   const handleSkip = () => {
     setStep("processing");
-    handleCreateResume();
+    handleCreateResumeWithDummyContent();
+  };
+
+  const handleCreateResumeWithDummyContent = async () => {
+    if (!selectedTemplate || !user) return;
+
+    try {
+      setCreating(true);
+      setStep("processing");
+
+      console.log("📋 Loading dummy content from template...");
+
+      // Load dummy content from template (no LLM call needed)
+      const { TemplateLoader } = await import("@/lib/templateLoader");
+      const dummyContent = await TemplateLoader.loadDummyContent(
+        selectedTemplate
+      );
+
+      console.log("✅ Dummy content loaded:", dummyContent);
+
+      // If no template-specific dummy content, use a basic structure
+      const contentToUse = dummyContent || {
+        personalInfo: {
+          fullName: "John Doe",
+          email: "john.doe@email.com",
+          phone: "+1 234-567-8900",
+          location: "San Francisco, CA",
+          linkedin: "john-doe",
+          github: "johndoe",
+          portfolio: "Software Engineer",
+        },
+        profileSummary:
+          "Experienced professional with a strong background in software development and project management.",
+        experience: [],
+        education: [],
+        skills: [],
+      };
+
+      // Prepare template config for backend
+      const templateConfig = await TemplateLoader.loadTemplate(selectedTemplate);
+      const extended = templateConfig.extended;
+
+      // Extract layout from extended config
+      const renderingLayout = extended.rendering?.layout;
+      const initialLayout = {
+        type: (renderingLayout?.type === "header-plus-columns" ? "double" : (renderingLayout?.type || "single")) as "single" | "double",
+        columnWidths: renderingLayout?.columnWidths || { left: 60, right: 40 },
+        padding: extended.style?.padding || { top: 10, bottom: 10, left: 10, right: 10 },
+      };
+
+      // Prepare section order with column assignments
+      let sectionOrder = extended.defaultSectionOrder || [];
+      if (initialLayout.type === "double") {
+        const hasColumnAssignment = renderingLayout?.columnAssignment && 
+          (renderingLayout.columnAssignment.left.length > 0 || renderingLayout.columnAssignment.right.length > 0);
+        
+        if (hasColumnAssignment) {
+          // Use explicit column assignments from config
+          sectionOrder = sectionOrder.map((s) => ({
+            ...s,
+            column: renderingLayout.columnAssignment?.left.includes(s.id)
+              ? ("left" as const)
+              : renderingLayout.columnAssignment?.right.includes(s.id)
+              ? ("right" as const)
+              : ("left" as const),
+          }));
+        } else {
+          // No explicit assignments - use alternating distribution
+          // Skip personalInfo (header) - don't assign it a column
+          // Distribute remaining sections evenly: 1st→left, 2nd→right, 3rd→left, etc.
+          let nonPersonalIndex = 0;
+          sectionOrder = sectionOrder.map((s) => {
+            if (s.id === "personalInfo") {
+              return s; // No column assignment for header
+            }
+            const column = nonPersonalIndex % 2 === 0 ? ("left" as const) : ("right" as const);
+            nonPersonalIndex++;
+            return { ...s, column };
+          });
+        }
+      }
+
+      // Create resume with dummy content (no API extraction needed)
+      const resume = await resumeApi.create(user.id, {
+        templateId: selectedTemplate,
+        title: "My Resume",
+        content: contentToUse,
+        sectionOrder,
+        layout: initialLayout,
+      });
+
+      console.log("✅ Resume created with dummy content:", resume.resumeId);
+      router.push(`/dashboard/resumes/${resume.resumeId}/edit`);
+    } catch (error: any) {
+      console.error("❌ Error creating resume with dummy content:", error);
+
+      // Reset step back to upload so user can try again
+      setStep("upload");
+
+      alert(
+        `Failed to create resume: ${
+          error?.response?.data?.message ||
+          error?.message ||
+          "Please try again."
+        }`
+      );
+    } finally {
+      setCreating(false);
+    }
   };
 
   const handleCreateResume = async () => {
@@ -116,22 +224,74 @@ export default function NewResumePage() {
       setCreating(true);
       setStep("processing");
 
-      // Extract resume data (with or without uploaded resume)
+      console.log("📋 Extracting resume data from uploaded text...");
+
+      // Extract resume data using LLM (only when resume is uploaded)
       const extractedData = await resumeDataExtractionApi.extractResumeData(
         selectedTemplate,
-        resumeText || undefined
+        resumeText // Will have content since this is called after upload
       );
+
+      console.log("✅ Data extracted via LLM");
+
+      // Prepare template config for backend
+      const { TemplateLoader } = await import("@/lib/templateLoader");
+      const templateConfig = await TemplateLoader.loadTemplate(selectedTemplate);
+      const extended = templateConfig.extended;
+
+      // Extract layout from extended config
+      const renderingLayout = extended.rendering?.layout;
+      const initialLayout = {
+        type: (renderingLayout?.type === "header-plus-columns" ? "double" : (renderingLayout?.type || "single")) as "single" | "double",
+        columnWidths: renderingLayout?.columnWidths || { left: 60, right: 40 },
+        padding: extended.style?.padding || { top: 10, bottom: 10, left: 10, right: 10 },
+      };
+
+      // Prepare section order with column assignments
+      let sectionOrder = extended.defaultSectionOrder || [];
+      if (initialLayout.type === "double") {
+        const hasColumnAssignment = renderingLayout?.columnAssignment && 
+          (renderingLayout.columnAssignment.left.length > 0 || renderingLayout.columnAssignment.right.length > 0);
+        
+        if (hasColumnAssignment) {
+          // Use explicit column assignments from config
+          sectionOrder = sectionOrder.map((s) => ({
+            ...s,
+            column: renderingLayout.columnAssignment?.left.includes(s.id)
+              ? ("left" as const)
+              : renderingLayout.columnAssignment?.right.includes(s.id)
+              ? ("right" as const)
+              : ("left" as const),
+          }));
+        } else {
+          // No explicit assignments - use alternating distribution
+          // Skip personalInfo (header) - don't assign it a column
+          // Distribute remaining sections evenly: 1st→left, 2nd→right, 3rd→left, etc.
+          let nonPersonalIndex = 0;
+          sectionOrder = sectionOrder.map((s) => {
+            if (s.id === "personalInfo") {
+              return s; // No column assignment for header
+            }
+            const column = nonPersonalIndex % 2 === 0 ? ("left" as const) : ("right" as const);
+            nonPersonalIndex++;
+            return { ...s, column };
+          });
+        }
+      }
 
       // Create resume with extracted data
       const resume = await resumeApi.create(user.id, {
         templateId: selectedTemplate,
         title: "My Resume",
         content: mapExtractedDataToResumeContent(extractedData.sections),
+        sectionOrder,
+        layout: initialLayout,
       });
 
+      console.log("✅ Resume created:", resume.resumeId);
       router.push(`/dashboard/resumes/${resume.resumeId}/edit`);
     } catch (error: any) {
-      console.error("Error creating resume:", error);
+      console.error("❌ Error creating resume:", error);
 
       // Reset step back to upload so user can try again
       setStep("upload");

@@ -3,11 +3,12 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "next dev -p 3001",
-    "build": "next build",
+    "dev": "npm run copy-template-css && next dev -p 3001",
+    "build": "npm run copy-template-css && next build",
     "start": "next start -p 3001",
     "lint": "next lint",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "copy-template-css": "node scripts/copy-template-css.js"
   },
   "dependencies": {
     "@clerk/nextjs": "^6.36.0",

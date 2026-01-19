@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 import { UserProvider } from "@/components/UserProvider";
+import { TemplateRegistryInitializer } from "@/components/TemplateRegistryInitializer";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -21,6 +22,7 @@ export default function RootLayout({
     <ClerkProvider>
       <html lang="en">
         <body className={inter.className}>
+          <TemplateRegistryInitializer />
           <UserProvider>{children}</UserProvider>
         </body>
       </html>

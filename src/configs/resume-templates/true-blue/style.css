@@ -1,100 +1,147 @@
 /**
  * True Blue Template Styles
- * Clean and straightforward professional template
+ * Professional academic/research template with blue accents
  */
 
 /* Template Container */
 .true-blue-template {
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: Calibri, 'Segoe UI', 'Trebuchet MS', sans-serif;
   color: #000000;
   background-color: #ffffff;
   padding: 8px;
-  line-height: 1.4;
+  line-height: 1.5;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+  color-adjust: exact !important;
 }
 
-/* Header Styles - Left Aligned */
-.true-blue-header {
-  text-align: left;
-  margin-bottom: 24px;
-  border-bottom: 1px solid #000000;
-  padding-bottom: 12px;
-}
-
+/* Header Styles */
 .true-blue-name {
-  font-size: 22px;
+  font-size: 28px;
   font-weight: bold;
-  color: #000000;
-  margin-bottom: 8px;
+  color: #2c5f9e !important;
+  margin-bottom: 6px;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+  color-adjust: exact !important;
 }
 
 .true-blue-job-title {
   font-size: 16px;
-  color: #5a5a5a;
+  color: #2c5f9e !important;
   margin-bottom: 12px;
+  font-weight: normal;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+  color-adjust: exact !important;
 }
 
+/* Contact Info Styles */
 .true-blue-contact {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
   font-size: 11px;
   color: #000000;
-  margin-top: 12px;
+  margin-bottom: 16px;
+  align-items: center;
 }
 
-.true-blue-contact-separator {
-  color: #5a5a5a;
+.true-blue-contact-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: #000000;
+}
+
+.true-blue-contact-item svg {
+  width: 14px;
+  height: 14px;
+  color: #000000 !important;
+  stroke: #000000 !important;
+  stroke-width: 1.5 !important;
+  fill: none !important;
+}
+
+.true-blue-contact a,
+.true-blue-contact a:visited {
+  color: #000000;
+  text-decoration: none;
 }
 
 /* Section Header Styles */
-.true-blue-section-header {
-  font-size: 12px;
+.true-blue-section-header,
+.true-blue-template h2 {
+  font-size: 12px !important;
   font-weight: bold;
   text-transform: uppercase;
   text-align: left;
-  border-bottom: 1px solid #000000;
-  padding-bottom: 4px;
-  margin-bottom: 12px;
-  margin-top: 18px;
-  color: #000000;
+  border-bottom: 1.5px solid #2c5f9e !important;
+  border-top: none !important;
+  padding-bottom: 4px !important;
+  padding-top: 0 !important;
+  margin-bottom: 10px !important;
+  margin-top: 16px !important;
+  color: #2c5f9e !important;
+  letter-spacing: 0.5px;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+  color-adjust: exact !important;
 }
 
 /* Profile Summary */
 .true-blue-summary {
   font-size: 11px;
-  line-height: 1.6;
+  line-height: 1.5;
   color: #000000;
   margin-bottom: 16px;
+  text-align: justify;
 }
 
 /* Experience Styles */
 .true-blue-experience-item {
-  margin-bottom: 16px;
+  margin-bottom: 14px;
   page-break-inside: avoid;
 }
 
 .true-blue-job-header {
   display: flex;
   justify-content: space-between;
-  align-items: baseline;
-  margin-bottom: 4px;
+  align-items: flex-start;
+  margin-bottom: 2px;
 }
 
 .true-blue-job-title-exp {
   font-size: 11px;
   font-weight: bold;
   color: #000000;
+  flex: 1;
+}
+
+.true-blue-job-meta {
+  text-align: right;
+  font-size: 10px;
+  color: #000000;
+  line-height: 1.3;
 }
 
 .true-blue-job-date {
   font-size: 10px;
-  color: #5a5a5a;
+  color: #000000;
+  display: block;
+}
+
+.true-blue-job-location {
+  font-size: 10px;
+  color: #000000;
+  display: block;
 }
 
 .true-blue-company {
   font-size: 11px;
   color: #000000;
-  margin-bottom: 6px;
+  margin-bottom: 4px;
+  font-style: italic;
 }
 
 .true-blue-description {
@@ -105,11 +152,49 @@
 
 .true-blue-description ul {
   margin: 0;
-  padding-left: 20px;
+  padding-left: 18px;
 }
 
 .true-blue-description li {
+  margin-bottom: 3px;
+}
+
+/* Education Styles */
+.true-blue-education-item {
+  margin-bottom: 12px;
+}
+
+.true-blue-education-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 2px;
+}
+
+.true-blue-degree {
+  font-size: 11px;
+  font-weight: bold;
+  color: #000000;
+  flex: 1;
+}
+
+.true-blue-education-meta {
+  text-align: right;
+  font-size: 10px;
+  color: #000000;
+  line-height: 1.3;
+}
+
+.true-blue-institution {
+  font-size: 11px;
+  color: #000000;
   margin-bottom: 4px;
+  font-style: italic;
+}
+
+.true-blue-education-date {
+  font-size: 10px;
+  color: #000000;
 }
 
 /* Skills Styles */
@@ -119,52 +204,108 @@
   line-height: 1.6;
 }
 
-.true-blue-skill-category {
-  margin-bottom: 8px;
+.true-blue-skill-item {
+  display: inline;
 }
 
-.true-blue-skill-category-name {
-  font-weight: bold;
-  margin-bottom: 4px;
+.true-blue-skill-item:not(:last-child)::after {
+  content: " • ";
+  color: #666666;
 }
 
-/* Education Styles */
-.true-blue-education-item {
+/* Projects Styles */
+.true-blue-project-item {
   margin-bottom: 12px;
 }
 
-.true-blue-degree {
+.true-blue-project-title {
   font-size: 11px;
   font-weight: bold;
   color: #000000;
   margin-bottom: 4px;
 }
 
-.true-blue-institution {
+.true-blue-project-description {
   font-size: 11px;
   color: #000000;
-  margin-bottom: 4px;
+  line-height: 1.5;
 }
 
-.true-blue-education-date {
-  font-size: 10px;
-  color: #5a5a5a;
+/* Certificates Styles */
+.true-blue-certificate-item {
+  margin-bottom: 10px;
 }
 
-/* Clean Design Elements */
-.true-blue-simple-divider {
-  height: 1px;
-  background-color: #e0e0e0;
-  margin: 12px 0;
+.true-blue-certificate-title {
+  font-size: 11px;
+  font-weight: bold;
+  color: #000000;
+  margin-bottom: 2px;
+}
+
+.true-blue-certificate-issuer {
+  font-size: 11px;
+  color: #000000;
+  font-style: italic;
+}
+
+/* Languages Styles */
+.true-blue-language-item {
+  display: inline-block;
+  margin-right: 16px;
+  margin-bottom: 6px;
+}
+
+.true-blue-language-name {
+  font-weight: bold;
 }
 
 /* Print Styles */
 @media print {
   .true-blue-template {
-    padding: 8mm;
+    padding: 0;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+
+  /* Force all blue elements to preserve color */
+  .true-blue-name,
+  .true-blue-job-title,
+  .true-blue-section-header,
+  .true-blue-template h2 {
+    color: #2c5f9e !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+
+  .true-blue-section-header,
+  .true-blue-template h2 {
+    border-bottom-color: #2c5f9e !important;
+    border-bottom-style: solid !important;
+    border-bottom-width: 1.5px !important;
+  }
+  
+  /* Ensure all text colors are preserved */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
   }
 
   .true-blue-section {
     page-break-inside: avoid;
+  }
+
+  .true-blue-experience-item {
+    page-break-inside: avoid;
+  }
+
+  .true-blue-contact-item svg {
+    color: #000000 !important;
+    stroke: #000000 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 }

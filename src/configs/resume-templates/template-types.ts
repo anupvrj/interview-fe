@@ -91,20 +91,46 @@ export interface TemplateStyleConfig {
     letterSpacing?: string;
   };
   skillsDisplay: {
-    type: "list" | "grid" | "dots" | "bars";
+    type: "list" | "grid" | "dots" | "bars" | "bullets";
     showRatings: boolean;
     maxRating?: number;
     columns?: number;
+    bulletStyle?: "disc" | "circle" | "square" | "custom";
+    customBulletSize?: number;
+    layout?: "grid" | "flex" | "columns";
   };
   timelineLayout: {
     type: "vertical" | "horizontal" | "grid";
     datePosition: "left" | "right" | "top" | "bottom";
     dateWidth?: number;
+    applyInlineGrid?: boolean;
   };
   contactDisplay: {
     type: "icons" | "text" | "table";
     layout: "horizontal" | "vertical" | "grid";
   };
+  languageDisplay?: {
+    showRatings: boolean;
+    ratingType?: "dots" | "bars" | "text";
+    maxRating?: number;
+    dotSize?: number;
+    columns?: number;
+    containerClass?: string;
+    itemClass?: string;
+    nameClass?: string;
+    ratingClass?: string;
+    dotClass?: string;
+  };
+  headerLayout?: {
+    type: "standard" | "name-title-split" | "with-profile-picture";
+    titlePosition?: "below" | "right" | "left";
+    padding?: { top: number; bottom: number; left: number; right: number };
+  };
+  /**
+   * If true, header colors (name, job title) will be controlled by CSS classes
+   * instead of inline styles. This allows templates to use CSS files for color styling.
+   */
+  useCSSClassesForHeader?: boolean;
 }
 
 /**
@@ -147,6 +173,7 @@ export interface SectionDefinition {
   type: string;
   title: string;
   visible: boolean;
+  column?: "left" | "right";
 }
 
 /**

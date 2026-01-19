@@ -45,10 +45,6 @@ export function LanguagesEditor({ languages, onChange }: LanguagesEditorProps) {
 
   return (
     <div className="space-y-4">
-      <Button size="sm" onClick={addLanguage}>
-        <Plus className="w-4 h-4 mr-2" />
-        Add Language
-      </Button>
       {languages.map((lang, index) => (
         <div key={lang.id} className="border rounded p-3 space-y-2">
           <div className="flex justify-between items-center">
@@ -134,6 +130,10 @@ export function LanguagesEditor({ languages, onChange }: LanguagesEditorProps) {
           </div>
         </div>
       ))}
+      <Button size="sm" onClick={addLanguage}>
+        <Plus className="w-4 h-4 mr-2" />
+        Add Language
+      </Button>
     </div>
   );
 }

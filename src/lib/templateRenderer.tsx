@@ -6,109 +6,15 @@
 "use client";
 
 import React from "react";
-import { ResumeTemplate, Resume } from "@/lib/api";
+import { Resume } from "@/lib/api";
+import {
+  ResumeTemplate,
+  ExtendedResumeTemplate,
+  TemplateStyleConfig,
+  SectionDefinition,
+} from "../configs/resume-templates/template-types";
 
-// Template configuration types (shared between frontend and backend)
-export interface TemplateStyleConfig {
-  fontFamily: string;
-  fontSize: {
-    heading: number;
-    subheading: number;
-    body: number;
-    small: number;
-  };
-  lineHeight: number;
-  colors: {
-    primary: string;
-    secondary: string;
-    accent: string;
-    text: string;
-    background: string;
-    border?: string;
-    sidebarBackground?: string;
-    sidebarText?: string;
-    sectionHeaderBg?: string;
-    headerBackground?: string;
-  };
-  headerStyle: "centered" | "left" | "two-column";
-  sectionSpacing: number;
-  padding: {
-    top: number;
-    bottom: number;
-    left: number;
-    right: number;
-  };
-  sectionHeader: {
-    style:
-      | "underline"
-      | "border-top-bottom"
-      | "border-bottom"
-      | "background"
-      | "none";
-    borderWidth?: number;
-    borderColor?: string;
-    backgroundColor?: string;
-    textAlign?: "left" | "center" | "right";
-    fontSize?: number;
-    fontWeight?: "normal" | "bold" | "semibold";
-    marginBottom?: string;
-    paddingBottom?: string;
-    paddingTop?: string;
-    paddingLeft?: string;
-    paddingRight?: string;
-    borderRadius?: string;
-    letterSpacing?: string;
-    textTransform?: "none" | "uppercase" | "lowercase" | "capitalize";
-  };
-  skillsDisplay: {
-    type: "list" | "grid" | "dots" | "bars";
-    showRatings?: boolean;
-    maxRating?: number;
-    columns?: number;
-  };
-  timelineLayout: {
-    type: "grid" | "vertical" | "horizontal";
-    datePosition: "left" | "right" | "top" | "bottom";
-    dateWidth?: number;
-  };
-  contactDisplay: {
-    type: "icons" | "text" | "table";
-    layout: "horizontal" | "vertical" | "grid";
-  };
-}
-
-export interface ExtendedResumeTemplate extends ResumeTemplate {
-  style?: TemplateStyleConfig;
-  rendering?: {
-    pageBreak?: {
-      enabled: boolean;
-      calculateDynamically: boolean;
-    };
-    sections?: {
-      [sectionType: string]: {
-        renderer?: string;
-        defaultColumn?: "left" | "right";
-        alwaysOnFirstPage?: boolean;
-        pageBreakInside?: "avoid" | "auto";
-      };
-    };
-    dataStructure?: "legacy" | "sections-array" | "hybrid";
-    features?: {
-      showQuote?: boolean;
-      showRatingDots?: boolean;
-      showSkillLevels?: boolean;
-      customHeader?: boolean;
-      showPresent?: boolean;
-      twoColumnLayout?: boolean;
-    };
-  };
-  defaultSectionOrder?: Array<{
-    id: string;
-    type: string;
-    title: string;
-    visible: boolean;
-  }>;
-}
+export type { ExtendedResumeTemplate, TemplateStyleConfig, ResumeTemplate };
 
 export interface RenderContext {
   template: ExtendedResumeTemplate;
@@ -198,6 +104,22 @@ export function getTemplateStyle(
         ...defaultStyle.contactDisplay,
         ...template.style.contactDisplay,
       },
+      // Merge headerLayout if exists
+      ...(template.style.headerLayout && {
+        headerLayout: {
+          ...template.style.headerLayout,
+        },
+      }),
+      // Merge languageDisplay if exists
+      ...(template.style.languageDisplay && {
+        languageDisplay: {
+          ...template.style.languageDisplay,
+        },
+      }),
+      // Merge useCSSClassesForHeader if exists
+      ...(template.style.useCSSClassesForHeader !== undefined && {
+        useCSSClassesForHeader: template.style.useCSSClassesForHeader,
+      }),
     };
   }
 

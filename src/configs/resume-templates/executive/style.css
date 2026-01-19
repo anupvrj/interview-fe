@@ -5,61 +5,81 @@
 
 /* Template Container */
 .executive-template {
-  font-family: 'Times New Roman', Times, serif;
+  font-family: "Times New Roman", Times, serif;
   color: #000000;
   background-color: #ffffff;
-  padding: 8px;
+  padding: 20px;
   line-height: 1.4;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
 }
 
-/* Header Styles */
+/* Header Styles - Name and Title on Same Line */
 .executive-header {
   text-align: left;
   margin-bottom: 20px;
-  border-bottom: 2px solid #000000;
-  padding-bottom: 12px;
+}
+
+.executive-header-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 16px;
 }
 
 .executive-name {
-  font-size: 28px;
+  font-size: 32px;
   font-weight: bold;
   color: #000000;
-  margin-bottom: 6px;
-  letter-spacing: 0.5px;
+  letter-spacing: 0px;
+  flex-shrink: 0;
 }
 
 .executive-job-title {
-  font-size: 20px;
-  color: #333333;
-  margin-bottom: 10px;
-  font-weight: 500;
+  font-size: 24px;
+  color: #000000;
+  font-style: italic;
+  font-weight: normal;
+  text-align: right;
+  flex-grow: 1;
+  margin-left: 20px;
 }
 
 .executive-contact {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 8px;
-  font-size: 10px;
-  color: #666666;
-  margin-top: 10px;
+  gap: 8px 30px;
+  font-size: 11px;
+  color: #000000;
+  margin-top: 12px;
 }
 
 .executive-contact-item {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
+}
+
+.executive-contact-item svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  color: #000000;
+  stroke: currentColor;
 }
 
 /* Section Header Styles */
 .executive-section-header {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: bold;
   color: #000000;
   border-bottom: 3px solid #000000;
-  padding-bottom: 4px;
-  margin-bottom: 12px;
-  margin-top: 16px;
+  padding-bottom: 2px;
+  margin-bottom: 10px;
+  margin-top: 18px;
   text-align: left;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
 }
 
 /* Profile Summary */
@@ -71,18 +91,23 @@
   text-align: justify;
 }
 
-/* Experience Styles - Grid Layout */
+/* Experience Styles - Table Layout for PDF compatibility */
 .executive-experience-item {
-  display: grid;
-  grid-template-columns: 140px 1fr;
-  gap: 12px;
-  margin-bottom: 16px;
+  display: table !important;
+  width: 100% !important;
+  margin-bottom: 14px;
   page-break-inside: avoid;
+  grid-template-columns: none !important;
+  gap: 0 !important;
 }
 
-.executive-date-location {
-  font-size: 9px;
-  color: #666666;
+.executive-date-location-column {
+  display: table-cell !important;
+  width: 140px !important;
+  vertical-align: top !important;
+  padding-right: 12px !important;
+  font-size: 10px;
+  color: #000000;
   line-height: 1.4;
 }
 
@@ -90,125 +115,229 @@
   font-weight: bold;
   display: block;
   margin-bottom: 2px;
+  color: #000000;
 }
 
 .executive-location {
   display: block;
-  font-style: italic;
+  color: #000000;
 }
 
 .executive-job-content {
-  flex: 1;
+  display: table-cell !important;
+  vertical-align: top !important;
 }
 
-.executive-job-title {
-  font-size: 10px;
+.executive-experience-job-title {
+  font-size: 11px;
   font-weight: bold;
   color: #000000;
   margin-bottom: 2px;
 }
 
 .executive-company {
-  font-size: 10px;
-  color: #333333;
+  font-size: 11px;
+  color: #000000;
   margin-bottom: 6px;
   font-style: italic;
 }
 
 .executive-description {
-  font-size: 10px;
+  font-size: 11px;
   line-height: 1.5;
   color: #000000;
 }
 
 .executive-description ul {
-  margin: 0;
-  padding-left: 18px;
+  margin: 4px 0;
+  padding-left: 20px;
+  list-style-type: disc;
 }
 
 .executive-description li {
-  margin-bottom: 3px;
+  margin-bottom: 4px;
 }
 
 /* Skills Styles - Dots Rating */
 .executive-skills-container {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
+  gap: 16px;
+  column-gap: 40px;
 }
 
 .executive-skill-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 6px 0;
-  border-bottom: 1px solid #e0e0e0;
+  padding: 4px 0;
+  margin-bottom: 2px;
 }
 
 .executive-skill-name {
-  font-size: 10px;
+  font-size: 11px;
   color: #000000;
-  font-weight: 500;
+  font-weight: normal;
+  flex: 1;
 }
 
 .executive-skill-rating {
   display: flex;
-  gap: 4px;
+  gap: 3px;
+  margin-left: 12px;
 }
 
 .executive-skill-dot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background-color: #d0d0d0;
+  background-color: #ffffff;
+  border: 1.5px solid #000000;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
 }
 
 .executive-skill-dot.filled {
   background-color: #000000;
+  border-color: #000000;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
 }
 
-/* Education Styles */
+/* Education Styles - Table Layout */
 .executive-education-item {
+  display: table !important;
+  width: 100% !important;
   margin-bottom: 12px;
+  page-break-inside: avoid;
+}
+
+.executive-education-date-location {
+  display: table-cell !important;
+  width: 140px !important;
+  vertical-align: top !important;
+  padding-right: 12px !important;
+  font-size: 10px;
+  color: #000000;
+  line-height: 1.4;
+}
+
+.executive-education-content {
+  display: table-cell !important;
+  vertical-align: top !important;
 }
 
 .executive-degree {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: bold;
   color: #000000;
-  margin-bottom: 3px;
+  margin-bottom: 2px;
 }
 
 .executive-institution {
-  font-size: 10px;
-  color: #333333;
+  font-size: 11px;
+  color: #000000;
   margin-bottom: 3px;
+  font-style: italic;
 }
 
-.executive-education-date {
-  font-size: 9px;
-  color: #666666;
+/* Languages Styles */
+.executive-languages-list {
+  display: flex;
+  gap: 40px;
+  flex-wrap: wrap;
+  font-size: 11px;
+  color: #000000;
 }
 
-/* Elegant Dividers */
-.executive-divider {
-  height: 1px;
-  background: linear-gradient(to right, #000000, transparent);
-  margin: 16px 0;
+.executive-language-item {
+  list-style-type: disc;
+  margin-left: 20px;
+}
+
+/* Awards Styles */
+.executive-award-item {
+  margin-bottom: 8px;
+}
+
+.executive-award-title {
+  font-size: 11px;
+  font-weight: bold;
+  color: #000000;
+  margin-bottom: 2px;
+}
+
+.executive-award-organization {
+  font-size: 11px;
+  color: #000000;
+  font-style: italic;
+}
+
+/* Quote Styles */
+.executive-quote-container {
+  margin-top: 8px;
+}
+
+.executive-quote-author {
+  font-size: 11px;
+  font-weight: bold;
+  color: #000000;
+  margin-bottom: 2px;
+}
+
+.executive-quote-text {
+  font-size: 11px;
+  color: #000000;
+  font-style: italic;
+  line-height: 1.5;
 }
 
 /* Print Styles */
 @media print {
   .executive-template {
-    padding: 8mm;
+    padding: 20mm;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
-  
+
   .executive-experience-item {
     page-break-inside: avoid;
+    display: table !important;
+    width: 100% !important;
   }
-  
+
+  .executive-date-location-column {
+    display: table-cell !important;
+    width: 140px !important;
+    vertical-align: top !important;
+  }
+
+  .executive-job-content {
+    display: table-cell !important;
+    vertical-align: top !important;
+  }
+
+  .executive-education-item {
+    display: table !important;
+    width: 100% !important;
+  }
+
   .executive-section-header {
     page-break-after: avoid;
+    border-bottom: 3px solid #000000 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .executive-skill-dot {
+    border: 1.5px solid #000000 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .executive-skill-dot.filled {
+    background-color: #000000 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 }
-

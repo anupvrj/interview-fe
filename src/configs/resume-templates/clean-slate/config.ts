@@ -61,7 +61,7 @@ export const cleanslateExtendedConfig: Partial<ExtendedResumeTemplate> = {
     },
     headerStyle: "left",
     sectionSpacing: 10,
-    padding: { top: 20, bottom: 20, left: 20, right: 20 },
+    padding: { top: 8, bottom: 8, left: 8, right: 8 },
     sectionHeader: {
       style: "border-top-bottom",
       borderWidth: 1,
@@ -88,10 +88,10 @@ export const cleanslateExtendedConfig: Partial<ExtendedResumeTemplate> = {
       showPresent: true,
     },
     layout: {
-      type: "single",
+      type: "double",
       columnWidths: {
-        left: 100,
-        right: 0,
+        left: 60,
+        right: 40,
       },
     },
   },
@@ -109,17 +109,18 @@ export const cleanslateExtendedConfig: Partial<ExtendedResumeTemplate> = {
       visible: true,
     },
     {
-      id: "skills",
-      type: "skills",
-      title: "Technical Skills",
-      visible: true,
-    },
-    {
       id: "experience",
       type: "experience",
       title: "Professional Experience",
       visible: true,
     },
+    {
+      id: "skills",
+      type: "skills",
+      title: "Technical Skills",
+      visible: true,
+    },
+   
     {
       id: "education",
       type: "education",

@@ -4,13 +4,12 @@
 
 export const corporateDummyContent = {
   personalInfo: {
-    firstName: "Jennifer",
-    lastName: "Davis",
+    fullName: "Jennifer Davis",
     email: "jennifer.davis@email.com",
     phone: "+1 555-789-0123",
     location: "Atlanta, GA",
     linkedin: "linkedin.com/in/jenniferdavis",
-    jobTitle: "Marketing Manager",
+    position: "Marketing Manager",
   },
 
   profileSummary:
@@ -18,7 +17,7 @@ export const corporateDummyContent = {
 
   experience: [
     {
-      jobTitle: "Marketing Manager",
+      position: "Marketing Manager",
       company: "Global Brands Inc",
       location: "Atlanta, GA",
       startDate: "2019-01",
@@ -32,7 +31,7 @@ export const corporateDummyContent = {
       ],
     },
     {
-      jobTitle: "Senior Marketing Specialist",
+      position: "Senior Marketing Specialist",
       company: "Marketing Solutions LLC",
       location: "Atlanta, GA",
       startDate: "2016-06",
@@ -47,18 +46,18 @@ export const corporateDummyContent = {
   ],
 
   skills: [
-    {
-      category: "Marketing",
-      skills: ["Digital Marketing", "Content Strategy", "Brand Management", "SEO/SEM"],
-    },
-    {
-      category: "Tools",
-      skills: ["Google Analytics", "HubSpot", "Salesforce", "Adobe Creative Suite"],
-    },
-    {
-      category: "Soft Skills",
-      skills: ["Leadership", "Communication", "Project Management", "Analytics"],
-    },
+    "Digital Marketing",
+    "Content Strategy",
+    "Brand Management",
+    "SEO/SEM",
+    "Google Analytics",
+    "HubSpot",
+    "Salesforce",
+    "Adobe Creative Suite",
+    "Leadership",
+    "Communication",
+    "Project Management",
+    "Analytics",
   ],
 
   education: [
@@ -85,7 +84,12 @@ export const corporateDummyContent = {
   projects: [],
   certificates: [],
   achievements: [],
-  languages: [{ name: "English", proficiency: "Native" }],
-  interests: ["Digital Marketing", "Brand Strategy", "Travel"],
+  languages: [{ name: "English", level: 5 }],
+  interests: "Digital Marketing, Brand Strategy, Travel",
 };
+
+/**
+ * Default export for template loader
+ */
+export default corporateDummyContent;
 

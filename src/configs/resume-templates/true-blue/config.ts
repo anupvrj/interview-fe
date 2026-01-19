@@ -1,8 +1,8 @@
 /**
  * True Blue Template Configuration
  * 
- * Clean template with left-aligned header and simple styling.
- * Features Arial font and professional appearance.
+ * Professional academic/research template with blue color scheme.
+ * Features clean layout with blue headers and underlines.
  * 
  * @template true-blue
  * @category simple
@@ -18,21 +18,21 @@ export const trueblueTemplate: ResumeTemplate = {
   id: "true-blue",
   name: "True Blue",
   category: "simple",
-  description: "Clean and straightforward professional template",
+  description: "Professional template with blue accents and clean layout",
   preview: "/resume-template-images/true-blue-preview.webp",
   colors: {
-    primary: "#000000",
-    secondary: "#5a5a5a",
-    accent: "#000000",
+    primary: "#2c5f9e",
+    secondary: "#000000",
+    accent: "#2c5f9e",
     text: "#000000",
     background: "#ffffff",
   },
   layout: {
     headerStyle: "left",
-    sectionSpacing: 9,
-    fontFamily: "Arial, Helvetica, sans-serif",
+    sectionSpacing: 12,
+    fontFamily: "Calibri, 'Segoe UI', 'Trebuchet MS', sans-serif",
     fontSize: {
-      heading: 22,
+      heading: 28,
       subheading: 16,
       body: 11,
     },
@@ -41,35 +41,37 @@ export const trueblueTemplate: ResumeTemplate = {
 };
 
 export const trueblueExtendedConfig: Partial<ExtendedResumeTemplate> = {
-  // Minimal style config for renderer (detailed CSS in style.css)
   style: {
-    fontFamily: "Arial, Helvetica, sans-serif",
-    fontSize: { heading: 22, subheading: 16, body: 11, small: 10 },
-    lineHeight: 1.4,
+    fontFamily: "Calibri, 'Segoe UI', 'Trebuchet MS', sans-serif",
+    fontSize: { heading: 28, subheading: 16, body: 11, small: 10 },
+    lineHeight: 1.5,
     colors: {
-      primary: "#000000",
-      secondary: "#5a5a5a",
-      accent: "#000000",
+      primary: "#2c5f9e",
+      secondary: "#000000",
+      accent: "#2c5f9e",
       text: "#000000",
       background: "#ffffff",
     },
     headerStyle: "left",
-    sectionSpacing: 9,
+    sectionSpacing: 12,
     padding: { top: 8, bottom: 8, left: 8, right: 8 },
     sectionHeader: {
       style: "border-bottom",
-      borderWidth: 1,
-      borderColor: "#000000",
+      borderWidth: 1.5,
+      borderColor: "#2c5f9e",
       textAlign: "left",
       fontSize: 12,
       fontWeight: "bold",
-      marginBottom: "8px",
+      marginBottom: "10px",
       paddingBottom: "4px",
       textTransform: "uppercase",
     },
     skillsDisplay: { type: "list", showRatings: false },
     timelineLayout: { type: "vertical", datePosition: "right" },
-    contactDisplay: { type: "text", layout: "horizontal" },
+    contactDisplay: { type: "icons", layout: "horizontal" },
+    // Use CSS classes for header colors instead of inline styles
+    // This allows the CSS file to control name and job title colors
+    useCSSClassesForHeader: true,
   },
   rendering: {
     pageBreak: {
@@ -79,6 +81,7 @@ export const trueblueExtendedConfig: Partial<ExtendedResumeTemplate> = {
     dataStructure: "legacy",
     features: {
       showPresent: true,
+      showRatingDots: false,
     },
     layout: {
       type: "single",
@@ -88,6 +91,19 @@ export const trueblueExtendedConfig: Partial<ExtendedResumeTemplate> = {
       },
     },
   },
+  defaultSectionOrder: [
+    { id: "personalInfo", type: "personalInfo", title: "Personal Information", visible: true },
+    { id: "profileSummary", type: "profileSummary", title: "Professional Summary", visible: true },
+    { id: "experience", type: "experience", title: "Research Experience", visible: true },
+    { id: "education", type: "education", title: "Education", visible: true },
+    { id: "skills", type: "skills", title: "Skills", visible: true },
+    { id: "certificates", type: "certificates", title: "Certifications", visible: false },
+    { id: "projects", type: "projects", title: "Projects", visible: false },
+    { id: "publications", type: "publications", title: "Publications", visible: false },
+    { id: "awards", type: "awards", title: "Awards", visible: false },
+    { id: "languages", type: "languages", title: "Languages", visible: false },
+    { id: "interests", type: "interests", title: "Interests", visible: false },
+  ],
 };
 
 export const trueblueConfig: TemplateConfig = {
@@ -95,3 +111,4 @@ export const trueblueConfig: TemplateConfig = {
   extended: trueblueExtendedConfig,
 };
 
+export default trueblueConfig;

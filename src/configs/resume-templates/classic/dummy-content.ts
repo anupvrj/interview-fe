@@ -4,13 +4,12 @@
 
 export const classicDummyContent = {
   personalInfo: {
-    firstName: "James",
-    lastName: "Miller",
+    fullName: "James Miller",
     email: "james.miller@email.com",
     phone: "+1 555-567-8901",
     location: "Chicago, IL",
     linkedin: "linkedin.com/in/jamesmiller",
-    jobTitle: "Business Analyst",
+    position: "Business Analyst",
   },
 
   profileSummary:
@@ -18,7 +17,7 @@ export const classicDummyContent = {
 
   experience: [
     {
-      jobTitle: "Business Analyst",
+      position: "Business Analyst",
       company: "Consulting Group LLC",
       location: "Chicago, IL",
       startDate: "2020-03",
@@ -32,7 +31,7 @@ export const classicDummyContent = {
       ],
     },
     {
-      jobTitle: "Junior Business Analyst",
+      position: "Junior Business Analyst",
       company: "Tech Solutions Inc",
       location: "Chicago, IL",
       startDate: "2019-06",
@@ -47,18 +46,17 @@ export const classicDummyContent = {
   ],
 
   skills: [
-    {
-      category: "Analysis",
-      skills: ["Requirements Gathering", "Process Mapping", "Data Analysis"],
-    },
-    {
-      category: "Technical",
-      skills: ["SQL", "Excel", "Tableau", "Jira", "Confluence"],
-    },
-    {
-      category: "Business",
-      skills: ["Stakeholder Management", "Project Management", "Agile/Scrum"],
-    },
+    "Requirements Gathering",
+    "Process Mapping",
+    "Data Analysis",
+    "SQL",
+    "Excel",
+    "Tableau",
+    "Jira",
+    "Confluence",
+    "Stakeholder Management",
+    "Project Management",
+    "Agile/Scrum",
   ],
 
   education: [
@@ -76,7 +74,11 @@ export const classicDummyContent = {
   projects: [],
   certificates: [],
   achievements: [],
-  languages: [{ name: "English", proficiency: "Native" }],
-  interests: ["Data Visualization", "Process Optimization", "Chess"],
+  languages: [{ name: "English", level: 5 }],
+  interests: "Data Visualization, Process Optimization, Chess",
 };
 
+/**
+ * Default export for template loader
+ */
+export default classicDummyContent;

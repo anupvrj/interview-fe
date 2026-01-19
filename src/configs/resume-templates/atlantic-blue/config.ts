@@ -1,9 +1,9 @@
 /**
  * Atlantic Blue Template Configuration
- * 
+ *
  * A modern two-column template with a distinctive blue sidebar.
  * Features a professional layout with sidebar for contact info and skills.
- * 
+ *
  * @template atlantic-blue
  * @category modern
  */
@@ -37,10 +37,10 @@ export const atlanticblueTemplate: ResumeTemplate = {
   layout: {
     headerStyle: "two-column",
     sectionSpacing: 10,
-    fontFamily: "Arial, Helvetica, sans-serif",
+    fontFamily: "'Zilla Slab', 'Roboto Slab', Rockwell, 'Courier New', serif",
     fontSize: {
-      heading: 22,
-      subheading: 16,
+      heading: 28,
+      subheading: 18,
       body: 11,
     },
   },
@@ -54,8 +54,8 @@ export const atlanticblueTemplate: ResumeTemplate = {
 export const atlanticblueExtendedConfig: Partial<ExtendedResumeTemplate> = {
   // Minimal style config for renderer (detailed CSS in style.css)
   style: {
-    fontFamily: "Arial, Helvetica, sans-serif",
-    fontSize: { heading: 22, subheading: 16, body: 11, small: 10 },
+    fontFamily: "'Zilla Slab', 'Roboto Slab', Rockwell, 'Courier New', serif",
+    fontSize: { heading: 28, subheading: 18, body: 11, small: 10 },
     lineHeight: 1.4,
     colors: {
       primary: "#2c3e50",
@@ -74,12 +74,16 @@ export const atlanticblueExtendedConfig: Partial<ExtendedResumeTemplate> = {
       style: "background",
       backgroundColor: "#ecf0f1",
       textAlign: "center",
-      fontSize: 12,
+      fontSize: 13,
       fontWeight: "bold",
       marginBottom: "12px",
       paddingBottom: "8px",
       paddingTop: "8px",
+      paddingLeft: "12px",
+      paddingRight: "12px",
       textTransform: "uppercase",
+      borderWidth: 0, // No borders
+      borderColor: "transparent", // No borders
     },
     skillsDisplay: { type: "list", showRatings: false },
     timelineLayout: { type: "vertical", datePosition: "right" },
@@ -103,8 +107,8 @@ export const atlanticblueExtendedConfig: Partial<ExtendedResumeTemplate> = {
         right: 65,
       },
       columnAssignment: {
-        left: ["personalInfo", "skills", "languages"],
-        right: ["profileSummary", "experience", "education", "projects", "certificates"],
+        left: [],
+        right: [],
       },
     },
   },
@@ -113,12 +117,6 @@ export const atlanticblueExtendedConfig: Partial<ExtendedResumeTemplate> = {
       id: "personalInfo",
       type: "personalInfo",
       title: "Personal Information",
-      visible: true,
-    },
-    {
-      id: "profileSummary",
-      type: "profileSummary",
-      title: "Profile",
       visible: true,
     },
     {
@@ -133,6 +131,14 @@ export const atlanticblueExtendedConfig: Partial<ExtendedResumeTemplate> = {
       title: "Skills",
       visible: true,
     },
+    {
+      id: "profileSummary",
+      type: "profileSummary",
+      title: "Profile",
+      visible: true,
+    },
+   
+   
     {
       id: "education",
       type: "education",
@@ -180,3 +186,7 @@ export const atlanticblueConfig: TemplateConfig = {
   extended: atlanticblueExtendedConfig,
 };
 
+/**
+ * Default export for dynamic imports
+ */
+export default atlanticblueConfig;

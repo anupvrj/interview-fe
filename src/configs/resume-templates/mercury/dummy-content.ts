@@ -4,91 +4,89 @@
 
 export const mercuryDummyContent = {
   personalInfo: {
-    firstName: "Sarah",
-    lastName: "Thompson",
-    email: "sarah.thompson@email.com",
-    phone: "+1 555-678-9012",
-    location: "Denver, CO",
-    linkedin: "linkedin.com/in/sarahthompson",
-    github: "github.com/sarahthompson",
-    website: "sarahthompson.dev",
-    jobTitle: "Data Scientist",
+    fullName: "Brian T. Wayne",
+    email: "brian@wayne.com",
+    phone: "+1-541-754-3010",
+    location: "22611 Pacific Coast Hwy, Malibu, California, 9022, USA",
+    linkedin: "linkedin.com/in/wayne-2345",
+    github: "",
+    website: "wayne.com",
+    portfolio: "Business Development Consultant",
   },
 
   profileSummary:
-    "Experienced Data Scientist with 5+ years of expertise in machine learning, statistical analysis, and data visualization. Proven ability to extract actionable insights from complex datasets and communicate findings to stakeholders. Skilled in Python, R, and SQL.",
+    "I'm Brian Thomas Wayne, a business development consultant with a passion for helping companies achieve their growth potential. With my MBA degree and extensive experience in strategy and relationship building, I strive to provide innovative solutions that drive success for my clients.",
 
   experience: [
     {
-      jobTitle: "Senior Data Scientist",
-      company: "Analytics Corp",
-      location: "Denver, CO",
-      startDate: "2021-01",
+      position: "Business Development Consultant",
+      company: "Appleseed Inc.",
+      location: "New York",
+      startDate: "2022",
       endDate: "Present",
       current: true,
       description: [
-        "Developed machine learning models improving customer retention by 25%",
-        "Led data science team of 5 analysts on predictive analytics projects",
-        "Created automated reporting dashboards reducing manual work by 60%",
-        "Collaborated with product team to implement A/B testing framework",
+        "Developed and implemented strategic plans resulting in a 30% increase in new business opportunities.",
+        "Collaborated with cross-functional teams to drive business growth and expansion.",
       ],
     },
     {
-      jobTitle: "Data Scientist",
-      company: "Tech Insights Inc",
-      location: "Denver, CO",
-      startDate: "2019-03",
-      endDate: "2020-12",
+      position: "Business Development",
+      company: "aexus",
+      location: "Los Angeles, USA",
+      startDate: "2018",
+      endDate: "2022",
       current: false,
       description: [
-        "Built predictive models for customer churn and lifetime value",
-        "Performed statistical analysis and hypothesis testing",
-        "Created data visualizations using Tableau and Python",
-        "Worked with engineering team to deploy models to production",
+        "Worked closely with tech and software companies to provide expert sales outsourcing services",
+        "Built and managed dedicated sales teams in Europe, the Americas, and Asia Pacific",
       ],
     },
   ],
 
   skills: [
-    {
-      category: "Programming",
-      skills: ["Python", "R", "SQL", "Scala"],
-    },
-    {
-      category: "Machine Learning",
-      skills: ["Scikit-learn", "TensorFlow", "PyTorch", "XGBoost"],
-    },
-    {
-      category: "Tools",
-      skills: ["Jupyter", "Tableau", "Power BI", "Git", "Docker"],
-    },
+    "Strategic thinking and problem-solving",
+    "Relationship building and networking",
+    "Effective communication and negotiation",
+    "Sales and business development strategy development and execution",
+    "Team management and leadership",
+    "Creative and innovative thinking.",
   ],
 
   education: [
     {
-      degree: "Master of Science in Data Science",
-      institution: "University of Colorado",
-      location: "Denver, CO",
-      startDate: "2017",
-      endDate: "2019",
-      gpa: "3.9",
+      degree: "Master of Business Administration",
+      institution: "Harvard Business School",
+      location: "Boston",
+      startDate: "2016",
+      endDate: "2018",
       description: "",
     },
     {
-      degree: "Bachelor of Science in Mathematics",
-      institution: "University of California",
-      location: "Berkeley, CA",
-      startDate: "2013",
-      endDate: "2017",
-      gpa: "3.7",
+      degree: "Master of Business Administration",
+      institution: "Harvard Business School",
+      location: "Boston",
+      startDate: "2015",
+      endDate: "2018",
       description: "",
     },
   ],
 
-  projects: [],
-  certificates: [],
-  achievements: [],
-  languages: [{ name: "English", proficiency: "Native" }],
-  interests: ["Machine Learning", "Data Visualization", "Hiking"],
+  languages: [
+    { name: "English", level: 4 },
+    { name: "Spanish", level: 4 },
+  ],
+
+  awards: [
+    {
+      title: "Outstanding Business Student Award",
+      organization: "University of Southern California, 2014",
+    },
+  ],
 };
+
+/**
+ * Default export for template loader
+ */
+export default mercuryDummyContent;
 

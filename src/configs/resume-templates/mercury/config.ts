@@ -1,9 +1,9 @@
 /**
  * Mercury Template Configuration
- * 
- * ATS-optimized template with clean design and grid-based timeline layout.
- * Features light grey section headers and 20mm padding for professional appearance.
- * 
+ *
+ * Professional template with profile picture header and slab serif typography.
+ * Features cream header background and light gray section headers.
+ *
  * @template mercury
  * @category simple
  */
@@ -14,68 +14,105 @@ import {
   TemplateConfig,
 } from "../template-types";
 
+/**
+ * Base Template Configuration
+ */
 export const mercuryTemplate: ResumeTemplate = {
   id: "mercury",
   name: "Mercury",
   category: "simple",
-  description: "ATS-optimized template with clean, professional design",
+  description:
+    "Professional template with profile picture and slab serif typography",
   preview: "/resume-template-images/mercury-preview.webp",
   colors: {
-    primary: "#374151",
-    secondary: "#6b7280",
-    accent: "#9ca3af",
-    text: "#111827",
+    primary: "#3d3d3d",
+    secondary: "#5a5a5a",
+    accent: "#666666",
+    text: "#3d3d3d",
     background: "#ffffff",
     headerBackground: "#f5f5f5",
   },
   layout: {
-    headerStyle: "left",
-    sectionSpacing: 20,
-    fontFamily: "Arial, Calibri, sans-serif",
+    headerStyle: "full-width",
+    sectionSpacing: 14,
+    fontFamily:
+      "'Rockwell Std', 'Zilla Slab', 'Roboto Slab', Rockwell, 'Courier New', serif",
     fontSize: {
-      heading: 24,
-      subheading: 16,
+      heading: 32,
+      subheading: 18,
       body: 11,
     },
   },
   atsOptimized: true,
 };
 
+/**
+ * Extended Configuration
+ */
 export const mercuryExtendedConfig: Partial<ExtendedResumeTemplate> = {
-  // Minimal style config for renderer (detailed CSS in style.css)
   style: {
-    fontFamily: "Arial, Calibri, sans-serif",
-    fontSize: { heading: 24, subheading: 16, body: 11, small: 10 },
+    fontFamily:
+      "'Rockwell Std', 'Zilla Slab', 'Roboto Slab', Rockwell, 'Courier New', serif",
+    fontSize: { heading: 32, subheading: 18, body: 11, small: 10 },
     lineHeight: 1.5,
     colors: {
-      primary: "#374151",
-      secondary: "#6b7280",
-      accent: "#9ca3af",
-      text: "#111827",
+      primary: "#3d3d3d",
+      secondary: "#5a5a5a",
+      accent: "#666666",
+      text: "#3d3d3d",
       background: "#ffffff",
       headerBackground: "#f5f5f5",
     },
-    headerStyle: "left",
-    sectionSpacing: 20,
-    padding: { top: 20, bottom: 20, left: 20, right: 20 },
+    headerStyle: "full-width",
+    sectionSpacing: 14,
+    padding: { top: 20, bottom: 20, left: 0, right: 0 },
     sectionHeader: {
       style: "background",
-      backgroundColor: "#f5f5f5",
+      backgroundColor: "#efefef",
       textAlign: "center",
-      fontSize: 14,
+      fontSize: 13,
       fontWeight: "bold",
       marginBottom: "12px",
-      paddingTop: "8px",
-      paddingBottom: "8px",
-      paddingLeft: "12px",
-      paddingRight: "12px",
+      paddingTop: "6px",
+      paddingBottom: "6px",
+      paddingLeft: "0px",
+      paddingRight: "0px",
       textTransform: "uppercase",
       borderRadius: "0px",
-      letterSpacing: "0.5px",
+      letterSpacing: "1px",
     },
-    skillsDisplay: { type: "list", showRatings: false },
-    timelineLayout: { type: "grid", datePosition: "left", dateWidth: 180 },
-    contactDisplay: { type: "icons", layout: "horizontal" },
+    skillsDisplay: {
+      type: "bullets",
+      showRatings: false,
+      columns: 3,
+      customBulletSize: 6,
+    },
+    timelineLayout: {
+      type: "grid",
+      datePosition: "left",
+      dateWidth: 160,
+      applyInlineGrid: false,
+    },
+    contactDisplay: {
+      type: "icons",
+      layout: "vertical",
+    },
+    headerLayout: {
+      type: "with-profile-picture",
+      padding: { top: 40, bottom: 40, left: 55, right: 55 },
+    },
+    languageDisplay: {
+      showRatings: true,
+      ratingType: "dots",
+      maxRating: 5,
+      dotSize: 10,
+      columns: 2,
+      containerClass: "mercury-languages-container",
+      itemClass: "mercury-language-item",
+      nameClass: "mercury-language-name",
+      ratingClass: "mercury-language-rating",
+      dotClass: "mercury-language-dot",
+    },
   },
   rendering: {
     pageBreak: {
@@ -85,6 +122,7 @@ export const mercuryExtendedConfig: Partial<ExtendedResumeTemplate> = {
     dataStructure: "legacy",
     features: {
       showPresent: true,
+      customHeader: true,
     },
     layout: {
       type: "single",
@@ -140,8 +178,12 @@ export const mercuryExtendedConfig: Partial<ExtendedResumeTemplate> = {
   ],
 };
 
+/**
+ * Complete Template Configuration Export
+ */
 export const mercuryConfig: TemplateConfig = {
   template: mercuryTemplate,
   extended: mercuryExtendedConfig,
 };
 
+export default mercuryConfig;

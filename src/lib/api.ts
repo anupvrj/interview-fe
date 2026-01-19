@@ -694,57 +694,22 @@ export interface Resume {
 export const resumeApi = {
   /**
    * Get All Templates
-   * Dynamically imports template configurations from individual folders
-   * This approach allows adding new templates without backend changes
+   * Uses auto-discovery template loader for seamless template management
+   * No need to manually update this code when adding new templates
    */
   getTemplates: async (): Promise<ResumeTemplate[]> => {
-    // Dynamically import all template configurations
-    const [
-      { atlanticblueConfig },
-      { cleanslateConfig },
-      { executiveConfig },
-      { classicConfig },
-      { corporateConfig },
-      { harvardConfig },
-      { trueblueConfig },
-      { mercuryConfig },
-    ] = await Promise.all([
-      import("../configs/resume-templates/atlantic-blue/config"),
-      import("../configs/resume-templates/clean-slate/config"),
-      import("../configs/resume-templates/executive/config"),
-      import("../configs/resume-templates/classic/config"),
-      import("../configs/resume-templates/corporate/config"),
-      import("../configs/resume-templates/harvard/config"),
-      import("../configs/resume-templates/true-blue/config"),
-      import("../configs/resume-templates/mercury/config"),
-    ]);
-
-    // Return array of base templates
-    return [
-      atlanticblueConfig.template,
-      cleanslateConfig.template,
-      executiveConfig.template,
-      classicConfig.template,
-      corporateConfig.template,
-      harvardConfig.template,
-      trueblueConfig.template,
-      mercuryConfig.template,
-    ].filter(Boolean) as ResumeTemplate[];
+    const { TemplateLoader } = await import("./templateLoader");
+    return TemplateLoader.loadAllTemplates();
   },
 
   /**
    * Get Single Template
-   * Finds a specific template by ID from the available templates
+   * Loads a specific template by ID using the template loader
    */
   getTemplate: async (templateId: string): Promise<ResumeTemplate> => {
-    const templates = await resumeApi.getTemplates();
-    const template = templates.find((t) => t.id === templateId);
-    
-    if (!template) {
-      throw new Error(`Template not found: ${templateId}`);
-    }
-    
-    return template;
+    const { TemplateLoader } = await import("./templateLoader");
+    const config = await TemplateLoader.loadTemplate(templateId);
+    return config.template;
   },
 
   create: async (
@@ -753,6 +718,8 @@ export const resumeApi = {
       title?: string;
       templateId: string;
       content?: Partial<Resume["content"]>;
+      sectionOrder?: Resume["sectionOrder"];
+      layout?: Resume["layout"];
     }
   ): Promise<Resume> => {
     const response = await apiClient.post<{ data: Resume }>(
@@ -857,7 +824,8 @@ export const resumeApi = {
       bottom: number;
       left: number;
       right: number;
-    }
+    },
+    templateCSS?: string
   ): Promise<{ downloadUrl: string; s3Key: string }> => {
     const response = await apiClient.post<{
       data: { downloadUrl: string; s3Key: string };
@@ -866,6 +834,7 @@ export const resumeApi = {
       {
         htmlContent,
         padding,
+        templateCSS,
       },
       {
         headers: {

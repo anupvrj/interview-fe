@@ -1,71 +1,137 @@
 /**
- * Template Registry
- * 
- * Central registry for all resume templates.
- * Imports extended configurations from individual template folders.
- * 
- * @see TEMPLATE_DEVELOPMENT_GUIDE.md for adding new templates
+ * Template Registry (Legacy Compatibility Layer)
+ *
+ * This file provides backward compatibility with existing code.
+ * Uses the new TemplateLoader system under the hood.
+ *
+ * @deprecated Use TemplateLoader from templateLoader.ts directly for new code
  */
+
+"use client";
 
 import { ExtendedResumeTemplate } from "./templateRenderer";
-
-// Import template configurations from individual folders
-import { atlanticblueConfig } from "../configs/resume-templates/atlantic-blue/config";
-import { cleanslateConfig } from "../configs/resume-templates/clean-slate/config";
-import { executiveConfig } from "../configs/resume-templates/executive/config";
-import { classicConfig } from "../configs/resume-templates/classic/config";
-import { corporateConfig } from "../configs/resume-templates/corporate/config";
-import { harvardConfig } from "../configs/resume-templates/harvard/config";
-import { trueblueConfig } from "../configs/resume-templates/true-blue/config";
-import { mercuryConfig } from "../configs/resume-templates/mercury/config";
+import { TemplateLoader } from "./templateLoader";
 
 /**
- * Template Registry
+ * Template Registry (Lazy-loaded)
  * Maps template IDs to their extended configurations
- * 
- * To add a new template:
- * 1. Create template folder in configs/resume-templates/
- * 2. Add config.ts and dummy-content.ts files
- * 3. Import the config here
- * 4. Add to TEMPLATE_REGISTRY object
- * 5. Add to templates-catalog.ts for marketing
+ *
+ * Note: This is now a dynamic registry powered by TemplateLoader
  */
+let cachedRegistry: Record<string, Partial<ExtendedResumeTemplate>> | null =
+  null;
+
 export const TEMPLATE_REGISTRY: Record<
   string,
   Partial<ExtendedResumeTemplate>
-> = {
-  "atlantic-blue": atlanticblueConfig.extended as Partial<ExtendedResumeTemplate>,
-  "clean-slate": cleanslateConfig.extended as Partial<ExtendedResumeTemplate>,
-  executive: executiveConfig.extended as Partial<ExtendedResumeTemplate>,
-  classic: classicConfig.extended as Partial<ExtendedResumeTemplate>,
-  corporate: corporateConfig.extended as Partial<ExtendedResumeTemplate>,
-  harvard: harvardConfig.extended as Partial<ExtendedResumeTemplate>,
-  "true-blue": trueblueConfig.extended as Partial<ExtendedResumeTemplate>,
-  mercury: mercuryConfig.extended as Partial<ExtendedResumeTemplate>,
-};
+> = new Proxy({} as Record<string, Partial<ExtendedResumeTemplate>>, {
+  get(target, prop: string) {
+    if (cachedRegistry && cachedRegistry[prop]) {
+      return cachedRegistry[prop];
+    }
+
+    // This is a synchronous access to an async operation
+    // In practice, templates should be preloaded
+    console.warn(
+      `Template ${prop} accessed synchronously. Consider using TemplateLoader.loadTemplate() instead.`
+    );
+    return {};
+  },
+});
+
+/**
+ * Initialize the registry cache
+ * Should be called during app initialization
+ */
+export async function initializeTemplateRegistry(): Promise<void> {
+  if (cachedRegistry) return;
+
+  const configs = await TemplateLoader.loadAllTemplateConfigs();
+  cachedRegistry = {};
+
+  configs.forEach((config, id) => {
+    cachedRegistry![id] = config.extended;
+  });
+}
 
 /**
  * Get Extended Template Configuration
  * Merges base template with extended configuration from registry
- * 
+ *
  * @param baseTemplate - Base template object with id
  * @returns Extended template with style and rendering configuration
  */
 export function getExtendedTemplate(baseTemplate: any): ExtendedResumeTemplate {
-  const config = TEMPLATE_REGISTRY[baseTemplate.id] || {};
+  // Try to get from cache first
+  let config = cachedRegistry?.[baseTemplate.id];
 
-  return {
+  // If not in cache, try to load synchronously
+  if (!config) {
+    console.warn(
+      `Template ${baseTemplate.id} not in cache, attempting synchronous load`
+    );
+    try {
+      // Import all known configs directly
+      const knownConfigs: Record<string, any> = {
+        mercury: require("@/configs/resume-templates/mercury/config"),
+        classic: require("@/configs/resume-templates/classic/config"),
+        "clean-slate": require("@/configs/resume-templates/clean-slate/config"),
+        "atlantic-blue": require("@/configs/resume-templates/atlantic-blue/config"),
+        corporate: require("@/configs/resume-templates/corporate/config"),
+        executive: require("@/configs/resume-templates/executive/config"),
+        "true-blue": require("@/configs/resume-templates/true-blue/config"),
+        harvard: require("@/configs/resume-templates/harvard/config"),
+      };
+
+      const configModule = knownConfigs[baseTemplate.id];
+      if (configModule) {
+        // Try to get config from various possible structures
+        config =
+          configModule.default?.extended ||
+          configModule[`${baseTemplate.id}ExtendedConfig`] ||
+          configModule.extended ||
+          configModule.default ||
+          {};
+
+
+        // Cache it for future use
+        if (cachedRegistry && config) {
+          cachedRegistry[baseTemplate.id] = config;
+        }
+      } else {
+        console.warn(`No known config for template: ${baseTemplate.id}`);
+        config = {};
+      }
+    } catch (error) {
+      console.error(`Failed to load config for ${baseTemplate.id}:`, error);
+      config = {};
+    }
+  }
+
+  const result = {
     ...baseTemplate,
-    style: config.style,
-    rendering: config.rendering,
-    defaultSectionOrder: config.defaultSectionOrder,
+    style: config?.style,
+    rendering: config?.rendering,
+    defaultSectionOrder: config?.defaultSectionOrder,
   };
+
+  return result;
+}
+
+/**
+ * Async version of getExtendedTemplate
+ * Recommended for new code
+ */
+export async function getExtendedTemplateAsync(
+  templateId: string
+): Promise<ExtendedResumeTemplate> {
+  return TemplateLoader.getExtendedTemplate(templateId);
 }
 
 /**
  * Get Available Template IDs
  * Returns array of all registered template IDs
- * 
+ *
  * @returns Array of template IDs
  */
 export function getAvailableTemplateIds(): string[] {
@@ -75,7 +141,7 @@ export function getAvailableTemplateIds(): string[] {
 /**
  * Check if Template ID is Valid
  * Verifies if a template ID exists in the registry
- * 
+ *
  * @param templateId - Template ID to check
  * @returns True if template exists
  */
@@ -86,7 +152,7 @@ export function isValidTemplateId(templateId: string): boolean {
 /**
  * Get Available Templates
  * Returns all template configurations
- * 
+ *
  * @returns Record of all templates
  */
 export function getAvailableTemplates(): Record<
@@ -99,7 +165,7 @@ export function getAvailableTemplates(): Record<
 /**
  * Get Template By ID
  * Returns specific template configuration by ID
- * 
+ *
  * @param templateId - Template ID
  * @returns Template configuration or null
  */
@@ -112,7 +178,7 @@ export function getTemplateById(
 /**
  * Check if Template Has Feature
  * Checks if a template has a specific rendering feature enabled
- * 
+ *
  * @param templateId - Template ID
  * @param feature - Feature name
  * @returns True if feature is enabled
@@ -129,7 +195,7 @@ export function hasFeature(templateId: string, feature: string): boolean {
 /**
  * Get Template Style Configuration
  * Returns the style configuration for a template
- * 
+ *
  * @param templateId - Template ID
  * @returns Style configuration or null
  */
@@ -137,4 +203,3 @@ export function getTemplateStyleConfig(templateId: string) {
   const config = TEMPLATE_REGISTRY[templateId];
   return config?.style || null;
 }
-

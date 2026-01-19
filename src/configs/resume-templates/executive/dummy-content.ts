@@ -4,14 +4,13 @@
 
 export const executiveDummyContent = {
   personalInfo: {
-    firstName: "Robert",
-    lastName: "Williams",
+    fullName: "Robert Williams",
     email: "robert.williams@email.com",
     phone: "+1 555-456-7890",
     location: "New York, NY",
     linkedin: "linkedin.com/in/robertwilliams",
     website: "robertwilliams.com",
-    jobTitle: "Chief Technology Officer",
+    position: "Chief Technology Officer",
   },
 
   profileSummary:
@@ -19,7 +18,7 @@ export const executiveDummyContent = {
 
   experience: [
     {
-      jobTitle: "Chief Technology Officer",
+      position: "Chief Technology Officer",
       company: "Enterprise Solutions Corp",
       location: "New York, NY",
       startDate: "2019-01",
@@ -33,7 +32,7 @@ export const executiveDummyContent = {
       ],
     },
     {
-      jobTitle: "Vice President of Engineering",
+      position: "Vice President of Engineering",
       company: "Tech Innovators Inc",
       location: "San Francisco, CA",
       startDate: "2015-06",
@@ -49,18 +48,16 @@ export const executiveDummyContent = {
   ],
 
   skills: [
-    {
-      category: "Leadership",
-      skills: ["Strategic Planning", "Team Building", "Stakeholder Management"],
-    },
-    {
-      category: "Technical",
-      skills: ["Cloud Architecture", "Microservices", "DevOps", "Security"],
-    },
-    {
-      category: "Business",
-      skills: ["P&L Management", "Vendor Relations", "Digital Transformation"],
-    },
+    "Strategic Planning",
+    "Team Building",
+    "Stakeholder Management",
+    "Cloud Architecture",
+    "Microservices",
+    "DevOps",
+    "Security",
+    "P&L Management",
+    "Vendor Relations",
+    "Digital Transformation",
   ],
 
   education: [
@@ -87,7 +84,12 @@ export const executiveDummyContent = {
   projects: [],
   certificates: [],
   achievements: [],
-  languages: [{ name: "English", proficiency: "Native" }],
-  interests: ["Technology Trends", "Mentorship", "Golf"],
+  languages: [{ name: "English", level: 5 }],
+  interests: "Technology Trends, Mentorship, Golf",
 };
+
+/**
+ * Default export for template loader
+ */
+export default executiveDummyContent;
 
