@@ -1,0 +1,185 @@
+/**
+ * Harvard Template Styles
+ * Academic-style template with elegant Garamond typography
+ */
+
+/* Template Container */
+.harvard-template {
+  font-family: Garamond, "Times New Roman", serif;
+  color: #000000;
+  background-color: #ffffff;
+  padding: 8px;
+  line-height: 1.4;
+}
+
+/* Header Styles - Centered */
+.harvard-header {
+  text-align: center;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+}
+
+.harvard-name {
+  font-size: 22px;
+  font-weight: bold;
+  color: #000000;
+  margin-bottom: 8px;
+  letter-spacing: 0.5px;
+}
+
+.harvard-job-title {
+  font-size: 16px;
+  color: #5a5a5a;
+  margin-bottom: 12px;
+}
+
+.harvard-contact {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 11px;
+  color: #000000;
+  margin-top: 12px;
+}
+
+.harvard-contact-separator {
+  color: #5a5a5a;
+}
+
+/* Section Header Styles */
+.harvard-section-header {
+  font-size: 12px;
+  font-weight: bold;
+  text-transform: uppercase;
+  text-align: left;
+  border-bottom: 1px solid #000000;
+  padding-bottom: 4px;
+  margin-bottom: 12px;
+  margin-top: 18px;
+  color: #000000;
+}
+
+/* Profile Summary */
+.harvard-summary {
+  font-size: 11px;
+  line-height: 1.6;
+  color: #000000;
+  margin-bottom: 16px;
+  text-align: justify;
+}
+
+/* Experience Styles */
+.harvard-experience-item {
+  margin-bottom: 16px;
+  page-break-inside: avoid;
+}
+
+.harvard-job-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 4px;
+}
+
+.harvard-job-title-exp {
+  font-size: 11px;
+  font-weight: bold;
+  color: #000000;
+}
+
+.harvard-job-date {
+  font-size: 10px;
+  color: #5a5a5a;
+}
+
+.harvard-company {
+  font-size: 11px;
+  color: #000000;
+  margin-bottom: 6px;
+  font-style: italic;
+}
+
+.harvard-description {
+  font-size: 11px;
+  line-height: 1.5;
+  color: #000000;
+}
+
+.harvard-description ul {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.harvard-description li {
+  margin-bottom: 4px;
+}
+
+/* Skills Styles - Multi-column */
+.harvard-skills-container {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.harvard-skill-category {
+  margin-bottom: 8px;
+}
+
+.harvard-skill-category-name {
+  font-size: 11px;
+  font-weight: bold;
+  color: #000000;
+  margin-bottom: 4px;
+}
+
+.harvard-skill-list {
+  font-size: 11px;
+  color: #000000;
+  line-height: 1.5;
+}
+
+/* Education Styles */
+.harvard-education-item {
+  margin-bottom: 12px;
+}
+
+.harvard-degree {
+  font-size: 11px;
+  font-weight: bold;
+  color: #000000;
+  margin-bottom: 4px;
+}
+
+.harvard-institution {
+  font-size: 11px;
+  color: #000000;
+  margin-bottom: 4px;
+  font-style: italic;
+}
+
+.harvard-education-date {
+  font-size: 10px;
+  color: #5a5a5a;
+}
+
+/* Academic Elements */
+.harvard-emphasis {
+  font-style: italic;
+  color: #5a5a5a;
+}
+
+/* Print Styles */
+@media print {
+  .harvard-template {
+    padding: 8mm;
+  }
+
+  .harvard-section {
+    page-break-inside: avoid;
+  }
+
+  .harvard-skills-container {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}

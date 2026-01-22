@@ -80,6 +80,7 @@ export default function EditResumePage() {
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [profilePictureFileName, setProfilePictureFileName] = useState("");
   const [previewKey, setPreviewKey] = useState(0);
+  const [zoomLevel, setZoomLevel] = useState(100);
   const [editingSectionTitle, setEditingSectionTitle] = useState<string | null>(
     null
   );
@@ -114,6 +115,9 @@ export default function EditResumePage() {
     }
   }, [mounted, isLoaded, user, resumeId]);
 
+  // Track dragging state
+  const isDraggingRef = useRef(false);
+
   // Autosave effect - saves 5 seconds after last change
   useEffect(() => {
     if (!hasChanges || !resume || !layout || sections.length === 0) {
@@ -146,10 +150,6 @@ export default function EditResumePage() {
 
         setHasChanges(false);
         setLastSaved(new Date());
-
-        // ATS score calculation is now only done on manual refresh
-        // This improves UX by not blocking saves
-        console.log("✅ [Autosave] Autosave completed successfully");
       } catch (error) {
         console.error("Autosave failed:", error);
       } finally {
@@ -188,13 +188,6 @@ export default function EditResumePage() {
       if (!resumeData.content.customSections) {
         resumeData.content.customSections = [];
       }
-
-      // Log for debugging
-      console.log("📋 [Load Resume] Initial resume data:", {
-        hasCustomSections: !!resumeData.content.customSections,
-        customSectionsCount: resumeData.content.customSections?.length || 0,
-        customSections: resumeData.content.customSections,
-      });
 
       setResume(resumeData);
       // Force preview to re-render when resume loads
@@ -240,6 +233,11 @@ export default function EditResumePage() {
         (t) => t.id === resumeData.templateId
       );
 
+      // Set template immediately so it's available when sections are initialized
+      if (foundTemplate) {
+        setTemplate(foundTemplate);
+      }
+
       // Load layout from database or use default
       if (resumeData.layout) {
         // For Mercury template, ensure 20mm left/right padding
@@ -282,7 +280,6 @@ export default function EditResumePage() {
                 await resumeApi.update(resumeId, {
                   layout: updatedLayout,
                 });
-                console.log("✅ Updated Mercury template padding to 20mm");
               } catch (error) {
                 console.error("Error updating layout padding:", error);
               }
@@ -316,15 +313,6 @@ export default function EditResumePage() {
           customSections.map((cs: any) => cs.id)
         );
 
-        // Log for debugging
-        console.log("📋 Loading custom sections:", {
-          sectionOrderCustomSections: loadedSections.filter(
-            (s) => s.type === "custom"
-          ),
-          customSectionsInDB: customSections,
-          customSectionIds: Array.from(customSectionIds),
-        });
-
         const missingCustomSections = loadedSections
           .filter((s) => s.type === "custom" && !customSectionIds.has(s.id))
           .map((s) => ({
@@ -334,10 +322,6 @@ export default function EditResumePage() {
           }));
 
         if (missingCustomSections.length > 0) {
-          console.log(
-            "⚠️ Found missing custom sections, initializing:",
-            missingCustomSections
-          );
           // Update resume data to include missing custom sections
           resumeData.content.customSections = [
             ...customSections,
@@ -535,9 +519,10 @@ export default function EditResumePage() {
         setSections(getDefaultSections());
       }
 
-      // Template was already loaded above
+      // Template was already set above (before sections) to ensure preview has it
+      // Force preview to re-render when both template and sections are ready
       if (foundTemplate) {
-        setTemplate(foundTemplate);
+        setPreviewKey((prev) => prev + 1);
       }
     } catch (error) {
       console.error("Error loading resume:", error);
@@ -649,7 +634,6 @@ export default function EditResumePage() {
           throw new Error("Preview element not found");
         }
 
-        console.log(`Found ${allPageElements.length} page(s) to export`);
 
         // Wait for all images to load before capturing HTML
         const allImages: HTMLImageElement[] = [];
@@ -752,22 +736,12 @@ export default function EditResumePage() {
             return;
           }
 
-          console.log(
-            "Starting thumbnail capture for resume:",
-            currentResumeId
-          );
-          console.log("Preview element found:", previewElement);
-
           const result = await captureAndUploadThumbnail(
             currentResumeId,
             previewContainerId
           );
 
           if (result.success) {
-            console.log(
-              "✅ Thumbnail uploaded successfully!",
-              result.thumbnailUrl
-            );
             // Reload the resume to get updated data with thumbnail
             const updatedResume = await resumeApi.get(resumeId);
             setResume(updatedResume);
@@ -1002,13 +976,24 @@ export default function EditResumePage() {
   const [cropperOpen, setCropperOpen] = useState(false);
   const [imageToCrop, setImageToCrop] = useState<string | null>(null);
 
-  const handleDragStart = (sectionId: string) => {
-    setDraggedSection(sectionId);
+  // ============================================
+  // DRAG AND DROP HANDLERS - Clean Implementation
+  // ============================================
+  
+  const handleDragStart = (e: React.DragEvent, sectionId: string) => {
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", sectionId);
+    isDraggingRef.current = true;
+    // Defer setting state to avoid blocking drag start
+    requestAnimationFrame(() => {
+      setDraggedSection(sectionId);
+    });
   };
 
   const handleDragOver = (e: React.DragEvent, targetId: string) => {
     e.preventDefault();
     e.stopPropagation();
+    
     if (!draggedSection || draggedSection === targetId) {
       setDragOverId(null);
       return;
@@ -1021,11 +1006,27 @@ export default function EditResumePage() {
 
     if (draggedIndex === -1 || targetIndex === -1) return;
 
-    const newSections = [...sections];
+    // Create new sections array with reordered items
+    // IMPORTANT: Create a completely new array to ensure React detects the change
+    // Also remove any column property to allow dynamic redistribution
+    const newSections = sections.map(s => {
+      // TypeScript-safe way to remove column property if it exists
+      const sectionWithoutColumn = { ...s };
+      if ('column' in sectionWithoutColumn) {
+        delete (sectionWithoutColumn as any).column;
+      }
+      return sectionWithoutColumn;
+    });
     const [removed] = newSections.splice(draggedIndex, 1);
     newSections.splice(targetIndex, 0, removed);
 
-    setSections(newSections);
+    const oldOrder = sections.map((s, idx) => `${idx}:${s.id}`).join(",");
+    const newOrder = newSections.map((s, idx) => `${idx}:${s.id}`).join(",");
+
+    // Update sections - MUST be a new array reference for React to detect change
+    if (oldOrder !== newOrder) {
+      setSections(newSections);
+    }
   };
 
   const handleDragLeave = () => {
@@ -1033,9 +1034,16 @@ export default function EditResumePage() {
   };
 
   const handleDragEnd = () => {
+    isDraggingRef.current = false;
     setDraggedSection(null);
     setDragOverId(null);
     setHasChanges(true);
+    
+    // Force preview update after drag ends to ensure column assignment is recalculated
+    // Use setTimeout to ensure sections state has fully updated
+    setTimeout(() => {
+      setPreviewKey((prev) => prev + 1);
+    }, 50);
   };
 
   const handleDrop = (e: React.DragEvent, targetId: string) => {
@@ -1242,8 +1250,8 @@ export default function EditResumePage() {
                 </div>
                 {layoutExpanded && (
                   <CardContent className="p-4 space-y-4">
-                    {/* Column Type Selection */}
-                    <div className="flex gap-2">
+                    {/* Column Type Selection - Hidden from user */}
+                    {/* <div className="flex gap-2">
                       <Button
                         variant={
                           layout.type === "single" ? "default" : "outline"
@@ -1288,7 +1296,7 @@ export default function EditResumePage() {
                       >
                         Double Column
                       </Button>
-                    </div>
+                    </div> */}
 
                     {/* Column Width Controls (only for double column) */}
                     {layout.type === "double" && (
@@ -1780,10 +1788,11 @@ export default function EditResumePage() {
                             : ""
                         }`}
                         draggable
-                        onDragStart={() => handleDragStart(section.id)}
+                        onDragStart={(e) => handleDragStart(e, section.id)}
                         onDragOver={(e) => handleDragOver(e, section.id)}
                         onDragLeave={handleDragLeave}
                         onDragEnd={handleDragEnd}
+                        onDrop={(e) => handleDrop(e, section.id)}
                         style={{
                           cursor: "move",
                           opacity: draggedSection === section.id ? 0.5 : 1,
@@ -2763,10 +2772,11 @@ export default function EditResumePage() {
                             : ""
                         }`}
                         draggable
-                        onDragStart={() => handleDragStart(section.id)}
+                        onDragStart={(e) => handleDragStart(e, section.id)}
                         onDragOver={(e) => handleDragOver(e, section.id)}
                         onDragLeave={handleDragLeave}
                         onDragEnd={handleDragEnd}
+                        onDrop={(e) => handleDrop(e, section.id)}
                         style={{
                           cursor: "move",
                           opacity: draggedSection === section.id ? 0.5 : 1,
@@ -2891,10 +2901,11 @@ export default function EditResumePage() {
                             : ""
                         }`}
                         draggable
-                        onDragStart={() => handleDragStart(section.id)}
+                        onDragStart={(e) => handleDragStart(e, section.id)}
                         onDragOver={(e) => handleDragOver(e, section.id)}
                         onDragLeave={handleDragLeave}
                         onDragEnd={handleDragEnd}
+                        onDrop={(e) => handleDrop(e, section.id)}
                         style={{
                           cursor: "move",
                           opacity: draggedSection === section.id ? 0.5 : 1,
@@ -2982,30 +2993,6 @@ export default function EditResumePage() {
                         </div>
                         {section.expanded && (
                           <CardContent className="p-4 space-y-4">
-                            <Button
-                              size="sm"
-                              onClick={() => {
-                                const nanoid = () =>
-                                  Math.random().toString(36).substring(2, 9);
-                                updateContent({
-                                  experience: [
-                                    ...resume.content.experience,
-                                    {
-                                      id: nanoid(),
-                                      company: "",
-                                      position: "",
-                                      startDate: "",
-                                      current: false,
-                                      description: [""],
-                                    },
-                                  ],
-                                });
-                              }}
-                              className="w-full bg-purple-600 hover:bg-purple-700 text-white"
-                            >
-                              <Plus className="w-4 h-4 mr-2" />
-                              Add Experience
-                            </Button>
                             {resume.content.experience.map((exp, index) => (
                               <div
                                 key={exp.id || index}
@@ -3132,6 +3119,30 @@ export default function EditResumePage() {
                                 </Button>
                               </div>
                             ))}
+                            <Button
+                              size="sm"
+                              onClick={() => {
+                                const nanoid = () =>
+                                  Math.random().toString(36).substring(2, 9);
+                                updateContent({
+                                  experience: [
+                                    ...resume.content.experience,
+                                    {
+                                      id: nanoid(),
+                                      company: "",
+                                      position: "",
+                                      startDate: "",
+                                      current: false,
+                                      description: [""],
+                                    },
+                                  ],
+                                });
+                              }}
+                              className="w-full bg-purple-600 hover:bg-purple-700 text-white"
+                            >
+                              <Plus className="w-4 h-4 mr-2" />
+                              Add Experience
+                            </Button>
                           </CardContent>
                         )}
                       </Card>
@@ -3150,10 +3161,11 @@ export default function EditResumePage() {
                             : ""
                         }`}
                         draggable
-                        onDragStart={() => handleDragStart(section.id)}
+                        onDragStart={(e) => handleDragStart(e, section.id)}
                         onDragOver={(e) => handleDragOver(e, section.id)}
                         onDragLeave={handleDragLeave}
                         onDragEnd={handleDragEnd}
+                        onDrop={(e) => handleDrop(e, section.id)}
                         style={{
                           cursor: "move",
                           opacity: draggedSection === section.id ? 0.5 : 1,
@@ -3241,28 +3253,6 @@ export default function EditResumePage() {
                         </div>
                         {section.expanded && (
                           <CardContent className="p-4 space-y-4">
-                            <Button
-                              size="sm"
-                              onClick={() => {
-                                const nanoid = () =>
-                                  Math.random().toString(36).substring(2, 9);
-                                updateContent({
-                                  education: [
-                                    ...resume.content.education,
-                                    {
-                                      id: nanoid(),
-                                      institution: "",
-                                      degree: "",
-                                      startDate: "",
-                                    },
-                                  ],
-                                });
-                              }}
-                              className="w-full bg-purple-600 hover:bg-purple-700 text-white"
-                            >
-                              <Plus className="w-4 h-4 mr-2" />
-                              Add Education
-                            </Button>
                             {resume.content.education.map((edu, index) => (
                               <div
                                 key={edu.id || index}
@@ -3361,6 +3351,28 @@ export default function EditResumePage() {
                                 </Button>
                               </div>
                             ))}
+                            <Button
+                              size="sm"
+                              onClick={() => {
+                                const nanoid = () =>
+                                  Math.random().toString(36).substring(2, 9);
+                                updateContent({
+                                  education: [
+                                    ...resume.content.education,
+                                    {
+                                      id: nanoid(),
+                                      institution: "",
+                                      degree: "",
+                                      startDate: "",
+                                    },
+                                  ],
+                                });
+                              }}
+                              className="w-full bg-purple-600 hover:bg-purple-700 text-white"
+                            >
+                              <Plus className="w-4 h-4 mr-2" />
+                              Add Education
+                            </Button>
                           </CardContent>
                         )}
                       </Card>
@@ -3430,10 +3442,11 @@ export default function EditResumePage() {
                             : ""
                         }`}
                         draggable
-                        onDragStart={() => handleDragStart(section.id)}
+                        onDragStart={(e) => handleDragStart(e, section.id)}
                         onDragOver={(e) => handleDragOver(e, section.id)}
                         onDragLeave={handleDragLeave}
                         onDragEnd={handleDragEnd}
+                        onDrop={(e) => handleDrop(e, section.id)}
                         style={{
                           cursor: "move",
                           opacity: draggedSection === section.id ? 0.5 : 1,
@@ -3593,10 +3606,11 @@ export default function EditResumePage() {
                             : ""
                         }`}
                         draggable
-                        onDragStart={() => handleDragStart(section.id)}
+                        onDragStart={(e) => handleDragStart(e, section.id)}
                         onDragOver={(e) => handleDragOver(e, section.id)}
                         onDragLeave={handleDragLeave}
                         onDragEnd={handleDragEnd}
+                        onDrop={(e) => handleDrop(e, section.id)}
                         style={{
                           cursor: "move",
                           opacity: draggedSection === section.id ? 0.5 : 1,
@@ -3684,28 +3698,6 @@ export default function EditResumePage() {
                         </div>
                         {section.expanded && (
                           <CardContent className="p-4 space-y-4">
-                            <Button
-                              size="sm"
-                              onClick={() => {
-                                const nanoid = () =>
-                                  Math.random().toString(36).substring(2, 9);
-                                updateContent({
-                                  projects: [
-                                    ...(resume.content.projects || []),
-                                    {
-                                      id: nanoid(),
-                                      name: "",
-                                      description: "",
-                                      technologies: [],
-                                    },
-                                  ],
-                                });
-                              }}
-                              className="w-full bg-purple-600 hover:bg-purple-700 text-white"
-                            >
-                              <Plus className="w-4 h-4 mr-2" />
-                              Add Project
-                            </Button>
                             {(resume.content.projects || []).map(
                               (project, index) => (
                                 <div
@@ -3791,6 +3783,28 @@ export default function EditResumePage() {
                                 </div>
                               )
                             )}
+                            <Button
+                              size="sm"
+                              onClick={() => {
+                                const nanoid = () =>
+                                  Math.random().toString(36).substring(2, 9);
+                                updateContent({
+                                  projects: [
+                                    ...(resume.content.projects || []),
+                                    {
+                                      id: nanoid(),
+                                      name: "",
+                                      description: "",
+                                      technologies: [],
+                                    },
+                                  ],
+                                });
+                              }}
+                              className="w-full bg-purple-600 hover:bg-purple-700 text-white"
+                            >
+                              <Plus className="w-4 h-4 mr-2" />
+                              Add Project
+                            </Button>
                           </CardContent>
                         )}
                       </Card>
@@ -3804,10 +3818,11 @@ export default function EditResumePage() {
                         key={section.id}
                         className="border transition-all"
                         draggable
-                        onDragStart={() => handleDragStart(section.id)}
+                        onDragStart={(e) => handleDragStart(e, section.id)}
                         onDragOver={(e) => handleDragOver(e, section.id)}
                         onDragLeave={handleDragLeave}
                         onDragEnd={handleDragEnd}
+                        onDrop={(e) => handleDrop(e, section.id)}
                       >
                         <div className="flex items-center justify-between p-4 border-b bg-gray-50">
                           <div className="flex items-center gap-2 flex-1">
@@ -4173,10 +4188,11 @@ export default function EditResumePage() {
                         key={section.id}
                         className="border"
                         draggable
-                        onDragStart={() => handleDragStart(section.id)}
+                        onDragStart={(e) => handleDragStart(e, section.id)}
                         onDragOver={(e) => handleDragOver(e, section.id)}
                         onDragLeave={handleDragLeave}
                         onDragEnd={handleDragEnd}
+                        onDrop={(e) => handleDrop(e, section.id)}
                       >
                         <div className="flex items-center justify-between p-4 border-b bg-gray-50">
                           <div className="flex items-center gap-2 flex-1">
@@ -4294,20 +4310,6 @@ export default function EditResumePage() {
                       );
                     const customContent = customSectionData?.content || "";
 
-                    // Debug logging
-                    if (process.env.NODE_ENV === "development") {
-                      console.log("🔍 [Custom Section Edit]", {
-                        sectionId: section.id,
-                        sectionTitle: section.title,
-                        hasResume: !!resume,
-                        customSectionsInResume:
-                          resume?.content.customSections?.length || 0,
-                        foundCustomSection: !!customSectionData,
-                        customContentLength: customContent.length,
-                        customContentPreview: customContent.substring(0, 50),
-                      });
-                    }
-
                     return (
                       <Card
                         key={section.id}
@@ -4318,7 +4320,7 @@ export default function EditResumePage() {
                             : ""
                         }`}
                         draggable
-                        onDragStart={() => handleDragStart(section.id)}
+                        onDragStart={(e) => handleDragStart(e, section.id)}
                         onDragOver={(e) => handleDragOver(e, section.id)}
                         onDragEnd={handleDragEnd}
                         onDrop={(e) => handleDrop(e, section.id)}
@@ -4464,7 +4466,7 @@ export default function EditResumePage() {
                             : ""
                         }`}
                         draggable
-                        onDragStart={() => handleDragStart(section.id)}
+                        onDragStart={(e) => handleDragStart(e, section.id)}
                         onDragOver={(e) => handleDragOver(e, section.id)}
                         onDragEnd={handleDragEnd}
                         onDrop={(e) => handleDrop(e, section.id)}
@@ -4523,10 +4525,11 @@ export default function EditResumePage() {
                         key={section.id}
                         className="border"
                         draggable
-                        onDragStart={() => handleDragStart(section.id)}
+                        onDragStart={(e) => handleDragStart(e, section.id)}
                         onDragOver={(e) => handleDragOver(e, section.id)}
                         onDragLeave={handleDragLeave}
                         onDragEnd={handleDragEnd}
+                        onDrop={(e) => handleDrop(e, section.id)}
                       >
                         <div className="flex items-center justify-between p-4 border-b bg-gray-50">
                           <div className="flex items-center gap-2 flex-1">
@@ -4643,10 +4646,11 @@ export default function EditResumePage() {
                         key={section.id}
                         className="border"
                         draggable
-                        onDragStart={() => handleDragStart(section.id)}
+                        onDragStart={(e) => handleDragStart(e, section.id)}
                         onDragOver={(e) => handleDragOver(e, section.id)}
                         onDragLeave={handleDragLeave}
                         onDragEnd={handleDragEnd}
+                        onDrop={(e) => handleDrop(e, section.id)}
                       >
                         <div className="flex items-center justify-between p-4 border-b bg-gray-50">
                           <div className="flex items-center gap-2 flex-1">
@@ -4766,10 +4770,11 @@ export default function EditResumePage() {
                         key={section.id}
                         className="border"
                         draggable
-                        onDragStart={() => handleDragStart(section.id)}
+                        onDragStart={(e) => handleDragStart(e, section.id)}
                         onDragOver={(e) => handleDragOver(e, section.id)}
                         onDragLeave={handleDragLeave}
                         onDragEnd={handleDragEnd}
+                        onDrop={(e) => handleDrop(e, section.id)}
                       >
                         <div className="flex items-center justify-between p-4 border-b bg-gray-50">
                           <div className="flex items-center gap-2 flex-1">
@@ -5055,10 +5060,11 @@ export default function EditResumePage() {
                         key={section.id}
                         className="border"
                         draggable
-                        onDragStart={() => handleDragStart(section.id)}
+                        onDragStart={(e) => handleDragStart(e, section.id)}
                         onDragOver={(e) => handleDragOver(e, section.id)}
                         onDragLeave={handleDragLeave}
                         onDragEnd={handleDragEnd}
+                        onDrop={(e) => handleDrop(e, section.id)}
                       >
                         <div className="flex items-center justify-between p-4 border-b bg-gray-50">
                           <div className="flex items-center gap-2 flex-1">
@@ -5379,10 +5385,11 @@ export default function EditResumePage() {
                         key={section.id}
                         className="border"
                         draggable
-                        onDragStart={() => handleDragStart(section.id)}
+                        onDragStart={(e) => handleDragStart(e, section.id)}
                         onDragOver={(e) => handleDragOver(e, section.id)}
                         onDragLeave={handleDragLeave}
                         onDragEnd={handleDragEnd}
+                        onDrop={(e) => handleDrop(e, section.id)}
                       >
                         <div className="flex items-center justify-between p-4 border-b bg-gray-50">
                           <div className="flex items-center gap-2 flex-1">
@@ -5626,10 +5633,11 @@ export default function EditResumePage() {
                         key={section.id}
                         className="border"
                         draggable
-                        onDragStart={() => handleDragStart(section.id)}
+                        onDragStart={(e) => handleDragStart(e, section.id)}
                         onDragOver={(e) => handleDragOver(e, section.id)}
                         onDragLeave={handleDragLeave}
                         onDragEnd={handleDragEnd}
+                        onDrop={(e) => handleDrop(e, section.id)}
                       >
                         <div className="flex items-center justify-between p-4 border-b bg-gray-50">
                           <div className="flex items-center gap-2 flex-1">
@@ -5904,10 +5912,11 @@ export default function EditResumePage() {
                         key={section.id}
                         className="border"
                         draggable
-                        onDragStart={() => handleDragStart(section.id)}
+                        onDragStart={(e) => handleDragStart(e, section.id)}
                         onDragOver={(e) => handleDragOver(e, section.id)}
                         onDragLeave={handleDragLeave}
                         onDragEnd={handleDragEnd}
+                        onDrop={(e) => handleDrop(e, section.id)}
                       >
                         <div className="flex items-center justify-between p-4 border-b bg-gray-50">
                           <div className="flex items-center gap-2 flex-1">
@@ -6265,6 +6274,8 @@ export default function EditResumePage() {
                 template={template}
                 sections={sections}
                 layout={layout || undefined}
+                zoomLevel={zoomLevel}
+                onZoomChange={setZoomLevel}
               />
             ) : (
               <div className="flex items-center justify-center h-full text-gray-500">

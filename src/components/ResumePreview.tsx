@@ -3,7 +3,7 @@
  * Configuration-driven resume preview that works with all templates
  */
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Resume, ResumeTemplate } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { ZoomIn, ZoomOut, RotateCcw } from "lucide-react";
@@ -54,6 +54,8 @@ interface ResumePreviewProps {
       right: number;
     };
   };
+  zoomLevel?: number;
+  onZoomChange?: (zoom: number) => void;
 }
 
 export function ResumePreview({
@@ -61,8 +63,25 @@ export function ResumePreview({
   template,
   sections,
   layout,
+  zoomLevel: controlledZoomLevel,
+  onZoomChange,
 }: ResumePreviewProps) {
-  const [zoomLevel, setZoomLevel] = useState(100);
+  // Use controlled zoom if provided, otherwise use internal state
+  const [internalZoomLevel, setInternalZoomLevel] = useState(100);
+  const zoomLevel = controlledZoomLevel ?? internalZoomLevel;
+  
+  // Create a unified setter that handles both controlled and uncontrolled modes
+  const setZoomLevel = useCallback((value: number | ((prev: number) => number)) => {
+    if (onZoomChange) {
+      // Controlled mode: evaluate function if needed, then pass number to onZoomChange
+      const newValue = typeof value === 'function' ? value(zoomLevel) : value;
+      onZoomChange(newValue);
+    } else {
+      // Uncontrolled mode: use React state setter (supports both number and function)
+      setInternalZoomLevel(value);
+    }
+  }, [onZoomChange, zoomLevel]);
+  
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Handle pinch-to-zoom
@@ -73,7 +92,7 @@ export function ResumePreview({
     const handleWheel = (e: WheelEvent) => {
       if (e.ctrlKey) {
         e.preventDefault();
-        setZoomLevel((prev) => {
+        setZoomLevel((prev:number) => {
           // Adjust sensitivity as needed
           const delta = -e.deltaY * 0.5;
           const newZoom = prev + delta;
@@ -89,7 +108,7 @@ export function ResumePreview({
     return () => {
       container.removeEventListener("wheel", handleWheel);
     };
-  }, []);
+  }, [setZoomLevel]);
 
   // Use provided template or show placeholder
   if (!template) {
@@ -104,7 +123,7 @@ export function ResumePreview({
   }
 
   const handleZoomIn = () => {
-    setZoomLevel((prev) => Math.min(prev + 25, 200));
+    setZoomLevel((prev:number) => Math.min(prev + 25, 200));
   };
 
   const handleZoomOut = () => {

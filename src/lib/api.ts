@@ -692,18 +692,24 @@ export interface Resume {
 }
 
 export const resumeApi = {
+  /**
+   * Get All Templates
+   * Uses auto-discovery template loader for seamless template management
+   * No need to manually update this code when adding new templates
+   */
   getTemplates: async (): Promise<ResumeTemplate[]> => {
-    const response = await apiClient.get<{ data: ResumeTemplate[] }>(
-      "/templates"
-    );
-    return response.data.data;
+    const { TemplateLoader } = await import("./templateLoader");
+    return TemplateLoader.loadAllTemplates();
   },
 
+  /**
+   * Get Single Template
+   * Loads a specific template by ID using the template loader
+   */
   getTemplate: async (templateId: string): Promise<ResumeTemplate> => {
-    const response = await apiClient.get<{ data: ResumeTemplate }>(
-      `/templates/${templateId}`
-    );
-    return response.data.data;
+    const { TemplateLoader } = await import("./templateLoader");
+    const config = await TemplateLoader.loadTemplate(templateId);
+    return config.template;
   },
 
   create: async (
@@ -712,6 +718,8 @@ export const resumeApi = {
       title?: string;
       templateId: string;
       content?: Partial<Resume["content"]>;
+      sectionOrder?: Resume["sectionOrder"];
+      layout?: Resume["layout"];
     }
   ): Promise<Resume> => {
     const response = await apiClient.post<{ data: Resume }>(
@@ -816,7 +824,8 @@ export const resumeApi = {
       bottom: number;
       left: number;
       right: number;
-    }
+    },
+    templateCSS?: string
   ): Promise<{ downloadUrl: string; s3Key: string }> => {
     const response = await apiClient.post<{
       data: { downloadUrl: string; s3Key: string };
@@ -825,6 +834,7 @@ export const resumeApi = {
       {
         htmlContent,
         padding,
+        templateCSS,
       },
       {
         headers: {

@@ -17,15 +17,22 @@ export const PaginatedPreview: React.FC<PaginatedPreviewProps> = ({
   sections,
   layout,
 }) => {
+  // Create key based on section order - this will force remount when order changes
+  const rendererKey = sections?.map((s, idx) => `${idx}:${s.id}`).join("|") || "empty";
+  
   const sourceRef = useRef<HTMLDivElement>(null);
   const targetRef = useRef<HTMLDivElement>(null);
   const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
-    // Debounce the pagination
+    // Reset ready state when dependencies change
+    setIsReady(false);
+    
+    // Use longer delay to ensure ResumeRenderer has finished re-rendering
+    // This is critical for column assignment changes (left/right column moves)
     const timer = setTimeout(() => {
       paginate();
-    }, 100);
+    }, 100); // Increased from 10ms to 100ms to allow DOM to update
     return () => clearTimeout(timer);
   }, [resume, template, sections, layout]);
 
@@ -176,13 +183,25 @@ export const PaginatedPreview: React.FC<PaginatedPreviewProps> = ({
   const paginate = () => {
     if (!sourceRef.current || !targetRef.current) return;
 
-    targetRef.current.innerHTML = "";
-    setIsReady(false);
-
     const sourcePage = sourceRef.current.querySelector(
       ".resume-page"
     ) as HTMLElement;
-    if (!sourcePage) return;
+    if (!sourcePage) {
+      // ResumeRenderer not ready yet, retry after a short delay
+      setTimeout(() => paginate(), 50);
+      return;
+    }
+
+    // Check if columns exist (for two-column layouts) to ensure structure is ready
+    const hasColumns = sourcePage.querySelector('[style*="display: flex"]');
+    if (layout?.type === "double" && !hasColumns) {
+      // Column structure not ready, retry
+      setTimeout(() => paginate(), 50);
+      return;
+    }
+
+    targetRef.current.innerHTML = "";
+    setIsReady(false);
 
     const pageStyle = sourcePage.getAttribute("style") || "";
     const pageClass = sourcePage.className;
@@ -494,6 +513,7 @@ export const PaginatedPreview: React.FC<PaginatedPreviewProps> = ({
         }}
       >
         <ResumeRenderer
+          key={`renderer-${rendererKey}`}
           resume={resume}
           template={template}
           sections={sections}
