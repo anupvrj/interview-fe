@@ -3,10 +3,10 @@
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
-import { Loader2, Check, X, ArrowLeft, Sparkles } from "lucide-react";
+import { Loader2, Check, X, ArrowLeft, Sparkles, ArrowUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { paymentApi } from "@/lib/api";
+import { paymentApi, Subscription } from "@/lib/api";
 import { PLAN_CONFIG } from "@/lib/payment";
 import Script from "next/script";
 import Link from "next/link";
@@ -28,24 +28,133 @@ function CheckoutPageContent() {
     | null;
 
   const [loading, setLoading] = useState(false);
+  const [checkingSubscription, setCheckingSubscription] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [orderData, setOrderData] = useState<any>(null);
   const [razorpayLoaded, setRazorpayLoaded] = useState(false);
+  const [currentSubscription, setCurrentSubscription] = useState<Subscription | null>(null);
+  const [samePlanError, setSamePlanError] = useState<string | null>(null);
 
+  // Plan hierarchy for upgrade checks
+  const getPlanLevel = (plan: string): number => {
+    const levels: Record<string, number> = {
+      free: 0,
+      starter: 1,
+      pro: 2,
+      exam_pack: 3,
+    };
+    return levels[plan] ?? 0;
+  };
+
+  const getNextPlan = (currentPlan: string): string | null => {
+    if (currentPlan === "free") return "starter";
+    if (currentPlan === "starter") return "pro";
+    if (currentPlan === "pro") return "exam_pack";
+    return null;
+  };
+
+  // Clear error immediately when planId changes
   useEffect(() => {
-    if (!isLoaded) return;
-    if (!user) {
-      router.push("/sign-in");
-      return;
-    }
-    if (!planId || !["starter", "pro", "exam_pack"].includes(planId)) {
-      router.push("/pricing");
-      return;
-    }
+    setSamePlanError(null);
+    setCheckingSubscription(true);
+    // Don't reset razorpayLoaded - if it's already loaded, keep it loaded
+  }, [planId]);
+
+  // Check if Razorpay is already loaded in window (check on mount and when plan changes)
+  useEffect(() => {
+    const checkRazorpay = () => {
+      if (typeof window !== "undefined" && window.Razorpay) {
+        setRazorpayLoaded(true);
+        return true;
+      }
+      return false;
+    };
+
+    // Check immediately
+    if (checkRazorpay()) return;
+
+    // If not loaded, check periodically (fallback)
+    const interval = setInterval(() => {
+      if (checkRazorpay()) {
+        clearInterval(interval);
+      }
+    }, 500);
+
+    // Clear interval after 10 seconds
+    const timeout = setTimeout(() => {
+      clearInterval(interval);
+      if (!checkRazorpay()) {
+        console.warn("Razorpay SDK not loaded after 10 seconds");
+      }
+    }, 10000);
+
+    return () => {
+      clearInterval(interval);
+      clearTimeout(timeout);
+    };
+  }, [planId]); // Re-check when planId changes
+
+  // Check subscription status
+  useEffect(() => {
+    const checkSubscription = async () => {
+      
+      if (!isLoaded || !user) {
+        setCheckingSubscription(false);
+        return;
+      }
+
+      if (!planId || !["starter", "pro", "exam_pack"].includes(planId)) {
+        router.push("/pricing");
+        return;
+      }
+
+      try {
+        const subscription = await paymentApi.getSubscription();
+        setCurrentSubscription(subscription);
+
+        // Check if user already has the same plan
+        if (
+          subscription &&
+          subscription.plan === planId &&
+          subscription.status === "active"
+        ) {
+          const nextPlan = getNextPlan(planId);
+          if (nextPlan) {
+            setSamePlanError(
+              `You are already subscribed to the ${PLAN_CONFIG[planId as keyof typeof PLAN_CONFIG].name} plan. Please upgrade to ${PLAN_CONFIG[nextPlan as keyof typeof PLAN_CONFIG].name} plan instead.`
+            );
+          } else {
+            setSamePlanError(
+              `You are already subscribed to the ${PLAN_CONFIG[planId as keyof typeof PLAN_CONFIG].name} plan. This is our highest tier plan.`
+            );
+          }
+        } else if (
+          subscription &&
+          subscription.plan !== "free" &&
+          getPlanLevel(subscription.plan) > getPlanLevel(planId)
+        ) {
+          // User is trying to downgrade
+          setSamePlanError(
+            `You are currently on the ${PLAN_CONFIG[subscription.plan as keyof typeof PLAN_CONFIG].name} plan. Please contact support if you want to change your plan.`
+          );
+        } else {
+          // Valid upgrade or new subscription - clear any errors
+          setSamePlanError(null);
+        }
+      } catch (error) {
+        console.error("Error checking subscription:", error);
+        // Continue with checkout if subscription check fails
+        setSamePlanError(null);
+      } finally {
+        setCheckingSubscription(false);
+      }
+    };
+
+    checkSubscription();
   }, [isLoaded, user, planId, router]);
 
   const handlePayment = async () => {
-    if (!planId || !user) return;
+    if (!planId || !user || samePlanError) return;
 
     setLoading(true);
     setError(null);
@@ -89,8 +198,8 @@ function CheckoutPageContent() {
 
             console.log("✅ Payment verified, subscription activated:", result);
 
-            // Redirect to new interview page
-            router.push("/dashboard/interviews/new?payment=success");
+            // Redirect to dashboard after successful payment
+            router.push("/dashboard?payment=success");
           } catch (err: any) {
             console.error("❌ Payment verification failed:", err);
             setError(
@@ -124,7 +233,7 @@ function CheckoutPageContent() {
     }
   };
 
-  if (!isLoaded || !user || !planId) {
+  if (!isLoaded || !user || !planId || checkingSubscription) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-purple-600" />
@@ -138,12 +247,21 @@ function CheckoutPageContent() {
     <>
       <Script
         src="https://checkout.razorpay.com/v1/checkout.js"
+        strategy="afterInteractive"
         onLoad={() => {
           console.log("Razorpay SDK loaded");
-          setRazorpayLoaded(true);
+          // Double check that it's actually available
+          setTimeout(() => {
+            if (typeof window !== "undefined" && window.Razorpay) {
+              setRazorpayLoaded(true);
+            } else {
+              console.warn("Razorpay object not found after script load");
+            }
+          }, 100);
         }}
         onError={() => {
-          setError("Failed to load Razorpay SDK");
+          console.error("Failed to load Razorpay SDK");
+          setError("Failed to load Razorpay SDK. Please refresh the page.");
           setRazorpayLoaded(false);
         }}
       />
@@ -211,6 +329,40 @@ function CheckoutPageContent() {
               </div>
             </div>
 
+            {/* Same Plan Error Message */}
+            {samePlanError && (
+              <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <div className="flex items-start gap-3 mb-3">
+                  <X className="h-5 w-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <p className="text-yellow-800 font-semibold mb-1">
+                      Already Subscribed
+                    </p>
+                    <p className="text-yellow-700 text-sm">{samePlanError}</p>
+                  </div>
+                </div>
+                {currentSubscription &&
+                  currentSubscription.plan !== "exam_pack" && (
+                    <Link href={`/checkout?plan=${getNextPlan(currentSubscription.plan)}`}>
+                      <Button
+                        className="w-full mt-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white"
+                      >
+                        <ArrowUp className="h-4 w-4 mr-2" />
+                        Upgrade to{" "}
+                        {PLAN_CONFIG[
+                          getNextPlan(currentSubscription.plan) as keyof typeof PLAN_CONFIG
+                        ]?.name || "Next Plan"}
+                      </Button>
+                    </Link>
+                  )}
+                <Link href="/dashboard" className="block mt-3">
+                  <Button variant="outline" className="w-full">
+                    Go to Dashboard
+                  </Button>
+                </Link>
+              </div>
+            )}
+
             {/* Error Message */}
             {error && (
               <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center gap-3">
@@ -230,7 +382,7 @@ function CheckoutPageContent() {
             )}
             <Button
               onClick={handlePayment}
-              disabled={loading || !razorpayLoaded}
+              disabled={loading || !razorpayLoaded || !!samePlanError}
               className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white py-6 text-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? (
