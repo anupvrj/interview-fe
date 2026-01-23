@@ -508,7 +508,7 @@ export interface ResumeTemplate {
     background: string;
   };
   layout: {
-    headerStyle: "centered" | "left" | "two-column";
+    headerStyle: "centered" | "left" | "two-column" | "full-width";
     sectionSpacing: number;
     fontFamily: string;
     fontSize: {
