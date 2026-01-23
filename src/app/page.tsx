@@ -21,11 +21,20 @@ import {
   Star,
   Users,
   Zap,
+  FileText,
+  Video,
+  MessageSquare,
+  Check,
+  Trophy,
 } from "lucide-react";
+import Image from "next/image";
+import { PlansSection } from "@/components/PlansSection";
+import { ScrollSection } from "@/components/ScrollSection";
+import { NavigationMenu } from "@/components/NavigationMenu";
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-pink-50">
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-pink-50 scroll-smooth">
       {/* Navigation */}
       <nav className="fixed top-0 w-full bg-white/90 backdrop-blur-md border-b z-50 shadow-sm">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
@@ -41,7 +50,9 @@ export default function LandingPage() {
                 Easy Interview
               </span>
             </Link>
-            <div className="flex items-center gap-2 sm:gap-3">
+            <div className="flex items-center gap-4 sm:gap-6">
+              {/* Navigation Menu */}
+              <NavigationMenu />
               <SignedOut>
                 <Link href="/sign-in">
                   <Button
@@ -62,7 +73,7 @@ export default function LandingPage() {
                 </Link>
               </SignedOut>
               <SignedIn>
-                <Link href="/dashboard">
+                <Link href="/dashboard" className="hidden md:block">
                   <Button
                     variant="outline"
                     size="sm"
@@ -102,22 +113,22 @@ export default function LandingPage() {
             personalized feedback, and continuous learning. Built for Indian
             students targeting TCS, Infosys, Wipro, and more.
           </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 mb-8 sm:mb-12 px-4">
-            <Link href="/sign-up" className="w-full sm:w-auto">
+          <div className="flex flex-row items-center justify-center gap-2 sm:gap-3 mb-8 sm:mb-12 px-4">
+            <Link href="/sign-up" className="w-auto">
               <Button
                 variant="gradient"
-                size="lg"
-                className="w-full sm:w-auto bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white shadow-lg hover:shadow-xl transition-all text-base sm:text-lg px-6 sm:px-8 py-6 sm:py-7"
+                size="sm"
+                className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white shadow-lg hover:shadow-xl transition-all text-xs sm:text-sm px-3 sm:px-4 py-3 sm:py-3.5"
               >
                 Start Free Interview
-                <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 ml-2" />
+                <ArrowRight className="w-3 h-3 sm:w-3.5 sm:h-3.5 ml-1.5" />
               </Button>
             </Link>
-            <Link href="#features" className="w-full sm:w-auto">
+            <Link href="#features" className="w-auto">
               <Button
                 variant="outline"
-                size="lg"
-                className="w-full sm:w-auto border-2 text-base sm:text-lg px-6 sm:px-8 py-6 sm:py-7"
+                size="sm"
+                className="border-2 text-xs sm:text-sm px-3 sm:px-4 py-3 sm:py-3.5"
               >
                 See How It Works
               </Button>
@@ -140,8 +151,333 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* Resume Builder Section */}
+      <ScrollSection
+        id="build-resume"
+        className="py-12 sm:py-16 lg:py-20 px-4 sm:px-6 bg-gradient-to-br from-blue-50 via-cyan-50 to-indigo-50 scroll-mt-20"
+      >
+        <div className="container mx-auto max-w-7xl">
+          <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
+            {/* Left Section - Marketing Content */}
+            <div className="space-y-6">
+              {/* Badge */}
+              <div className="inline-flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 bg-gradient-to-r from-blue-100 to-cyan-100 rounded-full text-blue-700 font-semibold text-xs sm:text-sm border border-blue-200 shadow-sm">
+                <Sparkles className="w-3 h-3 sm:w-4 sm:h-4 text-blue-600" />
+                <span>Best AI-Powered Resume Builder</span>
+              </div>
+
+              {/* Headline */}
+              <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold leading-tight">
+                Create{" "}
+                <span className="text-blue-600">Professional</span> Resumes in{" "}
+                <span className="text-blue-600">Minutes</span>
+              </h2>
+
+              {/* Sub-headline */}
+              <p className="text-base sm:text-lg text-gray-600 leading-relaxed">
+                Land your dream job with AI-powered resume builder. Choose from
+                25+ ATS-optimized templates and get hired faster.
+              </p>
+
+              {/* AI-Powered Features */}
+              <div className="space-y-3 pt-2">
+                <div className="flex items-start gap-3">
+                  <div className="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <FileText className="w-3 h-3 text-blue-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm sm:text-base font-semibold text-gray-900">
+                      <span className="text-blue-600">25+ ATS-Optimized</span>{" "}
+                      Templates
+                    </p>
+                    <p className="text-xs sm:text-sm text-gray-600">
+                      Professional designs that pass applicant tracking systems
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <div className="w-5 h-5 rounded-full bg-cyan-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <Check className="w-3 h-3 text-cyan-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm sm:text-base font-semibold text-gray-900">
+                      <span className="text-cyan-600">AI-Powered</span> ATS
+                      Scoring
+                    </p>
+                    <p className="text-xs sm:text-sm text-gray-600">
+                      Get instant feedback on your resume's ATS compatibility
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <div className="w-5 h-5 rounded-full bg-indigo-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <Trophy className="w-3 h-3 text-indigo-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm sm:text-base font-semibold text-gray-900">
+                      <span className="text-indigo-600">Ready in 2</span>{" "}
+                      Minutes
+                    </p>
+                    <p className="text-xs sm:text-sm text-gray-600">
+                      No credit card required. Start building your resume instantly
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <div className="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <Sparkles className="w-3 h-3 text-blue-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm sm:text-base font-semibold text-gray-900">
+                      <span className="text-blue-600">Smart</span> Content
+                      Suggestions
+                    </p>
+                    <p className="text-xs sm:text-sm text-gray-600">
+                      AI helps you write compelling bullet points and descriptions
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* CTA Buttons */}
+              <div className="flex flex-row gap-2 sm:gap-3 pt-4 justify-center">
+                <Link href="/dashboard/resumes/new" className="w-auto">
+                  <Button
+                    size="sm"
+                    className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white shadow-lg hover:shadow-xl transition-all text-xs sm:text-sm px-3 sm:px-4 py-3 sm:py-3.5"
+                  >
+                    Try Builder Free
+                    <ArrowRight className="w-3 h-3 sm:w-3.5 sm:h-3.5 ml-1.5" />
+                  </Button>
+                </Link>
+                <Link href="/dashboard/resumes" className="w-auto">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="border-2 text-xs sm:text-sm px-3 sm:px-4 py-3 sm:py-3.5"
+                  >
+                    Browse Templates
+                  </Button>
+                </Link>
+              </div>
+            </div>
+
+            {/* Right Section - Resume Preview */}
+            <div className="relative flex justify-center lg:justify-end">
+              <div className="relative rounded-lg shadow-2xl overflow-hidden bg-white max-w-[280px] sm:max-w-[320px] lg:max-w-[400px]">
+                <Image
+                  src="/resume-template-images/clean-slate-form-template-design.webp"
+                  alt="Resume Template Preview"
+                  width={400}
+                  height={500}
+                  className="w-full h-auto object-contain"
+                  priority
+                />
+                {/* ATS Score Badge Overlay */}
+                <div className="absolute top-1 right-1 sm:top-2 sm:right-2 bg-green-500 text-white px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-md shadow-lg flex items-center gap-1 animate-bounce" style={{ animationDuration: '2s', animationDelay: '0s' }}>
+                  <div className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 bg-white text-green-600 rounded-full flex items-center justify-center font-bold text-[8px] sm:text-[9px] lg:text-[10px] animate-pulse">
+                    98
+                  </div>
+                  <div className="text-[8px] sm:text-[9px] lg:text-[10px] leading-tight hidden sm:block">
+                    <div className="font-semibold">ATS Score</div>
+                    <div className="text-green-100 text-[7px] sm:text-[8px] lg:text-[9px]">Excellent</div>
+                  </div>
+                </div>
+                {/* Templates Badge */}
+                <div className="absolute top-1 left-1 sm:top-2 sm:left-2 bg-blue-600 text-white px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-md shadow-lg text-[8px] sm:text-[9px] lg:text-[10px] font-semibold animate-pulse" style={{ animationDuration: '2.5s', animationDelay: '0.5s' }}>
+                  <span className="hidden sm:inline">25+ Templates Available</span>
+                  <span className="sm:hidden">25+ Templates</span>
+                </div>
+                {/* AI-Powered Button */}
+                <div className="absolute bottom-1 right-1 sm:bottom-2 sm:right-2 animate-bounce" style={{ animationDuration: '2.2s', animationDelay: '1s' }}>
+                  <Button
+                    size="sm"
+                    className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg h-6 px-1.5 sm:h-7 sm:px-2 text-[8px] sm:text-[9px] lg:text-[10px] hover:scale-105 transition-transform"
+                  >
+                    <Sparkles className="w-2.5 h-2.5 sm:w-3 sm:h-3 mr-0.5 sm:mr-1 animate-spin" style={{ animationDuration: '3s' }} />
+                    <span className="hidden sm:inline">AI-Powered</span>
+                    <span className="sm:hidden">AI</span>
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </ScrollSection>
+
+      {/* Mock Interview Hero Section */}
+      <ScrollSection
+        id="start-interview"
+        className="py-12 sm:py-16 lg:py-20 px-4 sm:px-6 bg-gradient-to-br from-purple-50 via-blue-50 to-pink-50 scroll-mt-20"
+      >
+        <div className="container mx-auto max-w-7xl">
+          <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
+            {/* Left Section - Marketing Content */}
+            <div className="space-y-6">
+              {/* Badge */}
+              <div className="inline-flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 bg-gradient-to-r from-purple-100 to-pink-100 rounded-full text-purple-700 font-semibold text-xs sm:text-sm border border-purple-200 shadow-sm">
+                <Video className="w-3 h-3 sm:w-4 sm:h-4 text-purple-600" />
+                <span>AI-Powered Mock Interview Platform</span>
+              </div>
+
+              {/* Headline */}
+              <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold leading-tight">
+                Ace Your Next{" "}
+                <span className="text-purple-600">Interview</span> with{" "}
+                <span className="text-purple-600">AI Coach</span>
+              </h2>
+
+              {/* Sub-headline */}
+              <p className="text-base sm:text-lg text-gray-600 leading-relaxed">
+                Practice with realistic AI-powered voice interviews. Get
+                instant feedback, behavioral analysis, and personalized
+                recommendations to land your dream job.
+              </p>
+
+              {/* AI-Powered Features */}
+              <div className="space-y-3 pt-2">
+                <div className="flex items-start gap-3">
+                  <div className="w-5 h-5 rounded-full bg-purple-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <Sparkles className="w-3 h-3 text-purple-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm sm:text-base font-semibold text-gray-900">
+                      <span className="text-purple-600">AI-Powered</span> Voice
+                      Interviews
+                    </p>
+                    <p className="text-xs sm:text-sm text-gray-600">
+                      Realistic 10-20 minute interviews with adaptive AI
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <div className="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <Brain className="w-3 h-3 text-blue-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm sm:text-base font-semibold text-gray-900">
+                      <span className="text-blue-600">Instant</span> Behavioral
+                      Analysis
+                    </p>
+                    <p className="text-xs sm:text-sm text-gray-600">
+                      Get detailed insights on confidence, fluency, and tone
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <div className="w-5 h-5 rounded-full bg-pink-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <TrendingUp className="w-3 h-3 text-pink-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm sm:text-base font-semibold text-gray-900">
+                      <span className="text-pink-600">Personalized</span>{" "}
+                      Feedback
+                    </p>
+                    <p className="text-xs sm:text-sm text-gray-600">
+                      Track progress and improve with actionable recommendations
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <div className="w-5 h-5 rounded-full bg-cyan-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <MessageSquare className="w-3 h-3 text-cyan-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm sm:text-base font-semibold text-gray-900">
+                      <span className="text-cyan-600">Multi-Language</span>{" "}
+                      Support
+                    </p>
+                    <p className="text-xs sm:text-sm text-gray-600">
+                      Practice in English, Hindi, or code-switch naturally
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* CTA Buttons */}
+              <div className="flex flex-row gap-2 sm:gap-3 pt-4 justify-center">
+                <Link href="/sign-up" className="w-auto">
+                  <Button
+                    size="sm"
+                    className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-lg hover:shadow-xl transition-all text-xs sm:text-sm px-3 sm:px-4 py-3 sm:py-3.5"
+                  >
+                    Start Free Interview
+                    <ArrowRight className="w-3 h-3 sm:w-3.5 sm:h-3.5 ml-1.5" />
+                  </Button>
+                </Link>
+                <Link href="#features" className="w-auto">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="border-2 text-xs sm:text-sm px-3 sm:px-4 py-3 sm:py-3.5"
+                  >
+                    Learn More
+                  </Button>
+                </Link>
+              </div>
+
+              {/* Quick Stats */}
+              <div className="flex flex-wrap items-center gap-4 sm:gap-6 pt-4 text-xs sm:text-sm text-gray-600">
+                <div className="flex items-center gap-2">
+                  <CheckCircle className="w-4 h-4 text-green-600 flex-shrink-0" />
+                  <span>No credit card required</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <CheckCircle className="w-4 h-4 text-green-600 flex-shrink-0" />
+                  <span>5,000+ students trained</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <CheckCircle className="w-4 h-4 text-green-600 flex-shrink-0" />
+                  <span>85% success rate</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Right Section - Interview Preview */}
+            <div className="relative flex justify-center lg:justify-start">
+              <div className="relative rounded-lg shadow-2xl overflow-hidden bg-white max-w-[700px] border-4 border-purple-100">
+                <Image
+                  src="/mock-interview-previewiew.png"
+                  alt="Mock Interview Interface - AI-Powered Interview Platform"
+                  width={700}
+                  height={560}
+                  className="w-full h-auto object-contain"
+                  priority
+                />
+                {/* Overlay Badges */}
+                <div className="absolute top-2 right-2 bg-green-500 text-white px-2 py-1 rounded-md shadow-lg flex items-center gap-1.5 animate-bounce" style={{ animationDuration: '2s' }}>
+                  <div className="w-6 h-6 bg-white text-green-600 rounded-full flex items-center justify-center font-bold text-[10px] animate-pulse">
+                    AI
+                  </div>
+                  <div className="text-[10px] leading-tight">
+                    <div className="font-semibold">Live</div>
+                    <div className="text-green-100 text-[9px]">Interview</div>
+                  </div>
+                </div>
+                <div className="absolute top-2 left-2 bg-purple-600 text-white px-2 py-1 rounded-md shadow-lg text-[10px] font-semibold animate-pulse" style={{ animationDuration: '2.5s', animationDelay: '0.5s' }}>
+                  Real-time Feedback
+                </div>
+                <div className="absolute bottom-2 right-2">
+                  <Button
+                    size="sm"
+                    className="bg-purple-600 hover:bg-purple-700 text-white shadow-lg h-7 px-2 text-[10px] animate-bounce" 
+                    style={{ animationDuration: '2.2s', animationDelay: '1s' }}
+                  >
+                    <Mic className="w-3 h-3 mr-1" />
+                    Start Answer
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </ScrollSection>
+
       {/* Features Section */}
-      <section id="features" className="py-12 sm:py-16 lg:py-20 px-4 sm:px-6">
+      <ScrollSection
+        id="why-us"
+        className="py-12 sm:py-16 lg:py-20 px-4 sm:px-6 scroll-mt-20"
+      >
         <div className="container mx-auto max-w-6xl">
           <div className="text-center mb-10 sm:mb-12 lg:mb-16">
             <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-3 sm:mb-4">
@@ -244,7 +580,7 @@ export default function LandingPage() {
             </Card>
           </div>
         </div>
-      </section>
+      </ScrollSection>
 
       {/* Stats Section */}
       <section className="py-12 sm:py-16 lg:py-20 px-4 sm:px-6 bg-white/60 backdrop-blur-sm">
@@ -298,6 +634,9 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* Plans Section */}
+      <PlansSection />
+
       {/* CTA Section */}
       <section className="py-12 sm:py-16 lg:py-20 px-4 sm:px-6">
         <div className="container mx-auto max-w-4xl">
@@ -316,11 +655,11 @@ export default function LandingPage() {
               <Link href="/sign-up">
                 <Button
                   variant="gradient"
-                  size="lg"
-                  className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white shadow-lg hover:shadow-xl transition-all text-base sm:text-lg px-6 sm:px-8 py-6 sm:py-7"
+                  size="sm"
+                  className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white shadow-lg hover:shadow-xl transition-all text-xs sm:text-sm px-3 sm:px-4 py-3 sm:py-3.5"
                 >
                   Start Your Free Interview
-                  <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 ml-2" />
+                  <ArrowRight className="w-3 h-3 sm:w-3.5 sm:h-3.5 ml-1.5" />
                 </Button>
               </Link>
             </CardContent>

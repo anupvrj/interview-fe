@@ -138,10 +138,18 @@ export default function OnboardingPage() {
 
       console.log("📋 Onboarding status:", createdUser.onboardingCompleted);
 
-      // If onboarding is already completed, redirect to dashboard
+      // If onboarding is already completed, check for pending plan
       if (createdUser.onboardingCompleted) {
-        console.log("✅ Onboarding completed, redirecting to dashboard");
-        router.replace("/dashboard");
+        console.log("✅ Onboarding completed");
+        const pendingPlan = localStorage.getItem("pendingPlan");
+        if (pendingPlan && ["starter", "pro", "exam_pack"].includes(pendingPlan)) {
+          console.log("📦 Pending plan found, redirecting to checkout");
+          localStorage.removeItem("pendingPlan");
+          router.replace(`/checkout?plan=${pendingPlan}`);
+        } else {
+          console.log("🏠 Redirecting to dashboard");
+          router.replace("/dashboard");
+        }
         return;
       } else {
         console.log("📝 Onboarding not completed, showing form");
@@ -269,8 +277,16 @@ export default function OnboardingPage() {
           reviewData.industries.length > 0 ? reviewData.industries : undefined,
       });
 
-      // Redirect to dashboard
-      router.push("/dashboard");
+      // Check if there's a pending plan from homepage
+      const pendingPlan = localStorage.getItem("pendingPlan");
+      if (pendingPlan && ["starter", "pro", "exam_pack"].includes(pendingPlan)) {
+        localStorage.removeItem("pendingPlan");
+        // Redirect to checkout with the plan
+        router.push(`/checkout?plan=${pendingPlan}`);
+      } else {
+        // Redirect to dashboard
+        router.push("/dashboard");
+      }
     } catch (error: any) {
       console.error("Error completing onboarding:", error);
       setError(
