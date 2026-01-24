@@ -39,6 +39,53 @@ export function NavigationMenu() {
     };
   }, []);
 
+  // Close menu when clicking outside
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      const menu = document.getElementById('mobile-menu');
+      const menuButton = target.closest('#mobile-menu-button');
+      
+      // Check if click is outside menu and not on the menu button
+      if (menu && !menu.contains(target) && !menuButton) {
+        setMobileMenuOpen(false);
+      }
+    };
+
+    // Use a small delay to avoid immediate closing
+    const timeoutId = setTimeout(() => {
+      document.addEventListener('mousedown', handleClickOutside);
+    }, 100);
+
+    return () => {
+      clearTimeout(timeoutId);
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [mobileMenuOpen]);
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      const menu = document.getElementById('mobile-menu');
+      const menuButton = document.getElementById('mobile-menu-button');
+      
+      // Check if click is outside menu and not on the menu button
+      if (menu && !menu.contains(target) && menuButton && !menuButton.contains(target)) {
+        setMobileMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [mobileMenuOpen]);
+
   const menuItems = [
     { href: "#build-resume", label: "Build Resume" },
     { href: "#start-interview", label: "Start Interview" },
@@ -62,7 +109,7 @@ export function NavigationMenu() {
       </nav>
 
       {/* Mobile Menu Button */}
-      <div className="md:hidden">
+      <div className="md:hidden" id="mobile-menu-button">
         <Button
           variant="ghost"
           size="sm"
@@ -78,70 +125,59 @@ export function NavigationMenu() {
         </Button>
       </div>
 
-      {/* Mobile Menu Overlay */}
+      {/* Mobile Menu Overlay - Covers entire screen */}
       {mobileMenuOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-40 md:hidden"
+          className="fixed top-0 left-0 right-0 bottom-0 w-full h-full bg-black/30 z-[60] md:hidden"
           onClick={() => setMobileMenuOpen(false)}
         />
       )}
 
-      {/* Mobile Menu */}
+      {/* Mobile Menu - Slides from Left */}
       <nav
-        className={`fixed top-16 left-0 right-0 bg-gradient-to-br from-white via-purple-50 to-blue-50 border-b shadow-lg z-50 md:hidden transition-all duration-300 ${
-          mobileMenuOpen ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-full pointer-events-none"
+        id="mobile-menu"
+        className={`fixed top-0 left-0 h-screen w-80 max-w-[85vw] bg-gray-100 z-[70] md:hidden transition-transform duration-300 ease-in-out shadow-2xl ${
+          mobileMenuOpen ? "translate-x-0" : "-translate-x-full"
         }`}
+        onClick={(e) => e.stopPropagation()}
       >
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex flex-col gap-2">
-            {menuItems.map((item, index) => (
-              <a
-                key={item.href}
-                href={item.href}
-                onClick={() => setMobileMenuOpen(false)}
-                className="text-base font-semibold py-3 px-4 rounded-lg transition-all duration-300 hover:scale-105 hover:shadow-md relative overflow-hidden group"
-                style={{
-                  background: index % 2 === 0 
-                    ? "linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(59, 130, 246, 0.1) 100%)"
-                    : "linear-gradient(135deg, rgba(236, 72, 153, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%)",
-                  border: "1px solid rgba(139, 92, 246, 0.2)",
-                }}
-              >
-                <span className="relative z-10 text-gray-800 group-hover:text-purple-700 transition-colors">
-                  {item.label}
-                </span>
-                <div 
-                  className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                  style={{
-                    background: index % 2 === 0
-                      ? "linear-gradient(135deg, rgba(139, 92, 246, 0.15) 0%, rgba(59, 130, 246, 0.15) 100%)"
-                      : "linear-gradient(135deg, rgba(236, 72, 153, 0.15) 0%, rgba(139, 92, 246, 0.15) 100%)",
-                  }}
-                />
-              </a>
-            ))}
-            {/* Dashboard link for signed-in users */}
-            {isLoaded && user && (
-              <Link
-                href="/dashboard"
-                onClick={() => setMobileMenuOpen(false)}
-                className="text-base font-semibold py-3 px-4 rounded-lg transition-all duration-300 hover:scale-105 hover:shadow-md relative overflow-hidden group"
-                style={{
-                  background: "linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%)",
-                  border: "1px solid rgba(59, 130, 246, 0.2)",
-                }}
-              >
-                <span className="relative z-10 text-gray-800 group-hover:text-blue-700 transition-colors">
-                  Dashboard
-                </span>
-                <div 
-                  className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                  style={{
-                    background: "linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(139, 92, 246, 0.15) 100%)",
-                  }}
-                />
-              </Link>
-            )}
+        <div className="flex flex-col h-screen">
+          {/* Menu Items */}
+          <div className="flex-1 overflow-y-auto py-2">
+            <div className="flex flex-col">
+              {menuItems.map((item) => (
+                <a
+                  key={item.href}
+                  href={item.href}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex items-center px-4 py-3 text-sm font-medium text-gray-800 border-b border-gray-300 hover:bg-gray-200 transition-colors"
+                >
+                  <span>{item.label.toUpperCase()}</span>
+                </a>
+              ))}
+              
+              {/* Dashboard link for signed-in users */}
+              {isLoaded && user && (
+                <Link
+                  href="/dashboard"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex items-center px-4 py-3 text-sm font-medium text-gray-800 border-b border-gray-300 hover:bg-gray-200 transition-colors"
+                >
+                  <span>DASHBOARD</span>
+                </Link>
+              )}
+
+              {/* Login/Register for signed-out users */}
+              {isLoaded && !user && (
+                <Link
+                  href="/sign-in"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex items-center px-4 py-3 text-sm font-medium text-gray-800 border-b border-gray-300 hover:bg-gray-200 transition-colors"
+                >
+                  <span>LOGIN / REGISTER</span>
+                </Link>
+              )}
+            </div>
           </div>
         </div>
       </nav>

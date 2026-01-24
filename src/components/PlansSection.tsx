@@ -211,7 +211,7 @@ export function PlansSection() {
                 key={plan.id}
                 className={`relative border-2 hover:shadow-xl transition-all bg-white/80 backdrop-blur-sm ${
                   plan.popular
-                    ? "border-landing-blue-600 shadow-lg scale-105 sm:scale-110"
+                    ? "border-landing-blue-600 shadow-lg scale-105 sm:scale-110 glow-border"
                     : "border-gray-200 hover:border-landing-blue-300"
                 }`}
               >
