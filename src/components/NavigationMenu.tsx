@@ -87,9 +87,9 @@ export function NavigationMenu() {
   }, [mobileMenuOpen]);
 
   const menuItems = [
+    { href: "#why-us", label: "Why Us?" },
     { href: "#build-resume", label: "Build Resume" },
     { href: "#start-interview", label: "Start Interview" },
-    { href: "#why-us", label: "Why Us?" },
     { href: "#pricing", label: "Pricing" },
   ];
 
