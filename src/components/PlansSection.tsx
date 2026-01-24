@@ -28,7 +28,7 @@ const PLANS = [
       "Teacher Assistant unlimited",
       "Progress tracking",
     ],
-    color: "from-blue-500 to-cyan-500",
+    color: "from-landing-blue-500 to-landing-blue-600",
     icon: Sparkles,
     popular: false,
   },
@@ -45,7 +45,7 @@ const PLANS = [
       "Progress tracking + weak area radar",
       "Priority support",
     ],
-    color: "from-purple-500 to-pink-500",
+    color: "from-landing-blue-600 to-landing-blue-700",
     icon: Zap,
     popular: true,
   },
@@ -62,7 +62,7 @@ const PLANS = [
       "Certification/score report",
       "Priority support",
     ],
-    color: "from-orange-500 to-red-500",
+    color: "from-landing-blue-700 to-landing-blue-800",
     icon: Trophy,
     popular: false,
   },
@@ -211,23 +211,25 @@ export function PlansSection() {
                 key={plan.id}
                 className={`relative border-2 hover:shadow-xl transition-all bg-white/80 backdrop-blur-sm ${
                   plan.popular
-                    ? "border-purple-500 shadow-lg scale-105 sm:scale-110"
-                    : "border-gray-200 hover:border-purple-300"
+                    ? "border-landing-blue-600 shadow-lg scale-105 sm:scale-110"
+                    : "border-gray-200 hover:border-landing-blue-300"
                 }`}
               >
                 {plan.popular && (
                   <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
-                    <span className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-4 py-1 rounded-full text-xs sm:text-sm font-semibold shadow-md">
+                    <span className="bg-gradient-to-r from-landing-blue-600 to-landing-blue-700 text-white px-4 py-1 rounded-full text-xs sm:text-sm font-semibold shadow-md">
                       Most Popular
                     </span>
                   </div>
                 )}
 
                 <CardHeader className="text-center pb-4">
-                  <div
-                    className={`inline-flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-gradient-to-r ${plan.color} mb-4 shadow-md`}
-                  >
-                    <Icon className="w-7 h-7 sm:w-8 sm:h-8 text-white" />
+                  <div className="flex justify-center mb-4">
+                    <div
+                      className={`inline-flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-gradient-to-r ${plan.color} shadow-md`}
+                    >
+                      <Icon className="w-7 h-7 sm:w-8 sm:h-8 text-white" />
+                    </div>
                   </div>
                   <CardTitle className="text-xl sm:text-2xl mb-2">
                     {plan.name}
@@ -263,7 +265,7 @@ export function PlansSection() {
                     disabled={checking || !isLoaded}
                     className={`w-full ${
                       plan.popular
-                        ? "bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
+                        ? "bg-gradient-to-r from-landing-blue-600 to-landing-blue-700 hover:from-landing-blue-800 hover:to-landing-blue-900"
                         : "bg-gray-900 hover:bg-gray-800"
                     } text-white shadow-md hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed`}
                   >

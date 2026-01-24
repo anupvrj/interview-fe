@@ -160,7 +160,7 @@ export default function DashboardPage() {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
-          <Loader2 className="w-12 h-12 animate-spin text-purple-600 mx-auto mb-4" />
+          <Loader2 className="w-12 h-12 animate-spin text-landing-blue-700 mx-auto mb-4" />
           <p className="text-gray-600">Loading your dashboard...</p>
         </div>
       </div>
@@ -226,7 +226,7 @@ export default function DashboardPage() {
   return (
     <div className="w-full max-w-7xl mx-auto space-y-4 lg:space-y-6">
       {/* Hero Header Section */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-purple-600 via-blue-600 to-pink-600 p-6 lg:p-8 text-white">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-landing-blue-600 via-landing-blue-700 to-landing-blue-800 p-6 lg:p-8 text-white">
         <div className="relative z-10">
           <div className="flex items-center gap-3 mb-3">
             <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
@@ -241,7 +241,7 @@ export default function DashboardPage() {
             your skills
           </p>
         </div>
-        <div className="absolute inset-0 bg-gradient-to-r from-purple-600/50 to-transparent opacity-50"></div>
+        <div className="absolute inset-0 bg-gradient-to-r from-landing-blue-600/50 to-transparent opacity-50"></div>
         <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl"></div>
         <div className="absolute bottom-0 left-0 w-48 h-48 bg-blue-500/20 rounded-full blur-2xl"></div>
       </div>
@@ -356,7 +356,7 @@ export default function DashboardPage() {
                 <Link href="/pricing">
                   <Button
                     size="lg"
-                    className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-lg hover:shadow-xl transition-all"
+                    className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-landing-blue-800 hover:to-pink-700 text-white shadow-lg hover:shadow-xl transition-all"
                   >
                     <Crown className="h-4 w-4 mr-2" />
                     Upgrade to {nextPlan.name}
@@ -372,7 +372,7 @@ export default function DashboardPage() {
                     <span className="font-medium text-gray-700">
                       Interview Usage
                     </span>
-                    <span className="font-semibold text-purple-600">
+                    <span className="font-semibold text-landing-blue-700">
                       {Math.round(
                         (subscription.interviewsUsed /
                           subscription.interviewsLimit) *
@@ -393,11 +393,11 @@ export default function DashboardPage() {
               )}
 
             {nextPlan && (
-              <div className="p-4 lg:p-5 bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 rounded-xl border-2 border-purple-200 shadow-md">
+              <div className="p-4 lg:p-5 bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 rounded-xl border-2 border-landing-blue-300 shadow-md">
                 <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                   <div className="flex-1">
                     <h4 className="font-bold text-base lg:text-lg text-gray-900 mb-3 flex items-center gap-2">
-                      <Sparkles className="w-4 h-4 lg:w-5 lg:h-5 text-purple-600" />
+                      <Sparkles className="w-4 h-4 lg:w-5 lg:h-5 text-landing-blue-700" />
                       Upgrade to {nextPlan.name} and get:
                     </h4>
                     <ul className="space-y-2 mb-4">
@@ -406,12 +406,12 @@ export default function DashboardPage() {
                           key={feature}
                           className="text-sm text-gray-700 flex items-start gap-2"
                         >
-                          <CheckCircle className="w-4 h-4 text-purple-600 mt-0.5 flex-shrink-0" />
+                          <CheckCircle className="w-4 h-4 text-landing-blue-700 mt-0.5 flex-shrink-0" />
                           <span>{feature}</span>
                         </li>
                       ))}
                     </ul>
-                    <p className="text-sm font-bold text-purple-700">
+                    <p className="text-sm font-bold text-landing-blue-800">
                       Only ₹{nextPlan.price}/
                       {nextPlan.id === "exam_pack" ? "3 months" : "month"}
                     </p>
@@ -420,7 +420,7 @@ export default function DashboardPage() {
                     <Button
                       variant="outline"
                       size="lg"
-                      className="border-purple-300 text-purple-700 hover:bg-purple-50 whitespace-nowrap"
+                      className="border-purple-300 text-landing-blue-800 hover:bg-landing-blue-50 whitespace-nowrap"
                     >
                       View Plans
                       <ArrowRight className="w-4 h-4 ml-2" />
@@ -468,7 +468,7 @@ export default function DashboardPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex items-center gap-2 text-sm text-purple-600 font-medium">
+            <div className="flex items-center gap-2 text-sm text-landing-blue-700 font-medium">
               <Clock className="w-4 h-4" />
               <span>All time</span>
             </div>
@@ -570,7 +570,7 @@ export default function DashboardPage() {
             <Link href="/dashboard/interviews/new">
               <Button
                 size="lg"
-                className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white shadow-lg hover:shadow-xl transition-all"
+                className="bg-gradient-to-r from-landing-blue-600 to-landing-blue-700 hover:from-landing-blue-800 hover:to-landing-blue-900 text-white shadow-lg hover:shadow-xl transition-all"
               >
                 <Plus className="w-4 h-4 mr-2" /> Start Interview
               </Button>
@@ -581,7 +581,7 @@ export default function DashboardPage() {
           {interviews.length === 0 ? (
             <div className="text-center py-16">
               <div className="w-20 h-20 bg-gradient-to-br from-purple-100 to-blue-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                <FileText className="w-10 h-10 text-purple-600" />
+                <FileText className="w-10 h-10 text-landing-blue-700" />
               </div>
               <h3 className="text-xl font-bold text-gray-900 mb-2">
                 No interviews yet
@@ -593,7 +593,7 @@ export default function DashboardPage() {
               <Link href="/dashboard/interviews/new">
                 <Button
                   size="lg"
-                  className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white shadow-lg hover:shadow-xl transition-all"
+                  className="bg-gradient-to-r from-landing-blue-600 to-landing-blue-700 hover:from-landing-blue-800 hover:to-landing-blue-900 text-white shadow-lg hover:shadow-xl transition-all"
                 >
                   <Plus className="w-5 h-5 mr-2" /> Create Your First Interview
                 </Button>
@@ -604,7 +604,7 @@ export default function DashboardPage() {
               {interviews.map((interview) => (
                 <div
                   key={interview._id}
-                  className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-5 border-2 border-gray-200 rounded-xl hover:border-purple-300 hover:bg-purple-50/50 transition-all shadow-sm hover:shadow-md"
+                  className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-5 border-2 border-gray-200 rounded-xl hover:border-purple-300 hover:bg-landing-blue-50/50 transition-all shadow-sm hover:shadow-md"
                 >
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-3 mb-3 flex-wrap">
@@ -682,7 +682,7 @@ export default function DashboardPage() {
                           <Button
                             variant="outline"
                             size="default"
-                            className="border-purple-300 text-purple-700 hover:bg-purple-50"
+                            className="border-purple-300 text-landing-blue-800 hover:bg-landing-blue-50"
                           >
                             View Report
                           </Button>
@@ -695,7 +695,7 @@ export default function DashboardPage() {
                       >
                         <Button
                           size="default"
-                          className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white"
+                          className="bg-gradient-to-r from-landing-blue-600 to-landing-blue-700 hover:from-landing-blue-800 hover:to-landing-blue-900 text-white"
                         >
                           <PlayCircle className="w-4 h-4 mr-2" /> Start
                         </Button>

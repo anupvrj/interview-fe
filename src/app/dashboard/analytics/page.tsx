@@ -84,7 +84,7 @@ export default function AnalyticsPage() {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
-          <Loader2 className="w-12 h-12 animate-spin text-purple-600 mx-auto mb-4" />
+          <Loader2 className="w-12 h-12 animate-spin text-landing-blue-700 mx-auto mb-4" />
           <p className="text-gray-600">Loading analytics...</p>
         </div>
       </div>
@@ -94,7 +94,7 @@ export default function AnalyticsPage() {
   return (
     <div className="w-full max-w-7xl mx-auto space-y-4 lg:space-y-6">
       {/* Hero Header Section */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-purple-600 via-blue-600 to-pink-600 p-6 lg:p-8 text-white">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-landing-blue-600 via-landing-blue-700 to-landing-blue-800 p-6 lg:p-8 text-white">
         <div className="relative z-10">
           <div className="flex items-center gap-3 mb-3">
             <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
@@ -129,7 +129,7 @@ export default function AnalyticsPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex items-center gap-2 text-sm text-purple-600 font-medium">
+            <div className="flex items-center gap-2 text-sm text-landing-blue-700 font-medium">
               <BarChart3 className="w-4 h-4" />
               <span>All time</span>
             </div>
@@ -237,7 +237,7 @@ export default function AnalyticsPage() {
           {stats.completedInterviews === 0 ? (
             <div className="text-center py-16">
               <div className="w-20 h-20 bg-gradient-to-br from-purple-100 to-blue-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                <BarChart3 className="w-10 h-10 text-purple-600" />
+                <BarChart3 className="w-10 h-10 text-landing-blue-700" />
               </div>
               <h3 className="text-xl font-bold text-gray-900 mb-2">
                 No Data Yet
@@ -250,7 +250,7 @@ export default function AnalyticsPage() {
           ) : (
             <div className="text-center py-16">
               <div className="w-20 h-20 bg-gradient-to-br from-blue-100 to-purple-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                <Sparkles className="w-10 h-10 text-purple-600" />
+                <Sparkles className="w-10 h-10 text-landing-blue-700" />
               </div>
               <h3 className="text-xl font-bold text-gray-900 mb-2">
                 Chart Visualization Coming Soon

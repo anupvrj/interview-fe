@@ -109,7 +109,7 @@ export function ConfirmationDialog({
               className={
                 variant === "destructive"
                   ? "bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-700 hover:to-orange-700 text-white shadow-lg hover:shadow-xl transition-all min-w-[100px]"
-                  : "bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white shadow-lg hover:shadow-xl transition-all min-w-[100px]"
+                  : "bg-gradient-to-r from-landing-blue-600 to-landing-blue-700 hover:from-purple-700 hover:to-blue-700 text-white shadow-lg hover:shadow-xl transition-all min-w-[100px]"
               }
             >
               {isProcessing || isLoading ? (

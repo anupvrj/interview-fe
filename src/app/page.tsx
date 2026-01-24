@@ -1,3 +1,6 @@
+"use client";
+
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { SignedIn, SignedOut, UserButton } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
@@ -33,8 +36,25 @@ import { ScrollSection } from "@/components/ScrollSection";
 import { NavigationMenu } from "@/components/NavigationMenu";
 
 export default function LandingPage() {
+  const [currentSlide, setCurrentSlide] = useState(0);
+  
+  const resumeTemplates = [
+    "/resume-template-images/atlantic-blue-template-design.webp",
+    "/resume-template-images/Mercury-template-design.webp",
+    "/resume-template-images/saffron-line-template-design.webp",
+    "/resume-template-images/clean-slate-preview.webp",
+  ];
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentSlide((prev) => (prev + 1) % resumeTemplates.length);
+    }, 4000); // Change slide every 4 seconds
+
+    return () => clearInterval(interval);
+  }, []);
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-pink-50 scroll-smooth">
+    <div className="min-h-screen bg-gradient-to-br gradient-landing scroll-smooth">
       {/* Navigation */}
       <nav className="fixed top-0 w-full bg-white/90 backdrop-blur-md border-b z-50 shadow-sm">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
@@ -43,10 +63,10 @@ export default function LandingPage() {
               href="/"
               className="flex items-center gap-2 hover:opacity-80 transition-opacity"
             >
-              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg flex items-center justify-center shadow-md">
+              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-r from-landing-blue-600 to-landing-blue-700 rounded-lg flex items-center justify-center shadow-md">
                 <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 text-white" />
               </div>
-              <span className="text-lg sm:text-xl lg:text-2xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+              <span className="text-lg sm:text-xl lg:text-2xl font-bold bg-gradient-to-r from-landing-blue-600 to-landing-blue-700 bg-clip-text text-transparent">
                 Easy Interview
               </span>
             </Link>
@@ -66,7 +86,7 @@ export default function LandingPage() {
                 <Link href="/sign-up">
                   <Button
                     size="sm"
-                    className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white shadow-md hover:shadow-lg transition-all text-xs sm:text-sm px-2 sm:px-4"
+                    className="bg-gradient-to-r from-landing-blue-600 to-landing-blue-700 hover:from-landing-blue-800 hover:to-landing-blue-900 text-white shadow-md hover:shadow-lg transition-all text-xs sm:text-sm px-2 sm:px-4"
                   >
                     Get Started
                   </Button>
@@ -97,44 +117,45 @@ export default function LandingPage() {
 
       {/* Hero Section */}
       <section className="pt-24 sm:pt-28 lg:pt-32 pb-12 sm:pb-16 lg:pb-20 px-4 sm:px-6">
-        <div className="container mx-auto text-center max-w-5xl">
-          <div className="inline-flex items-center gap-2 mb-4 sm:mb-6 px-3 sm:px-4 py-1.5 sm:py-2 bg-gradient-to-r from-purple-100 to-blue-100 rounded-full text-purple-700 font-semibold text-xs sm:text-sm border border-purple-200 shadow-sm">
-            <Star className="w-3 h-3 sm:w-4 sm:h-4 fill-purple-600 text-purple-600" />
-            <span>India's #1 AI Interview Coach</span>
+        <div className="container mx-auto text-center lg:text-left max-w-5xl">
+          <div className="inline-flex items-center gap-2 mb-4 sm:mb-6 px-3 sm:px-4 py-1.5 sm:py-2 bg-gradient-to-r from-purple-100 to-blue-100 rounded-full text-landing-blue-800 font-semibold text-xs sm:text-sm border border-landing-blue-300 shadow-sm">
+            <Star className="w-3 h-3 sm:w-4 sm:h-4 fill-purple-600 text-landing-blue-700" />
+            <span>Trusted by 5,000+ Students Across India</span>
           </div>
-          <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold mb-4 sm:mb-6 leading-tight px-4">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-4 sm:mb-6 leading-tight px-4 lg:px-0">
             Ace Your Next{" "}
-            <span className="bg-gradient-to-r from-purple-600 via-blue-600 to-pink-600 bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-landing-blue-600 via-landing-blue-700 to-landing-blue-800 bg-clip-text text-transparent">
               Interview
             </span>
           </h1>
-          <p className="text-base sm:text-lg lg:text-xl text-gray-600 mb-6 sm:mb-8 max-w-3xl mx-auto leading-relaxed px-4">
-            Realistic AI-powered voice mock interviews with behavioral analysis,
-            personalized feedback, and continuous learning. Built for Indian
-            students targeting TCS, Infosys, Wipro, and more.
+          <p className="text-base sm:text-lg lg:text-xl text-gray-600 mb-6 sm:mb-8 max-w-3xl mx-auto lg:mx-0 leading-relaxed px-4 lg:px-0">
+            Master technical and behavioral interviews with AI-powered mock interviews. 
+            Get real-time feedback on your communication skills, confidence levels, and 
+            technical answers. Practice with company-specific question banks for TCS, 
+            Infosys, Wipro, Amazon, and 50+ top employers in India.
           </p>
-          <div className="flex flex-row items-center justify-center gap-2 sm:gap-3 mb-8 sm:mb-12 px-4">
-            <Link href="/sign-up" className="w-auto">
+          <div className="flex flex-col sm:flex-row items-center sm:items-center lg:items-start justify-center lg:justify-start gap-3 sm:gap-3 mb-8 sm:mb-12 px-4 lg:px-0">
+            <Link href="/dashboard/resumes" className="w-full sm:w-auto">
               <Button
                 variant="gradient"
                 size="sm"
-                className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white shadow-lg hover:shadow-xl transition-all text-xs sm:text-sm px-3 sm:px-4 py-3 sm:py-3.5"
+                className="w-full sm:w-auto bg-gradient-to-r from-landing-blue-600 to-landing-blue-700 hover:from-landing-blue-800 hover:to-landing-blue-900 text-white shadow-lg hover:shadow-xl transition-all text-xs sm:text-sm px-4 sm:px-6 py-3 sm:py-3.5"
               >
-                Start Free Interview
+                Try Builder Free
                 <ArrowRight className="w-3 h-3 sm:w-3.5 sm:h-3.5 ml-1.5" />
               </Button>
             </Link>
-            <Link href="#features" className="w-auto">
+            <Link href="/dashboard/resumes/new" className="w-full sm:w-auto">
               <Button
                 variant="outline"
                 size="sm"
-                className="border-2 text-xs sm:text-sm px-3 sm:px-4 py-3 sm:py-3.5"
+                className="w-full sm:w-auto border-2 text-xs sm:text-sm px-4 sm:px-6 py-3 sm:py-3.5"
               >
-                See How It Works
+                Browse Templates
               </Button>
             </Link>
           </div>
-          <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-6 lg:gap-8 text-xs sm:text-sm text-gray-600 px-4">
+          <div className="flex flex-wrap items-center justify-center lg:justify-start gap-4 sm:gap-6 lg:gap-8 text-xs sm:text-sm text-gray-600 px-4 lg:px-0">
             <div className="flex items-center gap-2">
               <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-green-600 flex-shrink-0" />
               <span>No credit card required</span>
@@ -163,11 +184,11 @@ export default function LandingPage() {
               {/* Badge */}
               <div className="inline-flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 bg-gradient-to-r from-blue-100 to-cyan-100 rounded-full text-blue-700 font-semibold text-xs sm:text-sm border border-blue-200 shadow-sm">
                 <Sparkles className="w-3 h-3 sm:w-4 sm:h-4 text-blue-600" />
-                <span>Best AI-Powered Resume Builder</span>
+                <span>ATS-Optimized Resume Builder</span>
               </div>
 
               {/* Headline */}
-              <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold leading-tight">
+              <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold leading-tight">
                 Create{" "}
                 <span className="text-blue-600">Professional</span> Resumes in{" "}
                 <span className="text-blue-600">Minutes</span>
@@ -175,8 +196,10 @@ export default function LandingPage() {
 
               {/* Sub-headline */}
               <p className="text-base sm:text-lg text-gray-600 leading-relaxed">
-                Land your dream job with AI-powered resume builder. Choose from
-                25+ ATS-optimized templates and get hired faster.
+                Build ATS-optimized resumes that pass applicant tracking systems. 
+                Our AI analyzes your resume in real-time, suggests improvements, and 
+                helps you create professional resumes that get noticed by recruiters 
+                at top companies.
               </p>
 
               {/* AI-Powered Features */}
@@ -191,7 +214,8 @@ export default function LandingPage() {
                       Templates
                     </p>
                     <p className="text-xs sm:text-sm text-gray-600">
-                      Professional designs that pass applicant tracking systems
+                      Professionally designed templates optimized for ATS parsing with 
+                      95%+ compatibility scores
                     </p>
                   </div>
                 </div>
@@ -205,7 +229,8 @@ export default function LandingPage() {
                       Scoring
                     </p>
                     <p className="text-xs sm:text-sm text-gray-600">
-                      Get instant feedback on your resume's ATS compatibility
+                      Real-time ATS scoring identifies keyword gaps, formatting issues, 
+                      and optimization opportunities
                     </p>
                   </div>
                 </div>
@@ -219,7 +244,8 @@ export default function LandingPage() {
                       Minutes
                     </p>
                     <p className="text-xs sm:text-sm text-gray-600">
-                      No credit card required. Start building your resume instantly
+                      Export to PDF in seconds. No design skills required - our 
+                      templates handle formatting automatically
                     </p>
                   </div>
                 </div>
@@ -233,14 +259,15 @@ export default function LandingPage() {
                       Suggestions
                     </p>
                     <p className="text-xs sm:text-sm text-gray-600">
-                      AI helps you write compelling bullet points and descriptions
+                      AI-powered content suggestions help you highlight achievements 
+                      with impact-driven bullet points
                     </p>
                   </div>
                 </div>
               </div>
 
               {/* CTA Buttons */}
-              <div className="flex flex-row gap-2 sm:gap-3 pt-4 justify-center">
+              <div className="flex flex-row gap-2 sm:gap-3 pt-4 justify-center lg:justify-start">
                 <Link href="/dashboard/resumes/new" className="w-auto">
                   <Button
                     size="sm"
@@ -264,17 +291,51 @@ export default function LandingPage() {
 
             {/* Right Section - Resume Preview */}
             <div className="relative flex justify-center lg:justify-end">
-              <div className="relative rounded-lg shadow-2xl overflow-hidden bg-white max-w-[280px] sm:max-w-[320px] lg:max-w-[400px]">
-                <Image
-                  src="/resume-template-images/clean-slate-form-template-design.webp"
-                  alt="Resume Template Preview"
-                  width={400}
-                  height={500}
-                  className="w-full h-auto object-contain"
-                  priority
-                />
+              <div className="relative rounded-lg shadow-2xl overflow-hidden bg-white w-full max-w-[280px] sm:max-w-[320px] lg:max-w-[400px]">
+                {/* Carousel Container */}
+                <div className="relative w-full overflow-hidden aspect-[210/297]">
+                  <div
+                    className="flex h-full transition-transform duration-700 ease-in-out"
+                    style={{
+                      transform: `translateX(-${currentSlide * 100}%)`,
+                    }}
+                  >
+                    {resumeTemplates.map((template, index) => (
+                      <div
+                        key={index}
+                        className="min-w-full flex-shrink-0 h-full"
+                      >
+                        <Image
+                          src={template}
+                          alt={`Resume Template ${index + 1}`}
+                          width={400}
+                          height={500}
+                          className="w-full h-full object-contain"
+                          priority={index === 0}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                
+                {/* Slide Indicators */}
+                <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 flex gap-1.5 z-10">
+                  {resumeTemplates.map((_, index) => (
+                    <button
+                      key={index}
+                      onClick={() => setCurrentSlide(index)}
+                      className={`h-1.5 rounded-full transition-all duration-300 ${
+                        currentSlide === index
+                          ? "w-6 bg-white"
+                          : "w-1.5 bg-white/50"
+                      }`}
+                      aria-label={`Go to slide ${index + 1}`}
+                    />
+                  ))}
+                </div>
+
                 {/* ATS Score Badge Overlay */}
-                <div className="absolute top-1 right-1 sm:top-2 sm:right-2 bg-green-500 text-white px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-md shadow-lg flex items-center gap-1 animate-bounce" style={{ animationDuration: '2s', animationDelay: '0s' }}>
+                <div className="absolute top-1 right-1 sm:top-2 sm:right-2 bg-green-500 text-white px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-md shadow-lg flex items-center gap-1 animate-bounce z-10" style={{ animationDuration: '2s', animationDelay: '0s' }}>
                   <div className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 bg-white text-green-600 rounded-full flex items-center justify-center font-bold text-[8px] sm:text-[9px] lg:text-[10px] animate-pulse">
                     98
                   </div>
@@ -284,12 +345,12 @@ export default function LandingPage() {
                   </div>
                 </div>
                 {/* Templates Badge */}
-                <div className="absolute top-1 left-1 sm:top-2 sm:left-2 bg-blue-600 text-white px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-md shadow-lg text-[8px] sm:text-[9px] lg:text-[10px] font-semibold animate-pulse" style={{ animationDuration: '2.5s', animationDelay: '0.5s' }}>
+                <div className="absolute top-1 left-1 sm:top-2 sm:left-2 bg-blue-600 text-white px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-md shadow-lg text-[8px] sm:text-[9px] lg:text-[10px] font-semibold animate-pulse z-10" style={{ animationDuration: '2.5s', animationDelay: '0.5s' }}>
                   <span className="hidden sm:inline">25+ Templates Available</span>
                   <span className="sm:hidden">25+ Templates</span>
                 </div>
                 {/* AI-Powered Button */}
-                <div className="absolute bottom-1 right-1 sm:bottom-2 sm:right-2 animate-bounce" style={{ animationDuration: '2.2s', animationDelay: '1s' }}>
+                <div className="absolute bottom-8 right-1 sm:bottom-10 sm:right-2 animate-bounce z-10" style={{ animationDuration: '2.2s', animationDelay: '1s' }}>
                   <Button
                     size="sm"
                     className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg h-6 px-1.5 sm:h-7 sm:px-2 text-[8px] sm:text-[9px] lg:text-[10px] hover:scale-105 transition-transform"
@@ -308,98 +369,83 @@ export default function LandingPage() {
       {/* Mock Interview Hero Section */}
       <ScrollSection
         id="start-interview"
-        className="py-12 sm:py-16 lg:py-20 px-4 sm:px-6 bg-gradient-to-br from-purple-50 via-blue-50 to-pink-50 scroll-mt-20"
+        className="py-12 sm:py-16 lg:py-20 px-4 sm:px-6 bg-gradient-to-br gradient-landing scroll-mt-20"
       >
         <div className="container mx-auto max-w-7xl">
           <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
             {/* Left Section - Marketing Content */}
             <div className="space-y-6">
               {/* Badge */}
-              <div className="inline-flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 bg-gradient-to-r from-purple-100 to-pink-100 rounded-full text-purple-700 font-semibold text-xs sm:text-sm border border-purple-200 shadow-sm">
-                <Video className="w-3 h-3 sm:w-4 sm:h-4 text-purple-600" />
-                <span>AI-Powered Mock Interview Platform</span>
+              <div className="inline-flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 bg-gradient-to-r from-landing-blue-100 to-landing-blue-200 rounded-full text-landing-blue-800 font-semibold text-xs sm:text-sm border border-landing-blue-300 shadow-sm">
+                <Video className="w-3 h-3 sm:w-4 sm:h-4 text-landing-blue-700" />
+                <span>AI-Powered Interview Practice Platform</span>
               </div>
 
               {/* Headline */}
-              <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold leading-tight">
+              <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold leading-tight">
                 Ace Your Next{" "}
-                <span className="text-purple-600">Interview</span> with{" "}
-                <span className="text-purple-600">AI Coach</span>
+                <span className="text-landing-blue-700">Interview</span> with{" "}
+                <span className="text-landing-blue-700">AI Coach</span>
               </h2>
 
               {/* Sub-headline */}
               <p className="text-base sm:text-lg text-gray-600 leading-relaxed">
-                Practice with realistic AI-powered voice interviews. Get
-                instant feedback, behavioral analysis, and personalized
-                recommendations to land your dream job.
+                Practice with AI interviewers that adapt to your skill level. Get instant 
+                feedback on communication, confidence, and technical accuracy.
               </p>
 
               {/* AI-Powered Features */}
               <div className="space-y-3 pt-2">
                 <div className="flex items-start gap-3">
-                  <div className="w-5 h-5 rounded-full bg-purple-100 flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <Sparkles className="w-3 h-3 text-purple-600" />
+                  <div className="w-5 h-5 rounded-full bg-landing-blue-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <Sparkles className="w-3 h-3 text-landing-blue-700" />
                   </div>
                   <div>
                     <p className="text-sm sm:text-base font-semibold text-gray-900">
-                      <span className="text-purple-600">AI-Powered</span> Voice
+                      <span className="text-landing-blue-700">AI-Powered</span> Voice
                       Interviews
                     </p>
                     <p className="text-xs sm:text-sm text-gray-600">
-                      Realistic 10-20 minute interviews with adaptive AI
+                      Realistic conversations with adaptive difficulty that adjust based on your responses
                     </p>
                   </div>
                 </div>
                 <div className="flex items-start gap-3">
-                  <div className="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <Brain className="w-3 h-3 text-blue-600" />
+                  <div className="w-5 h-5 rounded-full bg-landing-blue-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <Brain className="w-3 h-3 text-landing-blue-700" />
                   </div>
                   <div>
                     <p className="text-sm sm:text-base font-semibold text-gray-900">
-                      <span className="text-blue-600">Instant</span> Behavioral
+                      <span className="text-landing-blue-700">Instant</span> Behavioral
                       Analysis
                     </p>
                     <p className="text-xs sm:text-sm text-gray-600">
-                      Get detailed insights on confidence, fluency, and tone
+                      Speech patterns, confidence metrics, and improvement areas identified in real-time
                     </p>
                   </div>
                 </div>
                 <div className="flex items-start gap-3">
-                  <div className="w-5 h-5 rounded-full bg-pink-100 flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <TrendingUp className="w-3 h-3 text-pink-600" />
+                  <div className="w-5 h-5 rounded-full bg-landing-blue-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <MessageSquare className="w-3 h-3 text-landing-blue-700" />
                   </div>
                   <div>
                     <p className="text-sm sm:text-base font-semibold text-gray-900">
-                      <span className="text-pink-600">Personalized</span>{" "}
-                      Feedback
-                    </p>
-                    <p className="text-xs sm:text-sm text-gray-600">
-                      Track progress and improve with actionable recommendations
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <div className="w-5 h-5 rounded-full bg-cyan-100 flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <MessageSquare className="w-3 h-3 text-cyan-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm sm:text-base font-semibold text-gray-900">
-                      <span className="text-cyan-600">Multi-Language</span>{" "}
+                      <span className="text-landing-blue-700">Multi-Language</span>{" "}
                       Support
                     </p>
                     <p className="text-xs sm:text-sm text-gray-600">
-                      Practice in English, Hindi, or code-switch naturally
+                      Practice in English, Hindi, or code-switch naturally in your preferred language
                     </p>
                   </div>
                 </div>
               </div>
 
               {/* CTA Buttons */}
-              <div className="flex flex-row gap-2 sm:gap-3 pt-4 justify-center">
+              <div className="flex flex-row gap-2 sm:gap-3 pt-4 justify-center lg:justify-start">
                 <Link href="/sign-up" className="w-auto">
                   <Button
                     size="sm"
-                    className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-lg hover:shadow-xl transition-all text-xs sm:text-sm px-3 sm:px-4 py-3 sm:py-3.5"
+                    className="bg-gradient-to-r from-landing-blue-600 to-landing-blue-700 hover:from-landing-blue-800 hover:to-landing-blue-900 text-white shadow-lg hover:shadow-xl transition-all text-xs sm:text-sm px-3 sm:px-4 py-3 sm:py-3.5"
                   >
                     Start Free Interview
                     <ArrowRight className="w-3 h-3 sm:w-3.5 sm:h-3.5 ml-1.5" />
@@ -417,7 +463,7 @@ export default function LandingPage() {
               </div>
 
               {/* Quick Stats */}
-              <div className="flex flex-wrap items-center gap-4 sm:gap-6 pt-4 text-xs sm:text-sm text-gray-600">
+              <div className="flex flex-wrap items-center gap-4 sm:gap-6 pt-2 text-xs sm:text-sm text-gray-600">
                 <div className="flex items-center gap-2">
                   <CheckCircle className="w-4 h-4 text-green-600 flex-shrink-0" />
                   <span>No credit card required</span>
@@ -426,16 +472,12 @@ export default function LandingPage() {
                   <CheckCircle className="w-4 h-4 text-green-600 flex-shrink-0" />
                   <span>5,000+ students trained</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <CheckCircle className="w-4 h-4 text-green-600 flex-shrink-0" />
-                  <span>85% success rate</span>
-                </div>
               </div>
             </div>
 
             {/* Right Section - Interview Preview */}
             <div className="relative flex justify-center lg:justify-start">
-              <div className="relative rounded-lg shadow-2xl overflow-hidden bg-white max-w-[700px] border-4 border-purple-100">
+              <div className="relative rounded-lg shadow-2xl overflow-hidden bg-white max-w-[700px] border-4 border-landing-blue-100">
                 <Image
                   src="/mock-interview-previewiew.png"
                   alt="Mock Interview Interface - AI-Powered Interview Platform"
@@ -454,13 +496,13 @@ export default function LandingPage() {
                     <div className="text-green-100 text-[9px]">Interview</div>
                   </div>
                 </div>
-                <div className="absolute top-2 left-2 bg-purple-600 text-white px-2 py-1 rounded-md shadow-lg text-[10px] font-semibold animate-pulse" style={{ animationDuration: '2.5s', animationDelay: '0.5s' }}>
+                <div className="absolute top-2 left-2 bg-landing-blue-700 text-white px-2 py-1 rounded-md shadow-lg text-[10px] font-semibold animate-pulse" style={{ animationDuration: '2.5s', animationDelay: '0.5s' }}>
                   Real-time Feedback
                 </div>
                 <div className="absolute bottom-2 right-2">
                   <Button
                     size="sm"
-                    className="bg-purple-600 hover:bg-purple-700 text-white shadow-lg h-7 px-2 text-[10px] animate-bounce" 
+                    className="bg-landing-blue-700 hover:bg-landing-blue-800 text-white shadow-lg h-7 px-2 text-[10px] animate-bounce" 
                     style={{ animationDuration: '2.2s', animationDelay: '1s' }}
                   >
                     <Mic className="w-3 h-3 mr-1" />
@@ -484,7 +526,8 @@ export default function LandingPage() {
               Why Choose Easy Interview?
             </h2>
             <p className="text-sm sm:text-base lg:text-lg text-gray-600 max-w-2xl mx-auto">
-              Everything you need to ace technical and behavioral interviews
+              Comprehensive interview preparation platform designed for Indian job 
+              market requirements and company-specific hiring patterns
             </p>
           </div>
 
@@ -498,8 +541,9 @@ export default function LandingPage() {
                   Voice Mock Interviews
                 </CardTitle>
                 <CardDescription className="text-sm">
-                  Realistic 10-20 minute voice interviews with adaptive AI that
-                  adjusts difficulty based on your answers
+                  Conduct full-length mock interviews with AI that evaluates your 
+                  responses, asks contextual follow-ups, and provides structured 
+                  feedback on technical accuracy and communication effectiveness
                 </CardDescription>
               </CardHeader>
             </Card>
@@ -513,8 +557,9 @@ export default function LandingPage() {
                   Behavioral Analysis
                 </CardTitle>
                 <CardDescription className="text-sm">
-                  Get detailed insights on confidence, fluency, filler words,
-                  and tone. Know exactly what to improve
+                  Advanced speech analysis measures confidence levels, identifies 
+                  filler words (um, uh, like), analyzes pacing, and evaluates 
+                  response structure to pinpoint improvement areas
                 </CardDescription>
               </CardHeader>
             </Card>
@@ -528,8 +573,9 @@ export default function LandingPage() {
                   Progress Tracking
                 </CardTitle>
                 <CardDescription className="text-sm">
-                  Watch your scores improve over time with detailed analytics
-                  and personalized recommendations
+                  Track performance trends across multiple interviews with visual 
+                  dashboards showing score improvements, skill development, and 
+                  readiness metrics
                 </CardDescription>
               </CardHeader>
             </Card>
@@ -543,8 +589,9 @@ export default function LandingPage() {
                   Company-Specific Prep
                 </CardTitle>
                 <CardDescription className="text-sm">
-                  Practice with questions tailored for TCS, Infosys, Wipro,
-                  Amazon, and other top Indian companies
+                  Access curated question banks from actual interview experiences 
+                  at TCS, Infosys, Wipro, Amazon, Microsoft, Google, and 50+ 
+                  leading employers in India
                 </CardDescription>
               </CardHeader>
             </Card>
@@ -558,8 +605,8 @@ export default function LandingPage() {
                   Multi-Language Support
                 </CardTitle>
                 <CardDescription className="text-sm">
-                  Conduct interviews in English, Hindi, or code-switch between
-                  languages naturally
+                  Practice interviews in English, Hindi, or mixed language scenarios 
+                  to prepare for real-world interview environments in Indian companies
                 </CardDescription>
               </CardHeader>
             </Card>
@@ -573,8 +620,9 @@ export default function LandingPage() {
                   Instant Feedback
                 </CardTitle>
                 <CardDescription className="text-sm">
-                  Get comprehensive feedback within minutes. See transcripts,
-                  scores, and improvement suggestions
+                  Receive detailed interview reports within 2-3 minutes including 
+                  full transcripts, performance scores, skill ratings, and prioritized 
+                  action items for improvement
                 </CardDescription>
               </CardHeader>
             </Card>
@@ -588,9 +636,9 @@ export default function LandingPage() {
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8 text-center">
             <div className="p-4 sm:p-6 bg-gradient-to-br from-purple-50 to-white rounded-xl border-2 border-purple-100 shadow-sm">
               <div className="flex items-center justify-center mb-2">
-                <Users className="w-8 h-8 sm:w-10 sm:h-10 text-purple-600 mb-2" />
+                <Users className="w-8 h-8 sm:w-10 sm:h-10 text-landing-blue-700 mb-2" />
               </div>
-              <div className="text-2xl sm:text-3xl lg:text-4xl font-bold text-purple-600 mb-1 sm:mb-2">
+              <div className="text-2xl sm:text-3xl lg:text-4xl font-bold text-landing-blue-700 mb-1 sm:mb-2">
                 5,000+
               </div>
               <div className="text-xs sm:text-sm text-gray-600 font-medium">
@@ -605,7 +653,7 @@ export default function LandingPage() {
                 1,000+
               </div>
               <div className="text-xs sm:text-sm text-gray-600 font-medium">
-                Questions Bank
+                Interview Questions
               </div>
             </div>
             <div className="p-4 sm:p-6 bg-gradient-to-br from-pink-50 to-white rounded-xl border-2 border-pink-100 shadow-sm">
@@ -640,7 +688,7 @@ export default function LandingPage() {
       {/* CTA Section */}
       <section className="py-12 sm:py-16 lg:py-20 px-4 sm:px-6">
         <div className="container mx-auto max-w-4xl">
-          <Card className="border-2 border-purple-200 shadow-xl bg-gradient-to-br from-purple-100 via-blue-100 to-pink-100">
+          <Card className="border-2 border-landing-blue-300 shadow-xl bg-gradient-to-br from-purple-100 via-blue-100 to-pink-100">
             <CardContent className="p-8 sm:p-10 lg:p-12 text-center">
               <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-purple-500 to-blue-500 rounded-2xl flex items-center justify-center mx-auto mb-4 sm:mb-6 shadow-lg">
                 <Sparkles className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
@@ -649,14 +697,15 @@ export default function LandingPage() {
                 Ready to Ace Your Interview?
               </h2>
               <p className="text-sm sm:text-base lg:text-lg text-gray-700 mb-6 sm:mb-8 max-w-2xl mx-auto">
-                Join 5,000+ students who have improved their interview skills
-                with Easy Interview
+                Join thousands of students from IITs, NITs, and tier-2/3 colleges 
+                who have secured placements at top companies. Start your first 
+                interview practice session free - no credit card required.
               </p>
               <Link href="/sign-up">
                 <Button
                   variant="gradient"
                   size="sm"
-                  className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white shadow-lg hover:shadow-xl transition-all text-xs sm:text-sm px-3 sm:px-4 py-3 sm:py-3.5"
+                  className="bg-gradient-to-r from-landing-blue-600 to-landing-blue-700 hover:from-landing-blue-800 hover:to-landing-blue-900 text-white shadow-lg hover:shadow-xl transition-all text-xs sm:text-sm px-3 sm:px-4 py-3 sm:py-3.5"
                 >
                   Start Your Free Interview
                   <ArrowRight className="w-3 h-3 sm:w-3.5 sm:h-3.5 ml-1.5" />

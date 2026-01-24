@@ -300,9 +300,9 @@ export default function OnboardingPage() {
 
   if (!isLoaded || checkingStatus) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-pink-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-landing-blue-50 via-landing-blue-100 to-landing-blue-200 flex items-center justify-center">
         <div className="text-center">
-          <Loader2 className="w-12 h-12 animate-spin text-purple-600 mx-auto mb-4" />
+          <Loader2 className="w-12 h-12 animate-spin text-landing-blue-700 mx-auto mb-4" />
           <p className="text-gray-600">Loading...</p>
         </div>
       </div>
@@ -316,15 +316,15 @@ export default function OnboardingPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-pink-50 py-8 px-4 sm:px-6">
+    <div className="min-h-screen bg-gradient-to-br from-landing-blue-50 via-landing-blue-100 to-landing-blue-200 py-8 px-4 sm:px-6">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-2 mb-4">
-            <div className="w-12 h-12 bg-gradient-to-r from-purple-600 to-blue-600 rounded-xl flex items-center justify-center shadow-lg">
+            <div className="w-12 h-12 bg-gradient-to-r from-landing-blue-600 to-landing-blue-700 rounded-xl flex items-center justify-center shadow-lg">
               <Sparkles className="w-6 h-6 text-white" />
             </div>
-            <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+            <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-landing-blue-600 to-landing-blue-700 bg-clip-text text-transparent">
               Welcome to Easy Interview!
             </h1>
           </div>
@@ -347,7 +347,7 @@ export default function OnboardingPage() {
                     <div
                       className={`w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center border-2 transition-all ${
                         isActive
-                          ? "bg-gradient-to-r from-purple-600 to-blue-600 border-purple-600 text-white shadow-lg scale-110"
+                          ? "bg-gradient-to-r from-landing-blue-600 to-landing-blue-700 border-purple-600 text-white shadow-lg scale-110"
                           : isCompleted
                           ? "bg-green-500 border-green-500 text-white"
                           : "bg-white border-gray-300 text-gray-400"
@@ -361,7 +361,7 @@ export default function OnboardingPage() {
                     </div>
                     <p
                       className={`text-xs sm:text-sm font-medium mt-2 ${
-                        isActive ? "text-purple-600" : "text-gray-500"
+                        isActive ? "text-landing-blue-700" : "text-gray-500"
                       }`}
                     >
                       {step.title}
@@ -413,7 +413,7 @@ export default function OnboardingPage() {
                       onClick={() => setUserType("student")}
                       className={`p-6 rounded-xl border-2 transition-all text-left ${
                         userType === "student"
-                          ? "border-purple-500 bg-purple-50 shadow-md scale-105"
+                          ? "border-purple-500 bg-landing-blue-50 shadow-md scale-105"
                           : "border-gray-200 bg-white hover:border-purple-300 hover:shadow-sm"
                       }`}
                     >
@@ -433,7 +433,7 @@ export default function OnboardingPage() {
                       onClick={() => setUserType("fresher")}
                       className={`p-6 rounded-xl border-2 transition-all text-left ${
                         userType === "fresher"
-                          ? "border-purple-500 bg-purple-50 shadow-md scale-105"
+                          ? "border-purple-500 bg-landing-blue-50 shadow-md scale-105"
                           : "border-gray-200 bg-white hover:border-purple-300 hover:shadow-sm"
                       }`}
                     >
@@ -453,7 +453,7 @@ export default function OnboardingPage() {
                       onClick={() => setUserType("experienced")}
                       className={`p-6 rounded-xl border-2 transition-all text-left ${
                         userType === "experienced"
-                          ? "border-purple-500 bg-purple-50 shadow-md scale-105"
+                          ? "border-purple-500 bg-landing-blue-50 shadow-md scale-105"
                           : "border-gray-200 bg-white hover:border-purple-300 hover:shadow-sm"
                       }`}
                     >
@@ -483,8 +483,8 @@ export default function OnboardingPage() {
                       {...getRootProps()}
                       className={`border-2 border-dashed rounded-xl p-8 sm:p-12 text-center cursor-pointer transition-all ${
                         isDragActive
-                          ? "border-purple-500 bg-purple-50 scale-105"
-                          : "border-gray-300 bg-gray-50 hover:border-purple-400 hover:bg-purple-50/50"
+                          ? "border-purple-500 bg-landing-blue-50 scale-105"
+                          : "border-gray-300 bg-gray-50 hover:border-purple-400 hover:bg-landing-blue-50/50"
                       }`}
                     >
                       <input {...getInputProps()} />
@@ -618,7 +618,7 @@ export default function OnboardingPage() {
                   )}
 
                   {userType === "experienced" && (
-                    <div className="space-y-3 p-4 bg-purple-50 rounded-xl border-2 border-purple-200">
+                    <div className="space-y-3 p-4 bg-landing-blue-50 rounded-xl border-2 border-landing-blue-300">
                       <h4 className="font-semibold text-gray-900 mb-3">
                         Current Job Details
                       </h4>
@@ -704,7 +704,7 @@ export default function OnboardingPage() {
                           onClick={() => toggleIndustry(industry)}
                           className={`p-3 rounded-lg border-2 transition-all text-left text-sm ${
                             reviewData.industries.includes(industry)
-                              ? "border-purple-500 bg-purple-50"
+                              ? "border-purple-500 bg-landing-blue-50"
                               : "border-gray-200 bg-white hover:border-purple-300"
                           }`}
                         >
@@ -713,7 +713,7 @@ export default function OnboardingPage() {
                               {industry}
                             </span>
                             {reviewData.industries.includes(industry) && (
-                              <CheckCircle className="w-4 h-4 text-purple-600" />
+                              <CheckCircle className="w-4 h-4 text-landing-blue-700" />
                             )}
                           </div>
                         </button>
@@ -840,7 +840,7 @@ export default function OnboardingPage() {
                     type="button"
                     onClick={handleStep1Next}
                     disabled={extracting || !userType || !resumeFile}
-                    className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white shadow-lg hover:shadow-xl transition-all flex items-center gap-2"
+                    className="bg-gradient-to-r from-landing-blue-600 to-landing-blue-700 hover:from-landing-blue-800 hover:to-landing-blue-900 text-white shadow-lg hover:shadow-xl transition-all flex items-center gap-2"
                   >
                     {extracting ? (
                       <>
@@ -922,7 +922,7 @@ export default function OnboardingPage() {
                   <Button
                     type="button"
                     onClick={() => setCurrentStep(3)}
-                    className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white shadow-lg hover:shadow-xl transition-all flex items-center gap-2"
+                    className="bg-gradient-to-r from-landing-blue-600 to-landing-blue-700 hover:from-landing-blue-800 hover:to-landing-blue-900 text-white shadow-lg hover:shadow-xl transition-all flex items-center gap-2"
                   >
                     Continue
                     <ArrowRight className="w-4 h-4" />
@@ -935,7 +935,7 @@ export default function OnboardingPage() {
                   type="button"
                   onClick={handleComplete}
                   disabled={loading}
-                  className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white shadow-lg hover:shadow-xl transition-all flex items-center gap-2"
+                  className="bg-gradient-to-r from-landing-blue-600 to-landing-blue-700 hover:from-landing-blue-800 hover:to-landing-blue-900 text-white shadow-lg hover:shadow-xl transition-all flex items-center gap-2"
                 >
                   {loading ? (
                     <>

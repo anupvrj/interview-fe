@@ -21,7 +21,7 @@ const PLANS = [
       "Teacher Assistant unlimited",
       "Progress tracking",
     ],
-    color: "from-blue-500 to-cyan-500",
+    color: "from-landing-blue-500 to-landing-blue-600",
     icon: Sparkles,
     popular: false,
   },
@@ -38,7 +38,7 @@ const PLANS = [
       "Progress tracking + weak area radar",
       "Priority support",
     ],
-    color: "from-purple-500 to-pink-500",
+    color: "from-landing-blue-600 to-landing-blue-700",
     icon: Zap,
     popular: true,
   },
@@ -55,7 +55,7 @@ const PLANS = [
       "Certification/score report",
       "Priority support",
     ],
-    color: "from-orange-500 to-red-500",
+    color: "from-landing-blue-700 to-landing-blue-800",
     icon: Trophy,
     popular: false,
   },
@@ -74,13 +74,13 @@ export default function PricingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-pink-50">
+    <div className="min-h-screen bg-gradient-to-br from-landing-blue-50 via-landing-blue-100 to-landing-blue-200">
       {/* Header */}
       <header className="bg-white border-b shadow-sm">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
-            <Sparkles className="h-6 w-6 text-purple-600" />
-            <span className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+            <Sparkles className="h-6 w-6 text-landing-blue-700" />
+            <span className="text-2xl font-bold bg-gradient-to-r from-landing-blue-600 to-landing-blue-700 bg-clip-text text-transparent">
               Easy Interview
             </span>
           </Link>
@@ -103,7 +103,7 @@ export default function PricingPage() {
       <div className="container mx-auto px-4 py-16">
         {/* Hero Section */}
         <div className="text-center mb-16">
-          <h1 className="text-5xl font-bold mb-4 bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+          <h1 className="text-5xl font-bold mb-4 bg-gradient-to-r from-landing-blue-600 to-landing-blue-700 bg-clip-text text-transparent">
             Choose Your Plan
           </h1>
           <p className="text-xl text-gray-600 max-w-2xl mx-auto">
@@ -121,23 +121,25 @@ export default function PricingPage() {
                 key={plan.id}
                 className={`relative p-8 ${
                   plan.popular
-                    ? "border-2 border-purple-500 shadow-xl scale-105"
+                    ? "border-2 border-landing-blue-600 shadow-xl scale-105"
                     : "border shadow-lg"
                 } bg-white hover:shadow-2xl transition-all duration-300`}
               >
                 {plan.popular && (
                   <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-                    <span className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-4 py-1 rounded-full text-sm font-semibold">
+                    <span className="bg-gradient-to-r from-landing-blue-600 to-landing-blue-700 text-white px-4 py-1 rounded-full text-sm font-semibold">
                       Most Popular
                     </span>
                   </div>
                 )}
 
                 <div className="text-center mb-6">
-                  <div
-                    className={`inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-r ${plan.color} mb-4`}
-                  >
-                    <Icon className="h-8 w-8 text-white" />
+                  <div className="flex justify-center mb-4">
+                    <div
+                      className={`inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-r ${plan.color} shadow-md`}
+                    >
+                      <Icon className="h-8 w-8 text-white" />
+                    </div>
                   </div>
                   <h3 className="text-2xl font-bold text-gray-900 mb-2">
                     {plan.name}
@@ -167,7 +169,7 @@ export default function PricingPage() {
                   onClick={() => handleSelectPlan(plan.id)}
                   className={`w-full ${
                     plan.popular
-                      ? "bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
+                      ? "bg-gradient-to-r from-landing-blue-600 to-landing-blue-700 hover:from-landing-blue-800 hover:to-landing-blue-900"
                       : "bg-gray-900 hover:bg-gray-800"
                   } text-white`}
                 >
