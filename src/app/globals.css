@@ -98,6 +98,74 @@
     background: linear-gradient(135deg, #5B7FFF 0%, #4A6FEE 100%);
   }
 
+  /* Glowing border animation for Pro plan */
+  @keyframes glow-pulse {
+    0%, 100% {
+      box-shadow: 0 0 8px rgba(91, 127, 255, 0.5),
+                  0 0 15px rgba(91, 127, 255, 0.3);
+    }
+    50% {
+      box-shadow: 0 0 12px rgba(91, 127, 255, 0.8),
+                  0 0 25px rgba(91, 127, 255, 0.5);
+    }
+  }
+
+  @keyframes border-glow {
+    0%, 100% {
+      border-color: rgb(91, 127, 255);
+    }
+    50% {
+      border-color: rgb(107, 138, 255);
+    }
+  }
+
+  .glow-border {
+    animation: glow-pulse 2.5s ease-in-out infinite, border-glow 3s ease-in-out infinite;
+    border-color: rgb(91, 127, 255) !important;
+  }
+
+  /* Shake animation for Mock Interview section */
+  @keyframes shake-vertical {
+    0%, 100% {
+      transform: translateY(0);
+    }
+    25% {
+      transform: translateY(-8px);
+    }
+    75% {
+      transform: translateY(8px);
+    }
+  }
+
+  .shake-vertical {
+    animation: shake-vertical 2s ease-in-out infinite;
+  }
+
+  /* Mic beeping and growing animation */
+  @keyframes mic-beep {
+    0%, 100% {
+      transform: scale(1);
+      opacity: 1;
+    }
+    50% {
+      transform: scale(1.2);
+      opacity: 0.8;
+    }
+  }
+
+  @keyframes mic-pulse {
+    0%, 100% {
+      box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7);
+    }
+    50% {
+      box-shadow: 0 0 0 8px rgba(59, 130, 246, 0);
+    }
+  }
+
+  .mic-animated {
+    animation: mic-beep 1.5s ease-in-out infinite, mic-pulse 2s ease-in-out infinite;
+  }
+
   .gradient-pink {
     background: linear-gradient(135deg, #8BA3FF 0%, #6B8AFF 100%);
   }
@@ -110,6 +178,27 @@
   /* Primary action gradient */
   .gradient-primary {
     background: linear-gradient(135deg, #6B8AFF 0%, #5B7FFF 100%);
+  }
+
+  /* Text animation keyframes */
+  @keyframes fadeInUp {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes blink {
+    0%, 50% {
+      opacity: 1;
+    }
+    51%, 100% {
+      opacity: 0;
+    }
   }
 
   .glass {
