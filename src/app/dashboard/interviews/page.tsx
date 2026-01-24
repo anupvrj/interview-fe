@@ -117,7 +117,7 @@ export default function InterviewsPage() {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
-          <Loader2 className="w-12 h-12 animate-spin text-purple-600 mx-auto mb-4" />
+          <Loader2 className="w-12 h-12 animate-spin text-landing-blue-700 mx-auto mb-4" />
           <p className="text-gray-600">Loading your interviews...</p>
         </div>
       </div>
@@ -139,7 +139,7 @@ export default function InterviewsPage() {
   return (
     <div className="w-full max-w-7xl mx-auto space-y-4 lg:space-y-6">
       {/* Hero Header Section */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-purple-600 via-blue-600 to-pink-600 p-6 lg:p-8 text-white">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-landing-blue-600 via-landing-blue-700 to-landing-blue-800 p-6 lg:p-8 text-white">
         <div className="relative z-10">
           <div className="flex items-center gap-3 mb-3">
             <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
@@ -244,7 +244,7 @@ export default function InterviewsPage() {
         <Link href="/dashboard/interviews/new">
           <Button
             size="lg"
-            className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white shadow-lg hover:shadow-xl transition-all"
+            className="bg-gradient-to-r from-landing-blue-600 to-landing-blue-700 hover:from-landing-blue-800 hover:to-landing-blue-900 text-white shadow-lg hover:shadow-xl transition-all"
           >
             <Plus className="w-4 h-4 mr-2" />
             Start New Interview
@@ -257,7 +257,7 @@ export default function InterviewsPage() {
         <Card className="border-2 shadow-xl bg-white/80 backdrop-blur-sm">
           <CardContent className="pt-16 pb-16 text-center">
             <div className="w-24 h-24 bg-gradient-to-br from-purple-100 to-blue-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
-              <FileText className="w-12 h-12 text-purple-600" />
+              <FileText className="w-12 h-12 text-landing-blue-700" />
             </div>
             <h3 className="text-2xl font-bold text-gray-900 mb-3">
               No interviews yet
@@ -269,7 +269,7 @@ export default function InterviewsPage() {
             <Link href="/dashboard/interviews/new">
               <Button
                 size="lg"
-                className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white shadow-lg hover:shadow-xl transition-all"
+                className="bg-gradient-to-r from-landing-blue-600 to-landing-blue-700 hover:from-landing-blue-800 hover:to-landing-blue-900 text-white shadow-lg hover:shadow-xl transition-all"
               >
                 <Plus className="w-5 h-5 mr-2" />
                 Start Your First Interview
@@ -287,7 +287,7 @@ export default function InterviewsPage() {
                   return (
                     <div
                       key={interview._id}
-                      className="p-4 lg:p-6 hover:bg-purple-50/50 transition-colors cursor-pointer group"
+                      className="p-4 lg:p-6 hover:bg-landing-blue-50/50 transition-colors cursor-pointer group"
                       onClick={() => {
                         if (interview.status === "completed") {
                           router.push(
@@ -424,7 +424,7 @@ export default function InterviewsPage() {
                                 <Button
                                   variant="outline"
                                   size="default"
-                                  className="border-purple-300 text-purple-700 hover:bg-purple-50 group-hover:border-purple-400 transition-all whitespace-nowrap"
+                                  className="border-purple-300 text-landing-blue-800 hover:bg-landing-blue-50 group-hover:border-purple-400 transition-all whitespace-nowrap"
                                 >
                                   <CheckCircle className="w-4 h-4 mr-2" />
                                   View Report
@@ -455,7 +455,7 @@ export default function InterviewsPage() {
                               >
                                 <Button
                                   size="default"
-                                  className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white shadow-md hover:shadow-lg transition-all whitespace-nowrap"
+                                  className="bg-gradient-to-r from-landing-blue-600 to-landing-blue-700 hover:from-landing-blue-800 hover:to-landing-blue-900 text-white shadow-md hover:shadow-lg transition-all whitespace-nowrap"
                                 >
                                   <PlayCircle className="w-4 h-4 mr-2" />
                                   Continue
@@ -498,7 +498,7 @@ export default function InterviewsPage() {
                       onClick={() => goToPage(pageNum)}
                       className={
                         currentPage === pageNum
-                          ? "bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white border-0"
+                          ? "bg-gradient-to-r from-landing-blue-600 to-landing-blue-700 hover:from-landing-blue-800 hover:to-landing-blue-900 text-white border-0"
                           : "border-gray-300"
                       }
                     >

@@ -54,7 +54,7 @@ export function NavigationMenu() {
           <a
             key={item.href}
             href={item.href}
-            className="text-sm sm:text-base text-gray-700 hover:text-purple-600 transition-colors font-medium"
+            className="text-sm sm:text-base text-gray-700 hover:text-landing-blue-700 transition-colors font-medium"
           >
             {item.label}
           </a>

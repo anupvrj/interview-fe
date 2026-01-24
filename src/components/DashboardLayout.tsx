@@ -93,10 +93,10 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               href="/"
               className="flex items-center gap-1.5 hover:opacity-80 transition-opacity min-w-0"
             >
-              <div className="w-7 h-7 bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
+              <div className="w-7 h-7 bg-gradient-to-r from-landing-blue-600 to-landing-blue-700 rounded-lg flex items-center justify-center flex-shrink-0">
                 <Sparkles className="w-4 h-4 text-white" />
               </div>
-              <span className="text-base sm:text-lg font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent truncate">
+              <span className="text-base sm:text-lg font-bold bg-gradient-to-r from-landing-blue-600 to-landing-blue-700 bg-clip-text text-transparent truncate">
                 Easy Interview
               </span>
             </Link>
@@ -104,7 +104,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           <Link href="/dashboard/interviews/new" className="flex-shrink-0">
             <Button
               size="sm"
-              className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white h-9 px-3 gap-1.5 text-xs sm:text-sm shadow-md"
+              className="bg-gradient-to-r from-landing-blue-600 to-landing-blue-700 hover:from-purple-700 hover:to-blue-700 text-white h-9 px-3 gap-1.5 text-xs sm:text-sm shadow-md"
             >
               <PlayCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               <span className="hidden xs:inline">Start</span>
@@ -134,11 +134,11 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 href="/"
                 className="flex items-center gap-2 hover:opacity-80 transition-opacity"
               >
-                <div className="w-10 h-10 bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg flex items-center justify-center">
+                <div className="w-10 h-10 bg-gradient-to-r from-landing-blue-600 to-landing-blue-700 rounded-lg flex items-center justify-center">
                   <Sparkles className="w-6 h-6 text-white" />
                 </div>
                 {sidebarOpen && (
-                  <span className="text-xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+                  <span className="text-xl font-bold bg-gradient-to-r from-landing-blue-600 to-landing-blue-700 bg-clip-text text-transparent">
                     Easy Interview
                   </span>
                 )}
@@ -168,7 +168,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                       "flex items-center gap-3 px-4 py-3 rounded-lg transition-all",
                       "hover:bg-purple-50 hover:text-purple-700",
                       isActive
-                        ? "bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-md"
+                        ? "bg-gradient-to-r from-landing-blue-600 to-landing-blue-700 text-white shadow-md"
                         : "text-gray-700"
                     )}
                   >
@@ -234,7 +234,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 <Link href="/dashboard/interviews/new">
                   <Button
                     size="default"
-                    className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white shadow-md hover:shadow-lg transition-all"
+                    className="bg-gradient-to-r from-landing-blue-600 to-landing-blue-700 hover:from-purple-700 hover:to-blue-700 text-white shadow-md hover:shadow-lg transition-all"
                   >
                     <PlayCircle className="w-4 h-4 mr-2" />
                     Start Interview

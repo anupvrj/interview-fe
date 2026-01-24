@@ -97,7 +97,7 @@ export default function PlanPage() {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
-          <Loader2 className="w-12 h-12 animate-spin text-purple-600 mx-auto mb-4" />
+          <Loader2 className="w-12 h-12 animate-spin text-landing-blue-700 mx-auto mb-4" />
           <p className="text-gray-600">Loading your plan details...</p>
         </div>
       </div>
@@ -118,7 +118,7 @@ export default function PlanPage() {
   return (
     <div className="w-full max-w-7xl mx-auto space-y-4 lg:space-y-6">
       {/* Hero Header Section */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-purple-600 via-blue-600 to-pink-600 p-6 lg:p-8 text-white">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-landing-blue-600 via-landing-blue-700 to-landing-blue-800 p-6 lg:p-8 text-white">
         <div className="relative z-10">
           <div className="flex items-center gap-3 mb-3">
             <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
@@ -157,7 +157,7 @@ export default function PlanPage() {
               <span className="text-sm font-semibold text-gray-700">
                 Interviews Used
               </span>
-              <span className="text-sm font-bold text-purple-700">
+              <span className="text-sm font-bold text-landing-blue-800">
                 {subscription?.interviewsUsed || 0} /{" "}
                 {subscription?.interviewsLimit || 2}
               </span>
@@ -221,9 +221,9 @@ export default function PlanPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4 lg:space-y-6">
-            <div className="p-4 lg:p-5 bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 rounded-xl border-2 border-purple-200">
+            <div className="p-4 lg:p-5 bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 rounded-xl border-2 border-landing-blue-300">
               <h4 className="font-bold text-base lg:text-lg text-gray-900 mb-3 lg:mb-4 flex items-center gap-2">
-                <Sparkles className="w-4 h-4 lg:w-5 lg:h-5 text-purple-600" />
+                <Sparkles className="w-4 h-4 lg:w-5 lg:h-5 text-landing-blue-700" />
                 What you'll get:
               </h4>
               <ul className="space-y-2 lg:space-y-3">
@@ -232,13 +232,13 @@ export default function PlanPage() {
                     key={feature}
                     className="text-sm text-gray-700 flex items-start gap-3"
                   >
-                    <CheckCircle className="w-4 h-4 lg:w-5 lg:h-5 text-purple-600 mt-0.5 flex-shrink-0" />
+                    <CheckCircle className="w-4 h-4 lg:w-5 lg:h-5 text-landing-blue-700 mt-0.5 flex-shrink-0" />
                     <span className="font-medium">{feature}</span>
                   </li>
                 ))}
               </ul>
             </div>
-            <div className="p-4 lg:p-5 bg-gradient-to-br from-purple-50 to-blue-50 rounded-xl border-2 border-purple-200">
+            <div className="p-4 lg:p-5 bg-gradient-to-br from-purple-50 to-blue-50 rounded-xl border-2 border-landing-blue-300">
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div>
                   <p className="text-sm text-gray-600 mb-1">Price</p>
@@ -252,7 +252,7 @@ export default function PlanPage() {
                 <Link href="/pricing" className="w-full sm:w-auto">
                   <Button
                     size="lg"
-                    className="w-full sm:w-auto bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white shadow-lg hover:shadow-xl transition-all"
+                    className="w-full sm:w-auto bg-gradient-to-r from-landing-blue-600 to-landing-blue-700 hover:from-landing-blue-800 hover:to-landing-blue-900 text-white shadow-lg hover:shadow-xl transition-all"
                   >
                     <Crown className="w-4 h-4 mr-2" />
                     Upgrade Now

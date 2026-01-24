@@ -43,6 +43,19 @@ const config: Config = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        // Landing page inspired blue palette
+        "landing-blue": {
+          50: "#F5F8FF",
+          100: "#E8EEFF",
+          200: "#D5E3FF",
+          300: "#C5D5F7",
+          400: "#A8BFFF",
+          500: "#8BA3FF",
+          600: "#6B8AFF",
+          700: "#5B7FFF",
+          800: "#4A6FEE",
+          900: "#3A5FDD",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",

@@ -4,48 +4,77 @@
 
 @layer base {
   :root {
-    --background: 220 20% 97%;
-    --foreground: 220 20% 10%;
+    /* Light periwinkle blue background matching landing page */
+    --background: 225 60% 95%;
+    --foreground: 0 0% 5%;
+    
+    /* Card colors - white with subtle blue tint */
     --card: 0 0% 100%;
-    --card-foreground: 220 20% 10%;
+    --card-foreground: 0 0% 5%;
+    
+    /* Popover colors */
     --popover: 0 0% 100%;
-    --popover-foreground: 220 20% 10%;
-    --primary: 262 83% 58%;
+    --popover-foreground: 0 0% 5%;
+    
+    /* Primary - vibrant royal blue from landing page */
+    --primary: 225 85% 65%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 199 89% 48%;
+    
+    /* Secondary - lighter blue accent */
+    --secondary: 225 70% 75%;
     --secondary-foreground: 0 0% 100%;
-    --muted: 220 20% 95%;
-    --muted-foreground: 220 10% 45%;
-    --accent: 340 82% 52%;
+    
+    /* Muted - soft blue-gray */
+    --muted: 225 40% 92%;
+    --muted-foreground: 225 10% 45%;
+    
+    /* Accent - deeper blue for highlights */
+    --accent: 225 80% 60%;
     --accent-foreground: 0 0% 100%;
+    
+    /* Destructive - keep red for errors */
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
-    --border: 220 20% 90%;
-    --input: 220 20% 90%;
-    --ring: 262 83% 58%;
+    
+    /* Border and input - subtle blue-gray */
+    --border: 225 30% 88%;
+    --input: 225 30% 88%;
+    
+    /* Ring - primary blue */
+    --ring: 225 85% 65%;
     --radius: 0.75rem;
   }
 
   .dark {
-    --background: 220 20% 8%;
-    --foreground: 220 20% 98%;
-    --card: 220 20% 12%;
-    --card-foreground: 220 20% 98%;
-    --popover: 220 20% 12%;
-    --popover-foreground: 220 20% 98%;
-    --primary: 262 83% 58%;
+    /* Dark mode with blue undertones */
+    --background: 225 20% 8%;
+    --foreground: 225 10% 98%;
+    
+    --card: 225 20% 12%;
+    --card-foreground: 225 10% 98%;
+    
+    --popover: 225 20% 12%;
+    --popover-foreground: 225 10% 98%;
+    
+    /* Keep same vibrant blue in dark mode */
+    --primary: 225 85% 65%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 199 89% 48%;
+    
+    --secondary: 225 70% 55%;
     --secondary-foreground: 0 0% 100%;
-    --muted: 220 20% 18%;
-    --muted-foreground: 220 10% 60%;
-    --accent: 340 82% 52%;
+    
+    --muted: 225 20% 18%;
+    --muted-foreground: 225 10% 60%;
+    
+    --accent: 225 80% 60%;
     --accent-foreground: 0 0% 100%;
+    
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
-    --border: 220 20% 18%;
-    --input: 220 20% 18%;
-    --ring: 262 83% 58%;
+    
+    --border: 225 20% 18%;
+    --input: 225 20% 18%;
+    --ring: 225 85% 65%;
   }
 }
 
@@ -60,22 +89,40 @@
 }
 
 @layer utilities {
+  /* Updated gradients to match landing page blue theme */
   .gradient-purple {
-    background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
+    background: linear-gradient(135deg, #6B8AFF 0%, #5B7FFF 100%);
   }
 
   .gradient-blue {
-    background: linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%);
+    background: linear-gradient(135deg, #5B7FFF 0%, #4A6FEE 100%);
   }
 
   .gradient-pink {
-    background: linear-gradient(135deg, #ec4899 0%, #f43f5e 100%);
+    background: linear-gradient(135deg, #8BA3FF 0%, #6B8AFF 100%);
+  }
+
+  /* Landing page inspired gradient */
+  .gradient-landing {
+    background: linear-gradient(135deg, #C5D5F7 0%, #E8EEFF 50%, #D5E3FF 100%);
+  }
+
+  /* Primary action gradient */
+  .gradient-primary {
+    background: linear-gradient(135deg, #6B8AFF 0%, #5B7FFF 100%);
   }
 
   .glass {
     background: rgba(255, 255, 255, 0.1);
     backdrop-filter: blur(10px);
     border: 1px solid rgba(255, 255, 255, 0.2);
+  }
+
+  /* Blue glass effect for cards */
+  .glass-blue {
+    background: rgba(197, 213, 247, 0.3);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(107, 138, 255, 0.2);
   }
 
   /* Rich text preview styles */

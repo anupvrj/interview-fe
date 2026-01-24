@@ -185,7 +185,7 @@ export default function NewInterviewPage() {
   return (
     <div className="w-full max-w-6xl mx-auto space-y-4 lg:space-y-6">
       {/* Hero Header Section */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-purple-600 via-blue-600 to-pink-600 p-4 sm:p-6 lg:p-8 text-white">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-landing-blue-600 via-landing-blue-700 to-landing-blue-800 p-4 sm:p-6 lg:p-8 text-white">
         <div className="relative z-10">
           <div className="flex items-center gap-3 mb-3">
             <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
@@ -207,10 +207,10 @@ export default function NewInterviewPage() {
 
       {/* Status Cards */}
       {checkingLimit ? (
-        <Card className="border-2 border-purple-200 bg-gradient-to-br from-purple-50 to-blue-50 shadow-lg">
+        <Card className="border-2 border-landing-blue-300 bg-gradient-to-br from-purple-50 to-blue-50 shadow-lg">
           <CardContent className="pt-6">
             <div className="flex items-center justify-center gap-3 py-4">
-              <Loader2 className="h-6 w-6 animate-spin text-purple-600" />
+              <Loader2 className="h-6 w-6 animate-spin text-landing-blue-700" />
               <p className="text-gray-700 font-medium">
                 Checking your interview limit...
               </p>
@@ -253,7 +253,7 @@ export default function NewInterviewPage() {
                 <Button
                   onClick={() => router.push("/pricing")}
                   size="lg"
-                  className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-lg hover:shadow-xl transition-all"
+                  className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-landing-blue-800 hover:to-pink-700 text-white shadow-lg hover:shadow-xl transition-all"
                 >
                   <Crown className="h-5 w-5 mr-2" />
                   View Plans & Upgrade
@@ -316,7 +316,7 @@ export default function NewInterviewPage() {
                       htmlFor="role"
                       className="text-sm font-semibold text-gray-700 flex items-center gap-2"
                     >
-                      <Target className="w-4 h-4 text-purple-600 flex-shrink-0" />
+                      <Target className="w-4 h-4 text-landing-blue-700 flex-shrink-0" />
                       Role You're Applying For
                       <span className="text-red-500">*</span>
                     </Label>
@@ -427,7 +427,7 @@ export default function NewInterviewPage() {
                   {/* Resume Selection */}
                   <div className="space-y-2 sm:space-y-3">
                     <Label className="text-xs sm:text-sm font-semibold text-gray-700 flex items-center gap-1.5">
-                      <FileText className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-purple-600 flex-shrink-0" />
+                      <FileText className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-landing-blue-700 flex-shrink-0" />
                       Resume
                       <span className="text-red-500">*</span>
                     </Label>
@@ -460,7 +460,7 @@ export default function NewInterviewPage() {
                             <div
                               className={`w-4 h-4 sm:w-5 sm:h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
                                 useSavedResume
-                                  ? "border-purple-600 bg-purple-600"
+                                  ? "border-purple-600 bg-landing-blue-700"
                                   : "border-gray-300"
                               }`}
                             >
@@ -518,7 +518,7 @@ export default function NewInterviewPage() {
                         <div
                           className={`w-4 h-4 sm:w-5 sm:h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
                             !useSavedResume
-                              ? "border-purple-600 bg-purple-600"
+                              ? "border-purple-600 bg-landing-blue-700"
                               : "border-gray-300"
                           }`}
                         >
