@@ -160,8 +160,8 @@ export default function LandingPage() {
     <div className="min-h-screen bg-white scroll-smooth selection:bg-blue-100">
       {/* Navigation */}
       <nav className="fixed top-0 w-full z-50">
-        {/* Top Teal Strip - Mobile Only */}
-        <div className="sm:hidden h-1 bg-gradient-to-r from-cyan-500 to-teal-500"></div>
+        {/* Top Border - Mobile Only */}
+        <div className="sm:hidden h-1" style={{ backgroundColor: 'rgb(37 99 235 / var(--tw-bg-opacity, 1))' }}></div>
         
         {/* Main Header */}
         <div className="bg-white/95 backdrop-blur-xl border-b border-gray-100">
@@ -179,10 +179,14 @@ export default function LandingPage() {
                   href="/"
                   className="flex items-center gap-2 hover:opacity-80 transition-opacity mx-auto sm:mx-0"
                 >
-                  <span className="text-lg sm:text-xl lg:text-2xl font-bold text-slate-900">
-                    Easy Interview
-                  </span>
-                  <div className="w-2 h-2 bg-cyan-500 rounded-full"></div>
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-8 h-8 sm:w-9 sm:h-9 bg-gradient-to-br from-blue-600 to-blue-700 rounded-lg flex items-center justify-center shadow-sm">
+                      <span className="text-white font-bold text-xs sm:text-sm">i<span className="text-sm sm:text-base">X</span></span>
+                    </div>
+                    <span className="text-lg sm:text-xl lg:text-2xl font-bold text-slate-900">
+                      Interview <span className="text-blue-600">Tri<span className="text-xl sm:text-2xl lg:text-3xl">X</span></span>
+                    </span>
+                  </div>
                 </Link>
 
                 {/* Right Side Icons - Mobile */}
@@ -312,7 +316,7 @@ export default function LandingPage() {
                             key={actualIndex}
                             className={`inline-block ${
                               isHighlight 
-                                ? 'text-blue-600 bg-gradient-to-r from-blue-600 to-blue-700 bg-clip-text text-transparent' 
+                                ? 'text-[rgb(37,99,235)]' 
                                 : 'text-slate-900'
                             }`}
                             style={{
@@ -586,7 +590,7 @@ export default function LandingPage() {
                 <Link href="/dashboard/resumes/new" className="w-full sm:w-auto">
                   <Button
                     size="lg"
-                    className="w-full sm:w-auto bg-slate-900 hover:bg-slate-800 text-white font-medium shadow-sm transition-all h-12 px-6"
+                    className="w-full sm:w-auto text-white font-medium shadow-sm transition-all h-12 px-6 hover:opacity-90 !bg-[rgb(37,99,235)]"
                   >
                     Try Builder Free
                     <ArrowRight className="w-4 h-4 ml-2" />
@@ -596,7 +600,7 @@ export default function LandingPage() {
                   <Button
                     variant="outline"
                     size="lg"
-                    className="w-full sm:w-auto border-gray-200 text-gray-700 hover:bg-gray-50 font-medium h-12 px-6"
+                    className="w-full sm:w-auto border-gray-200 text-gray-700 font-medium h-12 px-6 hover:!bg-[rgb(17,24,39)] hover:!text-white transition-all"
                   >
                     Browse Templates
                   </Button>
@@ -764,7 +768,7 @@ export default function LandingPage() {
                   <Button
                     variant="outline"
                     size="lg"
-                    className="w-full sm:w-auto border-gray-200 text-gray-700 hover:bg-gray-50 font-medium h-12 px-6"
+                    className="w-full sm:w-auto border-gray-200 text-gray-700 font-medium h-12 px-6 hover:!bg-[rgb(17,24,39)] hover:!text-white transition-all"
                   >
                     Learn More
                   </Button>
@@ -867,7 +871,7 @@ export default function LandingPage() {
                     <Users className="w-5 h-5 sm:w-6 sm:h-6 md:w-7 md:h-7 lg:w-8 lg:h-8 text-white" />
                   </div>
                 </div>
-                <div className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold bg-gradient-to-r from-blue-600 to-blue-700 bg-clip-text text-transparent mb-1 sm:mb-2 min-h-[2rem] sm:min-h-[2.5rem] md:min-h-[3rem] flex items-center justify-center">
+                <div className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold mb-1 sm:mb-2 min-h-[2rem] sm:min-h-[2.5rem] md:min-h-[3rem] flex items-center justify-center" style={{ color: 'rgb(37 99 235 / var(--tw-text-opacity, 1))' }}>
                   {studentsCount}
                 </div>
                 <div className="text-xs sm:text-sm font-semibold text-gray-600 uppercase tracking-wide text-center">
@@ -959,15 +963,15 @@ export default function LandingPage() {
           {/* Footer Content */}
           <div className="flex flex-col md:flex-row justify-between items-center gap-6 pt-8 border-t border-white/10">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-                <Sparkles className="w-4 h-4 text-white" />
+              <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-blue-700 rounded-lg flex items-center justify-center shadow-sm">
+                <span className="text-white font-bold text-xs">i<span className="text-sm">X</span></span>
               </div>
               <span className="text-xl font-bold text-white">
-                Easy Interview
+                Interview <span className="text-blue-400">Tri<span className="text-2xl">X</span></span>
               </span>
             </div>
             <p className="text-sm text-gray-400">
-              © 2026 Easy Interview. All rights reserved.
+              © 2026 Interview Trix. All rights reserved.
             </p>
           </div>
         </div>

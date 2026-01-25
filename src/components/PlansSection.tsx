@@ -28,7 +28,7 @@ const PLANS = [
       "Teacher Assistant unlimited",
       "Progress tracking",
     ],
-    color: "from-landing-blue-500 to-landing-blue-600",
+    color: "from-blue-500 to-blue-600",
     icon: Sparkles,
     popular: false,
   },
@@ -45,7 +45,7 @@ const PLANS = [
       "Progress tracking + weak area radar",
       "Priority support",
     ],
-    color: "from-landing-blue-600 to-landing-blue-700",
+    color: "from-blue-600 to-blue-700",
     icon: Zap,
     popular: true,
   },
@@ -62,7 +62,7 @@ const PLANS = [
       "Certification/score report",
       "Priority support",
     ],
-    color: "from-landing-blue-700 to-landing-blue-800",
+    color: "from-blue-700 to-blue-800",
     icon: Trophy,
     popular: false,
   },
@@ -209,15 +209,15 @@ export function PlansSection() {
             return (
               <Card
                 key={plan.id}
-                className={`relative border-2 hover:shadow-xl transition-all bg-white/80 backdrop-blur-sm ${
+                className={`relative border-2 hover:shadow-xl transition-all bg-white ${
                   plan.popular
-                    ? "border-landing-blue-600 shadow-lg scale-105 sm:scale-110 glow-border"
-                    : "border-gray-200 hover:border-landing-blue-300"
+                    ? "border-blue-600 shadow-lg scale-105 sm:scale-110 glow-border"
+                    : "border-gray-200 hover:border-blue-300"
                 }`}
               >
                 {plan.popular && (
                   <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
-                    <span className="bg-gradient-to-r from-landing-blue-600 to-landing-blue-700 text-white px-4 py-1 rounded-full text-xs sm:text-sm font-semibold shadow-md">
+                    <span className="bg-blue-600 text-white px-4 py-1 rounded-full text-xs sm:text-sm font-semibold shadow-md">
                       Most Popular
                     </span>
                   </div>
@@ -265,8 +265,8 @@ export function PlansSection() {
                     disabled={checking || !isLoaded}
                     className={`w-full ${
                       plan.popular
-                        ? "bg-gradient-to-r from-landing-blue-600 to-landing-blue-700 hover:from-landing-blue-800 hover:to-landing-blue-900"
-                        : "bg-gray-900 hover:bg-gray-800"
+                        ? "bg-blue-600 hover:bg-blue-700"
+                        : "bg-blue-600 hover:bg-blue-700"
                     } text-white shadow-md hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed`}
                   >
                     {checking ? "Loading..." : "Choose Plan"}
