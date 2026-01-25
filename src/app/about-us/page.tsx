@@ -34,6 +34,7 @@ export default function AboutPage() {
   const [timelineProgress, setTimelineProgress] = useState(0);
   const timelineRef = useRef<HTMLDivElement>(null);
   const [currentReviewSlide, setCurrentReviewSlide] = useState(0);
+  const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -69,14 +70,50 @@ export default function AboutPage() {
     };
   }, []);
 
+  // Check if mobile on mount and resize
+  useEffect(() => {
+    const checkMobile = () => {
+      const wasMobile = isMobile;
+      const nowMobile = window.innerWidth < 640; // sm breakpoint
+      setIsMobile(nowMobile);
+      
+      // Reset slide index when switching between mobile and desktop
+      if (wasMobile !== nowMobile) {
+        setCurrentReviewSlide(0);
+      }
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, [isMobile]);
+
   // Auto-slide carousel for reviews
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
+    const getMaxSlides = () => {
+      return window.innerWidth < 640 ? 9 : 3;
+    };
+    
+    const maxSlides = getMaxSlides();
+    
+    // Reset slide index if it's out of bounds
+    setCurrentReviewSlide((prev) => {
+      if (prev >= maxSlides) {
+        return 0;
+      }
+      return prev;
+    });
+    
     const interval = setInterval(() => {
-      setCurrentReviewSlide((prev) => (prev + 1) % 3); // 3 slides (9 reviews / 3 per slide = 3 slides)
+      setCurrentReviewSlide((prev) => {
+        const currentMax = getMaxSlides();
+        return (prev + 1) % currentMax;
+      });
     }, 4000); // Change slide every 4 seconds
 
     return () => clearInterval(interval);
-  }, []);
+  }, [isMobile]);
 
   return (
     <div className="min-h-screen bg-white scroll-smooth selection:bg-blue-100">
@@ -178,18 +215,127 @@ export default function AboutPage() {
       </nav>
 
       {/* About Us Hero Section */}
-      <section className="pt-24 sm:pt-28 lg:pt-32 pb-12 sm:pb-16 px-4 sm:px-6 bg-white">
-        <div className="container mx-auto max-w-4xl">
+      <section className="pt-24 sm:pt-28 lg:pt-32 pb-12 sm:pb-16 px-4 sm:px-6 relative overflow-hidden">
+        <div 
+          className="absolute inset-0"
+          style={{
+            background: 'linear-gradient(135deg, #60A5FA 0%, #3B82F6 50%, #2563EB 100%)'
+          }}
+        ></div>
+        {/* Animated Background Icons */}
+        <div className="absolute inset-0 pointer-events-none z-10">
+          {[...Array(8)].map((_, i) => {
+            const positions = [
+              { left: '5%', top: '10%' },
+              { left: '25%', top: '5%' },
+              { left: '45%', top: '15%' },
+              { left: '65%', top: '8%' },
+              { left: '85%', top: '12%' },
+              { left: '15%', top: '25%' },
+              { left: '55%', top: '30%' },
+              { left: '75%', top: '22%' },
+            ];
+            return (
+              <div
+                key={`mic-${i}`}
+                className="absolute opacity-20"
+                style={{
+                  left: positions[i].left,
+                  top: positions[i].top,
+                  animation: `float-${i % 3} ${5 + (i % 3) * 2}s ease-in-out infinite`,
+                  animationDelay: `${i * 0.3}s`,
+                }}
+              >
+                <Mic className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
+              </div>
+            );
+          })}
+          {[...Array(8)].map((_, i) => {
+            const positions = [
+              { left: '10%', top: '50%' },
+              { left: '30%', top: '45%' },
+              { left: '50%', top: '55%' },
+              { left: '70%', top: '48%' },
+              { left: '90%', top: '52%' },
+              { left: '20%', top: '65%' },
+              { left: '60%', top: '70%' },
+              { left: '80%', top: '62%' },
+            ];
+            return (
+              <div
+                key={`brain-${i}`}
+                className="absolute opacity-20"
+                style={{
+                  left: positions[i].left,
+                  top: positions[i].top,
+                  animation: `float-${i % 3} ${6 + (i % 2) * 2}s ease-in-out infinite`,
+                  animationDelay: `${i * 0.4}s`,
+                }}
+              >
+                <Brain className="w-7 h-7 sm:w-9 sm:h-9 text-white" />
+              </div>
+            );
+          })}
+          {[...Array(6)].map((_, i) => {
+            const positions = [
+              { left: '8%', top: '35%' },
+              { left: '35%', top: '28%' },
+              { left: '62%', top: '38%' },
+              { left: '88%', top: '32%' },
+              { left: '18%', top: '80%' },
+              { left: '72%', top: '85%' },
+            ];
+            return (
+              <div
+                key={`message-${i}`}
+                className="absolute opacity-20"
+                style={{
+                  left: positions[i].left,
+                  top: positions[i].top,
+                  animation: `float-${i % 3} ${7 + (i % 2) * 2}s ease-in-out infinite`,
+                  animationDelay: `${i * 0.5}s`,
+                }}
+              >
+                <MessageSquare className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
+              </div>
+            );
+          })}
+          {[...Array(6)].map((_, i) => {
+            const positions = [
+              { left: '15%', top: '20%' },
+              { left: '40%', top: '12%' },
+              { left: '68%', top: '18%' },
+              { left: '92%', top: '25%' },
+              { left: '12%', top: '75%' },
+              { left: '58%', top: '78%' },
+            ];
+            return (
+              <div
+                key={`sparkles-${i}`}
+                className="absolute opacity-15"
+                style={{
+                  left: positions[i].left,
+                  top: positions[i].top,
+                  animation: `float-${i % 3} ${5 + (i % 3) * 2}s ease-in-out infinite`,
+                  animationDelay: `${i * 0.35}s`,
+                }}
+              >
+                <Sparkles className="w-5 h-5 sm:w-7 sm:h-7 text-white" />
+              </div>
+            );
+          })}
+        </div>
+        <div className="container mx-auto max-w-4xl relative z-10">
           <div className="text-center">
-            <div className="inline-flex items-center gap-2 px-3 py-1 bg-blue-50 rounded-full text-blue-700 font-medium text-sm mb-6">
+            <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/20 backdrop-blur-sm rounded-full text-white font-medium text-sm mb-6 border border-white/30">
               <Sparkles className="w-3 h-3" />
               <span>About Us</span>
             </div>
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-slate-900 mb-6 tracking-tight">
+            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white mb-6 tracking-tight">
               Empowering Careers Through
-              <span className="block text-blue-600">AI-Powered Interview Prep</span>
+              <span className="block text-white/95">AI-Powered Interview Prep</span>
             </h1>
-            <p className="text-lg sm:text-xl text-gray-600 max-w-2xl mx-auto leading-relaxed">
+            <p className="text-lg sm:text-xl text-white/90 max-w-2xl mx-auto leading-relaxed">
               We're on a mission to help millions of job seekers in India ace their interviews and land their dream jobs. Our AI-powered platform combines cutting-edge technology with personalized feedback to transform interview preparation.
             </p>
           </div>
@@ -512,6 +658,126 @@ export default function AboutPage() {
               <div className="absolute top-0 right-0 w-64 h-64 bg-blue-200 rounded-full opacity-10 blur-3xl"></div>
               <div className="absolute bottom-0 left-0 w-64 h-64 bg-indigo-200 rounded-full opacity-10 blur-3xl"></div>
               
+              {/* Animated Background Icons */}
+              <div className="absolute inset-0 pointer-events-none">
+                {[...Array(6)].map((_, i) => {
+                  const positions = [
+                    { left: '8%', top: '15%' },
+                    { left: '35%', top: '10%' },
+                    { left: '65%', top: '18%' },
+                    { left: '88%', top: '12%' },
+                    { left: '15%', top: '75%' },
+                    { left: '72%', top: '80%' },
+                  ];
+                  return (
+                    <div
+                      key={`rocket-${i}`}
+                      className="absolute opacity-15"
+                      style={{
+                        left: positions[i].left,
+                        top: positions[i].top,
+                        animation: `float-${i % 3} ${5 + (i % 3) * 2}s ease-in-out infinite`,
+                        animationDelay: `${i * 0.3}s`,
+                      }}
+                    >
+                      <Rocket className="w-6 h-6 sm:w-8 sm:h-8 text-blue-400" />
+                    </div>
+                  );
+                })}
+                {[...Array(6)].map((_, i) => {
+                  const positions = [
+                    { left: '12%', top: '25%' },
+                    { left: '42%', top: '20%' },
+                    { left: '68%', top: '28%' },
+                    { left: '92%', top: '22%' },
+                    { left: '20%', top: '70%' },
+                    { left: '58%', top: '75%' },
+                  ];
+                  return (
+                    <div
+                      key={`award-${i}`}
+                      className="absolute opacity-15"
+                      style={{
+                        left: positions[i].left,
+                        top: positions[i].top,
+                        animation: `float-${i % 3} ${6 + (i % 2) * 2}s ease-in-out infinite`,
+                        animationDelay: `${i * 0.4}s`,
+                      }}
+                    >
+                      <Award className="w-5 h-5 sm:w-7 sm:h-7 text-blue-400" />
+                    </div>
+                  );
+                })}
+                {[...Array(5)].map((_, i) => {
+                  const positions = [
+                    { left: '5%', top: '45%' },
+                    { left: '38%', top: '40%' },
+                    { left: '62%', top: '48%' },
+                    { left: '85%', top: '42%' },
+                    { left: '25%', top: '60%' },
+                  ];
+                  return (
+                    <div
+                      key={`trending-${i}`}
+                      className="absolute opacity-15"
+                      style={{
+                        left: positions[i].left,
+                        top: positions[i].top,
+                        animation: `float-${i % 3} ${7 + (i % 2) * 2}s ease-in-out infinite`,
+                        animationDelay: `${i * 0.5}s`,
+                      }}
+                    >
+                      <TrendingUp className="w-6 h-6 sm:w-8 sm:h-8 text-indigo-400" />
+                    </div>
+                  );
+                })}
+                {[...Array(5)].map((_, i) => {
+                  const positions = [
+                    { left: '10%', top: '35%' },
+                    { left: '45%', top: '30%' },
+                    { left: '70%', top: '38%' },
+                    { left: '95%', top: '32%' },
+                    { left: '30%', top: '65%' },
+                  ];
+                  return (
+                    <div
+                      key={`sparkles-journey-${i}`}
+                      className="absolute opacity-12"
+                      style={{
+                        left: positions[i].left,
+                        top: positions[i].top,
+                        animation: `float-${i % 3} ${5 + (i % 3) * 2}s ease-in-out infinite`,
+                        animationDelay: `${i * 0.35}s`,
+                      }}
+                    >
+                      <Sparkles className="w-5 h-5 sm:w-6 sm:h-6 text-blue-300" />
+                    </div>
+                  );
+                })}
+                {[...Array(4)].map((_, i) => {
+                  const positions = [
+                    { left: '18%', top: '50%' },
+                    { left: '52%', top: '45%' },
+                    { left: '78%', top: '52%' },
+                    { left: '40%', top: '68%' },
+                  ];
+                  return (
+                    <div
+                      key={`lightbulb-${i}`}
+                      className="absolute opacity-12"
+                      style={{
+                        left: positions[i].left,
+                        top: positions[i].top,
+                        animation: `float-${i % 3} ${6 + (i % 2) * 2}s ease-in-out infinite`,
+                        animationDelay: `${i * 0.45}s`,
+                      }}
+                    >
+                      <Lightbulb className="w-5 h-5 sm:w-6 sm:h-6 text-indigo-300" />
+                    </div>
+                  );
+                })}
+              </div>
+              
               <div className="relative z-10">
                 <div className="text-center mb-12">
                   <h3 className="text-3xl sm:text-4xl font-bold text-slate-900 mb-3">Our Journey</h3>
@@ -657,13 +923,13 @@ export default function AboutPage() {
             <p className="text-lg sm:text-xl text-blue-600 mb-4 sm:mb-6">
               Our users love us and so will you. Here's what they are saying.
             </p>
-            <div className="flex items-center justify-center gap-2 sm:gap-3">
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-3">
               <div className="flex items-center gap-1">
                 {[...Array(5)].map((_, i) => (
                   <Star key={i} className="w-5 h-5 sm:w-6 sm:h-6 fill-yellow-400 text-yellow-400" />
                 ))}
               </div>
-              <span className="text-base sm:text-lg text-blue-600 font-medium">
+              <span className="text-base sm:text-lg text-blue-600 font-medium text-center sm:text-left">
                 4.9/5 based on our user reviews
               </span>
             </div>
@@ -678,10 +944,13 @@ export default function AboutPage() {
                   transform: `translateX(-${currentReviewSlide * 100}%)`,
                 }}
               >
-                {/* Slide 1: Reviews 1-3 */}
+                {/* Mobile: Individual slides (1 review per slide) */}
+                {/* Desktop: Grouped slides (3 reviews per slide) */}
+                
+                {/* Slide 1: Review 1 */}
                 <div className="min-w-full flex gap-4 sm:gap-6">
                   {/* Review 1 */}
-                  <div className="min-w-[33.333%]">
+                  <div className="min-w-full sm:min-w-[33.333%]">
                     <div className="bg-white rounded-xl sm:rounded-2xl p-5 sm:p-6 shadow-lg border border-gray-100 hover:shadow-xl transition-all h-full">
                       <div className="flex items-center gap-3 sm:gap-4 mb-4">
                         <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center text-white font-bold text-lg sm:text-xl flex-shrink-0">
@@ -704,7 +973,7 @@ export default function AboutPage() {
                   </div>
 
                   {/* Review 2 */}
-                  <div className="min-w-[33.333%]">
+                  <div className="hidden sm:block min-w-[33.333%]">
                     <div className="bg-white rounded-xl sm:rounded-2xl p-5 sm:p-6 shadow-lg border border-gray-100 hover:shadow-xl transition-all h-full">
                       <div className="flex items-center gap-3 sm:gap-4 mb-4">
                         <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-gradient-to-br from-pink-400 to-pink-600 flex items-center justify-center text-white font-bold text-lg sm:text-xl flex-shrink-0">
@@ -727,7 +996,7 @@ export default function AboutPage() {
                   </div>
 
                   {/* Review 3 */}
-                  <div className="min-w-[33.333%]">
+                  <div className="hidden sm:block min-w-[33.333%]">
                     <div className="bg-white rounded-xl sm:rounded-2xl p-5 sm:p-6 shadow-lg border border-gray-100 hover:shadow-xl transition-all h-full">
                       <div className="flex items-center gap-3 sm:gap-4 mb-4">
                         <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-gradient-to-br from-cyan-400 to-cyan-600 flex items-center justify-center text-white font-bold text-lg sm:text-xl flex-shrink-0">
@@ -750,10 +1019,62 @@ export default function AboutPage() {
                   </div>
                 </div>
 
-                {/* Slide 2: Reviews 4-6 */}
+                {/* Slide 2: Review 2 (Mobile only) */}
+                <div className="min-w-full flex gap-4 sm:gap-6 sm:hidden">
+                  {/* Review 2 */}
+                  <div className="min-w-full">
+                    <div className="bg-white rounded-xl sm:rounded-2xl p-5 sm:p-6 shadow-lg border border-gray-100 hover:shadow-xl transition-all h-full">
+                      <div className="flex items-center gap-3 sm:gap-4 mb-4">
+                        <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-gradient-to-br from-pink-400 to-pink-600 flex items-center justify-center text-white font-bold text-lg sm:text-xl flex-shrink-0">
+                          PS
+                        </div>
+                        <div>
+                          <p className="font-bold text-slate-900 text-sm sm:text-base">Priya Sharma</p>
+                          <p className="text-xs sm:text-sm text-blue-600">Online Business Manager</p>
+                        </div>
+                      </div>
+                      <p className="text-sm sm:text-base text-gray-700 leading-relaxed mb-4">
+                        Interview Trix is one of those 'where have you been my whole life' tools. They combined everything I needed for interview preparation into one cohesive platform. Such a genius product!
+                      </p>
+                      <div className="flex items-center gap-1">
+                        {[...Array(5)].map((_, i) => (
+                          <Star key={i} className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Slide 3: Review 3 (Mobile only) */}
+                <div className="min-w-full flex gap-4 sm:gap-6 sm:hidden">
+                  {/* Review 3 */}
+                  <div className="min-w-full">
+                    <div className="bg-white rounded-xl sm:rounded-2xl p-5 sm:p-6 shadow-lg border border-gray-100 hover:shadow-xl transition-all h-full">
+                      <div className="flex items-center gap-3 sm:gap-4 mb-4">
+                        <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-gradient-to-br from-cyan-400 to-cyan-600 flex items-center justify-center text-white font-bold text-lg sm:text-xl flex-shrink-0">
+                          DB
+                        </div>
+                        <div>
+                          <p className="font-bold text-slate-900 text-sm sm:text-base">Dave Baxter</p>
+                          <p className="text-xs sm:text-sm text-blue-600">Estate Agent at DBRealty</p>
+                        </div>
+                      </div>
+                      <p className="text-sm sm:text-base text-gray-700 leading-relaxed mb-4">
+                        Interview Trix saves me a ton of time and allows me to practice on my schedule. The detailed feedback and performance insights help me improve continuously. You cannot afford to NOT use Interview Trix.
+                      </p>
+                      <div className="flex items-center gap-1">
+                        {[...Array(5)].map((_, i) => (
+                          <Star key={i} className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Slide 2 (Desktop) / Slide 4 (Mobile): Reviews 4-6 (Desktop) / Review 4 (Mobile) */}
                 <div className="min-w-full flex gap-4 sm:gap-6">
                   {/* Review 4 */}
-                  <div className="min-w-[33.333%]">
+                  <div className="min-w-full sm:min-w-[33.333%]">
                     <div className="bg-white rounded-xl sm:rounded-2xl p-5 sm:p-6 shadow-lg border border-gray-100 hover:shadow-xl transition-all h-full">
                       <div className="flex items-center gap-3 sm:gap-4 mb-4">
                         <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white font-bold text-lg sm:text-xl flex-shrink-0">
@@ -776,7 +1097,7 @@ export default function AboutPage() {
                   </div>
 
                   {/* Review 5 */}
-                  <div className="min-w-[33.333%]">
+                  <div className="hidden sm:block min-w-[33.333%]">
                     <div className="bg-white rounded-xl sm:rounded-2xl p-5 sm:p-6 shadow-lg border border-gray-100 hover:shadow-xl transition-all h-full">
                       <div className="flex items-center gap-3 sm:gap-4 mb-4">
                         <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-gradient-to-br from-purple-400 to-purple-600 flex items-center justify-center text-white font-bold text-lg sm:text-xl flex-shrink-0">
@@ -799,7 +1120,7 @@ export default function AboutPage() {
                   </div>
 
                   {/* Review 6 */}
-                  <div className="min-w-[33.333%]">
+                  <div className="hidden sm:block min-w-[33.333%]">
                     <div className="bg-white rounded-xl sm:rounded-2xl p-5 sm:p-6 shadow-lg border border-gray-100 hover:shadow-xl transition-all h-full">
                       <div className="flex items-center gap-3 sm:gap-4 mb-4">
                         <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center text-white font-bold text-lg sm:text-xl flex-shrink-0">
@@ -822,10 +1143,62 @@ export default function AboutPage() {
                   </div>
                 </div>
 
-                {/* Slide 3: Reviews 7-9 */}
+                {/* Slide 5 (Mobile) / Slide 3 (Desktop): Review 5 (Mobile) / Reviews 7-9 (Desktop) */}
+                <div className="min-w-full flex gap-4 sm:gap-6 sm:hidden">
+                  {/* Review 5 (Mobile only) */}
+                  <div className="min-w-full">
+                    <div className="bg-white rounded-xl sm:rounded-2xl p-5 sm:p-6 shadow-lg border border-gray-100 hover:shadow-xl transition-all h-full">
+                      <div className="flex items-center gap-3 sm:gap-4 mb-4">
+                        <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-gradient-to-br from-purple-400 to-purple-600 flex items-center justify-center text-white font-bold text-lg sm:text-xl flex-shrink-0">
+                          AS
+                        </div>
+                        <div>
+                          <p className="font-bold text-slate-900 text-sm sm:text-base">Anjali Singh</p>
+                          <p className="text-xs sm:text-sm text-blue-600">Product Manager at Infosys</p>
+                        </div>
+                      </div>
+                      <p className="text-sm sm:text-base text-gray-700 leading-relaxed mb-4">
+                        The AI mock interviews are incredibly realistic. I practiced for my Infosys interview and felt so much more confident. The behavioral analysis helped me identify areas I didn't even know needed improvement.
+                      </p>
+                      <div className="flex items-center gap-1">
+                        {[...Array(5)].map((_, i) => (
+                          <Star key={i} className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Slide 6 (Mobile) */}
+                <div className="min-w-full flex gap-4 sm:gap-6 sm:hidden">
+                  {/* Review 6 (Mobile only) */}
+                  <div className="min-w-full">
+                    <div className="bg-white rounded-xl sm:rounded-2xl p-5 sm:p-6 shadow-lg border border-gray-100 hover:shadow-xl transition-all h-full">
+                      <div className="flex items-center gap-3 sm:gap-4 mb-4">
+                        <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center text-white font-bold text-lg sm:text-xl flex-shrink-0">
+                          VP
+                        </div>
+                        <div>
+                          <p className="font-bold text-slate-900 text-sm sm:text-base">Vikram Patel</p>
+                          <p className="text-xs sm:text-sm text-blue-600">Data Scientist at Wipro</p>
+                        </div>
+                      </div>
+                      <p className="text-sm sm:text-base text-gray-700 leading-relaxed mb-4">
+                        The company-specific question banks are a game-changer. I practiced with Wipro-specific questions and felt completely prepared. Got the offer! Highly recommend to anyone preparing for tech interviews.
+                      </p>
+                      <div className="flex items-center gap-1">
+                        {[...Array(5)].map((_, i) => (
+                          <Star key={i} className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Slide 3 (Desktop) / Slide 7 (Mobile): Reviews 7-9 (Desktop) / Review 7 (Mobile) */}
                 <div className="min-w-full flex gap-4 sm:gap-6">
                   {/* Review 7 */}
-                  <div className="min-w-[33.333%]">
+                  <div className="min-w-full sm:min-w-[33.333%]">
                     <div className="bg-white rounded-xl sm:rounded-2xl p-5 sm:p-6 shadow-lg border border-gray-100 hover:shadow-xl transition-all h-full">
                       <div className="flex items-center gap-3 sm:gap-4 mb-4">
                         <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-gradient-to-br from-red-400 to-red-600 flex items-center justify-center text-white font-bold text-lg sm:text-xl flex-shrink-0">
@@ -847,8 +1220,8 @@ export default function AboutPage() {
                     </div>
                   </div>
 
-                  {/* Review 8 */}
-                  <div className="min-w-[33.333%]">
+                  {/* Review 8 (Desktop only) */}
+                  <div className="hidden sm:block min-w-[33.333%]">
                     <div className="bg-white rounded-xl sm:rounded-2xl p-5 sm:p-6 shadow-lg border border-gray-100 hover:shadow-xl transition-all h-full">
                       <div className="flex items-center gap-3 sm:gap-4 mb-4">
                         <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-gradient-to-br from-teal-400 to-teal-600 flex items-center justify-center text-white font-bold text-lg sm:text-xl flex-shrink-0">
@@ -870,8 +1243,60 @@ export default function AboutPage() {
                     </div>
                   </div>
 
-                  {/* Review 9 */}
-                  <div className="min-w-[33.333%]">
+                  {/* Review 9 (Desktop only) */}
+                  <div className="hidden sm:block min-w-[33.333%]">
+                    <div className="bg-white rounded-xl sm:rounded-2xl p-5 sm:p-6 shadow-lg border border-gray-100 hover:shadow-xl transition-all h-full">
+                      <div className="flex items-center gap-3 sm:gap-4 mb-4">
+                        <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-gradient-to-br from-indigo-400 to-indigo-600 flex items-center justify-center text-white font-bold text-lg sm:text-xl flex-shrink-0">
+                          NS
+                        </div>
+                        <div>
+                          <p className="font-bold text-slate-900 text-sm sm:text-base">Neha Shah</p>
+                          <p className="text-xs sm:text-sm text-blue-600">QA Engineer at Deloitte</p>
+                        </div>
+                      </div>
+                      <p className="text-sm sm:text-base text-gray-700 leading-relaxed mb-4">
+                        The progress tracking feature is excellent. I can see my improvement over time with clear metrics. The detailed reports after each interview session are incredibly helpful for self-assessment.
+                      </p>
+                      <div className="flex items-center gap-1">
+                        {[...Array(5)].map((_, i) => (
+                          <Star key={i} className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Slide 8 (Mobile) */}
+                <div className="min-w-full flex gap-4 sm:gap-6 sm:hidden">
+                  {/* Review 8 (Mobile only) */}
+                  <div className="min-w-full">
+                    <div className="bg-white rounded-xl sm:rounded-2xl p-5 sm:p-6 shadow-lg border border-gray-100 hover:shadow-xl transition-all h-full">
+                      <div className="flex items-center gap-3 sm:gap-4 mb-4">
+                        <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-gradient-to-br from-teal-400 to-teal-600 flex items-center justify-center text-white font-bold text-lg sm:text-xl flex-shrink-0">
+                          AK
+                        </div>
+                        <div>
+                          <p className="font-bold text-slate-900 text-sm sm:text-base">Arjun Khanna</p>
+                          <p className="text-xs sm:text-sm text-blue-600">Backend Engineer at Flipkart</p>
+                        </div>
+                      </div>
+                      <p className="text-sm sm:text-base text-gray-700 leading-relaxed mb-4">
+                        The multi-language support is amazing! I practiced in Hindi and English, which helped me prepare for real interviews in India. The platform understands the Indian job market perfectly.
+                      </p>
+                      <div className="flex items-center gap-1">
+                        {[...Array(5)].map((_, i) => (
+                          <Star key={i} className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Slide 9 (Mobile) */}
+                <div className="min-w-full flex gap-4 sm:gap-6 sm:hidden">
+                  {/* Review 9 (Mobile only) */}
+                  <div className="min-w-full">
                     <div className="bg-white rounded-xl sm:rounded-2xl p-5 sm:p-6 shadow-lg border border-gray-100 hover:shadow-xl transition-all h-full">
                       <div className="flex items-center gap-3 sm:gap-4 mb-4">
                         <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-gradient-to-br from-indigo-400 to-indigo-600 flex items-center justify-center text-white font-bold text-lg sm:text-xl flex-shrink-0">
@@ -898,18 +1323,21 @@ export default function AboutPage() {
 
             {/* Carousel Indicators */}
             <div className="flex justify-center gap-2 mt-8">
-              {[...Array(3)].map((_, index) => (
-                <button
-                  key={index}
-                  onClick={() => setCurrentReviewSlide(index)}
-                  className={`h-2 rounded-full transition-all duration-300 ${
-                    currentReviewSlide === index
-                      ? "w-8 bg-blue-600"
-                      : "w-2 bg-gray-300"
-                  }`}
-                  aria-label={`Go to review slide ${index + 1}`}
-                />
-              ))}
+              {[...Array(isMobile ? 9 : 3)].map((_, index) => {
+                const isActive = currentReviewSlide === index;
+                return (
+                  <button
+                    key={index}
+                    onClick={() => setCurrentReviewSlide(index)}
+                    className={`h-2 rounded-full transition-all duration-300 ${
+                      isActive
+                        ? "w-8 bg-blue-600"
+                        : "w-2 bg-gray-300"
+                    }`}
+                    aria-label={`Go to review slide ${index + 1}`}
+                  />
+                );
+              })}
             </div>
           </div>
         </div>
@@ -929,7 +1357,7 @@ export default function AboutPage() {
               </span>
             </div>
             <nav className="flex flex-wrap items-center justify-center md:justify-end gap-4 sm:gap-6">
-              <Link href="/about" className="text-sm text-gray-300 hover:text-white transition-colors">
+              <Link href="/about-us" className="text-sm text-gray-300 hover:text-white transition-colors">
                 About us
               </Link>
               <Link href="/terms" className="text-sm text-gray-300 hover:text-white transition-colors">

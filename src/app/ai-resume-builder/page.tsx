@@ -328,8 +328,138 @@ export default function ResumeBuilderPage() {
         </div>
       </nav>
 
-      {/* Resume Builder Hero Section */}
-      <section className="pt-32 sm:pt-40 lg:pt-48 pb-16 sm:pb-20 md:pb-24 lg:pb-28 px-4 sm:px-6 overflow-hidden bg-blue-50 relative">
+      {/* Resume Builder Hero Section - Top */}
+      <section className="pt-32 sm:pt-40 lg:pt-48 pb-12 sm:pb-16 px-4 sm:px-6 overflow-hidden relative">
+        <div 
+          className="absolute inset-0"
+          style={{
+            background: 'linear-gradient(135deg, #60A5FA 0%, #3B82F6 50%, #2563EB 100%)'
+          }}
+        ></div>
+        {/* Animated Background Icons */}
+        <div className="absolute inset-0 pointer-events-none z-10">
+          {[...Array(8)].map((_, i) => {
+            const positions = [
+              { left: '5%', top: '10%' },
+              { left: '25%', top: '5%' },
+              { left: '45%', top: '15%' },
+              { left: '65%', top: '8%' },
+              { left: '85%', top: '12%' },
+              { left: '15%', top: '25%' },
+              { left: '55%', top: '30%' },
+              { left: '75%', top: '22%' },
+            ];
+            return (
+              <div
+                key={`filetext-${i}`}
+                className="absolute opacity-20"
+                style={{
+                  left: positions[i].left,
+                  top: positions[i].top,
+                  animation: `float-${i % 3} ${5 + (i % 3) * 2}s ease-in-out infinite`,
+                  animationDelay: `${i * 0.3}s`,
+                }}
+              >
+                <FileText className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
+              </div>
+            );
+          })}
+          {[...Array(8)].map((_, i) => {
+            const positions = [
+              { left: '10%', top: '50%' },
+              { left: '30%', top: '45%' },
+              { left: '50%', top: '55%' },
+              { left: '70%', top: '48%' },
+              { left: '90%', top: '52%' },
+              { left: '20%', top: '65%' },
+              { left: '60%', top: '70%' },
+              { left: '80%', top: '62%' },
+            ];
+            return (
+              <div
+                key={`palette-${i}`}
+                className="absolute opacity-20"
+                style={{
+                  left: positions[i].left,
+                  top: positions[i].top,
+                  animation: `float-${i % 3} ${6 + (i % 2) * 2}s ease-in-out infinite`,
+                  animationDelay: `${i * 0.4}s`,
+                }}
+              >
+                <Palette className="w-7 h-7 sm:w-9 sm:h-9 text-white" />
+              </div>
+            );
+          })}
+          {[...Array(6)].map((_, i) => {
+            const positions = [
+              { left: '8%', top: '35%' },
+              { left: '35%', top: '28%' },
+              { left: '62%', top: '38%' },
+              { left: '88%', top: '32%' },
+              { left: '18%', top: '80%' },
+              { left: '72%', top: '85%' },
+            ];
+            return (
+              <div
+                key={`filecheck-${i}`}
+                className="absolute opacity-20"
+                style={{
+                  left: positions[i].left,
+                  top: positions[i].top,
+                  animation: `float-${i % 3} ${7 + (i % 2) * 2}s ease-in-out infinite`,
+                  animationDelay: `${i * 0.5}s`,
+                }}
+              >
+                <FileCheck className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Animated Heading */}
+        <div className="container mx-auto max-w-7xl relative z-10">
+          <div className="text-center">
+            <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/20 backdrop-blur-sm rounded-full text-white font-medium text-sm mb-6 border border-white/30">
+              <Sparkles className="w-3 h-3" />
+              <span>AI Resume Builder</span>
+            </div>
+            <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight mb-4 sm:mb-6">
+              {(() => {
+                const fullText = "AI powered resume builder";
+                const builderStart = fullText.indexOf("builder");
+                const builderEnd = builderStart + "builder".length;
+                
+                return headingText.split('').map((char, index) => {
+                  const isBuilderChar = index >= builderStart && index < builderEnd;
+                  return (
+                    <span
+                      key={index}
+                      className={isBuilderChar ? 'text-white/95' : 'text-white'}
+                    >
+                      {char === ' ' ? '\u00A0' : char}
+                    </span>
+                  );
+                });
+              })()}
+              <span 
+                className={`inline-block w-0.5 h-[1em] bg-white ml-1 align-middle ${
+                  showCursor ? 'opacity-100' : 'opacity-0'
+                }`}
+                style={{
+                  transition: 'opacity 0.1s ease-in-out',
+                  animation: headingComplete ? 'blink-caret 1s infinite' : 'none'
+                }}
+              />
+            </h1>
+            <p className="text-lg sm:text-xl md:text-2xl text-white/90 max-w-3xl mx-auto leading-relaxed">
+              Create ATS-optimized, professional resumes in minutes with AI-powered templates and smart suggestions.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* Two Column Section */}
+      <section className="py-16 sm:py-20 md:pb-24 lg:pb-28 px-4 sm:px-6 overflow-hidden bg-blue-50 relative">
         {/* Animated Background Elements */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden">
           {[...Array(8)].map((_, i) => (
@@ -349,7 +479,7 @@ export default function ResumeBuilderPage() {
           ))}
           {[...Array(8)].map((_, i) => (
             <div
-              key={`palette-${i}`}
+              key={`palette-bg-${i}`}
               className="absolute"
               style={{
                 left: `${(i * 16) % 100}%`,
@@ -364,7 +494,7 @@ export default function ResumeBuilderPage() {
           ))}
           {[...Array(6)].map((_, i) => (
             <div
-              key={`check-${i}`}
+              key={`check-bg-${i}`}
               className="absolute"
               style={{
                 left: `${(i * 20) % 100}%`,
@@ -377,43 +507,6 @@ export default function ResumeBuilderPage() {
               <FileCheck className="w-8 h-8 sm:w-12 sm:h-12 text-indigo-300" />
             </div>
           ))}
-        </div>
-
-        {/* Animated Heading */}
-        <div className="container mx-auto max-w-7xl relative z-10 mb-12 sm:mb-16">
-          <div className="text-center">
-            <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight mb-4 sm:mb-6">
-              {(() => {
-                const fullText = "AI powered resume builder";
-                const builderStart = fullText.indexOf("builder");
-                const builderEnd = builderStart + "builder".length;
-                
-                return headingText.split('').map((char, index) => {
-                  const isBuilderChar = index >= builderStart && index < builderEnd;
-                  return (
-                    <span
-                      key={index}
-                      className={isBuilderChar ? 'text-blue-600' : 'text-slate-900'}
-                    >
-                      {char === ' ' ? '\u00A0' : char}
-                    </span>
-                  );
-                });
-              })()}
-              <span 
-                className={`inline-block w-0.5 h-[1em] bg-blue-600 ml-1 align-middle ${
-                  showCursor ? 'opacity-100' : 'opacity-0'
-                }`}
-                style={{
-                  transition: 'opacity 0.1s ease-in-out',
-                  animation: headingComplete ? 'blink-caret 1s infinite' : 'none'
-                }}
-              />
-            </h1>
-            <p className="text-lg sm:text-xl md:text-2xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
-              Create ATS-optimized, professional resumes in minutes with AI-powered templates and smart suggestions.
-            </p>
-          </div>
         </div>
         
         <div className="container mx-auto max-w-7xl relative z-10">
@@ -469,7 +562,7 @@ export default function ResumeBuilderPage() {
               </div>
             </div>
 
-            {/* Right Section - Animated Resume Builder Preview */}
+            {/* Right Section - Resume Builder Widget */}
             <div className="relative flex justify-center lg:justify-start order-1 lg:order-2">
               <div className="relative rounded-lg sm:rounded-xl shadow-2xl overflow-hidden bg-white w-full max-w-[600px] sm:max-w-[700px] border-2 sm:border-4 border-blue-100">
                 {/* Resume Builder Header */}
@@ -498,135 +591,6 @@ export default function ResumeBuilderPage() {
                 {/* Resume Content Preview */}
                 <div className="p-4 sm:p-6 bg-white max-h-[400px] overflow-y-auto relative">
                   <div className="space-y-4 h-[300px] relative flex items-center justify-center">
-                    {/* Professional Summary - Step 1 */}
-                    {currentStep === 1 && (
-                      <div className="animate-fadeInUp w-full" style={{ animation: 'fadeInUp 0.6s ease-out' }}>
-                        <h4 className="text-xs sm:text-sm font-bold text-slate-900 mb-2">PROFESSIONAL SUMMARY</h4>
-                        <p className="text-xs sm:text-sm text-gray-700 leading-relaxed">
-                          Experienced software engineer with 5+ years developing scalable web applications. Proficient in React, Node.js, and cloud technologies. Led teams of 5+ developers and delivered projects worth $2M+ in revenue.
-                        </p>
-                      </div>
-                    )}
-
-                    {/* AI Enhancing - Step 2 */}
-                    {currentStep === 2 && (
-                      <div className="animate-fadeInUp w-full" style={{ animation: 'fadeInUp 0.6s ease-out' }}>
-                        <div className="flex items-center gap-3 p-4 bg-blue-50 rounded-lg border border-blue-100">
-                          <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center animate-pulse">
-                            <Brain className="w-4 h-4 text-white" />
-                          </div>
-                          <div className="flex-1">
-                            <div className="h-2 bg-blue-200 rounded-full w-3/4 mb-2 animate-pulse"></div>
-                            <div className="h-2 bg-blue-100 rounded-full w-1/2 animate-pulse"></div>
-                          </div>
-                          <span className="text-xs sm:text-sm text-blue-600 font-medium">Enhancing...</span>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Skills Section - Step 3 */}
-                    {currentStep === 3 && (
-                      <div className="animate-fadeInUp w-full" style={{ animation: 'fadeInUp 0.6s ease-out' }}>
-                        <h4 className="text-xs sm:text-sm font-bold text-slate-900 mb-2 flex items-center gap-2">
-                          <GripVertical className="w-3 h-3 text-blue-600" />
-                          SKILLS
-                        </h4>
-                        <div className="flex flex-wrap gap-2">
-                          {["React", "Node.js", "TypeScript", "AWS", "Docker", "MongoDB", "PostgreSQL", "GraphQL"].map((skill, index) => (
-                            <span
-                              key={skill}
-                              className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-medium"
-                              style={{
-                                animation: `fadeInUp 0.5s ease-out ${index * 0.08}s both`
-                              }}
-                            >
-                              {skill}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Projects Section - Step 4 */}
-                    {currentStep === 4 && (
-                      <div className="animate-fadeInUp w-full" style={{ animation: 'fadeInUp 0.6s ease-out' }}>
-                        <h4 className="text-xs sm:text-sm font-bold text-slate-900 mb-2 flex items-center gap-2">
-                          <GripVertical className="w-3 h-3 text-blue-600" />
-                          PROJECTS
-                        </h4>
-                        <div className="space-y-2 max-h-[200px] overflow-y-auto">
-                          {[
-                            { title: "E-Commerce Platform", desc: "Built scalable e-commerce solution with React and Node.js" },
-                            { title: "Real-time Chat Application", desc: "Developed WebSocket-based chat system with 10K+ concurrent users" },
-                            { title: "Cloud Migration Project", desc: "Migrated legacy systems to AWS, reducing costs by 40%" },
-                            { title: "Mobile Payment Gateway", desc: "Created secure payment processing API handling $5M+ monthly transactions" }
-                          ].map((project, index) => (
-                            <div
-                              key={index}
-                              className="bg-blue-50 rounded p-2 border border-blue-100 transition-all duration-300 hover:shadow-md"
-                              style={{
-                                animation: `fadeInUp 0.6s ease-out ${index * 0.12}s both`
-                              }}
-                            >
-                              <p className="text-xs font-semibold text-slate-900">{project.title}</p>
-                              <p className="text-xs text-gray-600">{project.desc}</p>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Education Section - Step 5 */}
-                    {currentStep === 5 && (
-                      <div className="animate-fadeInUp w-full" style={{ animation: 'fadeInUp 0.6s ease-out' }}>
-                        <h4 className="text-xs sm:text-sm font-bold text-slate-900 mb-2 flex items-center gap-2">
-                          <GripVertical className="w-3 h-3 text-blue-600" />
-                          EDUCATION
-                        </h4>
-                        <div className="space-y-2">
-                          {[
-                            { degree: "B.Tech Computer Science", details: "IIT Delhi • 2018-2022 • CGPA: 8.5/10" },
-                            { degree: "AWS Certified Solutions Architect", details: "Amazon Web Services • 2021" },
-                            { degree: "Full Stack Web Development", details: "Udemy • 2019 • Certificate of Completion" }
-                          ].map((edu, index) => (
-                            <div
-                              key={index}
-                              className="bg-blue-50 rounded p-2 border border-blue-100 transition-all duration-300 hover:shadow-md"
-                              style={{
-                                animation: `fadeInUp 0.6s ease-out ${index * 0.12}s both`
-                              }}
-                            >
-                              <p className="text-xs font-semibold text-slate-900">{edu.degree}</p>
-                              <p className="text-xs text-gray-600">{edu.details}</p>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Ready Resume Image/Preview - Step 6 */}
-                    {currentStep === 6 && (
-                      <div className="w-full h-full flex items-center justify-center animate-fadeInUp" style={{ animation: 'fadeInUp 0.6s ease-out' }}>
-                        <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg p-4 border-2 border-blue-200 w-full max-w-md">
-                          <div className="flex items-center justify-center mb-3">
-                            <div className="relative w-full max-w-[180px] aspect-[210/297] bg-white rounded shadow-lg overflow-hidden">
-                              <Image
-                                src="/resume-template-images/clean-slate-preview.webp"
-                                alt="Resume Preview"
-                                fill
-                                className="object-contain"
-                                priority
-                              />
-                            </div>
-                          </div>
-                          <div className="text-center">
-                            <h4 className="text-sm font-bold text-slate-900 mb-1">Resume Ready!</h4>
-                            <p className="text-xs text-gray-600">Your professional resume is complete</p>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
                     {/* ATS Score Display - Step 7 */}
                     {currentStep === 7 && (
                       <div className="w-full animate-fadeInUp" style={{ animation: 'fadeInUp 0.6s ease-out' }}>
@@ -649,32 +613,24 @@ export default function ResumeBuilderPage() {
                       </div>
                     )}
 
-                    {/* Download Action - Step 8 */}
-                    {currentStep === 8 && (
-                      <div className="w-full animate-fadeInUp" style={{ animation: 'fadeInUp 0.6s ease-out' }}>
-                        <div className="w-full max-w-md mx-auto p-6 bg-blue-50 border border-blue-200 rounded-lg">
-                          <div className="text-center space-y-4">
-                            <div>
-                              <p className="text-base sm:text-lg font-semibold text-blue-900 mb-1">Resume Ready!</p>
-                              <p className="text-sm text-blue-700">Download in PDF or Word format</p>
+                    {/* Empty State - Show ATS Score by default */}
+                    {currentStep !== 7 && (
+                      <div className="w-full animate-fadeInUp">
+                        <div className="w-full max-w-md mx-auto p-6 bg-green-50 border border-green-200 rounded-lg">
+                          <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center gap-2">
+                              <TrendingUp className="w-5 h-5 text-green-600" />
+                              <span className="text-sm sm:text-base font-semibold text-green-900">ATS Score</span>
                             </div>
-                            <div className="flex justify-center">
-                              <div className="px-6 py-3 bg-blue-600 text-white rounded-md flex items-center gap-2 cursor-default animate-pulse">
-                                <Download className="w-5 h-5" />
-                                <span className="text-sm font-medium">Download</span>
-                              </div>
-                            </div>
+                            <span className="text-xl sm:text-2xl font-bold text-green-700">85%</span>
                           </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Empty State */}
-                    {currentStep === 0 && (
-                      <div className="w-full h-full flex items-center justify-center animate-fadeInUp">
-                        <div className="text-center">
-                          <FileText className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                          <p className="text-sm text-gray-500">AI is building your resume...</p>
+                          <div className="w-full bg-green-200 rounded-full h-3 mb-3">
+                            <div 
+                              className="bg-green-600 h-3 rounded-full transition-all duration-300"
+                              style={{ width: '85%' }}
+                            ></div>
+                          </div>
+                          <p className="text-sm text-green-700 text-center">Excellent! Your resume is ATS-optimized.</p>
                         </div>
                       </div>
                     )}
@@ -1175,7 +1131,7 @@ export default function ResumeBuilderPage() {
               </span>
             </div>
             <nav className="flex flex-wrap items-center justify-center md:justify-end gap-4 sm:gap-6">
-              <Link href="/about" className="text-sm text-gray-300 hover:text-white transition-colors">
+              <Link href="/about-us" className="text-sm text-gray-300 hover:text-white transition-colors">
                 About us
               </Link>
               <Link href="/terms" className="text-sm text-gray-300 hover:text-white transition-colors">

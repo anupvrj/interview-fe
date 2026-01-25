@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { useUser } from "@clerk/nextjs";
+import { useUser, SignedIn, SignedOut, UserButton } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useDropzone } from "react-dropzone";
@@ -18,12 +18,100 @@ import {
   TrendingUp,
   FileCheck,
   Sparkles,
+  User,
 } from "lucide-react";
 import { resumeApi, resumeDataExtractionApi } from "@/lib/api";
 import { extractTextFromPDF } from "@/lib/pdf-utils";
-import { NavigationMenu } from "@/components/NavigationMenu";
+import { Menu, X } from "lucide-react";
 
 type Step = "upload" | "processing" | "results";
+
+// Mobile Menu Component for ATS Checker
+function ATSCheckerMobileMenu() {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { user, isLoaded } = useUser();
+
+  const menuItems = [
+    { href: "/about-us", label: "About us" },
+    { href: "/ai-resume-builder", label: "Resume Builder" },
+    { href: "/ai-interview-coach", label: "AI Interview Coach" },
+    { href: "/pricing", label: "Pricing" },
+  ];
+
+  return (
+    <>
+      {/* Mobile Menu Button */}
+      <div className="md:hidden">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          className="p-2"
+          aria-label="Toggle menu"
+        >
+          {mobileMenuOpen ? (
+            <X className="w-5 h-5" />
+          ) : (
+            <Menu className="w-5 h-5" />
+          )}
+        </Button>
+      </div>
+
+      {/* Mobile Menu Overlay */}
+      {mobileMenuOpen && (
+        <div
+          className="fixed top-0 left-0 right-0 bottom-0 w-full h-full bg-black/30 z-[60] md:hidden"
+          onClick={() => setMobileMenuOpen(false)}
+        />
+      )}
+
+      {/* Mobile Menu - Slides from Left */}
+      <nav
+        className={`fixed top-0 left-0 h-screen w-80 max-w-[85vw] bg-gray-100 z-[70] md:hidden transition-transform duration-300 ease-in-out shadow-2xl ${
+          mobileMenuOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex flex-col h-screen">
+          <div className="flex-1 overflow-y-auto py-2">
+            <div className="flex flex-col">
+              {menuItems.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex items-center px-4 py-3 text-sm font-medium text-gray-800 border-b border-gray-300 hover:bg-gray-200 transition-colors"
+                >
+                  <span>{item.label.toUpperCase()}</span>
+                </Link>
+              ))}
+              
+              {isLoaded && user && (
+                <Link
+                  href="/dashboard"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex items-center px-4 py-3 text-sm font-medium text-gray-800 border-b border-gray-300 hover:bg-gray-200 transition-colors"
+                >
+                  <span>DASHBOARD</span>
+                </Link>
+              )}
+
+              {isLoaded && !user && (
+                <Link
+                  href="/sign-in"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex items-center px-4 py-3 text-sm font-medium text-gray-800 border-b border-gray-300 hover:bg-gray-200 transition-colors"
+                >
+                  <span>LOGIN / REGISTER</span>
+                </Link>
+              )}
+            </div>
+          </div>
+        </div>
+      </nav>
+    </>
+  );
+}
 
 export default function ATSCheckerPage() {
   const { user, isLoaded } = useUser();
@@ -151,27 +239,197 @@ export default function ATSCheckerPage() {
   };
 
   return (
-    <div className="min-h-screen bg-white">
-      <NavigationMenu />
-      
-      <div className="pt-20 pb-16 px-4 sm:px-6">
-        <div className="container mx-auto max-w-4xl">
+    <div className="min-h-screen bg-white scroll-smooth selection:bg-blue-100">
+      {/* Navigation */}
+      <nav className="fixed top-0 w-full z-50">
+        {/* Top Border - Mobile Only */}
+        <div className="sm:hidden h-1" style={{ backgroundColor: 'rgb(37 99 235 / var(--tw-bg-opacity, 1))' }}></div>
+        
+        {/* Main Header */}
+        <div className="bg-white/95 backdrop-blur-xl border-b border-gray-100">
+          <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex items-center justify-between h-14 sm:h-16 lg:h-20">
+              {/* Mobile Layout */}
+              <div className="flex items-center justify-between w-full sm:w-auto sm:justify-start sm:gap-4">
+                {/* Hamburger Menu - Mobile Only */}
+                <div className="sm:hidden">
+                  <ATSCheckerMobileMenu />
+                </div>
+
+                {/* Logo - Centered on Mobile, Left on Desktop */}
+                <Link
+                  href="/"
+                  className="flex items-center gap-2 hover:opacity-80 transition-opacity mx-auto sm:mx-0"
+                >
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-8 h-8 sm:w-9 sm:h-9 bg-gradient-to-br from-blue-600 to-blue-700 rounded-lg flex items-center justify-center shadow-sm">
+                      <span className="text-white font-bold text-xs sm:text-sm">i<span className="text-sm sm:text-base">X</span></span>
+                    </div>
+                    <span className="text-lg sm:text-xl lg:text-2xl font-bold text-slate-900">
+                      Interview <span className="text-blue-600">Tri<span className="text-xl sm:text-2xl lg:text-3xl">X</span></span>
+                    </span>
+                  </div>
+                </Link>
+
+                {/* Right Side Icons - Mobile */}
+                <div className="flex items-center gap-3 sm:hidden">
+                  <SignedOut>
+                    <Link href="/sign-in" className="p-1">
+                      <User className="w-5 h-5 text-slate-900" />
+                    </Link>
+                  </SignedOut>
+                  <SignedIn>
+                    <UserButton
+                      appearance={{
+                        elements: {
+                          avatarBox: "w-6 h-6",
+                        },
+                      }}
+                    />
+                  </SignedIn>
+                </div>
+              </div>
+
+              {/* Desktop Layout */}
+              <div className="hidden sm:flex items-center gap-4 sm:gap-6">
+                {/* Navigation Menu */}
+                <nav className="hidden md:flex items-center gap-4 sm:gap-6">
+                  <Link
+                    href="/about-us"
+                    className="text-sm sm:text-base text-gray-700 hover:text-[rgb(37,99,235)] transition-colors font-medium"
+                  >
+                    About us
+                  </Link>
+                  <Link
+                    href="/ai-resume-builder"
+                    className="text-sm sm:text-base text-gray-700 hover:text-[rgb(37,99,235)] transition-colors font-medium"
+                  >
+                    Resume Builder
+                  </Link>
+                  <Link
+                    href="/ai-interview-coach"
+                    className="text-sm sm:text-base text-gray-700 hover:text-[rgb(37,99,235)] transition-colors font-medium"
+                  >
+                    AI Interview Coach
+                  </Link>
+                  <Link
+                    href="/pricing"
+                    className="text-sm sm:text-base text-gray-700 hover:text-[rgb(37,99,235)] transition-colors font-medium"
+                  >
+                    Pricing
+                  </Link>
+                </nav>
+                <SignedOut>
+                  <Link href="/sign-in">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-xs sm:text-sm px-2 sm:px-4"
+                    >
+                      Sign In
+                    </Button>
+                  </Link>
+                  <Link href="/sign-up">
+                    <Button
+                      size="sm"
+                      className="bg-blue-600 hover:bg-blue-700 text-white font-medium shadow-sm transition-all text-xs sm:text-sm px-4 py-2"
+                    >
+                      Get Started
+                    </Button>
+                  </Link>
+                </SignedOut>
+                <SignedIn>
+                  <Link href="/dashboard" className="hidden md:block">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-xs sm:text-sm px-2 sm:px-4"
+                    >
+                      Dashboard
+                    </Button>
+                  </Link>
+                  <UserButton
+                    appearance={{
+                      elements: {
+                        avatarBox: "w-8 h-8 sm:w-9 sm:h-9 lg:w-10 lg:h-10",
+                      },
+                    }}
+                  />
+                </SignedIn>
+              </div>
+            </div>
+          </div>
+        </div>
+      </nav>
+
+      {/* Hero Section with Animated Background */}
+      <section className="pt-32 sm:pt-40 lg:pt-48 pb-16 sm:pb-20 md:pb-24 lg:pb-28 px-4 sm:px-6 overflow-hidden bg-blue-50 relative">
+        {/* Animated Background Elements */}
+        <div className="absolute inset-0 pointer-events-none overflow-hidden">
+          {[...Array(8)].map((_, i) => (
+            <div
+              key={i}
+              className="absolute"
+              style={{
+                left: `${(i * 15) % 100}%`,
+                top: `${(i * 20) % 100}%`,
+                opacity: 0.09,
+                animation: `float-${i % 3} ${6 + (i % 3) * 2}s ease-in-out infinite`,
+                animationDelay: `${i * 0.5}s`,
+              }}
+            >
+              <FileCheck className="w-12 h-12 sm:w-16 sm:h-16 text-blue-400" />
+            </div>
+          ))}
+          {[...Array(8)].map((_, i) => (
+            <div
+              key={`file-${i}`}
+              className="absolute"
+              style={{
+                left: `${(i * 16) % 100}%`,
+                top: `${(i * 22) % 100}%`,
+                opacity: 0.07,
+                animation: `float-${i % 3} ${7 + (i % 2) * 2}s ease-in-out infinite`,
+                animationDelay: `${i * 0.5}s`,
+              }}
+            >
+              <FileText className="w-10 h-10 sm:w-14 sm:h-14 text-blue-300" />
+            </div>
+          ))}
+          {[...Array(6)].map((_, i) => (
+            <div
+              key={`check-${i}`}
+              className="absolute"
+              style={{
+                left: `${(i * 20) % 100}%`,
+                top: `${(i * 15) % 100}%`,
+                opacity: 0.06,
+                animation: `float-${i % 3} ${8 + (i % 2) * 2}s ease-in-out infinite`,
+                animationDelay: `${i * 0.7}s`,
+              }}
+            >
+              <CheckCircle className="w-8 h-8 sm:w-12 sm:h-12 text-indigo-300" />
+            </div>
+          ))}
+        </div>
+
+        <div className="container mx-auto max-w-4xl relative z-10">
           {/* Header */}
           <div className="text-center mb-8 sm:mb-12">
-            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg">
+            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-[rgb(37,99,235)] to-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg">
               <FileCheck className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
             </div>
-            <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-slate-900 mb-4">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-slate-900 mb-4">
               ATS Score Checker
             </h1>
-            <p className="text-lg sm:text-xl text-gray-600 max-w-2xl mx-auto">
+            <p className="text-lg sm:text-xl md:text-2xl text-gray-600 max-w-2xl mx-auto">
               Upload your resume to get an instant ATS score and detailed feedback
             </p>
           </div>
 
           {/* Upload Step */}
           {step === "upload" && (
-            <Card className="border-2 border-dashed border-blue-200 hover:border-blue-400 transition-colors">
+            <Card className="border-2 border-dashed border-blue-200/50 hover:border-[rgb(37,99,235)] bg-white/95 backdrop-blur-sm shadow-xl transition-colors">
               <CardContent className="p-8 sm:p-12">
                 <div
                   {...getRootProps()}
@@ -217,7 +475,7 @@ export default function ATSCheckerPage() {
 
           {/* Processing Step */}
           {step === "processing" && (
-            <Card>
+            <Card className="border-2 border-blue-200/50 bg-white/95 backdrop-blur-sm shadow-xl">
               <CardContent className="p-8 sm:p-12 text-center">
                 <Loader2 className="w-16 h-16 text-blue-600 animate-spin mx-auto mb-6" />
                 <h3 className="text-2xl font-bold text-slate-900 mb-2">
@@ -241,7 +499,7 @@ export default function ATSCheckerPage() {
           {step === "results" && atsScore !== null && (
             <div className="space-y-6">
               {/* Score Card */}
-              <Card className="border-2 border-blue-200">
+              <Card className="border-2 border-blue-200/50 bg-white/95 backdrop-blur-sm shadow-xl">
                 <CardContent className="p-8 sm:p-12">
                   <div className="text-center mb-6">
                     <div className="text-6xl sm:text-7xl font-bold mb-2">
@@ -293,7 +551,7 @@ export default function ATSCheckerPage() {
 
               {/* Feedback Card */}
               {atsFeedback && (
-                <Card>
+                <Card className="border-2 border-blue-200/50 bg-white/95 backdrop-blur-sm shadow-xl">
                   <CardContent className="p-8 sm:p-12">
                     <h3 className="text-2xl font-bold text-slate-900 mb-6">
                       Detailed Feedback
@@ -409,7 +667,7 @@ export default function ATSCheckerPage() {
               )}
 
               {/* CTA Button */}
-              <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-2 border-blue-200">
+              <Card className="bg-gradient-to-br from-blue-50 to-blue-100/50 border-2 border-blue-200/50 shadow-xl">
                 <CardContent className="p-8 sm:p-12 text-center">
                   <h3 className="text-2xl font-bold text-slate-900 mb-4">
                     Ready to Improve Your ATS Score?
@@ -430,7 +688,44 @@ export default function ATSCheckerPage() {
             </div>
           )}
         </div>
-      </div>
+      </section>
+
+      {/* Footer Section */}
+      <section className="py-8 sm:py-10 px-4 sm:px-6 bg-slate-900">
+        <div className="container mx-auto max-w-6xl">
+          {/* Footer Content */}
+          <div className="flex flex-col md:flex-row items-center md:items-center justify-between gap-4 md:gap-6">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-blue-700 rounded-lg flex items-center justify-center shadow-sm">
+                <span className="text-white font-bold text-xs">i<span className="text-sm">X</span></span>
+              </div>
+              <span className="text-xl font-bold text-white">
+                Interview <span className="text-blue-400">Tri<span className="text-2xl">X</span></span>
+              </span>
+            </div>
+            <nav className="flex flex-wrap items-center justify-center md:justify-end gap-4 sm:gap-6">
+              <Link href="/about-us" className="text-sm text-gray-300 hover:text-white transition-colors">
+                About us
+              </Link>
+              <Link href="/terms" className="text-sm text-gray-300 hover:text-white transition-colors">
+                Terms of Service
+              </Link>
+              <Link href="/refund" className="text-sm text-gray-300 hover:text-white transition-colors">
+                Refund policy
+              </Link>
+              <Link href="/contact" className="text-sm text-gray-300 hover:text-white transition-colors">
+                Contact us
+              </Link>
+            </nav>
+          </div>
+          {/* Copyright */}
+          <div className="mt-6 pt-6 border-t border-white/10">
+            <p className="text-sm text-gray-400 text-center">
+              © 2026 Interview Trix. All rights reserved.
+            </p>
+          </div>
+        </div>
+      </section>
     </div>
   );
 }

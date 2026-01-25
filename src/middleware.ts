@@ -7,10 +7,10 @@ const isPublicRoute = createRouteMatcher([
   "/sign-up(.*)",
   "/onboarding(.*)",
   "/api/webhooks(.*)",
-  "/resume-builder(.*)",
+  "/ai-resume-builder(.*)",
   "/job-search(.*)",
-  "/interview-coach(.*)",
-  "/about(.*)",
+  "/ai-interview-coach(.*)",
+  "/about-us(.*)",
   "/pricing(.*)",
   "/ats-checker(.*)",
 ]);

@@ -10,34 +10,6 @@ export function NavigationMenu() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { user, isLoaded } = useUser();
 
-  useEffect(() => {
-    // Handle smooth scrolling for anchor links
-    const handleAnchorClick = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      const anchor = target.closest("a[href^='#']");
-      if (anchor) {
-        const href = anchor.getAttribute("href");
-        if (href && href.startsWith("#")) {
-          e.preventDefault();
-          const id = href.substring(1);
-          const element = document.getElementById(id);
-          if (element) {
-            element.scrollIntoView({
-              behavior: "smooth",
-              block: "start",
-            });
-            // Close mobile menu after navigation
-            setMobileMenuOpen(false);
-          }
-        }
-      }
-    };
-
-    document.addEventListener("click", handleAnchorClick);
-    return () => {
-      document.removeEventListener("click", handleAnchorClick);
-    };
-  }, []);
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -87,10 +59,10 @@ export function NavigationMenu() {
   }, [mobileMenuOpen]);
 
   const menuItems = [
-    { href: "#why-us", label: "Why Us?" },
-    { href: "#build-resume", label: "Build Resume" },
-    { href: "#start-interview", label: "Start Interview" },
-    { href: "#pricing", label: "Pricing" },
+    { href: "/about-us", label: "About us" },
+    { href: "/ai-resume-builder", label: "Resume Builder" },
+    { href: "/ai-interview-coach", label: "AI Interview Coach" },
+    { href: "/pricing", label: "Pricing" },
   ];
 
   return (
@@ -98,13 +70,13 @@ export function NavigationMenu() {
       {/* Desktop Menu */}
       <nav className="hidden md:flex items-center gap-4 sm:gap-6">
         {menuItems.map((item) => (
-          <a
+          <Link
             key={item.href}
             href={item.href}
-            className="text-sm sm:text-base text-gray-700 hover:text-landing-blue-700 transition-colors font-medium"
+            className="text-sm sm:text-base text-gray-700 hover:text-[rgb(37,99,235)] transition-colors font-medium"
           >
             {item.label}
-          </a>
+          </Link>
         ))}
       </nav>
 
@@ -146,14 +118,14 @@ export function NavigationMenu() {
           <div className="flex-1 overflow-y-auto py-2">
             <div className="flex flex-col">
               {menuItems.map((item) => (
-                <a
+                <Link
                   key={item.href}
                   href={item.href}
                   onClick={() => setMobileMenuOpen(false)}
                   className="flex items-center px-4 py-3 text-sm font-medium text-gray-800 border-b border-gray-300 hover:bg-gray-200 transition-colors"
                 >
                   <span>{item.label.toUpperCase()}</span>
-                </a>
+                </Link>
               ))}
               
               {/* Dashboard link for signed-in users */}
