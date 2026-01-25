@@ -66,19 +66,29 @@ export default function ATSCheckerPage() {
       const resumeText = await extractTextFromPDF(file);
 
       // Step 2: Create a temporary resume
-      const newResume = await resumeApi.create({
+      const newResume = await resumeApi.create(user.id, {
         title: "ATS Check - " + file.name,
         templateId: "professional-classic", // Default template
         content: {
           personalInfo: {},
-          summary: resumeText.substring(0, 500), // Use first 500 chars as summary
         },
       });
 
-      setResumeId(newResume.id);
+      // Update resume with profile summary if needed
+      if (resumeText) {
+        try {
+          await resumeApi.update(newResume.resumeId, {
+            profileSummary: resumeText.substring(0, 500),
+          });
+        } catch (updateError) {
+          console.warn("Failed to update profile summary:", updateError);
+        }
+      }
+
+      setResumeId(newResume.resumeId);
 
       // Step 3: Upload PDF to the resume
-      const { uploadUrl, s3Key } = await resumeApi.getPresignedUploadUrl(newResume.id);
+      const { uploadUrl, s3Key } = await resumeApi.getPresignedUploadUrl(newResume.resumeId);
 
       // Upload to S3
       const uploadResponse = await fetch(uploadUrl, {
@@ -94,18 +104,18 @@ export default function ATSCheckerPage() {
       }
 
       // Confirm upload
-      await resumeApi.confirmPDFUpload(newResume.id, s3Key);
+      await resumeApi.confirmPDFUpload(newResume.resumeId, s3Key);
 
-      // Step 4: Extract data from PDF
+      // Step 4: Extract data from PDF (optional - skip if it fails)
       try {
-        await resumeDataExtractionApi.extractFromPDF(newResume.id);
+        await resumeDataExtractionApi.extractResumeData("professional-classic", resumeText);
       } catch (extractError) {
         console.warn("Data extraction failed, continuing with ATS check:", extractError);
       }
 
       // Step 5: Calculate ATS score
       setProcessing(true);
-      const updatedResume = await resumeApi.recalculateATS(newResume.id);
+      const updatedResume = await resumeApi.recalculateATS(newResume.resumeId);
 
       setAtsScore(updatedResume.atsScore || 0);
       setAtsFeedback(updatedResume.atsFeedback);
