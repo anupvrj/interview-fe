@@ -391,9 +391,98 @@ export default function InterviewCoachPage() {
       </nav>
 
       {/* Top Heading Section */}
-      <section className="pt-24 sm:pt-28 lg:pt-32 pb-8 sm:pb-12 px-4 sm:px-6 bg-white">
-        <div className="container mx-auto max-w-7xl">
+      <section className="pt-24 sm:pt-28 lg:pt-32 pb-12 sm:pb-16 px-4 sm:px-6 relative overflow-hidden">
+        <div 
+          className="absolute inset-0"
+          style={{
+            background: 'linear-gradient(135deg, #60A5FA 0%, #3B82F6 50%, #2563EB 100%)'
+          }}
+        ></div>
+        {/* Animated Background Icons */}
+        <div className="absolute inset-0 pointer-events-none z-10">
+          {[...Array(8)].map((_, i) => {
+            const positions = [
+              { left: '5%', top: '10%' },
+              { left: '25%', top: '5%' },
+              { left: '45%', top: '15%' },
+              { left: '65%', top: '8%' },
+              { left: '85%', top: '12%' },
+              { left: '15%', top: '25%' },
+              { left: '55%', top: '30%' },
+              { left: '75%', top: '22%' },
+            ];
+            return (
+              <div
+                key={`mic-${i}`}
+                className="absolute opacity-20"
+                style={{
+                  left: positions[i].left,
+                  top: positions[i].top,
+                  animation: `float-${i % 3} ${5 + (i % 3) * 2}s ease-in-out infinite`,
+                  animationDelay: `${i * 0.3}s`,
+                }}
+              >
+                <Mic className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
+              </div>
+            );
+          })}
+          {[...Array(8)].map((_, i) => {
+            const positions = [
+              { left: '10%', top: '50%' },
+              { left: '30%', top: '45%' },
+              { left: '50%', top: '55%' },
+              { left: '70%', top: '48%' },
+              { left: '90%', top: '52%' },
+              { left: '20%', top: '65%' },
+              { left: '60%', top: '70%' },
+              { left: '80%', top: '62%' },
+            ];
+            return (
+              <div
+                key={`brain-${i}`}
+                className="absolute opacity-20"
+                style={{
+                  left: positions[i].left,
+                  top: positions[i].top,
+                  animation: `float-${i % 3} ${6 + (i % 2) * 2}s ease-in-out infinite`,
+                  animationDelay: `${i * 0.4}s`,
+                }}
+              >
+                <Brain className="w-7 h-7 sm:w-9 sm:h-9 text-white" />
+              </div>
+            );
+          })}
+          {[...Array(6)].map((_, i) => {
+            const positions = [
+              { left: '8%', top: '35%' },
+              { left: '35%', top: '28%' },
+              { left: '62%', top: '38%' },
+              { left: '88%', top: '32%' },
+              { left: '18%', top: '80%' },
+              { left: '72%', top: '85%' },
+            ];
+            return (
+              <div
+                key={`message-${i}`}
+                className="absolute opacity-20"
+                style={{
+                  left: positions[i].left,
+                  top: positions[i].top,
+                  animation: `float-${i % 3} ${7 + (i % 2) * 2}s ease-in-out infinite`,
+                  animationDelay: `${i * 0.5}s`,
+                }}
+              >
+                <MessageSquare className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
+              </div>
+            );
+          })}
+        </div>
+        <div className="container mx-auto max-w-7xl relative z-10">
           <div className="text-center">
+            <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/20 backdrop-blur-sm rounded-full text-white font-medium text-sm mb-6 border border-white/30">
+              <Sparkles className="w-3 h-3" />
+              <span>AI Interview Coach</span>
+            </div>
             <h1 className="text-3xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight mb-4 sm:mb-6 leading-tight">
               {(() => {
                 const fullText = "AI powered interview coach";
@@ -406,7 +495,7 @@ export default function InterviewCoachPage() {
                   <>
                     <span className="block sm:inline">
                       {beforeCoach.split('').map((char, index) => (
-                        <span key={index} className="text-slate-900">
+                        <span key={index} className="text-white">
                           {char === ' ' ? '\u00A0' : char}
                         </span>
                       ))}
@@ -417,7 +506,7 @@ export default function InterviewCoachPage() {
                         return (
                           <span
                             key={index}
-                            className={isCoachChar ? 'text-blue-600' : 'text-slate-900'}
+                            className={isCoachChar ? 'text-white/95' : 'text-white'}
                           >
                             {char === ' ' ? '\u00A0' : char}
                           </span>
@@ -425,7 +514,7 @@ export default function InterviewCoachPage() {
                       })}
                       {headingText.length >= fullText.length && (
                         <span 
-                          className={`inline-block w-0.5 h-[1em] bg-blue-600 ml-1 align-middle ${
+                          className={`inline-block w-0.5 h-[1em] bg-white ml-1 align-middle ${
                             showCursor ? 'opacity-100' : 'opacity-0'
                           }`}
                           style={{
@@ -439,7 +528,7 @@ export default function InterviewCoachPage() {
                 );
               })()}
             </h1>
-            <p className="text-lg sm:text-xl md:text-2xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
+            <p className="text-lg sm:text-xl md:text-2xl text-white/90 max-w-3xl mx-auto leading-relaxed">
               Practice real interviews with AI-powered mock interviews. Get instant feedback on your communication, confidence, and answers — before the real interview happens.
             </p>
           </div>
@@ -480,12 +569,27 @@ export default function InterviewCoachPage() {
               <Brain className="w-10 h-10 sm:w-14 sm:h-14 text-blue-400" />
             </div>
           ))}
+          {[...Array(6)].map((_, i) => (
+            <div
+              key={`message-${i}`}
+              className="absolute"
+              style={{
+                left: `${(i * 16) % 100}%`,
+                top: `${(i * 22) % 100}%`,
+                opacity: 0.06,
+                animation: `float-${i % 3} ${8 + (i % 2) * 2}s ease-in-out infinite`,
+                animationDelay: `${i * 0.6}s`,
+              }}
+            >
+              <MessageSquare className="w-8 h-8 sm:w-12 sm:h-12 text-indigo-300" />
+            </div>
+          ))}
         </div>
 
         <div className="container mx-auto max-w-7xl relative z-10">
           <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
             {/* Left Section - Marketing Content */}
-            <div className="text-center lg:text-left space-y-6">
+            <div className="text-center lg:text-left space-y-6 relative z-10">
               <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight text-slate-900 leading-tight mb-4 sm:mb-6">
                 Master Your Interview Skills
               </h2>
@@ -1031,7 +1135,7 @@ export default function InterviewCoachPage() {
               </span>
             </div>
             <nav className="flex flex-wrap items-center justify-center md:justify-end gap-4 sm:gap-6">
-              <Link href="/about" className="text-sm text-gray-300 hover:text-white transition-colors">
+              <Link href="/about-us" className="text-sm text-gray-300 hover:text-white transition-colors">
                 About us
               </Link>
               <Link href="/terms" className="text-sm text-gray-300 hover:text-white transition-colors">

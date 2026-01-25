@@ -589,21 +589,38 @@ export default function LandingPage() {
         ></div>
         {/* Decorative Sparkle Icons */}
         <div className="absolute inset-0 pointer-events-none">
-          {[...Array(12)].map((_, i) => (
-            <div
-              key={i}
-              className="absolute opacity-20"
-              style={{
-                left: `${Math.random() * 100}%`,
-                top: `${Math.random() * 100}%`,
-                transform: `rotate(${Math.random() * 360}deg)`,
-              }}
-            >
-              <div className="w-8 h-8 bg-white/30 rounded-lg flex items-center justify-center backdrop-blur-sm">
-                <Sparkles className="w-4 h-4 text-white" />
+          {[...Array(12)].map((_, i) => {
+            const positions = [
+              { left: '5%', top: '10%' },
+              { left: '25%', top: '5%' },
+              { left: '45%', top: '15%' },
+              { left: '65%', top: '8%' },
+              { left: '85%', top: '12%' },
+              { left: '15%', top: '25%' },
+              { left: '55%', top: '30%' },
+              { left: '75%', top: '22%' },
+              { left: '10%', top: '50%' },
+              { left: '30%', top: '45%' },
+              { left: '70%', top: '48%' },
+              { left: '90%', top: '52%' },
+            ];
+            return (
+              <div
+                key={i}
+                className="absolute opacity-20"
+                style={{
+                  left: positions[i]?.left || `${(i * 15) % 100}%`,
+                  top: positions[i]?.top || `${(i * 20) % 100}%`,
+                  animation: `float-${i % 3} ${5 + (i % 3) * 2}s ease-in-out infinite`,
+                  animationDelay: `${i * 0.3}s`,
+                }}
+              >
+                <div className="w-8 h-8 bg-white/30 rounded-lg flex items-center justify-center backdrop-blur-sm">
+                  <Sparkles className="w-4 h-4 text-white" />
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         <div className="container mx-auto max-w-6xl relative z-10">
@@ -807,7 +824,7 @@ export default function LandingPage() {
                     <ArrowRight className="w-4 h-4 ml-2" />
                   </Button>
                 </Link>
-                <Link href="/resume-builder" className="w-full sm:w-auto">
+                <Link href="/ai-resume-builder" className="w-full sm:w-auto">
                   <Button
                     variant="outline"
                     size="lg"
@@ -975,7 +992,7 @@ export default function LandingPage() {
                     <ArrowRight className="w-4 h-4 ml-2" />
                   </Button>
                 </Link>
-                <Link href="/interview-coach" className="w-full sm:w-auto">
+                <Link href="/ai-interview-coach" className="w-full sm:w-auto">
                   <Button
                     variant="outline"
                     size="lg"
@@ -1615,7 +1632,7 @@ export default function LandingPage() {
               </span>
             </div>
             <nav className="flex flex-wrap items-center justify-center md:justify-end gap-4 sm:gap-6">
-              <Link href="/about" className="text-sm text-gray-300 hover:text-white transition-colors">
+              <Link href="/about-us" className="text-sm text-gray-300 hover:text-white transition-colors">
                 About us
               </Link>
               <Link href="/terms" className="text-sm text-gray-300 hover:text-white transition-colors">

@@ -422,7 +422,7 @@ export default function JobSearchComingSoonPage() {
                     <Bell className="w-4 h-4 ml-2" />
                   </Button>
                 </Link>
-                <Link href="/about" className="w-full sm:w-auto">
+                <Link href="/about-us" className="w-full sm:w-auto">
                   <Button
                     variant="outline"
                     size="lg"
@@ -732,7 +732,7 @@ export default function JobSearchComingSoonPage() {
               </span>
             </div>
             <nav className="flex flex-wrap items-center justify-center md:justify-end gap-4 sm:gap-6">
-              <Link href="/about" className="text-sm text-gray-300 hover:text-white transition-colors">
+              <Link href="/about-us" className="text-sm text-gray-300 hover:text-white transition-colors">
                 About us
               </Link>
               <Link href="/terms" className="text-sm text-gray-300 hover:text-white transition-colors">

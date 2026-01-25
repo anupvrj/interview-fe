@@ -65,14 +65,14 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   // Don't render until user is loaded to avoid hydration issues
   if (!isLoaded) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-pink-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+      <div className="min-h-screen bg-blue-50/30 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[rgb(37,99,235)]"></div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-pink-50">
+    <div className="min-h-screen bg-blue-50/30">
       {/* Mobile Header */}
       <header className="lg:hidden bg-white border-b shadow-sm sticky top-0 z-50">
         <div className="flex items-center justify-between gap-2 px-3 py-2.5">
@@ -93,18 +93,18 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               href="/"
               className="flex items-center gap-1.5 hover:opacity-80 transition-opacity min-w-0"
             >
-              <div className="w-7 h-7 bg-gradient-to-r from-landing-blue-600 to-landing-blue-700 rounded-lg flex items-center justify-center flex-shrink-0">
+              <div className="w-7 h-7 bg-gradient-to-br from-blue-600 to-blue-700 rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm">
                 <span className="text-white font-bold text-[10px]">i<span className="text-xs">X</span></span>
               </div>
-              <span className="text-base sm:text-lg font-bold truncate" style={{ color: 'rgb(37 99 235 / var(--tw-text-opacity, 1))' }}>
-                Interview <span className="text-landing-blue-600">Tri<span className="text-lg sm:text-xl">X</span></span>
+              <span className="text-base sm:text-lg font-bold text-slate-900 truncate">
+                Interview <span className="text-[rgb(37,99,235)]">Tri<span className="text-lg sm:text-xl">X</span></span>
               </span>
             </Link>
           </div>
           <Link href="/dashboard/interviews/new" className="flex-shrink-0">
             <Button
               size="sm"
-              className="bg-gradient-to-r from-landing-blue-600 to-landing-blue-700 hover:from-purple-700 hover:to-blue-700 text-white h-9 px-3 gap-1.5 text-xs sm:text-sm shadow-md"
+              className="!bg-[rgb(37,99,235)] hover:!bg-[rgb(17,24,39)] text-white h-9 px-3 gap-1.5 text-xs sm:text-sm shadow-md transition-all"
             >
               <PlayCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               <span className="hidden xs:inline">Start</span>
@@ -134,12 +134,12 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 href="/"
                 className="flex items-center gap-2 hover:opacity-80 transition-opacity"
               >
-                <div className="w-10 h-10 bg-gradient-to-r from-landing-blue-600 to-landing-blue-700 rounded-lg flex items-center justify-center">
+                <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-blue-700 rounded-lg flex items-center justify-center shadow-sm">
                   <span className="text-white font-bold text-sm">i<span className="text-base">X</span></span>
                 </div>
                 {sidebarOpen && (
-                  <span className="text-xl font-bold" style={{ color: 'rgb(37 99 235 / var(--tw-text-opacity, 1))' }}>
-                    Interview <span className="text-landing-blue-600">Tri<span className="text-2xl">X</span></span>
+                  <span className="text-xl font-bold text-slate-900">
+                    Interview <span className="text-[rgb(37,99,235)]">Tri<span className="text-2xl">X</span></span>
                   </span>
                 )}
               </Link>
@@ -166,10 +166,10 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                     }}
                     className={cn(
                       "flex items-center gap-3 px-4 py-3 rounded-lg transition-all",
-                      "hover:bg-purple-50 hover:text-purple-700",
+                      "hover:bg-blue-50 hover:text-[rgb(37,99,235)]",
                       isActive
-                        ? "bg-gradient-to-r from-landing-blue-600 to-landing-blue-700 text-white shadow-md"
-                        : "text-gray-700"
+                        ? "!bg-[rgb(37,99,235)] text-white shadow-md"
+                        : "text-slate-700"
                     )}
                   >
                     <Icon className="w-5 h-5 flex-shrink-0" />
@@ -234,7 +234,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 <Link href="/dashboard/interviews/new">
                   <Button
                     size="default"
-                    className="bg-gradient-to-r from-landing-blue-600 to-landing-blue-700 hover:from-purple-700 hover:to-blue-700 text-white shadow-md hover:shadow-lg transition-all"
+                    className="!bg-[rgb(37,99,235)] hover:!bg-[rgb(17,24,39)] text-white shadow-md hover:shadow-lg transition-all"
                   >
                     <PlayCircle className="w-4 h-4 mr-2" />
                     Start Interview
