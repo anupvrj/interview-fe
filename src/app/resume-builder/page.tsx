@@ -1,0 +1,1203 @@
+"use client";
+
+import React, { useState, useEffect, useRef } from "react";
+import Link from "next/link";
+import { SignedIn, SignedOut, UserButton } from "@clerk/nextjs";
+import { Button } from "@/components/ui/button";
+import {
+  FileText,
+  Sparkles,
+  ArrowRight,
+  Menu,
+  User,
+  CheckCircle,
+  Zap,
+  Target,
+  Award,
+  Settings,
+  Download,
+  Eye,
+  Palette,
+  FileCheck,
+  Brain,
+  GripVertical,
+  TrendingUp,
+  Save,
+  Search,
+  RotateCcw,
+  Star,
+  Upload as UploadIcon,
+  FileUp,
+  AlertCircle,
+} from "lucide-react";
+import { NavigationMenu } from "@/components/NavigationMenu";
+import Image from "next/image";
+import { TEMPLATES_CATALOG } from "@/configs/resume-templates/templates-catalog";
+
+export default function ResumeBuilderPage() {
+  // Animated Heading States
+  const [headingText, setHeadingText] = useState("");
+  const [showCursor, setShowCursor] = useState(true);
+  const [headingComplete, setHeadingComplete] = useState(false);
+  
+  // How It Works Animation States
+  const [howItWorksVisible, setHowItWorksVisible] = useState(false);
+  const howItWorksRef = useRef<HTMLDivElement>(null);
+  
+  // Template Carousel States
+  const [currentTemplateSlide, setCurrentTemplateSlide] = useState(0);
+  
+  // Resume Builder Animation States
+  const [resumeText, setResumeText] = useState("");
+  const [isAIEnhancing, setIsAIEnhancing] = useState(false);
+  const [showSkills, setShowSkills] = useState(false);
+  const [showProjects, setShowProjects] = useState(false);
+  const [showEducation, setShowEducation] = useState(false);
+  const [showReadyResume, setShowReadyResume] = useState(false);
+  const [atsScore, setAtsScore] = useState(0);
+  const [showDownload, setShowDownload] = useState(false);
+  const [currentStep, setCurrentStep] = useState(0);
+  const resumeBuilderRef = useRef<HTMLDivElement>(null);
+
+  // Animated Heading Effect
+  useEffect(() => {
+    const fullText = "AI powered resume builder";
+    let currentIndex = 0;
+    
+    const typeInterval = setInterval(() => {
+      if (currentIndex < fullText.length) {
+        setHeadingText(fullText.substring(0, currentIndex + 1));
+        currentIndex++;
+      } else {
+        clearInterval(typeInterval);
+        setHeadingComplete(true);
+      }
+    }, 100);
+
+    // Cursor blinking animation
+    const cursorInterval = setInterval(() => {
+      setShowCursor((prev) => !prev);
+    }, 530);
+
+    return () => {
+      clearInterval(typeInterval);
+      clearInterval(cursorInterval);
+    };
+  }, []);
+
+  // How It Works Section Animation
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            setHowItWorksVisible(true);
+          }
+        });
+      },
+      { threshold: 0.2 }
+    );
+
+    if (howItWorksRef.current) {
+      observer.observe(howItWorksRef.current);
+    }
+
+    return () => {
+      if (howItWorksRef.current) {
+        observer.unobserve(howItWorksRef.current);
+      }
+    };
+  }, []);
+
+  // Resume Builder Animation
+  useEffect(() => {
+    let timeout1: NodeJS.Timeout;
+    let timeout2: NodeJS.Timeout;
+    let timeout3: NodeJS.Timeout;
+    let timeout4: NodeJS.Timeout;
+    let timeout5: NodeJS.Timeout;
+    let timeout6: NodeJS.Timeout;
+    let timeout7: NodeJS.Timeout;
+    let timeout8: NodeJS.Timeout;
+    let scoreInterval: NodeJS.Timeout;
+
+    const resumeContent = "Experienced software engineer with 5+ years developing scalable web applications. Proficient in React, Node.js, and cloud technologies. Led teams of 5+ developers and delivered projects worth $2M+ in revenue.";
+
+    const runAnimation = () => {
+      // Reset
+      setResumeText("");
+      setIsAIEnhancing(false);
+      setShowSkills(false);
+      setShowProjects(false);
+      setShowEducation(false);
+      setShowReadyResume(false);
+      setAtsScore(0);
+      setShowDownload(false);
+      setCurrentStep(0);
+
+      // Step 1: Show professional summary instantly (no typing)
+      timeout1 = setTimeout(() => {
+        setCurrentStep(1);
+        setResumeText(resumeContent);
+        // Step 2: AI Enhancing
+        timeout2 = setTimeout(() => {
+          setCurrentStep(2);
+          setResumeText("");
+          setIsAIEnhancing(true);
+          // Step 3: Skills editing
+          timeout3 = setTimeout(() => {
+            setCurrentStep(3);
+            setIsAIEnhancing(false);
+            setShowSkills(true);
+            // Step 4: Add Projects
+            timeout4 = setTimeout(() => {
+              setCurrentStep(4);
+              setShowSkills(false);
+              setShowProjects(true);
+              // Step 5: Education section
+              timeout5 = setTimeout(() => {
+                setCurrentStep(5);
+                setShowProjects(false);
+                setShowEducation(true);
+                // Step 6: Show ready resume image
+                timeout6 = setTimeout(() => {
+                  setCurrentStep(6);
+                  setShowEducation(false);
+                  setShowReadyResume(true);
+                  // Step 7: ATS Score animation (quickly)
+                  timeout7 = setTimeout(() => {
+                    setCurrentStep(7);
+                    setShowReadyResume(false);
+                    let score = 0;
+                    scoreInterval = setInterval(() => {
+                      if (score < 85) {
+                        score += 4;
+                        setAtsScore(score);
+                      } else {
+                        clearInterval(scoreInterval);
+                        setAtsScore(85);
+                        // Step 8: Download animation
+                        timeout8 = setTimeout(() => {
+                          setCurrentStep(8);
+                          setAtsScore(0);
+                          setShowDownload(true);
+                          // Reset and restart after download
+                          setTimeout(() => {
+                            runAnimation();
+                          }, 2500);
+                        }, 1500);
+                      }
+                    }, 30);
+                  }, 1000);
+                }, 3000);
+              }, 3000);
+            }, 2500);
+          }, 2000);
+        }, 1000);
+      }, 1000);
+    };
+
+    runAnimation();
+
+    return () => {
+      clearTimeout(timeout1);
+      clearTimeout(timeout2);
+      clearTimeout(timeout3);
+      clearTimeout(timeout4);
+      clearTimeout(timeout5);
+      clearTimeout(timeout6);
+      clearTimeout(timeout7);
+      clearTimeout(timeout8);
+      clearInterval(scoreInterval);
+    };
+  }, []);
+
+  // Template Carousel Auto-Slide - Show 5 templates at a time with infinite loop
+  useEffect(() => {
+    const totalTemplates = TEMPLATES_CATALOG.length;
+    const interval = setInterval(() => {
+      setCurrentTemplateSlide((prev) => {
+        const nextSlide = prev + 5;
+        // Loop back to start when reaching the end of first set
+        if (nextSlide >= totalTemplates) {
+          return 0;
+        }
+        return nextSlide;
+      });
+    }, 4000); // Change slide every 4 seconds
+
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <div className="min-h-screen bg-white scroll-smooth selection:bg-blue-100">
+      {/* Navigation */}
+      <nav className="fixed top-0 w-full z-50">
+        {/* Top Border - Mobile Only */}
+        <div className="sm:hidden h-1" style={{ backgroundColor: 'rgb(37 99 235 / var(--tw-bg-opacity, 1))' }}></div>
+        
+        {/* Main Header */}
+        <div className="bg-white/95 backdrop-blur-xl border-b border-gray-100">
+          <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex items-center justify-between h-14 sm:h-16 lg:h-20">
+              {/* Mobile Layout */}
+              <div className="flex items-center justify-between w-full sm:w-auto sm:justify-start sm:gap-4">
+                {/* Hamburger Menu - Mobile Only */}
+                <div className="sm:hidden">
+                  <NavigationMenu />
+                </div>
+
+                {/* Logo - Centered on Mobile, Left on Desktop */}
+                <Link
+                  href="/"
+                  className="flex items-center gap-2 hover:opacity-80 transition-opacity mx-auto sm:mx-0"
+                >
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-8 h-8 sm:w-9 sm:h-9 bg-gradient-to-br from-blue-600 to-blue-700 rounded-lg flex items-center justify-center shadow-sm">
+                      <span className="text-white font-bold text-xs sm:text-sm">i<span className="text-sm sm:text-base">X</span></span>
+                    </div>
+                    <span className="text-lg sm:text-xl lg:text-2xl font-bold text-slate-900">
+                      Interview <span className="text-blue-600">Tri<span className="text-xl sm:text-2xl lg:text-3xl">X</span></span>
+                    </span>
+                  </div>
+                </Link>
+
+                {/* Right Side Icons - Mobile */}
+                <div className="flex items-center gap-3 sm:hidden">
+                  <SignedOut>
+                    <Link href="/sign-in" className="p-1">
+                      <User className="w-5 h-5 text-slate-900" />
+                    </Link>
+                  </SignedOut>
+                  <SignedIn>
+                    <UserButton
+                      appearance={{
+                        elements: {
+                          avatarBox: "w-6 h-6",
+                        },
+                      }}
+                    />
+                  </SignedIn>
+                </div>
+              </div>
+
+              {/* Desktop Layout */}
+              <div className="hidden sm:flex items-center gap-4 sm:gap-6">
+                {/* Navigation Menu */}
+                <NavigationMenu />
+                <SignedOut>
+                  <Link href="/sign-in">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-xs sm:text-sm px-2 sm:px-4"
+                    >
+                      Sign In
+                    </Button>
+                  </Link>
+                  <Link href="/sign-up">
+                    <Button
+                      size="sm"
+                      className="bg-blue-600 hover:bg-blue-700 text-white font-medium shadow-sm transition-all text-xs sm:text-sm px-4 py-2"
+                    >
+                      Get Started
+                    </Button>
+                  </Link>
+                </SignedOut>
+                <SignedIn>
+                  <Link href="/dashboard" className="hidden md:block">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-xs sm:text-sm px-2 sm:px-4"
+                    >
+                      Dashboard
+                    </Button>
+                  </Link>
+                  <UserButton
+                    appearance={{
+                      elements: {
+                        avatarBox: "w-8 h-8 sm:w-9 sm:h-9 lg:w-10 lg:h-10",
+                      },
+                    }}
+                  />
+                </SignedIn>
+              </div>
+            </div>
+          </div>
+        </div>
+      </nav>
+
+      {/* Resume Builder Hero Section */}
+      <section className="pt-32 sm:pt-40 lg:pt-48 pb-16 sm:pb-20 md:pb-24 lg:pb-28 px-4 sm:px-6 overflow-hidden bg-blue-50 relative">
+        {/* Animated Background Elements */}
+        <div className="absolute inset-0 pointer-events-none overflow-hidden">
+          {[...Array(8)].map((_, i) => (
+            <div
+              key={i}
+              className="absolute"
+              style={{
+                left: `${(i * 15) % 100}%`,
+                top: `${(i * 20) % 100}%`,
+                opacity: 0.09,
+                animation: `float-${i % 3} ${6 + (i % 3) * 2}s ease-in-out infinite`,
+                animationDelay: `${i * 0.5}s`,
+              }}
+            >
+              <FileText className="w-12 h-12 sm:w-16 sm:h-16 text-blue-400" />
+            </div>
+          ))}
+          {[...Array(8)].map((_, i) => (
+            <div
+              key={`palette-${i}`}
+              className="absolute"
+              style={{
+                left: `${(i * 16) % 100}%`,
+                top: `${(i * 22) % 100}%`,
+                opacity: 0.07,
+                animation: `float-${i % 3} ${7 + (i % 2) * 2}s ease-in-out infinite`,
+                animationDelay: `${i * 0.5}s`,
+              }}
+            >
+              <Palette className="w-10 h-10 sm:w-14 sm:h-14 text-blue-300" />
+            </div>
+          ))}
+          {[...Array(6)].map((_, i) => (
+            <div
+              key={`check-${i}`}
+              className="absolute"
+              style={{
+                left: `${(i * 20) % 100}%`,
+                top: `${(i * 15) % 100}%`,
+                opacity: 0.06,
+                animation: `float-${i % 3} ${8 + (i % 2) * 2}s ease-in-out infinite`,
+                animationDelay: `${i * 0.7}s`,
+              }}
+            >
+              <FileCheck className="w-8 h-8 sm:w-12 sm:h-12 text-indigo-300" />
+            </div>
+          ))}
+        </div>
+
+        {/* Animated Heading */}
+        <div className="container mx-auto max-w-7xl relative z-10 mb-12 sm:mb-16">
+          <div className="text-center">
+            <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight mb-4 sm:mb-6">
+              {(() => {
+                const fullText = "AI powered resume builder";
+                const builderStart = fullText.indexOf("builder");
+                const builderEnd = builderStart + "builder".length;
+                
+                return headingText.split('').map((char, index) => {
+                  const isBuilderChar = index >= builderStart && index < builderEnd;
+                  return (
+                    <span
+                      key={index}
+                      className={isBuilderChar ? 'text-blue-600' : 'text-slate-900'}
+                    >
+                      {char === ' ' ? '\u00A0' : char}
+                    </span>
+                  );
+                });
+              })()}
+              <span 
+                className={`inline-block w-0.5 h-[1em] bg-blue-600 ml-1 align-middle ${
+                  showCursor ? 'opacity-100' : 'opacity-0'
+                }`}
+                style={{
+                  transition: 'opacity 0.1s ease-in-out',
+                  animation: headingComplete ? 'blink-caret 1s infinite' : 'none'
+                }}
+              />
+            </h1>
+            <p className="text-lg sm:text-xl md:text-2xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
+              Create ATS-optimized, professional resumes in minutes with AI-powered templates and smart suggestions.
+            </p>
+          </div>
+        </div>
+        
+        <div className="container mx-auto max-w-7xl relative z-10">
+          <div className="grid lg:grid-cols-2 gap-8 sm:gap-12 lg:gap-16 items-center">
+            {/* Left Side - Marketing Content */}
+            <div className="space-y-4 sm:space-y-5 md:space-y-6 text-center lg:text-left order-2 lg:order-1">
+              <div className="inline-flex items-center gap-2 px-3 py-1 bg-blue-50 rounded-full text-blue-700 font-medium text-sm mb-4">
+                <Sparkles className="w-3 h-3" />
+                <span>Professional Templates</span>
+              </div>
+              <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-[43px] font-bold tracking-tight text-slate-900 leading-[1.2] sm:leading-[1.1] lg:leading-[52px] mb-4 sm:mb-6">
+                Create Professional Resumes in Minutes
+              </h2>
+              <p className="text-base sm:text-lg md:text-xl text-gray-600 leading-relaxed max-w-xl mx-auto lg:mx-0 px-2 sm:px-0">
+                Build ATS-friendly resumes that get you noticed. Choose from professional templates, get AI-powered suggestions, and export in multiple formats.
+              </p>
+              
+              {/* Features List */}
+              <div className="space-y-3 pt-4 sm:pt-6 px-2 sm:px-0">
+                <div className="flex items-start gap-3">
+                  <CheckCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                  <span className="text-gray-700 text-sm sm:text-base">ATS-optimized templates for better visibility</span>
+                </div>
+                <div className="flex items-start gap-3">
+                  <CheckCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                  <span className="text-gray-700 text-sm sm:text-base">AI-powered content suggestions and improvements</span>
+                </div>
+                <div className="flex items-start gap-3">
+                  <CheckCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                  <span className="text-gray-700 text-sm sm:text-base">Export to PDF, Word, and more formats</span>
+                </div>
+              </div>
+              
+              <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-3 sm:gap-4 pt-2 px-2 sm:px-0">
+                <Link href="/dashboard/resumes/new" className="w-full sm:w-auto">
+                  <Button
+                    size="lg"
+                    className="w-full sm:w-auto text-white font-medium shadow-sm transition-all h-12 px-6 hover:opacity-90 !bg-[rgb(37,99,235)]"
+                  >
+                    Try Builder Free
+                    <ArrowRight className="w-4 h-4 ml-2" />
+                  </Button>
+                </Link>
+                <Link href="/dashboard/resumes" className="w-full sm:w-auto">
+                  <Button
+                    variant="outline"
+                    size="lg"
+                    className="w-full sm:w-auto border-gray-200 text-gray-700 font-medium h-12 px-6 hover:!bg-[rgb(17,24,39)] hover:!text-white transition-all"
+                  >
+                    Browse Templates
+                  </Button>
+                </Link>
+              </div>
+            </div>
+
+            {/* Right Section - Animated Resume Builder Preview */}
+            <div className="relative flex justify-center lg:justify-start order-1 lg:order-2">
+              <div className="relative rounded-lg sm:rounded-xl shadow-2xl overflow-hidden bg-white w-full max-w-[600px] sm:max-w-[700px] border-2 sm:border-4 border-blue-100">
+                {/* Resume Builder Header */}
+                <div className="p-4 sm:p-6 bg-gradient-to-br from-blue-50 to-indigo-50 border-b border-gray-200">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-sm sm:text-base font-bold text-slate-900">Resume Builder</h3>
+                    {showDownload && (
+                      <div className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium flex items-center gap-1">
+                        <CheckCircle className="w-3 h-3" />
+                        Ready
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 bg-white rounded-lg px-3 py-2 shadow-sm border border-gray-200">
+                    <FileText className="w-4 h-4 text-gray-400" />
+                    <input
+                      type="text"
+                      value={resumeText ? "Professional Summary" : ""}
+                      readOnly
+                      placeholder="Building your resume..."
+                      className="flex-1 outline-none text-xs sm:text-sm text-gray-700 bg-transparent"
+                    />
+                  </div>
+                </div>
+
+                {/* Resume Content Preview */}
+                <div className="p-4 sm:p-6 bg-white max-h-[400px] overflow-y-auto relative">
+                  <div className="space-y-4 h-[300px] relative flex items-center justify-center">
+                    {/* Professional Summary - Step 1 */}
+                    {currentStep === 1 && (
+                      <div className="animate-fadeInUp w-full" style={{ animation: 'fadeInUp 0.6s ease-out' }}>
+                        <h4 className="text-xs sm:text-sm font-bold text-slate-900 mb-2">PROFESSIONAL SUMMARY</h4>
+                        <p className="text-xs sm:text-sm text-gray-700 leading-relaxed">
+                          Experienced software engineer with 5+ years developing scalable web applications. Proficient in React, Node.js, and cloud technologies. Led teams of 5+ developers and delivered projects worth $2M+ in revenue.
+                        </p>
+                      </div>
+                    )}
+
+                    {/* AI Enhancing - Step 2 */}
+                    {currentStep === 2 && (
+                      <div className="animate-fadeInUp w-full" style={{ animation: 'fadeInUp 0.6s ease-out' }}>
+                        <div className="flex items-center gap-3 p-4 bg-blue-50 rounded-lg border border-blue-100">
+                          <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center animate-pulse">
+                            <Brain className="w-4 h-4 text-white" />
+                          </div>
+                          <div className="flex-1">
+                            <div className="h-2 bg-blue-200 rounded-full w-3/4 mb-2 animate-pulse"></div>
+                            <div className="h-2 bg-blue-100 rounded-full w-1/2 animate-pulse"></div>
+                          </div>
+                          <span className="text-xs sm:text-sm text-blue-600 font-medium">Enhancing...</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Skills Section - Step 3 */}
+                    {currentStep === 3 && (
+                      <div className="animate-fadeInUp w-full" style={{ animation: 'fadeInUp 0.6s ease-out' }}>
+                        <h4 className="text-xs sm:text-sm font-bold text-slate-900 mb-2 flex items-center gap-2">
+                          <GripVertical className="w-3 h-3 text-blue-600" />
+                          SKILLS
+                        </h4>
+                        <div className="flex flex-wrap gap-2">
+                          {["React", "Node.js", "TypeScript", "AWS", "Docker", "MongoDB", "PostgreSQL", "GraphQL"].map((skill, index) => (
+                            <span
+                              key={skill}
+                              className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-medium"
+                              style={{
+                                animation: `fadeInUp 0.5s ease-out ${index * 0.08}s both`
+                              }}
+                            >
+                              {skill}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Projects Section - Step 4 */}
+                    {currentStep === 4 && (
+                      <div className="animate-fadeInUp w-full" style={{ animation: 'fadeInUp 0.6s ease-out' }}>
+                        <h4 className="text-xs sm:text-sm font-bold text-slate-900 mb-2 flex items-center gap-2">
+                          <GripVertical className="w-3 h-3 text-blue-600" />
+                          PROJECTS
+                        </h4>
+                        <div className="space-y-2 max-h-[200px] overflow-y-auto">
+                          {[
+                            { title: "E-Commerce Platform", desc: "Built scalable e-commerce solution with React and Node.js" },
+                            { title: "Real-time Chat Application", desc: "Developed WebSocket-based chat system with 10K+ concurrent users" },
+                            { title: "Cloud Migration Project", desc: "Migrated legacy systems to AWS, reducing costs by 40%" },
+                            { title: "Mobile Payment Gateway", desc: "Created secure payment processing API handling $5M+ monthly transactions" }
+                          ].map((project, index) => (
+                            <div
+                              key={index}
+                              className="bg-blue-50 rounded p-2 border border-blue-100 transition-all duration-300 hover:shadow-md"
+                              style={{
+                                animation: `fadeInUp 0.6s ease-out ${index * 0.12}s both`
+                              }}
+                            >
+                              <p className="text-xs font-semibold text-slate-900">{project.title}</p>
+                              <p className="text-xs text-gray-600">{project.desc}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Education Section - Step 5 */}
+                    {currentStep === 5 && (
+                      <div className="animate-fadeInUp w-full" style={{ animation: 'fadeInUp 0.6s ease-out' }}>
+                        <h4 className="text-xs sm:text-sm font-bold text-slate-900 mb-2 flex items-center gap-2">
+                          <GripVertical className="w-3 h-3 text-blue-600" />
+                          EDUCATION
+                        </h4>
+                        <div className="space-y-2">
+                          {[
+                            { degree: "B.Tech Computer Science", details: "IIT Delhi • 2018-2022 • CGPA: 8.5/10" },
+                            { degree: "AWS Certified Solutions Architect", details: "Amazon Web Services • 2021" },
+                            { degree: "Full Stack Web Development", details: "Udemy • 2019 • Certificate of Completion" }
+                          ].map((edu, index) => (
+                            <div
+                              key={index}
+                              className="bg-blue-50 rounded p-2 border border-blue-100 transition-all duration-300 hover:shadow-md"
+                              style={{
+                                animation: `fadeInUp 0.6s ease-out ${index * 0.12}s both`
+                              }}
+                            >
+                              <p className="text-xs font-semibold text-slate-900">{edu.degree}</p>
+                              <p className="text-xs text-gray-600">{edu.details}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Ready Resume Image/Preview - Step 6 */}
+                    {currentStep === 6 && (
+                      <div className="w-full h-full flex items-center justify-center animate-fadeInUp" style={{ animation: 'fadeInUp 0.6s ease-out' }}>
+                        <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg p-4 border-2 border-blue-200 w-full max-w-md">
+                          <div className="flex items-center justify-center mb-3">
+                            <div className="relative w-full max-w-[180px] aspect-[210/297] bg-white rounded shadow-lg overflow-hidden">
+                              <Image
+                                src="/resume-template-images/clean-slate-preview.webp"
+                                alt="Resume Preview"
+                                fill
+                                className="object-contain"
+                                priority
+                              />
+                            </div>
+                          </div>
+                          <div className="text-center">
+                            <h4 className="text-sm font-bold text-slate-900 mb-1">Resume Ready!</h4>
+                            <p className="text-xs text-gray-600">Your professional resume is complete</p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* ATS Score Display - Step 7 */}
+                    {currentStep === 7 && (
+                      <div className="w-full animate-fadeInUp" style={{ animation: 'fadeInUp 0.6s ease-out' }}>
+                        <div className="w-full max-w-md mx-auto p-6 bg-green-50 border border-green-200 rounded-lg">
+                          <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center gap-2">
+                              <TrendingUp className="w-5 h-5 text-green-600" />
+                              <span className="text-sm sm:text-base font-semibold text-green-900">ATS Score</span>
+                            </div>
+                            <span className="text-xl sm:text-2xl font-bold text-green-700">{atsScore}%</span>
+                          </div>
+                          <div className="w-full bg-green-200 rounded-full h-3 mb-3">
+                            <div 
+                              className="bg-green-600 h-3 rounded-full transition-all duration-300"
+                              style={{ width: `${atsScore}%` }}
+                            ></div>
+                          </div>
+                          <p className="text-sm text-green-700 text-center">Excellent! Your resume is ATS-optimized.</p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Download Action - Step 8 */}
+                    {currentStep === 8 && (
+                      <div className="w-full animate-fadeInUp" style={{ animation: 'fadeInUp 0.6s ease-out' }}>
+                        <div className="w-full max-w-md mx-auto p-6 bg-blue-50 border border-blue-200 rounded-lg">
+                          <div className="text-center space-y-4">
+                            <div>
+                              <p className="text-base sm:text-lg font-semibold text-blue-900 mb-1">Resume Ready!</p>
+                              <p className="text-sm text-blue-700">Download in PDF or Word format</p>
+                            </div>
+                            <div className="flex justify-center">
+                              <div className="px-6 py-3 bg-blue-600 text-white rounded-md flex items-center gap-2 cursor-default animate-pulse">
+                                <Download className="w-5 h-5" />
+                                <span className="text-sm font-medium">Download</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Empty State */}
+                    {currentStep === 0 && (
+                      <div className="w-full h-full flex items-center justify-center animate-fadeInUp">
+                        <div className="text-center">
+                          <FileText className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                          <p className="text-sm text-gray-500">AI is building your resume...</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Available Templates Section */}
+      <section className="py-16 sm:py-20 md:py-24 lg:py-28 px-4 sm:px-6 bg-gray-50 relative overflow-hidden">
+        <div className="container mx-auto max-w-7xl">
+          <div className="text-center mb-12 sm:mb-16">
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-slate-900 mb-4">
+              Pick a template and build your resume<br />
+              in minutes!
+            </h2>
+          </div>
+
+          {/* Template Carousel - Multiple Templates Visible */}
+          <div className="relative">
+            <div className="overflow-hidden">
+              <div
+                className="flex transition-transform duration-700 ease-in-out gap-2 sm:gap-3"
+                style={{
+                  transform: `translateX(-${currentTemplateSlide * (100 / 5)}%)`,
+                }}
+              >
+                {/* Duplicate templates for seamless infinite loop */}
+                {[...TEMPLATES_CATALOG, ...TEMPLATES_CATALOG].map((template, index) => (
+                  <div
+                    key={`${template.id}-${index}`}
+                    className="min-w-[calc(20%-0.6rem)] sm:min-w-[calc(20%-0.8rem)] flex-shrink-0"
+                  >
+                    <div className="relative group">
+                      <div className="bg-white rounded-lg shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-200 hover:border-blue-300">
+                        {/* Template Preview Image */}
+                        <div className="relative aspect-[210/297] bg-white overflow-hidden">
+                          <Image
+                            src={template.thumbnail}
+                            alt={template.name}
+                            fill
+                            className="object-contain group-hover:scale-105 transition-transform duration-300"
+                            style={{ padding: 0 }}
+                            priority={index < 5}
+                          />
+                          {/* Hover Overlay with Button */}
+                          <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+                            <Link href={`/dashboard/resumes/new?template=${template.id}&skipTemplate=true`}>
+                              <Button className="!bg-[rgb(37,99,235)] hover:!bg-[rgb(17,24,39)] text-white font-medium shadow-lg">
+                                Use This Template
+                                <ArrowRight className="w-4 h-4 ml-2" />
+                              </Button>
+                            </Link>
+                          </div>
+                        </div>
+                        
+                        {/* Template Name Overlay or Badge */}
+                        <div className="p-1.5 bg-white border-t border-gray-100">
+                          <div className="flex items-center justify-between">
+                            <h3 className="text-[10px] sm:text-xs font-semibold text-slate-900 truncate">
+                              {template.name}
+                            </h3>
+                            {template.popular && (
+                              <span className="px-1 py-0.5 bg-blue-100 text-blue-700 rounded text-[10px] font-medium flex-shrink-0 ml-1">
+                                Popular
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Navigation Dots */}
+            <div className="flex justify-center gap-2 mt-8">
+              {Array.from({ length: Math.ceil(TEMPLATES_CATALOG.length / 5) }).map((_, index) => {
+                const currentPage = Math.floor((currentTemplateSlide % TEMPLATES_CATALOG.length) / 5);
+                return (
+                  <button
+                    key={index}
+                    onClick={() => setCurrentTemplateSlide(index * 5)}
+                    className={`h-2 rounded-full transition-all duration-300 ${
+                      currentPage === index
+                        ? "w-8 bg-blue-600"
+                        : "w-2 bg-gray-300"
+                    }`}
+                    aria-label={`Go to page ${index + 1}`}
+                  />
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ATS Score Checker Section */}
+      <section className="py-16 sm:py-20 md:py-24 lg:py-28 px-4 sm:px-6 bg-blue-50/30 relative overflow-hidden">
+        {/* Animated Background Icons */}
+        <div className="absolute inset-0 pointer-events-none overflow-hidden">
+          {[...Array(4)].map((_, i) => (
+            <div
+              key={i}
+              className="absolute"
+              style={{
+                left: `${(i * 20) % 100}%`,
+                top: `${(i * 25) % 100}%`,
+                opacity: 0.09,
+                animation: `float-${i % 3} ${6 + (i % 3) * 2}s ease-in-out infinite`,
+                animationDelay: `${i * 0.5}s`,
+              }}
+            >
+              <FileCheck className="w-8 h-8 sm:w-10 sm:h-10 text-blue-400" />
+            </div>
+          ))}
+        </div>
+        <div className="container mx-auto max-w-7xl relative z-10">
+          <div className="grid lg:grid-cols-2 gap-8 sm:gap-12 lg:gap-16 items-center">
+            {/* Left Side - Text and Upload */}
+            <div className="space-y-6 sm:space-y-8">
+              {/* Headline */}
+              <div>
+                <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-slate-900 mb-4 sm:mb-6 leading-tight">
+                  ATS Resume Checker:{" "}
+                  <span className="text-[rgb(37,99,235)]">Scan & Score Your Resume</span>
+                </h2>
+                <p className="text-base sm:text-lg text-gray-600 leading-relaxed">
+                  Our ATS Resume Checker scans your resume and helps you update it step-by-step. It also analyzes and grades your resume so you know how it will fare with applicant tracking systems (ATS) when applying for jobs.
+                </p>
+              </div>
+
+              {/* Upload Box */}
+              <Link href="/ats-checker">
+                <div className="border-2 border-[rgb(37,99,235)] rounded-lg p-6 sm:p-8 bg-white hover:bg-blue-50/30 transition-colors cursor-pointer">
+                  <div className="text-center mb-4">
+                    <p className="text-base sm:text-lg font-medium text-slate-900 mb-2">
+                      Drop your resume here or choose a file.
+                    </p>
+                    <p className="text-xs sm:text-sm text-gray-500">
+                      We read: DOC, DOCX, PDF, HTML, RTF, TXT
+                    </p>
+                  </div>
+                  <div className="flex items-center justify-center gap-3 mb-4">
+                    <div className="px-3 py-1 bg-gray-100 rounded text-xs font-medium text-gray-700">PDF</div>
+                    <div className="px-3 py-1 bg-gray-100 rounded text-xs font-medium text-gray-700">DOC</div>
+                    <div className="px-3 py-1 bg-gray-100 rounded text-xs font-medium text-gray-700">JPG</div>
+                    <UploadIcon className="w-5 h-5 text-gray-400" />
+                  </div>
+                  <Button
+                    size="lg"
+                    className="w-full text-white font-medium shadow-lg transition-all h-12 !bg-[rgb(37,99,235)] hover:!bg-[rgb(17,24,39)] text-base sm:text-lg"
+                  >
+                    Check My Resume Now
+                    <ArrowRight className="w-5 h-5 ml-2" />
+                  </Button>
+                </div>
+              </Link>
+            </div>
+
+            {/* Right Side - Visual Preview */}
+            <div className="relative">
+              {/* Resume Preview Card */}
+              <div className="relative bg-white rounded-lg shadow-2xl p-6 sm:p-8 transform rotate-[-2deg] border-2 border-gray-200 animate-card-float">
+                {/* Suggested Improvements Banner */}
+                <div className="absolute -top-4 left-4 right-4 bg-red-500 text-white rounded-lg px-4 py-2 flex items-center gap-2 shadow-lg z-10 animate-fade-in">
+                  <AlertCircle className="w-5 h-5" />
+                  <span className="font-semibold text-sm sm:text-base">3 suggested improvements</span>
+                </div>
+                
+                {/* Resume Content Preview */}
+                <div className="mt-8 space-y-4">
+                  <div>
+                    <h3 className="text-xl font-bold text-slate-900 mb-2">ROCHELLE BLAIR</h3>
+                    <p className="text-sm text-gray-600">Software Engineer</p>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-slate-900 mb-1">Skills</h4>
+                    <p className="text-sm text-gray-600">React, Node.js, TypeScript, AWS...</p>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-slate-900 mb-1">Work History</h4>
+                    <p className="text-sm text-gray-600">Senior Developer at Tech Corp (2020-Present)</p>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-slate-900 mb-1">Education</h4>
+                    <p className="text-sm text-gray-600">BS Computer Science, University Name</p>
+                  </div>
+                </div>
+
+                {/* Animated Improvement Lines */}
+                <div className="absolute top-12 left-8 w-0.5 h-0 bg-red-500 animate-line-draw-1"></div>
+                <div className="absolute top-20 left-16 w-0.5 h-0 bg-red-500 animate-line-draw-2"></div>
+                <div className="absolute top-32 left-24 w-0.5 h-0 bg-red-500 animate-line-draw-3"></div>
+              </div>
+
+              {/* Circular Score Gauge */}
+              <div className="absolute -bottom-8 -right-8 bg-white rounded-full shadow-2xl p-4 sm:p-6 border-4 border-[rgb(37,99,235)] animate-scale-in">
+                <div className="relative w-32 h-32 sm:w-40 sm:h-40">
+                  {/* Circular Progress */}
+                  <svg className="transform -rotate-90 w-full h-full" viewBox="0 0 100 100">
+                    <circle
+                      cx="50"
+                      cy="50"
+                      r="45"
+                      fill="none"
+                      stroke="#e5e7eb"
+                      strokeWidth="8"
+                    />
+                    <circle
+                      cx="50"
+                      cy="50"
+                      r="45"
+                      fill="none"
+                      stroke="rgb(37,99,235)"
+                      strokeWidth="8"
+                      strokeDasharray="282.74"
+                      strokeDashoffset="282.74"
+                      strokeLinecap="round"
+                      className="animate-circle-progress"
+                    />
+                  </svg>
+                  {/* Score Text */}
+                  <div className="absolute inset-0 flex flex-col items-center justify-center px-1">
+                    <span className="text-4xl sm:text-5xl font-bold text-slate-900 animate-count-up leading-none">95</span>
+                    <span className="text-[8px] sm:text-[9px] font-semibold text-[rgb(37,99,235)] mt-0.5 text-center leading-tight max-w-[90%]">
+                      RESUME STRENGTH
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Background Decorative Element */}
+              <div className="absolute -z-10 top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-blue-100/30 rounded-full blur-3xl animate-pulse-slow"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* How It Works Section */}
+      <section ref={howItWorksRef} className="py-16 sm:py-20 md:py-24 lg:py-28 px-4 sm:px-6 bg-white">
+        <div className="container mx-auto max-w-7xl">
+          <div className={`text-center mb-12 sm:mb-16 transition-all duration-700 ${
+            howItWorksVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
+          }`}>
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-slate-900 mb-4">
+              How It Works
+            </h2>
+            <p className="text-lg sm:text-xl text-gray-600 max-w-2xl mx-auto">
+              Create your perfect resume in just 4 simple steps
+            </p>
+          </div>
+
+          <div className="relative">
+            {/* Connection Line - Desktop Only */}
+            <div className="hidden lg:block absolute top-1/2 left-0 right-0 h-2 bg-blue-200 transform -translate-y-1/2 overflow-hidden rounded-full" style={{ top: '50%' }}>
+              <div 
+                className="h-full bg-gradient-to-r from-blue-400 via-blue-500 to-blue-600 rounded-full absolute"
+                style={{
+                  animation: howItWorksVisible ? 'lineProgress 6s ease-in-out 0.5s infinite' : 'none',
+                  boxShadow: howItWorksVisible ? '0 0 12px rgba(59, 130, 246, 0.6)' : 'none'
+                }}
+              ></div>
+            </div>
+
+            {/* Steps */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8 relative z-10">
+              {/* Step 1 */}
+              <div className={`bg-white rounded-2xl p-4 sm:p-5 border-2 border-blue-100 shadow-lg hover:shadow-xl transition-all hover:border-blue-300 ${
+                howItWorksVisible 
+                  ? 'opacity-100 translate-y-0' 
+                  : 'opacity-0 translate-y-8'
+              }`}
+              style={{
+                transitionDelay: howItWorksVisible ? '0.1s' : '0s',
+                transitionDuration: '0.6s',
+                transitionTimingFunction: 'ease-out'
+              }}>
+                <div className="flex flex-col items-center text-center">
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center mb-4 shadow-md">
+                    <FileText className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
+                  </div>
+                  <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold text-sm sm:text-base mb-3">
+                    1
+                  </div>
+                  <h3 className="text-lg sm:text-xl font-bold text-slate-900 mb-2">
+                    Choose Template
+                  </h3>
+                  <p className="text-sm sm:text-base text-gray-600">
+                    Select from professional ATS-optimized templates
+                  </p>
+                </div>
+              </div>
+
+              {/* Step 2 */}
+              <div className={`bg-white rounded-2xl p-4 sm:p-5 border-2 border-blue-100 shadow-lg hover:shadow-xl transition-all hover:border-blue-300 ${
+                howItWorksVisible 
+                  ? 'opacity-100 translate-y-0' 
+                  : 'opacity-0 translate-y-8'
+              }`}
+              style={{
+                transitionDelay: howItWorksVisible ? '0.2s' : '0s',
+                transitionDuration: '0.6s',
+                transitionTimingFunction: 'ease-out'
+              }}>
+                <div className="flex flex-col items-center text-center">
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center mb-4 shadow-md">
+                    <Settings className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
+                  </div>
+                  <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold text-sm sm:text-base mb-3">
+                    2
+                  </div>
+                  <h3 className="text-lg sm:text-xl font-bold text-slate-900 mb-2">
+                    Fill Your Details
+                  </h3>
+                  <p className="text-sm sm:text-base text-gray-600">
+                    Add your experience, skills, and achievements
+                  </p>
+                </div>
+              </div>
+
+              {/* Step 3 */}
+              <div className={`bg-white rounded-2xl p-4 sm:p-5 border-2 border-blue-100 shadow-lg hover:shadow-xl transition-all hover:border-blue-300 ${
+                howItWorksVisible 
+                  ? 'opacity-100 translate-y-0' 
+                  : 'opacity-0 translate-y-8'
+              }`}
+              style={{
+                transitionDelay: howItWorksVisible ? '0.3s' : '0s',
+                transitionDuration: '0.6s',
+                transitionTimingFunction: 'ease-out'
+              }}>
+                <div className="flex flex-col items-center text-center">
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center mb-4 shadow-md">
+                    <Zap className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
+                  </div>
+                  <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold text-sm sm:text-base mb-3">
+                    3
+                  </div>
+                  <h3 className="text-lg sm:text-xl font-bold text-slate-900 mb-2">
+                    AI Enhancement
+                  </h3>
+                  <p className="text-sm sm:text-base text-gray-600">
+                    Get AI-powered suggestions to improve your resume
+                  </p>
+                </div>
+              </div>
+
+              {/* Step 4 */}
+              <div className={`bg-white rounded-2xl p-4 sm:p-5 border-2 border-blue-100 shadow-lg hover:shadow-xl transition-all hover:border-blue-300 ${
+                howItWorksVisible 
+                  ? 'opacity-100 translate-y-0' 
+                  : 'opacity-0 translate-y-8'
+              }`}
+              style={{
+                transitionDelay: howItWorksVisible ? '0.4s' : '0s',
+                transitionDuration: '0.6s',
+                transitionTimingFunction: 'ease-out'
+              }}>
+                <div className="flex flex-col items-center text-center">
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center mb-4 shadow-md">
+                    <Download className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
+                  </div>
+                  <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold text-sm sm:text-base mb-3">
+                    4
+                  </div>
+                  <h3 className="text-lg sm:text-xl font-bold text-slate-900 mb-2">
+                    Download & Apply
+                  </h3>
+                  <p className="text-sm sm:text-base text-gray-600">
+                    Export in PDF or Word format and start applying
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Features Section */}
+      <section className="py-16 sm:py-20 md:py-24 lg:py-28 px-4 sm:px-6 bg-blue-50 relative overflow-hidden">
+        <div className="container mx-auto max-w-7xl relative z-10">
+          <div className="text-center mb-12 sm:mb-16">
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-slate-900 mb-4">
+              Why Choose Our Resume Builder?
+            </h2>
+            <p className="text-lg sm:text-xl text-gray-600 max-w-2xl mx-auto">
+              Everything you need to create a winning resume
+            </p>
+          </div>
+
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
+            {/* Feature 1 */}
+            <div className="bg-white rounded-2xl p-6 sm:p-8 border-2 border-blue-100 shadow-lg hover:shadow-xl transition-all hover:border-blue-300">
+              <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center mb-4 shadow-md">
+                <FileCheck className="w-7 h-7 text-white" />
+              </div>
+              <h3 className="text-xl font-bold text-slate-900 mb-2">ATS-Optimized</h3>
+              <p className="text-gray-600">
+                Templates designed to pass Applicant Tracking Systems and get your resume noticed
+              </p>
+            </div>
+
+            {/* Feature 2 */}
+            <div className="bg-white rounded-2xl p-6 sm:p-8 border-2 border-blue-100 shadow-lg hover:shadow-xl transition-all hover:border-blue-300">
+              <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center mb-4 shadow-md">
+                <Palette className="w-7 h-7 text-white" />
+              </div>
+              <h3 className="text-xl font-bold text-slate-900 mb-2">Professional Templates</h3>
+              <p className="text-gray-600">
+                Choose from multiple modern, professional templates that suit your industry
+              </p>
+            </div>
+
+            {/* Feature 3 */}
+            <div className="bg-white rounded-2xl p-6 sm:p-8 border-2 border-blue-100 shadow-lg hover:shadow-xl transition-all hover:border-blue-300">
+              <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center mb-4 shadow-md">
+                <Zap className="w-7 h-7 text-white" />
+              </div>
+              <h3 className="text-xl font-bold text-slate-900 mb-2">AI-Powered Suggestions</h3>
+              <p className="text-gray-600">
+                Get intelligent recommendations to improve your resume content and formatting
+              </p>
+            </div>
+
+            {/* Feature 4 */}
+            <div className="bg-white rounded-2xl p-6 sm:p-8 border-2 border-blue-100 shadow-lg hover:shadow-xl transition-all hover:border-blue-300">
+              <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center mb-4 shadow-md">
+                <Eye className="w-7 h-7 text-white" />
+              </div>
+              <h3 className="text-xl font-bold text-slate-900 mb-2">Live Preview</h3>
+              <p className="text-gray-600">
+                See your resume in real-time as you edit, with instant visual feedback
+              </p>
+            </div>
+
+            {/* Feature 5 */}
+            <div className="bg-white rounded-2xl p-6 sm:p-8 border-2 border-blue-100 shadow-lg hover:shadow-xl transition-all hover:border-blue-300">
+              <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center mb-4 shadow-md">
+                <Download className="w-7 h-7 text-white" />
+              </div>
+              <h3 className="text-xl font-bold text-slate-900 mb-2">Multiple Formats</h3>
+              <p className="text-gray-600">
+                Export your resume in PDF, Word, or other formats for easy sharing
+              </p>
+            </div>
+
+            {/* Feature 6 */}
+            <div className="bg-white rounded-2xl p-6 sm:p-8 border-2 border-blue-100 shadow-lg hover:shadow-xl transition-all hover:border-blue-300">
+              <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center mb-4 shadow-md">
+                <Award className="w-7 h-7 text-white" />
+              </div>
+              <h3 className="text-xl font-bold text-slate-900 mb-2">Industry-Specific</h3>
+              <p className="text-gray-600">
+                Templates and suggestions tailored to your specific industry and role
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* CTA Section */}
+      <section className="py-16 sm:py-20 md:py-24 lg:py-28 px-4 sm:px-6 bg-gray-50 relative overflow-hidden">
+        <div className="container mx-auto max-w-4xl text-center relative z-10">
+          <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-slate-900 mb-4 sm:mb-6">
+            Create your professional resume now
+          </h2>
+          <p className="text-lg sm:text-xl text-gray-600 mb-8 sm:mb-10 max-w-2xl mx-auto">
+            Join thousands of professionals who have created winning resumes with our AI-powered builder
+          </p>
+          <Link href="/dashboard/resumes/new">
+            <Button
+              size="lg"
+              className="text-white font-medium shadow-sm transition-all h-12 px-8 hover:opacity-90 !bg-[rgb(37,99,235)] text-base sm:text-lg"
+            >
+              Start Building Now
+              <ArrowRight className="w-5 h-5 ml-2" />
+            </Button>
+          </Link>
+        </div>
+      </section>
+
+      {/* Footer Section */}
+      <section className="py-8 sm:py-10 px-4 sm:px-6 bg-slate-900">
+        <div className="container mx-auto max-w-6xl">
+          {/* Footer Content */}
+          <div className="flex flex-col md:flex-row items-center md:items-center justify-between gap-4 md:gap-6">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-blue-700 rounded-lg flex items-center justify-center shadow-sm">
+                <span className="text-white font-bold text-xs">i<span className="text-sm">X</span></span>
+              </div>
+              <span className="text-xl font-bold text-white">
+                Interview <span className="text-blue-400">Tri<span className="text-2xl">X</span></span>
+              </span>
+            </div>
+            <nav className="flex flex-wrap items-center justify-center md:justify-end gap-4 sm:gap-6">
+              <Link href="/about" className="text-sm text-gray-300 hover:text-white transition-colors">
+                About us
+              </Link>
+              <Link href="/terms" className="text-sm text-gray-300 hover:text-white transition-colors">
+                Terms of Service
+              </Link>
+              <Link href="/refund" className="text-sm text-gray-300 hover:text-white transition-colors">
+                Refund policy
+              </Link>
+              <Link href="/contact" className="text-sm text-gray-300 hover:text-white transition-colors">
+                Contact us
+              </Link>
+            </nav>
+          </div>
+          {/* Copyright */}
+          <div className="mt-6 pt-6 border-t border-white/10">
+            <p className="text-sm text-gray-400 text-center">
+              © 2026 Interview Trix. All rights reserved.
+            </p>
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+}
+

@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useUser } from "@clerk/nextjs";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { userApi } from "@/lib/api";
 import { useDropzone } from "react-dropzone";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -35,6 +36,7 @@ type Step = "template" | "upload" | "processing";
 export default function NewResumePage() {
   const { user, isLoaded } = useUser();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [step, setStep] = useState<Step>("template");
   const [templates, setTemplates] = useState<ResumeTemplate[]>([]);
   const [loading, setLoading] = useState(true);
@@ -46,11 +48,60 @@ export default function NewResumePage() {
   const [extracting, setExtracting] = useState(false);
 
   useEffect(() => {
-    if (isLoaded && user) {
+    if (isLoaded) {
+      if (!user) {
+        // User not logged in - redirect to sign-in with return URL
+        const templateParam = searchParams.get("template");
+        const skipTemplate = searchParams.get("skipTemplate");
+        const returnUrl = templateParam && skipTemplate
+          ? `/dashboard/resumes/new?template=${templateParam}&skipTemplate=true`
+          : "/dashboard/resumes/new";
+        router.push(`/sign-in?redirect_url=${encodeURIComponent(returnUrl)}`);
+        return;
+      }
+
+      // User is logged in - check onboarding status
       localStorage.setItem("clerk-user-id", user.id);
+      checkOnboardingAndLoadTemplates();
+    }
+  }, [isLoaded, user, router, searchParams]);
+
+  const checkOnboardingAndLoadTemplates = async () => {
+    if (!user) return;
+
+    try {
+      // Check onboarding status
+      const profile = await userApi.getMyProfile();
+      
+      if (!profile.onboardingCompleted) {
+        // Onboarding not completed - redirect to onboarding with return URL
+        const templateParam = searchParams.get("template");
+        const skipTemplate = searchParams.get("skipTemplate");
+        const returnUrl = templateParam && skipTemplate
+          ? `/dashboard/resumes/new?template=${templateParam}&skipTemplate=true`
+          : "/dashboard/resumes/new";
+        localStorage.setItem("resumeBuilderReturnUrl", returnUrl);
+        router.push("/onboarding");
+        return;
+      }
+
+      // Onboarding completed - load templates and check for template param
+      loadTemplates();
+      
+      // Check URL params to skip template selection
+      const templateParam = searchParams.get("template");
+      const skipTemplate = searchParams.get("skipTemplate") === "true";
+      
+      if (templateParam && skipTemplate) {
+        setSelectedTemplate(templateParam);
+        setStep("upload");
+      }
+    } catch (error) {
+      console.error("Error checking onboarding status:", error);
+      // If error, still try to load templates
       loadTemplates();
     }
-  }, [isLoaded, user]);
+  };
 
   const loadTemplates = async () => {
     try {

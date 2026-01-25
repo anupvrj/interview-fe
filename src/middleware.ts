@@ -7,6 +7,12 @@ const isPublicRoute = createRouteMatcher([
   "/sign-up(.*)",
   "/onboarding(.*)",
   "/api/webhooks(.*)",
+  "/resume-builder(.*)",
+  "/job-search(.*)",
+  "/interview-coach(.*)",
+  "/about(.*)",
+  "/pricing(.*)",
+  "/ats-checker(.*)",
 ]);
 
 export default clerkMiddleware(

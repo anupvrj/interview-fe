@@ -27,9 +27,9 @@ export const TEMPLATES_CATALOG: TemplateCatalogItem[] = [
     description:
       "Modern two-column template with distinctive blue sidebar. Perfect for creative professionals who want to stand out.",
     shortDescription: "Modern two-column with blue sidebar",
-    thumbnail: "/resume-template-images/atlantic-blue-preview.webp",
+    thumbnail: "/resume-template-images/atlantic-blue-template-design.webp",
     previewImages: {
-      main: "/resume-template-images/atlantic-blue-preview.webp",
+      main: "/resume-template-images/atlantic-blue-template-design.webp",
     },
     features: [
       "Two-column layout with sidebar",
