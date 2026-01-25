@@ -94,10 +94,10 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               className="flex items-center gap-1.5 hover:opacity-80 transition-opacity min-w-0"
             >
               <div className="w-7 h-7 bg-gradient-to-r from-landing-blue-600 to-landing-blue-700 rounded-lg flex items-center justify-center flex-shrink-0">
-                <Sparkles className="w-4 h-4 text-white" />
+                <span className="text-white font-bold text-[10px]">i<span className="text-xs">X</span></span>
               </div>
-              <span className="text-base sm:text-lg font-bold bg-gradient-to-r from-landing-blue-600 to-landing-blue-700 bg-clip-text text-transparent truncate">
-                Easy Interview
+              <span className="text-base sm:text-lg font-bold truncate" style={{ color: 'rgb(37 99 235 / var(--tw-text-opacity, 1))' }}>
+                Interview <span className="text-landing-blue-600">Tri<span className="text-lg sm:text-xl">X</span></span>
               </span>
             </Link>
           </div>
@@ -135,11 +135,11 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 className="flex items-center gap-2 hover:opacity-80 transition-opacity"
               >
                 <div className="w-10 h-10 bg-gradient-to-r from-landing-blue-600 to-landing-blue-700 rounded-lg flex items-center justify-center">
-                  <Sparkles className="w-6 h-6 text-white" />
+                  <span className="text-white font-bold text-sm">i<span className="text-base">X</span></span>
                 </div>
                 {sidebarOpen && (
-                  <span className="text-xl font-bold bg-gradient-to-r from-landing-blue-600 to-landing-blue-700 bg-clip-text text-transparent">
-                    Easy Interview
+                  <span className="text-xl font-bold" style={{ color: 'rgb(37 99 235 / var(--tw-text-opacity, 1))' }}>
+                    Interview <span className="text-landing-blue-600">Tri<span className="text-2xl">X</span></span>
                   </span>
                 )}
               </Link>

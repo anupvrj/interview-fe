@@ -175,7 +175,7 @@ function CheckoutPageContent() {
         key: order.keyId,
         amount: order.amount,
         currency: order.currency,
-        name: "Easy Interview",
+        name: "Interview Trix",
         description: `${PLAN_CONFIG[planId].name} Plan - ${PLAN_CONFIG[planId].interviewsLimit} interviews`,
         order_id: order.orderId,
         // Enable Indian payment methods
@@ -272,8 +272,8 @@ function CheckoutPageContent() {
           <div className="container mx-auto px-4 py-4 flex items-center justify-between">
             <Link href="/" className="flex items-center gap-2">
               <Sparkles className="h-6 w-6 text-purple-600" />
-              <span className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
-                Easy Interview
+              <span className="text-2xl font-bold" style={{ color: 'rgb(37 99 235 / var(--tw-text-opacity, 1))' }}>
+                Interview Trix
               </span>
             </Link>
             <Link href="/pricing">

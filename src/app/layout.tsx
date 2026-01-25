@@ -8,7 +8,7 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Easy Interview - AI Mock Interview Platform",
+  title: "Interview Trix - AI Mock Interview Platform",
   description:
     "Ace your next interview with AI-powered mock interviews. Get personalized feedback, behavioral analysis, and continuous learning.",
 };

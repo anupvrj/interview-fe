@@ -324,8 +324,8 @@ export default function OnboardingPage() {
             <div className="w-12 h-12 bg-gradient-to-r from-landing-blue-600 to-landing-blue-700 rounded-xl flex items-center justify-center shadow-lg">
               <Sparkles className="w-6 h-6 text-white" />
             </div>
-            <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-landing-blue-600 to-landing-blue-700 bg-clip-text text-transparent">
-              Welcome to Easy Interview!
+            <h1 className="text-2xl sm:text-3xl font-bold" style={{ color: 'rgb(37 99 235 / var(--tw-text-opacity, 1))' }}>
+              Welcome to Interview Trix!
             </h1>
           </div>
           <p className="text-sm sm:text-base text-gray-600">

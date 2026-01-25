@@ -80,8 +80,8 @@ export default function PricingPage() {
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
             <Sparkles className="h-6 w-6 text-landing-blue-700" />
-            <span className="text-2xl font-bold bg-gradient-to-r from-landing-blue-600 to-landing-blue-700 bg-clip-text text-transparent">
-              Easy Interview
+            <span className="text-2xl font-bold" style={{ color: 'rgb(37 99 235 / var(--tw-text-opacity, 1))' }}>
+              Interview <span className="text-landing-blue-600">Tri<span className="text-3xl">X</span></span>
             </span>
           </Link>
           <div className="flex items-center gap-4">
@@ -103,7 +103,7 @@ export default function PricingPage() {
       <div className="container mx-auto px-4 py-16">
         {/* Hero Section */}
         <div className="text-center mb-16">
-          <h1 className="text-5xl font-bold mb-4 bg-gradient-to-r from-landing-blue-600 to-landing-blue-700 bg-clip-text text-transparent">
+          <h1 className="text-5xl font-bold mb-4" style={{ color: 'rgb(37 99 235 / var(--tw-text-opacity, 1))' }}>
             Choose Your Plan
           </h1>
           <p className="text-xl text-gray-600 max-w-2xl mx-auto">

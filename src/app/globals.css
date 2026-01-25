@@ -91,11 +91,11 @@
 @layer utilities {
   /* Updated gradients to match landing page blue theme */
   .gradient-purple {
-    background: linear-gradient(135deg, #6B8AFF 0%, #5B7FFF 100%);
+    background: rgb(37 99 235 / var(--tw-bg-opacity, 1));
   }
 
   .gradient-blue {
-    background: linear-gradient(135deg, #5B7FFF 0%, #4A6FEE 100%);
+    background: rgb(37 99 235 / var(--tw-bg-opacity, 1));
   }
 
   /* Glowing border animation for Pro plan */
@@ -167,7 +167,7 @@
   }
 
   .gradient-pink {
-    background: linear-gradient(135deg, #8BA3FF 0%, #6B8AFF 100%);
+    background: rgb(37 99 235 / var(--tw-bg-opacity, 1));
   }
 
   /* Landing page inspired gradient */
@@ -177,7 +177,7 @@
 
   /* Primary action gradient */
   .gradient-primary {
-    background: linear-gradient(135deg, #6B8AFF 0%, #5B7FFF 100%);
+    background: rgb(37 99 235 / var(--tw-bg-opacity, 1));
   }
 
   /* Text animation keyframes */

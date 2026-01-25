@@ -145,7 +145,7 @@ export default function ReportPage() {
     doc.setFont("helvetica", "bold");
     doc.setFontSize(24);
     doc.setTextColor(99, 102, 241);
-    doc.text("Easy Interview", margin, cursorY);
+    doc.text("Interview Trix", margin, cursorY);
 
     doc.setFont("helvetica", "normal");
     doc.setFontSize(10);
@@ -500,7 +500,7 @@ export default function ReportPage() {
       doc.setFont("helvetica", "normal");
       doc.setFontSize(8);
       doc.setTextColor(99, 102, 241);
-      doc.text("Easy Interview", margin, pageHeight - 24);
+      doc.text("Interview Trix", margin, pageHeight - 24);
 
       doc.setTextColor(140, 140, 140);
       doc.text(

@@ -63,7 +63,7 @@ export default function ProcessingPage() {
               <div className="w-20 h-20 mx-auto mb-6 bg-gradient-to-r from-purple-600 to-blue-600 rounded-full flex items-center justify-center">
                 <Loader2 className="w-10 h-10 text-white animate-spin" />
               </div>
-              <h2 className="text-3xl font-bold mb-4 bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+              <h2 className="text-3xl font-bold mb-4" style={{ color: 'rgb(37 99 235 / var(--tw-text-opacity, 1))' }}>
                 Processing Your Interview{dots}
               </h2>
               <p className="text-gray-600 mb-8 text-lg">
