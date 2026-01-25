@@ -1,0 +1,115 @@
+/**
+ * Professional Classic Template Styles
+ * Clean single-column ATS-friendly resume
+ */
+
+/* Font */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+/* Container */
+.professional-classic-template {
+  font-family: 'Inter', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+  color: #000000;
+  background-color: #ffffff;
+  line-height: 1.5;
+}
+
+/* Header */
+.professional-classic-header {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.professional-classic-name {
+  font-size: 26px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.professional-classic-job-title {
+  font-size: 14px;
+  color: #333333;
+  margin-bottom: 10px;
+}
+
+/* Contact */
+.professional-classic-contact {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 11px;
+}
+
+.professional-classic-contact a {
+  color: #000000;
+  text-decoration: none;
+}
+
+/* Section */
+.professional-classic-section {
+  margin-bottom: 18px;
+}
+
+/* Section Header */
+.professional-classic-section-header {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 6px;
+  border-bottom: 1px solid #000000;
+  padding-bottom: 3px;
+}
+
+/* Summary */
+.professional-classic-summary {
+  font-size: 11px;
+}
+
+/* Experience */
+.professional-classic-experience-item {
+  margin-bottom: 14px;
+}
+
+.professional-classic-role {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.professional-classic-company {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.professional-classic-date {
+  font-size: 10px;
+  color: #555555;
+  text-align: right;
+}
+
+.professional-classic-description {
+  font-size: 11px;
+  margin-top: 6px;
+}
+
+.professional-classic-description ul {
+  padding-left: 18px;
+  margin: 0;
+}
+
+/* Skills */
+.professional-classic-skills {
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+/* Education */
+.professional-classic-education-item {
+  margin-bottom: 10px;
+}
+
+/* Print Safe */
+@media print {
+  .professional-classic-template {
+    padding: 0;
+  }
+}

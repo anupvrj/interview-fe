@@ -81,6 +81,7 @@ export function getExtendedTemplate(baseTemplate: any): ExtendedResumeTemplate {
         executive: require("@/configs/resume-templates/executive/config"),
         "true-blue": require("@/configs/resume-templates/true-blue/config"),
         harvard: require("@/configs/resume-templates/harvard/config"),
+        "professional-classic":require("@/configs/resume-templates/professional-classic/config")
       };
 
       const configModule = knownConfigs[baseTemplate.id];
