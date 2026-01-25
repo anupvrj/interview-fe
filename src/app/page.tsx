@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { SignedIn, SignedOut, UserButton } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
@@ -32,6 +32,9 @@ import {
   Menu,
   User,
   Quote,
+  Search,
+  Briefcase,
+  Bell,
 } from "lucide-react";
 import Image from "next/image";
 import { PlansSection } from "@/components/PlansSection";
@@ -104,6 +107,14 @@ export default function LandingPage() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showCursor, setShowCursor] = useState(true);
   
+  // Job Search Animation States
+  const [jobSearchText, setJobSearchText] = useState("");
+  const [isSearching, setIsSearching] = useState(false);
+  const [showJobResults, setShowJobResults] = useState(false);
+  const [currentJobIndex, setCurrentJobIndex] = useState(0);
+  const [scrollPosition, setScrollPosition] = useState(0);
+  const jobResultsRef = useRef<HTMLDivElement>(null);
+  
   // Animated counts
   const usersCount = useCountUp(50000, 2000, "+");
   const resumesCount = useCountUp(120000, 2000, "+");
@@ -152,6 +163,107 @@ export default function LandingPage() {
     }
     // Animation complete - don't reset, just keep the text displayed
   }, [currentIndex, fullText]);
+
+  // Job Search Animation
+  const jobRoles = ["Software Engineer", "Product Manager", "Data Scientist", "Full Stack Developer"];
+  
+  // Job results mapped to each role
+  const jobResultsByRole: Record<string, Array<{ company: string; role: string; score: number; location: string; salary: string }>> = {
+    "Software Engineer": [
+      { company: "Amazon", role: "Software Engineer", score: 98, location: "Bangalore", salary: "₹25-35L" },
+      { company: "TCS", role: "Software Engineer", score: 95, location: "Mumbai", salary: "₹12-18L" },
+      { company: "Infosys", role: "Software Engineer", score: 92, location: "Hyderabad", salary: "₹10-16L" },
+      { company: "Flipkart", role: "Software Engineer", score: 90, location: "Bangalore", salary: "₹20-30L" },
+    ],
+    "Product Manager": [
+      { company: "Amazon", role: "Product Manager", score: 97, location: "Bangalore", salary: "₹30-40L" },
+      { company: "Flipkart", role: "Product Manager", score: 94, location: "Bangalore", salary: "₹25-35L" },
+      { company: "Razorpay", role: "Product Manager", score: 91, location: "Bangalore", salary: "₹22-32L" },
+      { company: "Deloitte", role: "Product Manager", score: 89, location: "Mumbai", salary: "₹20-30L" },
+    ],
+    "Data Scientist": [
+      { company: "Amazon", role: "Data Scientist", score: 96, location: "Bangalore", salary: "₹28-38L" },
+      { company: "TCS", role: "Data Scientist", score: 93, location: "Hyderabad", salary: "₹15-22L" },
+      { company: "Infosys", role: "Data Scientist", score: 90, location: "Bangalore", salary: "₹18-25L" },
+      { company: "Flipkart", role: "Data Scientist", score: 88, location: "Bangalore", salary: "₹25-35L" },
+    ],
+    "Full Stack Developer": [
+      { company: "Amazon", role: "Full Stack Developer", score: 95, location: "Bangalore", salary: "₹24-34L" },
+      { company: "Razorpay", role: "Full Stack Developer", score: 92, location: "Bangalore", salary: "₹20-30L" },
+      { company: "TCS", role: "Full Stack Developer", score: 89, location: "Mumbai", salary: "₹12-18L" },
+      { company: "Infosys", role: "Full Stack Developer", score: 87, location: "Hyderabad", salary: "₹10-16L" },
+    ],
+  };
+  
+  // Get current job results based on the role being searched
+  const currentJobResults = jobResultsByRole[jobRoles[currentJobIndex % jobRoles.length]] || jobResultsByRole["Software Engineer"];
+
+  useEffect(() => {
+    let timeout1: NodeJS.Timeout;
+    let timeout2: NodeJS.Timeout;
+    let timeout3: NodeJS.Timeout;
+    let typeInterval: NodeJS.Timeout;
+    let scrollInterval: NodeJS.Timeout;
+
+    // Reset
+    setJobSearchText("");
+    setIsSearching(false);
+    setShowJobResults(false);
+    setScrollPosition(0);
+
+    // Start typing after 1 second
+    timeout1 = setTimeout(() => {
+      const currentRole = jobRoles[currentJobIndex % jobRoles.length];
+      const currentResults = jobResultsByRole[currentRole] || jobResultsByRole["Software Engineer"];
+      let typingIndex = 0;
+      
+      typeInterval = setInterval(() => {
+        if (typingIndex < currentRole.length) {
+          setJobSearchText(currentRole.slice(0, typingIndex + 1));
+          typingIndex++;
+        } else {
+          clearInterval(typeInterval);
+          // Show searching state
+          setIsSearching(true);
+          
+          // Show results after 2 seconds
+          timeout2 = setTimeout(() => {
+            setIsSearching(false);
+            setShowJobResults(true);
+            setScrollPosition(0); // Reset scroll position
+            
+            // Auto-scroll through results
+            let scrollIndex = 0;
+            scrollInterval = setInterval(() => {
+              if (scrollIndex < currentResults.length - 1) {
+                scrollIndex++;
+                setScrollPosition(scrollIndex * 140); // Approximate height per card with spacing (140px)
+              } else {
+                clearInterval(scrollInterval);
+              }
+            }, 1000); // Scroll to next item every 1 second
+            
+            // Reset after showing results for 5 seconds (enough time to scroll through all)
+            timeout3 = setTimeout(() => {
+              setShowJobResults(false);
+              setJobSearchText("");
+              setScrollPosition(0);
+              if (scrollInterval) clearInterval(scrollInterval);
+              setCurrentJobIndex((prev) => (prev + 1) % jobRoles.length);
+            }, 5000);
+          }, 2000);
+        }
+      }, 100);
+    }, 1000);
+
+    return () => {
+      clearTimeout(timeout1);
+      clearTimeout(timeout2);
+      clearTimeout(timeout3);
+      clearInterval(typeInterval);
+      clearInterval(scrollInterval);
+    };
+  }, [currentJobIndex]);
 
   return (
     <div className="min-h-screen bg-white scroll-smooth selection:bg-blue-100">
@@ -695,7 +807,7 @@ export default function LandingPage() {
                     <ArrowRight className="w-4 h-4 ml-2" />
                   </Button>
                 </Link>
-                <Link href="/dashboard/resumes" className="w-full sm:w-auto">
+                <Link href="/resume-builder" className="w-full sm:w-auto">
                   <Button
                     variant="outline"
                     size="lg"
@@ -708,7 +820,7 @@ export default function LandingPage() {
             </div>
 
             {/* Right Section - Resume Preview */}
-            <div className="relative flex justify-center lg:justify-end">
+            <div className="relative flex justify-center">
               <div className="relative rounded-lg shadow-2xl overflow-hidden bg-white w-full max-w-[280px] sm:max-w-[320px] lg:max-w-[400px]">
                 {/* Carousel Container */}
                 <div className="relative w-full overflow-hidden aspect-[210/297]">
@@ -721,7 +833,7 @@ export default function LandingPage() {
                     {resumeTemplates.map((template, index) => (
                       <div
                         key={index}
-                        className="min-w-full flex-shrink-0 h-full"
+                        className="min-w-full flex-shrink-0 h-full flex items-center justify-center"
                       >
                         <Image
                           src={template}
@@ -863,7 +975,7 @@ export default function LandingPage() {
                     <ArrowRight className="w-4 h-4 ml-2" />
                   </Button>
                 </Link>
-                <Link href="#features" className="w-full sm:w-auto">
+                <Link href="/interview-coach" className="w-full sm:w-auto">
                   <Button
                     variant="outline"
                     size="lg"
@@ -894,60 +1006,83 @@ export default function LandingPage() {
                 <div className="absolute inset-0 bg-blue-600 rounded-3xl transform rotate-3 opacity-10"></div>
                 
                 {/* Floating UI Card */}
-                <div className="relative bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden">
+                <div className="relative bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl shadow-2xl border-2 border-blue-200 overflow-hidden">
+                  {/* Animated Background Icons */}
+                  <div className="absolute inset-0 pointer-events-none overflow-hidden">
+                    {[...Array(6)].map((_, i) => (
+                      <div
+                        key={i}
+                        className="absolute opacity-10"
+                        style={{
+                          left: `${(i * 18) % 100}%`,
+                          top: `${(i * 20) % 100}%`,
+                          animation: `float-${i % 3} ${6 + (i % 3) * 2}s ease-in-out infinite`,
+                          animationDelay: `${i * 0.5}s`,
+                        }}
+                      >
+                        {i % 3 === 0 ? (
+                          <Mic className="w-8 h-8 text-blue-400" />
+                        ) : i % 3 === 1 ? (
+                          <Brain className="w-8 h-8 text-blue-400" />
+                        ) : (
+                          <MessageSquare className="w-8 h-8 text-blue-400" />
+                        )}
+                      </div>
+                    ))}
+                  </div>
                   {/* Mock Interview Interface */}
-                  <div className="p-6">
+                  <div className="p-6 relative z-10">
                     {/* Top Bar */}
-                    <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-200">
+                    <div className="flex items-center justify-between mb-6 pb-4 border-b border-blue-200">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center mic-animated">
+                        <div className="w-8 h-8 rounded-lg bg-[rgb(37,99,235)] flex items-center justify-center mic-animated shadow-lg">
                           <Mic className="w-4 h-4 text-white" />
                         </div>
                         <div>
-                          <div className="font-semibold text-sm text-gray-900">AI Interview Session</div>
-                          <div className="text-xs text-gray-500">Live • Technical Round</div>
+                          <div className="font-semibold text-sm text-slate-900">AI Interview Session</div>
+                          <div className="text-xs text-blue-700">Live • Technical Round</div>
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full bg-green-500"></div>
-                        <span className="text-xs text-gray-600">Recording</span>
+                        <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+                        <span className="text-xs text-blue-700 font-medium">Recording</span>
                       </div>
                     </div>
 
                     {/* Question Section */}
                     <div className="mb-6">
-                      <div className="bg-blue-50 rounded-lg p-4 mb-4">
-                        <p className="text-sm text-gray-700 font-medium mb-2">Question 3 of 10</p>
-                        <p className="text-base text-gray-900">
+                      <div className="bg-white/80 backdrop-blur-sm rounded-lg p-4 mb-4 border border-blue-200">
+                        <p className="text-sm text-blue-700 font-medium mb-2">Question 3 of 10</p>
+                        <p className="text-base text-slate-900">
                           "Explain the difference between REST and GraphQL APIs. When would you choose one over the other?"
                         </p>
                       </div>
                       
                       {/* Answer Section */}
-                      <div className="bg-gray-50 rounded-lg p-4">
+                      <div className="bg-white/60 backdrop-blur-sm rounded-lg p-4 border border-blue-200">
                         <div className="flex items-center gap-2 mb-2">
-                          <div className="w-2 h-2 rounded-full bg-blue-600 animate-pulse"></div>
-                          <span className="text-xs text-gray-600 font-medium">Your Response</span>
+                          <div className="w-2 h-2 rounded-full bg-[rgb(37,99,235)] animate-pulse"></div>
+                          <span className="text-xs text-blue-700 font-medium">Your Response</span>
                         </div>
-                        <p className="text-sm text-gray-700 italic">
+                        <p className="text-sm text-slate-700 italic">
                           "REST is a stateless architectural style that uses standard HTTP methods..."
                         </p>
                       </div>
                     </div>
 
                     {/* Metrics */}
-                    <div className="grid grid-cols-3 gap-4 pt-4 border-t border-gray-200">
+                    <div className="grid grid-cols-3 gap-4 pt-4 border-t border-blue-200">
                       <div className="text-center">
-                        <div className="text-2xl font-bold text-blue-600">8.5</div>
-                        <div className="text-xs text-gray-500">Confidence</div>
+                        <div className="text-2xl font-bold text-[rgb(37,99,235)]">8.5</div>
+                        <div className="text-xs text-blue-700">Confidence</div>
                       </div>
                       <div className="text-center">
                         <div className="text-2xl font-bold text-green-600">92%</div>
-                        <div className="text-xs text-gray-500">Accuracy</div>
+                        <div className="text-xs text-blue-700">Accuracy</div>
                       </div>
                       <div className="text-center">
-                        <div className="text-2xl font-bold text-blue-700">2:34</div>
-                        <div className="text-xs text-gray-500">Time</div>
+                        <div className="text-2xl font-bold text-[rgb(37,99,235)]">2:34</div>
+                        <div className="text-xs text-blue-700">Time</div>
                       </div>
                     </div>
                   </div>
@@ -957,6 +1092,233 @@ export default function LandingPage() {
           </div>
         </div>
       </ScrollSection>
+
+      {/* AI Job Search Hero Section */}
+      <section className="py-16 sm:py-20 md:py-24 lg:py-28 px-4 sm:px-6 overflow-hidden bg-blue-50 relative">
+        {/* Animated Background Elements */}
+        <div className="absolute inset-0 pointer-events-none overflow-hidden">
+          {[...Array(8)].map((_, i) => (
+            <div
+              key={i}
+              className="absolute"
+              style={{
+                left: `${(i * 15) % 100}%`,
+                top: `${(i * 20) % 100}%`,
+                opacity: 0.09,
+                animation: `float-${i % 3} ${6 + (i % 3) * 2}s ease-in-out infinite`,
+                animationDelay: `${i * 0.5}s`,
+              }}
+            >
+              <Search className="w-12 h-12 sm:w-16 sm:h-16 text-blue-400" />
+            </div>
+          ))}
+          {[...Array(8)].map((_, i) => (
+            <div
+              key={`briefcase-${i}`}
+              className="absolute"
+              style={{
+                left: `${(i * 16) % 100}%`,
+                top: `${(i * 22) % 100}%`,
+                opacity: 0.07,
+                animation: `float-${i % 3} ${7 + (i % 2) * 2}s ease-in-out infinite`,
+                animationDelay: `${i * 0.5}s`,
+              }}
+            >
+              <Briefcase className="w-10 h-10 sm:w-14 sm:h-14 text-blue-300" />
+            </div>
+          ))}
+          {[...Array(6)].map((_, i) => (
+            <div
+              key={`trending-${i}`}
+              className="absolute"
+              style={{
+                left: `${(i * 20) % 100}%`,
+                top: `${(i * 15) % 100}%`,
+                opacity: 0.06,
+                animation: `float-${i % 3} ${8 + (i % 2) * 2}s ease-in-out infinite`,
+                animationDelay: `${i * 0.7}s`,
+              }}
+            >
+              <TrendingUp className="w-8 h-8 sm:w-12 sm:h-12 text-indigo-300" />
+            </div>
+          ))}
+        </div>
+        <div className="container mx-auto max-w-7xl relative z-10">
+          <div className="grid lg:grid-cols-2 gap-8 sm:gap-12 lg:gap-16 items-center">
+            {/* Left Side - Marketing Content */}
+            <div className="space-y-4 sm:space-y-5 md:space-y-6 text-center lg:text-left order-2 lg:order-1">
+              <div className="inline-flex items-center gap-2 px-3 py-1 bg-blue-50 rounded-full text-blue-700 font-medium text-sm mb-4">
+                <Sparkles className="w-3 h-3" />
+                <span>Coming Soon</span>
+              </div>
+              <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-[43px] font-bold tracking-tight text-slate-900 leading-[1.2] sm:leading-[1.1] lg:leading-[52px] mb-4 sm:mb-6">
+                Find Your Dream Job with
+                <span className="block text-blue-600">AI-Powered Matching</span>
+              </h1>
+              <p className="text-base sm:text-lg md:text-xl text-gray-600 leading-relaxed max-w-xl mx-auto lg:mx-0 px-2 sm:px-0">
+                Get personalized job recommendations based on your skills, experience, and career goals. Our AI matches you with the best opportunities from top companies.
+              </p>
+              
+              {/* Features List */}
+              <div className="space-y-3 pt-4 sm:pt-6 px-2 sm:px-0">
+                <div className="flex items-start gap-3">
+                  <CheckCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                  <span className="text-gray-700 text-sm sm:text-base">AI-powered job matching with 95%+ accuracy</span>
+                </div>
+                <div className="flex items-start gap-3">
+                  <CheckCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                  <span className="text-gray-700 text-sm sm:text-base">Real-time job alerts from top companies</span>
+                </div>
+                <div className="flex items-start gap-3">
+                  <CheckCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                  <span className="text-gray-700 text-sm sm:text-base">Smart filters by role, location, and salary</span>
+                </div>
+              </div>
+              
+              <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-3 sm:gap-4 pt-2 px-2 sm:px-0">
+                <Link href="/job-search" className="w-full sm:w-auto">
+                  <Button
+                    size="lg"
+                    className="w-full sm:w-auto text-white font-medium shadow-sm transition-all h-12 px-6 hover:opacity-90 !bg-[rgb(37,99,235)]"
+                  >
+                    Get Notified
+                    <Bell className="w-4 h-4 ml-2" />
+                  </Button>
+                </Link>
+                <Link href="/job-search" className="w-full sm:w-auto">
+                  <Button
+                    variant="outline"
+                    size="lg"
+                    className="w-full sm:w-auto border-gray-200 text-gray-700 font-medium h-12 px-6 hover:!bg-[rgb(17,24,39)] hover:!text-white transition-all"
+                  >
+                    Learn More
+                    <ArrowRight className="w-4 h-4 ml-2" />
+                  </Button>
+                </Link>
+              </div>
+            </div>
+
+            {/* Right Section - Animated Job Search Preview */}
+            <div className="relative flex justify-center lg:justify-start order-1 lg:order-2">
+              <div className="relative rounded-lg sm:rounded-xl shadow-2xl overflow-hidden bg-white w-full max-w-[600px] sm:max-w-[700px] border-2 sm:border-4 border-blue-100">
+                {/* Search Box */}
+                <div className="p-4 sm:p-6 bg-gradient-to-br from-blue-50 to-indigo-50 border-b border-gray-200">
+                  <div className="flex items-center gap-3 bg-white rounded-lg px-4 py-3 shadow-sm border border-gray-200">
+                    <Search className="w-5 h-5 text-gray-400 flex-shrink-0" />
+                    <input
+                      type="text"
+                      value={jobSearchText}
+                      readOnly
+                      placeholder="Search for jobs..."
+                      className="flex-1 outline-none text-sm sm:text-base text-gray-700 bg-transparent"
+                    />
+                    {jobSearchText && (
+                      <span className="text-blue-600 text-xs sm:text-sm font-medium">
+                        {jobSearchText.length}/{jobRoles[currentJobIndex % jobRoles.length].length}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* AI Matching Indicator */}
+                {isSearching && (
+                  <div className="p-4 sm:p-6 bg-white border-b border-gray-200">
+                    <div className="flex items-center gap-3 animate-pulse">
+                      <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
+                        <Brain className="w-4 h-4 text-white" />
+                      </div>
+                      <div className="flex-1">
+                        <div className="h-2 bg-blue-200 rounded-full w-3/4 mb-2"></div>
+                        <div className="h-2 bg-blue-100 rounded-full w-1/2"></div>
+                      </div>
+                      <span className="text-xs sm:text-sm text-blue-600 font-medium">Matching...</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Job Results */}
+                {showJobResults && (
+                  <div className="p-4 sm:p-6 bg-white max-h-[400px] overflow-hidden relative">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-sm sm:text-base font-bold text-slate-900">Best Matches</h3>
+                      <span className="text-xs sm:text-sm text-blue-600 font-medium">{currentJobResults.length} results</span>
+                    </div>
+                    <div 
+                      ref={jobResultsRef}
+                      className="space-y-3 transition-transform duration-700 ease-in-out"
+                      style={{
+                        transform: `translateY(-${scrollPosition}px)`
+                      }}
+                    >
+                      {currentJobResults.map((job, index) => (
+                        <div
+                          key={index}
+                          className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 border border-blue-100 hover:border-blue-300 transition-all"
+                          style={{
+                            animation: `fadeInUp 0.5s ease-out ${index * 0.1}s both`
+                          }}
+                        >
+                          <div className="flex items-start justify-between mb-3">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <Briefcase className="w-4 h-4 text-blue-600" />
+                                <h4 className="font-bold text-slate-900 text-sm sm:text-base">{job.role}</h4>
+                              </div>
+                              <p className="text-xs sm:text-sm text-gray-600">{job.company}</p>
+                              <div className="flex items-center gap-3 mt-2">
+                                <span className="text-xs text-gray-500">{job.location}</span>
+                                <span className="text-xs text-gray-500">•</span>
+                                <span className="text-xs text-gray-500">{job.salary}</span>
+                              </div>
+                            </div>
+                            <div className="flex flex-col items-end gap-1">
+                              <div className="flex items-center gap-1 bg-green-100 px-2 py-1 rounded-full">
+                                <TrendingUp className="w-3 h-3 text-green-600" />
+                                <span className="text-xs font-bold text-green-700">{job.score}%</span>
+                              </div>
+                              <span className="text-xs text-gray-500">Match</span>
+                            </div>
+                          </div>
+                          
+                          {/* Action Buttons */}
+                          <div className="flex flex-wrap gap-2 pt-3 border-t border-blue-200">
+                            <div className="flex-1 min-w-[100px]">
+                              <div className="w-full text-xs h-8 border border-blue-300 text-blue-600 bg-white rounded-md flex items-center justify-center cursor-default">
+                                <FileText className="w-3 h-3 mr-1" />
+                                Update Resume
+                              </div>
+                            </div>
+                            <div className="flex-1 min-w-[100px]">
+                              <div className="w-full text-xs h-8 border border-blue-300 text-blue-600 bg-white rounded-md flex items-center justify-center cursor-default">
+                                <Mic className="w-3 h-3 mr-1" />
+                                Practice Interview
+                              </div>
+                            </div>
+                            <div className="flex-1 min-w-[80px]">
+                              <div className="w-full text-xs h-8 bg-blue-600 text-white rounded-md flex items-center justify-center cursor-default">
+                                Apply Now
+                                <ArrowRight className="w-3 h-3 ml-1" />
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Empty State */}
+                {!isSearching && !showJobResults && jobSearchText === "" && (
+                  <div className="p-8 sm:p-12 text-center">
+                    <Search className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                    <p className="text-sm text-gray-500">Start typing to search for jobs...</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
 
       {/* Stats Section */}
       <section id="stats-section" className="py-8 sm:py-12 md:py-16 lg:py-20 px-4 sm:px-6 bg-white">
@@ -1174,34 +1536,76 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* CTA Section with Footer */}
-      <section className="py-16 sm:py-20 px-4 sm:px-6 bg-slate-900">
+      {/* New CTA Card Section */}
+      <section className="py-12 sm:py-16 lg:py-20 px-4 sm:px-6 bg-gray-50">
         <div className="container mx-auto max-w-4xl">
-          {/* CTA Content */}
-          <div className="text-center mb-16">
-            <div className="w-16 h-16 bg-white/10 rounded-2xl flex items-center justify-center mx-auto mb-8 backdrop-blur-sm border border-white/10">
-              <Sparkles className="w-8 h-8 text-blue-400" />
+          <div 
+            className="rounded-3xl p-8 sm:p-12 lg:p-16 relative overflow-hidden shadow-xl"
+            style={{
+              background: 'linear-gradient(135deg, #60A5FA 0%, #3B82F6 50%, #2563EB 100%)'
+            }}
+          >
+            {/* Limited Time Offer Badge */}
+            <div className="flex items-center justify-center gap-2 mb-4">
+              <Sparkles className="w-4 h-4 text-white" />
+              <span className="text-sm text-white">Limited Time Offer</span>
             </div>
-            <h2 className="text-3xl sm:text-4xl font-bold mb-4 text-white">
-              Ready to Ace Your Interview?
-            </h2>
-            <p className="text-lg text-blue-100 mb-10 max-w-2xl mx-auto leading-relaxed">
-              Join thousands of students from IITs, NITs, and tier-2/3 colleges 
-              who have secured placements at top companies.
-            </p>
-            <Link href="/sign-up">
-              <Button
-                size="lg"
-                className="bg-blue-600 hover:bg-blue-500 text-white font-medium shadow-lg hover:shadow-blue-500/25 transition-all h-14 px-8 text-base"
-              >
-                Start Your Free Interview
-                <ArrowRight className="w-5 h-5 ml-2" />
-              </Button>
-            </Link>
-          </div>
 
+            {/* Main Heading */}
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white text-center mb-4 sm:mb-6">
+              Ready to Transform Your Career?
+            </h2>
+
+            {/* Subtitle */}
+            <p className="text-base sm:text-lg lg:text-xl text-white text-center mb-8 sm:mb-10 max-w-2xl mx-auto leading-relaxed">
+              Join thousands of professionals who have already accelerated their career journey with our AI-powered platform.
+            </p>
+
+            {/* CTA Buttons */}
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-8 sm:mb-10">
+              <Link href="/sign-up" className="w-full sm:w-auto">
+                <Button
+                  size="lg"
+                  className="w-full sm:w-auto bg-gradient-to-r from-blue-400 to-blue-500 hover:from-blue-500 hover:to-blue-600 text-white font-medium shadow-lg hover:shadow-xl transition-all h-12 sm:h-14 px-6 sm:px-8 text-base sm:text-lg rounded-lg"
+                >
+                  Start Your Free Trial
+                  <ArrowRight className="w-5 h-5 ml-2" />
+                </Button>
+              </Link>
+              <Link href="/contact" className="w-full sm:w-auto">
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="w-full sm:w-auto bg-white text-blue-600 border-white font-medium shadow-lg hover:shadow-xl transition-all h-12 sm:h-14 px-6 sm:px-8 text-base sm:text-lg rounded-lg hover:!bg-[rgb(17,24,39)] hover:!text-white"
+                >
+                  Schedule a Demo
+                </Button>
+              </Link>
+            </div>
+
+            {/* Social Proof */}
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+              <div className="flex items-center gap-1">
+                {[...Array(5)].map((_, i) => (
+                  <div
+                    key={i}
+                    className="w-8 h-8 rounded-full bg-white/20 border-2 border-white/30"
+                  ></div>
+                ))}
+              </div>
+              <span className="text-sm sm:text-base text-white text-center">
+                500+ candidates started this month
+              </span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Footer Section */}
+      <section className="py-8 sm:py-10 px-4 sm:px-6 bg-slate-900">
+        <div className="container mx-auto max-w-6xl">
           {/* Footer Content */}
-          <div className="flex flex-col md:flex-row justify-between items-center gap-6 pt-8 border-t border-white/10">
+          <div className="flex flex-col md:flex-row items-center md:items-center justify-between gap-4 md:gap-6">
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-blue-700 rounded-lg flex items-center justify-center shadow-sm">
                 <span className="text-white font-bold text-xs">i<span className="text-sm">X</span></span>
@@ -1210,7 +1614,24 @@ export default function LandingPage() {
                 Interview <span className="text-blue-400">Tri<span className="text-2xl">X</span></span>
               </span>
             </div>
-            <p className="text-sm text-gray-400">
+            <nav className="flex flex-wrap items-center justify-center md:justify-end gap-4 sm:gap-6">
+              <Link href="/about" className="text-sm text-gray-300 hover:text-white transition-colors">
+                About us
+              </Link>
+              <Link href="/terms" className="text-sm text-gray-300 hover:text-white transition-colors">
+                Terms of Service
+              </Link>
+              <Link href="/refund" className="text-sm text-gray-300 hover:text-white transition-colors">
+                Refund policy
+              </Link>
+              <Link href="/contact" className="text-sm text-gray-300 hover:text-white transition-colors">
+                Contact us
+              </Link>
+            </nav>
+          </div>
+          {/* Copyright */}
+          <div className="mt-6 pt-6 border-t border-white/10">
+            <p className="text-sm text-gray-400 text-center">
               © 2026 Interview Trix. All rights reserved.
             </p>
           </div>

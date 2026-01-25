@@ -138,9 +138,19 @@ export default function OnboardingPage() {
 
       console.log("📋 Onboarding status:", createdUser.onboardingCompleted);
 
-      // If onboarding is already completed, check for pending plan
+      // If onboarding is already completed, check for return URL or pending plan
       if (createdUser.onboardingCompleted) {
         console.log("✅ Onboarding completed");
+        
+        // Check if there's a return URL from resume builder
+        const returnUrl = localStorage.getItem("resumeBuilderReturnUrl");
+        if (returnUrl) {
+          console.log("🔄 Redirecting to resume builder return URL");
+          localStorage.removeItem("resumeBuilderReturnUrl");
+          router.replace(returnUrl);
+          return;
+        }
+        
         const pendingPlan = localStorage.getItem("pendingPlan");
         if (pendingPlan && ["starter", "pro", "exam_pack"].includes(pendingPlan)) {
           console.log("📦 Pending plan found, redirecting to checkout");
@@ -276,6 +286,14 @@ export default function OnboardingPage() {
         industries:
           reviewData.industries.length > 0 ? reviewData.industries : undefined,
       });
+
+      // Check if there's a return URL from resume builder
+      const returnUrl = localStorage.getItem("resumeBuilderReturnUrl");
+      if (returnUrl) {
+        localStorage.removeItem("resumeBuilderReturnUrl");
+        router.push(returnUrl);
+        return;
+      }
 
       // Check if there's a pending plan from homepage
       const pendingPlan = localStorage.getItem("pendingPlan");
@@ -820,8 +838,14 @@ export default function OnboardingPage() {
                           industries: undefined,
                         });
 
-                        // Redirect to dashboard
-                        router.push("/dashboard");
+                        // Check if there's a return URL from resume builder
+                        const returnUrl = localStorage.getItem("resumeBuilderReturnUrl");
+                        if (returnUrl) {
+                          localStorage.removeItem("resumeBuilderReturnUrl");
+                          router.push(returnUrl);
+                        } else {
+                          router.push("/dashboard");
+                        }
                       } catch (error: any) {
                         console.error("Error skipping onboarding:", error);
                         setError(
@@ -904,7 +928,14 @@ export default function OnboardingPage() {
                         });
 
                         // Redirect to dashboard
-                        router.push("/dashboard");
+                        // Check if there's a return URL from resume builder
+                        const returnUrl = localStorage.getItem("resumeBuilderReturnUrl");
+                        if (returnUrl) {
+                          localStorage.removeItem("resumeBuilderReturnUrl");
+                          router.push(returnUrl);
+                        } else {
+                          router.push("/dashboard");
+                        }
                       } catch (error: any) {
                         console.error("Error completing onboarding:", error);
                         setError(

@@ -1,8 +1,20 @@
 "use client";
 
 import { SignIn } from "@clerk/nextjs";
+import { useSearchParams } from "next/navigation";
+import { useEffect } from "react";
 
 export default function SignInPage() {
+  const searchParams = useSearchParams();
+  
+  useEffect(() => {
+    // Store redirect_url in localStorage so onboarding can use it
+    const redirectUrl = searchParams.get("redirect_url");
+    if (redirectUrl) {
+      localStorage.setItem("resumeBuilderReturnUrl", redirectUrl);
+    }
+  }, [searchParams]);
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 via-blue-50 to-pink-50 p-4">
       <div className="w-full max-w-md">
