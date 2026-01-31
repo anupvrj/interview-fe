@@ -309,9 +309,15 @@ export default function LandingPage() {
                     <UserButton
                       appearance={{
                         elements: {
-                          avatarBox: "w-6 h-6",
+                          avatarBox: "w-6 h-6 ring-2 ring-blue-100 hover:ring-blue-300 transition-all",
+                          userButtonPopoverCard: "shadow-2xl border-2 border-blue-100",
+                          userButtonPopoverActionButton: "hover:bg-blue-50 transition-colors text-gray-700 font-medium",
+                          userButtonPopoverActionButtonIcon: "text-blue-600",
                         },
                       }}
+                      afterSignOutUrl="/"
+                      userProfileMode="navigation"
+                      userProfileUrl="/dashboard/profile"
                     />
                   </SignedIn>
                 </div>
@@ -353,9 +359,15 @@ export default function LandingPage() {
                   <UserButton
                     appearance={{
                       elements: {
-                        avatarBox: "w-8 h-8 sm:w-9 sm:h-9 lg:w-10 lg:h-10",
+                        avatarBox: "w-8 h-8 sm:w-9 sm:h-9 lg:w-10 lg:h-10 ring-2 ring-blue-100 hover:ring-blue-300 transition-all",
+                        userButtonPopoverCard: "shadow-2xl border-2 border-blue-100",
+                        userButtonPopoverActionButton: "hover:bg-blue-50 transition-colors text-gray-700 font-medium",
+                        userButtonPopoverActionButtonIcon: "text-blue-600",
                       },
                     }}
+                    afterSignOutUrl="/"
+                    userProfileMode="navigation"
+                    userProfileUrl="/dashboard/profile"
                   />
                 </SignedIn>
               </div>

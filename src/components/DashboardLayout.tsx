@@ -187,9 +187,17 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 <UserButton
                   appearance={{
                     elements: {
-                      avatarBox: "w-10 h-10",
+                      avatarBox: "w-10 h-10 ring-2 ring-blue-100 hover:ring-blue-300 transition-all",
+                      userButtonPopoverCard: "shadow-2xl border-2 border-blue-100",
+                      userButtonPopoverActionButton: "hover:bg-blue-50 transition-colors text-gray-700 font-medium",
+                      userButtonPopoverActionButtonIcon: "text-blue-600",
+                      userButtonPopoverActionButtonText: "text-gray-700",
+                      userButtonPopoverFooter: "border-t border-gray-200",
                     },
                   }}
+                  afterSignOutUrl="/"
+                  userProfileMode="navigation"
+                  userProfileUrl="/dashboard/profile"
                 />
                 {sidebarOpen && user && (
                   <div className="flex-1 min-w-0">
