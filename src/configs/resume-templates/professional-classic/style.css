@@ -1,115 +1,151 @@
-/**
- * Professional Classic Template Styles
- * Clean single-column ATS-friendly resume
- */
+/* ===============================
+   Professional Classic Resume
+   ATS Friendly – Clean Layout
+================================ */
 
-/* Font */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-
-/* Container */
-.professional-classic-template {
-  font-family: 'Inter', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
-  color: #000000;
-  background-color: #ffffff;
-  line-height: 1.5;
-}
-
-/* Header */
-.professional-classic-header {
-  text-align: center;
-  margin-bottom: 20px;
-}
-
-.professional-classic-name {
-  font-size: 26px;
-  font-weight: 700;
-  margin-bottom: 6px;
-}
-
-.professional-classic-job-title {
+/* Root */
+.resume-container {
+  font-family: "Inter", "Helvetica Neue", Arial, sans-serif;
+  color: #1f2937;
+  background: #ffffff;
+  padding: 32px 40px;
+  line-height: 1.6;
   font-size: 14px;
-  color: #333333;
-  margin-bottom: 10px;
 }
 
-/* Contact */
-.professional-classic-contact {
+/* ================= HEADER ================= */
+.resume-header {
+  margin-bottom: 24px;
+}
+
+.resume-name {
+  font-size: 32px;
+  font-weight: 700;
+  margin-bottom: 4px;
+  color: #111827;
+}
+
+.resume-role {
+  font-size: 16px;
+  font-weight: 500;
+  color: #374151;
+  margin-bottom: 12px;
+}
+
+.resume-contact {
   display: flex;
-  justify-content: center;
   flex-wrap: wrap;
-  gap: 12px;
-  font-size: 11px;
-}
-
-.professional-classic-contact a {
-  color: #000000;
-  text-decoration: none;
-}
-
-/* Section */
-.professional-classic-section {
-  margin-bottom: 18px;
-}
-
-/* Section Header */
-.professional-classic-section-header {
+  gap: 14px;
   font-size: 13px;
+  color: #4b5563;
+}
+
+.resume-contact span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ================= SECTION ================= */
+.resume-section {
+  margin-top: 28px;
+}
+
+.section-title {
+  font-size: 16px;
+  font-weight: 700;
+  text-transform: uppercase;
+  border-bottom: 2px solid #111827;
+  padding-bottom: 6px;
+  margin-bottom: 14px;
+  letter-spacing: 0.4px;
+}
+
+/* ================= SUMMARY ================= */
+.summary-text {
+  font-size: 14px;
+  color: #374151;
+}
+
+/* ================= EXPERIENCE ================= */
+.experience-item {
+  margin-bottom: 22px;
+}
+
+.experience-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.experience-role {
   font-weight: 600;
+  font-size: 15px;
+  color: #111827;
+}
+
+.experience-company {
+  font-size: 14px;
+  color: #374151;
   margin-bottom: 6px;
-  border-bottom: 1px solid #000000;
-  padding-bottom: 3px;
 }
 
-/* Summary */
-.professional-classic-summary {
-  font-size: 11px;
+.experience-date {
+  font-size: 12px;
+  color: #6b7280;
+  white-space: nowrap;
 }
 
-/* Experience */
-.professional-classic-experience-item {
+.experience-points {
+  padding-left: 18px;
+  margin-top: 8px;
+}
+
+.experience-points li {
+  margin-bottom: 6px;
+}
+
+/* ================= SKILLS ================= */
+.skills-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  font-size: 13px;
+}
+
+.skills-list span {
+  background: #f3f4f6;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+/* ================= EDUCATION ================= */
+.education-item {
   margin-bottom: 14px;
 }
 
-.professional-classic-role {
-  font-size: 13px;
+.education-title {
   font-weight: 600;
 }
 
-.professional-classic-company {
-  font-size: 12px;
-  font-weight: 500;
+.education-meta {
+  font-size: 13px;
+  color: #4b5563;
 }
 
-.professional-classic-date {
-  font-size: 10px;
-  color: #555555;
-  text-align: right;
+/* ================= CERTIFICATIONS ================= */
+.certification-item {
+  margin-bottom: 6px;
 }
 
-.professional-classic-description {
-  font-size: 11px;
-  margin-top: 6px;
-}
-
-.professional-classic-description ul {
-  padding-left: 18px;
-  margin: 0;
-}
-
-/* Skills */
-.professional-classic-skills {
-  font-size: 11px;
-  line-height: 1.6;
-}
-
-/* Education */
-.professional-classic-education-item {
-  margin-bottom: 10px;
-}
-
-/* Print Safe */
+/* ================= PRINT FRIENDLY ================= */
 @media print {
-  .professional-classic-template {
-    padding: 0;
+  .resume-container {
+    padding: 24px 32px;
+    font-size: 13px;
+  }
+
+  .resume-name {
+    font-size: 28px;
   }
 }

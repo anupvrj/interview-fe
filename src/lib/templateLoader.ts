@@ -35,6 +35,7 @@ const TEMPLATE_MANIFEST = [
   "harvard",
   "mercury",
   "true-blue",
+  "professional-classic",
 ] as const;
 
 export type TemplateId = (typeof TEMPLATE_MANIFEST)[number];
