@@ -3,7 +3,18 @@
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
-import { Loader2, Check, X, ArrowLeft, Sparkles, ArrowUp, Mic, Brain, MessageSquare, User } from "lucide-react";
+import {
+  Loader2,
+  Check,
+  X,
+  ArrowLeft,
+  Sparkles,
+  ArrowUp,
+  Mic,
+  Brain,
+  MessageSquare,
+  User,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { paymentApi, Subscription } from "@/lib/api";
@@ -25,16 +36,21 @@ function CheckoutPageContent() {
   const { user, isLoaded } = useUser();
   const planId = searchParams.get("plan") as
     | "starter"
-    | "pro"
-    | "exam_pack"
+    | "premium"
+    | "elite"
     | null;
+  const billingCycle = (searchParams.get("cycle") || "monthly") as
+    | "monthly"
+    | "quarterly"
+    | "yearly";
 
   const [loading, setLoading] = useState(false);
   const [checkingSubscription, setCheckingSubscription] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [orderData, setOrderData] = useState<any>(null);
   const [razorpayLoaded, setRazorpayLoaded] = useState(false);
-  const [currentSubscription, setCurrentSubscription] = useState<Subscription | null>(null);
+  const [currentSubscription, setCurrentSubscription] =
+    useState<Subscription | null>(null);
   const [samePlanError, setSamePlanError] = useState<string | null>(null);
 
   // Plan hierarchy for upgrade checks
@@ -42,16 +58,16 @@ function CheckoutPageContent() {
     const levels: Record<string, number> = {
       free: 0,
       starter: 1,
-      pro: 2,
-      exam_pack: 3,
+      premium: 2,
+      elite: 3,
     };
     return levels[plan] ?? 0;
   };
 
   const getNextPlan = (currentPlan: string): string | null => {
     if (currentPlan === "free") return "starter";
-    if (currentPlan === "starter") return "pro";
-    if (currentPlan === "pro") return "exam_pack";
+    if (currentPlan === "starter") return "premium";
+    if (currentPlan === "premium") return "elite";
     return null;
   };
 
@@ -99,13 +115,12 @@ function CheckoutPageContent() {
   // Check subscription status
   useEffect(() => {
     const checkSubscription = async () => {
-      
       if (!isLoaded || !user) {
         setCheckingSubscription(false);
         return;
       }
 
-      if (!planId || !["starter", "pro", "exam_pack"].includes(planId)) {
+      if (!planId || !["starter", "premium", "elite"].includes(planId)) {
         router.push("/pricing");
         return;
       }
@@ -123,11 +138,11 @@ function CheckoutPageContent() {
           const nextPlan = getNextPlan(planId);
           if (nextPlan) {
             setSamePlanError(
-              `You are already subscribed to the ${PLAN_CONFIG[planId as keyof typeof PLAN_CONFIG].name} plan. Please upgrade to ${PLAN_CONFIG[nextPlan as keyof typeof PLAN_CONFIG].name} plan instead.`
+              `You are already subscribed to the ${PLAN_CONFIG[planId as keyof typeof PLAN_CONFIG].name} plan. Please upgrade to ${PLAN_CONFIG[nextPlan as keyof typeof PLAN_CONFIG].name} plan instead.`,
             );
           } else {
             setSamePlanError(
-              `You are already subscribed to the ${PLAN_CONFIG[planId as keyof typeof PLAN_CONFIG].name} plan. This is our highest tier plan.`
+              `You are already subscribed to the ${PLAN_CONFIG[planId as keyof typeof PLAN_CONFIG].name} plan. This is our highest tier plan.`,
             );
           }
         } else if (
@@ -137,7 +152,7 @@ function CheckoutPageContent() {
         ) {
           // User is trying to downgrade
           setSamePlanError(
-            `You are currently on the ${PLAN_CONFIG[subscription.plan as keyof typeof PLAN_CONFIG].name} plan. Please contact support if you want to change your plan.`
+            `You are currently on the ${PLAN_CONFIG[subscription.plan as keyof typeof PLAN_CONFIG].name} plan. Please contact support if you want to change your plan.`,
           );
         } else {
           // Valid upgrade or new subscription - clear any errors
@@ -162,71 +177,135 @@ function CheckoutPageContent() {
     setError(null);
 
     try {
-      // Create order
-      const order = await paymentApi.createOrder(planId);
+      // Create order/subscription
+      const order = await paymentApi.createOrder(planId, billingCycle);
+      console.log("🔍 Order received from backend:", order);
+      console.log("💰 Amount in paise:", order.amount);
+      console.log("💰 Amount in rupees:", order.amount / 100);
       setOrderData(order);
 
       // Initialize Razorpay
       if (!window.Razorpay || !razorpayLoaded) {
         throw new Error(
-          "Razorpay SDK not loaded. Please wait a moment and try again."
+          "Razorpay SDK not loaded. Please wait a moment and try again.",
         );
       }
 
-      const options = {
-        key: order.keyId,
-        amount: order.amount,
-        currency: order.currency,
-        name: "Interview Trix",
-        description: `${PLAN_CONFIG[planId].name} Plan - ${PLAN_CONFIG[planId].interviewsLimit} interviews`,
-        order_id: order.orderId,
-        // Enable Indian payment methods
-        method: {
-          card: true,
-          netbanking: true,
-          wallet: true,
-          upi: true,
-        },
-        handler: async function (response: any) {
-          try {
-            console.log("✅ Payment successful, verifying...", response);
-
-            // Verify payment (this updates user subscription in backend)
-            const result = await paymentApi.verifyPayment(
-              response.razorpay_order_id,
-              response.razorpay_payment_id,
-              response.razorpay_signature
-            );
-
-            console.log("✅ Payment verified, subscription activated:", result);
-
-            // Redirect to dashboard after successful payment
-            router.push("/dashboard?payment=success");
-          } catch (err: any) {
-            console.error("❌ Payment verification failed:", err);
-            setError(
-              err.message ||
-                "Payment verification failed. Please contact support if payment was deducted."
-            );
-            setLoading(false);
-          }
-        },
-        prefill: {
-          name: user.fullName || user.firstName || "",
-          email: user.primaryEmailAddress?.emailAddress || "",
-        },
-        theme: {
-          color: "rgb(37,99,235)",
-        },
-        modal: {
-          ondismiss: function () {
-            setLoading(false);
+      // Check if this is a subscription (has subscriptionId)
+      if (order.subscriptionId) {
+        console.log(
+          "🔑 Opening Razorpay with subscription_id:",
+          order.subscriptionId,
+        );
+        console.log("📋 Full order data:", JSON.stringify(order, null, 2));
+        // Handle Razorpay Subscription
+        // For subscriptions, we use the subscription ID to authenticate
+        // The subscription will be activated via webhook after first payment
+        const options = {
+          key: order.keyId,
+          subscription_id: order.subscriptionId,
+          name: "Interview Trix",
+          description: `${PLAN_CONFIG[planId].name} Plan - ${PLAN_CONFIG[planId].creditsIncluded[billingCycle]} credits (${billingCycle} billing)`,
+          prefill: {
+            name: user.fullName || user.firstName || "",
+            email: user.primaryEmailAddress?.emailAddress || "",
           },
-        },
-      };
+          theme: {
+            color: "rgb(37,99,235)",
+          },
+          handler: async function (response: any) {
+            try {
+              console.log("✅ Subscription payment authorized:", response);
+              // Subscription activation will be handled via webhook
+              // For now, verify the payment
+              if (response.razorpay_payment_id) {
+                const result = await paymentApi.verifyPayment(
+                  order.orderId, // Use subscription ID as order ID
+                  response.razorpay_payment_id,
+                  response.razorpay_signature || "",
+                );
+                console.log("✅ Subscription payment verified:", result);
+              }
+              // Redirect - webhook will activate subscription
+              router.push("/dashboard?payment=success&type=subscription");
+            } catch (err: any) {
+              console.error("❌ Subscription authorization failed:", err);
+              setError(
+                err.message ||
+                  "Subscription authorization failed. Please contact support if payment was deducted.",
+              );
+              setLoading(false);
+            }
+          },
+          modal: {
+            ondismiss: function () {
+              setLoading(false);
+            },
+          },
+        };
 
-      const razorpay = new window.Razorpay(options);
-      razorpay.open();
+        const razorpay = new window.Razorpay(options);
+        razorpay.open();
+      } else {
+        // Handle regular Razorpay Order (one-time payment)
+        const options = {
+          key: order.keyId,
+          amount: order.amount,
+          currency: order.currency,
+          name: "Interview Trix",
+          description: `${PLAN_CONFIG[planId].name} Plan - ${PLAN_CONFIG[planId].creditsIncluded[billingCycle]} credits`,
+          order_id: order.orderId,
+          // Enable Indian payment methods
+          method: {
+            card: true,
+            netbanking: true,
+            wallet: true,
+            upi: true,
+          },
+          handler: async function (response: any) {
+            try {
+              console.log("✅ Payment successful, verifying...", response);
+
+              // Verify payment (this updates user subscription in backend)
+              const result = await paymentApi.verifyPayment(
+                response.razorpay_order_id,
+                response.razorpay_payment_id,
+                response.razorpay_signature,
+              );
+
+              console.log(
+                "✅ Payment verified, subscription activated:",
+                result,
+              );
+
+              // Redirect to dashboard after successful payment
+              router.push("/dashboard?payment=success");
+            } catch (err: any) {
+              console.error("❌ Payment verification failed:", err);
+              setError(
+                err.message ||
+                  "Payment verification failed. Please contact support if payment was deducted.",
+              );
+              setLoading(false);
+            }
+          },
+          prefill: {
+            name: user.fullName || user.firstName || "",
+            email: user.primaryEmailAddress?.emailAddress || "",
+          },
+          theme: {
+            color: "rgb(37,99,235)",
+          },
+          modal: {
+            ondismiss: function () {
+              setLoading(false);
+            },
+          },
+        };
+
+        const razorpay = new window.Razorpay(options);
+        razorpay.open();
+      }
     } catch (err: any) {
       console.error("Payment error:", err);
       setError(err.message || "Failed to initiate payment");
@@ -238,12 +317,17 @@ function CheckoutPageContent() {
   if (!isLoaded || !user || !planId || checkingSubscription) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-blue-50">
-        <Loader2 className="h-8 w-8 animate-spin" style={{ color: 'rgb(37,99,235)' }} />
+        <Loader2
+          className="h-8 w-8 animate-spin"
+          style={{ color: "rgb(37,99,235)" }}
+        />
       </div>
     );
   }
 
   const plan = PLAN_CONFIG[planId];
+  const planPrice = plan.pricing[billingCycle];
+  const planCredits = plan.creditsIncluded[billingCycle];
 
   return (
     <>
@@ -272,8 +356,13 @@ function CheckoutPageContent() {
         {/* Navigation */}
         <nav className="fixed top-0 w-full z-50">
           {/* Top Border - Mobile Only */}
-          <div className="sm:hidden h-1" style={{ backgroundColor: 'rgb(37 99 235 / var(--tw-bg-opacity, 1))' }}></div>
-          
+          <div
+            className="sm:hidden h-1"
+            style={{
+              backgroundColor: "rgb(37 99 235 / var(--tw-bg-opacity, 1))",
+            }}
+          ></div>
+
           {/* Main Header */}
           <div className="bg-white/95 backdrop-blur-xl border-b border-gray-100">
             <div className="container mx-auto px-4 sm:px-6 lg:px-8">
@@ -292,10 +381,18 @@ function CheckoutPageContent() {
                   >
                     <div className="flex items-center gap-1.5">
                       <div className="w-8 h-8 sm:w-9 sm:h-9 bg-gradient-to-br from-blue-600 to-blue-700 rounded-lg flex items-center justify-center shadow-sm">
-                        <span className="text-white font-bold text-xs sm:text-sm">i<span className="text-sm sm:text-base">X</span></span>
+                        <span className="text-white font-bold text-xs sm:text-sm">
+                          i<span className="text-sm sm:text-base">X</span>
+                        </span>
                       </div>
                       <span className="text-lg sm:text-xl lg:text-2xl font-bold text-slate-900">
-                        Interview <span className="text-blue-600">Tri<span className="text-xl sm:text-2xl lg:text-3xl">X</span></span>
+                        Interview{" "}
+                        <span className="text-blue-600">
+                          Tri
+                          <span className="text-xl sm:text-2xl lg:text-3xl">
+                            X
+                          </span>
+                        </span>
                       </span>
                     </div>
                   </Link>
@@ -432,24 +529,47 @@ function CheckoutPageContent() {
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-gray-700">Interviews</span>
+                  <span className="text-gray-700">Credits</span>
                   <span className="font-semibold text-gray-900">
-                    {plan.interviewsLimit} per {plan.period}
+                    {planCredits.toLocaleString()} credits
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-gray-700">Billing Period</span>
                   <span className="font-semibold text-gray-900">
-                    {plan.period === "month" ? "Monthly" : "3 Months"}
+                    {billingCycle === "monthly"
+                      ? "Monthly"
+                      : billingCycle === "quarterly"
+                        ? "Quarterly"
+                        : "Yearly"}
                   </span>
                 </div>
+                {plan.creditExpiry && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-700">Credit Expiry</span>
+                    <span className="font-semibold text-gray-900">
+                      {plan.creditExpiry} days
+                    </span>
+                  </div>
+                )}
+                {!plan.creditExpiry && plan.id !== "free" && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-700">Credit Expiry</span>
+                    <span className="font-semibold text-green-600">
+                      Never expires! ✨
+                    </span>
+                  </div>
+                )}
                 <div className="border-t pt-3 mt-3">
                   <div className="flex justify-between items-center">
                     <span className="text-lg font-semibold text-gray-900">
                       Total
                     </span>
-                    <span className="text-2xl font-bold" style={{ color: 'rgb(37,99,235)' }}>
-                      ₹{plan.price}
+                    <span
+                      className="text-2xl font-bold"
+                      style={{ color: "rgb(37,99,235)" }}
+                    >
+                      ₹{planPrice.toLocaleString()}
                     </span>
                   </div>
                 </div>
@@ -469,18 +589,28 @@ function CheckoutPageContent() {
                   </div>
                 </div>
                 {currentSubscription &&
-                  currentSubscription.plan !== "exam_pack" && (
-                    <Link href={`/checkout?plan=${getNextPlan(currentSubscription.plan)}`}>
+                  currentSubscription.plan !== "elite" && (
+                    <Link
+                      href={`/checkout?plan=${getNextPlan(currentSubscription.plan)}`}
+                    >
                       <Button
                         className="w-full mt-3 text-white"
-                        style={{ backgroundColor: 'rgb(37,99,235)' }}
-                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgb(17,24,39)'}
-                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgb(37,99,235)'}
+                        style={{ backgroundColor: "rgb(37,99,235)" }}
+                        onMouseEnter={(e) =>
+                          (e.currentTarget.style.backgroundColor =
+                            "rgb(17,24,39)")
+                        }
+                        onMouseLeave={(e) =>
+                          (e.currentTarget.style.backgroundColor =
+                            "rgb(37,99,235)")
+                        }
                       >
                         <ArrowUp className="h-4 w-4 mr-2" />
                         Upgrade to{" "}
                         {PLAN_CONFIG[
-                          getNextPlan(currentSubscription.plan) as keyof typeof PLAN_CONFIG
+                          getNextPlan(
+                            currentSubscription.plan,
+                          ) as keyof typeof PLAN_CONFIG
                         ]?.name || "Next Plan"}
                       </Button>
                     </Link>
@@ -514,9 +644,15 @@ function CheckoutPageContent() {
               onClick={handlePayment}
               disabled={loading || !razorpayLoaded || !!samePlanError}
               className="w-full text-white py-6 text-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
-              style={{ backgroundColor: 'rgb(37,99,235)' }}
-              onMouseEnter={(e) => !e.currentTarget.disabled && (e.currentTarget.style.backgroundColor = 'rgb(17,24,39)')}
-              onMouseLeave={(e) => !e.currentTarget.disabled && (e.currentTarget.style.backgroundColor = 'rgb(37,99,235)')}
+              style={{ backgroundColor: "rgb(37,99,235)" }}
+              onMouseEnter={(e) =>
+                !e.currentTarget.disabled &&
+                (e.currentTarget.style.backgroundColor = "rgb(17,24,39)")
+              }
+              onMouseLeave={(e) =>
+                !e.currentTarget.disabled &&
+                (e.currentTarget.style.backgroundColor = "rgb(37,99,235)")
+              }
             >
               {loading ? (
                 <>
@@ -529,7 +665,7 @@ function CheckoutPageContent() {
                   Loading...
                 </>
               ) : (
-                <>Pay ₹{plan.price} Now</>
+                <>Pay ₹{planPrice.toLocaleString()} Now</>
               )}
             </Button>
 
@@ -544,22 +680,18 @@ function CheckoutPageContent() {
               What you'll get:
             </h3>
             <ul className="space-y-2">
-              <li className="flex items-center gap-2 text-gray-700">
-                <Check className="h-5 w-5" style={{ color: 'rgb(37,99,235)' }} />
-                {plan.interviewsLimit} AI-powered mock interviews
-              </li>
-              <li className="flex items-center gap-2 text-gray-700">
-                <Check className="h-5 w-5" style={{ color: 'rgb(37,99,235)' }} />
-                Detailed feedback and analysis
-              </li>
-              <li className="flex items-center gap-2 text-gray-700">
-                <Check className="h-5 w-5" style={{ color: 'rgb(37,99,235)' }} />
-                Progress tracking and insights
-              </li>
-              <li className="flex items-center gap-2 text-gray-700">
-                <Check className="h-5 w-5" style={{ color: 'rgb(37,99,235)' }} />
-                Access to all premium features
-              </li>
+              {plan.highlights.slice(0, 4).map((highlight, index) => (
+                <li
+                  key={index}
+                  className="flex items-center gap-2 text-gray-700"
+                >
+                  <Check
+                    className="h-5 w-5"
+                    style={{ color: "rgb(37,99,235)" }}
+                  />
+                  {highlight}
+                </li>
+              ))}
             </ul>
           </Card>
         </div>
@@ -571,23 +703,40 @@ function CheckoutPageContent() {
             <div className="flex flex-col md:flex-row items-center md:items-center justify-between gap-4 md:gap-6">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-blue-700 rounded-lg flex items-center justify-center shadow-sm">
-                  <span className="text-white font-bold text-xs">i<span className="text-sm">X</span></span>
+                  <span className="text-white font-bold text-xs">
+                    i<span className="text-sm">X</span>
+                  </span>
                 </div>
                 <span className="text-xl font-bold text-white">
-                  Interview <span className="text-blue-400">Tri<span className="text-2xl">X</span></span>
+                  Interview{" "}
+                  <span className="text-blue-400">
+                    Tri<span className="text-2xl">X</span>
+                  </span>
                 </span>
               </div>
               <nav className="flex flex-wrap items-center justify-center md:justify-end gap-4 sm:gap-6">
-                <Link href="/about-us" className="text-sm text-gray-300 hover:text-white transition-colors">
+                <Link
+                  href="/about-us"
+                  className="text-sm text-gray-300 hover:text-white transition-colors"
+                >
                   About us
                 </Link>
-                <Link href="/terms" className="text-sm text-gray-300 hover:text-white transition-colors">
+                <Link
+                  href="/terms"
+                  className="text-sm text-gray-300 hover:text-white transition-colors"
+                >
                   Terms of Service
                 </Link>
-                <Link href="/refund" className="text-sm text-gray-300 hover:text-white transition-colors">
+                <Link
+                  href="/refund"
+                  className="text-sm text-gray-300 hover:text-white transition-colors"
+                >
                   Refund policy
                 </Link>
-                <Link href="/contact" className="text-sm text-gray-300 hover:text-white transition-colors">
+                <Link
+                  href="/contact"
+                  className="text-sm text-gray-300 hover:text-white transition-colors"
+                >
                   Contact us
                 </Link>
               </nav>
@@ -607,10 +756,13 @@ function CheckoutPageContent() {
 
 export default function CheckoutPage() {
   return (
-      <Suspense
+    <Suspense
       fallback={
         <div className="flex items-center justify-center min-h-screen bg-blue-50">
-          <Loader2 className="w-8 h-8 animate-spin" style={{ color: 'rgb(37,99,235)' }} />
+          <Loader2
+            className="w-8 h-8 animate-spin"
+            style={{ color: "rgb(37,99,235)" }}
+          />
         </div>
       }
     >

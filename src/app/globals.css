@@ -7,39 +7,39 @@
     /* Light periwinkle blue background matching landing page */
     --background: 225 60% 95%;
     --foreground: 0 0% 5%;
-    
+
     /* Card colors - white with subtle blue tint */
     --card: 0 0% 100%;
     --card-foreground: 0 0% 5%;
-    
+
     /* Popover colors */
     --popover: 0 0% 100%;
     --popover-foreground: 0 0% 5%;
-    
+
     /* Primary - vibrant royal blue from landing page */
     --primary: 225 85% 65%;
     --primary-foreground: 0 0% 100%;
-    
+
     /* Secondary - lighter blue accent */
     --secondary: 225 70% 75%;
     --secondary-foreground: 0 0% 100%;
-    
+
     /* Muted - soft blue-gray */
     --muted: 225 40% 92%;
     --muted-foreground: 225 10% 45%;
-    
+
     /* Accent - deeper blue for highlights */
     --accent: 225 80% 60%;
     --accent-foreground: 0 0% 100%;
-    
+
     /* Destructive - keep red for errors */
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
-    
+
     /* Border and input - subtle blue-gray */
     --border: 225 30% 88%;
     --input: 225 30% 88%;
-    
+
     /* Ring - primary blue */
     --ring: 225 85% 65%;
     --radius: 0.75rem;
@@ -49,29 +49,29 @@
     /* Dark mode with blue undertones */
     --background: 225 20% 8%;
     --foreground: 225 10% 98%;
-    
+
     --card: 225 20% 12%;
     --card-foreground: 225 10% 98%;
-    
+
     --popover: 225 20% 12%;
     --popover-foreground: 225 10% 98%;
-    
+
     /* Keep same vibrant blue in dark mode */
     --primary: 225 85% 65%;
     --primary-foreground: 0 0% 100%;
-    
+
     --secondary: 225 70% 55%;
     --secondary-foreground: 0 0% 100%;
-    
+
     --muted: 225 20% 18%;
     --muted-foreground: 225 10% 60%;
-    
+
     --accent: 225 80% 60%;
     --accent-foreground: 0 0% 100%;
-    
+
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
-    
+
     --border: 225 20% 18%;
     --input: 225 20% 18%;
     --ring: 225 85% 65%;
@@ -84,7 +84,9 @@
   }
   body {
     @apply bg-background text-foreground;
-    font-feature-settings: "rlig" 1, "calt" 1;
+    font-feature-settings:
+      "rlig" 1,
+      "calt" 1;
   }
 }
 
@@ -100,18 +102,22 @@
 
   /* Glowing border animation for Pro plan */
   @keyframes glow-pulse {
-    0%, 100% {
-      box-shadow: 0 0 8px rgba(91, 127, 255, 0.5),
-                  0 0 15px rgba(91, 127, 255, 0.3);
+    0%,
+    100% {
+      box-shadow:
+        0 0 8px rgba(91, 127, 255, 0.5),
+        0 0 15px rgba(91, 127, 255, 0.3);
     }
     50% {
-      box-shadow: 0 0 12px rgba(91, 127, 255, 0.8),
-                  0 0 25px rgba(91, 127, 255, 0.5);
+      box-shadow:
+        0 0 12px rgba(91, 127, 255, 0.8),
+        0 0 25px rgba(91, 127, 255, 0.5);
     }
   }
 
   @keyframes border-glow {
-    0%, 100% {
+    0%,
+    100% {
       border-color: rgb(91, 127, 255);
     }
     50% {
@@ -120,13 +126,16 @@
   }
 
   .glow-border {
-    animation: glow-pulse 2.5s ease-in-out infinite, border-glow 3s ease-in-out infinite;
+    animation:
+      glow-pulse 2.5s ease-in-out infinite,
+      border-glow 3s ease-in-out infinite;
     border-color: rgb(91, 127, 255) !important;
   }
 
   /* Shake animation for Mock Interview section */
   @keyframes shake-vertical {
-    0%, 100% {
+    0%,
+    100% {
       transform: translateY(0);
     }
     25% {
@@ -143,7 +152,8 @@
 
   /* Mic beeping and growing animation */
   @keyframes mic-beep {
-    0%, 100% {
+    0%,
+    100% {
       transform: scale(1);
       opacity: 1;
     }
@@ -154,7 +164,8 @@
   }
 
   @keyframes mic-pulse {
-    0%, 100% {
+    0%,
+    100% {
       box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7);
     }
     50% {
@@ -163,7 +174,9 @@
   }
 
   .mic-animated {
-    animation: mic-beep 1.5s ease-in-out infinite, mic-pulse 2s ease-in-out infinite;
+    animation:
+      mic-beep 1.5s ease-in-out infinite,
+      mic-pulse 2s ease-in-out infinite;
   }
 
   .gradient-pink {
@@ -172,7 +185,7 @@
 
   /* Landing page inspired gradient */
   .gradient-landing {
-    background: linear-gradient(135deg, #C5D5F7 0%, #E8EEFF 50%, #D5E3FF 100%);
+    background: linear-gradient(135deg, #c5d5f7 0%, #e8eeff 50%, #d5e3ff 100%);
   }
 
   /* Primary action gradient */
@@ -193,16 +206,19 @@
   }
 
   @keyframes blink {
-    0%, 50% {
+    0%,
+    50% {
       opacity: 1;
     }
-    51%, 100% {
+    51%,
+    100% {
       opacity: 0;
     }
   }
 
   @keyframes blink-caret {
-    from, to {
+    from,
+    to {
       opacity: 1;
     }
     50% {
@@ -212,7 +228,8 @@
 
   /* Floating animations for review section icons */
   @keyframes float-0 {
-    0%, 100% {
+    0%,
+    100% {
       transform: translate(0, 0) rotate(0deg);
     }
     33% {
@@ -224,7 +241,8 @@
   }
 
   @keyframes float-1 {
-    0%, 100% {
+    0%,
+    100% {
       transform: translate(0, 0) rotate(0deg);
     }
     33% {
@@ -236,7 +254,8 @@
   }
 
   @keyframes float-2 {
-    0%, 100% {
+    0%,
+    100% {
       transform: translate(0, 0) rotate(0deg);
     }
     33% {
@@ -341,7 +360,8 @@
 
   /* ATS Checker Animations */
   @keyframes card-float {
-    0%, 100% {
+    0%,
+    100% {
       transform: rotate(-2deg) translateY(0);
     }
     50% {
@@ -419,7 +439,8 @@
   }
 
   @keyframes pulse-slow {
-    0%, 100% {
+    0%,
+    100% {
       opacity: 0.3;
     }
     50% {
@@ -464,5 +485,64 @@
 
   .animate-pulse-slow {
     animation: pulse-slow 4s ease-in-out infinite;
+  }
+
+  /* Sonner Toast Customization */
+  [data-sonner-toast] {
+    font-family: inherit;
+  }
+
+  [data-sonner-toast][data-type="success"] {
+    background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%) !important;
+    border: 2px solid #3b82f6 !important;
+  }
+
+  [data-sonner-toast][data-type="success"] [data-icon] {
+    color: #2563eb !important;
+  }
+
+  [data-sonner-toast][data-type="success"] [data-title] {
+    color: #1e40af !important;
+    font-weight: 600;
+  }
+
+  [data-sonner-toast][data-type="success"] [data-description] {
+    color: #1e3a8a !important;
+  }
+
+  [data-sonner-toast][data-type="error"] {
+    background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%) !important;
+    border: 2px solid #ef4444 !important;
+  }
+
+  [data-sonner-toast][data-type="error"] [data-icon] {
+    color: #dc2626 !important;
+  }
+
+  [data-sonner-toast][data-type="error"] [data-title] {
+    color: #991b1b !important;
+    font-weight: 600;
+  }
+
+  [data-sonner-toast][data-type="error"] [data-description] {
+    color: #7f1d1d !important;
+  }
+
+  [data-sonner-toast][data-type="info"] {
+    background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%) !important;
+    border: 2px solid #3b82f6 !important;
+  }
+
+  [data-sonner-toast][data-type="info"] [data-icon] {
+    color: #2563eb !important;
+  }
+
+  [data-sonner-toast][data-type="info"] [data-title] {
+    color: #1e40af !important;
+    font-weight: 600;
+  }
+
+  [data-sonner-toast][data-type="info"] [data-description] {
+    color: #1e3a8a !important;
   }
 }
