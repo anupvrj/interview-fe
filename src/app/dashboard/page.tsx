@@ -30,9 +30,34 @@ import {
   Edit2,
   ChevronLeft,
   ChevronRight,
+  Coins,
 } from "lucide-react";
-import { Interview, interviewApi, paymentApi, userApi } from "@/lib/api";
+import {
+  Interview,
+  interviewApi,
+  paymentApi,
+  userApi,
+  planApi,
+} from "@/lib/api";
 import { formatDate, getScoreColor } from "@/lib/utils";
+
+interface Plan {
+  _id: string;
+  planId: string;
+  name: string;
+  displayName: string;
+  features: any;
+  pricing: any;
+  creditsIncluded: any;
+}
+
+interface NextPlanDisplay {
+  id: string;
+  name: string;
+  price: number;
+  interviews: number;
+  features: string[];
+}
 
 export default function DashboardPage() {
   const { user, isLoaded } = useUser();
@@ -42,6 +67,7 @@ export default function DashboardPage() {
   const [subscription, setSubscription] = useState<any>(null);
   const [limitCheck, setLimitCheck] = useState<any>(null);
   const [profileCompletion, setProfileCompletion] = useState<number>(0);
+  const [allPlans, setAllPlans] = useState<Plan[]>([]);
   const [stats, setStats] = useState({
     totalInterviews: 0,
     averageScore: 0,
@@ -54,8 +80,18 @@ export default function DashboardPage() {
   useEffect(() => {
     if (isLoaded && user) {
       initializeUser();
+      loadPlans();
     }
   }, [isLoaded, user]);
+
+  const loadPlans = async () => {
+    try {
+      const plans = await planApi.getAllPlans();
+      setAllPlans(plans);
+    } catch (error) {
+      console.error("Error loading plans:", error);
+    }
+  };
 
   const initializeUser = async () => {
     try {
@@ -64,7 +100,7 @@ export default function DashboardPage() {
       const createdUser = await userApi.createOrGetUser(
         user.id,
         user.primaryEmailAddress?.emailAddress || "",
-        user.fullName || user.firstName || "User"
+        user.fullName || user.firstName || "User",
       );
 
       // Check if onboarding is completed
@@ -95,11 +131,12 @@ export default function DashboardPage() {
         setLimitCheck(limit);
         console.log("Limit check:", limit);
 
-        if (limit.interviewsUsed !== undefined) {
+        // Update subscription with credit info (new credit-based system)
+        if (limit.creditsAvailable !== undefined) {
           setSubscription((prev: any) => ({
             ...prev,
-            interviewsUsed: limit.interviewsUsed,
-            interviewsLimit: limit.interviewsLimit,
+            creditsAvailable: limit.creditsAvailable,
+            minimumRequired: limit.minimumRequired,
           }));
         }
       } catch (error) {
@@ -112,7 +149,7 @@ export default function DashboardPage() {
       const completed = userInterviews.filter((i) => i.status === "completed");
       const totalScore = completed.reduce(
         (sum, i) => sum + (i.report?.overallScore || 0),
-        0
+        0,
       );
       const avgScore =
         completed.length > 0 ? Math.round(totalScore / completed.length) : 0;
@@ -171,61 +208,92 @@ export default function DashboardPage() {
     );
   }
 
-  const getNextPlan = (currentPlan: string) => {
-    if (currentPlan === "free")
-      return {
-        id: "starter",
-        name: "Starter",
-        price: 299,
-        interviews: 3,
-        features: [
-          "3 voice interviews per month",
-          "Basic feedback (score + transcript)",
-          "Teacher Assistant unlimited",
-          "Progress tracking",
-        ],
-      };
-    if (currentPlan === "starter")
-      return {
-        id: "pro",
-        name: "Pro",
-        price: 699,
-        interviews: 10,
-        features: [
-          "10 voice interviews per month",
-          "Detailed behavioral analysis + action items",
-          "Teacher Assistant + custom questions",
-          "Progress tracking + weak area radar",
-          "Priority support",
-        ],
-      };
-    if (currentPlan === "pro")
-      return {
-        id: "exam_pack",
-        name: "Exam Pack",
-        price: 1499,
-        interviews: 20,
-        features: [
-          "20 voice interviews (3 months)",
-          "BPSC/SSC/IBPS specialized questions",
-          "Curated question bank",
-          "Certification/score report",
-          "Priority support",
-        ],
-      };
-    return null;
+  const getNextPlan = (currentPlan: string): NextPlanDisplay | null => {
+    if (!allPlans || allPlans.length === 0) return null;
+
+    const planOrder = ["free", "starter", "premium", "elite"];
+    const currentIndex = planOrder.indexOf(currentPlan);
+
+    if (currentIndex === -1 || currentIndex === planOrder.length - 1) {
+      return null;
+    }
+
+    const nextPlanId = planOrder[currentIndex + 1];
+    const nextPlan = allPlans.find((p) => p.planId === nextPlanId);
+
+    if (!nextPlan) return null;
+
+    // Generate features list from plan data
+    const features: string[] = [];
+
+    if (nextPlan.features.freeInterviews) {
+      features.push(
+        `${nextPlan.features.freeInterviews.count} voice interviews per month`,
+      );
+    }
+
+    if (nextPlan.features.additionalInterviews) {
+      features.push(
+        `${nextPlan.features.additionalInterviews.count} additional interviews`,
+      );
+    }
+
+    if (nextPlan.features.resumeBuilder?.enabled) {
+      features.push("Resume Builder Pro");
+    }
+
+    if (nextPlan.features.atsScoring?.detailed) {
+      features.push("Detailed ATS scoring");
+    }
+
+    if (nextPlan.features.teacherAssistant?.enabled) {
+      features.push("Teacher Assistant");
+    }
+
+    if (nextPlan.features.progressTracking?.enabled) {
+      features.push("Progress tracking");
+    }
+
+    if (nextPlan.features.prioritySupport) {
+      features.push("Priority support");
+    }
+
+    if (nextPlan.features.customQuestions) {
+      features.push("Custom questions");
+    }
+
+    if (nextPlan.features.specializedQuestions) {
+      features.push("Specialized questions (BPSC/SSC/IBPS)");
+    }
+
+    if (nextPlan.features.curatedQuestionBank) {
+      features.push("Curated question bank");
+    }
+
+    if (nextPlan.features.certification) {
+      features.push("Certification/score report");
+    }
+
+    return {
+      id: nextPlan.planId,
+      name: nextPlan.displayName,
+      price: nextPlan.pricing?.monthly || 0,
+      interviews: nextPlan.features.freeInterviews?.count || 0,
+      features,
+    };
   };
 
   const nextPlan = subscription ? getNextPlan(subscription.plan) : null;
 
-  let planName = "Free Plan";
-  if (subscription?.plan === "starter") {
-    planName = "Starter Plan";
-  } else if (subscription?.plan === "pro") {
-    planName = "Pro Plan";
-  } else if (subscription?.plan === "exam_pack") {
-    planName = "Exam Pack";
-  }
+  // Get plan display name from database
+  const getPlanName = (planId: string): string => {
+    const plan = allPlans.find((p) => p.planId === planId);
+    return plan?.displayName || "Free Plan";
+  };
+
+  const planName = subscription?.plan
+    ? getPlanName(subscription.plan)
+    : "Free Plan";
 
   return (
     <div className="w-full max-w-7xl mx-auto space-y-4 lg:space-y-6">
@@ -252,7 +320,144 @@ export default function DashboardPage() {
 
       {/* Profile & Subscription Section */}
       <div className="grid lg:grid-cols-2 gap-4 lg:gap-6">
-        {/* Profile Completion Card - Left Side */}
+        {/* Subscription Status Card - Left Side (First) */}
+        {subscription && (
+          <Card className="border-2 shadow-xl bg-white/80 backdrop-blur-sm">
+            <CardHeader className="pb-3">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-blue-700 rounded-lg flex items-center justify-center shadow-md">
+                  <Crown className="w-5 h-5 text-white" />
+                </div>
+                <CardTitle className="text-xl lg:text-2xl">
+                  Your Subscription
+                </CardTitle>
+              </div>
+              <CardDescription className="text-sm">
+                Current plan and usage details
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="p-4 lg:p-5 bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl border-2 border-blue-200">
+                {/* Content Section - Top */}
+                <div className="flex items-center gap-3 lg:gap-4 mb-4">
+                  <div className="w-12 h-12 lg:w-14 lg:h-14 bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl flex items-center justify-center shadow-lg">
+                    <Crown className="h-6 w-6 lg:h-7 lg:w-7 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-lg lg:text-xl text-gray-900 mb-1">
+                      {planName}
+                    </h3>
+                    <p className="text-sm text-gray-600">
+                      {subscription.creditsAvailable || 0} credits available
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      5 credits per minute • Min. 25 credits to start
+                    </p>
+                  </div>
+                </div>
+
+                {/* Buttons Section - Bottom */}
+                <div className="flex flex-col sm:flex-row gap-2 w-full">
+                  {nextPlan && (
+                    <Link href="/pricing" className="flex-1">
+                      <Button
+                        size="lg"
+                        className="!bg-[rgb(37,99,235)] hover:!bg-[rgb(17,24,39)] text-white shadow-lg hover:shadow-xl transition-all w-full"
+                      >
+                        <Crown className="h-4 w-4 mr-2" />
+                        Upgrade to {nextPlan.name}
+                      </Button>
+                    </Link>
+                  )}
+                  <Link href="/purchase-credits" className="flex-1">
+                    <Button
+                      size="lg"
+                      variant="outline"
+                      className="border-2 border-blue-600 text-blue-600 hover:bg-blue-50 shadow-md hover:shadow-lg transition-all w-full"
+                    >
+                      <Coins className="h-4 w-4 mr-2" />
+                      Buy Credits
+                    </Button>
+                  </Link>
+                </div>
+              </div>
+
+              {subscription.creditsAvailable !== undefined && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="font-medium text-gray-700">
+                      Available Credits
+                    </span>
+                    <span className="font-semibold text-emerald-600">
+                      {subscription.creditsAvailable} credits
+                    </span>
+                  </div>
+                  <div className="text-xs text-gray-500 mt-1">
+                    <p>• 30-min interview = 150 credits</p>
+                    <p>• 60-min interview = 300 credits</p>
+                  </div>
+                </div>
+              )}
+
+              {nextPlan && (
+                <div className="p-4 lg:p-5 bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl border-2 border-blue-200 shadow-md">
+                  <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                    <div className="flex-1">
+                      <h4 className="font-bold text-base lg:text-lg text-slate-900 mb-3 flex items-center gap-2">
+                        <Sparkles className="w-4 h-4 lg:w-5 lg:h-5 text-[rgb(37,99,235)]" />
+                        Upgrade to {nextPlan.name} and get:
+                      </h4>
+                      <ul className="space-y-2 mb-4">
+                        {nextPlan.features.slice(0, 3).map((feature) => (
+                          <li
+                            key={feature}
+                            className="text-sm text-slate-700 flex items-start gap-2"
+                          >
+                            <CheckCircle className="w-4 h-4 text-[rgb(37,99,235)] mt-0.5 flex-shrink-0" />
+                            <span>{feature}</span>
+                          </li>
+                        ))}
+                      </ul>
+                      <p className="text-sm font-bold text-[rgb(37,99,235)]">
+                        Only ₹{nextPlan.price}/month
+                      </p>
+                    </div>
+                    <Link href="/pricing">
+                      <Button
+                        variant="outline"
+                        size="lg"
+                        className="border-blue-300 text-[rgb(37,99,235)] hover:bg-blue-50 whitespace-nowrap"
+                      >
+                        View Plans
+                        <ArrowRight className="w-4 h-4 ml-2" />
+                      </Button>
+                    </Link>
+                  </div>
+                </div>
+              )}
+
+              {!nextPlan && (
+                <div className="p-4 bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl border-2 border-green-200">
+                  <p className="text-sm font-semibold text-green-700 flex items-center gap-2">
+                    <Sparkles className="w-4 h-4" />
+                    You're on our highest plan! Enjoy unlimited benefits.
+                  </p>
+                </div>
+              )}
+
+              {limitCheck && !limitCheck.allowed && (
+                <div className="p-4 bg-gradient-to-br from-orange-50 to-red-50 rounded-xl border-2 border-orange-200">
+                  <p className="text-sm font-medium text-orange-700">
+                    {limitCheck.reason ||
+                      "You've reached your interview limit. Please upgrade to continue."}
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Profile Completion Card - Right Side (Second) */}
         <Card
           className={`border-2 shadow-xl ${
             profileCompletion >= 100
@@ -322,138 +527,6 @@ export default function DashboardPage() {
             </div>
           </CardContent>
         </Card>
-
-        {/* Subscription Status Card - Right Side */}
-        {subscription && (
-        <Card className="border-2 shadow-xl bg-white/80 backdrop-blur-sm">
-          <CardHeader className="pb-3">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-blue-700 rounded-lg flex items-center justify-center shadow-md">
-                <Crown className="w-5 h-5 text-white" />
-              </div>
-              <CardTitle className="text-xl lg:text-2xl">
-                Your Subscription
-              </CardTitle>
-            </div>
-            <CardDescription className="text-sm">
-              Current plan and usage details
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 p-4 lg:p-5 bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl border-2 border-blue-200">
-              <div className="flex items-center gap-3 lg:gap-4">
-                <div className="w-12 h-12 lg:w-14 lg:h-14 bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl flex items-center justify-center shadow-lg">
-                  <Crown className="h-6 w-6 lg:h-7 lg:w-7 text-white" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-lg lg:text-xl text-gray-900 mb-1">
-                    {planName}
-                  </h3>
-                  <p className="text-sm text-gray-600">
-                    {subscription.interviewsUsed || 0} /{" "}
-                    {subscription.interviewsLimit || 3} interviews used this
-                    period
-                  </p>
-                </div>
-              </div>
-              {nextPlan && (
-                <Link href="/pricing">
-                  <Button
-                    size="lg"
-                    className="!bg-[rgb(37,99,235)] hover:!bg-[rgb(17,24,39)] text-white shadow-lg hover:shadow-xl transition-all"
-                  >
-                    <Crown className="h-4 w-4 mr-2" />
-                    Upgrade to {nextPlan.name}
-                  </Button>
-                </Link>
-              )}
-            </div>
-
-            {subscription.interviewsUsed !== undefined &&
-              subscription.interviewsLimit !== undefined && (
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="font-medium text-gray-700">
-                      Interview Usage
-                    </span>
-                    <span className="font-semibold text-[rgb(37,99,235)]">
-                      {Math.round(
-                        (subscription.interviewsUsed /
-                          subscription.interviewsLimit) *
-                          100
-                      )}
-                      %
-                    </span>
-                  </div>
-                  <Progress
-                    value={
-                      (subscription.interviewsUsed /
-                        subscription.interviewsLimit) *
-                      100
-                    }
-                    className="h-3"
-                  />
-                </div>
-              )}
-
-            {nextPlan && (
-              <div className="p-4 lg:p-5 bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl border-2 border-blue-200 shadow-md">
-                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                  <div className="flex-1">
-                    <h4 className="font-bold text-base lg:text-lg text-slate-900 mb-3 flex items-center gap-2">
-                      <Sparkles className="w-4 h-4 lg:w-5 lg:h-5 text-[rgb(37,99,235)]" />
-                      Upgrade to {nextPlan.name} and get:
-                    </h4>
-                    <ul className="space-y-2 mb-4">
-                      {nextPlan.features.slice(0, 3).map((feature) => (
-                        <li
-                          key={feature}
-                          className="text-sm text-slate-700 flex items-start gap-2"
-                        >
-                          <CheckCircle className="w-4 h-4 text-[rgb(37,99,235)] mt-0.5 flex-shrink-0" />
-                          <span>{feature}</span>
-                        </li>
-                      ))}
-                    </ul>
-                    <p className="text-sm font-bold text-[rgb(37,99,235)]">
-                      Only ₹{nextPlan.price}/
-                      {nextPlan.id === "exam_pack" ? "3 months" : "month"}
-                    </p>
-                  </div>
-                  <Link href="/pricing">
-                    <Button
-                      variant="outline"
-                      size="lg"
-                      className="border-blue-300 text-[rgb(37,99,235)] hover:bg-blue-50 whitespace-nowrap"
-                    >
-                      View Plans
-                      <ArrowRight className="w-4 h-4 ml-2" />
-                    </Button>
-                  </Link>
-                </div>
-              </div>
-            )}
-
-            {!nextPlan && (
-              <div className="p-4 bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl border-2 border-green-200">
-                <p className="text-sm font-semibold text-green-700 flex items-center gap-2">
-                  <Sparkles className="w-4 h-4" />
-                  You're on our highest plan! Enjoy unlimited benefits.
-                </p>
-              </div>
-            )}
-
-            {limitCheck && !limitCheck.allowed && (
-              <div className="p-4 bg-gradient-to-br from-orange-50 to-red-50 rounded-xl border-2 border-orange-200">
-                <p className="text-sm font-medium text-orange-700">
-                  {limitCheck.reason ||
-                    "You've reached your interview limit. Please upgrade to continue."}
-                </p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-        )}
       </div>
 
       {/* Stats Cards */}
@@ -466,7 +539,9 @@ export default function DashboardPage() {
             </div>
           </div>
           <div className="mb-2">
-            <p className="text-xs sm:text-sm font-bold text-[rgb(37,99,235)] mb-1.5">Total Interviews</p>
+            <p className="text-xs sm:text-sm font-bold text-[rgb(37,99,235)] mb-1.5">
+              Total Interviews
+            </p>
             <h3 className="text-3xl lg:text-4xl font-bold text-slate-900 mb-3">
               {stats.totalInterviews}
             </h3>
@@ -485,10 +560,12 @@ export default function DashboardPage() {
             </div>
           </div>
           <div className="mb-2">
-            <p className="text-xs sm:text-sm font-bold text-[rgb(37,99,235)] mb-1.5">Average Score</p>
+            <p className="text-xs sm:text-sm font-bold text-[rgb(37,99,235)] mb-1.5">
+              Average Score
+            </p>
             <h3
               className={`text-3xl lg:text-4xl font-bold mb-3 ${getScoreColor(
-                stats.averageScore
+                stats.averageScore,
               )}`}
             >
               {stats.averageScore}/100
@@ -505,7 +582,9 @@ export default function DashboardPage() {
             </div>
           </div>
           <div className="mb-2">
-            <p className="text-xs sm:text-sm font-bold text-[rgb(37,99,235)] mb-1.5">Completed</p>
+            <p className="text-xs sm:text-sm font-bold text-[rgb(37,99,235)] mb-1.5">
+              Completed
+            </p>
             <h3 className="text-3xl lg:text-4xl font-bold text-slate-900 mb-3">
               {stats.completedInterviews}
             </h3>
@@ -524,7 +603,9 @@ export default function DashboardPage() {
             </div>
           </div>
           <div className="mb-2">
-            <p className="text-xs sm:text-sm font-bold text-[rgb(37,99,235)] mb-1.5">Improvement</p>
+            <p className="text-xs sm:text-sm font-bold text-[rgb(37,99,235)] mb-1.5">
+              Improvement
+            </p>
             <h3 className="text-3xl lg:text-4xl font-bold text-slate-900 mb-3">
               {stats.improvement !== undefined && !isNaN(stats.improvement) ? (
                 <>
@@ -596,120 +677,124 @@ export default function DashboardPage() {
             <>
               <div className="space-y-3">
                 {interviews
-                  .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+                  .slice(
+                    (currentPage - 1) * itemsPerPage,
+                    currentPage * itemsPerPage,
+                  )
                   .map((interview) => (
-                <div
-                  key={interview._id}
-                  className="bg-gradient-to-br from-blue-50 to-blue-100/50 rounded-xl p-4 border border-blue-200/50 shadow-lg shadow-blue-500/10 hover:shadow-xl hover:shadow-blue-500/20 transition-all duration-300 backdrop-blur-sm"
-                >
-                  <div className="flex items-start gap-4">
-                    {/* Interview Icon Avatar */}
-                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[rgb(37,99,235)] to-blue-600 flex items-center justify-center flex-shrink-0 shadow-lg shadow-blue-500/30 ring-2 ring-blue-200/50">
-                      <FileText className="w-6 h-6 text-white" />
-                    </div>
-                    
-                    <div className="flex-1 min-w-0">
-                      {/* Header with Role and Status */}
-                      <div className="flex items-start justify-between gap-3 mb-2 flex-wrap">
+                    <div
+                      key={interview._id}
+                      className="bg-gradient-to-br from-blue-50 to-blue-100/50 rounded-xl p-4 border border-blue-200/50 shadow-lg shadow-blue-500/10 hover:shadow-xl hover:shadow-blue-500/20 transition-all duration-300 backdrop-blur-sm"
+                    >
+                      <div className="flex items-start gap-4">
+                        {/* Interview Icon Avatar */}
+                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[rgb(37,99,235)] to-blue-600 flex items-center justify-center flex-shrink-0 shadow-lg shadow-blue-500/30 ring-2 ring-blue-200/50">
+                          <FileText className="w-6 h-6 text-white" />
+                        </div>
+
                         <div className="flex-1 min-w-0">
-                          <h4 className="text-base sm:text-lg font-bold text-slate-900 mb-1">
-                            {interview.metadata.role || "General Interview"}
-                          </h4>
-                          <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm text-gray-600">
-                            <span className="flex items-center gap-1">
-                              <Clock className="w-3 h-3" />
-                              {formatDate(interview.createdAt)}
-                            </span>
-                            <span>•</span>
-                            <span>
-                              {interview.metadata.language === "hi"
-                                ? "Hindi"
-                                : "English"}
-                            </span>
-                            {interview.report && (
-                              <>
-                                <span>•</span>
-                                <span
-                                  className={`font-semibold ${getScoreColor(
-                                    interview.report.overallScore
-                                  )}`}
-                                >
-                                  Score: {interview.report.overallScore}/100
+                          {/* Header with Role and Status */}
+                          <div className="flex items-start justify-between gap-3 mb-2 flex-wrap">
+                            <div className="flex-1 min-w-0">
+                              <h4 className="text-base sm:text-lg font-bold text-slate-900 mb-1">
+                                {interview.metadata.role || "General Interview"}
+                              </h4>
+                              <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm text-gray-600">
+                                <span className="flex items-center gap-1">
+                                  <Clock className="w-3 h-3" />
+                                  {formatDate(interview.createdAt)}
                                 </span>
+                                <span>•</span>
+                                <span>
+                                  {interview.metadata.language === "hi"
+                                    ? "Hindi"
+                                    : "English"}
+                                </span>
+                                {interview.report && (
+                                  <>
+                                    <span>•</span>
+                                    <span
+                                      className={`font-semibold ${getScoreColor(
+                                        interview.report.overallScore,
+                                      )}`}
+                                    >
+                                      Score: {interview.report.overallScore}/100
+                                    </span>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                            <span
+                              className={`px-3 py-1 rounded-full text-xs font-semibold border flex-shrink-0 ${getStatusBadge(
+                                interview.status,
+                              )}`}
+                            >
+                              {interview.status}
+                            </span>
+                          </div>
+
+                          {/* Action Buttons */}
+                          <div className="flex items-center gap-2 mt-3 flex-wrap">
+                            {interview.status === "completed" && (
+                              <>
+                                {(interview.session?.videoUrl ||
+                                  interview.session?.s3VideoKey) && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="border-blue-300 text-[rgb(37,99,235)] hover:!bg-[rgb(17,24,39)] hover:!text-white hover:border-[rgb(17,24,39)] transition-all"
+                                    onClick={async () => {
+                                      try {
+                                        const { videoUrl } =
+                                          await interviewApi.getRecordingVideoUrl(
+                                            interview.interviewId,
+                                          );
+                                        window.open(videoUrl, "_blank");
+                                      } catch (error) {
+                                        console.error(
+                                          "Error getting video URL:",
+                                          error,
+                                        );
+                                        alert(
+                                          "Failed to load video. Please try again.",
+                                        );
+                                      }
+                                    }}
+                                  >
+                                    <PlayCircle className="w-3.5 h-3.5 mr-1.5" />
+                                    Play Video
+                                  </Button>
+                                )}
+                                <Link
+                                  href={`/dashboard/interviews/${interview.interviewId}/report`}
+                                >
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="border-blue-300 text-[rgb(37,99,235)] hover:!bg-[rgb(17,24,39)] hover:!text-white hover:border-[rgb(17,24,39)] transition-all"
+                                  >
+                                    View Report
+                                  </Button>
+                                </Link>
                               </>
+                            )}
+                            {interview.status === "draft" && (
+                              <Link
+                                href={`/interview/${interview.interviewId}/realtime`}
+                              >
+                                <Button
+                                  size="sm"
+                                  className="!bg-[rgb(37,99,235)] hover:!bg-[rgb(17,24,39)] text-white shadow-md transition-all"
+                                >
+                                  <PlayCircle className="w-3.5 h-3.5 mr-1.5" />{" "}
+                                  Start
+                                </Button>
+                              </Link>
                             )}
                           </div>
                         </div>
-                        <span
-                          className={`px-3 py-1 rounded-full text-xs font-semibold border flex-shrink-0 ${getStatusBadge(
-                            interview.status
-                          )}`}
-                        >
-                          {interview.status}
-                        </span>
-                      </div>
-
-                      {/* Action Buttons */}
-                      <div className="flex items-center gap-2 mt-3 flex-wrap">
-                        {interview.status === "completed" && (
-                          <>
-                            {(interview.session?.videoUrl ||
-                              interview.session?.s3VideoKey) && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="border-blue-300 text-[rgb(37,99,235)] hover:!bg-[rgb(17,24,39)] hover:!text-white hover:border-[rgb(17,24,39)] transition-all"
-                                onClick={async () => {
-                                  try {
-                                    const { videoUrl } =
-                                      await interviewApi.getRecordingVideoUrl(
-                                        interview.interviewId
-                                      );
-                                    window.open(videoUrl, "_blank");
-                                  } catch (error) {
-                                    console.error(
-                                      "Error getting video URL:",
-                                      error
-                                    );
-                                    alert(
-                                      "Failed to load video. Please try again."
-                                    );
-                                  }
-                                }}
-                              >
-                                <PlayCircle className="w-3.5 h-3.5 mr-1.5" />
-                                Play Video
-                              </Button>
-                            )}
-                            <Link
-                              href={`/dashboard/interviews/${interview.interviewId}/report`}
-                            >
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="border-blue-300 text-[rgb(37,99,235)] hover:!bg-[rgb(17,24,39)] hover:!text-white hover:border-[rgb(17,24,39)] transition-all"
-                              >
-                                View Report
-                              </Button>
-                            </Link>
-                          </>
-                        )}
-                        {interview.status === "draft" && (
-                          <Link
-                            href={`/interview/${interview.interviewId}/realtime`}
-                          >
-                            <Button
-                              size="sm"
-                              className="!bg-[rgb(37,99,235)] hover:!bg-[rgb(17,24,39)] text-white shadow-md transition-all"
-                            >
-                              <PlayCircle className="w-3.5 h-3.5 mr-1.5" /> Start
-                            </Button>
-                          </Link>
-                        )}
                       </div>
                     </div>
-                  </div>
-                </div>
                   ))}
               </div>
 
@@ -725,7 +810,9 @@ export default function DashboardPage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                      onClick={() =>
+                        setCurrentPage((prev) => Math.max(1, prev - 1))
+                      }
                       disabled={currentPage === 1}
                       className="border-blue-300 text-[rgb(37,99,235)] hover:!bg-[rgb(17,24,39)] hover:!text-white hover:border-[rgb(17,24,39)] disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                     >
@@ -733,7 +820,8 @@ export default function DashboardPage() {
                       Previous
                     </Button>
                     <span className="text-sm text-gray-600 px-3">
-                      Page {currentPage} of {Math.ceil(interviews.length / itemsPerPage)}
+                      Page {currentPage} of{" "}
+                      {Math.ceil(interviews.length / itemsPerPage)}
                     </span>
                     <Button
                       variant="outline"
@@ -742,12 +830,13 @@ export default function DashboardPage() {
                         setCurrentPage((prev) =>
                           Math.min(
                             Math.ceil(interviews.length / itemsPerPage),
-                            prev + 1
-                          )
+                            prev + 1,
+                          ),
                         )
                       }
                       disabled={
-                        currentPage >= Math.ceil(interviews.length / itemsPerPage)
+                        currentPage >=
+                        Math.ceil(interviews.length / itemsPerPage)
                       }
                       className="border-blue-300 text-[rgb(37,99,235)] hover:!bg-[rgb(17,24,39)] hover:!text-white hover:border-[rgb(17,24,39)] disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                     >

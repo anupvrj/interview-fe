@@ -12,59 +12,49 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Sparkles, Zap, Trophy, Check, ArrowRight } from "lucide-react";
+import { Sparkles, Zap, Trophy, Crown, Check, ArrowRight } from "lucide-react";
 import { userApi } from "@/lib/api";
+import { PLAN_CONFIG } from "@/lib/payment";
 
 const PLANS = [
   {
     id: "starter",
-    name: "Starter",
-    price: 299,
+    name: PLAN_CONFIG.starter.name,
+    price: PLAN_CONFIG.starter.pricing.monthly,
+    credits: PLAN_CONFIG.starter.creditsIncluded.monthly,
     period: "month",
-    interviewsLimit: 3,
-    features: [
-      "3 voice interviews per month",
-      "Basic feedback (score + transcript)",
-      "Teacher Assistant unlimited",
-      "Progress tracking",
-    ],
-    color: "from-blue-500 to-blue-600",
-    icon: Sparkles,
-    popular: false,
-  },
-  {
-    id: "pro",
-    name: "Pro",
-    price: 699,
-    period: "month",
-    interviewsLimit: 10,
-    features: [
-      "10 voice interviews per month",
-      "Detailed behavioral analysis + action items",
-      "Teacher Assistant + custom questions",
-      "Progress tracking + weak area radar",
-      "Priority support",
-    ],
-    color: "from-blue-600 to-blue-700",
+    tagline: PLAN_CONFIG.starter.description,
+    features: PLAN_CONFIG.starter.highlights,
+    color: PLAN_CONFIG.starter.color,
     icon: Zap,
-    popular: true,
+    popular: false,
+    creditExpiry: PLAN_CONFIG.starter.creditExpiry,
   },
   {
-    id: "exam_pack",
-    name: "Exam Pack",
-    price: 1499,
-    period: "3 months",
-    interviewsLimit: 20,
-    features: [
-      "20 voice interviews (3 months)",
-      "BPSC/SSC/IBPS specialized questions",
-      "Curated question bank",
-      "Certification/score report",
-      "Priority support",
-    ],
-    color: "from-blue-700 to-blue-800",
+    id: "premium",
+    name: PLAN_CONFIG.premium.name,
+    price: PLAN_CONFIG.premium.pricing.monthly,
+    credits: PLAN_CONFIG.premium.creditsIncluded.monthly,
+    period: "month",
+    tagline: PLAN_CONFIG.premium.description,
+    features: PLAN_CONFIG.premium.highlights,
+    color: PLAN_CONFIG.premium.color,
     icon: Trophy,
+    popular: true,
+    creditExpiry: PLAN_CONFIG.premium.creditExpiry,
+  },
+  {
+    id: "elite",
+    name: PLAN_CONFIG.elite.name,
+    price: PLAN_CONFIG.elite.pricing.monthly,
+    credits: PLAN_CONFIG.elite.creditsIncluded.monthly,
+    period: "month",
+    tagline: PLAN_CONFIG.elite.description,
+    features: PLAN_CONFIG.elite.highlights,
+    color: PLAN_CONFIG.elite.color,
+    icon: Crown,
     popular: false,
+    creditExpiry: PLAN_CONFIG.elite.creditExpiry,
   },
 ];
 
@@ -168,8 +158,8 @@ export function PlansSection() {
           return;
         }
 
-        // Onboarding completed, go directly to checkout
-        router.push(`/checkout?plan=${planId}`);
+        // Onboarding completed, go directly to checkout with default monthly billing
+        router.push(`/checkout?plan=${planId}&cycle=monthly`);
       } catch (error) {
         console.error("Error checking profile:", error);
         // If error, assume onboarding not completed
@@ -234,6 +224,9 @@ export function PlansSection() {
                   <CardTitle className="text-xl sm:text-2xl mb-2">
                     {plan.name}
                   </CardTitle>
+                  <CardDescription className="text-xs sm:text-sm text-gray-600 mb-3">
+                    {plan.tagline}
+                  </CardDescription>
                   <div className="mb-2">
                     <span className="text-3xl sm:text-4xl font-bold text-gray-900">
                       ₹{plan.price}
@@ -243,8 +236,10 @@ export function PlansSection() {
                     </span>
                   </div>
                   <CardDescription className="text-xs sm:text-sm">
-                    {plan.interviewsLimit} interviews per{" "}
-                    {plan.period === "month" ? "month" : "3 months"}
+                    {plan.credits} credits
+                    {plan.creditExpiry
+                      ? ` (expire in ${plan.creditExpiry} days)`
+                      : " (never expires! ✨)"}
                   </CardDescription>
                 </CardHeader>
 

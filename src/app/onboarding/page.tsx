@@ -84,7 +84,7 @@ export default function OnboardingPage() {
   >("");
   const [resumeFile, setResumeFile] = useState<File | null>(null);
   const [extractedData, setExtractedData] = useState<ExtractedData | null>(
-    null
+    null,
   );
   const [reviewData, setReviewData] = useState({
     overallExperience: 0, // Overall experience in years (for all user types)
@@ -133,7 +133,7 @@ export default function OnboardingPage() {
       const createdUser = await userApi.createOrGetUser(
         user.id,
         user.primaryEmailAddress?.emailAddress || "",
-        user.fullName || user.firstName || "User"
+        user.fullName || user.firstName || "User",
       );
 
       console.log("📋 Onboarding status:", createdUser.onboardingCompleted);
@@ -141,7 +141,7 @@ export default function OnboardingPage() {
       // If onboarding is already completed, check for return URL or pending plan
       if (createdUser.onboardingCompleted) {
         console.log("✅ Onboarding completed");
-        
+
         // Check if there's a return URL from resume builder
         const returnUrl = localStorage.getItem("resumeBuilderReturnUrl");
         if (returnUrl) {
@@ -150,9 +150,12 @@ export default function OnboardingPage() {
           router.replace(returnUrl);
           return;
         }
-        
+
         const pendingPlan = localStorage.getItem("pendingPlan");
-        if (pendingPlan && ["starter", "pro", "exam_pack"].includes(pendingPlan)) {
+        if (
+          pendingPlan &&
+          ["starter", "premium", "elite"].includes(pendingPlan)
+        ) {
           console.log("📦 Pending plan found, redirecting to checkout");
           localStorage.removeItem("pendingPlan");
           router.replace(`/checkout?plan=${pendingPlan}`);
@@ -187,7 +190,7 @@ export default function OnboardingPage() {
       await userApi.createOrGetUser(
         user.id,
         user.primaryEmailAddress?.emailAddress || "",
-        user.fullName || user.firstName || "User"
+        user.fullName || user.firstName || "User",
       );
     } catch (error) {
       console.error("Error initializing user:", error);
@@ -244,7 +247,7 @@ export default function OnboardingPage() {
       console.error("Error extracting resume data:", error);
       setError(
         error.response?.data?.message ||
-          "Failed to extract data from resume. Please try again."
+          "Failed to extract data from resume. Please try again.",
       );
     } finally {
       setExtracting(false);
@@ -277,8 +280,8 @@ export default function OnboardingPage() {
           reviewData.overallExperience > 0
             ? reviewData.overallExperience
             : userType === "experienced"
-            ? reviewData.experience
-            : undefined,
+              ? reviewData.experience
+              : undefined,
         currentJob:
           userType === "experienced" && reviewData.currentJob.company
             ? reviewData.currentJob
@@ -297,7 +300,10 @@ export default function OnboardingPage() {
 
       // Check if there's a pending plan from homepage
       const pendingPlan = localStorage.getItem("pendingPlan");
-      if (pendingPlan && ["starter", "pro", "exam_pack"].includes(pendingPlan)) {
+      if (
+        pendingPlan &&
+        ["starter", "premium", "elite"].includes(pendingPlan)
+      ) {
         localStorage.removeItem("pendingPlan");
         // Redirect to checkout with the plan
         router.push(`/checkout?plan=${pendingPlan}`);
@@ -309,7 +315,7 @@ export default function OnboardingPage() {
       console.error("Error completing onboarding:", error);
       setError(
         error.response?.data?.message ||
-          "Failed to complete onboarding. Please try again."
+          "Failed to complete onboarding. Please try again.",
       );
     } finally {
       setLoading(false);
@@ -342,7 +348,10 @@ export default function OnboardingPage() {
             <div className="w-12 h-12 bg-gradient-to-r from-landing-blue-600 to-landing-blue-700 rounded-xl flex items-center justify-center shadow-lg">
               <Sparkles className="w-6 h-6 text-white" />
             </div>
-            <h1 className="text-2xl sm:text-3xl font-bold" style={{ color: 'rgb(37 99 235 / var(--tw-text-opacity, 1))' }}>
+            <h1
+              className="text-2xl sm:text-3xl font-bold"
+              style={{ color: "rgb(37 99 235 / var(--tw-text-opacity, 1))" }}
+            >
               Welcome to Interview Trix!
             </h1>
           </div>
@@ -367,8 +376,8 @@ export default function OnboardingPage() {
                         isActive
                           ? "bg-gradient-to-r from-landing-blue-600 to-landing-blue-700 border-purple-600 text-white shadow-lg scale-110"
                           : isCompleted
-                          ? "bg-green-500 border-green-500 text-white"
-                          : "bg-white border-gray-300 text-gray-400"
+                            ? "bg-green-500 border-green-500 text-white"
+                            : "bg-white border-gray-300 text-gray-400"
                       }`}
                     >
                       {isCompleted ? (
@@ -391,8 +400,8 @@ export default function OnboardingPage() {
                         isCompleted
                           ? "bg-green-500"
                           : currentStep > step.number
-                          ? "bg-purple-300"
-                          : "bg-gray-200"
+                            ? "bg-purple-300"
+                            : "bg-gray-200"
                       }`}
                     />
                   )}
@@ -824,7 +833,7 @@ export default function OnboardingPage() {
                         await userApi.createOrGetUser(
                           user.id,
                           user.primaryEmailAddress?.emailAddress || "",
-                          user.fullName || user.firstName || "User"
+                          user.fullName || user.firstName || "User",
                         );
 
                         // Complete onboarding with minimal data
@@ -839,7 +848,9 @@ export default function OnboardingPage() {
                         });
 
                         // Check if there's a return URL from resume builder
-                        const returnUrl = localStorage.getItem("resumeBuilderReturnUrl");
+                        const returnUrl = localStorage.getItem(
+                          "resumeBuilderReturnUrl",
+                        );
                         if (returnUrl) {
                           localStorage.removeItem("resumeBuilderReturnUrl");
                           router.push(returnUrl);
@@ -850,7 +861,7 @@ export default function OnboardingPage() {
                         console.error("Error skipping onboarding:", error);
                         setError(
                           error.response?.data?.message ||
-                            "Failed to complete setup. Please try again."
+                            "Failed to complete setup. Please try again.",
                         );
                         setLoading(false);
                       }
@@ -901,7 +912,7 @@ export default function OnboardingPage() {
                         await userApi.createOrGetUser(
                           user.id,
                           user.primaryEmailAddress?.emailAddress || "",
-                          user.fullName || user.firstName || "User"
+                          user.fullName || user.firstName || "User",
                         );
 
                         // Complete onboarding with current data
@@ -914,8 +925,8 @@ export default function OnboardingPage() {
                             reviewData.overallExperience > 0
                               ? reviewData.overallExperience
                               : userType === "experienced"
-                              ? reviewData.experience
-                              : undefined,
+                                ? reviewData.experience
+                                : undefined,
                           currentJob:
                             userType === "experienced" &&
                             reviewData.currentJob.company
@@ -929,7 +940,9 @@ export default function OnboardingPage() {
 
                         // Redirect to dashboard
                         // Check if there's a return URL from resume builder
-                        const returnUrl = localStorage.getItem("resumeBuilderReturnUrl");
+                        const returnUrl = localStorage.getItem(
+                          "resumeBuilderReturnUrl",
+                        );
                         if (returnUrl) {
                           localStorage.removeItem("resumeBuilderReturnUrl");
                           router.push(returnUrl);
@@ -940,7 +953,7 @@ export default function OnboardingPage() {
                         console.error("Error completing onboarding:", error);
                         setError(
                           error.response?.data?.message ||
-                            "Failed to complete setup. Please try again."
+                            "Failed to complete setup. Please try again.",
                         );
                         setLoading(false);
                       }

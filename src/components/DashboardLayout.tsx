@@ -30,14 +30,14 @@ const menuItems = [
     icon: LayoutDashboard,
   },
   {
-    title: "Interviews",
-    href: "/dashboard/interviews",
-    icon: FileText,
-  },
-  {
     title: "Resumes",
     href: "/dashboard/resumes",
     icon: FileEdit,
+  },
+  {
+    title: "Interviews",
+    href: "/dashboard/interviews",
+    icon: FileText,
   },
   {
     title: "Analytics",
@@ -94,10 +94,15 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               className="flex items-center gap-1.5 hover:opacity-80 transition-opacity min-w-0"
             >
               <div className="w-7 h-7 bg-gradient-to-br from-blue-600 to-blue-700 rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm">
-                <span className="text-white font-bold text-[10px]">i<span className="text-xs">X</span></span>
+                <span className="text-white font-bold text-[10px]">
+                  i<span className="text-xs">X</span>
+                </span>
               </div>
               <span className="text-base sm:text-lg font-bold text-slate-900 truncate">
-                Interview <span className="text-[rgb(37,99,235)]">Tri<span className="text-lg sm:text-xl">X</span></span>
+                Interview{" "}
+                <span className="text-[rgb(37,99,235)]">
+                  Tri<span className="text-lg sm:text-xl">X</span>
+                </span>
               </span>
             </Link>
           </div>
@@ -124,7 +129,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             "overflow-hidden",
             mobileMenuOpen
               ? "translate-x-0"
-              : "-translate-x-full lg:translate-x-0"
+              : "-translate-x-full lg:translate-x-0",
           )}
         >
           <div className="h-full flex flex-col">
@@ -135,11 +140,16 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 className="flex items-center gap-2 hover:opacity-80 transition-opacity"
               >
                 <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-blue-700 rounded-lg flex items-center justify-center shadow-sm">
-                  <span className="text-white font-bold text-sm">i<span className="text-base">X</span></span>
+                  <span className="text-white font-bold text-sm">
+                    i<span className="text-base">X</span>
+                  </span>
                 </div>
                 {sidebarOpen && (
                   <span className="text-xl font-bold text-slate-900">
-                    Interview <span className="text-[rgb(37,99,235)]">Tri<span className="text-2xl">X</span></span>
+                    Interview{" "}
+                    <span className="text-[rgb(37,99,235)]">
+                      Tri<span className="text-2xl">X</span>
+                    </span>
                   </span>
                 )}
               </Link>
@@ -165,16 +175,18 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                       }
                     }}
                     className={cn(
-                      "flex items-center gap-3 px-4 py-3 rounded-lg transition-all",
-                      "hover:bg-blue-50 hover:text-[rgb(37,99,235)]",
+                      "flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200",
+                      "hover:bg-blue-50 hover:scale-105 hover:shadow-md",
                       isActive
-                        ? "!bg-[rgb(37,99,235)] text-white shadow-md"
-                        : "text-slate-700"
+                        ? "!bg-[rgb(37,99,235)] !text-white shadow-md hover:!bg-[rgb(17,24,39)] hover:!text-white"
+                        : "text-slate-700 hover:text-[rgb(37,99,235)]",
                     )}
                   >
-                    <Icon className="w-5 h-5 flex-shrink-0" />
+                    <Icon className="w-5 h-5 flex-shrink-0 transition-transform duration-200" />
                     {sidebarOpen && (
-                      <span className="font-medium">{item.title}</span>
+                      <span className="font-medium transition-colors duration-200">
+                        {item.title}
+                      </span>
                     )}
                   </Link>
                 );
@@ -187,9 +199,12 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 <UserButton
                   appearance={{
                     elements: {
-                      avatarBox: "w-10 h-10 ring-2 ring-blue-100 hover:ring-blue-300 transition-all",
-                      userButtonPopoverCard: "shadow-2xl border-2 border-blue-100",
-                      userButtonPopoverActionButton: "hover:bg-blue-50 transition-colors text-gray-700 font-medium",
+                      avatarBox:
+                        "w-10 h-10 ring-2 ring-blue-100 hover:ring-blue-300 transition-all",
+                      userButtonPopoverCard:
+                        "shadow-2xl border-2 border-blue-100",
+                      userButtonPopoverActionButton:
+                        "hover:bg-blue-50 transition-colors text-gray-700 font-medium",
                       userButtonPopoverActionButtonIcon: "text-blue-600",
                       userButtonPopoverActionButtonText: "text-gray-700",
                       userButtonPopoverFooter: "border-t border-gray-200",
