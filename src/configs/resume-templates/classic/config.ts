@@ -62,7 +62,7 @@ export const classicExtendedConfig: Partial<ExtendedResumeTemplate> = {
       borderWidth: 1.5,
       borderColor: "#000000",
       textAlign: "left",
-      fontSize: 11,
+      fontSize: 16,
       fontWeight: "bold",
       marginBottom: "8px",
       paddingBottom: "3px",
