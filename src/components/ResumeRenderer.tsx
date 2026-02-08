@@ -2215,11 +2215,48 @@ export function ResumeRenderer({
                       color: isInSidebar
                         ? templateStyle.colors.sidebarText
                         : templateStyle.colors.text,
-                      marginBottom: "4px",
+                      marginBottom: "2px",
+                      display: "flex",
+                      flexWrap: "wrap",
+                      alignItems: "baseline",
+                      gap: "6px",
                     }}
                   >
-                    {project.name}
+                    <span>{project.name}</span>
+                    {project.link && (
+                      <a
+                        href={
+                          project.link.startsWith("http")
+                            ? project.link
+                            : `https://${project.link}`
+                        }
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="resume-content"
+                        style={{
+                          fontSize: `${templateStyle.fontSize.small}px`,
+                          fontWeight: "normal",
+                          color: templateStyle.colors.secondary,
+                          textDecoration: "underline",
+                        }}
+                      >
+                        Link
+                      </a>
+                    )}
                   </div>
+                  {(project.startDate || project.endDate) && (
+                    <div
+                      style={{
+                        fontSize: `${templateStyle.fontSize.small}px`,
+                        color: templateStyle.colors.secondary,
+                        marginBottom: "4px",
+                      }}
+                    >
+                      {[project.startDate, project.endDate]
+                        .filter(Boolean)
+                        .join(" – ")}
+                    </div>
+                  )}
                   {project.description && (
                     <div
                       className="resume-content"
@@ -2240,17 +2277,32 @@ export function ResumeRenderer({
                       }}
                     />
                   )}
-                  {project.technologies && project.technologies.length > 0 && (
-                    <div
-                      style={{
-                        fontSize: `${templateStyle.fontSize.small}px`,
-                        color: templateStyle.colors.secondary,
-                        fontStyle: "italic",
-                      }}
-                    >
-                      Technologies: {project.technologies.join(", ")}
-                    </div>
-                  )}
+                  {(() => {
+                    const tech =
+                      project.technologies == null
+                        ? ""
+                        : typeof project.technologies === "string"
+                          ? project.technologies
+                              .split(",")
+                              .map((t) => t.trim())
+                              .filter(Boolean)
+                              .join(", ")
+                          : (project.technologies as string[])
+                              .filter(Boolean)
+                              .join(", ");
+                    return (
+                      tech && (
+                        <div
+                          style={{
+                            fontSize: `${templateStyle.fontSize.small}px`,
+                            color: templateStyle.colors.secondary,
+                          }}
+                        >
+                          Technologies: {tech}
+                        </div>
+                      )
+                    );
+                  })()}
                 </div>
               ))}
             </div>
