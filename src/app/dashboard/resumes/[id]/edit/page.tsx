@@ -299,8 +299,17 @@ export default function EditResumePage() {
             right: 40,
           },
           padding: resumeData.layout.padding || defaultPadding,
-          fontSize: (resumeData.layout as { fontSize?: typeof layout.fontSize })
-            .fontSize,
+          fontSize: (
+            resumeData.layout as {
+              fontSize?: {
+                heading?: number;
+                subheading?: number;
+                body?: number;
+                small?: number;
+                sectionHeader?: number;
+              };
+            }
+          ).fontSize,
           fontFamily: (resumeData.layout as { fontFamily?: string }).fontFamily,
         });
 
