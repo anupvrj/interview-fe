@@ -54,6 +54,7 @@ export default function PlanPage() {
     null,
   );
   const [customCreditAmount, setCustomCreditAmount] = useState<string>("");
+  const [creditAmountError, setCreditAmountError] = useState<string>("");
   const [purchasingCredits, setPurchasingCredits] = useState(false);
   const [cancellingSubscription, setCancellingSubscription] = useState(false);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
@@ -116,11 +117,30 @@ export default function PlanPage() {
     }
   };
 
+  const handleCreditAmountChange = (value: string) => {
+    setCustomCreditAmount(value);
+
+    // Validate in real-time
+    if (value === "") {
+      setCreditAmountError("");
+      return;
+    }
+
+    const amount = Number.parseInt(value);
+    if (isNaN(amount) || amount < 1) {
+      setCreditAmountError("Please enter a valid number");
+    } else if (amount < 300) {
+      setCreditAmountError("Minimum purchase is 300 credits (₹300)");
+    } else {
+      setCreditAmountError("");
+    }
+  };
+
   const handlePurchaseCredits = async () => {
     const amount = Number.parseInt(customCreditAmount);
-    if (!amount || amount < 1) {
+    if (!amount || amount < 300) {
       toast.error("Invalid Amount", {
-        description: "Please enter a valid credit amount (minimum 1 credit)",
+        description: "Please enter a valid credit amount (minimum 300 credits)",
       });
       return;
     }
@@ -586,27 +606,53 @@ export default function PlanPage() {
                 <Sparkles className="w-5 h-5 text-emerald-600" />
                 Purchase Credits
               </h4>
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+                <div className="flex items-start gap-2">
+                  <Coins className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                  <div className="text-xs text-blue-800">
+                    <p className="font-semibold mb-1">Credit Purchase Info:</p>
+                    <ul className="space-y-0.5 list-disc list-inside">
+                      <li>1 credit = ₹1</li>
+                      <li>Minimum purchase: 300 credits (₹300)</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
               <div className="space-y-3">
                 <div>
                   <Input
                     type="number"
-                    placeholder="Enter amount (min 1)"
+                    placeholder="Enter amount (min 300)"
                     value={customCreditAmount}
-                    onChange={(e) => setCustomCreditAmount(e.target.value)}
-                    min="1"
-                    className="w-full h-12 text-base"
+                    onChange={(e) => handleCreditAmountChange(e.target.value)}
+                    min="300"
+                    step="50"
+                    className={`w-full h-12 text-base ${creditAmountError ? "border-red-500 focus-visible:ring-red-500" : ""}`}
                   />
-                  <p className="text-xs text-gray-500 mt-2">
-                    {customCreditAmount
-                      ? `Total: ₹${Number.parseInt(customCreditAmount) || 0}`
-                      : "Enter the number of credits you want to purchase"}
-                  </p>
+                  {creditAmountError ? (
+                    <div className="flex items-center gap-1 mt-2">
+                      <AlertTriangle className="w-4 h-4 text-red-500" />
+                      <p className="text-xs text-red-600 font-medium">
+                        {creditAmountError}
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-gray-500 mt-2">
+                      {customCreditAmount
+                        ? `Total: ₹${Number.parseInt(customCreditAmount) || 0}`
+                        : ""}
+                    </p>
+                  )}
                 </div>
                 <Button
                   onClick={handlePurchaseCredits}
-                  disabled={purchasingCredits || !customCreditAmount}
+                  disabled={
+                    purchasingCredits ||
+                    !customCreditAmount ||
+                    !!creditAmountError
+                  }
                   size="lg"
-                  className="w-full !bg-emerald-600 hover:!bg-emerald-700 text-white shadow-lg hover:shadow-xl transition-all h-12"
+                  className="w-full !bg-emerald-600 hover:!bg-emerald-700 text-white shadow-lg hover:shadow-xl transition-all h-12 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {purchasingCredits ? (
                     <>
