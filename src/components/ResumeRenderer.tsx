@@ -83,11 +83,32 @@ export function ResumeRenderer({
 
   const baseTemplateStyle = getTemplateStyle(extendedTemplate);
   const resumeLayout = layout || resume.layout || { type: "single" };
+  const layoutTypo = resumeLayout as {
+    fontSize?: {
+      heading?: number;
+      subheading?: number;
+      body?: number;
+      small?: number;
+      sectionHeader?: number;
+    };
+    fontFamily?: string;
+  };
 
-  // Merge custom layout padding into template style
+  // Merge custom layout (padding, user font size, font family) into template style
   const templateStyle = {
     ...baseTemplateStyle,
     padding: resumeLayout.padding || baseTemplateStyle.padding,
+    fontSize: {
+      ...baseTemplateStyle.fontSize,
+      ...layoutTypo.fontSize,
+    },
+    fontFamily: layoutTypo.fontFamily ?? baseTemplateStyle.fontFamily,
+    sectionHeader: {
+      ...baseTemplateStyle.sectionHeader,
+      ...(layoutTypo.fontSize?.sectionHeader != null && {
+        fontSize: layoutTypo.fontSize.sectionHeader,
+      }),
+    },
   };
 
   // Get template-specific default sections or use generic defaults
