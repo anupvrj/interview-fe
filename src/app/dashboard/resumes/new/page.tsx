@@ -53,9 +53,10 @@ export default function NewResumePage() {
         // User not logged in - redirect to sign-in with return URL
         const templateParam = searchParams.get("template");
         const skipTemplate = searchParams.get("skipTemplate");
-        const returnUrl = templateParam && skipTemplate
-          ? `/dashboard/resumes/new?template=${templateParam}&skipTemplate=true`
-          : "/dashboard/resumes/new";
+        const returnUrl =
+          templateParam && skipTemplate
+            ? `/dashboard/resumes/new?template=${templateParam}&skipTemplate=true`
+            : "/dashboard/resumes/new";
         router.push(`/sign-in?redirect_url=${encodeURIComponent(returnUrl)}`);
         return;
       }
@@ -72,14 +73,15 @@ export default function NewResumePage() {
     try {
       // Check onboarding status
       const profile = await userApi.getMyProfile();
-      
+
       if (!profile.onboardingCompleted) {
         // Onboarding not completed - redirect to onboarding with return URL
         const templateParam = searchParams.get("template");
         const skipTemplate = searchParams.get("skipTemplate");
-        const returnUrl = templateParam && skipTemplate
-          ? `/dashboard/resumes/new?template=${templateParam}&skipTemplate=true`
-          : "/dashboard/resumes/new";
+        const returnUrl =
+          templateParam && skipTemplate
+            ? `/dashboard/resumes/new?template=${templateParam}&skipTemplate=true`
+            : "/dashboard/resumes/new";
         localStorage.setItem("resumeBuilderReturnUrl", returnUrl);
         router.push("/onboarding");
         return;
@@ -87,11 +89,11 @@ export default function NewResumePage() {
 
       // Onboarding completed - load templates and check for template param
       loadTemplates();
-      
+
       // Check URL params to skip template selection
       const templateParam = searchParams.get("template");
       const skipTemplate = searchParams.get("skipTemplate") === "true";
-      
+
       if (templateParam && skipTemplate) {
         setSelectedTemplate(templateParam);
         setStep("upload");
@@ -129,7 +131,7 @@ export default function NewResumePage() {
     } catch (error) {
       console.error("Error extracting PDF:", error);
       alert(
-        "Failed to extract text from PDF. You can still proceed without uploading."
+        "Failed to extract text from PDF. You can still proceed without uploading.",
       );
       setUploadedFile(null);
     } finally {
@@ -171,9 +173,8 @@ export default function NewResumePage() {
 
       // Load dummy content from template (no LLM call needed)
       const { TemplateLoader } = await import("@/lib/templateLoader");
-      const dummyContent = await TemplateLoader.loadDummyContent(
-        selectedTemplate
-      );
+      const dummyContent =
+        await TemplateLoader.loadDummyContent(selectedTemplate);
 
       console.log("✅ Dummy content loaded:", dummyContent);
 
@@ -196,23 +197,33 @@ export default function NewResumePage() {
       };
 
       // Prepare template config for backend
-      const templateConfig = await TemplateLoader.loadTemplate(selectedTemplate);
+      const templateConfig =
+        await TemplateLoader.loadTemplate(selectedTemplate);
       const extended = templateConfig.extended;
 
       // Extract layout from extended config
       const renderingLayout = extended.rendering?.layout;
       const initialLayout = {
-        type: (renderingLayout?.type === "header-plus-columns" ? "double" : (renderingLayout?.type || "single")) as "single" | "double",
+        type: (renderingLayout?.type === "header-plus-columns"
+          ? "double"
+          : renderingLayout?.type || "single") as "single" | "double",
         columnWidths: renderingLayout?.columnWidths || { left: 60, right: 40 },
-        padding: extended.style?.padding || { top: 10, bottom: 10, left: 10, right: 10 },
+        padding: extended.style?.padding || {
+          top: 10,
+          bottom: 10,
+          left: 10,
+          right: 10,
+        },
       };
 
       // Prepare section order with column assignments
       let sectionOrder = extended.defaultSectionOrder || [];
       if (initialLayout.type === "double") {
-        const hasColumnAssignment = renderingLayout?.columnAssignment && 
-          (renderingLayout.columnAssignment.left.length > 0 || renderingLayout.columnAssignment.right.length > 0);
-        
+        const hasColumnAssignment =
+          renderingLayout?.columnAssignment &&
+          (renderingLayout.columnAssignment.left.length > 0 ||
+            renderingLayout.columnAssignment.right.length > 0);
+
         if (hasColumnAssignment) {
           // Use explicit column assignments from config
           sectionOrder = sectionOrder.map((s) => ({
@@ -220,8 +231,8 @@ export default function NewResumePage() {
             column: renderingLayout.columnAssignment?.left.includes(s.id)
               ? ("left" as const)
               : renderingLayout.columnAssignment?.right.includes(s.id)
-              ? ("right" as const)
-              : ("left" as const),
+                ? ("right" as const)
+                : ("left" as const),
           }));
         } else {
           // No explicit assignments - use alternating distribution
@@ -232,7 +243,10 @@ export default function NewResumePage() {
             if (s.id === "personalInfo") {
               return s; // No column assignment for header
             }
-            const column = nonPersonalIndex % 2 === 0 ? ("left" as const) : ("right" as const);
+            const column =
+              nonPersonalIndex % 2 === 0
+                ? ("left" as const)
+                : ("right" as const);
             nonPersonalIndex++;
             return { ...s, column };
           });
@@ -261,7 +275,7 @@ export default function NewResumePage() {
           error?.response?.data?.message ||
           error?.message ||
           "Please try again."
-        }`
+        }`,
       );
     } finally {
       setCreating(false);
@@ -280,50 +294,175 @@ export default function NewResumePage() {
       // Extract resume data using LLM (only when resume is uploaded)
       const extractedData = await resumeDataExtractionApi.extractResumeData(
         selectedTemplate,
-        resumeText // Will have content since this is called after upload
+        resumeText, // Will have content since this is called after upload
       );
 
       console.log("✅ Data extracted via LLM");
 
       // Prepare template config for backend
       const { TemplateLoader } = await import("@/lib/templateLoader");
-      const templateConfig = await TemplateLoader.loadTemplate(selectedTemplate);
+      const templateConfig =
+        await TemplateLoader.loadTemplate(selectedTemplate);
       const extended = templateConfig.extended;
 
       // Extract layout from extended config
       const renderingLayout = extended.rendering?.layout;
       const initialLayout = {
-        type: (renderingLayout?.type === "header-plus-columns" ? "double" : (renderingLayout?.type || "single")) as "single" | "double",
+        type: (renderingLayout?.type === "header-plus-columns"
+          ? "double"
+          : renderingLayout?.type || "single") as "single" | "double",
         columnWidths: renderingLayout?.columnWidths || { left: 60, right: 40 },
-        padding: extended.style?.padding || { top: 10, bottom: 10, left: 10, right: 10 },
+        padding: extended.style?.padding || {
+          top: 10,
+          bottom: 10,
+          left: 10,
+          right: 10,
+        },
+      };
+
+      // Build content first so we can ensure sections with data are in section order
+      const content = mapExtractedDataToResumeContent(extractedData.sections);
+
+      // Default section titles for sections that may be extracted but missing from template
+      const SECTION_TITLES: Record<string, string> = {
+        personalInfo: "Personal Information",
+        profileSummary: "Profile Summary",
+        experience: "Professional Experience",
+        education: "Education",
+        skills: "Skills",
+        projects: "Projects",
+        languages: "Languages",
+        certificates: "Certificates",
+        awards: "Awards",
+        achievements: "Achievements",
+        interests: "Interests",
+        courses: "Courses",
+        organisations: "Organisations",
+        publications: "Publications",
+        references: "References",
+        declaration: "Declaration",
+        technicalSkills: "Technical Skills",
+      };
+
+      // Check if content has data for a section (array with length, or non-empty string)
+      const hasContent = (key: string): boolean => {
+        const val = content[key];
+        if (val == null) return false;
+        if (Array.isArray(val)) return val.length > 0;
+        if (typeof val === "string") return val.trim().length > 0;
+        if (typeof val === "object" && !Array.isArray(val))
+          return Object.keys(val).length > 0;
+        return false;
       };
 
       // Prepare section order with column assignments
       let sectionOrder = extended.defaultSectionOrder || [];
+
+      // If template has no default section order, use a minimal default so we can add extracted sections
+      if (sectionOrder.length === 0) {
+        sectionOrder = [
+          {
+            id: "personalInfo",
+            type: "personalInfo",
+            title: SECTION_TITLES.personalInfo,
+            visible: true,
+          },
+          {
+            id: "profileSummary",
+            type: "profileSummary",
+            title: SECTION_TITLES.profileSummary,
+            visible: true,
+          },
+          {
+            id: "experience",
+            type: "experience",
+            title: SECTION_TITLES.experience,
+            visible: true,
+          },
+          {
+            id: "education",
+            type: "education",
+            title: SECTION_TITLES.education,
+            visible: true,
+          },
+          {
+            id: "skills",
+            type: "skills",
+            title: SECTION_TITLES.skills,
+            visible: true,
+          },
+          {
+            id: "projects",
+            type: "projects",
+            title: SECTION_TITLES.projects,
+            visible: false,
+          },
+          {
+            id: "languages",
+            type: "languages",
+            title: SECTION_TITLES.languages,
+            visible: false,
+          },
+          {
+            id: "certificates",
+            type: "certificates",
+            title: SECTION_TITLES.certificates,
+            visible: false,
+          },
+          {
+            id: "awards",
+            type: "awards",
+            title: SECTION_TITLES.awards,
+            visible: false,
+          },
+        ];
+      }
+
+      // Ensure every section that has extracted content exists in sectionOrder and is visible
+      const sectionTypesInOrder = new Set(sectionOrder.map((s) => s.type));
+      for (const key of Object.keys(content)) {
+        if (!hasContent(key)) continue;
+        const title =
+          SECTION_TITLES[key] ||
+          key.replace(/([A-Z])/g, " $1").replace(/^./, (c) => c.toUpperCase());
+        if (sectionTypesInOrder.has(key)) {
+          sectionOrder = sectionOrder.map((s) =>
+            s.type === key ? { ...s, visible: true } : s,
+          );
+        } else {
+          sectionOrder.push({
+            id: key,
+            type: key,
+            title,
+            visible: true,
+          });
+          sectionTypesInOrder.add(key);
+        }
+      }
+
       if (initialLayout.type === "double") {
-        const hasColumnAssignment = renderingLayout?.columnAssignment && 
-          (renderingLayout.columnAssignment.left.length > 0 || renderingLayout.columnAssignment.right.length > 0);
-        
+        const hasColumnAssignment =
+          renderingLayout?.columnAssignment &&
+          (renderingLayout.columnAssignment.left.length > 0 ||
+            renderingLayout.columnAssignment.right.length > 0);
+
         if (hasColumnAssignment) {
-          // Use explicit column assignments from config
           sectionOrder = sectionOrder.map((s) => ({
             ...s,
             column: renderingLayout.columnAssignment?.left.includes(s.id)
               ? ("left" as const)
               : renderingLayout.columnAssignment?.right.includes(s.id)
-              ? ("right" as const)
-              : ("left" as const),
+                ? ("right" as const)
+                : ("left" as const),
           }));
         } else {
-          // No explicit assignments - use alternating distribution
-          // Skip personalInfo (header) - don't assign it a column
-          // Distribute remaining sections evenly: 1st→left, 2nd→right, 3rd→left, etc.
           let nonPersonalIndex = 0;
           sectionOrder = sectionOrder.map((s) => {
-            if (s.id === "personalInfo") {
-              return s; // No column assignment for header
-            }
-            const column = nonPersonalIndex % 2 === 0 ? ("left" as const) : ("right" as const);
+            if (s.id === "personalInfo") return s;
+            const column =
+              nonPersonalIndex % 2 === 0
+                ? ("left" as const)
+                : ("right" as const);
             nonPersonalIndex++;
             return { ...s, column };
           });
@@ -334,7 +473,7 @@ export default function NewResumePage() {
       const resume = await resumeApi.create(user.id, {
         templateId: selectedTemplate,
         title: "My Resume",
-        content: mapExtractedDataToResumeContent(extractedData.sections),
+        content,
         sectionOrder,
         layout: initialLayout,
       });
@@ -354,7 +493,7 @@ export default function NewResumePage() {
         error?.message?.includes("Request timeout")
       ) {
         alert(
-          "Resume extraction is taking longer than expected. This might be due to a large PDF or slow network. Please try again or upload a smaller PDF."
+          "Resume extraction is taking longer than expected. This might be due to a large PDF or slow network. Please try again or upload a smaller PDF.",
         );
       } else {
         alert(
@@ -362,7 +501,7 @@ export default function NewResumePage() {
             error?.response?.data?.message ||
             error?.message ||
             "Please try again."
-          }`
+          }`,
         );
       }
     } finally {
@@ -378,7 +517,7 @@ export default function NewResumePage() {
         content: string | any;
         format: "html" | "list" | "paragraph" | "structured";
       }
-    >
+    >,
   ) => {
     const content: any = {};
 
@@ -450,7 +589,7 @@ export default function NewResumePage() {
   ];
 
   const selectedTemplateName = templates.find(
-    (t) => t.id === selectedTemplate
+    (t) => t.id === selectedTemplate,
   )?.name;
 
   return (
@@ -651,8 +790,8 @@ export default function NewResumePage() {
                     {extracting
                       ? "Extracting text from PDF..."
                       : isDragActive
-                      ? "Drop your resume here"
-                      : "Upload Your Resume PDF"}
+                        ? "Drop your resume here"
+                        : "Upload Your Resume PDF"}
                   </h3>
                   <p className="text-sm text-gray-600 mb-4">
                     Drag and drop your PDF file here, or click to browse
