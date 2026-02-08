@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Underline from "@tiptap/extension-underline";
+import Link from "@tiptap/extension-link";
 import { Button } from "@/components/ui/button";
 import {
   Bold,
@@ -18,8 +19,20 @@ import {
   Redo,
   Sparkles,
   Loader2,
+  Link as LinkIcon,
+  Unlink,
 } from "lucide-react";
 import { contentApi } from "@/lib/api";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 interface RichTextEditorProps {
   readonly value: string;
@@ -35,6 +48,10 @@ export function RichTextEditor({
   className = "",
 }: RichTextEditorProps) {
   const [isRefining, setIsRefining] = useState(false);
+  const [showLinkDialog, setShowLinkDialog] = useState(false);
+  const [linkUrl, setLinkUrl] = useState("");
+  const [linkText, setLinkText] = useState("");
+
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -43,6 +60,12 @@ export function RichTextEditor({
         },
       }),
       Underline,
+      Link.configure({
+        openOnClick: false,
+        HTMLAttributes: {
+          class: "cursor-pointer",
+        },
+      }),
     ],
     content: value || "",
     onUpdate: ({ editor }) => {
@@ -88,6 +111,61 @@ export function RichTextEditor({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value]);
+
+  // Link Management
+  const openLinkDialog = () => {
+    const { from, to } = editor!.state.selection;
+    const selectedText = editor!.state.doc.textBetween(from, to, " ");
+
+    // Check if current selection is already a link
+    const previousUrl = editor!.getAttributes("link").href;
+
+    setLinkText(selectedText || "");
+    setLinkUrl(previousUrl || "");
+    setShowLinkDialog(true);
+  };
+
+  const insertLink = () => {
+    if (!editor) return;
+
+    if (linkUrl === "") {
+      editor.chain().focus().extendMarkRange("link").unsetLink().run();
+      setShowLinkDialog(false);
+      return;
+    }
+
+    // Ensure URL has protocol
+    let url = linkUrl;
+    if (!url.startsWith("http://") && !url.startsWith("https://")) {
+      url = "https://" + url;
+    }
+
+    // If there's link text and no selection, insert the text with link
+    if (linkText && editor.state.selection.empty) {
+      editor
+        .chain()
+        .focus()
+        .insertContent(`<a href="${url}">${linkText}</a>`)
+        .run();
+    } else {
+      // Otherwise, apply link to selection
+      editor
+        .chain()
+        .focus()
+        .extendMarkRange("link")
+        .setLink({ href: url })
+        .run();
+    }
+
+    setShowLinkDialog(false);
+    setLinkUrl("");
+    setLinkText("");
+  };
+
+  const removeLink = () => {
+    if (!editor) return;
+    editor.chain().focus().unsetLink().run();
+  };
 
   // AI Content Refinement
   const handleAIRefine = async () => {
@@ -219,6 +297,32 @@ export function RichTextEditor({
           </Button>
         </div>
 
+        {/* Link */}
+        <div className="flex items-center gap-1 border-r pr-2 mr-2">
+          <Button
+            type="button"
+            variant={editor.isActive("link") ? "default" : "ghost"}
+            size="sm"
+            className="h-8 w-8 p-0"
+            onClick={openLinkDialog}
+            title="Insert Link"
+          >
+            <LinkIcon className="w-4 h-4" />
+          </Button>
+          {editor.isActive("link") && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-8 w-8 p-0"
+              onClick={removeLink}
+              title="Remove Link"
+            >
+              <Unlink className="w-4 h-4" />
+            </Button>
+          )}
+        </div>
+
         {/* Undo/Redo */}
         <div className="flex items-center gap-1 border-r pr-2 mr-2">
           <Button
@@ -265,6 +369,63 @@ export function RichTextEditor({
           )}
         </Button>
       </div>
+
+      {/* Link Dialog */}
+      <Dialog open={showLinkDialog} onOpenChange={setShowLinkDialog}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Insert Link</DialogTitle>
+            <DialogDescription>
+              Add a hyperlink to the selected text or insert new linked text.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="link-text">Link Text (optional)</Label>
+              <Input
+                id="link-text"
+                placeholder="e.g., Visit our website"
+                value={linkText}
+                onChange={(e) => setLinkText(e.target.value)}
+              />
+              <p className="text-xs text-gray-500">
+                Leave empty to apply link to selected text
+              </p>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="link-url">URL *</Label>
+              <Input
+                id="link-url"
+                placeholder="e.g., https://example.com"
+                value={linkUrl}
+                onChange={(e) => setLinkUrl(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    insertLink();
+                  }
+                }}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setShowLinkDialog(false);
+                setLinkUrl("");
+                setLinkText("");
+              }}
+            >
+              Cancel
+            </Button>
+            <Button type="button" onClick={insertLink}>
+              Insert Link
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <style
         dangerouslySetInnerHTML={{
@@ -321,6 +482,22 @@ export function RichTextEditor({
         .rich-text-editor .ProseMirror u {
           text-decoration: underline;
         }
+        .rich-text-editor .ProseMirror a {
+          text-decoration: underline;
+          cursor: pointer;
+        }
+        .rich-text-editor .ProseMirror a strong,
+        .rich-text-editor .ProseMirror strong a {
+          font-weight: bold;
+        }
+        .rich-text-editor .ProseMirror a u,
+        .rich-text-editor .ProseMirror u a {
+          text-decoration: underline;
+        }
+        .rich-text-editor .ProseMirror a em,
+        .rich-text-editor .ProseMirror em a {
+          font-style: italic;
+        }
         /* Preview styles */
         .prose strong {
           font-weight: bold;
@@ -360,6 +537,22 @@ export function RichTextEditor({
           font-weight: bold;
           margin-top: 0.5rem;
           margin-bottom: 0.5rem;
+        }
+        .prose a {
+          text-decoration: underline;
+          cursor: pointer;
+        }
+        .prose a strong,
+        .prose strong a {
+          font-weight: bold;
+        }
+        .prose a u,
+        .prose u a {
+          text-decoration: underline;
+        }
+        .prose a em,
+        .prose em a {
+          font-style: italic;
         }
       `,
         }}

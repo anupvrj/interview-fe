@@ -137,28 +137,25 @@ export function ResumeRenderer({
 
   // Create order key from sections prop directly to detect reordering
   // This ensures we detect order changes even if React batches updates
-  const sectionsOrderKey = useMemo(
-    () => {
-      const sectionsToUse = sections && sections.length > 0 ? sections : getDefaultSections();
-      return sectionsToUse.map((s, idx) => `${idx}:${s.id}:${s.visible}`).join("|");
-    },
-    [sections]
-  );
+  const sectionsOrderKey = useMemo(() => {
+    const sectionsToUse =
+      sections && sections.length > 0 ? sections : getDefaultSections();
+    return sectionsToUse
+      .map((s, idx) => `${idx}:${s.id}:${s.visible}`)
+      .join("|");
+  }, [sections]);
 
   const displaySections = useMemo(
     () => {
       return sections && sections.length > 0 ? sections : getDefaultSections();
     },
     // Depend on both sections array AND order key to ensure recalculation on reorder
-    [sections, sectionsOrderKey]
+    [sections, sectionsOrderKey],
   );
 
-  const visibleSections = useMemo(
-    () => {
-      return displaySections.filter((s) => s.visible);
-    },
-    [displaySections, sectionsOrderKey]
-  );
+  const visibleSections = useMemo(() => {
+    return displaySections.filter((s) => s.visible);
+  }, [displaySections, sectionsOrderKey]);
 
   // Page break state removed - using useMemo instead
   const measureRef = useRef<HTMLDivElement>(null);
@@ -173,93 +170,93 @@ export function ResumeRenderer({
   // Memoize the result to ensure it recalculates when visibleSections changes
   const { headerSection, leftColumn, rightColumn } = useMemo(() => {
     const organizeIntoColumns = () => {
-    if (resumeLayout.type === "single") {
-      // Check if template uses profile picture header layout
-      if (
-        templateStyle.headerLayout?.type === "with-profile-picture" ||
-        template.id === "mercury"
-      ) {
-        const headerSection = visibleSections.find(
-          (s) => s.type === "personalInfo"
-        );
-        const bodySections = visibleSections.filter(
-          (s) => s.type !== "personalInfo"
-        );
+      if (resumeLayout.type === "single") {
+        // Check if template uses profile picture header layout
+        if (
+          templateStyle.headerLayout?.type === "with-profile-picture" ||
+          template.id === "mercury"
+        ) {
+          const headerSection = visibleSections.find(
+            (s) => s.type === "personalInfo",
+          );
+          const bodySections = visibleSections.filter(
+            (s) => s.type !== "personalInfo",
+          );
+
+          return {
+            headerSection,
+            leftColumn: bodySections,
+            rightColumn: [],
+          };
+        }
 
         return {
-          headerSection,
-          leftColumn: bodySections,
+          headerSection: null,
+          leftColumn: visibleSections,
           rightColumn: [],
         };
       }
 
-      return {
-        headerSection: null,
-        leftColumn: visibleSections,
-        rightColumn: [],
-      };
-    }
+      // For two-column layouts, organize based on template style
+      const headerSection =
+        templateStyle.headerStyle === "two-column"
+          ? null
+          : visibleSections.find((s) => s.type === "personalInfo");
 
-    // For two-column layouts, organize based on template style
-    const headerSection =
-      templateStyle.headerStyle === "two-column"
-        ? null
-        : visibleSections.find((s) => s.type === "personalInfo");
+      const bodySections =
+        templateStyle.headerStyle === "two-column"
+          ? visibleSections
+          : visibleSections.filter((s) => s.type !== "personalInfo");
 
-    const bodySections =
-      templateStyle.headerStyle === "two-column"
-        ? visibleSections
-        : visibleSections.filter((s) => s.type !== "personalInfo");
+      const leftColumn: Section[] = [];
+      const rightColumn: Section[] = [];
 
-    const leftColumn: Section[] = [];
-    const rightColumn: Section[] = [];
+      // Track position for alternating distribution (for Atlantic Blue)
+      let nonPersonalInfoIndex = 0;
 
-    // Track position for alternating distribution (for Atlantic Blue)
-    let nonPersonalInfoIndex = 0;
-
-    bodySections.forEach((section, index) => {
-      // IGNORE explicit column assignment - always use index-based distribution
-      // This ensures sections move between columns when reordered
-      // Dynamic flowing distribution: 1→left, 2→right, 3→left, 4→right, etc.
-      // This ensures even distribution regardless of section types
-      if (templateStyle.headerStyle === "two-column") {
-        // Atlantic Blue: Keep only personalInfo fixed in left column, rest flow evenly
-        if (section.type === "personalInfo") {
-          // PersonalInfo always goes to left column (sidebar)
-          leftColumn.push(section);
-        } else {
-          // All other sections alternate evenly: 1→right, 2→left, 3→right, 4→left, etc.
-          // Start with right column (index 0 → right, index 1 → left, etc.)
-          if (nonPersonalInfoIndex % 2 === 0) {
-            rightColumn.push(section);
-          } else {
+      bodySections.forEach((section, index) => {
+        // IGNORE explicit column assignment - always use index-based distribution
+        // This ensures sections move between columns when reordered
+        // Dynamic flowing distribution: 1→left, 2→right, 3→left, 4→right, etc.
+        // This ensures even distribution regardless of section types
+        if (templateStyle.headerStyle === "two-column") {
+          // Atlantic Blue: Keep only personalInfo fixed in left column, rest flow evenly
+          if (section.type === "personalInfo") {
+            // PersonalInfo always goes to left column (sidebar)
             leftColumn.push(section);
+          } else {
+            // All other sections alternate evenly: 1→right, 2→left, 3→right, 4→left, etc.
+            // Start with right column (index 0 → right, index 1 → left, etc.)
+            if (nonPersonalInfoIndex % 2 === 0) {
+              rightColumn.push(section);
+            } else {
+              leftColumn.push(section);
+            }
+            nonPersonalInfoIndex++;
           }
-          nonPersonalInfoIndex++;
-        }
-      } else {
-        // Standard templates: True alternating distribution
-        // 1→left, 2→right, 3→left, 4→right, etc.
-        if (index % 2 === 0) {
-          leftColumn.push(section);
         } else {
-          rightColumn.push(section);
+          // Standard templates: True alternating distribution
+          // 1→left, 2→right, 3→left, 4→right, etc.
+          if (index % 2 === 0) {
+            leftColumn.push(section);
+          } else {
+            rightColumn.push(section);
+          }
         }
-      }
-    });
+      });
 
       return { headerSection, leftColumn, rightColumn };
     };
-    
+
     return organizeIntoColumns();
   }, [
     // Use visibleSections array directly - React will detect reference changes
     // The key is that visibleSections is recalculated when displaySections order changes
     visibleSections,
-    resumeLayout.type, 
-    templateStyle.headerLayout, 
-    templateStyle.headerStyle, 
-    template.id
+    resumeLayout.type,
+    templateStyle.headerLayout,
+    templateStyle.headerStyle,
+    template.id,
   ]);
 
   // Get icon for section type
@@ -291,7 +288,7 @@ export function ResumeRenderer({
   const renderSectionHeader = (
     title: string,
     isInSidebar: boolean = false,
-    sectionType?: string
+    sectionType?: string,
   ) => {
     const headerConfig = templateStyle.sectionHeader;
 
@@ -390,8 +387,8 @@ export function ResumeRenderer({
                 headerConfig.borderRadius !== undefined
                   ? `${headerConfig.borderRadius}px`
                   : isInSidebar
-                  ? "4px"
-                  : "0px",
+                    ? "4px"
+                    : "0px",
               boxShadow: isInSidebar ? "0 2px 4px rgba(0, 0, 0, 0.2)" : "none",
             }}
           >
@@ -664,8 +661,8 @@ export function ResumeRenderer({
         href: personalInfo.github?.startsWith("http")
           ? personalInfo.github
           : personalInfo.github?.startsWith("@")
-          ? `https://github.com/${personalInfo.github.slice(1)}`
-          : `https://github.com/${personalInfo.github}`,
+            ? `https://github.com/${personalInfo.github.slice(1)}`
+            : `https://github.com/${personalInfo.github}`,
       },
       {
         type: "website",
@@ -777,7 +774,7 @@ export function ResumeRenderer({
   // Render section content based on type and template configuration
   const renderSectionContent = (
     section: Section,
-    column?: "left" | "right"
+    column?: "left" | "right",
   ) => {
     const isInSidebar =
       templateStyle.headerStyle === "two-column" && column === "left";
@@ -1207,8 +1204,7 @@ export function ResumeRenderer({
                       // Use CSS classes for header colors if configured, otherwise use inline styles
                       ...(templateStyle.useCSSClassesForHeader
                         ? {}
-                        : { color: templateStyle.colors.text }
-                      ),
+                        : { color: templateStyle.colors.text }),
                       margin: "0",
                       fontFamily: templateStyle.fontFamily,
                       flexShrink: 0,
@@ -1225,8 +1221,7 @@ export function ResumeRenderer({
                       // Use CSS classes for header colors if configured, otherwise use inline styles
                       ...(templateStyle.useCSSClassesForHeader
                         ? {}
-                        : { color: templateStyle.colors.text }
-                      ),
+                        : { color: templateStyle.colors.text }),
                       margin: "0",
                       fontFamily: templateStyle.fontFamily,
                       fontStyle: "italic",
@@ -1347,52 +1342,52 @@ export function ResumeRenderer({
 
         // Standard header style
         return (
-          <div 
+          <div
             className={`${template.id}-header`}
             style={{ marginBottom: `${templateStyle.sectionSpacing}px` }}
           >
+            <div
+              style={{
+                textAlign:
+                  templateStyle.headerLayout?.type === "standard" &&
+                  templateStyle.headerStyle === "centered"
+                    ? "center"
+                    : "left",
+                display: "flex",
+                flexDirection:
+                  templateStyle.headerStyle === "centered" ? "column" : "row",
+                alignItems:
+                  templateStyle.headerStyle === "centered"
+                    ? "center"
+                    : "flex-start",
+                gap: "20px",
+              }}
+            >
+              {/* Profile Picture Fallback for Standard Layout */}
+              {resume.content.personalInfo?.profilePicture && (
+                <div style={{ flexShrink: 0, marginBottom: "10px" }}>
+                  <img
+                    src={resume.content.personalInfo.profilePicture}
+                    alt="Profile"
+                    style={{
+                      width: template.id === "mercury" ? "120px" : "80px",
+                      height: template.id === "mercury" ? "120px" : "80px",
+                      borderRadius: "50%",
+                      objectFit: "cover",
+                    }}
+                  />
+                </div>
+              )}
               <div
                 style={{
+                  flex: 1,
                   textAlign:
-                    templateStyle.headerLayout?.type === "standard" &&
-                    templateStyle.headerStyle === "centered"
+                    templateStyle.headerStyle === "centered" ||
+                    resume.templateId === "classic"
                       ? "center"
                       : "left",
-                  display: "flex",
-                  flexDirection:
-                    templateStyle.headerStyle === "centered" ? "column" : "row",
-                  alignItems:
-                    templateStyle.headerStyle === "centered"
-                      ? "center"
-                      : "flex-start",
-                  gap: "20px",
                 }}
               >
-                {/* Profile Picture Fallback for Standard Layout */}
-                {resume.content.personalInfo?.profilePicture && (
-                  <div style={{ flexShrink: 0, marginBottom: "10px" }}>
-                    <img
-                      src={resume.content.personalInfo.profilePicture}
-                      alt="Profile"
-                      style={{
-                        width: template.id === "mercury" ? "120px" : "80px",
-                        height: template.id === "mercury" ? "120px" : "80px",
-                        borderRadius: "50%",
-                        objectFit: "cover",
-                      }}
-                    />
-                  </div>
-                )}
-                <div
-                  style={{
-                    flex: 1,
-                    textAlign:
-                      templateStyle.headerStyle === "centered" ||
-                      resume.templateId === "classic"
-                        ? "center"
-                        : "left",
-                  }}
-                >
                 {resume.content.personalInfo.fullName && (
                   <h1
                     className={`${template.id}-name`}
@@ -1402,59 +1397,61 @@ export function ResumeRenderer({
                       // Use CSS classes for header colors if configured, otherwise use inline styles
                       ...(templateStyle.useCSSClassesForHeader
                         ? {}
-                        : { color: isInSidebar ? templateStyle.colors.sidebarText : templateStyle.colors.text }
-                      ),
+                        : {
+                            color: isInSidebar
+                              ? templateStyle.colors.sidebarText
+                              : templateStyle.colors.text,
+                          }),
                       margin: "0 0 4px 0",
                       fontFamily: templateStyle.fontFamily,
                     }}
                   >
                     {resume.content.personalInfo.fullName}
                   </h1>
-              )}
-              {resume.content.personalInfo.portfolio && (
-                <p
-                  className={`${template.id}-job-title`}
-                  style={{
-                    fontSize: `${templateStyle.fontSize.subheading}px`,
-                    // Use CSS classes for header colors if configured, otherwise use inline styles
-                    ...(templateStyle.useCSSClassesForHeader
-                      ? {}
-                      : { color: templateStyle.colors.secondary }
-                    ),
-                    margin: "0 0 6px 0",
-                    fontFamily: templateStyle.fontFamily,
-                    fontStyle: "italic",
-                  }}
-                >
-                  {resume.content.personalInfo.portfolio}
-                </p>
-              )}
-              {resume.content.personalInfo.yearsOfExperience && (
-                <p
-                  style={{
-                    fontSize: `${templateStyle.fontSize.subheading}px`,
-                    color: templateStyle.colors.secondary,
-                    margin: "0 0 12px 0",
-                    fontFamily: templateStyle.fontFamily,
-                    fontStyle: "italic",
-                  }}
-                >
-                  Experience: {resume.content.personalInfo.yearsOfExperience}
-                </p>
-              )}
-              {renderContactInfo(isInSidebar)}
-              {renderAdditionalPersonalInfo(isInSidebar)}
+                )}
+                {resume.content.personalInfo.portfolio && (
+                  <p
+                    className={`${template.id}-job-title`}
+                    style={{
+                      fontSize: `${templateStyle.fontSize.subheading}px`,
+                      // Use CSS classes for header colors if configured, otherwise use inline styles
+                      ...(templateStyle.useCSSClassesForHeader
+                        ? {}
+                        : { color: templateStyle.colors.secondary }),
+                      margin: "0 0 6px 0",
+                      fontFamily: templateStyle.fontFamily,
+                      fontStyle: "italic",
+                    }}
+                  >
+                    {resume.content.personalInfo.portfolio}
+                  </p>
+                )}
+                {resume.content.personalInfo.yearsOfExperience && (
+                  <p
+                    style={{
+                      fontSize: `${templateStyle.fontSize.subheading}px`,
+                      color: templateStyle.colors.secondary,
+                      margin: "0 0 12px 0",
+                      fontFamily: templateStyle.fontFamily,
+                      fontStyle: "italic",
+                    }}
+                  >
+                    Experience: {resume.content.personalInfo.yearsOfExperience}
+                  </p>
+                )}
+                {renderContactInfo(isInSidebar)}
+                {renderAdditionalPersonalInfo(isInSidebar)}
+              </div>
             </div>
           </div>
-        </div>
-      );
+        );
 
       case "profileSummary":
         const profileContent =
           resume.profileSummary ||
           (resume.content as any).profileSummary ||
           (resume.content as any).sections?.find(
-            (s: any) => s.type === "profileSummary"
+            (s: any) => s.type === "profileSummary",
           )?.content;
 
         if (!profileContent) {
@@ -1522,7 +1519,7 @@ export function ResumeRenderer({
 
         if (resume.templateId === "executive") {
           const expSection = (resume.content as any).sections?.find(
-            (s: any) => s.type === "workExperience"
+            (s: any) => s.type === "workExperience",
           );
           experienceData = expSection?.items || resume.content.experience || [];
         } else {
@@ -1751,7 +1748,7 @@ export function ResumeRenderer({
 
         if (resume.templateId === "executive") {
           const eduSection = (resume.content as any).sections?.find(
-            (s: any) => s.type === "education"
+            (s: any) => s.type === "education",
           );
           educationData = eduSection?.items || resume.content.education || [];
         } else {
@@ -1853,7 +1850,9 @@ export function ResumeRenderer({
                           alignItems: "flex-start",
                         }}
                       >
-                        <div className={`${template.id}-education-title-container`}>
+                        <div
+                          className={`${template.id}-education-title-container`}
+                        >
                           <div
                             className={`${template.id}-degree`}
                             style={{
@@ -1897,7 +1896,9 @@ export function ResumeRenderer({
                             {edu.startDate} - {edu.endDate}
                           </div>
                           {edu.location && (
-                            <div className={`${template.id}-education-location`}>
+                            <div
+                              className={`${template.id}-education-location`}
+                            >
                               {edu.location}
                             </div>
                           )}
@@ -1919,7 +1920,7 @@ export function ResumeRenderer({
         // Executive template: Get from sections array
         if (resume.templateId === "executive") {
           const skillsSection = (resume.content as any).sections?.find(
-            (s: any) => s.type === "skills"
+            (s: any) => s.type === "skills",
           );
           skillItems = skillsSection?.items || [];
         } else {
@@ -2014,7 +2015,7 @@ export function ResumeRenderer({
                         const parser = new DOMParser();
                         const doc = parser.parseFromString(
                           skillsData,
-                          "text/html"
+                          "text/html",
                         );
 
                         // Extract from ul/ol > li (direct children only)
@@ -2043,7 +2044,7 @@ export function ResumeRenderer({
                     } else if (Array.isArray(skillsData)) {
                       listItems = skillsData
                         .map((skill: any) =>
-                          typeof skill === "string" ? skill : String(skill)
+                          typeof skill === "string" ? skill : String(skill),
                         )
                         .filter((text: string) => text.length > 0);
                     }
@@ -2065,7 +2066,7 @@ export function ResumeRenderer({
                     // Distribute items into columns using round-robin
                     const columns: string[][] = Array.from(
                       { length: numColumns },
-                      () => []
+                      () => [],
                     );
                     uniqueItems.forEach((item, index) => {
                       const columnIndex = index % numColumns;
@@ -2262,7 +2263,7 @@ export function ResumeRenderer({
 
         // 1. Check sections array (for templates with ratings)
         const languagesSection = (resume.content as any).sections?.find(
-          (s: any) => s.type === "languages"
+          (s: any) => s.type === "languages",
         );
         if (languagesSection?.items && Array.isArray(languagesSection.items)) {
           languagesData = languagesSection.items;
@@ -2408,14 +2409,14 @@ export function ResumeRenderer({
                           style={{
                             display: "flex",
                             gap: `${Math.floor(
-                              (langConfig.dotSize || 6) / 2
+                              (langConfig.dotSize || 6) / 2,
                             )}px`,
                             marginLeft: "6px",
                           }}
                         >
                           {Array.from(
                             { length: langConfig.maxRating || 5 },
-                            (_, i) => i + 1
+                            (_, i) => i + 1,
                           ).map((level) => (
                             <div
                               key={level}
@@ -2439,8 +2440,8 @@ export function ResumeRenderer({
                                         "#000"
                                       : templateStyle.colors.text || "#000"
                                     : isInSidebar
-                                    ? "rgba(255,255,255,0.3)"
-                                    : "rgba(0,0,0,0.2)",
+                                      ? "rgba(255,255,255,0.3)"
+                                      : "rgba(0,0,0,0.2)",
                               }}
                             />
                           ))}
@@ -2459,7 +2460,7 @@ export function ResumeRenderer({
 
         if (resume.templateId === "executive") {
           const awardsSection = (resume.content as any).sections?.find(
-            (s: any) => s.type === "awards"
+            (s: any) => s.type === "awards",
           );
           awardsData = awardsSection?.items || resume.content.awards || [];
         } else {
@@ -2568,7 +2569,7 @@ export function ResumeRenderer({
 
         if (resume.templateId === "executive") {
           const certSection = (resume.content as any).sections?.find(
-            (s: any) => s.type === "certifications"
+            (s: any) => s.type === "certifications",
           );
           certificatesData =
             certSection?.items || resume.content.certificates || [];
@@ -3086,13 +3087,12 @@ export function ResumeRenderer({
       case "custom":
         // Custom section - renders HTML content from customSections
         const customSectionData = resume.content.customSections?.find(
-          (cs: any) => cs.id === section.id
+          (cs: any) => cs.id === section.id,
         );
-
 
         if (!customSectionData) {
           console.warn(
-            `⚠️ Custom section data not found for section ID: ${section.id}`
+            `⚠️ Custom section data not found for section ID: ${section.id}`,
           );
           return null;
         }
@@ -3102,7 +3102,7 @@ export function ResumeRenderer({
           customSectionData.content.trim() === ""
         ) {
           console.warn(
-            `⚠️ Custom section has no content for section ID: ${section.id}`
+            `⚠️ Custom section has no content for section ID: ${section.id}`,
           );
           return null;
         }
@@ -3377,6 +3377,30 @@ export function ResumeRenderer({
           
           .resume-content ul ul ul {
             list-style-type: square !important;
+          }
+          
+          /* Link styles for resume content ONLY - scoped to resume content areas, NOT header */
+          .resume-content a {
+            text-decoration: underline !important;
+            cursor: pointer !important;
+          }
+          
+          /* Support for bold links */
+          .resume-content a strong,
+          .resume-content strong a {
+            font-weight: bold !important;
+          }
+          
+          /* Support for underlined links */
+          .resume-content a u,
+          .resume-content u a {
+            text-decoration: underline !important;
+          }
+          
+          /* Support for italic links */
+          .resume-content a em,
+          .resume-content em a {
+            font-style: italic !important;
           }
           
           /* Clean page styling */
