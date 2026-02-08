@@ -232,32 +232,50 @@ export default function NewInterviewPage() {
                 </h3>
                 <p className="text-gray-700 mb-4 text-lg">
                   {limitCheck.reason ||
-                    "You've used all your free interviews. Upgrade to continue practicing!"}
+                    "Insufficient credits. Purchase more credits to continue!"}
                 </p>
-                {limitCheck.interviewsUsed !== undefined &&
-                  limitCheck.interviewsLimit !== undefined && (
+                {limitCheck.creditsAvailable !== undefined &&
+                  limitCheck.minimumRequired !== undefined && (
                     <div className="mb-6 p-4 bg-white/60 rounded-xl backdrop-blur-sm">
+                      <p className="text-sm text-gray-700 mb-2">
+                        <span className="font-semibold">
+                          Available Credits:{" "}
+                        </span>
+                        <span className="font-bold text-orange-600 text-lg">
+                          {limitCheck.creditsAvailable}
+                        </span>
+                      </p>
                       <p className="text-sm text-gray-700">
-                        You've used{" "}
-                        <span className="font-bold text-orange-600 text-lg">
-                          {limitCheck.interviewsUsed}
+                        <span className="font-semibold">Required: </span>
+                        <span className="font-bold text-red-600 text-lg">
+                          {limitCheck.minimumRequired}
                         </span>{" "}
-                        out of{" "}
-                        <span className="font-bold text-orange-600 text-lg">
-                          {limitCheck.interviewsLimit}
-                        </span>{" "}
-                        interviews.
+                        credits (30-min interview)
+                      </p>
+                      <p className="text-xs text-gray-600 mt-2">
+                        💡 5 credits per minute • Purchase credits to continue
                       </p>
                     </div>
                   )}
-                <Button
-                  onClick={() => router.push("/pricing")}
-                  size="lg"
-                  className="!bg-[rgb(37,99,235)] hover:!bg-[rgb(17,24,39)] text-white shadow-lg hover:shadow-xl transition-all"
-                >
-                  <Crown className="h-5 w-5 mr-2" />
-                  View Plans & Upgrade
-                </Button>
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <Button
+                    onClick={() => router.push("/dashboard/plan")}
+                    size="lg"
+                    className="!bg-emerald-600 hover:!bg-emerald-700 text-white shadow-lg hover:shadow-xl transition-all"
+                  >
+                    <Zap className="h-5 w-5 mr-2" />
+                    Purchase Credits
+                  </Button>
+                  <Button
+                    onClick={() => router.push("/pricing")}
+                    size="lg"
+                    variant="outline"
+                    className="border-2 border-[rgb(37,99,235)] text-[rgb(37,99,235)] hover:bg-blue-50"
+                  >
+                    <Crown className="h-5 w-5 mr-2" />
+                    View Plans
+                  </Button>
+                </div>
               </div>
             </div>
           </CardContent>
@@ -273,12 +291,13 @@ export default function NewInterviewPage() {
                 <p className="text-gray-800 font-semibold text-lg">
                   You have{" "}
                   <span className="font-bold text-green-600 text-xl">
-                    {limitCheck.interviewsLimit! - limitCheck.interviewsUsed!}
+                    {limitCheck.creditsAvailable || 0}
                   </span>{" "}
-                  interviews remaining this period.
+                  credits available
                 </p>
                 <p className="text-sm text-gray-600 mt-1">
-                  Ready to start your next mock interview!
+                  Ready to start your mock interview! (5 credits/min • Min. 150
+                  credits)
                 </p>
               </div>
             </div>
@@ -477,7 +496,7 @@ export default function NewInterviewPage() {
                               </p>
                               <p className="text-xs text-gray-500 truncate">
                                 {new Date(
-                                  userProfile.resume.uploadedAt
+                                  userProfile.resume.uploadedAt,
                                 ).toLocaleDateString("en-IN", {
                                   day: "numeric",
                                   month: "short",
@@ -548,8 +567,8 @@ export default function NewInterviewPage() {
                               isDragActive
                                 ? "border-[rgb(37,99,235)] bg-gradient-to-br from-blue-50 to-blue-100/50"
                                 : errors.resume
-                                ? "border-red-400 bg-red-50"
-                                : "border-gray-300 bg-gray-50/50"
+                                  ? "border-red-400 bg-red-50"
+                                  : "border-gray-300 bg-gray-50/50"
                             }`}
                           >
                             <input {...getInputProps()} />
