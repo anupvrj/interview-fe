@@ -32,9 +32,9 @@ export const classicTemplate: ResumeTemplate = {
     sectionSpacing: 10,
     fontFamily: "'Zilla Slab', serif",
     fontSize: {
-      heading: 28,
-      subheading: 14,
-      body: 10.5,
+      heading: 30,
+      subheading: 16,
+      body: 14.5,
     },
   },
   atsOptimized: true,
@@ -42,9 +42,10 @@ export const classicTemplate: ResumeTemplate = {
 
 export const classicExtendedConfig: Partial<ExtendedResumeTemplate> = {
   // Minimal style config for renderer (detailed CSS in style.css)
+  // fontSize here drives the actual resume preview; keep in sync with layout.fontSize above if you change base template
   style: {
     fontFamily: "'Zilla Slab', serif",
-    fontSize: { heading: 28, subheading: 14, body: 10.5, small: 9.5 },
+    fontSize: { heading: 30, subheading: 16, body: 14.5, small: 12.5 },
     lineHeight: 1.4,
     colors: {
       primary: "#000000",
