@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import "@/styles/mercury-template.css";
 import { useUser } from "@clerk/nextjs";
 import { useRouter, useParams } from "next/navigation";
@@ -9,6 +9,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   ArrowLeft,
   Save,
@@ -29,6 +36,7 @@ import { Resume, ResumeTemplate, resumeApi, apiClient } from "@/lib/api";
 import { ResumePreview } from "@/components/ResumePreview";
 import { RichTextEditor } from "@/components/RichTextEditor";
 import { getExtendedTemplate } from "@/lib/templateConfigs";
+import { getTemplateStyle } from "@/lib/templateRenderer";
 import { ExecutiveSkills } from "@/components/resume-editor/ExecutiveSkills";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import { LanguagesEditor } from "@/components/LanguagesEditor";
@@ -90,7 +98,45 @@ export default function EditResumePage() {
     type: "single" | "double";
     columnWidths: { left: number; right: number };
     padding?: { top: number; bottom: number; left: number; right: number };
+    fontSize?: {
+      heading?: number;
+      subheading?: number;
+      body?: number;
+      small?: number;
+      sectionHeader?: number;
+    };
+    fontFamily?: string;
   } | null>(null);
+
+  // Effective typography: template defaults merged with layout overrides (for Layout UI)
+  const effectiveTypography = useMemo(() => {
+    if (!template || !layout) return null;
+    const base = getTemplateStyle(getExtendedTemplate(template));
+    return {
+      fontSize: {
+        heading: layout.fontSize?.heading ?? base.fontSize.heading,
+        subheading: layout.fontSize?.subheading ?? base.fontSize.subheading,
+        body: layout.fontSize?.body ?? base.fontSize.body,
+        small: layout.fontSize?.small ?? base.fontSize.small,
+        sectionHeader:
+          layout.fontSize?.sectionHeader ?? base.sectionHeader.fontSize,
+      },
+      fontFamily: layout.fontFamily ?? base.fontFamily,
+    };
+  }, [template, layout]);
+
+  const FONT_FAMILY_OPTIONS = [
+    { value: "Arial, sans-serif", label: "Arial" },
+    { value: "Georgia, serif", label: "Georgia" },
+    { value: "Times New Roman, serif", label: "Times New Roman" },
+    { value: "'Zilla Slab', serif", label: "Zilla Slab" },
+    { value: "'Open Sans', sans-serif", label: "Open Sans" },
+    { value: "'Lato', sans-serif", label: "Lato" },
+    { value: "'Roboto', sans-serif", label: "Roboto" },
+    { value: "'Source Sans 3', sans-serif", label: "Source Sans 3" },
+    { value: "'Merriweather', serif", label: "Merriweather" },
+    { value: "'PT Sans', sans-serif", label: "PT Sans" },
+  ];
 
   // Initialize sections as empty - will be populated from database
   const [sections, setSections] = useState<Section[]>([]);
@@ -253,6 +299,18 @@ export default function EditResumePage() {
             right: 40,
           },
           padding: resumeData.layout.padding || defaultPadding,
+          fontSize: (
+            resumeData.layout as {
+              fontSize?: {
+                heading?: number;
+                subheading?: number;
+                body?: number;
+                small?: number;
+                sectionHeader?: number;
+              };
+            }
+          ).fontSize,
+          fontFamily: (resumeData.layout as { fontFamily?: string }).fontFamily,
         });
 
         // If Mercury template has wrong padding, update it
@@ -297,6 +355,8 @@ export default function EditResumePage() {
           type: "single",
           columnWidths: { left: 60, right: 40 },
           padding: defaultPadding,
+          fontSize: undefined,
+          fontFamily: undefined,
         });
       }
 
@@ -1776,6 +1836,185 @@ export default function EditResumePage() {
                         </div>
                       </div>
                     </div>
+
+                    {/* Typography: font sizes and font family */}
+                    {effectiveTypography && (
+                      <div className="space-y-3 pt-2 border-t">
+                        <Label className="text-xs text-gray-600">
+                          Typography
+                        </Label>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <Label className="text-xs text-gray-500">
+                              Heading
+                            </Label>
+                            <Input
+                              type="number"
+                              min="10"
+                              max="48"
+                              step="0.5"
+                              value={effectiveTypography.fontSize.heading}
+                              onChange={(e) => {
+                                const value = Math.max(
+                                  10,
+                                  Math.min(48, Number(e.target.value) || 10),
+                                );
+                                setLayout({
+                                  ...layout,
+                                  fontSize: {
+                                    ...layout?.fontSize,
+                                    heading: value,
+                                  },
+                                });
+                                setHasChanges(true);
+                              }}
+                              className="mt-1 h-7 text-xs"
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-xs text-gray-500">
+                              Subheading
+                            </Label>
+                            <Input
+                              type="number"
+                              min="8"
+                              max="36"
+                              step="0.5"
+                              value={effectiveTypography.fontSize.subheading}
+                              onChange={(e) => {
+                                const value = Math.max(
+                                  8,
+                                  Math.min(36, Number(e.target.value) || 8),
+                                );
+                                setLayout({
+                                  ...layout,
+                                  fontSize: {
+                                    ...layout?.fontSize,
+                                    subheading: value,
+                                  },
+                                });
+                                setHasChanges(true);
+                              }}
+                              className="mt-1 h-7 text-xs"
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-xs text-gray-500">
+                              Body
+                            </Label>
+                            <Input
+                              type="number"
+                              min="8"
+                              max="24"
+                              step="0.5"
+                              value={effectiveTypography.fontSize.body}
+                              onChange={(e) => {
+                                const value = Math.max(
+                                  8,
+                                  Math.min(24, Number(e.target.value) || 8),
+                                );
+                                setLayout({
+                                  ...layout,
+                                  fontSize: {
+                                    ...layout?.fontSize,
+                                    body: value,
+                                  },
+                                });
+                                setHasChanges(true);
+                              }}
+                              className="mt-1 h-7 text-xs"
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-xs text-gray-500">
+                              Small
+                            </Label>
+                            <Input
+                              type="number"
+                              min="6"
+                              max="20"
+                              step="0.5"
+                              value={effectiveTypography.fontSize.small}
+                              onChange={(e) => {
+                                const value = Math.max(
+                                  6,
+                                  Math.min(20, Number(e.target.value) || 6),
+                                );
+                                setLayout({
+                                  ...layout,
+                                  fontSize: {
+                                    ...layout?.fontSize,
+                                    small: value,
+                                  },
+                                });
+                                setHasChanges(true);
+                              }}
+                              className="mt-1 h-7 text-xs"
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-xs text-gray-500">
+                              Section header
+                            </Label>
+                            <Input
+                              type="number"
+                              min="8"
+                              max="24"
+                              step="0.5"
+                              value={effectiveTypography.fontSize.sectionHeader}
+                              onChange={(e) => {
+                                const value = Math.max(
+                                  8,
+                                  Math.min(24, Number(e.target.value) || 8),
+                                );
+                                setLayout({
+                                  ...layout,
+                                  fontSize: {
+                                    ...layout?.fontSize,
+                                    sectionHeader: value,
+                                  },
+                                });
+                                setHasChanges(true);
+                              }}
+                              className="mt-1 h-7 text-xs"
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <Label className="text-xs text-gray-500">
+                            Font family
+                          </Label>
+                          <Select
+                            value={
+                              effectiveTypography.fontFamily ||
+                              FONT_FAMILY_OPTIONS[0].value
+                            }
+                            onValueChange={(value) => {
+                              setLayout({
+                                ...layout,
+                                fontFamily: value,
+                              });
+                              setHasChanges(true);
+                            }}
+                          >
+                            <SelectTrigger className="mt-1 h-8 text-xs">
+                              <SelectValue placeholder="Font" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {FONT_FAMILY_OPTIONS.map((opt) => (
+                                <SelectItem
+                                  key={opt.value}
+                                  value={opt.value}
+                                  className="text-xs"
+                                >
+                                  {opt.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    )}
                   </CardContent>
                 )}
               </Card>
