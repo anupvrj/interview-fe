@@ -82,7 +82,7 @@ export default function EditResumePage() {
   const [previewKey, setPreviewKey] = useState(0);
   const [zoomLevel, setZoomLevel] = useState(100);
   const [editingSectionTitle, setEditingSectionTitle] = useState<string | null>(
-    null
+    null,
   );
   const [sectionTitleValue, setSectionTitleValue] = useState("");
   const [draggedSection, setDraggedSection] = useState<string | null>(null);
@@ -176,7 +176,7 @@ export default function EditResumePage() {
         // Check sections array
         else {
           const profileSection = (resumeData.content as any).sections?.find(
-            (s: any) => s.type === "profileSummary"
+            (s: any) => s.type === "profileSummary",
           );
           if (profileSection?.content) {
             resumeData.profileSummary = profileSection.content;
@@ -230,7 +230,7 @@ export default function EditResumePage() {
       // Load template by templateId first to get padding configuration
       const templateList = await resumeApi.getTemplates();
       const foundTemplate = templateList.find(
-        (t) => t.id === resumeData.templateId
+        (t) => t.id === resumeData.templateId,
       );
 
       // Set template immediately so it's available when sections are initialized
@@ -310,7 +310,7 @@ export default function EditResumePage() {
         // Ensure all custom sections in sectionOrder have corresponding entries in customSections
         const customSections = resumeData.content.customSections || [];
         const customSectionIds = new Set(
-          customSections.map((cs: any) => cs.id)
+          customSections.map((cs: any) => cs.id),
         );
 
         const missingCustomSections = loadedSections
@@ -356,7 +356,7 @@ export default function EditResumePage() {
           // All custom sections exist, ensure resume state has the latest customSections
           console.log(
             "✅ All custom sections found in database:",
-            customSections
+            customSections,
           );
           // Update resume state to ensure customSections are preserved
           // Use a single update to ensure both resume and sections are in sync
@@ -623,7 +623,7 @@ export default function EditResumePage() {
         let pageNum = 2;
         while (true) {
           const pageElement = document.getElementById(
-            `${previewContainerId}-page-${pageNum}`
+            `${previewContainerId}-page-${pageNum}`,
           );
           if (!pageElement) break;
           allPageElements.push(pageElement as HTMLElement);
@@ -633,7 +633,6 @@ export default function EditResumePage() {
         if (allPageElements.length === 0) {
           throw new Error("Preview element not found");
         }
-
 
         // Wait for all images to load before capturing HTML
         const allImages: HTMLImageElement[] = [];
@@ -660,7 +659,7 @@ export default function EditResumePage() {
                 }, 5000);
               }
             });
-          })
+          }),
         );
 
         // Combine all pages into a single HTML document
@@ -699,7 +698,7 @@ export default function EditResumePage() {
         const { downloadUrl } = await resumeApi.generatePDF(
           resumeId,
           htmlContent,
-          layout?.padding
+          layout?.padding,
         );
 
         // Open the PDF in a new tab
@@ -721,7 +720,7 @@ export default function EditResumePage() {
           if (currentResumeId !== resumeId) {
             console.log(
               "Resume changed, skipping thumbnail capture for:",
-              currentResumeId
+              currentResumeId,
             );
             return;
           }
@@ -731,14 +730,14 @@ export default function EditResumePage() {
           const previewElement = document.getElementById(previewContainerId);
           if (!previewElement) {
             console.error(
-              `Resume preview element not found for thumbnail capture: ${previewContainerId}`
+              `Resume preview element not found for thumbnail capture: ${previewContainerId}`,
             );
             return;
           }
 
           const result = await captureAndUploadThumbnail(
             currentResumeId,
-            previewContainerId
+            previewContainerId,
           );
 
           if (result.success) {
@@ -774,7 +773,7 @@ export default function EditResumePage() {
       const mergedCustomSections = [...existingCustomSections];
       updatedCustomSections.forEach((updated: any) => {
         const existingIndex = mergedCustomSections.findIndex(
-          (cs: any) => cs.id === updated.id
+          (cs: any) => cs.id === updated.id,
         );
         if (existingIndex >= 0) {
           mergedCustomSections[existingIndex] = updated;
@@ -796,8 +795,8 @@ export default function EditResumePage() {
   const toggleSection = (sectionId: string) => {
     setSections(
       sections.map((s) =>
-        s.id === sectionId ? { ...s, expanded: !s.expanded } : s
-      )
+        s.id === sectionId ? { ...s, expanded: !s.expanded } : s,
+      ),
     );
   };
 
@@ -844,7 +843,7 @@ export default function EditResumePage() {
     if (sectionToDelete.type === "custom" && resume) {
       const updatedCustomSections =
         resume.content.customSections?.filter(
-          (cs: any) => cs.id !== sectionToDelete.id
+          (cs: any) => cs.id !== sectionToDelete.id,
         ) || [];
       updateContent({
         customSections: updatedCustomSections,
@@ -862,7 +861,7 @@ export default function EditResumePage() {
 
   const startEditingSectionTitle = (
     sectionId: string,
-    currentTitle: string
+    currentTitle: string,
   ) => {
     setEditingSectionTitle(sectionId);
     setSectionTitleValue(currentTitle);
@@ -873,15 +872,15 @@ export default function EditResumePage() {
 
     setSections(
       sections.map((s) =>
-        s.id === sectionId ? { ...s, title: sectionTitleValue } : s
-      )
+        s.id === sectionId ? { ...s, title: sectionTitleValue } : s,
+      ),
     );
 
     // If it's a custom section, also update the title in customSections
     if (section?.type === "custom" && resume) {
       const currentCustomSections = resume.content.customSections || [];
       const existingIndex = currentCustomSections.findIndex(
-        (cs: any) => cs.id === sectionId
+        (cs: any) => cs.id === sectionId,
       );
 
       let updatedCustomSections;
@@ -949,7 +948,7 @@ export default function EditResumePage() {
     if (type === "custom" && resume) {
       const currentCustomSections = resume.content.customSections || [];
       const existingIndex = currentCustomSections.findIndex(
-        (cs: any) => cs.id === sectionId
+        (cs: any) => cs.id === sectionId,
       );
 
       if (existingIndex < 0) {
@@ -979,8 +978,18 @@ export default function EditResumePage() {
   // ============================================
   // DRAG AND DROP HANDLERS - Clean Implementation
   // ============================================
-  
+
   const handleDragStart = (e: React.DragEvent, sectionId: string) => {
+    // Don't start drag when user is interacting with inputs (fixes Space/keys not working)
+    const target = e.target as HTMLElement;
+    if (
+      target.closest(
+        "input, textarea, select, button, [contenteditable='true']",
+      )
+    ) {
+      e.preventDefault();
+      return;
+    }
     e.dataTransfer.effectAllowed = "move";
     e.dataTransfer.setData("text/plain", sectionId);
     isDraggingRef.current = true;
@@ -993,7 +1002,7 @@ export default function EditResumePage() {
   const handleDragOver = (e: React.DragEvent, targetId: string) => {
     e.preventDefault();
     e.stopPropagation();
-    
+
     if (!draggedSection || draggedSection === targetId) {
       setDragOverId(null);
       return;
@@ -1009,10 +1018,10 @@ export default function EditResumePage() {
     // Create new sections array with reordered items
     // IMPORTANT: Create a completely new array to ensure React detects the change
     // Also remove any column property to allow dynamic redistribution
-    const newSections = sections.map(s => {
+    const newSections = sections.map((s) => {
       // TypeScript-safe way to remove column property if it exists
       const sectionWithoutColumn = { ...s };
-      if ('column' in sectionWithoutColumn) {
+      if ("column" in sectionWithoutColumn) {
         delete (sectionWithoutColumn as any).column;
       }
       return sectionWithoutColumn;
@@ -1038,7 +1047,7 @@ export default function EditResumePage() {
     setDraggedSection(null);
     setDragOverId(null);
     setHasChanges(true);
-    
+
     // Force preview update after drag ends to ensure column assignment is recalculated
     // Use setTimeout to ensure sections state has fully updated
     setTimeout(() => {
@@ -1106,8 +1115,8 @@ export default function EditResumePage() {
                       resume.atsScore >= 80
                         ? "bg-green-50 text-green-700 border-green-300"
                         : resume.atsScore >= 60
-                        ? "bg-yellow-50 text-yellow-700 border-yellow-300"
-                        : "bg-red-50 text-red-700 border-red-300"
+                          ? "bg-yellow-50 text-yellow-700 border-yellow-300"
+                          : "bg-red-50 text-red-700 border-red-300"
                     }`}
                   >
                     <span>ATS Score:</span>
@@ -1339,7 +1348,7 @@ export default function EditResumePage() {
                                 onChange={(e) => {
                                   const value = Math.max(
                                     10,
-                                    Math.min(90, Number(e.target.value))
+                                    Math.min(90, Number(e.target.value)),
                                   );
                                   setLayout({
                                     ...layout,
@@ -1409,7 +1418,7 @@ export default function EditResumePage() {
                                 onChange={(e) => {
                                   const value = Math.max(
                                     10,
-                                    Math.min(90, Number(e.target.value))
+                                    Math.min(90, Number(e.target.value)),
                                   );
                                   setLayout({
                                     ...layout,
@@ -1465,7 +1474,7 @@ export default function EditResumePage() {
                               onClick={() => {
                                 const newTop = Math.max(
                                   0,
-                                  (layout.padding?.top || 5) - 1
+                                  (layout.padding?.top || 5) - 1,
                                 );
                                 setLayout({
                                   ...layout,
@@ -1490,7 +1499,7 @@ export default function EditResumePage() {
                               onChange={(e) => {
                                 const value = Math.max(
                                   0,
-                                  Math.min(50, Number(e.target.value))
+                                  Math.min(50, Number(e.target.value)),
                                 );
                                 setLayout({
                                   ...layout,
@@ -1513,7 +1522,7 @@ export default function EditResumePage() {
                               onClick={() => {
                                 const newTop = Math.min(
                                   50,
-                                  (layout.padding?.top || 5) + 1
+                                  (layout.padding?.top || 5) + 1,
                                 );
                                 setLayout({
                                   ...layout,
@@ -1544,7 +1553,7 @@ export default function EditResumePage() {
                               onClick={() => {
                                 const newBottom = Math.max(
                                   0,
-                                  (layout.padding?.bottom || 5) - 1
+                                  (layout.padding?.bottom || 5) - 1,
                                 );
                                 setLayout({
                                   ...layout,
@@ -1569,7 +1578,7 @@ export default function EditResumePage() {
                               onChange={(e) => {
                                 const value = Math.max(
                                   0,
-                                  Math.min(50, Number(e.target.value))
+                                  Math.min(50, Number(e.target.value)),
                                 );
                                 setLayout({
                                   ...layout,
@@ -1592,7 +1601,7 @@ export default function EditResumePage() {
                               onClick={() => {
                                 const newBottom = Math.min(
                                   50,
-                                  (layout.padding?.bottom || 5) + 1
+                                  (layout.padding?.bottom || 5) + 1,
                                 );
                                 setLayout({
                                   ...layout,
@@ -1621,7 +1630,7 @@ export default function EditResumePage() {
                               onClick={() => {
                                 const newLeft = Math.max(
                                   0,
-                                  (layout.padding?.left || 20) - 5
+                                  (layout.padding?.left || 20) - 5,
                                 );
                                 setLayout({
                                   ...layout,
@@ -1646,7 +1655,7 @@ export default function EditResumePage() {
                               onChange={(e) => {
                                 const value = Math.max(
                                   0,
-                                  Math.min(50, Number(e.target.value))
+                                  Math.min(50, Number(e.target.value)),
                                 );
                                 setLayout({
                                   ...layout,
@@ -1669,7 +1678,7 @@ export default function EditResumePage() {
                               onClick={() => {
                                 const newLeft = Math.min(
                                   50,
-                                  (layout.padding?.left || 20) + 5
+                                  (layout.padding?.left || 20) + 5,
                                 );
                                 setLayout({
                                   ...layout,
@@ -1698,7 +1707,7 @@ export default function EditResumePage() {
                               onClick={() => {
                                 const newRight = Math.max(
                                   0,
-                                  (layout.padding?.right || 20) - 5
+                                  (layout.padding?.right || 20) - 5,
                                 );
                                 setLayout({
                                   ...layout,
@@ -1723,7 +1732,7 @@ export default function EditResumePage() {
                               onChange={(e) => {
                                 const value = Math.max(
                                   0,
-                                  Math.min(50, Number(e.target.value))
+                                  Math.min(50, Number(e.target.value)),
                                 );
                                 setLayout({
                                   ...layout,
@@ -1746,7 +1755,7 @@ export default function EditResumePage() {
                               onClick={() => {
                                 const newRight = Math.min(
                                   50,
-                                  (layout.padding?.right || 20) + 5
+                                  (layout.padding?.right || 20) + 5,
                                 );
                                 setLayout({
                                   ...layout,
@@ -2003,9 +2012,8 @@ export default function EditResumePage() {
 
                                   try {
                                     // Convert data URL to blob
-                                    const response = await fetch(
-                                      croppedImageUrl
-                                    );
+                                    const response =
+                                      await fetch(croppedImageUrl);
                                     const blob = await response.blob();
 
                                     // Create FormData and upload
@@ -2013,7 +2021,7 @@ export default function EditResumePage() {
                                     formData.append(
                                       "file",
                                       blob,
-                                      "profile-picture.jpg"
+                                      "profile-picture.jpg",
                                     );
 
                                     const uploadResponse =
@@ -2029,7 +2037,7 @@ export default function EditResumePage() {
                                             "Content-Type":
                                               "multipart/form-data",
                                           },
-                                        }
+                                        },
                                       );
 
                                     if (
@@ -2070,16 +2078,16 @@ export default function EditResumePage() {
 
                                       console.log(
                                         "Profile picture updated in state:",
-                                        profilePictureUrl
+                                        profilePictureUrl,
                                       );
                                     }
                                   } catch (error) {
                                     console.error(
                                       "Error uploading cropped profile picture:",
-                                      error
+                                      error,
                                     );
                                     alert(
-                                      "Failed to upload profile picture. Please try again."
+                                      "Failed to upload profile picture. Please try again.",
                                     );
                                   }
                                 }}
@@ -2831,7 +2839,7 @@ export default function EditResumePage() {
                                   onClick={() =>
                                     startEditingSectionTitle(
                                       section.id,
-                                      section.title
+                                      section.title,
                                     )
                                   }
                                 >
@@ -2876,7 +2884,7 @@ export default function EditResumePage() {
                                         ...prev,
                                         profileSummary: html,
                                       }
-                                    : null
+                                    : null,
                                 );
                                 setHasChanges(true);
                               }}
@@ -2960,7 +2968,7 @@ export default function EditResumePage() {
                                   onClick={() =>
                                     startEditingSectionTitle(
                                       section.id,
-                                      section.title
+                                      section.title,
                                     )
                                   }
                                 >
@@ -3083,10 +3091,10 @@ export default function EditResumePage() {
                                       typeof exp.description === "string"
                                         ? exp.description
                                         : Array.isArray(exp.description)
-                                        ? exp.description
-                                            .map((d) => `<p>${d}</p>`)
-                                            .join("")
-                                        : ""
+                                          ? exp.description
+                                              .map((d) => `<p>${d}</p>`)
+                                              .join("")
+                                          : ""
                                     }
                                     onChange={(html) => {
                                       const updated = [
@@ -3108,7 +3116,7 @@ export default function EditResumePage() {
                                   onClick={() => {
                                     const updated =
                                       resume.content.experience.filter(
-                                        (_, i) => i !== index
+                                        (_, i) => i !== index,
                                       );
                                     updateContent({ experience: updated });
                                   }}
@@ -3220,7 +3228,7 @@ export default function EditResumePage() {
                                   onClick={() =>
                                     startEditingSectionTitle(
                                       section.id,
-                                      section.title
+                                      section.title,
                                     )
                                   }
                                 >
@@ -3340,7 +3348,7 @@ export default function EditResumePage() {
                                   onClick={() => {
                                     const updated =
                                       resume.content.education.filter(
-                                        (_, i) => i !== index
+                                        (_, i) => i !== index,
                                       );
                                     updateContent({ education: updated });
                                   }}
@@ -3501,7 +3509,7 @@ export default function EditResumePage() {
                                   onClick={() =>
                                     startEditingSectionTitle(
                                       section.id,
-                                      section.title
+                                      section.title,
                                     )
                                   }
                                 >
@@ -3544,7 +3552,7 @@ export default function EditResumePage() {
                                   const sections =
                                     currentContent.sections || [];
                                   const skillsSectionIndex = sections.findIndex(
-                                    (s: any) => s.type === "skills"
+                                    (s: any) => s.type === "skills",
                                   );
 
                                   let updatedSections;
@@ -3665,7 +3673,7 @@ export default function EditResumePage() {
                                   onClick={() =>
                                     startEditingSectionTitle(
                                       section.id,
-                                      section.title
+                                      section.title,
                                     )
                                   }
                                 >
@@ -3704,24 +3712,90 @@ export default function EditResumePage() {
                                   key={project.id || index}
                                   className="p-3 border rounded-lg space-y-3"
                                 >
-                                  <div>
-                                    <Label className="text-xs">
-                                      Project Name *
-                                    </Label>
-                                    <Input
-                                      value={project.name}
-                                      onChange={(e) => {
-                                        const updated = [
-                                          ...(resume.content.projects || []),
-                                        ];
-                                        updated[index] = {
-                                          ...project,
-                                          name: e.target.value,
-                                        };
-                                        updateContent({ projects: updated });
-                                      }}
-                                      className="mt-1 h-9 text-sm"
-                                    />
+                                  <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                      <Label className="text-xs">
+                                        Project Title *
+                                      </Label>
+                                      <Input
+                                        value={project.name}
+                                        onChange={(e) => {
+                                          const updated = [
+                                            ...(resume.content.projects || []),
+                                          ];
+                                          updated[index] = {
+                                            ...project,
+                                            name: e.target.value,
+                                          };
+                                          updateContent({ projects: updated });
+                                        }}
+                                        onKeyDown={(e) => e.stopPropagation()}
+                                        className="mt-1 h-9 text-sm"
+                                      />
+                                    </div>
+                                    <div>
+                                      <Label className="text-xs">
+                                        Project Link
+                                      </Label>
+                                      <Input
+                                        value={project.link || ""}
+                                        onChange={(e) => {
+                                          const updated = [
+                                            ...(resume.content.projects || []),
+                                          ];
+                                          updated[index] = {
+                                            ...project,
+                                            link: e.target.value,
+                                          };
+                                          updateContent({ projects: updated });
+                                        }}
+                                        onKeyDown={(e) => e.stopPropagation()}
+                                        className="mt-1 h-9 text-sm"
+                                        placeholder="https://..."
+                                      />
+                                    </div>
+                                    <div>
+                                      <Label className="text-xs">
+                                        Start Date
+                                      </Label>
+                                      <Input
+                                        value={project.startDate || ""}
+                                        onChange={(e) => {
+                                          const updated = [
+                                            ...(resume.content.projects || []),
+                                          ];
+                                          updated[index] = {
+                                            ...project,
+                                            startDate: e.target.value,
+                                          };
+                                          updateContent({ projects: updated });
+                                        }}
+                                        onKeyDown={(e) => e.stopPropagation()}
+                                        className="mt-1 h-9 text-sm"
+                                        placeholder="MM/YYYY"
+                                      />
+                                    </div>
+                                    <div>
+                                      <Label className="text-xs">
+                                        End Date
+                                      </Label>
+                                      <Input
+                                        value={project.endDate || ""}
+                                        onChange={(e) => {
+                                          const updated = [
+                                            ...(resume.content.projects || []),
+                                          ];
+                                          updated[index] = {
+                                            ...project,
+                                            endDate: e.target.value,
+                                          };
+                                          updateContent({ projects: updated });
+                                        }}
+                                        onKeyDown={(e) => e.stopPropagation()}
+                                        className="mt-1 h-9 text-sm"
+                                        placeholder="MM/YYYY or Present"
+                                      />
+                                    </div>
                                   </div>
                                   <div>
                                     <Label className="text-xs">
@@ -3748,20 +3822,24 @@ export default function EditResumePage() {
                                       Technologies (comma-separated)
                                     </Label>
                                     <Input
-                                      value={project.technologies.join(", ")}
+                                      value={
+                                        typeof project.technologies === "string"
+                                          ? project.technologies
+                                          : (project.technologies || []).join(
+                                              ", ",
+                                            )
+                                      }
                                       onChange={(e) => {
                                         const updated = [
                                           ...(resume.content.projects || []),
                                         ];
                                         updated[index] = {
                                           ...project,
-                                          technologies: e.target.value
-                                            .split(",")
-                                            .map((t) => t.trim())
-                                            .filter((t) => t),
+                                          technologies: e.target.value,
                                         };
                                         updateContent({ projects: updated });
                                       }}
+                                      onKeyDown={(e) => e.stopPropagation()}
                                       className="mt-1 h-9 text-sm"
                                       placeholder="React, Node.js..."
                                     />
@@ -3778,10 +3856,10 @@ export default function EditResumePage() {
                                     className="w-full border-red-300 text-red-700 hover:bg-red-50"
                                   >
                                     <Trash2 className="w-4 h-4 mr-2" />
-                                    Remove
+                                    Remove Project
                                   </Button>
                                 </div>
-                              )
+                              ),
                             )}
                             <Button
                               size="sm"
@@ -3794,8 +3872,11 @@ export default function EditResumePage() {
                                     {
                                       id: nanoid(),
                                       name: "",
+                                      link: "",
+                                      startDate: "",
+                                      endDate: "",
                                       description: "",
-                                      technologies: [],
+                                      technologies: "",
                                     },
                                   ],
                                 });
@@ -3873,7 +3954,7 @@ export default function EditResumePage() {
                                   onClick={() =>
                                     startEditingSectionTitle(
                                       section.id,
-                                      section.title
+                                      section.title,
                                     )
                                   }
                                 >
@@ -3941,7 +4022,7 @@ export default function EditResumePage() {
                                                       certificates: updated,
                                                     },
                                                   }
-                                                : null
+                                                : null,
                                             );
                                             setHasChanges(true);
                                           }}
@@ -3973,7 +4054,7 @@ export default function EditResumePage() {
                                                       certificates: updated,
                                                     },
                                                   }
-                                                : null
+                                                : null,
                                             );
                                             setHasChanges(true);
                                           }}
@@ -4005,7 +4086,7 @@ export default function EditResumePage() {
                                                       certificates: updated,
                                                     },
                                                   }
-                                                : null
+                                                : null,
                                             );
                                             setHasChanges(true);
                                           }}
@@ -4038,7 +4119,7 @@ export default function EditResumePage() {
                                                       certificates: updated,
                                                     },
                                                   }
-                                                : null
+                                                : null,
                                             );
                                             setHasChanges(true);
                                           }}
@@ -4070,7 +4151,7 @@ export default function EditResumePage() {
                                                       certificates: updated,
                                                     },
                                                   }
-                                                : null
+                                                : null,
                                             );
                                             setHasChanges(true);
                                           }}
@@ -4102,7 +4183,7 @@ export default function EditResumePage() {
                                                       certificates: updated,
                                                     },
                                                   }
-                                                : null
+                                                : null,
                                             );
                                             setHasChanges(true);
                                           }}
@@ -4124,11 +4205,11 @@ export default function EditResumePage() {
                                                   ...prev.content,
                                                   certificates:
                                                     prev.content.certificates?.filter(
-                                                      (_, i) => i !== index
+                                                      (_, i) => i !== index,
                                                     ) || [],
                                                 },
                                               }
-                                            : null
+                                            : null,
                                         );
                                         setHasChanges(true);
                                       }}
@@ -4139,7 +4220,7 @@ export default function EditResumePage() {
                                     </Button>
                                   </div>
                                 );
-                              }
+                              },
                             )}
                             <Button
                               onClick={() => {
@@ -4166,7 +4247,7 @@ export default function EditResumePage() {
                                           ],
                                         },
                                       }
-                                    : null
+                                    : null,
                                 );
                                 setHasChanges(true);
                               }}
@@ -4243,7 +4324,7 @@ export default function EditResumePage() {
                                   onClick={() =>
                                     startEditingSectionTitle(
                                       section.id,
-                                      section.title
+                                      section.title,
                                     )
                                   }
                                 >
@@ -4289,7 +4370,7 @@ export default function EditResumePage() {
                                           interests: html,
                                         },
                                       }
-                                    : null
+                                    : null,
                                 );
                                 setHasChanges(true);
                               }}
@@ -4306,7 +4387,7 @@ export default function EditResumePage() {
                   if (section.type === "custom") {
                     const customSectionData =
                       resume?.content.customSections?.find(
-                        (cs: any) => cs.id === section.id
+                        (cs: any) => cs.id === section.id,
                       );
                     const customContent = customSectionData?.content || "";
 
@@ -4374,7 +4455,7 @@ export default function EditResumePage() {
                                   onClick={() =>
                                     startEditingSectionTitle(
                                       section.id,
-                                      section.title
+                                      section.title,
                                     )
                                   }
                                 >
@@ -4418,7 +4499,7 @@ export default function EditResumePage() {
                                   resume.content.customSections || [];
                                 const existingIndex =
                                   currentCustomSections.findIndex(
-                                    (cs: any) => cs.id === section.id
+                                    (cs: any) => cs.id === section.id,
                                   );
 
                                 let updatedCustomSections;
@@ -4580,7 +4661,7 @@ export default function EditResumePage() {
                                   onClick={() =>
                                     startEditingSectionTitle(
                                       section.id,
-                                      section.title
+                                      section.title,
                                     )
                                   }
                                 >
@@ -4626,7 +4707,7 @@ export default function EditResumePage() {
                                           declaration: html,
                                         },
                                       }
-                                    : null
+                                    : null,
                                 );
                                 setHasChanges(true);
                               }}
@@ -4701,7 +4782,7 @@ export default function EditResumePage() {
                                   onClick={() =>
                                     startEditingSectionTitle(
                                       section.id,
-                                      section.title
+                                      section.title,
                                     )
                                   }
                                 >
@@ -4747,9 +4828,9 @@ export default function EditResumePage() {
                                           typeof lang.proficiency === "number"
                                             ? lang.proficiency
                                             : typeof lang.level === "number"
-                                            ? lang.level
-                                            : undefined, // No default proficiency
-                                      })
+                                              ? lang.level
+                                              : undefined, // No default proficiency
+                                      }),
                                     )
                                   : []
                               }
@@ -4825,7 +4906,7 @@ export default function EditResumePage() {
                                   onClick={() =>
                                     startEditingSectionTitle(
                                       section.id,
-                                      section.title
+                                      section.title,
                                     )
                                   }
                                 >
@@ -4888,7 +4969,7 @@ export default function EditResumePage() {
                                                     awards: updated,
                                                   },
                                                 }
-                                              : null
+                                              : null,
                                           );
                                           setHasChanges(true);
                                         }}
@@ -4919,7 +5000,7 @@ export default function EditResumePage() {
                                                     awards: updated,
                                                   },
                                                 }
-                                              : null
+                                              : null,
                                           );
                                           setHasChanges(true);
                                         }}
@@ -4948,7 +5029,7 @@ export default function EditResumePage() {
                                                     awards: updated,
                                                   },
                                                 }
-                                              : null
+                                              : null,
                                           );
                                           setHasChanges(true);
                                         }}
@@ -4979,7 +5060,7 @@ export default function EditResumePage() {
                                                     awards: updated,
                                                   },
                                                 }
-                                              : null
+                                              : null,
                                           );
                                           setHasChanges(true);
                                         }}
@@ -5000,11 +5081,11 @@ export default function EditResumePage() {
                                                 ...prev.content,
                                                 awards:
                                                   prev.content.awards?.filter(
-                                                    (_, i) => i !== index
+                                                    (_, i) => i !== index,
                                                   ) || [],
                                               },
                                             }
-                                          : null
+                                          : null,
                                       );
                                       setHasChanges(true);
                                     }}
@@ -5014,7 +5095,7 @@ export default function EditResumePage() {
                                     Remove
                                   </Button>
                                 </div>
-                              )
+                              ),
                             )}
                             <Button
                               onClick={() => {
@@ -5038,7 +5119,7 @@ export default function EditResumePage() {
                                           ],
                                         },
                                       }
-                                    : null
+                                    : null,
                                 );
                                 setHasChanges(true);
                               }}
@@ -5115,7 +5196,7 @@ export default function EditResumePage() {
                                   onClick={() =>
                                     startEditingSectionTitle(
                                       section.id,
-                                      section.title
+                                      section.title,
                                     )
                                   }
                                 >
@@ -5177,7 +5258,7 @@ export default function EditResumePage() {
                                                     references: updated,
                                                   },
                                                 }
-                                              : null
+                                              : null,
                                           );
                                           setHasChanges(true);
                                         }}
@@ -5209,7 +5290,7 @@ export default function EditResumePage() {
                                                     references: updated,
                                                   },
                                                 }
-                                              : null
+                                              : null,
                                           );
                                           setHasChanges(true);
                                         }}
@@ -5241,7 +5322,7 @@ export default function EditResumePage() {
                                                     references: updated,
                                                   },
                                                 }
-                                              : null
+                                              : null,
                                           );
                                           setHasChanges(true);
                                         }}
@@ -5271,7 +5352,7 @@ export default function EditResumePage() {
                                                     references: updated,
                                                   },
                                                 }
-                                              : null
+                                              : null,
                                           );
                                           setHasChanges(true);
                                         }}
@@ -5302,7 +5383,7 @@ export default function EditResumePage() {
                                                     references: updated,
                                                   },
                                                 }
-                                              : null
+                                              : null,
                                           );
                                           setHasChanges(true);
                                         }}
@@ -5324,11 +5405,11 @@ export default function EditResumePage() {
                                                 ...prev.content,
                                                 references:
                                                   prev.content.references?.filter(
-                                                    (_, i) => i !== index
+                                                    (_, i) => i !== index,
                                                   ) || [],
                                               },
                                             }
-                                          : null
+                                          : null,
                                       );
                                       setHasChanges(true);
                                     }}
@@ -5338,7 +5419,7 @@ export default function EditResumePage() {
                                     Remove
                                   </Button>
                                 </div>
-                              )
+                              ),
                             )}
                             <Button
                               onClick={() => {
@@ -5363,7 +5444,7 @@ export default function EditResumePage() {
                                           ],
                                         },
                                       }
-                                    : null
+                                    : null,
                                 );
                                 setHasChanges(true);
                               }}
@@ -5440,7 +5521,7 @@ export default function EditResumePage() {
                                   onClick={() =>
                                     startEditingSectionTitle(
                                       section.id,
-                                      section.title
+                                      section.title,
                                     )
                                   }
                                 >
@@ -5512,7 +5593,7 @@ export default function EditResumePage() {
                                       onClick={() => {
                                         const updatedCourses =
                                           resume.content.courses?.filter(
-                                            (c: any) => c.id !== course.id
+                                            (c: any) => c.id !== course.id,
                                           );
                                         updateContent({
                                           courses: updatedCourses,
@@ -5538,7 +5619,7 @@ export default function EditResumePage() {
                                                       ...c,
                                                       name: e.target.value,
                                                     }
-                                                  : c
+                                                  : c,
                                             );
                                           updateContent({
                                             courses: updatedCourses,
@@ -5563,7 +5644,7 @@ export default function EditResumePage() {
                                                       institution:
                                                         e.target.value,
                                                     }
-                                                  : c
+                                                  : c,
                                             );
                                           updateContent({
                                             courses: updatedCourses,
@@ -5583,7 +5664,7 @@ export default function EditResumePage() {
                                             (c: any) =>
                                               c.id === course.id
                                                 ? { ...c, date: e.target.value }
-                                                : c
+                                                : c,
                                           );
                                         updateContent({
                                           courses: updatedCourses,
@@ -5607,7 +5688,7 @@ export default function EditResumePage() {
                                                     ...c,
                                                     description: html,
                                                   }
-                                                : c
+                                                : c,
                                           );
                                         updateContent({
                                           courses: updatedCourses,
@@ -5618,7 +5699,7 @@ export default function EditResumePage() {
                                     />
                                   </div>
                                 </div>
-                              )
+                              ),
                             )}
                           </CardContent>
                         )}
@@ -5688,7 +5769,7 @@ export default function EditResumePage() {
                                   onClick={() =>
                                     startEditingSectionTitle(
                                       section.id,
-                                      section.title
+                                      section.title,
                                     )
                                   }
                                 >
@@ -5761,7 +5842,7 @@ export default function EditResumePage() {
                                       onClick={() => {
                                         const updatedOrganisations =
                                           resume.content.organisations?.filter(
-                                            (o: any) => o.id !== org.id
+                                            (o: any) => o.id !== org.id,
                                           );
                                         updateContent({
                                           organisations: updatedOrganisations,
@@ -5787,7 +5868,7 @@ export default function EditResumePage() {
                                                       ...o,
                                                       name: e.target.value,
                                                     }
-                                                  : o
+                                                  : o,
                                             );
                                           updateContent({
                                             organisations: updatedOrganisations,
@@ -5811,7 +5892,7 @@ export default function EditResumePage() {
                                                       ...o,
                                                       role: e.target.value,
                                                     }
-                                                  : o
+                                                  : o,
                                             );
                                           updateContent({
                                             organisations: updatedOrganisations,
@@ -5837,7 +5918,7 @@ export default function EditResumePage() {
                                                       ...o,
                                                       startDate: e.target.value,
                                                     }
-                                                  : o
+                                                  : o,
                                             );
                                           updateContent({
                                             organisations: updatedOrganisations,
@@ -5861,7 +5942,7 @@ export default function EditResumePage() {
                                                       ...o,
                                                       endDate: e.target.value,
                                                     }
-                                                  : o
+                                                  : o,
                                             );
                                           updateContent({
                                             organisations: updatedOrganisations,
@@ -5886,7 +5967,7 @@ export default function EditResumePage() {
                                                     ...o,
                                                     description: html,
                                                   }
-                                                : o
+                                                : o,
                                           );
                                         updateContent({
                                           organisations: updatedOrganisations,
@@ -5897,7 +5978,7 @@ export default function EditResumePage() {
                                     />
                                   </div>
                                 </div>
-                              )
+                              ),
                             )}
                           </CardContent>
                         )}
@@ -5967,7 +6048,7 @@ export default function EditResumePage() {
                                   onClick={() =>
                                     startEditingSectionTitle(
                                       section.id,
-                                      section.title
+                                      section.title,
                                     )
                                   }
                                 >
@@ -6039,7 +6120,7 @@ export default function EditResumePage() {
                                       onClick={() => {
                                         const updatedPublications =
                                           resume.content.publications?.filter(
-                                            (p: any) => p.id !== pub.id
+                                            (p: any) => p.id !== pub.id,
                                           );
                                         updateContent({
                                           publications: updatedPublications,
@@ -6062,7 +6143,7 @@ export default function EditResumePage() {
                                                     ...p,
                                                     title: e.target.value,
                                                   }
-                                                : p
+                                                : p,
                                           );
                                         updateContent({
                                           publications: updatedPublications,
@@ -6087,7 +6168,7 @@ export default function EditResumePage() {
                                                       ...p,
                                                       publisher: e.target.value,
                                                     }
-                                                  : p
+                                                  : p,
                                             );
                                           updateContent({
                                             publications: updatedPublications,
@@ -6109,7 +6190,7 @@ export default function EditResumePage() {
                                                       ...p,
                                                       date: e.target.value,
                                                     }
-                                                  : p
+                                                  : p,
                                             );
                                           updateContent({
                                             publications: updatedPublications,
@@ -6131,7 +6212,7 @@ export default function EditResumePage() {
                                             (p: any) =>
                                               p.id === pub.id
                                                 ? { ...p, link: e.target.value }
-                                                : p
+                                                : p,
                                           );
                                         updateContent({
                                           publications: updatedPublications,
@@ -6141,7 +6222,7 @@ export default function EditResumePage() {
                                     />
                                   </div>
                                 </div>
-                              )
+                              ),
                             )}
                           </CardContent>
                         )}
@@ -6162,6 +6243,11 @@ export default function EditResumePage() {
                     </p>
                     <div className="grid grid-cols-2 gap-2">
                       {[
+                        {
+                          type: "projects" as const,
+                          label: "Projects",
+                          icon: "💼",
+                        },
                         {
                           type: "languages" as const,
                           label: "Languages",
@@ -6225,7 +6311,7 @@ export default function EditResumePage() {
                         const alreadyAdded = allowMultiple
                           ? false // Always allow adding spacers and custom sections
                           : sections.find(
-                              (s) => s.type === section.type && s.visible
+                              (s) => s.type === section.type && s.visible,
                             );
                         return (
                           <Button
@@ -6294,7 +6380,7 @@ export default function EditResumePage() {
         title={
           sectionToDelete &&
           ["personalInfo", "experience", "education"].includes(
-            sectionToDelete.type
+            sectionToDelete.type,
           )
             ? "Cannot Delete Essential Section"
             : "Delete Section"
@@ -6302,7 +6388,7 @@ export default function EditResumePage() {
         description={
           sectionToDelete &&
           ["personalInfo", "experience", "education"].includes(
-            sectionToDelete.type
+            sectionToDelete.type,
           )
             ? "Cannot delete essential sections like Personal Info, Experience, and Education. These sections are required for your resume."
             : `Are you sure you want to delete the "${sectionToDelete?.title}" section? This action cannot be undone.`
@@ -6310,7 +6396,7 @@ export default function EditResumePage() {
         confirmText={
           sectionToDelete &&
           ["personalInfo", "experience", "education"].includes(
-            sectionToDelete.type
+            sectionToDelete.type,
           )
             ? "OK"
             : "Delete"
@@ -6320,7 +6406,7 @@ export default function EditResumePage() {
         variant={
           sectionToDelete &&
           ["personalInfo", "experience", "education"].includes(
-            sectionToDelete.type
+            sectionToDelete.type,
           )
             ? "default"
             : "destructive"

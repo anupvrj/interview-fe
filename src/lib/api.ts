@@ -647,9 +647,12 @@ export interface Resume {
       id: string;
       name: string;
       description: string;
-      technologies: string[];
+      /** Comma-separated string or array (array for backwards compatibility) */
+      technologies: string | string[];
       link?: string;
       github?: string;
+      startDate?: string;
+      endDate?: string;
     }>;
     achievements?: Array<{
       id: string;
