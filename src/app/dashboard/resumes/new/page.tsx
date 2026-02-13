@@ -9,6 +9,14 @@ import { useDropzone } from "react-dropzone";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   ArrowLeft,
   Loader2,
   CheckCircle,
@@ -46,6 +54,7 @@ export default function NewResumePage() {
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [resumeText, setResumeText] = useState<string>("");
   const [extracting, setExtracting] = useState(false);
+  const [showLimitModal, setShowLimitModal] = useState(false);
 
   useEffect(() => {
     if (isLoaded) {
@@ -270,13 +279,22 @@ export default function NewResumePage() {
       // Reset step back to upload so user can try again
       setStep("upload");
 
-      alert(
-        `Failed to create resume: ${
-          error?.response?.data?.message ||
-          error?.message ||
-          "Please try again."
-        }`,
-      );
+      const isLimitError =
+        error?.response?.status === 403 &&
+        (error?.response?.data?.message || error?.message || "")
+          .toLowerCase()
+          .includes("resume limit");
+      if (isLimitError) {
+        setShowLimitModal(true);
+      } else {
+        alert(
+          `Failed to create resume: ${
+            error?.response?.data?.message ||
+            error?.message ||
+            "Please try again."
+          }`,
+        );
+      }
     } finally {
       setCreating(false);
     }
@@ -486,8 +504,15 @@ export default function NewResumePage() {
       // Reset step back to upload so user can try again
       setStep("upload");
 
-      // Check if it's a timeout error
-      if (
+      const isLimitError =
+        error?.response?.status === 403 &&
+        (error?.response?.data?.message || error?.message || "")
+          .toLowerCase()
+          .includes("resume limit");
+
+      if (isLimitError) {
+        setShowLimitModal(true);
+      } else if (
         error?.code === "ECONNABORTED" ||
         error?.message?.includes("timeout") ||
         error?.message?.includes("Request timeout")
@@ -907,6 +932,40 @@ export default function NewResumePage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Resume limit reached – upgrade plan modal */}
+      <Dialog open={showLimitModal} onOpenChange={setShowLimitModal}>
+        <DialogContent className="sm:max-w-md border-2 border-purple-200 bg-white shadow-xl">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold text-gray-900">
+              Resume limit reached
+            </DialogTitle>
+            <DialogDescription className="text-left text-gray-600 pt-1">
+              You&apos;ve used all the resumes included in your current plan.
+              Upgrade your plan to create more resumes and keep building.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex flex-col-reverse sm:flex-row gap-2 pt-4">
+            <Button
+              variant="outline"
+              onClick={() => setShowLimitModal(false)}
+              className="border-gray-300"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                setShowLimitModal(false);
+                router.push("/dashboard/plan");
+              }}
+              className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white"
+            >
+              Upgrade plan
+              <ArrowRight className="w-4 h-4 ml-2" />
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

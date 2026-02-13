@@ -640,6 +640,7 @@ export interface Resume {
       startDate: string;
       endDate?: string;
       gpa?: string;
+      percentage?: string;
       honors?: string[];
     }>;
     skills?: string | string[]; // Consolidated skills field (supports both string and array)
@@ -785,6 +786,8 @@ export const resumeApi = {
       content?: Partial<Resume["content"]>;
       sectionOrder?: Resume["sectionOrder"];
       layout?: Resume["layout"];
+      /** Set true for ATS checker so it does not count toward resume limit */
+      forAtsCheckOnly?: boolean;
     },
   ): Promise<Resume> => {
     const response = await apiClient.post<{ data: Resume }>(
@@ -798,6 +801,23 @@ export const resumeApi = {
     const response = await apiClient.get<{ data: Resume[] }>(
       `/users/${userId}/resumes`,
     );
+    return response.data.data;
+  },
+
+  checkResumeLimit: async (): Promise<{
+    allowed: boolean;
+    reason?: string;
+    resumesCreated?: number;
+    resumesLimit?: number;
+  }> => {
+    const response = await apiClient.get<{
+      data: {
+        allowed: boolean;
+        reason?: string;
+        resumesCreated?: number;
+        resumesLimit?: number;
+      };
+    }>("/resume-limit");
     return response.data.data;
   },
 

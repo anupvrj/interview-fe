@@ -85,7 +85,7 @@ function ATSCheckerMobileMenu() {
                   <span>{item.label.toUpperCase()}</span>
                 </Link>
               ))}
-              
+
               {isLoaded && user && (
                 <Link
                   href="/dashboard"
@@ -113,6 +113,64 @@ function ATSCheckerMobileMenu() {
   );
 }
 
+/** Map extracted API sections to resume content shape; ensure array items have id for edit page */
+function mapExtractedSectionsToContent(
+  sections: Record<
+    string,
+    {
+      sectionType: string;
+      content: string | unknown;
+      format: "html" | "list" | "paragraph" | "structured";
+    }
+  >,
+): Record<string, unknown> {
+  const content: Record<string, unknown> = {};
+  const nanoid = () => Math.random().toString(36).substring(2, 11);
+
+  for (const [sectionType, sectionData] of Object.entries(sections)) {
+    if (sectionType === "personalInfo") {
+      if (
+        sectionData.format === "structured" &&
+        typeof sectionData.content === "object" &&
+        sectionData.content !== null &&
+        !Array.isArray(sectionData.content)
+      ) {
+        content.personalInfo = sectionData.content;
+      } else if (
+        typeof sectionData.content === "object" &&
+        sectionData.content !== null
+      ) {
+        content.personalInfo = sectionData.content;
+      }
+    } else if (sectionType === "technicalSkills") {
+      content.skills = sectionData.content;
+    } else if (sectionType === "skills") {
+      content.skills = sectionData.content;
+    } else if (
+      sectionData.format === "structured" &&
+      Array.isArray(sectionData.content)
+    ) {
+      // Ensure each item has an id for the edit page
+      const arr = sectionData.content as Record<string, unknown>[];
+      content[sectionType] = arr.map((item) =>
+        item && typeof item === "object" && "id" in item
+          ? item
+          : { ...item, id: nanoid() },
+      );
+    } else if (typeof sectionData.content === "string") {
+      content[sectionType] = sectionData.content;
+    } else {
+      content[sectionType] = sectionData.content;
+    }
+  }
+
+  if (!content.customSections) {
+    content.customSections = [];
+  }
+
+  return content;
+}
+
 export default function ATSCheckerPage() {
   const { user, isLoaded } = useUser();
   const router = useRouter();
@@ -131,7 +189,9 @@ export default function ATSCheckerPage() {
 
     if (!user) {
       // Redirect to sign-in with return URL
-      router.push(`/sign-in?redirect_url=${encodeURIComponent("/ats-checker")}`);
+      router.push(
+        `/sign-in?redirect_url=${encodeURIComponent("/ats-checker")}`,
+      );
       return;
     }
 
@@ -142,7 +202,9 @@ export default function ATSCheckerPage() {
 
   const handleFileUpload = async (file: File) => {
     if (!user) {
-      router.push(`/sign-in?redirect_url=${encodeURIComponent("/ats-checker")}`);
+      router.push(
+        `/sign-in?redirect_url=${encodeURIComponent("/ats-checker")}`,
+      );
       return;
     }
 
@@ -153,13 +215,14 @@ export default function ATSCheckerPage() {
       // Step 1: Extract text from PDF
       const resumeText = await extractTextFromPDF(file);
 
-      // Step 2: Create a temporary resume
+      // Step 2: Create a temporary resume (does not count toward resume limit)
       const newResume = await resumeApi.create(user.id, {
         title: "ATS Check - " + file.name,
-        templateId: "professional-classic", // Default template
+        templateId: "classic", // Use a template ID that exists in the app
         content: {
           personalInfo: {},
         },
+        forAtsCheckOnly: true,
       });
 
       // Update resume with profile summary if needed
@@ -176,7 +239,9 @@ export default function ATSCheckerPage() {
       setResumeId(newResume.resumeId);
 
       // Step 3: Upload PDF to the resume
-      const { uploadUrl, s3Key } = await resumeApi.getPresignedUploadUrl(newResume.resumeId);
+      const { uploadUrl, s3Key } = await resumeApi.getPresignedUploadUrl(
+        newResume.resumeId,
+      );
 
       // Upload to S3
       const uploadResponse = await fetch(uploadUrl, {
@@ -194,11 +259,21 @@ export default function ATSCheckerPage() {
       // Confirm upload
       await resumeApi.confirmPDFUpload(newResume.resumeId, s3Key);
 
-      // Step 4: Extract data from PDF (optional - skip if it fails)
+      // Step 4: Extract data from PDF and apply to resume so "Improve Resume" has correct data
       try {
-        await resumeDataExtractionApi.extractResumeData("professional-classic", resumeText);
+        const extractedData = await resumeDataExtractionApi.extractResumeData(
+          "classic",
+          resumeText,
+        );
+        const content = mapExtractedSectionsToContent(extractedData.sections);
+        await resumeApi.update(newResume.resumeId, {
+          content,
+        });
       } catch (extractError) {
-        console.warn("Data extraction failed, continuing with ATS check:", extractError);
+        console.warn(
+          "Data extraction failed, continuing with ATS check:",
+          extractError,
+        );
       }
 
       // Step 5: Calculate ATS score
@@ -243,8 +318,13 @@ export default function ATSCheckerPage() {
       {/* Navigation */}
       <nav className="fixed top-0 w-full z-50">
         {/* Top Border - Mobile Only */}
-        <div className="sm:hidden h-1" style={{ backgroundColor: 'rgb(37 99 235 / var(--tw-bg-opacity, 1))' }}></div>
-        
+        <div
+          className="sm:hidden h-1"
+          style={{
+            backgroundColor: "rgb(37 99 235 / var(--tw-bg-opacity, 1))",
+          }}
+        ></div>
+
         {/* Main Header */}
         <div className="bg-white/95 backdrop-blur-xl border-b border-gray-100">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
@@ -263,10 +343,18 @@ export default function ATSCheckerPage() {
                 >
                   <div className="flex items-center gap-1.5">
                     <div className="w-8 h-8 sm:w-9 sm:h-9 bg-gradient-to-br from-blue-600 to-blue-700 rounded-lg flex items-center justify-center shadow-sm">
-                      <span className="text-white font-bold text-xs sm:text-sm">i<span className="text-sm sm:text-base">X</span></span>
+                      <span className="text-white font-bold text-xs sm:text-sm">
+                        i<span className="text-sm sm:text-base">X</span>
+                      </span>
                     </div>
                     <span className="text-lg sm:text-xl lg:text-2xl font-bold text-slate-900">
-                      Interview <span className="text-blue-600">Tri<span className="text-xl sm:text-2xl lg:text-3xl">X</span></span>
+                      Interview{" "}
+                      <span className="text-blue-600">
+                        Tri
+                        <span className="text-xl sm:text-2xl lg:text-3xl">
+                          X
+                        </span>
+                      </span>
                     </span>
                   </div>
                 </Link>
@@ -423,7 +511,8 @@ export default function ATSCheckerPage() {
               ATS Score Checker
             </h1>
             <p className="text-lg sm:text-xl md:text-2xl text-gray-600 max-w-2xl mx-auto">
-              Upload your resume to get an instant ATS score and detailed feedback
+              Upload your resume to get an instant ATS score and detailed
+              feedback
             </p>
           </div>
 
@@ -479,7 +568,9 @@ export default function ATSCheckerPage() {
               <CardContent className="p-8 sm:p-12 text-center">
                 <Loader2 className="w-16 h-16 text-blue-600 animate-spin mx-auto mb-6" />
                 <h3 className="text-2xl font-bold text-slate-900 mb-2">
-                  {uploading ? "Uploading your resume..." : "Analyzing your resume..."}
+                  {uploading
+                    ? "Uploading your resume..."
+                    : "Analyzing your resume..."}
                 </h3>
                 <p className="text-gray-600 mb-6">
                   {uploading
@@ -508,8 +599,8 @@ export default function ATSCheckerPage() {
                           atsScore >= 80
                             ? "text-green-600"
                             : atsScore >= 60
-                            ? "text-yellow-600"
-                            : "text-red-600"
+                              ? "text-yellow-600"
+                              : "text-red-600"
                         }
                       >
                         {atsScore}
@@ -522,11 +613,13 @@ export default function ATSCheckerPage() {
                           atsScore >= 80
                             ? "text-green-600"
                             : atsScore >= 60
-                            ? "text-yellow-600"
-                            : "text-red-600"
+                              ? "text-yellow-600"
+                              : "text-red-600"
                         }`}
                       />
-                      <h2 className="text-2xl font-bold text-slate-900">ATS Score</h2>
+                      <h2 className="text-2xl font-bold text-slate-900">
+                        ATS Score
+                      </h2>
                     </div>
                     <Progress
                       value={atsScore}
@@ -534,16 +627,16 @@ export default function ATSCheckerPage() {
                         atsScore >= 80
                           ? "[&>div]:bg-green-600"
                           : atsScore >= 60
-                          ? "[&>div]:bg-yellow-600"
-                          : "[&>div]:bg-red-600"
+                            ? "[&>div]:bg-yellow-600"
+                            : "[&>div]:bg-red-600"
                       }`}
                     />
                     <p className="text-gray-600">
                       {atsScore >= 80
                         ? "Excellent! Your resume is well-optimized for ATS systems."
                         : atsScore >= 60
-                        ? "Good, but there's room for improvement."
-                        : "Your resume needs optimization to pass ATS systems."}
+                          ? "Good, but there's room for improvement."
+                          : "Your resume needs optimization to pass ATS systems."}
                     </p>
                   </div>
                 </CardContent>
@@ -557,57 +650,62 @@ export default function ATSCheckerPage() {
                       Detailed Feedback
                     </h3>
                     <div className="space-y-6">
-                      {atsFeedback.strengths && atsFeedback.strengths.length > 0 && (
-                        <div>
-                          <div className="flex items-center gap-2 mb-3">
-                            <CheckCircle className="w-5 h-5 text-green-600" />
-                            <h4 className="text-lg font-semibold text-slate-900">
-                              Strengths
-                            </h4>
+                      {atsFeedback.strengths &&
+                        atsFeedback.strengths.length > 0 && (
+                          <div>
+                            <div className="flex items-center gap-2 mb-3">
+                              <CheckCircle className="w-5 h-5 text-green-600" />
+                              <h4 className="text-lg font-semibold text-slate-900">
+                                Strengths
+                              </h4>
+                            </div>
+                            <ul className="list-disc list-inside space-y-2 text-gray-700 ml-7">
+                              {atsFeedback.strengths.map(
+                                (strength: string, idx: number) => (
+                                  <li key={idx}>{strength}</li>
+                                ),
+                              )}
+                            </ul>
                           </div>
-                          <ul className="list-disc list-inside space-y-2 text-gray-700 ml-7">
-                            {atsFeedback.strengths.map((strength: string, idx: number) => (
-                              <li key={idx}>{strength}</li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
+                        )}
 
-                      {atsFeedback.weaknesses && atsFeedback.weaknesses.length > 0 && (
-                        <div>
-                          <div className="flex items-center gap-2 mb-3">
-                            <AlertCircle className="w-5 h-5 text-yellow-600" />
-                            <h4 className="text-lg font-semibold text-slate-900">
-                              Areas for Improvement
-                            </h4>
+                      {atsFeedback.weaknesses &&
+                        atsFeedback.weaknesses.length > 0 && (
+                          <div>
+                            <div className="flex items-center gap-2 mb-3">
+                              <AlertCircle className="w-5 h-5 text-yellow-600" />
+                              <h4 className="text-lg font-semibold text-slate-900">
+                                Areas for Improvement
+                              </h4>
+                            </div>
+                            <ul className="list-disc list-inside space-y-2 text-gray-700 ml-7">
+                              {atsFeedback.weaknesses.map(
+                                (weakness: string, idx: number) => (
+                                  <li key={idx}>{weakness}</li>
+                                ),
+                              )}
+                            </ul>
                           </div>
-                          <ul className="list-disc list-inside space-y-2 text-gray-700 ml-7">
-                            {atsFeedback.weaknesses.map(
-                              (weakness: string, idx: number) => (
-                                <li key={idx}>{weakness}</li>
-                              )
-                            )}
-                          </ul>
-                        </div>
-                      )}
+                        )}
 
-                      {atsFeedback.suggestions && atsFeedback.suggestions.length > 0 && (
-                        <div>
-                          <div className="flex items-center gap-2 mb-3">
-                            <Sparkles className="w-5 h-5 text-blue-600" />
-                            <h4 className="text-lg font-semibold text-slate-900">
-                              Suggestions
-                            </h4>
+                      {atsFeedback.suggestions &&
+                        atsFeedback.suggestions.length > 0 && (
+                          <div>
+                            <div className="flex items-center gap-2 mb-3">
+                              <Sparkles className="w-5 h-5 text-blue-600" />
+                              <h4 className="text-lg font-semibold text-slate-900">
+                                Suggestions
+                              </h4>
+                            </div>
+                            <ul className="list-disc list-inside space-y-2 text-gray-700 ml-7">
+                              {atsFeedback.suggestions.map(
+                                (suggestion: string, idx: number) => (
+                                  <li key={idx}>{suggestion}</li>
+                                ),
+                              )}
+                            </ul>
                           </div>
-                          <ul className="list-disc list-inside space-y-2 text-gray-700 ml-7">
-                            {atsFeedback.suggestions.map(
-                              (suggestion: string, idx: number) => (
-                                <li key={idx}>{suggestion}</li>
-                              )
-                            )}
-                          </ul>
-                        </div>
-                      )}
+                        )}
 
                       {atsFeedback.keywords && (
                         <div>
@@ -633,7 +731,7 @@ export default function ATSCheckerPage() {
                                         >
                                           {keyword}
                                         </span>
-                                      )
+                                      ),
                                     )}
                                   </div>
                                 </div>
@@ -653,7 +751,7 @@ export default function ATSCheckerPage() {
                                         >
                                           {keyword}
                                         </span>
-                                      )
+                                      ),
                                     )}
                                   </div>
                                 </div>
@@ -673,7 +771,9 @@ export default function ATSCheckerPage() {
                     Ready to Improve Your ATS Score?
                   </h3>
                   <p className="text-gray-600 mb-6 max-w-2xl mx-auto">
-                    Use our AI-powered resume builder to optimize your resume and boost your ATS score. Get access to professional templates, AI suggestions, and real-time ATS scoring.
+                    Use our AI-powered resume builder to optimize your resume
+                    and boost your ATS score. Get access to professional
+                    templates, AI suggestions, and real-time ATS scoring.
                   </p>
                   <Button
                     size="lg"
@@ -697,23 +797,40 @@ export default function ATSCheckerPage() {
           <div className="flex flex-col md:flex-row items-center md:items-center justify-between gap-4 md:gap-6">
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-blue-700 rounded-lg flex items-center justify-center shadow-sm">
-                <span className="text-white font-bold text-xs">i<span className="text-sm">X</span></span>
+                <span className="text-white font-bold text-xs">
+                  i<span className="text-sm">X</span>
+                </span>
               </div>
               <span className="text-xl font-bold text-white">
-                Interview <span className="text-blue-400">Tri<span className="text-2xl">X</span></span>
+                Interview{" "}
+                <span className="text-blue-400">
+                  Tri<span className="text-2xl">X</span>
+                </span>
               </span>
             </div>
             <nav className="flex flex-wrap items-center justify-center md:justify-end gap-4 sm:gap-6">
-              <Link href="/about-us" className="text-sm text-gray-300 hover:text-white transition-colors">
+              <Link
+                href="/about-us"
+                className="text-sm text-gray-300 hover:text-white transition-colors"
+              >
                 About us
               </Link>
-              <Link href="/terms" className="text-sm text-gray-300 hover:text-white transition-colors">
+              <Link
+                href="/terms"
+                className="text-sm text-gray-300 hover:text-white transition-colors"
+              >
                 Terms of Service
               </Link>
-              <Link href="/refund" className="text-sm text-gray-300 hover:text-white transition-colors">
+              <Link
+                href="/refund"
+                className="text-sm text-gray-300 hover:text-white transition-colors"
+              >
                 Refund policy
               </Link>
-              <Link href="/contact" className="text-sm text-gray-300 hover:text-white transition-colors">
+              <Link
+                href="/contact"
+                className="text-sm text-gray-300 hover:text-white transition-colors"
+              >
                 Contact us
               </Link>
             </nav>
@@ -729,4 +846,3 @@ export default function ATSCheckerPage() {
     </div>
   );
 }
-

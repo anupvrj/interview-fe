@@ -1763,7 +1763,18 @@ export function ResumeRenderer({
           </div>
         );
 
-      case "education":
+      case "education": {
+        // Skip rendering common default/placeholder field values (e.g. from old dummy data or AI)
+        const isDefaultEducationField = (field: string | undefined) => {
+          if (!field || !field.trim()) return true;
+          const v = field.trim().toLowerCase();
+          return (
+            v === "computer science" ||
+            v === "computer science & engineering" ||
+            v === "computer science and engineering" ||
+            v === "business administration"
+          );
+        };
         // Handle both executive (sections array) and other templates (direct education array)
         let educationData: any[] = [];
 
@@ -1840,10 +1851,24 @@ export function ResumeRenderer({
                           }}
                         >
                           {edu.degree}
-                          {edu.field && (
+                          {edu.degree &&
+                            edu.field &&
+                            !isDefaultEducationField(edu.field) && (
+                              <span style={{ fontWeight: "normal" }}>
+                                {" "}
+                                in {edu.field}
+                              </span>
+                            )}
+                          {edu.gpa && (
                             <span style={{ fontWeight: "normal" }}>
                               {" "}
-                              in {edu.field}
+                              (CGPA: {edu.gpa})
+                            </span>
+                          )}
+                          {edu.percentage && (
+                            <span style={{ fontWeight: "normal" }}>
+                              {" "}
+                              (Percentage: {edu.percentage})
                             </span>
                           )}
                         </div>
@@ -1857,6 +1882,17 @@ export function ResumeRenderer({
                             }}
                           >
                             {edu.institution}
+                          </div>
+                        )}
+                        {edu.location && (
+                          <div
+                            className={`${template.id}-education-location`}
+                            style={{
+                              fontSize: `${templateStyle.fontSize.small}px`,
+                              color: templateStyle.colors.secondary,
+                            }}
+                          >
+                            {edu.location}
                           </div>
                         )}
                       </div>
@@ -1885,10 +1921,24 @@ export function ResumeRenderer({
                             }}
                           >
                             {edu.degree}
-                            {edu.field && (
+                            {edu.degree &&
+                              edu.field &&
+                              !isDefaultEducationField(edu.field) && (
+                                <span style={{ fontWeight: "normal" }}>
+                                  {" "}
+                                  in {edu.field}
+                                </span>
+                              )}
+                            {edu.gpa && (
                               <span style={{ fontWeight: "normal" }}>
                                 {" "}
-                                in {edu.field}
+                                (CGPA: {edu.gpa})
+                              </span>
+                            )}
+                            {edu.percentage && (
+                              <span style={{ fontWeight: "normal" }}>
+                                {" "}
+                                (Percentage: {edu.percentage})
                               </span>
                             )}
                           </div>
@@ -1932,6 +1982,7 @@ export function ResumeRenderer({
             </div>
           </div>
         );
+      }
 
       case "skills":
         // Handle both executive (sections array) and other templates (direct skills object)

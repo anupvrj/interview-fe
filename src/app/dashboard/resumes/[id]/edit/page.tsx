@@ -3524,6 +3524,44 @@ export default function EditResumePage() {
                                     />
                                   </div>
                                   <div>
+                                    <Label className="text-xs">CGPA</Label>
+                                    <Input
+                                      value={edu.gpa || ""}
+                                      onChange={(e) => {
+                                        const updated = [
+                                          ...resume.content.education,
+                                        ];
+                                        updated[index] = {
+                                          ...edu,
+                                          gpa: e.target.value,
+                                        };
+                                        updateContent({ education: updated });
+                                      }}
+                                      className="mt-1 h-9 text-sm"
+                                      placeholder="e.g. 8.5/10 or 3.6/4.0"
+                                    />
+                                  </div>
+                                  <div>
+                                    <Label className="text-xs">
+                                      Percentage
+                                    </Label>
+                                    <Input
+                                      value={edu.percentage || ""}
+                                      onChange={(e) => {
+                                        const updated = [
+                                          ...resume.content.education,
+                                        ];
+                                        updated[index] = {
+                                          ...edu,
+                                          percentage: e.target.value,
+                                        };
+                                        updateContent({ education: updated });
+                                      }}
+                                      className="mt-1 h-9 text-sm"
+                                      placeholder="e.g. 85% or 8.5/10"
+                                    />
+                                  </div>
+                                  <div>
                                     <Label className="text-xs">
                                       Institution *
                                     </Label>
@@ -3540,6 +3578,26 @@ export default function EditResumePage() {
                                         updateContent({ education: updated });
                                       }}
                                       className="mt-1 h-9 text-sm"
+                                    />
+                                  </div>
+                                  <div className="col-span-2">
+                                    <Label className="text-xs">
+                                      Institution address
+                                    </Label>
+                                    <Input
+                                      value={edu.location || ""}
+                                      onChange={(e) => {
+                                        const updated = [
+                                          ...resume.content.education,
+                                        ];
+                                        updated[index] = {
+                                          ...edu,
+                                          location: e.target.value,
+                                        };
+                                        updateContent({ education: updated });
+                                      }}
+                                      className="mt-1 h-9 text-sm"
+                                      placeholder="e.g. City, State / Country"
                                     />
                                   </div>
                                   <div>
@@ -3611,6 +3669,9 @@ export default function EditResumePage() {
                                       institution: "",
                                       degree: "",
                                       startDate: "",
+                                      gpa: "",
+                                      location: "",
+                                      percentage: "",
                                     },
                                   ],
                                 });

@@ -2,10 +2,19 @@
 
 import { useEffect, useState } from "react";
 import { useUser } from "@clerk/nextjs";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   FileEdit,
   Plus,
@@ -30,13 +39,16 @@ import { formatDate } from "@/lib/utils";
 
 export default function ResumesPage() {
   const { user, isLoaded } = useUser();
+  const router = useRouter();
   const [resumes, setResumes] = useState<Resume[]>([]);
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [resumeToDelete, setResumeToDelete] = useState<string | null>(null);
-  
+  const [showLimitModal, setShowLimitModal] = useState(false);
+  const [checkingLimit, setCheckingLimit] = useState(false);
+
   // Resume Builder Animation States
   const [resumeText, setResumeText] = useState("");
   const [isAIEnhancing, setIsAIEnhancing] = useState(false);
@@ -67,7 +79,8 @@ export default function ResumesPage() {
     let timeout8: NodeJS.Timeout;
     let scoreInterval: NodeJS.Timeout;
 
-    const resumeContent = "Experienced software engineer with 5+ years developing scalable web applications. Proficient in React, Node.js, and cloud technologies. Led teams of 5+ developers and delivered projects worth $2M+ in revenue.";
+    const resumeContent =
+      "Experienced software engineer with 5+ years developing scalable web applications. Proficient in React, Node.js, and cloud technologies. Led teams of 5+ developers and delivered projects worth $2M+ in revenue.";
 
     const runAnimation = () => {
       // Reset
@@ -171,6 +184,24 @@ export default function ResumesPage() {
     }
   };
 
+  const handleCreateResumeClick = async () => {
+    if (!user) return;
+    try {
+      setCheckingLimit(true);
+      const limitCheck = await resumeApi.checkResumeLimit();
+      if (!limitCheck.allowed) {
+        setShowLimitModal(true);
+        return;
+      }
+      router.push("/dashboard/resumes/new");
+    } catch (error) {
+      console.error("Error checking resume limit:", error);
+      router.push("/dashboard/resumes/new");
+    } finally {
+      setCheckingLimit(false);
+    }
+  };
+
   const handleDeleteClick = (resumeId: string) => {
     setResumeToDelete(resumeId);
     setDeleteDialogOpen(true);
@@ -218,7 +249,7 @@ export default function ResumesPage() {
       ) {
         if (
           confirm(
-            "PDF not generated yet. Would you like to open the editor to download?"
+            "PDF not generated yet. Would you like to open the editor to download?",
           )
         ) {
           window.location.href = `/dashboard/resumes/${resumeId}/edit`;
@@ -302,7 +333,7 @@ export default function ResumesPage() {
             </div>
           ))}
         </div>
-        
+
         <div className="container mx-auto max-w-7xl relative z-10">
           <div className="grid lg:grid-cols-2 gap-8 sm:gap-12 lg:gap-16 items-center">
             {/* Left Side - Marketing Content */}
@@ -315,35 +346,56 @@ export default function ResumesPage() {
                 Create Professional Resumes in Minutes
               </h2>
               <p className="text-base sm:text-lg md:text-xl text-gray-600 leading-relaxed max-w-xl mx-auto lg:mx-0 px-2 sm:px-0">
-                Build ATS-friendly resumes that get you noticed. Choose from professional templates, get AI-powered suggestions, and export in multiple formats.
+                Build ATS-friendly resumes that get you noticed. Choose from
+                professional templates, get AI-powered suggestions, and export
+                in multiple formats.
               </p>
-              
+
               {/* Features List */}
               <div className="space-y-3 pt-4 sm:pt-6 px-2 sm:px-0">
                 <div className="flex items-start gap-3">
                   <CheckCircle className="w-5 h-5 text-[rgb(37,99,235)] flex-shrink-0 mt-0.5" />
-                  <span className="text-gray-700 text-sm sm:text-base">ATS-optimized templates for better visibility</span>
+                  <span className="text-gray-700 text-sm sm:text-base">
+                    ATS-optimized templates for better visibility
+                  </span>
                 </div>
                 <div className="flex items-start gap-3">
                   <CheckCircle className="w-5 h-5 text-[rgb(37,99,235)] flex-shrink-0 mt-0.5" />
-                  <span className="text-gray-700 text-sm sm:text-base">AI-powered content suggestions and improvements</span>
+                  <span className="text-gray-700 text-sm sm:text-base">
+                    AI-powered content suggestions and improvements
+                  </span>
                 </div>
                 <div className="flex items-start gap-3">
                   <CheckCircle className="w-5 h-5 text-[rgb(37,99,235)] flex-shrink-0 mt-0.5" />
-                  <span className="text-gray-700 text-sm sm:text-base">Export to PDF, Word, and more formats</span>
+                  <span className="text-gray-700 text-sm sm:text-base">
+                    Export to PDF, Word, and more formats
+                  </span>
                 </div>
               </div>
-              
+
               <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-3 sm:gap-4 pt-2 px-2 sm:px-0">
-                <Link href="/dashboard/resumes/new" className="w-full sm:w-auto">
+                <Link href="/ats-checker" className="w-full sm:w-auto">
                   <Button
                     size="lg"
-                    className="w-full sm:w-auto !bg-[rgb(37,99,235)] hover:!bg-[rgb(17,24,39)] text-white font-semibold text-sm sm:text-base px-5 sm:px-6 py-4 sm:py-5 h-auto shadow-lg hover:shadow-xl transition-all"
+                    variant="outline"
+                    className="w-full sm:w-auto border-2 border-[rgb(37,99,235)] text-[rgb(37,99,235)] hover:!bg-[rgb(37,99,235)] hover:!text-white font-semibold text-sm sm:text-base px-5 sm:px-6 py-4 sm:py-5 h-auto shadow-lg hover:shadow-xl transition-all"
                   >
-                    Create New Resume
-                    <ArrowRight className="w-4 h-4 ml-2" />
+                    <TrendingUp className="w-4 h-4 mr-2" />
+                    Check ATS Score
                   </Button>
                 </Link>
+                <Button
+                  size="lg"
+                  onClick={handleCreateResumeClick}
+                  disabled={checkingLimit}
+                  className="w-full sm:w-auto !bg-[rgb(37,99,235)] hover:!bg-[rgb(17,24,39)] text-white font-semibold text-sm sm:text-base px-5 sm:px-6 py-4 sm:py-5 h-auto shadow-lg hover:shadow-xl transition-all"
+                >
+                  {checkingLimit && (
+                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                  )}
+                  Create New Resume
+                  {!checkingLimit && <ArrowRight className="w-4 h-4 ml-2" />}
+                </Button>
               </div>
             </div>
 
@@ -353,7 +405,9 @@ export default function ResumesPage() {
                 {/* Resume Builder Header */}
                 <div className="p-4 sm:p-6 bg-gradient-to-br from-blue-50 to-indigo-50 border-b border-gray-200">
                   <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-sm sm:text-base font-bold text-slate-900">Resume Builder</h3>
+                    <h3 className="text-sm sm:text-base font-bold text-slate-900">
+                      Resume Builder
+                    </h3>
                     {showDownload && (
                       <div className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium flex items-center gap-1">
                         <CheckCircle className="w-3 h-3" />
@@ -378,17 +432,29 @@ export default function ResumesPage() {
                   <div className="space-y-4 h-[300px] relative flex items-center justify-center">
                     {/* Professional Summary - Step 1 */}
                     {currentStep === 1 && (
-                      <div className="animate-fadeInUp w-full" style={{ animation: 'fadeInUp 0.6s ease-out' }}>
-                        <h4 className="text-xs sm:text-sm font-bold text-slate-900 mb-2">PROFESSIONAL SUMMARY</h4>
+                      <div
+                        className="animate-fadeInUp w-full"
+                        style={{ animation: "fadeInUp 0.6s ease-out" }}
+                      >
+                        <h4 className="text-xs sm:text-sm font-bold text-slate-900 mb-2">
+                          PROFESSIONAL SUMMARY
+                        </h4>
                         <p className="text-xs sm:text-sm text-gray-700 leading-relaxed">
-                          Experienced software engineer with 5+ years developing scalable web applications. Proficient in React, Node.js, and cloud technologies. Led teams of 5+ developers and delivered projects worth $2M+ in revenue.
+                          Experienced software engineer with 5+ years developing
+                          scalable web applications. Proficient in React,
+                          Node.js, and cloud technologies. Led teams of 5+
+                          developers and delivered projects worth $2M+ in
+                          revenue.
                         </p>
                       </div>
                     )}
 
                     {/* AI Enhancing - Step 2 */}
                     {currentStep === 2 && (
-                      <div className="animate-fadeInUp w-full" style={{ animation: 'fadeInUp 0.6s ease-out' }}>
+                      <div
+                        className="animate-fadeInUp w-full"
+                        style={{ animation: "fadeInUp 0.6s ease-out" }}
+                      >
                         <div className="flex items-center gap-3 p-4 bg-blue-50 rounded-lg border border-blue-100">
                           <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center animate-pulse">
                             <Brain className="w-4 h-4 text-white" />
@@ -397,25 +463,39 @@ export default function ResumesPage() {
                             <div className="h-2 bg-blue-200 rounded-full w-3/4 mb-2 animate-pulse"></div>
                             <div className="h-2 bg-blue-100 rounded-full w-1/2 animate-pulse"></div>
                           </div>
-                          <span className="text-xs sm:text-sm text-blue-600 font-medium">Enhancing...</span>
+                          <span className="text-xs sm:text-sm text-blue-600 font-medium">
+                            Enhancing...
+                          </span>
                         </div>
                       </div>
                     )}
 
                     {/* Skills Section - Step 3 */}
                     {currentStep === 3 && (
-                      <div className="animate-fadeInUp w-full" style={{ animation: 'fadeInUp 0.6s ease-out' }}>
+                      <div
+                        className="animate-fadeInUp w-full"
+                        style={{ animation: "fadeInUp 0.6s ease-out" }}
+                      >
                         <h4 className="text-xs sm:text-sm font-bold text-slate-900 mb-2 flex items-center gap-2">
                           <GripVertical className="w-3 h-3 text-[rgb(37,99,235)]" />
                           SKILLS
                         </h4>
                         <div className="flex flex-wrap gap-2">
-                          {["React", "Node.js", "TypeScript", "AWS", "Docker", "MongoDB", "PostgreSQL", "GraphQL"].map((skill, index) => (
+                          {[
+                            "React",
+                            "Node.js",
+                            "TypeScript",
+                            "AWS",
+                            "Docker",
+                            "MongoDB",
+                            "PostgreSQL",
+                            "GraphQL",
+                          ].map((skill, index) => (
                             <span
                               key={skill}
                               className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-medium"
                               style={{
-                                animation: `fadeInUp 0.5s ease-out ${index * 0.08}s both`
+                                animation: `fadeInUp 0.5s ease-out ${index * 0.08}s both`,
                               }}
                             >
                               {skill}
@@ -427,27 +507,46 @@ export default function ResumesPage() {
 
                     {/* Projects Section - Step 4 */}
                     {currentStep === 4 && (
-                      <div className="animate-fadeInUp w-full" style={{ animation: 'fadeInUp 0.6s ease-out' }}>
+                      <div
+                        className="animate-fadeInUp w-full"
+                        style={{ animation: "fadeInUp 0.6s ease-out" }}
+                      >
                         <h4 className="text-xs sm:text-sm font-bold text-slate-900 mb-2 flex items-center gap-2">
                           <GripVertical className="w-3 h-3 text-[rgb(37,99,235)]" />
                           PROJECTS
                         </h4>
                         <div className="space-y-2 max-h-[200px] overflow-y-auto">
                           {[
-                            { title: "E-Commerce Platform", desc: "Built scalable e-commerce solution with React and Node.js" },
-                            { title: "Real-time Chat Application", desc: "Developed WebSocket-based chat system with 10K+ concurrent users" },
-                            { title: "Cloud Migration Project", desc: "Migrated legacy systems to AWS, reducing costs by 40%" },
-                            { title: "Mobile Payment Gateway", desc: "Created secure payment processing API handling $5M+ monthly transactions" }
+                            {
+                              title: "E-Commerce Platform",
+                              desc: "Built scalable e-commerce solution with React and Node.js",
+                            },
+                            {
+                              title: "Real-time Chat Application",
+                              desc: "Developed WebSocket-based chat system with 10K+ concurrent users",
+                            },
+                            {
+                              title: "Cloud Migration Project",
+                              desc: "Migrated legacy systems to AWS, reducing costs by 40%",
+                            },
+                            {
+                              title: "Mobile Payment Gateway",
+                              desc: "Created secure payment processing API handling $5M+ monthly transactions",
+                            },
                           ].map((project, index) => (
                             <div
                               key={index}
                               className="bg-blue-50 rounded p-2 border border-blue-100 transition-all duration-300 hover:shadow-md"
                               style={{
-                                animation: `fadeInUp 0.6s ease-out ${index * 0.12}s both`
+                                animation: `fadeInUp 0.6s ease-out ${index * 0.12}s both`,
                               }}
                             >
-                              <p className="text-xs font-semibold text-slate-900">{project.title}</p>
-                              <p className="text-xs text-gray-600">{project.desc}</p>
+                              <p className="text-xs font-semibold text-slate-900">
+                                {project.title}
+                              </p>
+                              <p className="text-xs text-gray-600">
+                                {project.desc}
+                              </p>
                             </div>
                           ))}
                         </div>
@@ -456,26 +555,43 @@ export default function ResumesPage() {
 
                     {/* Education Section - Step 5 */}
                     {currentStep === 5 && (
-                      <div className="animate-fadeInUp w-full" style={{ animation: 'fadeInUp 0.6s ease-out' }}>
+                      <div
+                        className="animate-fadeInUp w-full"
+                        style={{ animation: "fadeInUp 0.6s ease-out" }}
+                      >
                         <h4 className="text-xs sm:text-sm font-bold text-slate-900 mb-2 flex items-center gap-2">
                           <GripVertical className="w-3 h-3 text-[rgb(37,99,235)]" />
                           EDUCATION
                         </h4>
                         <div className="space-y-2">
                           {[
-                            { degree: "B.Tech Computer Science", details: "IIT Delhi • 2018-2022 • CGPA: 8.5/10" },
-                            { degree: "AWS Certified Solutions Architect", details: "Amazon Web Services • 2021" },
-                            { degree: "Full Stack Web Development", details: "Udemy • 2019 • Certificate of Completion" }
+                            {
+                              degree: "B.Tech Computer Science",
+                              details: "IIT Delhi • 2018-2022 • CGPA: 8.5/10",
+                            },
+                            {
+                              degree: "AWS Certified Solutions Architect",
+                              details: "Amazon Web Services • 2021",
+                            },
+                            {
+                              degree: "Full Stack Web Development",
+                              details:
+                                "Udemy • 2019 • Certificate of Completion",
+                            },
                           ].map((edu, index) => (
                             <div
                               key={index}
                               className="bg-blue-50 rounded p-2 border border-blue-100 transition-all duration-300 hover:shadow-md"
                               style={{
-                                animation: `fadeInUp 0.6s ease-out ${index * 0.12}s both`
+                                animation: `fadeInUp 0.6s ease-out ${index * 0.12}s both`,
                               }}
                             >
-                              <p className="text-xs font-semibold text-slate-900">{edu.degree}</p>
-                              <p className="text-xs text-gray-600">{edu.details}</p>
+                              <p className="text-xs font-semibold text-slate-900">
+                                {edu.degree}
+                              </p>
+                              <p className="text-xs text-gray-600">
+                                {edu.details}
+                              </p>
                             </div>
                           ))}
                         </div>
@@ -484,7 +600,10 @@ export default function ResumesPage() {
 
                     {/* Ready Resume Image/Preview - Step 6 */}
                     {currentStep === 6 && (
-                      <div className="w-full h-full flex items-center justify-center animate-fadeInUp" style={{ animation: 'fadeInUp 0.6s ease-out' }}>
+                      <div
+                        className="w-full h-full flex items-center justify-center animate-fadeInUp"
+                        style={{ animation: "fadeInUp 0.6s ease-out" }}
+                      >
                         <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg p-4 border-2 border-blue-200 w-full max-w-md">
                           <div className="flex items-center justify-center mb-3">
                             <div className="relative w-full max-w-[180px] aspect-[210/297] bg-white rounded shadow-lg overflow-hidden">
@@ -498,8 +617,12 @@ export default function ResumesPage() {
                             </div>
                           </div>
                           <div className="text-center">
-                            <h4 className="text-sm font-bold text-slate-900 mb-1">Resume Ready!</h4>
-                            <p className="text-xs text-gray-600">Your professional resume is complete</p>
+                            <h4 className="text-sm font-bold text-slate-900 mb-1">
+                              Resume Ready!
+                            </h4>
+                            <p className="text-xs text-gray-600">
+                              Your professional resume is complete
+                            </p>
                           </div>
                         </div>
                       </div>
@@ -507,39 +630,57 @@ export default function ResumesPage() {
 
                     {/* ATS Score Display - Step 7 */}
                     {currentStep === 7 && (
-                      <div className="w-full animate-fadeInUp" style={{ animation: 'fadeInUp 0.6s ease-out' }}>
+                      <div
+                        className="w-full animate-fadeInUp"
+                        style={{ animation: "fadeInUp 0.6s ease-out" }}
+                      >
                         <div className="w-full max-w-md mx-auto p-6 bg-green-50 border border-green-200 rounded-lg">
                           <div className="flex items-center justify-between mb-3">
                             <div className="flex items-center gap-2">
                               <TrendingUp className="w-5 h-5 text-green-600" />
-                              <span className="text-sm sm:text-base font-semibold text-green-900">ATS Score</span>
+                              <span className="text-sm sm:text-base font-semibold text-green-900">
+                                ATS Score
+                              </span>
                             </div>
-                            <span className="text-xl sm:text-2xl font-bold text-green-700">{atsScore}%</span>
+                            <span className="text-xl sm:text-2xl font-bold text-green-700">
+                              {atsScore}%
+                            </span>
                           </div>
                           <div className="w-full bg-green-200 rounded-full h-3 mb-3">
-                            <div 
+                            <div
                               className="bg-green-600 h-3 rounded-full transition-all duration-300"
                               style={{ width: `${atsScore}%` }}
                             ></div>
                           </div>
-                          <p className="text-sm text-green-700 text-center">Excellent! Your resume is ATS-optimized.</p>
+                          <p className="text-sm text-green-700 text-center">
+                            Excellent! Your resume is ATS-optimized.
+                          </p>
                         </div>
                       </div>
                     )}
 
                     {/* Download Action - Step 8 */}
                     {currentStep === 8 && (
-                      <div className="w-full animate-fadeInUp" style={{ animation: 'fadeInUp 0.6s ease-out' }}>
+                      <div
+                        className="w-full animate-fadeInUp"
+                        style={{ animation: "fadeInUp 0.6s ease-out" }}
+                      >
                         <div className="w-full max-w-md mx-auto p-6 bg-blue-50 border border-blue-200 rounded-lg">
                           <div className="text-center space-y-4">
                             <div>
-                              <p className="text-base sm:text-lg font-semibold text-blue-900 mb-1">Resume Ready!</p>
-                              <p className="text-sm text-blue-700">Download in PDF or Word format</p>
+                              <p className="text-base sm:text-lg font-semibold text-blue-900 mb-1">
+                                Resume Ready!
+                              </p>
+                              <p className="text-sm text-blue-700">
+                                Download in PDF or Word format
+                              </p>
                             </div>
                             <div className="flex justify-center">
                               <div className="px-6 py-3 bg-[rgb(37,99,235)] text-white rounded-md flex items-center gap-2 cursor-default animate-pulse">
                                 <Download className="w-5 h-5" />
-                                <span className="text-sm font-medium">Download</span>
+                                <span className="text-sm font-medium">
+                                  Download
+                                </span>
                               </div>
                             </div>
                           </div>
@@ -565,7 +706,9 @@ export default function ResumesPage() {
               </div>
             </div>
             <div className="mb-2">
-              <p className="text-xs sm:text-sm font-bold text-[rgb(37,99,235)] mb-1.5">Total Resumes</p>
+              <p className="text-xs sm:text-sm font-bold text-[rgb(37,99,235)] mb-1.5">
+                Total Resumes
+              </p>
               <h3 className="text-3xl lg:text-4xl font-bold text-slate-900">
                 {resumes.length}
               </h3>
@@ -581,14 +724,16 @@ export default function ResumesPage() {
                 </div>
               </div>
               <div className="mb-2">
-                <p className="text-xs sm:text-sm font-bold text-[rgb(37,99,235)] mb-1.5">Avg ATS Score</p>
+                <p className="text-xs sm:text-sm font-bold text-[rgb(37,99,235)] mb-1.5">
+                  Avg ATS Score
+                </p>
                 <h3
                   className={`text-3xl lg:text-4xl font-bold ${
                     averageATSScore >= 80
                       ? "text-green-600"
                       : averageATSScore >= 70
-                      ? "text-yellow-600"
-                      : "text-red-600"
+                        ? "text-yellow-600"
+                        : "text-red-600"
                   }`}
                 >
                   {Math.round(averageATSScore)}%
@@ -605,12 +750,11 @@ export default function ResumesPage() {
               </div>
             </div>
             <div className="mb-2">
-              <p className="text-xs sm:text-sm font-bold text-[rgb(37,99,235)] mb-1.5">ATS Ready</p>
+              <p className="text-xs sm:text-sm font-bold text-[rgb(37,99,235)] mb-1.5">
+                ATS Ready
+              </p>
               <h3 className="text-3xl lg:text-4xl font-bold text-slate-900">
-                {
-                  resumes.filter((r) => r.atsScore && r.atsScore >= 80)
-                    .length
-                }
+                {resumes.filter((r) => r.atsScore && r.atsScore >= 80).length}
               </h3>
             </div>
           </div>
@@ -618,28 +762,17 @@ export default function ResumesPage() {
       )}
 
       {/* Action Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-xl lg:text-2xl font-bold text-gray-900">
-            Your Resumes
-          </h2>
-          <p className="text-gray-600 mt-1">
-            {resumes.length === 0
-              ? "Create your first resume to get started"
-              : `Showing ${resumes.length} resume${
-                  resumes.length === 1 ? "" : "s"
-                }`}
-          </p>
-        </div>
-        <Link href="/dashboard/resumes/new">
-          <Button
-            size="lg"
-            className="!bg-[rgb(37,99,235)] hover:!bg-[rgb(17,24,39)] text-white shadow-lg hover:shadow-xl transition-all"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Create Resume
-          </Button>
-        </Link>
+      <div>
+        <h2 className="text-xl lg:text-2xl font-bold text-gray-900">
+          Your Resumes
+        </h2>
+        <p className="text-gray-600 mt-1">
+          {resumes.length === 0
+            ? "Create your first resume to get started"
+            : `Showing ${resumes.length} resume${
+                resumes.length === 1 ? "" : "s"
+              }`}
+        </p>
       </div>
 
       {/* Resumes List */}
@@ -656,15 +789,19 @@ export default function ResumesPage() {
               Create your first ATS-friendly resume with our professional
               templates
             </p>
-            <Link href="/dashboard/resumes/new">
-              <Button
-                size="lg"
-                className="!bg-[rgb(37,99,235)] hover:!bg-[rgb(17,24,39)] text-white shadow-lg hover:shadow-xl transition-all"
-              >
+            <Button
+              size="lg"
+              onClick={handleCreateResumeClick}
+              disabled={checkingLimit}
+              className="!bg-[rgb(37,99,235)] hover:!bg-[rgb(17,24,39)] text-white shadow-lg hover:shadow-xl transition-all"
+            >
+              {checkingLimit ? (
+                <Loader2 className="w-5 h-5 animate-spin mr-2" />
+              ) : (
                 <Plus className="w-5 h-5 mr-2" />
-                Create Your First Resume
-              </Button>
-            </Link>
+              )}
+              Create Your First Resume
+            </Button>
           </CardContent>
         </Card>
       ) : (
@@ -685,13 +822,13 @@ export default function ResumesPage() {
                       onLoad={() => {
                         console.log(
                           "Thumbnail loaded successfully for:",
-                          resume.title
+                          resume.title,
                         );
                       }}
                       onError={(e) => {
                         console.error(
                           "Thumbnail failed to load for:",
-                          resume.title
+                          resume.title,
                         );
                         e.currentTarget.style.display = "none";
                         const fallback = e.currentTarget.nextElementSibling;
@@ -737,8 +874,8 @@ export default function ResumesPage() {
                             resume.atsScore >= 80
                               ? "text-green-600"
                               : resume.atsScore >= 70
-                              ? "text-yellow-600"
-                              : "text-red-600"
+                                ? "text-yellow-600"
+                                : "text-red-600"
                           }`}
                         >
                           {resume.atsScore}%
@@ -824,6 +961,40 @@ export default function ResumesPage() {
         variant="destructive"
         isLoading={deletingId !== null}
       />
+
+      {/* Resume limit reached – upgrade plan modal */}
+      <Dialog open={showLimitModal} onOpenChange={setShowLimitModal}>
+        <DialogContent className="sm:max-w-md border-2 border-blue-200 bg-white shadow-xl">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold text-gray-900">
+              Resume limit reached
+            </DialogTitle>
+            <DialogDescription className="text-left text-gray-600 pt-1">
+              You&apos;ve used all the resumes included in your current plan.
+              Upgrade your plan to create more resumes and keep building.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex flex-col-reverse sm:flex-row gap-2 pt-4">
+            <Button
+              variant="outline"
+              onClick={() => setShowLimitModal(false)}
+              className="border-gray-300"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                setShowLimitModal(false);
+                router.push("/dashboard/plan");
+              }}
+              className="!bg-[rgb(37,99,235)] hover:!bg-[rgb(17,24,39)] text-white"
+            >
+              Upgrade plan
+              <ArrowRight className="w-4 h-4 ml-2" />
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
