@@ -370,198 +370,235 @@ export default function PlanPage() {
 
       {/* Main Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
-        {/* Left Column - Current Plan */}
-        <Card className="border-2 border-blue-200/50 shadow-xl bg-white/95 backdrop-blur-sm h-fit">
-          <CardHeader className="pb-4">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-12 h-12 bg-gradient-to-br from-[rgb(37,99,235)] to-blue-600 rounded-xl flex items-center justify-center shadow-md">
-                <Crown className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <CardTitle className="text-2xl font-bold">{planName}</CardTitle>
-                <CardDescription className="text-sm mt-1">
-                  Your active subscription
-                </CardDescription>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-5">
-            {/* Credit Usage for Interviews */}
-            <div className="p-6 bg-gradient-to-br from-blue-50 to-blue-100/50 rounded-xl border-2 border-blue-200/50">
-              <div className="flex items-center justify-between mb-4">
+        {/* Left Column - Current Plan + Upgrade card */}
+        <div className="space-y-6 lg:space-y-8">
+          <Card className="border-2 border-blue-200/50 shadow-xl bg-white/95 backdrop-blur-sm h-fit">
+            <CardHeader className="pb-4">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-12 h-12 bg-gradient-to-br from-[rgb(37,99,235)] to-blue-600 rounded-xl flex items-center justify-center shadow-md">
+                  <Crown className="w-6 h-6 text-white" />
+                </div>
                 <div>
-                  <span className="text-sm font-semibold text-gray-700 block mb-1">
-                    Credits for Interviews
-                  </span>
-                  <span className="text-xs text-gray-500">
-                    5 credits per minute
-                  </span>
-                </div>
-                <div className="text-right">
-                  <span className="text-2xl font-bold text-[rgb(37,99,235)] block">
-                    {subscription?.creditsAvailable || 0}
-                  </span>
-                  <span className="text-xs text-gray-500">available</span>
+                  <CardTitle className="text-2xl font-bold">
+                    {planName}
+                  </CardTitle>
+                  <CardDescription className="text-sm mt-1">
+                    Your active subscription
+                  </CardDescription>
                 </div>
               </div>
-              <div className="space-y-2 pt-3 border-t border-blue-200">
-                <div className="flex justify-between text-xs text-gray-600">
-                  <span>30-min interview</span>
-                  <span className="font-semibold">150 credits</span>
-                </div>
-                <div className="flex justify-between text-xs text-gray-600">
-                  <span>60-min interview</span>
-                  <span className="font-semibold">300 credits</span>
-                </div>
-                <div className="flex justify-between text-xs text-gray-600">
-                  <span>Minimum to start</span>
-                  <span className="font-semibold text-orange-600">
-                    25 credits
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Renewal Date */}
-            {subscription?.currentPeriodEnd && (
-              <div className="flex items-center gap-4 p-5 bg-gradient-to-br from-blue-50 to-blue-100/50 rounded-xl border-2 border-blue-200/50">
-                <div className="w-12 h-12 bg-gradient-to-br from-[rgb(37,99,235)] to-blue-600 rounded-xl flex items-center justify-center flex-shrink-0 shadow-md">
-                  <Calendar className="w-6 h-6 text-white" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm font-semibold text-gray-900 mb-1">
-                    Current Period
-                  </p>
-                  <p className="text-sm text-gray-600">
-                    Renews on:{" "}
-                    <span className="font-medium">
-                      {formatDate(subscription.currentPeriodEnd)}
+            </CardHeader>
+            <CardContent className="space-y-5">
+              {/* Credit Usage for Interviews */}
+              <div className="p-6 bg-gradient-to-br from-blue-50 to-blue-100/50 rounded-xl border-2 border-blue-200/50">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <span className="text-sm font-semibold text-gray-700 block mb-1">
+                      Credits for Interviews
                     </span>
-                  </p>
+                    <span className="text-xs text-gray-500">
+                      5 credits per minute
+                    </span>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-2xl font-bold text-[rgb(37,99,235)] block">
+                      {subscription?.creditsAvailable || 0}
+                    </span>
+                    <span className="text-xs text-gray-500">available</span>
+                  </div>
+                </div>
+                <div className="space-y-2 pt-3 border-t border-blue-200">
+                  <div className="flex justify-between text-xs text-gray-600">
+                    <span>30-min interview</span>
+                    <span className="font-semibold">150 credits</span>
+                  </div>
+                  <div className="flex justify-between text-xs text-gray-600">
+                    <span>60-min interview</span>
+                    <span className="font-semibold">300 credits</span>
+                  </div>
+                  <div className="flex justify-between text-xs text-gray-600">
+                    <span>Minimum to start</span>
+                    <span className="font-semibold text-orange-600">
+                      25 credits
+                    </span>
+                  </div>
                 </div>
               </div>
-            )}
 
-            {/* Cancel Subscription Section - Only for active paid subscriptions */}
-            {subscription?.plan !== "free" &&
-              subscription?.status === "active" &&
-              subscription?.autoRenew && (
-                <div className="pt-2">
-                  <div className="h-px bg-gradient-to-r from-transparent via-gray-300 to-transparent mb-5"></div>
-                  {!showCancelConfirm ? (
-                    <div className="p-5 bg-gradient-to-br from-red-50 to-red-100/50 rounded-xl border-2 border-red-200/50">
+              {/* Renewal Date */}
+              {subscription?.currentPeriodEnd && (
+                <div className="flex items-center gap-4 p-5 bg-gradient-to-br from-blue-50 to-blue-100/50 rounded-xl border-2 border-blue-200/50">
+                  <div className="w-12 h-12 bg-gradient-to-br from-[rgb(37,99,235)] to-blue-600 rounded-xl flex items-center justify-center flex-shrink-0 shadow-md">
+                    <Calendar className="w-6 h-6 text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold text-gray-900 mb-1">
+                      Current Period
+                    </p>
+                    <p className="text-sm text-gray-600">
+                      Renews on:{" "}
+                      <span className="font-medium">
+                        {formatDate(subscription.currentPeriodEnd)}
+                      </span>
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Cancel Subscription Section - Only for active paid subscriptions */}
+              {subscription?.plan !== "free" &&
+                subscription?.status === "active" &&
+                subscription?.autoRenew && (
+                  <div className="pt-2">
+                    <div className="h-px bg-gradient-to-r from-transparent via-gray-300 to-transparent mb-5"></div>
+                    {!showCancelConfirm ? (
+                      <div className="p-5 bg-gradient-to-br from-red-50 to-red-100/50 rounded-xl border-2 border-red-200/50">
+                        <div className="flex items-start gap-4 mb-4">
+                          <AlertTriangle className="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" />
+                          <div>
+                            <p className="text-sm font-semibold text-gray-900 mb-2">
+                              Cancel Subscription
+                            </p>
+                            <ul className="text-xs text-gray-600 space-y-1 ml-4 list-disc">
+                              <li>Stop automatic renewals</li>
+                              <li>Keep access until period ends</li>
+                              <li>Credits remain available</li>
+                            </ul>
+                          </div>
+                        </div>
+                        <Button
+                          onClick={() => setShowCancelConfirm(true)}
+                          variant="destructive"
+                          size="sm"
+                          className="w-full"
+                        >
+                          <XCircle className="w-4 h-4 mr-2" />
+                          Cancel Subscription
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="p-5 bg-gradient-to-br from-red-50 to-red-100/50 rounded-xl border-2 border-red-200/50">
+                        <p className="text-sm font-semibold text-gray-900 mb-4">
+                          Are you sure you want to cancel?
+                        </p>
+                        <div className="flex gap-3">
+                          <Button
+                            onClick={handleCancelSubscription}
+                            disabled={cancellingSubscription}
+                            variant="destructive"
+                            size="sm"
+                            className="flex-1"
+                          >
+                            {cancellingSubscription ? (
+                              <>
+                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                Cancelling...
+                              </>
+                            ) : (
+                              <>
+                                <XCircle className="w-4 h-4 mr-2" />
+                                Yes, Cancel
+                              </>
+                            )}
+                          </Button>
+                          <Button
+                            onClick={() => setShowCancelConfirm(false)}
+                            variant="outline"
+                            size="sm"
+                            className="flex-1"
+                          >
+                            Keep It
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+              {/* Reactivate Subscription Section - Only for cancelled subscriptions within period */}
+              {subscription?.plan !== "free" &&
+                subscription?.status === "cancelled" &&
+                subscription?.currentPeriodEnd &&
+                new Date(subscription.currentPeriodEnd) > new Date() && (
+                  <div className="pt-2">
+                    <div className="h-px bg-gradient-to-r from-transparent via-gray-300 to-transparent mb-5"></div>
+                    <div className="p-5 bg-gradient-to-br from-green-50 to-green-100/50 rounded-xl border-2 border-green-200/50">
                       <div className="flex items-start gap-4 mb-4">
-                        <AlertTriangle className="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" />
+                        <Sparkles className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
                         <div>
                           <p className="text-sm font-semibold text-gray-900 mb-2">
-                            Cancel Subscription
+                            Reactivate Subscription
+                          </p>
+                          <p className="text-xs text-gray-600 mb-2">
+                            Access until{" "}
+                            <span className="font-semibold">
+                              {formatDate(subscription.currentPeriodEnd)}
+                            </span>
                           </p>
                           <ul className="text-xs text-gray-600 space-y-1 ml-4 list-disc">
-                            <li>Stop automatic renewals</li>
-                            <li>Keep access until period ends</li>
-                            <li>Credits remain available</li>
+                            <li>Enable auto-renewals</li>
+                            <li>Continue without interruption</li>
+                            <li>Keep all credits & benefits</li>
                           </ul>
                         </div>
                       </div>
                       <Button
-                        onClick={() => setShowCancelConfirm(true)}
-                        variant="destructive"
+                        onClick={handleReactivateSubscription}
+                        disabled={reactivatingSubscription}
                         size="sm"
-                        className="w-full"
+                        className="w-full !bg-green-600 hover:!bg-green-700 text-white"
                       >
-                        <XCircle className="w-4 h-4 mr-2" />
-                        Cancel Subscription
+                        {reactivatingSubscription ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            Reactivating...
+                          </>
+                        ) : (
+                          <>
+                            <Crown className="w-4 h-4 mr-2" />
+                            Reactivate Now
+                          </>
+                        )}
                       </Button>
                     </div>
-                  ) : (
-                    <div className="p-5 bg-gradient-to-br from-red-50 to-red-100/50 rounded-xl border-2 border-red-200/50">
-                      <p className="text-sm font-semibold text-gray-900 mb-4">
-                        Are you sure you want to cancel?
-                      </p>
-                      <div className="flex gap-3">
-                        <Button
-                          onClick={handleCancelSubscription}
-                          disabled={cancellingSubscription}
-                          variant="destructive"
-                          size="sm"
-                          className="flex-1"
-                        >
-                          {cancellingSubscription ? (
-                            <>
-                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                              Cancelling...
-                            </>
-                          ) : (
-                            <>
-                              <XCircle className="w-4 h-4 mr-2" />
-                              Yes, Cancel
-                            </>
-                          )}
-                        </Button>
-                        <Button
-                          onClick={() => setShowCancelConfirm(false)}
-                          variant="outline"
-                          size="sm"
-                          className="flex-1"
-                        >
-                          Keep It
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
-            {/* Reactivate Subscription Section - Only for cancelled subscriptions within period */}
-            {subscription?.plan !== "free" &&
-              subscription?.status === "cancelled" &&
-              subscription?.currentPeriodEnd &&
-              new Date(subscription.currentPeriodEnd) > new Date() && (
-                <div className="pt-2">
-                  <div className="h-px bg-gradient-to-r from-transparent via-gray-300 to-transparent mb-5"></div>
-                  <div className="p-5 bg-gradient-to-br from-green-50 to-green-100/50 rounded-xl border-2 border-green-200/50">
-                    <div className="flex items-start gap-4 mb-4">
-                      <Sparkles className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
-                      <div>
-                        <p className="text-sm font-semibold text-gray-900 mb-2">
-                          Reactivate Subscription
-                        </p>
-                        <p className="text-xs text-gray-600 mb-2">
-                          Access until{" "}
-                          <span className="font-semibold">
-                            {formatDate(subscription.currentPeriodEnd)}
-                          </span>
-                        </p>
-                        <ul className="text-xs text-gray-600 space-y-1 ml-4 list-disc">
-                          <li>Enable auto-renewals</li>
-                          <li>Continue without interruption</li>
-                          <li>Keep all credits & benefits</li>
-                        </ul>
-                      </div>
-                    </div>
-                    <Button
-                      onClick={handleReactivateSubscription}
-                      disabled={reactivatingSubscription}
-                      size="sm"
-                      className="w-full !bg-green-600 hover:!bg-green-700 text-white"
-                    >
-                      {reactivatingSubscription ? (
-                        <>
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                          Reactivating...
-                        </>
-                      ) : (
-                        <>
-                          <Crown className="w-4 h-4 mr-2" />
-                          Reactivate Now
-                        </>
-                      )}
-                    </Button>
                   </div>
+                )}
+            </CardContent>
+          </Card>
+
+          {/* Upgrade card - right after current plan */}
+          {nextPlan && (
+            <Card className="border-2 border-purple-200/50 shadow-xl bg-gradient-to-br from-purple-50/50 to-white backdrop-blur-sm">
+              <CardContent className="pt-6 pb-6">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-5 p-6 bg-gradient-to-br from-purple-50 to-purple-100/50 rounded-xl border-2 border-purple-200/50">
+                  <div className="flex items-start gap-4">
+                    <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl flex items-center justify-center flex-shrink-0 shadow-md">
+                      <Zap className="w-6 h-6 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-xl text-slate-900 mb-1">
+                        Upgrade to a higher plan and save more
+                      </h3>
+                      <p className="text-gray-600 text-sm">
+                        Unlock more interviews, resume builds, and premium
+                        features.
+                      </p>
+                    </div>
+                  </div>
+                  <Link href="/pricing" className="w-full sm:w-auto shrink-0">
+                    <Button
+                      size="lg"
+                      className="w-full sm:w-auto h-12 !bg-purple-600 hover:!bg-purple-700 text-white shadow-lg hover:shadow-xl transition-all"
+                    >
+                      View all plans
+                      <ArrowRight className="w-5 h-5 ml-2" />
+                    </Button>
+                  </Link>
                 </div>
-              )}
-          </CardContent>
-        </Card>
+              </CardContent>
+            </Card>
+          )}
+        </div>
 
         {/* Right Column - Credit Balance & Purchase */}
         <Card className="border-2 border-emerald-200/50 shadow-xl bg-white/95 backdrop-blur-sm h-fit">
@@ -671,68 +708,6 @@ export default function PlanPage() {
           </CardContent>
         </Card>
       </div>
-
-      {/* Upgrade Section */}
-      {nextPlan && (
-        <Card className="border-2 border-purple-200/50 shadow-xl bg-gradient-to-br from-purple-50/50 to-white backdrop-blur-sm">
-          <CardHeader className="pb-4">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl flex items-center justify-center shadow-md">
-                <Zap className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <CardTitle className="text-2xl font-bold">
-                  Upgrade to {nextPlan.name}
-                </CardTitle>
-                <CardDescription className="text-sm mt-1">
-                  Unlock more features and interviews
-                </CardDescription>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {/* Features Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {nextPlan.features.map((feature) => (
-                <div
-                  key={feature}
-                  className="flex items-start gap-3 p-4 bg-gradient-to-br from-purple-50 to-purple-100/50 rounded-lg border border-purple-200/50"
-                >
-                  <CheckCircle className="w-5 h-5 text-purple-600 mt-0.5 flex-shrink-0" />
-                  <span className="text-sm font-medium text-gray-700">
-                    {feature}
-                  </span>
-                </div>
-              ))}
-            </div>
-
-            {/* Pricing & CTA */}
-            <div className="p-6 bg-gradient-to-br from-purple-50 to-purple-100/50 rounded-xl border-2 border-purple-200/50">
-              <div className="flex flex-col sm:flex-row items-center justify-between gap-5">
-                <div>
-                  <p className="text-sm text-gray-600 mb-1">Starting at</p>
-                  <p className="text-4xl font-bold text-gray-900">
-                    ₹{nextPlan.price}
-                    <span className="text-lg font-normal text-gray-600">
-                      /month
-                    </span>
-                  </p>
-                </div>
-                <Link href="/pricing" className="w-full sm:w-auto">
-                  <Button
-                    size="lg"
-                    className="w-full sm:w-auto h-12 !bg-purple-600 hover:!bg-purple-700 text-white shadow-lg hover:shadow-xl transition-all"
-                  >
-                    <Crown className="w-5 h-5 mr-2" />
-                    Upgrade Now
-                    <ArrowRight className="w-5 h-5 ml-2" />
-                  </Button>
-                </Link>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* Highest Plan Message */}
       {!nextPlan && subscription?.plan !== "free" && (
