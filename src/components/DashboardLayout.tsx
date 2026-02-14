@@ -16,6 +16,7 @@ import {
   Sparkles,
   PlayCircle,
   FileEdit,
+  TestTube,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -43,6 +44,11 @@ const menuItems = [
     title: "Analytics",
     href: "/dashboard/analytics",
     icon: BarChart3,
+  },
+  {
+    title: "Research Lab",
+    href: "/research",
+    icon: TestTube,
   },
   {
     title: "Your Plan",
