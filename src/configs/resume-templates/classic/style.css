@@ -1,0 +1,216 @@
+/**
+ * Classic Template Styles
+ * Traditional resume with timeless design
+ */
+
+/* Import Zilla Slab font from Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Zilla+Slab:wght@400;500;600;700&display=swap');
+
+/* Template Container */
+.classic-template {
+  font-family: 'Zilla Slab', serif;
+  color: #000000;
+  background-color: #ffffff;
+  padding: 8mm; /* Standard print padding */
+  line-height: 1.4;
+}
+
+/* Header Styles - Centered */
+.classic-header {
+  text-align: center;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+}
+
+.classic-name {
+  font-size: 28px;
+  font-weight: 700;
+  color: #000000;
+  margin-bottom: 4px;
+  letter-spacing: 0.2px;
+}
+
+.classic-job-title {
+  font-size: 14px;
+  color: #000000;
+  margin-bottom: 12px;
+  font-style: italic;
+  font-weight: 400;
+}
+
+.classic-contact {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  column-gap: 16px;
+  row-gap: 4px;
+  font-size: 10.5px;
+  color: #000000;
+  margin-top: 8px;
+}
+
+.classic-contact-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.classic-contact-item svg {
+  width: 13px;
+  height: 13px;
+  color: #000000;
+}
+
+/* Section Header Styles */
+.classic-section-header {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  text-align: left;
+  border-bottom: 1.5px solid #000000 !important;
+  padding-bottom: 3px !important;
+  margin-bottom: 8px !important;
+  margin-top: 14px !important;
+  color: #000000;
+  letter-spacing: 0.5px;
+}
+
+/* Profile Summary */
+.classic-summary, .classic-description {
+  font-size: 10.5px;
+  line-height: 1.4;
+  color: #000000;
+  margin-bottom: 10px;
+  text-align: justify;
+}
+
+/* Experience & Education Styles */
+.classic-experience-item, .classic-education-item {
+  margin-bottom: 12px;
+  page-break-inside: avoid;
+}
+
+.classic-job-header, .classic-education-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 1px;
+}
+
+.classic-job-title-exp, .classic-degree {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #000000;
+}
+
+.classic-job-date, .classic-education-date {
+  font-size: 10.5px;
+  color: #000000;
+  font-style: normal;
+  font-weight: 400;
+}
+
+.classic-company, .classic-institution {
+  font-size: 10.5px;
+  color: #000000;
+  margin-bottom: 4px;
+  font-style: italic;
+}
+
+.classic-location, .classic-education-location {
+  font-size: 10.5px;
+  color: #000000;
+  font-style: normal;
+}
+
+.classic-description ul {
+  margin: 4px 0 0 0;
+  padding-left: 18px;
+}
+
+.classic-description li {
+  margin-bottom: 2px;
+  list-style-type: disc;
+}
+
+/* Skills Styles */
+.classic-skills-list {
+  font-size: 10.5px;
+  color: #000000;
+  line-height: 1.6;
+}
+
+.classic-skill-category {
+  margin-bottom: 4px;
+}
+
+.classic-skill-item {
+  display: inline;
+}
+
+.classic-skill-item::after {
+  content: "•";
+  margin: 0 6px;
+  font-weight: bold;
+}
+
+.classic-skill-item:last-child::after {
+  content: "";
+}
+
+/* Languages Styles */
+.classic-languages-list {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  column-gap: 40px;
+  row-gap: 6px;
+}
+
+.classic-language-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 10.5px;
+  color: #000000;
+}
+
+.classic-language-rating {
+  display: flex;
+  gap: 4px;
+}
+
+.classic-rating-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: #000000;
+}
+
+.classic-rating-dot.empty {
+  background-color: #e0e0e0;
+}
+
+/* Awards Styles */
+.classic-award-item {
+  margin-bottom: 8px;
+}
+
+.classic-award-name {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #000000;
+  margin-bottom: 1px;
+}
+
+.classic-award-issuer {
+  font-size: 10.5px;
+  color: #000000;
+  font-style: italic;
+}
+
+/* Print Styles */
+@media print {
+  .classic-template {
+    padding: 0;
+  }
+}

@@ -30,14 +30,14 @@ const menuItems = [
     icon: LayoutDashboard,
   },
   {
-    title: "Interviews",
-    href: "/dashboard/interviews",
-    icon: FileText,
-  },
-  {
     title: "Resumes",
     href: "/dashboard/resumes",
     icon: FileEdit,
+  },
+  {
+    title: "Interviews",
+    href: "/dashboard/interviews",
+    icon: FileText,
   },
   {
     title: "Analytics",
@@ -65,14 +65,14 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   // Don't render until user is loaded to avoid hydration issues
   if (!isLoaded) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-pink-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+      <div className="min-h-screen bg-blue-50/30 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[rgb(37,99,235)]"></div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-pink-50">
+    <div className="min-h-screen bg-blue-50/30">
       {/* Mobile Header */}
       <header className="lg:hidden bg-white border-b shadow-sm sticky top-0 z-50">
         <div className="flex items-center justify-between gap-2 px-3 py-2.5">
@@ -93,18 +93,23 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               href="/"
               className="flex items-center gap-1.5 hover:opacity-80 transition-opacity min-w-0"
             >
-              <div className="w-7 h-7 bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
-                <Sparkles className="w-4 h-4 text-white" />
+              <div className="w-7 h-7 bg-gradient-to-br from-blue-600 to-blue-700 rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm">
+                <span className="text-white font-bold text-[10px]">
+                  i<span className="text-xs">X</span>
+                </span>
               </div>
-              <span className="text-base sm:text-lg font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent truncate">
-                Easy Interview
+              <span className="text-base sm:text-lg font-bold text-slate-900 truncate">
+                Interview{" "}
+                <span className="text-[rgb(37,99,235)]">
+                  Tri<span className="text-lg sm:text-xl">X</span>
+                </span>
               </span>
             </Link>
           </div>
           <Link href="/dashboard/interviews/new" className="flex-shrink-0">
             <Button
               size="sm"
-              className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white h-9 px-3 gap-1.5 text-xs sm:text-sm shadow-md"
+              className="!bg-[rgb(37,99,235)] hover:!bg-[rgb(17,24,39)] text-white h-9 px-3 gap-1.5 text-xs sm:text-sm shadow-md transition-all"
             >
               <PlayCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               <span className="hidden xs:inline">Start</span>
@@ -124,7 +129,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             "overflow-hidden",
             mobileMenuOpen
               ? "translate-x-0"
-              : "-translate-x-full lg:translate-x-0"
+              : "-translate-x-full lg:translate-x-0",
           )}
         >
           <div className="h-full flex flex-col">
@@ -134,12 +139,17 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 href="/"
                 className="flex items-center gap-2 hover:opacity-80 transition-opacity"
               >
-                <div className="w-10 h-10 bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg flex items-center justify-center">
-                  <Sparkles className="w-6 h-6 text-white" />
+                <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-blue-700 rounded-lg flex items-center justify-center shadow-sm">
+                  <span className="text-white font-bold text-sm">
+                    i<span className="text-base">X</span>
+                  </span>
                 </div>
                 {sidebarOpen && (
-                  <span className="text-xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
-                    Easy Interview
+                  <span className="text-xl font-bold text-slate-900">
+                    Interview{" "}
+                    <span className="text-[rgb(37,99,235)]">
+                      Tri<span className="text-2xl">X</span>
+                    </span>
                   </span>
                 )}
               </Link>
@@ -165,16 +175,18 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                       }
                     }}
                     className={cn(
-                      "flex items-center gap-3 px-4 py-3 rounded-lg transition-all",
-                      "hover:bg-purple-50 hover:text-purple-700",
+                      "flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200",
+                      "hover:bg-blue-50 hover:scale-105 hover:shadow-md",
                       isActive
-                        ? "bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-md"
-                        : "text-gray-700"
+                        ? "!bg-[rgb(37,99,235)] !text-white shadow-md hover:!bg-[rgb(17,24,39)] hover:!text-white"
+                        : "text-slate-700 hover:text-[rgb(37,99,235)]",
                     )}
                   >
-                    <Icon className="w-5 h-5 flex-shrink-0" />
+                    <Icon className="w-5 h-5 flex-shrink-0 transition-transform duration-200" />
                     {sidebarOpen && (
-                      <span className="font-medium">{item.title}</span>
+                      <span className="font-medium transition-colors duration-200">
+                        {item.title}
+                      </span>
                     )}
                   </Link>
                 );
@@ -187,9 +199,20 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 <UserButton
                   appearance={{
                     elements: {
-                      avatarBox: "w-10 h-10",
+                      avatarBox:
+                        "w-10 h-10 ring-2 ring-blue-100 hover:ring-blue-300 transition-all",
+                      userButtonPopoverCard:
+                        "shadow-2xl border-2 border-blue-100",
+                      userButtonPopoverActionButton:
+                        "hover:bg-blue-50 transition-colors text-gray-700 font-medium",
+                      userButtonPopoverActionButtonIcon: "text-blue-600",
+                      userButtonPopoverActionButtonText: "text-gray-700",
+                      userButtonPopoverFooter: "border-t border-gray-200",
                     },
                   }}
+                  afterSignOutUrl="/"
+                  userProfileMode="navigation"
+                  userProfileUrl="/dashboard/profile"
                 />
                 {sidebarOpen && user && (
                   <div className="flex-1 min-w-0">
@@ -234,7 +257,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 <Link href="/dashboard/interviews/new">
                   <Button
                     size="default"
-                    className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white shadow-md hover:shadow-lg transition-all"
+                    className="!bg-[rgb(37,99,235)] hover:!bg-[rgb(17,24,39)] text-white shadow-md hover:shadow-lg transition-all"
                   >
                     <PlayCircle className="w-4 h-4 mr-2" />
                     Start Interview

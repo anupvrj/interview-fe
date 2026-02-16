@@ -27,7 +27,7 @@ apiClient.interceptors.request.use(
   },
   (error) => {
     return Promise.reject(error);
-  }
+  },
 );
 
 // Response interceptor for error handling
@@ -41,7 +41,7 @@ apiClient.interceptors.response.use(
       }
     }
     return Promise.reject(error);
-  }
+  },
 );
 
 // API Types
@@ -67,7 +67,7 @@ export interface User {
     size: number;
   };
   subscription?: {
-    plan: "free" | "starter" | "pro" | "exam_pack";
+    plan: "free" | "starter" | "premium" | "elite";
     status: "active" | "cancelled" | "expired";
     currentPeriodEnd?: string;
     interviewsUsed?: number;
@@ -200,7 +200,7 @@ export const userApi = {
   createOrGetUser: async (
     clerkId: string,
     email: string,
-    name: string
+    name: string,
   ): Promise<User> => {
     const response = await apiClient.post<{ data: User }>("/users", {
       clerkId,
@@ -226,13 +226,13 @@ export const userApi = {
 
     const response = await apiClient.post<{ data: { resume: User["resume"] } }>(
       "/users/me/resume",
-      formData
+      formData,
     );
     return response.data.data;
   },
 
   extractResumeData: async (
-    file: File
+    file: File,
   ): Promise<{
     extracted: {
       name?: string;
@@ -279,7 +279,7 @@ export const userApi = {
   }): Promise<User> => {
     const response = await apiClient.post<{ data: User }>(
       "/users/me/onboarding",
-      data
+      data,
     );
     return response.data.data;
   },
@@ -297,7 +297,7 @@ export const userApi = {
   }): Promise<User> => {
     const response = await apiClient.put<{ data: User }>(
       "/users/me/profile",
-      data
+      data,
     );
     return response.data.data;
   },
@@ -310,7 +310,7 @@ export const userApi = {
 export const interviewApi = {
   create: async (
     userId: string,
-    data: CreateInterviewRequest
+    data: CreateInterviewRequest,
   ): Promise<CreateInterviewResponse> => {
     const formData = new FormData();
     formData.append("role", data.role);
@@ -332,21 +332,21 @@ export const interviewApi = {
       {
         // Don't set Content-Type manually - let Axios set it with the boundary
         params: { userId },
-      }
+      },
     );
     return response.data;
   },
 
   list: async (userId: string): Promise<Interview[]> => {
     const response = await apiClient.get<{ data: Interview[] }>(
-      `/interviews/${userId}`
+      `/interviews/${userId}`,
     );
     return response.data.data;
   },
 
   get: async (interviewId: string): Promise<Interview> => {
     const response = await apiClient.get<{ data: Interview }>(
-      `/interviews/detail/${interviewId}`
+      `/interviews/detail/${interviewId}`,
     );
     return response.data.data;
   },
@@ -366,20 +366,20 @@ export const interviewApi = {
 
   getInterview: async (interviewId: string): Promise<Interview> => {
     const response = await apiClient.get<{ data: Interview }>(
-      `/interviews/detail/${interviewId}`
+      `/interviews/detail/${interviewId}`,
     );
     return response.data.data;
   },
 
   getReport: async (interviewId: string): Promise<InterviewReport> => {
     const response = await apiClient.get<{ data: InterviewReport }>(
-      `/interviews/${interviewId}/report`
+      `/interviews/${interviewId}/report`,
     );
     return response.data.data;
   },
 
   getRecordingVideoUrl: async (
-    interviewId: string
+    interviewId: string,
   ): Promise<{ videoUrl: string; expiresIn: number }> => {
     const userId = localStorage.getItem("clerk-user-id");
     if (!userId) {
@@ -394,7 +394,7 @@ export const interviewApi = {
   },
 
   getRecordingUploadUrl: async (
-    interviewId: string
+    interviewId: string,
   ): Promise<{ uploadUrl: string; s3Key: string; expiresIn: number }> => {
     const userId = localStorage.getItem("clerk-user-id");
     if (!userId) {
@@ -410,7 +410,7 @@ export const interviewApi = {
 
   saveRecordingKey: async (
     interviewId: string,
-    s3Key: string
+    s3Key: string,
   ): Promise<{ s3Key: string; videoUrl: string }> => {
     const userId = localStorage.getItem("clerk-user-id");
     if (!userId) {
@@ -423,26 +423,38 @@ export const interviewApi = {
       { s3Key },
       {
         params: { userId },
-      }
+      },
     );
     return response.data.data;
   },
 };
 
 export interface Subscription {
-  plan: "free" | "starter" | "pro" | "exam_pack";
+  plan: "free" | "starter" | "premium" | "elite";
   status: "active" | "cancelled" | "expired";
-  interviewsUsed: number;
-  interviewsLimit: number;
+  interviewsUsed?: number; // Deprecated: now using credits
+  interviewsLimit?: number; // Deprecated: now using credits
+  creditsAvailable?: number; // New: credit-based system
+  creditsUsed?: number; // New: credit-based system
+  minimumRequired?: number; // New: minimum credits to start interview
   currentPeriodEnd?: string;
   resetDate?: string;
+  autoRenew?: boolean;
+}
+
+export interface CreditBalance {
+  available: number;
+  total: number;
+  used: number;
 }
 
 export interface InterviewLimitCheck {
   allowed: boolean;
   reason?: string;
-  interviewsUsed?: number;
-  interviewsLimit?: number;
+  creditsAvailable?: number; // New: credit-based system
+  minimumRequired?: number; // New: minimum credits required
+  interviewsUsed?: number; // Deprecated
+  interviewsLimit?: number; // Deprecated
 }
 
 export interface RazorpayOrder {
@@ -450,23 +462,73 @@ export interface RazorpayOrder {
   amount: number;
   currency: string;
   keyId: string;
+  subscriptionId?: string;
 }
 
 export const paymentApi = {
   createOrder: async (
-    plan: "starter" | "pro" | "exam_pack"
+    plan: "starter" | "premium" | "elite",
+    billingCycle: "monthly" | "quarterly" | "yearly" = "monthly",
   ): Promise<RazorpayOrder> => {
     const response = await apiClient.post<{ data: RazorpayOrder }>(
       "/payments/create-order",
-      { plan }
+      { plan, billingCycle },
     );
     return response.data.data;
+  },
+
+  purchaseCredits: async (creditAmount: number): Promise<RazorpayOrder> => {
+    const response = await apiClient.post<{ data: RazorpayOrder }>(
+      "/payments/purchase-credits",
+      { creditAmount },
+    );
+    return response.data.data;
+  },
+
+  cancelSubscription: async (): Promise<{
+    success: boolean;
+    message: string;
+  }> => {
+    const response = await apiClient.post<{
+      success: boolean;
+      message: string;
+    }>("/payments/cancel-subscription");
+    return response.data;
+  },
+
+  getCreditBalance: async (): Promise<{
+    total: number;
+    used: number;
+    available: number;
+    expiring: Array<{ amount: number; expiryDate: Date }>;
+  }> => {
+    const response = await apiClient.get<{
+      success: boolean;
+      balance: {
+        total: number;
+        used: number;
+        available: number;
+        expiring: Array<{ amount: number; expiryDate: Date }>;
+      };
+    }>("/payments/credit-balance");
+    return response.data.balance;
+  },
+
+  reactivateSubscription: async (): Promise<{
+    success: boolean;
+    message: string;
+  }> => {
+    const response = await apiClient.post<{
+      success: boolean;
+      message: string;
+    }>("/payments/reactivate-subscription");
+    return response.data;
   },
 
   verifyPayment: async (
     razorpayOrderId: string,
     razorpayPaymentId: string,
-    razorpaySignature: string
+    razorpaySignature: string,
   ): Promise<{ subscription: Subscription | null }> => {
     const response = await apiClient.post<{
       data: { subscription: Subscription | null };
@@ -480,14 +542,14 @@ export const paymentApi = {
 
   getSubscription: async (): Promise<Subscription | null> => {
     const response = await apiClient.get<{ data: Subscription | null }>(
-      "/payments/subscription"
+      "/payments/subscription",
     );
     return response.data.data;
   },
 
   checkInterviewLimit: async (): Promise<InterviewLimitCheck> => {
     const response = await apiClient.get<{ data: InterviewLimitCheck }>(
-      "/payments/check-limit"
+      "/payments/check-limit",
     );
     return response.data.data;
   },
@@ -508,7 +570,7 @@ export interface ResumeTemplate {
     background: string;
   };
   layout: {
-    headerStyle: "centered" | "left" | "two-column";
+    headerStyle: "centered" | "left" | "two-column" | "full-width";
     sectionSpacing: number;
     fontFamily: string;
     fontSize: {
@@ -578,6 +640,7 @@ export interface Resume {
       startDate: string;
       endDate?: string;
       gpa?: string;
+      percentage?: string;
       honors?: string[];
     }>;
     skills?: string | string[]; // Consolidated skills field (supports both string and array)
@@ -585,9 +648,12 @@ export interface Resume {
       id: string;
       name: string;
       description: string;
-      technologies: string[];
+      /** Comma-separated string or array (array for backwards compatibility) */
+      technologies: string | string[];
       link?: string;
       github?: string;
+      startDate?: string;
+      endDate?: string;
     }>;
     achievements?: Array<{
       id: string;
@@ -692,18 +758,24 @@ export interface Resume {
 }
 
 export const resumeApi = {
+  /**
+   * Get All Templates
+   * Uses auto-discovery template loader for seamless template management
+   * No need to manually update this code when adding new templates
+   */
   getTemplates: async (): Promise<ResumeTemplate[]> => {
-    const response = await apiClient.get<{ data: ResumeTemplate[] }>(
-      "/templates"
-    );
-    return response.data.data;
+    const { TemplateLoader } = await import("./templateLoader");
+    return TemplateLoader.loadAllTemplates();
   },
 
+  /**
+   * Get Single Template
+   * Loads a specific template by ID using the template loader
+   */
   getTemplate: async (templateId: string): Promise<ResumeTemplate> => {
-    const response = await apiClient.get<{ data: ResumeTemplate }>(
-      `/templates/${templateId}`
-    );
-    return response.data.data;
+    const { TemplateLoader } = await import("./templateLoader");
+    const config = await TemplateLoader.loadTemplate(templateId);
+    return config.template;
   },
 
   create: async (
@@ -712,25 +784,46 @@ export const resumeApi = {
       title?: string;
       templateId: string;
       content?: Partial<Resume["content"]>;
-    }
+      sectionOrder?: Resume["sectionOrder"];
+      layout?: Resume["layout"];
+      /** Set true for ATS checker so it does not count toward resume limit */
+      forAtsCheckOnly?: boolean;
+    },
   ): Promise<Resume> => {
     const response = await apiClient.post<{ data: Resume }>(
       `/users/${userId}/resumes`,
-      data
+      data,
     );
     return response.data.data;
   },
 
   list: async (userId: string): Promise<Resume[]> => {
     const response = await apiClient.get<{ data: Resume[] }>(
-      `/users/${userId}/resumes`
+      `/users/${userId}/resumes`,
     );
+    return response.data.data;
+  },
+
+  checkResumeLimit: async (): Promise<{
+    allowed: boolean;
+    reason?: string;
+    resumesCreated?: number;
+    resumesLimit?: number;
+  }> => {
+    const response = await apiClient.get<{
+      data: {
+        allowed: boolean;
+        reason?: string;
+        resumesCreated?: number;
+        resumesLimit?: number;
+      };
+    }>("/resume-limit");
     return response.data.data;
   },
 
   get: async (resumeId: string): Promise<Resume> => {
     const response = await apiClient.get<{ data: Resume }>(
-      `/resumes/${resumeId}`
+      `/resumes/${resumeId}`,
     );
     return response.data.data;
   },
@@ -745,7 +838,7 @@ export const resumeApi = {
       sectionOrder?: Resume["sectionOrder"];
       layout?: Resume["layout"];
       isDefault?: boolean;
-    }
+    },
   ): Promise<Resume> => {
     const response = await apiClient.put<{ data: Resume }>(
       `/resumes/${resumeId}`,
@@ -754,7 +847,7 @@ export const resumeApi = {
         headers: {
           "Content-Type": "application/json",
         },
-      }
+      },
     );
     return response.data.data;
   },
@@ -766,7 +859,7 @@ export const resumeApi = {
   duplicate: async (resumeId: string, title?: string): Promise<Resume> => {
     const response = await apiClient.post<{ data: Resume }>(
       `/resumes/${resumeId}/duplicate`,
-      { title }
+      { title },
     );
     return response.data.data;
   },
@@ -777,13 +870,13 @@ export const resumeApi = {
       {},
       {
         timeout: 180000, // 3 minutes (180 seconds) for ATS score calculation
-      }
+      },
     );
     return response.data.data;
   },
 
   getPresignedUploadUrl: async (
-    resumeId: string
+    resumeId: string,
   ): Promise<{ uploadUrl: string; s3Key: string }> => {
     const response = await apiClient.get<{
       data: { uploadUrl: string; s3Key: string };
@@ -793,7 +886,7 @@ export const resumeApi = {
 
   confirmPDFUpload: async (
     resumeId: string,
-    s3Key: string
+    s3Key: string,
   ): Promise<{ downloadUrl: string; s3Key: string }> => {
     const response = await apiClient.post<{
       data: { downloadUrl: string; s3Key: string };
@@ -803,7 +896,7 @@ export const resumeApi = {
 
   downloadPDF: async (resumeId: string): Promise<string> => {
     const response = await apiClient.get<{ data: { pdfUrl: string } }>(
-      `/resumes/${resumeId}/download-pdf`
+      `/resumes/${resumeId}/download-pdf`,
     );
     return response.data.data.pdfUrl;
   },
@@ -816,7 +909,8 @@ export const resumeApi = {
       bottom: number;
       left: number;
       right: number;
-    }
+    },
+    templateCSS?: string,
   ): Promise<{ downloadUrl: string; s3Key: string }> => {
     const response = await apiClient.post<{
       data: { downloadUrl: string; s3Key: string };
@@ -825,13 +919,14 @@ export const resumeApi = {
       {
         htmlContent,
         padding,
+        templateCSS,
       },
       {
         headers: {
           "Content-Type": "application/json",
         },
         timeout: 60000, // 60 seconds for PDF generation
-      }
+      },
     );
     return response.data.data;
   },
@@ -841,7 +936,7 @@ export const resumeApi = {
 export const resumeDataExtractionApi = {
   extractResumeData: async (
     templateId: string,
-    resumeText?: string
+    resumeText?: string,
   ): Promise<{
     sections: Record<
       string,
@@ -861,7 +956,7 @@ export const resumeDataExtractionApi = {
       },
       {
         timeout: 180000, // 180 seconds (3 minutes) for AI extraction
-      }
+      },
     );
     return response.data.data;
   },
@@ -871,7 +966,7 @@ export const resumeDataExtractionApi = {
 export const contentApi = {
   refineContent: async (
     content: string,
-    contentType?: "paragraph" | "list" | "auto"
+    contentType?: "paragraph" | "list" | "auto",
   ): Promise<{
     originalContent: string;
     refinedContent: string;
@@ -885,6 +980,19 @@ export const contentApi = {
       content,
       contentType: contentType || "auto",
     });
+    return response.data.data;
+  },
+};
+
+// Plan API
+export const planApi = {
+  getAllPlans: async (): Promise<any[]> => {
+    const response = await apiClient.get<{ data: any[] }>("/plans");
+    return response.data.data;
+  },
+
+  getPlanById: async (planId: string): Promise<any> => {
+    const response = await apiClient.get<{ data: any }>(`/plans/${planId}`);
     return response.data.data;
   },
 };

@@ -1,0 +1,311 @@
+/**
+ * True Blue Template Styles
+ * Professional academic/research template with blue accents
+ */
+
+/* Template Container */
+.true-blue-template {
+  font-family: Calibri, 'Segoe UI', 'Trebuchet MS', sans-serif;
+  color: #000000;
+  background-color: #ffffff;
+  padding: 8px;
+  line-height: 1.5;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+  color-adjust: exact !important;
+}
+
+/* Header Styles */
+.true-blue-name {
+  font-size: 28px;
+  font-weight: bold;
+  color: #2c5f9e !important;
+  margin-bottom: 6px;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+  color-adjust: exact !important;
+}
+
+.true-blue-job-title {
+  font-size: 16px;
+  color: #2c5f9e !important;
+  margin-bottom: 12px;
+  font-weight: normal;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+  color-adjust: exact !important;
+}
+
+/* Contact Info Styles */
+.true-blue-contact {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 11px;
+  color: #000000;
+  margin-bottom: 16px;
+  align-items: center;
+}
+
+.true-blue-contact-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: #000000;
+}
+
+.true-blue-contact-item svg {
+  width: 14px;
+  height: 14px;
+  color: #000000 !important;
+  stroke: #000000 !important;
+  stroke-width: 1.5 !important;
+  fill: none !important;
+}
+
+.true-blue-contact a,
+.true-blue-contact a:visited {
+  color: #000000;
+  text-decoration: none;
+}
+
+/* Section Header Styles */
+.true-blue-section-header,
+.true-blue-template h2 {
+  font-size: 12px !important;
+  font-weight: bold;
+  text-transform: uppercase;
+  text-align: left;
+  border-bottom: 1.5px solid #2c5f9e !important;
+  border-top: none !important;
+  padding-bottom: 4px !important;
+  padding-top: 0 !important;
+  margin-bottom: 10px !important;
+  margin-top: 16px !important;
+  color: #2c5f9e !important;
+  letter-spacing: 0.5px;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+  color-adjust: exact !important;
+}
+
+/* Profile Summary */
+.true-blue-summary {
+  font-size: 11px;
+  line-height: 1.5;
+  color: #000000;
+  margin-bottom: 16px;
+  text-align: justify;
+}
+
+/* Experience Styles */
+.true-blue-experience-item {
+  margin-bottom: 14px;
+  page-break-inside: avoid;
+}
+
+.true-blue-job-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 2px;
+}
+
+.true-blue-job-title-exp {
+  font-size: 11px;
+  font-weight: bold;
+  color: #000000;
+  flex: 1;
+}
+
+.true-blue-job-meta {
+  text-align: right;
+  font-size: 10px;
+  color: #000000;
+  line-height: 1.3;
+}
+
+.true-blue-job-date {
+  font-size: 10px;
+  color: #000000;
+  display: block;
+}
+
+.true-blue-job-location {
+  font-size: 10px;
+  color: #000000;
+  display: block;
+}
+
+.true-blue-company {
+  font-size: 11px;
+  color: #000000;
+  margin-bottom: 4px;
+  font-style: italic;
+}
+
+.true-blue-description {
+  font-size: 11px;
+  line-height: 1.5;
+  color: #000000;
+}
+
+.true-blue-description ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.true-blue-description li {
+  margin-bottom: 3px;
+}
+
+/* Education Styles */
+.true-blue-education-item {
+  margin-bottom: 12px;
+}
+
+.true-blue-education-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 2px;
+}
+
+.true-blue-degree {
+  font-size: 11px;
+  font-weight: bold;
+  color: #000000;
+  flex: 1;
+}
+
+.true-blue-education-meta {
+  text-align: right;
+  font-size: 10px;
+  color: #000000;
+  line-height: 1.3;
+}
+
+.true-blue-institution {
+  font-size: 11px;
+  color: #000000;
+  margin-bottom: 4px;
+  font-style: italic;
+}
+
+.true-blue-education-date {
+  font-size: 10px;
+  color: #000000;
+}
+
+/* Skills Styles */
+.true-blue-skills-list {
+  font-size: 11px;
+  color: #000000;
+  line-height: 1.6;
+}
+
+.true-blue-skill-item {
+  display: inline;
+}
+
+.true-blue-skill-item:not(:last-child)::after {
+  content: " • ";
+  color: #666666;
+}
+
+/* Projects Styles */
+.true-blue-project-item {
+  margin-bottom: 12px;
+}
+
+.true-blue-project-title {
+  font-size: 11px;
+  font-weight: bold;
+  color: #000000;
+  margin-bottom: 4px;
+}
+
+.true-blue-project-description {
+  font-size: 11px;
+  color: #000000;
+  line-height: 1.5;
+}
+
+/* Certificates Styles */
+.true-blue-certificate-item {
+  margin-bottom: 10px;
+}
+
+.true-blue-certificate-title {
+  font-size: 11px;
+  font-weight: bold;
+  color: #000000;
+  margin-bottom: 2px;
+}
+
+.true-blue-certificate-issuer {
+  font-size: 11px;
+  color: #000000;
+  font-style: italic;
+}
+
+/* Languages Styles */
+.true-blue-language-item {
+  display: inline-block;
+  margin-right: 16px;
+  margin-bottom: 6px;
+}
+
+.true-blue-language-name {
+  font-weight: bold;
+}
+
+/* Print Styles */
+@media print {
+  .true-blue-template {
+    padding: 0;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+
+  /* Force all blue elements to preserve color */
+  .true-blue-name,
+  .true-blue-job-title,
+  .true-blue-section-header,
+  .true-blue-template h2 {
+    color: #2c5f9e !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+
+  .true-blue-section-header,
+  .true-blue-template h2 {
+    border-bottom-color: #2c5f9e !important;
+    border-bottom-style: solid !important;
+    border-bottom-width: 1.5px !important;
+  }
+  
+  /* Ensure all text colors are preserved */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+
+  .true-blue-section {
+    page-break-inside: avoid;
+  }
+
+  .true-blue-experience-item {
+    page-break-inside: avoid;
+  }
+
+  .true-blue-contact-item svg {
+    color: #000000 !important;
+    stroke: #000000 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}

@@ -84,7 +84,7 @@ export default function OnboardingPage() {
   >("");
   const [resumeFile, setResumeFile] = useState<File | null>(null);
   const [extractedData, setExtractedData] = useState<ExtractedData | null>(
-    null
+    null,
   );
   const [reviewData, setReviewData] = useState({
     overallExperience: 0, // Overall experience in years (for all user types)
@@ -133,15 +133,36 @@ export default function OnboardingPage() {
       const createdUser = await userApi.createOrGetUser(
         user.id,
         user.primaryEmailAddress?.emailAddress || "",
-        user.fullName || user.firstName || "User"
+        user.fullName || user.firstName || "User",
       );
 
       console.log("📋 Onboarding status:", createdUser.onboardingCompleted);
 
-      // If onboarding is already completed, redirect to dashboard
+      // If onboarding is already completed, check for return URL or pending plan
       if (createdUser.onboardingCompleted) {
-        console.log("✅ Onboarding completed, redirecting to dashboard");
-        router.replace("/dashboard");
+        console.log("✅ Onboarding completed");
+
+        // Check if there's a return URL from resume builder
+        const returnUrl = localStorage.getItem("resumeBuilderReturnUrl");
+        if (returnUrl) {
+          console.log("🔄 Redirecting to resume builder return URL");
+          localStorage.removeItem("resumeBuilderReturnUrl");
+          router.replace(returnUrl);
+          return;
+        }
+
+        const pendingPlan = localStorage.getItem("pendingPlan");
+        if (
+          pendingPlan &&
+          ["starter", "premium", "elite"].includes(pendingPlan)
+        ) {
+          console.log("📦 Pending plan found, redirecting to checkout");
+          localStorage.removeItem("pendingPlan");
+          router.replace(`/checkout?plan=${pendingPlan}`);
+        } else {
+          console.log("🏠 Redirecting to dashboard");
+          router.replace("/dashboard");
+        }
         return;
       } else {
         console.log("📝 Onboarding not completed, showing form");
@@ -169,7 +190,7 @@ export default function OnboardingPage() {
       await userApi.createOrGetUser(
         user.id,
         user.primaryEmailAddress?.emailAddress || "",
-        user.fullName || user.firstName || "User"
+        user.fullName || user.firstName || "User",
       );
     } catch (error) {
       console.error("Error initializing user:", error);
@@ -226,7 +247,7 @@ export default function OnboardingPage() {
       console.error("Error extracting resume data:", error);
       setError(
         error.response?.data?.message ||
-          "Failed to extract data from resume. Please try again."
+          "Failed to extract data from resume. Please try again.",
       );
     } finally {
       setExtracting(false);
@@ -259,8 +280,8 @@ export default function OnboardingPage() {
           reviewData.overallExperience > 0
             ? reviewData.overallExperience
             : userType === "experienced"
-            ? reviewData.experience
-            : undefined,
+              ? reviewData.experience
+              : undefined,
         currentJob:
           userType === "experienced" && reviewData.currentJob.company
             ? reviewData.currentJob
@@ -269,13 +290,32 @@ export default function OnboardingPage() {
           reviewData.industries.length > 0 ? reviewData.industries : undefined,
       });
 
-      // Redirect to dashboard
-      router.push("/dashboard");
+      // Check if there's a return URL from resume builder
+      const returnUrl = localStorage.getItem("resumeBuilderReturnUrl");
+      if (returnUrl) {
+        localStorage.removeItem("resumeBuilderReturnUrl");
+        router.push(returnUrl);
+        return;
+      }
+
+      // Check if there's a pending plan from homepage
+      const pendingPlan = localStorage.getItem("pendingPlan");
+      if (
+        pendingPlan &&
+        ["starter", "premium", "elite"].includes(pendingPlan)
+      ) {
+        localStorage.removeItem("pendingPlan");
+        // Redirect to checkout with the plan
+        router.push(`/checkout?plan=${pendingPlan}`);
+      } else {
+        // Redirect to dashboard
+        router.push("/dashboard");
+      }
     } catch (error: any) {
       console.error("Error completing onboarding:", error);
       setError(
         error.response?.data?.message ||
-          "Failed to complete onboarding. Please try again."
+          "Failed to complete onboarding. Please try again.",
       );
     } finally {
       setLoading(false);
@@ -284,9 +324,9 @@ export default function OnboardingPage() {
 
   if (!isLoaded || checkingStatus) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-pink-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-landing-blue-50 via-landing-blue-100 to-landing-blue-200 flex items-center justify-center">
         <div className="text-center">
-          <Loader2 className="w-12 h-12 animate-spin text-purple-600 mx-auto mb-4" />
+          <Loader2 className="w-12 h-12 animate-spin text-landing-blue-700 mx-auto mb-4" />
           <p className="text-gray-600">Loading...</p>
         </div>
       </div>
@@ -300,16 +340,19 @@ export default function OnboardingPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-pink-50 py-8 px-4 sm:px-6">
+    <div className="min-h-screen bg-gradient-to-br from-landing-blue-50 via-landing-blue-100 to-landing-blue-200 py-8 px-4 sm:px-6">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-2 mb-4">
-            <div className="w-12 h-12 bg-gradient-to-r from-purple-600 to-blue-600 rounded-xl flex items-center justify-center shadow-lg">
+            <div className="w-12 h-12 bg-gradient-to-r from-landing-blue-600 to-landing-blue-700 rounded-xl flex items-center justify-center shadow-lg">
               <Sparkles className="w-6 h-6 text-white" />
             </div>
-            <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
-              Welcome to Easy Interview!
+            <h1
+              className="text-2xl sm:text-3xl font-bold"
+              style={{ color: "rgb(37 99 235 / var(--tw-text-opacity, 1))" }}
+            >
+              Welcome to Interview Trix!
             </h1>
           </div>
           <p className="text-sm sm:text-base text-gray-600">
@@ -331,10 +374,10 @@ export default function OnboardingPage() {
                     <div
                       className={`w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center border-2 transition-all ${
                         isActive
-                          ? "bg-gradient-to-r from-purple-600 to-blue-600 border-purple-600 text-white shadow-lg scale-110"
+                          ? "bg-gradient-to-r from-landing-blue-600 to-landing-blue-700 border-purple-600 text-white shadow-lg scale-110"
                           : isCompleted
-                          ? "bg-green-500 border-green-500 text-white"
-                          : "bg-white border-gray-300 text-gray-400"
+                            ? "bg-green-500 border-green-500 text-white"
+                            : "bg-white border-gray-300 text-gray-400"
                       }`}
                     >
                       {isCompleted ? (
@@ -345,7 +388,7 @@ export default function OnboardingPage() {
                     </div>
                     <p
                       className={`text-xs sm:text-sm font-medium mt-2 ${
-                        isActive ? "text-purple-600" : "text-gray-500"
+                        isActive ? "text-landing-blue-700" : "text-gray-500"
                       }`}
                     >
                       {step.title}
@@ -357,8 +400,8 @@ export default function OnboardingPage() {
                         isCompleted
                           ? "bg-green-500"
                           : currentStep > step.number
-                          ? "bg-purple-300"
-                          : "bg-gray-200"
+                            ? "bg-purple-300"
+                            : "bg-gray-200"
                       }`}
                     />
                   )}
@@ -397,7 +440,7 @@ export default function OnboardingPage() {
                       onClick={() => setUserType("student")}
                       className={`p-6 rounded-xl border-2 transition-all text-left ${
                         userType === "student"
-                          ? "border-purple-500 bg-purple-50 shadow-md scale-105"
+                          ? "border-purple-500 bg-landing-blue-50 shadow-md scale-105"
                           : "border-gray-200 bg-white hover:border-purple-300 hover:shadow-sm"
                       }`}
                     >
@@ -417,7 +460,7 @@ export default function OnboardingPage() {
                       onClick={() => setUserType("fresher")}
                       className={`p-6 rounded-xl border-2 transition-all text-left ${
                         userType === "fresher"
-                          ? "border-purple-500 bg-purple-50 shadow-md scale-105"
+                          ? "border-purple-500 bg-landing-blue-50 shadow-md scale-105"
                           : "border-gray-200 bg-white hover:border-purple-300 hover:shadow-sm"
                       }`}
                     >
@@ -437,7 +480,7 @@ export default function OnboardingPage() {
                       onClick={() => setUserType("experienced")}
                       className={`p-6 rounded-xl border-2 transition-all text-left ${
                         userType === "experienced"
-                          ? "border-purple-500 bg-purple-50 shadow-md scale-105"
+                          ? "border-purple-500 bg-landing-blue-50 shadow-md scale-105"
                           : "border-gray-200 bg-white hover:border-purple-300 hover:shadow-sm"
                       }`}
                     >
@@ -467,8 +510,8 @@ export default function OnboardingPage() {
                       {...getRootProps()}
                       className={`border-2 border-dashed rounded-xl p-8 sm:p-12 text-center cursor-pointer transition-all ${
                         isDragActive
-                          ? "border-purple-500 bg-purple-50 scale-105"
-                          : "border-gray-300 bg-gray-50 hover:border-purple-400 hover:bg-purple-50/50"
+                          ? "border-purple-500 bg-landing-blue-50 scale-105"
+                          : "border-gray-300 bg-gray-50 hover:border-purple-400 hover:bg-landing-blue-50/50"
                       }`}
                     >
                       <input {...getInputProps()} />
@@ -602,7 +645,7 @@ export default function OnboardingPage() {
                   )}
 
                   {userType === "experienced" && (
-                    <div className="space-y-3 p-4 bg-purple-50 rounded-xl border-2 border-purple-200">
+                    <div className="space-y-3 p-4 bg-landing-blue-50 rounded-xl border-2 border-landing-blue-300">
                       <h4 className="font-semibold text-gray-900 mb-3">
                         Current Job Details
                       </h4>
@@ -688,7 +731,7 @@ export default function OnboardingPage() {
                           onClick={() => toggleIndustry(industry)}
                           className={`p-3 rounded-lg border-2 transition-all text-left text-sm ${
                             reviewData.industries.includes(industry)
-                              ? "border-purple-500 bg-purple-50"
+                              ? "border-purple-500 bg-landing-blue-50"
                               : "border-gray-200 bg-white hover:border-purple-300"
                           }`}
                         >
@@ -697,7 +740,7 @@ export default function OnboardingPage() {
                               {industry}
                             </span>
                             {reviewData.industries.includes(industry) && (
-                              <CheckCircle className="w-4 h-4 text-purple-600" />
+                              <CheckCircle className="w-4 h-4 text-landing-blue-700" />
                             )}
                           </div>
                         </button>
@@ -790,7 +833,7 @@ export default function OnboardingPage() {
                         await userApi.createOrGetUser(
                           user.id,
                           user.primaryEmailAddress?.emailAddress || "",
-                          user.fullName || user.firstName || "User"
+                          user.fullName || user.firstName || "User",
                         );
 
                         // Complete onboarding with minimal data
@@ -804,13 +847,21 @@ export default function OnboardingPage() {
                           industries: undefined,
                         });
 
-                        // Redirect to dashboard
-                        router.push("/dashboard");
+                        // Check if there's a return URL from resume builder
+                        const returnUrl = localStorage.getItem(
+                          "resumeBuilderReturnUrl",
+                        );
+                        if (returnUrl) {
+                          localStorage.removeItem("resumeBuilderReturnUrl");
+                          router.push(returnUrl);
+                        } else {
+                          router.push("/dashboard");
+                        }
                       } catch (error: any) {
                         console.error("Error skipping onboarding:", error);
                         setError(
                           error.response?.data?.message ||
-                            "Failed to complete setup. Please try again."
+                            "Failed to complete setup. Please try again.",
                         );
                         setLoading(false);
                       }
@@ -824,7 +875,7 @@ export default function OnboardingPage() {
                     type="button"
                     onClick={handleStep1Next}
                     disabled={extracting || !userType || !resumeFile}
-                    className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white shadow-lg hover:shadow-xl transition-all flex items-center gap-2"
+                    className="bg-gradient-to-r from-landing-blue-600 to-landing-blue-700 hover:from-landing-blue-800 hover:to-landing-blue-900 text-white shadow-lg hover:shadow-xl transition-all flex items-center gap-2"
                   >
                     {extracting ? (
                       <>
@@ -861,7 +912,7 @@ export default function OnboardingPage() {
                         await userApi.createOrGetUser(
                           user.id,
                           user.primaryEmailAddress?.emailAddress || "",
-                          user.fullName || user.firstName || "User"
+                          user.fullName || user.firstName || "User",
                         );
 
                         // Complete onboarding with current data
@@ -874,8 +925,8 @@ export default function OnboardingPage() {
                             reviewData.overallExperience > 0
                               ? reviewData.overallExperience
                               : userType === "experienced"
-                              ? reviewData.experience
-                              : undefined,
+                                ? reviewData.experience
+                                : undefined,
                           currentJob:
                             userType === "experienced" &&
                             reviewData.currentJob.company
@@ -888,12 +939,21 @@ export default function OnboardingPage() {
                         });
 
                         // Redirect to dashboard
-                        router.push("/dashboard");
+                        // Check if there's a return URL from resume builder
+                        const returnUrl = localStorage.getItem(
+                          "resumeBuilderReturnUrl",
+                        );
+                        if (returnUrl) {
+                          localStorage.removeItem("resumeBuilderReturnUrl");
+                          router.push(returnUrl);
+                        } else {
+                          router.push("/dashboard");
+                        }
                       } catch (error: any) {
                         console.error("Error completing onboarding:", error);
                         setError(
                           error.response?.data?.message ||
-                            "Failed to complete setup. Please try again."
+                            "Failed to complete setup. Please try again.",
                         );
                         setLoading(false);
                       }
@@ -906,7 +966,7 @@ export default function OnboardingPage() {
                   <Button
                     type="button"
                     onClick={() => setCurrentStep(3)}
-                    className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white shadow-lg hover:shadow-xl transition-all flex items-center gap-2"
+                    className="bg-gradient-to-r from-landing-blue-600 to-landing-blue-700 hover:from-landing-blue-800 hover:to-landing-blue-900 text-white shadow-lg hover:shadow-xl transition-all flex items-center gap-2"
                   >
                     Continue
                     <ArrowRight className="w-4 h-4" />
@@ -919,7 +979,7 @@ export default function OnboardingPage() {
                   type="button"
                   onClick={handleComplete}
                   disabled={loading}
-                  className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white shadow-lg hover:shadow-xl transition-all flex items-center gap-2"
+                  className="bg-gradient-to-r from-landing-blue-600 to-landing-blue-700 hover:from-landing-blue-800 hover:to-landing-blue-900 text-white shadow-lg hover:shadow-xl transition-all flex items-center gap-2"
                 >
                   {loading ? (
                     <>

@@ -84,7 +84,7 @@ export default function AnalyticsPage() {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
-          <Loader2 className="w-12 h-12 animate-spin text-purple-600 mx-auto mb-4" />
+          <Loader2 className="w-12 h-12 animate-spin text-[rgb(37,99,235)] mx-auto mb-4" />
           <p className="text-gray-600">Loading analytics...</p>
         </div>
       </div>
@@ -94,108 +94,98 @@ export default function AnalyticsPage() {
   return (
     <div className="w-full max-w-7xl mx-auto space-y-4 lg:space-y-6">
       {/* Hero Header Section */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-purple-600 via-blue-600 to-pink-600 p-6 lg:p-8 text-white">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-600 via-blue-700 to-blue-800 p-6 lg:p-8 text-white shadow-xl">
         <div className="relative z-10">
           <div className="flex items-center gap-3 mb-3">
-            <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
+            <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center shadow-md">
               <BarChart3 className="w-5 h-5" />
             </div>
-            <h1 className="text-2xl sm:text-3xl font-bold">Analytics</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold text-white">Analytics</h1>
           </div>
           <p className="text-base lg:text-lg text-white/90 max-w-2xl">
             Track your interview performance, identify trends, and measure your
             progress over time
           </p>
         </div>
-        <div className="absolute inset-0 bg-gradient-to-r from-purple-600/50 to-transparent opacity-50"></div>
+        <div className="absolute inset-0 bg-gradient-to-r from-blue-600/50 to-transparent opacity-50"></div>
         <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl"></div>
         <div className="absolute bottom-0 left-0 w-48 h-48 bg-blue-500/20 rounded-full blur-2xl"></div>
       </div>
 
       {/* Stats Cards */}
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="border-2 shadow-lg bg-white/80 backdrop-blur-sm hover:shadow-xl transition-all">
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between mb-2">
-              <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-blue-500 rounded-xl flex items-center justify-center">
-                <FileText className="w-5 h-5 text-white" />
-              </div>
+        {/* Total Interviews */}
+        <div className="bg-gradient-to-br from-blue-50 to-blue-100/50 rounded-xl p-5 border border-blue-200/50 shadow-lg shadow-blue-500/10 hover:shadow-xl hover:shadow-blue-500/20 transition-all duration-300 backdrop-blur-sm">
+          <div className="flex items-start justify-between mb-4">
+            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[rgb(37,99,235)] to-blue-600 flex items-center justify-center flex-shrink-0 shadow-lg shadow-blue-500/30 ring-2 ring-blue-200/50">
+              <FileText className="w-6 h-6 text-white" />
             </div>
-            <CardDescription className="text-sm font-medium">
-              Total Interviews
-            </CardDescription>
-            <CardTitle className="text-2xl lg:text-3xl font-bold text-gray-900 mt-2">
+          </div>
+          <div className="mb-2">
+            <p className="text-xs sm:text-sm font-bold text-[rgb(37,99,235)] mb-1.5">Total Interviews</p>
+            <h3 className="text-3xl lg:text-4xl font-bold text-slate-900">
               {stats.totalInterviews}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-2 text-sm text-purple-600 font-medium">
-              <BarChart3 className="w-4 h-4" />
-              <span>All time</span>
-            </div>
-          </CardContent>
-        </Card>
+            </h3>
+          </div>
+          <div className="flex items-center gap-2 text-xs sm:text-sm text-[rgb(37,99,235)] font-medium mt-3">
+            <BarChart3 className="w-4 h-4" />
+            <span>All time</span>
+          </div>
+        </div>
 
-        <Card className="border-2 shadow-lg bg-white/80 backdrop-blur-sm hover:shadow-xl transition-all">
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between mb-2">
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl flex items-center justify-center">
-                <Award className="w-5 h-5 text-white" />
-              </div>
+        {/* Average Score */}
+        <div className="bg-gradient-to-br from-blue-50 to-blue-100/50 rounded-xl p-5 border border-blue-200/50 shadow-lg shadow-blue-500/10 hover:shadow-xl hover:shadow-blue-500/20 transition-all duration-300 backdrop-blur-sm">
+          <div className="flex items-start justify-between mb-4">
+            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[rgb(37,99,235)] to-blue-600 flex items-center justify-center flex-shrink-0 shadow-lg shadow-blue-500/30 ring-2 ring-blue-200/50">
+              <Award className="w-6 h-6 text-white" />
             </div>
-            <CardDescription className="text-sm font-medium">
-              Average Score
-            </CardDescription>
-            <CardTitle
-              className={`text-2xl lg:text-3xl font-bold mt-2 ${getScoreColor(
+          </div>
+          <div className="mb-2">
+            <p className="text-xs sm:text-sm font-bold text-[rgb(37,99,235)] mb-1.5">Average Score</p>
+            <h3
+              className={`text-3xl lg:text-4xl font-bold ${getScoreColor(
                 stats.averageScore
               )}`}
             >
               {stats.averageScore}%
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-2 text-sm text-blue-600 font-medium">
-              <Target className="w-4 h-4" />
-              <span>Overall performance</span>
-            </div>
-          </CardContent>
-        </Card>
+            </h3>
+          </div>
+          <div className="flex items-center gap-2 text-xs sm:text-sm text-[rgb(37,99,235)] font-medium mt-3">
+            <Target className="w-4 h-4" />
+            <span>Overall performance</span>
+          </div>
+        </div>
 
-        <Card className="border-2 shadow-lg bg-white/80 backdrop-blur-sm hover:shadow-xl transition-all">
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between mb-2">
-              <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-500 rounded-xl flex items-center justify-center">
-                <CheckCircle className="w-5 h-5 text-white" />
-              </div>
+        {/* Completed */}
+        <div className="bg-gradient-to-br from-blue-50 to-blue-100/50 rounded-xl p-5 border border-blue-200/50 shadow-lg shadow-blue-500/10 hover:shadow-xl hover:shadow-blue-500/20 transition-all duration-300 backdrop-blur-sm">
+          <div className="flex items-start justify-between mb-4">
+            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[rgb(37,99,235)] to-blue-600 flex items-center justify-center flex-shrink-0 shadow-lg shadow-blue-500/30 ring-2 ring-blue-200/50">
+              <CheckCircle className="w-6 h-6 text-white" />
             </div>
-            <CardDescription className="text-sm font-medium">
-              Completed
-            </CardDescription>
-            <CardTitle className="text-2xl lg:text-3xl font-bold text-gray-900 mt-2">
+          </div>
+          <div className="mb-2">
+            <p className="text-xs sm:text-sm font-bold text-[rgb(37,99,235)] mb-1.5">Completed</p>
+            <h3 className="text-3xl lg:text-4xl font-bold text-slate-900">
               {stats.completedInterviews}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-2 text-sm text-green-600 font-medium">
-              <Target className="w-4 h-4" />
-              <span>Finished interviews</span>
-            </div>
-          </CardContent>
-        </Card>
+            </h3>
+          </div>
+          <div className="flex items-center gap-2 text-xs sm:text-sm text-[rgb(37,99,235)] font-medium mt-3">
+            <Target className="w-4 h-4" />
+            <span>Finished interviews</span>
+          </div>
+        </div>
 
-        <Card className="border-2 shadow-lg bg-white/80 backdrop-blur-sm hover:shadow-xl transition-all">
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between mb-2">
-              <div className="w-10 h-10 bg-gradient-to-br from-pink-500 to-rose-500 rounded-xl flex items-center justify-center">
-                <TrendingUp className="w-5 h-5 text-white" />
-              </div>
+        {/* Improvement */}
+        <div className="bg-gradient-to-br from-blue-50 to-blue-100/50 rounded-xl p-5 border border-blue-200/50 shadow-lg shadow-blue-500/10 hover:shadow-xl hover:shadow-blue-500/20 transition-all duration-300 backdrop-blur-sm">
+          <div className="flex items-start justify-between mb-4">
+            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[rgb(37,99,235)] to-blue-600 flex items-center justify-center flex-shrink-0 shadow-lg shadow-blue-500/30 ring-2 ring-blue-200/50">
+              <TrendingUp className="w-6 h-6 text-white" />
             </div>
-            <CardDescription className="text-sm font-medium">
-              Improvement
-            </CardDescription>
-            <CardTitle
-              className={`text-2xl lg:text-3xl font-bold mt-2 ${
+          </div>
+          <div className="mb-2">
+            <p className="text-xs sm:text-sm font-bold text-[rgb(37,99,235)] mb-1.5">Improvement</p>
+            <h3
+              className={`text-3xl lg:text-4xl font-bold ${
                 stats.improvement >= 0 ? "text-green-600" : "text-red-600"
               }`}
             >
@@ -207,22 +197,20 @@ export default function AnalyticsPage() {
               ) : (
                 "0%"
               )}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-2 text-sm text-pink-600 font-medium">
-              <TrendingUp className="w-4 h-4" />
-              <span>Since first interview</span>
-            </div>
-          </CardContent>
-        </Card>
+            </h3>
+          </div>
+          <div className="flex items-center gap-2 text-xs sm:text-sm text-[rgb(37,99,235)] font-medium mt-3">
+            <TrendingUp className="w-4 h-4" />
+            <span>Since first interview</span>
+          </div>
+        </div>
       </div>
 
       {/* Performance Chart Placeholder */}
-      <Card className="border-2 shadow-xl bg-white/80 backdrop-blur-sm">
+      <Card className="border-2 border-blue-200/50 shadow-xl bg-white/95 backdrop-blur-sm">
         <CardHeader className="pb-3">
           <div className="flex items-center gap-3 mb-2">
-            <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-blue-500 rounded-lg flex items-center justify-center">
+            <div className="w-10 h-10 bg-gradient-to-br from-[rgb(37,99,235)] to-blue-600 rounded-lg flex items-center justify-center shadow-md">
               <BarChart3 className="w-5 h-5 text-white" />
             </div>
             <CardTitle className="text-xl lg:text-2xl">
@@ -236,10 +224,10 @@ export default function AnalyticsPage() {
         <CardContent>
           {stats.completedInterviews === 0 ? (
             <div className="text-center py-16">
-              <div className="w-20 h-20 bg-gradient-to-br from-purple-100 to-blue-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                <BarChart3 className="w-10 h-10 text-purple-600" />
+              <div className="w-20 h-20 bg-gradient-to-br from-blue-100 to-blue-200 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg">
+                <BarChart3 className="w-10 h-10 text-[rgb(37,99,235)]" />
               </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-2">
+              <h3 className="text-xl font-bold text-slate-900 mb-2">
                 No Data Yet
               </h3>
               <p className="text-gray-600 mb-6 max-w-md mx-auto">
@@ -249,10 +237,10 @@ export default function AnalyticsPage() {
             </div>
           ) : (
             <div className="text-center py-16">
-              <div className="w-20 h-20 bg-gradient-to-br from-blue-100 to-purple-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                <Sparkles className="w-10 h-10 text-purple-600" />
+              <div className="w-20 h-20 bg-gradient-to-br from-blue-100 to-blue-200 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg">
+                <Sparkles className="w-10 h-10 text-[rgb(37,99,235)]" />
               </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-2">
+              <h3 className="text-xl font-bold text-slate-900 mb-2">
                 Chart Visualization Coming Soon
               </h3>
               <p className="text-gray-600 max-w-md mx-auto">

@@ -185,7 +185,7 @@ export default function NewInterviewPage() {
   return (
     <div className="w-full max-w-6xl mx-auto space-y-4 lg:space-y-6">
       {/* Hero Header Section */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-purple-600 via-blue-600 to-pink-600 p-4 sm:p-6 lg:p-8 text-white">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-600 via-blue-700 to-blue-800 p-4 sm:p-6 lg:p-8 text-white">
         <div className="relative z-10">
           <div className="flex items-center gap-3 mb-3">
             <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
@@ -200,17 +200,17 @@ export default function NewInterviewPage() {
             AI-powered mock interview platform
           </p>
         </div>
-        <div className="absolute inset-0 bg-gradient-to-r from-purple-600/50 to-transparent opacity-50"></div>
+        <div className="absolute inset-0 bg-gradient-to-r from-blue-600/50 to-transparent opacity-50"></div>
         <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl"></div>
         <div className="absolute bottom-0 left-0 w-48 h-48 bg-blue-500/20 rounded-full blur-2xl"></div>
       </div>
 
       {/* Status Cards */}
       {checkingLimit ? (
-        <Card className="border-2 border-purple-200 bg-gradient-to-br from-purple-50 to-blue-50 shadow-lg">
+        <Card className="border-2 border-blue-200/50 bg-gradient-to-br from-blue-50 to-blue-100/50 shadow-lg">
           <CardContent className="pt-6">
             <div className="flex items-center justify-center gap-3 py-4">
-              <Loader2 className="h-6 w-6 animate-spin text-purple-600" />
+              <Loader2 className="h-6 w-6 animate-spin text-[rgb(37,99,235)]" />
               <p className="text-gray-700 font-medium">
                 Checking your interview limit...
               </p>
@@ -232,32 +232,50 @@ export default function NewInterviewPage() {
                 </h3>
                 <p className="text-gray-700 mb-4 text-lg">
                   {limitCheck.reason ||
-                    "You've used all your free interviews. Upgrade to continue practicing!"}
+                    "Insufficient credits. Purchase more credits to continue!"}
                 </p>
-                {limitCheck.interviewsUsed !== undefined &&
-                  limitCheck.interviewsLimit !== undefined && (
+                {limitCheck.creditsAvailable !== undefined &&
+                  limitCheck.minimumRequired !== undefined && (
                     <div className="mb-6 p-4 bg-white/60 rounded-xl backdrop-blur-sm">
+                      <p className="text-sm text-gray-700 mb-2">
+                        <span className="font-semibold">
+                          Available Credits:{" "}
+                        </span>
+                        <span className="font-bold text-orange-600 text-lg">
+                          {limitCheck.creditsAvailable}
+                        </span>
+                      </p>
                       <p className="text-sm text-gray-700">
-                        You've used{" "}
-                        <span className="font-bold text-orange-600 text-lg">
-                          {limitCheck.interviewsUsed}
+                        <span className="font-semibold">Required: </span>
+                        <span className="font-bold text-red-600 text-lg">
+                          {limitCheck.minimumRequired}
                         </span>{" "}
-                        out of{" "}
-                        <span className="font-bold text-orange-600 text-lg">
-                          {limitCheck.interviewsLimit}
-                        </span>{" "}
-                        interviews.
+                        credits (30-min interview)
+                      </p>
+                      <p className="text-xs text-gray-600 mt-2">
+                        💡 5 credits per minute • Purchase credits to continue
                       </p>
                     </div>
                   )}
-                <Button
-                  onClick={() => router.push("/pricing")}
-                  size="lg"
-                  className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-lg hover:shadow-xl transition-all"
-                >
-                  <Crown className="h-5 w-5 mr-2" />
-                  View Plans & Upgrade
-                </Button>
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <Button
+                    onClick={() => router.push("/dashboard/plan")}
+                    size="lg"
+                    className="!bg-emerald-600 hover:!bg-emerald-700 text-white shadow-lg hover:shadow-xl transition-all"
+                  >
+                    <Zap className="h-5 w-5 mr-2" />
+                    Purchase Credits
+                  </Button>
+                  <Button
+                    onClick={() => router.push("/pricing")}
+                    size="lg"
+                    variant="outline"
+                    className="border-2 border-[rgb(37,99,235)] text-[rgb(37,99,235)] hover:bg-blue-50"
+                  >
+                    <Crown className="h-5 w-5 mr-2" />
+                    View Plans
+                  </Button>
+                </div>
               </div>
             </div>
           </CardContent>
@@ -266,19 +284,20 @@ export default function NewInterviewPage() {
         <Card className="border-2 border-green-400 bg-gradient-to-br from-green-50 to-emerald-50 shadow-lg">
           <CardContent className="pt-6">
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-500 rounded-xl flex items-center justify-center shadow-md">
+              <div className="w-12 h-12 bg-gradient-to-br from-[rgb(37,99,235)] to-blue-600 rounded-xl flex items-center justify-center shadow-md">
                 <CheckCircle className="h-6 w-6 text-white" />
               </div>
               <div>
                 <p className="text-gray-800 font-semibold text-lg">
                   You have{" "}
                   <span className="font-bold text-green-600 text-xl">
-                    {limitCheck.interviewsLimit! - limitCheck.interviewsUsed!}
+                    {limitCheck.creditsAvailable || 0}
                   </span>{" "}
-                  interviews remaining this period.
+                  credits available
                 </p>
                 <p className="text-sm text-gray-600 mt-1">
-                  Ready to start your next mock interview!
+                  Ready to start your mock interview! (5 credits/min • Min. 150
+                  credits)
                 </p>
               </div>
             </div>
@@ -291,10 +310,10 @@ export default function NewInterviewPage() {
         <div className="grid lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
           {/* Left Column - Form */}
           <div className="lg:col-span-2 space-y-4 sm:space-y-6">
-            <Card className="border-2 shadow-xl bg-white/80 backdrop-blur-sm overflow-hidden">
+            <Card className="border-2 shadow-xl border-blue-200/50 bg-white/95 backdrop-blur-sm overflow-hidden">
               <CardHeader className="pb-3 sm:pb-4 px-3 sm:px-6">
                 <div className="flex items-center gap-2 sm:gap-3 mb-2">
-                  <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-purple-500 to-blue-500 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-[rgb(37,99,235)] to-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
                     <Briefcase className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                   </div>
                   <CardTitle className="text-base sm:text-xl lg:text-2xl">
@@ -316,7 +335,7 @@ export default function NewInterviewPage() {
                       htmlFor="role"
                       className="text-sm font-semibold text-gray-700 flex items-center gap-2"
                     >
-                      <Target className="w-4 h-4 text-purple-600 flex-shrink-0" />
+                      <Target className="w-4 h-4 text-[rgb(37,99,235)] flex-shrink-0" />
                       Role You're Applying For
                       <span className="text-red-500">*</span>
                     </Label>
@@ -330,7 +349,7 @@ export default function NewInterviewPage() {
                       className={`h-11 sm:h-12 text-sm sm:text-base w-full ${
                         errors.role
                           ? "border-red-500 focus:ring-red-500"
-                          : "border-gray-300 focus:border-purple-500 focus:ring-purple-500"
+                          : "border-gray-300 focus:border-[rgb(37,99,235)] focus:ring-[rgb(37,99,235)]"
                       } transition-all`}
                     />
                     {errors.role && (
@@ -415,7 +434,7 @@ export default function NewInterviewPage() {
                           targetCompany: e.target.value,
                         })
                       }
-                      className="h-11 sm:h-12 text-sm sm:text-base w-full border-gray-300 focus:border-purple-500 focus:ring-purple-500 transition-all"
+                      className="h-11 sm:h-12 text-sm sm:text-base w-full border-gray-300 focus:border-[rgb(37,99,235)] focus:ring-[rgb(37,99,235)] transition-all"
                     />
                     <p className="text-xs text-gray-500 flex items-center gap-1">
                       <Zap className="w-3 h-3" />
@@ -427,7 +446,7 @@ export default function NewInterviewPage() {
                   {/* Resume Selection */}
                   <div className="space-y-2 sm:space-y-3">
                     <Label className="text-xs sm:text-sm font-semibold text-gray-700 flex items-center gap-1.5">
-                      <FileText className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-purple-600 flex-shrink-0" />
+                      <FileText className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[rgb(37,99,235)] flex-shrink-0" />
                       Resume
                       <span className="text-red-500">*</span>
                     </Label>
@@ -438,7 +457,7 @@ export default function NewInterviewPage() {
                         <div
                           className={`relative border-2 rounded-lg p-2.5 sm:p-3 cursor-pointer transition-all ${
                             useSavedResume
-                              ? "border-purple-500 bg-gradient-to-br from-purple-50 to-blue-50"
+                              ? "border-[rgb(37,99,235)] bg-gradient-to-br from-blue-50 to-blue-100/50"
                               : "border-gray-200 bg-white"
                           }`}
                           onClick={() => {
@@ -460,7 +479,7 @@ export default function NewInterviewPage() {
                             <div
                               className={`w-4 h-4 sm:w-5 sm:h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
                                 useSavedResume
-                                  ? "border-purple-600 bg-purple-600"
+                                  ? "border-[rgb(37,99,235)] bg-[rgb(37,99,235)]"
                                   : "border-gray-300"
                               }`}
                             >
@@ -468,7 +487,7 @@ export default function NewInterviewPage() {
                                 <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-white" />
                               )}
                             </div>
-                            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-purple-500 to-blue-500 rounded-lg flex items-center justify-center flex-shrink-0">
+                            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-[rgb(37,99,235)] to-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
                               <FileText className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                             </div>
                             <div className="flex-1 min-w-0">
@@ -477,7 +496,7 @@ export default function NewInterviewPage() {
                               </p>
                               <p className="text-xs text-gray-500 truncate">
                                 {new Date(
-                                  userProfile.resume.uploadedAt
+                                  userProfile.resume.uploadedAt,
                                 ).toLocaleDateString("en-IN", {
                                   day: "numeric",
                                   month: "short",
@@ -500,7 +519,7 @@ export default function NewInterviewPage() {
                     <div
                       className={`relative border-2 rounded-lg p-2.5 sm:p-3 cursor-pointer transition-all ${
                         !useSavedResume
-                          ? "border-purple-500 bg-gradient-to-br from-purple-50 to-blue-50"
+                          ? "border-[rgb(37,99,235)] bg-gradient-to-br from-blue-50 to-blue-100/50"
                           : "border-gray-200 bg-white"
                       }`}
                       onClick={() => {
@@ -518,7 +537,7 @@ export default function NewInterviewPage() {
                         <div
                           className={`w-4 h-4 sm:w-5 sm:h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
                             !useSavedResume
-                              ? "border-purple-600 bg-purple-600"
+                              ? "border-[rgb(37,99,235)] bg-[rgb(37,99,235)]"
                               : "border-gray-300"
                           }`}
                         >
@@ -526,7 +545,7 @@ export default function NewInterviewPage() {
                             <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-white" />
                           )}
                         </div>
-                        <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-[rgb(37,99,235)] to-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
                           <Upload className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                         </div>
                         <span className="text-xs sm:text-sm font-semibold text-gray-900 flex-1">
@@ -546,15 +565,15 @@ export default function NewInterviewPage() {
                             {...getRootProps()}
                             className={`border-2 border-dashed rounded-lg p-4 sm:p-6 text-center cursor-pointer transition-all ${
                               isDragActive
-                                ? "border-purple-500 bg-gradient-to-br from-purple-50 to-blue-50"
+                                ? "border-[rgb(37,99,235)] bg-gradient-to-br from-blue-50 to-blue-100/50"
                                 : errors.resume
-                                ? "border-red-400 bg-red-50"
-                                : "border-gray-300 bg-gray-50/50"
+                                  ? "border-red-400 bg-red-50"
+                                  : "border-gray-300 bg-gray-50/50"
                             }`}
                           >
                             <input {...getInputProps()} />
                             <div className="flex flex-col items-center gap-2 sm:gap-3">
-                              <div className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-purple-500 to-blue-500 rounded-xl flex items-center justify-center">
+                              <div className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-[rgb(37,99,235)] to-blue-600 rounded-xl flex items-center justify-center">
                                 <Upload className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
                               </div>
                               <div>
@@ -570,7 +589,7 @@ export default function NewInterviewPage() {
                         ) : (
                           <div className="border-2 border-green-400 bg-gradient-to-br from-green-50 to-emerald-50 rounded-lg p-2.5 sm:p-3">
                             <div className="flex items-center gap-2 sm:gap-3">
-                              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-green-500 to-emerald-500 rounded-lg flex items-center justify-center flex-shrink-0">
+                              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-[rgb(37,99,235)] to-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
                                 <FileText className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                               </div>
                               <div className="flex-1 min-w-0">
@@ -616,9 +635,8 @@ export default function NewInterviewPage() {
                   <div className="pt-2 sm:pt-3">
                     <Button
                       type="submit"
-                      variant="gradient"
                       size="lg"
-                      className="w-full h-11 sm:h-12 text-sm sm:text-base font-semibold shadow-lg hover:shadow-xl transition-all"
+                      className="w-full h-11 sm:h-12 text-sm sm:text-base font-semibold !bg-[rgb(37,99,235)] hover:!bg-[rgb(17,24,39)] text-white shadow-lg hover:shadow-xl transition-all"
                       disabled={loading || (limitCheck && !limitCheck.allowed)}
                     >
                       {loading ? (
@@ -641,10 +659,10 @@ export default function NewInterviewPage() {
 
           {/* Right Column - Info Card */}
           <div className="lg:col-span-1">
-            <Card className="border-2 border-blue-200 bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 shadow-xl sticky top-8">
+            <Card className="border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-blue-100/50 shadow-xl sticky top-8">
               <CardHeader className="pb-4">
                 <div className="flex items-center gap-3 mb-2">
-                  <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-500 rounded-lg flex items-center justify-center">
+                  <div className="w-10 h-10 bg-gradient-to-br from-[rgb(37,99,235)] to-blue-600 rounded-lg flex items-center justify-center">
                     <Sparkles className="w-5 h-5 text-white" />
                   </div>
                   <CardTitle className="text-xl">What happens next?</CardTitle>
@@ -653,7 +671,7 @@ export default function NewInterviewPage() {
               <CardContent>
                 <ul className="space-y-4">
                   <li className="flex items-start gap-3">
-                    <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-blue-500 rounded-lg flex items-center justify-center flex-shrink-0 shadow-md">
+                    <div className="w-8 h-8 bg-gradient-to-br from-[rgb(37,99,235)] to-blue-600 rounded-lg flex items-center justify-center flex-shrink-0 shadow-md">
                       <FileText className="w-4 h-4 text-white" />
                     </div>
                     <div>
@@ -667,7 +685,7 @@ export default function NewInterviewPage() {
                     </div>
                   </li>
                   <li className="flex items-start gap-3">
-                    <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-lg flex items-center justify-center flex-shrink-0 shadow-md">
+                    <div className="w-8 h-8 bg-gradient-to-br from-[rgb(37,99,235)] to-blue-600 rounded-lg flex items-center justify-center flex-shrink-0 shadow-md">
                       <Target className="w-4 h-4 text-white" />
                     </div>
                     <div>
@@ -681,7 +699,7 @@ export default function NewInterviewPage() {
                     </div>
                   </li>
                   <li className="flex items-start gap-3">
-                    <div className="w-8 h-8 bg-gradient-to-br from-green-500 to-emerald-500 rounded-lg flex items-center justify-center flex-shrink-0 shadow-md">
+                    <div className="w-8 h-8 bg-gradient-to-br from-[rgb(37,99,235)] to-blue-600 rounded-lg flex items-center justify-center flex-shrink-0 shadow-md">
                       <Mic className="w-4 h-4 text-white" />
                     </div>
                     <div>
@@ -694,7 +712,7 @@ export default function NewInterviewPage() {
                     </div>
                   </li>
                   <li className="flex items-start gap-3">
-                    <div className="w-8 h-8 bg-gradient-to-br from-pink-500 to-rose-500 rounded-lg flex items-center justify-center flex-shrink-0 shadow-md">
+                    <div className="w-8 h-8 bg-gradient-to-br from-[rgb(37,99,235)] to-blue-600 rounded-lg flex items-center justify-center flex-shrink-0 shadow-md">
                       <BarChart3 className="w-4 h-4 text-white" />
                     </div>
                     <div>

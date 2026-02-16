@@ -42,6 +42,9 @@ coverage/
 .temp/
 tmp/
 
+# Generated template CSS (copied from src/configs/resume-templates)
+public/resume-templates/
+
 # Production
 *.tgz
 *.zip

@@ -251,7 +251,7 @@ export default function ProfilePage() {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
-          <Loader2 className="w-12 h-12 animate-spin text-purple-600 mx-auto mb-4" />
+          <Loader2 className="w-12 h-12 animate-spin text-landing-blue-700 mx-auto mb-4" />
           <p className="text-gray-600">Loading your profile...</p>
         </div>
       </div>
@@ -261,7 +261,7 @@ export default function ProfilePage() {
   return (
     <div className="w-full max-w-6xl mx-auto space-y-4 lg:space-y-6">
       {/* Hero Header Section */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-purple-600 via-blue-600 to-pink-600 p-6 lg:p-8 text-white">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-landing-blue-600 via-landing-blue-700 to-landing-blue-800 p-6 lg:p-8 text-white">
         <div className="relative z-10">
           <div className="flex items-center gap-3 mb-3">
             <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
@@ -301,7 +301,7 @@ export default function ProfilePage() {
                 {/* Name */}
                 <div className="space-y-2">
                   <Label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                    <UserIcon className="w-4 h-4 text-purple-600" />
+                    <UserIcon className="w-4 h-4 text-landing-blue-700" />
                     Full Name
                   </Label>
                   <div className="p-4 bg-gradient-to-br from-purple-50 to-blue-50 rounded-xl border-2 border-purple-100">
@@ -437,7 +437,7 @@ export default function ProfilePage() {
 
                   {/* Current Job (for experienced users) */}
                   {profileData.userType === "experienced" && (
-                    <div className="space-y-4 p-4 bg-purple-50 rounded-xl border-2 border-purple-200">
+                    <div className="space-y-4 p-4 bg-landing-blue-50 rounded-xl border-2 border-landing-blue-300">
                       <h4 className="font-semibold text-gray-900 mb-3">
                         Current Job Details
                       </h4>
@@ -523,7 +523,7 @@ export default function ProfilePage() {
                           onClick={() => toggleIndustry(industry)}
                           className={`p-3 rounded-lg border-2 transition-all text-left text-sm ${
                             profileData.industries.includes(industry)
-                              ? "border-purple-500 bg-purple-50"
+                              ? "border-purple-500 bg-landing-blue-50"
                               : "border-gray-200 bg-white hover:border-purple-300"
                           }`}
                         >
@@ -532,7 +532,7 @@ export default function ProfilePage() {
                               {industry}
                             </span>
                             {profileData.industries.includes(industry) && (
-                              <CheckCircle className="w-4 h-4 text-purple-600" />
+                              <CheckCircle className="w-4 h-4 text-landing-blue-700" />
                             )}
                           </div>
                         </button>
@@ -545,7 +545,7 @@ export default function ProfilePage() {
                     <Button
                       onClick={handleSaveProfile}
                       disabled={savingProfile}
-                      className="flex items-center gap-2 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+                      className="flex items-center gap-2 bg-gradient-to-r from-landing-blue-600 to-landing-blue-700 hover:from-landing-blue-800 hover:to-landing-blue-900"
                     >
                       {savingProfile ? (
                         <>
@@ -653,7 +653,7 @@ export default function ProfilePage() {
                         {user.industries.map((industry) => (
                           <span
                             key={industry}
-                            className="px-3 py-1.5 bg-gradient-to-r from-purple-100 to-blue-100 text-purple-700 rounded-lg text-sm font-medium border border-purple-200"
+                            className="px-3 py-1.5 bg-gradient-to-r from-purple-100 to-blue-100 text-landing-blue-800 rounded-lg text-sm font-medium border border-landing-blue-300"
                           >
                             {industry}
                           </span>
@@ -730,7 +730,7 @@ export default function ProfilePage() {
                   className={`border-2 border-dashed rounded-xl p-8 lg:p-12 text-center cursor-pointer transition-all duration-300 ${
                     isDragActive
                       ? "border-purple-500 bg-gradient-to-br from-purple-50 to-blue-50 shadow-lg scale-[1.02]"
-                      : "border-gray-300 bg-gray-50/50 hover:border-purple-400 hover:bg-purple-50/50 hover:shadow-md"
+                      : "border-gray-300 bg-gray-50/50 hover:border-purple-400 hover:bg-landing-blue-50/50 hover:shadow-md"
                   }`}
                 >
                   <input {...getInputProps()} />
@@ -803,7 +803,7 @@ export default function ProfilePage() {
                   onClick={handleUpload}
                   disabled={uploading}
                   size="lg"
-                  className="w-full h-14 text-base font-semibold bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white shadow-lg hover:shadow-xl transition-all"
+                  className="w-full h-14 text-base font-semibold bg-gradient-to-r from-landing-blue-600 to-landing-blue-700 hover:from-landing-blue-800 hover:to-landing-blue-900 text-white shadow-lg hover:shadow-xl transition-all"
                 >
                   {uploading ? (
                     <>

@@ -3,11 +3,13 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "next dev -p 3001",
-    "build": "next build",
+    "dev": "npm run copy-template-css && npm run copy-pdf-worker && next dev -p 3001",
+    "build": "npm run copy-template-css && npm run copy-pdf-worker && next build",
     "start": "next start -p 3001",
     "lint": "next lint",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "copy-template-css": "node scripts/copy-template-css.js",
+    "copy-pdf-worker": "node scripts/copy-pdf-worker.js"
   },
   "dependencies": {
     "@clerk/nextjs": "^6.36.0",
@@ -24,6 +26,7 @@
     "@radix-ui/react-toast": "^1.2.2",
     "@tiptap/extension-bullet-list": "^3.13.0",
     "@tiptap/extension-color": "^3.13.0",
+    "@tiptap/extension-link": "^3.19.0",
     "@tiptap/extension-list-item": "^3.13.0",
     "@tiptap/extension-ordered-list": "^3.13.0",
     "@tiptap/extension-text-align": "^3.13.0",
@@ -47,6 +50,7 @@
     "react-easy-crop": "^5.5.6",
     "react-hook-form": "^7.53.2",
     "recharts": "^2.13.3",
+    "sonner": "^2.0.7",
     "tailwind-merge": "^2.5.4",
     "tailwindcss-animate": "^1.0.7",
     "zod": "^3.23.8"

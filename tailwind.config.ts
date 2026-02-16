@@ -43,6 +43,19 @@ const config: Config = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        // Landing page inspired blue palette
+        "landing-blue": {
+          50: "#F5F8FF",
+          100: "#E8EEFF",
+          200: "#D5E3FF",
+          300: "#C5D5F7",
+          400: "#A8BFFF",
+          500: "#8BA3FF",
+          600: "#6B8AFF",
+          700: "#5B7FFF",
+          800: "#4A6FEE",
+          900: "#3A5FDD",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
@@ -62,6 +75,10 @@ const config: Config = {
           from: { opacity: "0", transform: "translateY(10px)" },
           to: { opacity: "1", transform: "translateY(0)" },
         },
+        "fade-in-up": {
+          from: { opacity: "0", transform: "translateY(30px)" },
+          to: { opacity: "1", transform: "translateY(0)" },
+        },
         "slide-in": {
           from: { transform: "translateX(-100%)" },
           to: { transform: "translateX(0)" },
@@ -71,6 +88,7 @@ const config: Config = {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
         "fade-in": "fade-in 0.5s ease-out",
+        "fade-in-up": "fade-in-up 0.8s ease-out",
         "slide-in": "slide-in 0.3s ease-out",
       },
     },

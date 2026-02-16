@@ -134,7 +134,8 @@ export function ExecutiveTemplate({ resume, padding }: ExecutiveTemplateProps) {
 
     // Check for quote
     const quoteSection = content.sections?.find(
-      (s: any) => s.type === "quote" || s.title?.toLowerCase().includes("quote")
+      (s: any) =>
+        s.type === "quote" || s.title?.toLowerCase().includes("quote"),
     );
     const oldQuote = getOldStructureData("quote");
     if ((quoteSection?.items && quoteSection.items.length > 0) || oldQuote) {
@@ -193,8 +194,8 @@ export function ExecutiveTemplate({ resume, padding }: ExecutiveTemplateProps) {
         const sectionHeight = element.getBoundingClientRect().height;
         console.log(
           `  📄 Section "${sectionId}": ${Math.round(
-            sectionHeight
-          )}px, current: ${Math.round(currentHeight)}px`
+            sectionHeight,
+          )}px, current: ${Math.round(currentHeight)}px`,
         );
 
         // Check if section fits on current page (with buffer for safety)
@@ -207,7 +208,7 @@ export function ExecutiveTemplate({ resume, padding }: ExecutiveTemplateProps) {
           calculatedPages.push({ sections: [...currentPage] });
           console.log(
             `  ✅ Page ${calculatedPages.length} completed with sections:`,
-            currentPage
+            currentPage,
           );
 
           currentPage = [sectionId];
@@ -223,7 +224,7 @@ export function ExecutiveTemplate({ resume, padding }: ExecutiveTemplateProps) {
         calculatedPages.push({ sections: [...currentPage] });
         console.log(
           `  ✅ Final page ${calculatedPages.length} with sections:`,
-          currentPage
+          currentPage,
         );
       }
 
@@ -234,7 +235,7 @@ export function ExecutiveTemplate({ resume, padding }: ExecutiveTemplateProps) {
           : [{ sections: allSections }];
       setPages(finalPages);
       console.log(
-        `✨ Executive template: ${finalPages.length} page(s) calculated`
+        `✨ Executive template: ${finalPages.length} page(s) calculated`,
       );
     };
 
@@ -417,7 +418,7 @@ export function ExecutiveTemplate({ resume, padding }: ExecutiveTemplateProps) {
               <span>
                 {personalInfo.linkedin.replace(
                   /^https?:\/\/(www\.)?linkedin\.com\/in\//,
-                  ""
+                  "",
                 )}
               </span>
             </div>
@@ -603,6 +604,18 @@ export function ExecutiveTemplate({ resume, padding }: ExecutiveTemplateProps) {
                 }}
               >
                 {item.degree || item.title}
+                {item.gpa && (
+                  <span style={{ fontWeight: "normal" }}>
+                    {" "}
+                    (CGPA: {item.gpa})
+                  </span>
+                )}
+                {item.percentage && (
+                  <span style={{ fontWeight: "normal" }}>
+                    {" "}
+                    (Percentage: {item.percentage})
+                  </span>
+                )}
               </div>
               {(item.institution || item.organization) && (
                 <div
@@ -807,7 +820,7 @@ export function ExecutiveTemplate({ resume, padding }: ExecutiveTemplateProps) {
                   {
                     month: "2-digit",
                     year: "numeric",
-                  }
+                  },
                 )}
               </div>
             )}
@@ -861,7 +874,8 @@ export function ExecutiveTemplate({ resume, padding }: ExecutiveTemplateProps) {
 
   function renderQuoteSection() {
     const quoteSection = content.sections?.find(
-      (s: any) => s.type === "quote" || s.title?.toLowerCase().includes("quote")
+      (s: any) =>
+        s.type === "quote" || s.title?.toLowerCase().includes("quote"),
     );
     const oldQuote = getOldStructureData("quote");
 

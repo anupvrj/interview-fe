@@ -2,11 +2,20 @@
 
 import { useEffect, useState } from "react";
 import { useUser } from "@clerk/nextjs";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { userApi } from "@/lib/api";
 import { useDropzone } from "react-dropzone";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   ArrowLeft,
   Loader2,
@@ -35,6 +44,7 @@ type Step = "template" | "upload" | "processing";
 export default function NewResumePage() {
   const { user, isLoaded } = useUser();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [step, setStep] = useState<Step>("template");
   const [templates, setTemplates] = useState<ResumeTemplate[]>([]);
   const [loading, setLoading] = useState(true);
@@ -44,13 +54,65 @@ export default function NewResumePage() {
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [resumeText, setResumeText] = useState<string>("");
   const [extracting, setExtracting] = useState(false);
+  const [showLimitModal, setShowLimitModal] = useState(false);
 
   useEffect(() => {
-    if (isLoaded && user) {
+    if (isLoaded) {
+      if (!user) {
+        // User not logged in - redirect to sign-in with return URL
+        const templateParam = searchParams.get("template");
+        const skipTemplate = searchParams.get("skipTemplate");
+        const returnUrl =
+          templateParam && skipTemplate
+            ? `/dashboard/resumes/new?template=${templateParam}&skipTemplate=true`
+            : "/dashboard/resumes/new";
+        router.push(`/sign-in?redirect_url=${encodeURIComponent(returnUrl)}`);
+        return;
+      }
+
+      // User is logged in - check onboarding status
       localStorage.setItem("clerk-user-id", user.id);
+      checkOnboardingAndLoadTemplates();
+    }
+  }, [isLoaded, user, router, searchParams]);
+
+  const checkOnboardingAndLoadTemplates = async () => {
+    if (!user) return;
+
+    try {
+      // Check onboarding status
+      const profile = await userApi.getMyProfile();
+
+      if (!profile.onboardingCompleted) {
+        // Onboarding not completed - redirect to onboarding with return URL
+        const templateParam = searchParams.get("template");
+        const skipTemplate = searchParams.get("skipTemplate");
+        const returnUrl =
+          templateParam && skipTemplate
+            ? `/dashboard/resumes/new?template=${templateParam}&skipTemplate=true`
+            : "/dashboard/resumes/new";
+        localStorage.setItem("resumeBuilderReturnUrl", returnUrl);
+        router.push("/onboarding");
+        return;
+      }
+
+      // Onboarding completed - load templates and check for template param
+      loadTemplates();
+
+      // Check URL params to skip template selection
+      const templateParam = searchParams.get("template");
+      const skipTemplate = searchParams.get("skipTemplate") === "true";
+
+      if (templateParam && skipTemplate) {
+        setSelectedTemplate(templateParam);
+        setStep("upload");
+      }
+    } catch (error) {
+      console.error("Error checking onboarding status:", error);
+      // If error, still try to load templates
       loadTemplates();
     }
-  }, [isLoaded, user]);
+  };
 
   const loadTemplates = async () => {
     try {
@@ -78,7 +140,7 @@ export default function NewResumePage() {
     } catch (error) {
       console.error("Error extracting PDF:", error);
       alert(
-        "Failed to extract text from PDF. You can still proceed without uploading."
+        "Failed to extract text from PDF. You can still proceed without uploading.",
       );
       setUploadedFile(null);
     } finally {
@@ -106,7 +168,136 @@ export default function NewResumePage() {
 
   const handleSkip = () => {
     setStep("processing");
-    handleCreateResume();
+    handleCreateResumeWithDummyContent();
+  };
+
+  const handleCreateResumeWithDummyContent = async () => {
+    if (!selectedTemplate || !user) return;
+
+    try {
+      setCreating(true);
+      setStep("processing");
+
+      console.log("📋 Loading dummy content from template...");
+
+      // Load dummy content from template (no LLM call needed)
+      const { TemplateLoader } = await import("@/lib/templateLoader");
+      const dummyContent =
+        await TemplateLoader.loadDummyContent(selectedTemplate);
+
+      console.log("✅ Dummy content loaded:", dummyContent);
+
+      // If no template-specific dummy content, use a basic structure
+      const contentToUse = dummyContent || {
+        personalInfo: {
+          fullName: "John Doe",
+          email: "john.doe@email.com",
+          phone: "+1 234-567-8900",
+          location: "San Francisco, CA",
+          linkedin: "john-doe",
+          github: "johndoe",
+          portfolio: "Software Engineer",
+        },
+        profileSummary:
+          "Experienced professional with a strong background in software development and project management.",
+        experience: [],
+        education: [],
+        skills: [],
+      };
+
+      // Prepare template config for backend
+      const templateConfig =
+        await TemplateLoader.loadTemplate(selectedTemplate);
+      const extended = templateConfig.extended;
+
+      // Extract layout from extended config
+      const renderingLayout = extended.rendering?.layout;
+      const initialLayout = {
+        type: (renderingLayout?.type === "header-plus-columns"
+          ? "double"
+          : renderingLayout?.type || "single") as "single" | "double",
+        columnWidths: renderingLayout?.columnWidths || { left: 60, right: 40 },
+        padding: extended.style?.padding || {
+          top: 10,
+          bottom: 10,
+          left: 10,
+          right: 10,
+        },
+      };
+
+      // Prepare section order with column assignments
+      let sectionOrder = extended.defaultSectionOrder || [];
+      if (initialLayout.type === "double") {
+        const hasColumnAssignment =
+          renderingLayout?.columnAssignment &&
+          (renderingLayout.columnAssignment.left.length > 0 ||
+            renderingLayout.columnAssignment.right.length > 0);
+
+        if (hasColumnAssignment) {
+          // Use explicit column assignments from config
+          sectionOrder = sectionOrder.map((s) => ({
+            ...s,
+            column: renderingLayout.columnAssignment?.left.includes(s.id)
+              ? ("left" as const)
+              : renderingLayout.columnAssignment?.right.includes(s.id)
+                ? ("right" as const)
+                : ("left" as const),
+          }));
+        } else {
+          // No explicit assignments - use alternating distribution
+          // Skip personalInfo (header) - don't assign it a column
+          // Distribute remaining sections evenly: 1st→left, 2nd→right, 3rd→left, etc.
+          let nonPersonalIndex = 0;
+          sectionOrder = sectionOrder.map((s) => {
+            if (s.id === "personalInfo") {
+              return s; // No column assignment for header
+            }
+            const column =
+              nonPersonalIndex % 2 === 0
+                ? ("left" as const)
+                : ("right" as const);
+            nonPersonalIndex++;
+            return { ...s, column };
+          });
+        }
+      }
+
+      // Create resume with dummy content (no API extraction needed)
+      const resume = await resumeApi.create(user.id, {
+        templateId: selectedTemplate,
+        title: "My Resume",
+        content: contentToUse,
+        sectionOrder,
+        layout: initialLayout,
+      });
+
+      console.log("✅ Resume created with dummy content:", resume.resumeId);
+      router.push(`/dashboard/resumes/${resume.resumeId}/edit`);
+    } catch (error: any) {
+      console.error("❌ Error creating resume with dummy content:", error);
+
+      // Reset step back to upload so user can try again
+      setStep("upload");
+
+      const isLimitError =
+        error?.response?.status === 403 &&
+        (error?.response?.data?.message || error?.message || "")
+          .toLowerCase()
+          .includes("resume limit");
+      if (isLimitError) {
+        setShowLimitModal(true);
+      } else {
+        alert(
+          `Failed to create resume: ${
+            error?.response?.data?.message ||
+            error?.message ||
+            "Please try again."
+          }`,
+        );
+      }
+    } finally {
+      setCreating(false);
+    }
   };
 
   const handleCreateResume = async () => {
@@ -116,34 +307,218 @@ export default function NewResumePage() {
       setCreating(true);
       setStep("processing");
 
-      // Extract resume data (with or without uploaded resume)
+      console.log("📋 Extracting resume data from uploaded text...");
+
+      // Extract resume data using LLM (only when resume is uploaded)
       const extractedData = await resumeDataExtractionApi.extractResumeData(
         selectedTemplate,
-        resumeText || undefined
+        resumeText, // Will have content since this is called after upload
       );
+
+      console.log("✅ Data extracted via LLM");
+
+      // Prepare template config for backend
+      const { TemplateLoader } = await import("@/lib/templateLoader");
+      const templateConfig =
+        await TemplateLoader.loadTemplate(selectedTemplate);
+      const extended = templateConfig.extended;
+
+      // Extract layout from extended config
+      const renderingLayout = extended.rendering?.layout;
+      const initialLayout = {
+        type: (renderingLayout?.type === "header-plus-columns"
+          ? "double"
+          : renderingLayout?.type || "single") as "single" | "double",
+        columnWidths: renderingLayout?.columnWidths || { left: 60, right: 40 },
+        padding: extended.style?.padding || {
+          top: 10,
+          bottom: 10,
+          left: 10,
+          right: 10,
+        },
+      };
+
+      // Build content first so we can ensure sections with data are in section order
+      const content = mapExtractedDataToResumeContent(extractedData.sections);
+
+      // Default section titles for sections that may be extracted but missing from template
+      const SECTION_TITLES: Record<string, string> = {
+        personalInfo: "Personal Information",
+        profileSummary: "Profile Summary",
+        experience: "Professional Experience",
+        education: "Education",
+        skills: "Skills",
+        projects: "Projects",
+        languages: "Languages",
+        certificates: "Certificates",
+        awards: "Awards",
+        achievements: "Achievements",
+        interests: "Interests",
+        courses: "Courses",
+        organisations: "Organisations",
+        publications: "Publications",
+        references: "References",
+        declaration: "Declaration",
+        technicalSkills: "Technical Skills",
+      };
+
+      // Check if content has data for a section (array with length, or non-empty string)
+      const hasContent = (key: string): boolean => {
+        const val = content[key];
+        if (val == null) return false;
+        if (Array.isArray(val)) return val.length > 0;
+        if (typeof val === "string") return val.trim().length > 0;
+        if (typeof val === "object" && !Array.isArray(val))
+          return Object.keys(val).length > 0;
+        return false;
+      };
+
+      // Prepare section order with column assignments
+      let sectionOrder = extended.defaultSectionOrder || [];
+
+      // If template has no default section order, use a minimal default so we can add extracted sections
+      if (sectionOrder.length === 0) {
+        sectionOrder = [
+          {
+            id: "personalInfo",
+            type: "personalInfo",
+            title: SECTION_TITLES.personalInfo,
+            visible: true,
+          },
+          {
+            id: "profileSummary",
+            type: "profileSummary",
+            title: SECTION_TITLES.profileSummary,
+            visible: true,
+          },
+          {
+            id: "experience",
+            type: "experience",
+            title: SECTION_TITLES.experience,
+            visible: true,
+          },
+          {
+            id: "education",
+            type: "education",
+            title: SECTION_TITLES.education,
+            visible: true,
+          },
+          {
+            id: "skills",
+            type: "skills",
+            title: SECTION_TITLES.skills,
+            visible: true,
+          },
+          {
+            id: "projects",
+            type: "projects",
+            title: SECTION_TITLES.projects,
+            visible: false,
+          },
+          {
+            id: "languages",
+            type: "languages",
+            title: SECTION_TITLES.languages,
+            visible: false,
+          },
+          {
+            id: "certificates",
+            type: "certificates",
+            title: SECTION_TITLES.certificates,
+            visible: false,
+          },
+          {
+            id: "awards",
+            type: "awards",
+            title: SECTION_TITLES.awards,
+            visible: false,
+          },
+        ];
+      }
+
+      // Ensure every section that has extracted content exists in sectionOrder and is visible
+      const sectionTypesInOrder = new Set(sectionOrder.map((s) => s.type));
+      for (const key of Object.keys(content)) {
+        if (!hasContent(key)) continue;
+        const title =
+          SECTION_TITLES[key] ||
+          key.replace(/([A-Z])/g, " $1").replace(/^./, (c) => c.toUpperCase());
+        if (sectionTypesInOrder.has(key)) {
+          sectionOrder = sectionOrder.map((s) =>
+            s.type === key ? { ...s, visible: true } : s,
+          );
+        } else {
+          sectionOrder.push({
+            id: key,
+            type: key,
+            title,
+            visible: true,
+          });
+          sectionTypesInOrder.add(key);
+        }
+      }
+
+      if (initialLayout.type === "double") {
+        const hasColumnAssignment =
+          renderingLayout?.columnAssignment &&
+          (renderingLayout.columnAssignment.left.length > 0 ||
+            renderingLayout.columnAssignment.right.length > 0);
+
+        if (hasColumnAssignment) {
+          sectionOrder = sectionOrder.map((s) => ({
+            ...s,
+            column: renderingLayout.columnAssignment?.left.includes(s.id)
+              ? ("left" as const)
+              : renderingLayout.columnAssignment?.right.includes(s.id)
+                ? ("right" as const)
+                : ("left" as const),
+          }));
+        } else {
+          let nonPersonalIndex = 0;
+          sectionOrder = sectionOrder.map((s) => {
+            if (s.id === "personalInfo") return s;
+            const column =
+              nonPersonalIndex % 2 === 0
+                ? ("left" as const)
+                : ("right" as const);
+            nonPersonalIndex++;
+            return { ...s, column };
+          });
+        }
+      }
 
       // Create resume with extracted data
       const resume = await resumeApi.create(user.id, {
         templateId: selectedTemplate,
         title: "My Resume",
-        content: mapExtractedDataToResumeContent(extractedData.sections),
+        content,
+        sectionOrder,
+        layout: initialLayout,
       });
 
+      console.log("✅ Resume created:", resume.resumeId);
       router.push(`/dashboard/resumes/${resume.resumeId}/edit`);
     } catch (error: any) {
-      console.error("Error creating resume:", error);
+      console.error("❌ Error creating resume:", error);
 
       // Reset step back to upload so user can try again
       setStep("upload");
 
-      // Check if it's a timeout error
-      if (
+      const isLimitError =
+        error?.response?.status === 403 &&
+        (error?.response?.data?.message || error?.message || "")
+          .toLowerCase()
+          .includes("resume limit");
+
+      if (isLimitError) {
+        setShowLimitModal(true);
+      } else if (
         error?.code === "ECONNABORTED" ||
         error?.message?.includes("timeout") ||
         error?.message?.includes("Request timeout")
       ) {
         alert(
-          "Resume extraction is taking longer than expected. This might be due to a large PDF or slow network. Please try again or upload a smaller PDF."
+          "Resume extraction is taking longer than expected. This might be due to a large PDF or slow network. Please try again or upload a smaller PDF.",
         );
       } else {
         alert(
@@ -151,7 +526,7 @@ export default function NewResumePage() {
             error?.response?.data?.message ||
             error?.message ||
             "Please try again."
-          }`
+          }`,
         );
       }
     } finally {
@@ -167,7 +542,7 @@ export default function NewResumePage() {
         content: string | any;
         format: "html" | "list" | "paragraph" | "structured";
       }
-    >
+    >,
   ) => {
     const content: any = {};
 
@@ -239,7 +614,7 @@ export default function NewResumePage() {
   ];
 
   const selectedTemplateName = templates.find(
-    (t) => t.id === selectedTemplate
+    (t) => t.id === selectedTemplate,
   )?.name;
 
   return (
@@ -440,8 +815,8 @@ export default function NewResumePage() {
                     {extracting
                       ? "Extracting text from PDF..."
                       : isDragActive
-                      ? "Drop your resume here"
-                      : "Upload Your Resume PDF"}
+                        ? "Drop your resume here"
+                        : "Upload Your Resume PDF"}
                   </h3>
                   <p className="text-sm text-gray-600 mb-4">
                     Drag and drop your PDF file here, or click to browse
@@ -557,6 +932,40 @@ export default function NewResumePage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Resume limit reached – upgrade plan modal */}
+      <Dialog open={showLimitModal} onOpenChange={setShowLimitModal}>
+        <DialogContent className="sm:max-w-md border-2 border-purple-200 bg-white shadow-xl">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold text-gray-900">
+              Resume limit reached
+            </DialogTitle>
+            <DialogDescription className="text-left text-gray-600 pt-1">
+              You&apos;ve used all the resumes included in your current plan.
+              Upgrade your plan to create more resumes and keep building.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex flex-col-reverse sm:flex-row gap-2 pt-4">
+            <Button
+              variant="outline"
+              onClick={() => setShowLimitModal(false)}
+              className="border-gray-300"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                setShowLimitModal(false);
+                router.push("/dashboard/plan");
+              }}
+              className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white"
+            >
+              Upgrade plan
+              <ArrowRight className="w-4 h-4 ml-2" />
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

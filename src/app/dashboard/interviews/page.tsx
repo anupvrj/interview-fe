@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -18,6 +19,14 @@ import {
   Briefcase,
   ChevronLeft,
   ChevronRight,
+  ArrowRight,
+  Star,
+  Mic,
+  Brain,
+  MessageSquare,
+  Bot,
+  UserCircle,
+  Sparkles,
 } from "lucide-react";
 import { Interview, interviewApi } from "@/lib/api";
 import { formatDate, getScoreColor } from "@/lib/utils";
@@ -53,8 +62,8 @@ export default function InterviewsPage() {
 
   const getStatusBadge = (status: string) => {
     const badges = {
-      completed: "bg-green-100 text-green-700 border-green-200",
-      processing: "bg-blue-100 text-blue-700 border-blue-200",
+      completed: "bg-blue-100 text-[rgb(37,99,235)] border-blue-200",
+      processing: "bg-blue-100 text-[rgb(37,99,235)] border-blue-200",
       active: "bg-yellow-100 text-yellow-700 border-yellow-200",
       draft: "bg-gray-100 text-gray-700 border-gray-200",
       failed: "bg-red-100 text-red-700 border-red-200",
@@ -117,7 +126,7 @@ export default function InterviewsPage() {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
-          <Loader2 className="w-12 h-12 animate-spin text-purple-600 mx-auto mb-4" />
+          <Loader2 className="w-12 h-12 animate-spin text-[rgb(37,99,235)] mx-auto mb-4" />
           <p className="text-gray-600">Loading your interviews...</p>
         </div>
       </div>
@@ -138,86 +147,203 @@ export default function InterviewsPage() {
 
   return (
     <div className="w-full max-w-7xl mx-auto space-y-4 lg:space-y-6">
-      {/* Hero Header Section */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-purple-600 via-blue-600 to-pink-600 p-6 lg:p-8 text-white">
-        <div className="relative z-10">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
-              <FileText className="w-5 h-5" />
+      {/* Hero Section - Similar to Resumes Page */}
+      <section className="pt-4 sm:pt-6 pb-8 sm:pb-12 md:pb-16 px-4 sm:px-6 overflow-hidden bg-blue-50 relative rounded-2xl">
+        {/* Animated Background Elements */}
+        <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-2xl">
+          {[...Array(8)].map((_, i) => (
+            <div
+              key={i}
+              className="absolute"
+              style={{
+                left: `${(i * 15) % 100}%`,
+                top: `${(i * 20) % 100}%`,
+                opacity: 0.09,
+                animation: `float-${i % 3} ${6 + (i % 3) * 2}s ease-in-out infinite`,
+                animationDelay: `${i * 0.5}s`,
+              }}
+            >
+              <Mic className="w-12 h-12 sm:w-16 sm:h-16 text-blue-400" />
             </div>
-            <h1 className="text-2xl sm:text-3xl font-bold">Your Interviews</h1>
-          </div>
-          <p className="text-base lg:text-lg text-white/90 max-w-2xl">
-            View and manage all your interview sessions. Track your progress and
-            review detailed feedback.
-          </p>
+          ))}
+          {[...Array(8)].map((_, i) => (
+            <div
+              key={`brain-${i}`}
+              className="absolute"
+              style={{
+                left: `${(i * 16) % 100}%`,
+                top: `${(i * 22) % 100}%`,
+                opacity: 0.07,
+                animation: `float-${i % 3} ${7 + (i % 2) * 2}s ease-in-out infinite`,
+                animationDelay: `${i * 0.5}s`,
+              }}
+            >
+              <Brain className="w-10 h-10 sm:w-14 sm:h-14 text-blue-300" />
+            </div>
+          ))}
+          {[...Array(6)].map((_, i) => (
+            <div
+              key={`message-${i}`}
+              className="absolute"
+              style={{
+                left: `${(i * 20) % 100}%`,
+                top: `${(i * 15) % 100}%`,
+                opacity: 0.06,
+                animation: `float-${i % 3} ${8 + (i % 2) * 2}s ease-in-out infinite`,
+                animationDelay: `${i * 0.7}s`,
+              }}
+            >
+              <MessageSquare className="w-8 h-8 sm:w-12 sm:h-12 text-indigo-300" />
+            </div>
+          ))}
         </div>
-        <div className="absolute inset-0 bg-gradient-to-r from-purple-600/50 to-transparent opacity-50"></div>
-        <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl"></div>
-        <div className="absolute bottom-0 left-0 w-48 h-48 bg-blue-500/20 rounded-full blur-2xl"></div>
-      </div>
+        
+        <div className="container mx-auto max-w-7xl relative z-10">
+          <div className="grid lg:grid-cols-2 gap-8 sm:gap-12 lg:gap-16 items-center">
+            {/* Left Side - Marketing Content */}
+            <div className="space-y-4 sm:space-y-5 md:space-y-6 text-center lg:text-left">
+              <div className="inline-flex items-center gap-2 px-3 py-1 bg-blue-50 rounded-full text-blue-700 font-medium text-sm mb-4">
+                <Sparkles className="w-3 h-3" />
+                <span>AI-Powered Interviews</span>
+              </div>
+              <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-[43px] font-bold tracking-tight text-slate-900 leading-[1.2] sm:leading-[1.1] lg:leading-[52px] mb-4 sm:mb-6">
+                <span className="text-slate-900">Ace Your Next</span>{" "}
+                <span className="text-[rgb(37,99,235)]">Interview</span>{" "}
+                <span className="text-slate-900">Before the Real One</span>{" "}
+                <span className="text-[rgb(37,99,235)]">Happens</span>
+              </h1>
+              
+              {/* Features List */}
+              <div className="space-y-3 pt-4 sm:pt-6 px-2 sm:px-0">
+                <div className="flex items-start gap-3">
+                  <CheckCircle className="w-5 h-5 text-[rgb(37,99,235)] flex-shrink-0 mt-0.5" />
+                  <span className="text-gray-700 text-sm sm:text-base">Real-time AI feedback and scoring</span>
+                </div>
+                <div className="flex items-start gap-3">
+                  <CheckCircle className="w-5 h-5 text-[rgb(37,99,235)] flex-shrink-0 mt-0.5" />
+                  <span className="text-gray-700 text-sm sm:text-base">Personalized questions based on your role</span>
+                </div>
+                <div className="flex items-start gap-3">
+                  <CheckCircle className="w-5 h-5 text-[rgb(37,99,235)] flex-shrink-0 mt-0.5" />
+                  <span className="text-gray-700 text-sm sm:text-base">Detailed performance analysis and improvement tips</span>
+                </div>
+              </div>
+              
+              <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-3 sm:gap-4 pt-2 px-2 sm:px-0">
+                <Link href="/dashboard/interviews/new" className="w-full sm:w-auto">
+                  <Button
+                    size="lg"
+                    className="w-full sm:w-auto !bg-[rgb(37,99,235)] hover:!bg-[rgb(17,24,39)] text-white font-semibold text-sm sm:text-base px-5 sm:px-6 py-4 sm:py-5 h-auto shadow-lg hover:shadow-xl transition-all"
+                  >
+                    Start New Interview
+                    <ArrowRight className="w-4 h-4 ml-2" />
+                  </Button>
+                </Link>
+                <div className="flex items-center gap-1.5 sm:gap-2">
+                  <div className="flex items-center gap-0.5 sm:gap-1">
+                    {[...Array(5)].map((_, i) => (
+                      <Star key={i} className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-yellow-400 text-yellow-400" />
+                    ))}
+                  </div>
+                  <span className="text-xs sm:text-sm font-medium text-gray-600">4.9/5</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Right Section - Interview Preview */}
+            <div className="relative flex justify-center lg:justify-start">
+              <div className="relative rounded-lg sm:rounded-xl shadow-2xl overflow-hidden bg-white w-full max-w-[600px] sm:max-w-[700px] border-2 sm:border-4 border-blue-100">
+                <Image
+                  src="/mock-interview-previewiew.png"
+                  alt="Mock Interview Interface - AI-Powered Interview Platform"
+                  width={700}
+                  height={560}
+                  className="w-full h-auto object-contain"
+                  priority
+                />
+                {/* Overlay Badges */}
+                <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 bg-green-500 text-white px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-md shadow-lg flex items-center gap-1 sm:gap-1.5 animate-bounce" style={{ animationDuration: '2s' }}>
+                  <div className="w-5 h-5 sm:w-6 sm:h-6 bg-white text-green-600 rounded-full flex items-center justify-center font-bold text-[9px] sm:text-[10px] animate-pulse">
+                    AI
+                  </div>
+                  <div className="text-[9px] sm:text-[10px] leading-tight hidden xs:block">
+                    <div className="font-semibold">Live</div>
+                    <div className="text-green-100 text-[8px] sm:text-[9px]">Interview</div>
+                  </div>
+                </div>
+                <div className="absolute top-1.5 left-1.5 sm:top-2 sm:left-2 bg-blue-700 text-white px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-md shadow-lg text-[9px] sm:text-[10px] font-semibold animate-pulse" style={{ animationDuration: '2.5s', animationDelay: '0.5s' }}>
+                  <span className="hidden sm:inline">Real-time Feedback</span>
+                  <span className="sm:hidden">Feedback</span>
+                </div>
+                <div className="absolute bottom-1.5 right-1.5 sm:bottom-2 sm:right-2">
+                  <Button
+                    size="sm"
+                    className="bg-blue-700 hover:bg-blue-800 text-white shadow-lg h-6 sm:h-7 px-1.5 sm:px-2 text-[9px] sm:text-[10px] animate-bounce" 
+                    style={{ animationDuration: '2.2s', animationDelay: '1s' }}
+                  >
+                    <Mic className="w-2.5 h-2.5 sm:w-3 sm:h-3 mr-0.5 sm:mr-1" />
+                    <span className="hidden sm:inline">Start Answer</span>
+                    <span className="sm:hidden">Start</span>
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
 
       {/* Quick Stats */}
       {interviews.length > 0 && (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          <Card className="border-2 shadow-lg bg-white/80 backdrop-blur-sm">
-            <CardContent className="pt-4 lg:pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600 mb-1">
-                    Total Interviews
-                  </p>
-                  <p className="text-2xl lg:text-3xl font-bold text-gray-900">
-                    {interviews.length}
-                  </p>
-                </div>
-                <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-blue-500 rounded-xl flex items-center justify-center">
-                  <FileText className="w-5 h-5 text-white" />
-                </div>
+          {/* Total Interviews */}
+          <div className="bg-gradient-to-br from-blue-50 to-blue-100/50 rounded-xl p-5 border border-blue-200/50 shadow-lg shadow-blue-500/10 hover:shadow-xl hover:shadow-blue-500/20 transition-all duration-300 backdrop-blur-sm">
+            <div className="flex items-start justify-between mb-4">
+              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[rgb(37,99,235)] to-blue-600 flex items-center justify-center flex-shrink-0 shadow-lg shadow-blue-500/30 ring-2 ring-blue-200/50">
+                <FileText className="w-6 h-6 text-white" />
               </div>
-            </CardContent>
-          </Card>
+            </div>
+            <div className="mb-2">
+              <p className="text-xs sm:text-sm font-bold text-[rgb(37,99,235)] mb-1.5">Total Interviews</p>
+              <h3 className="text-3xl lg:text-4xl font-bold text-slate-900">
+                {interviews.length}
+              </h3>
+            </div>
+          </div>
 
-          <Card className="border-2 shadow-lg bg-white/80 backdrop-blur-sm">
-            <CardContent className="pt-4 lg:pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600 mb-1">
-                    Completed
-                  </p>
-                  <p className="text-2xl lg:text-3xl font-bold text-gray-900">
-                    {completedCount}
-                  </p>
-                </div>
-                <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-500 rounded-xl flex items-center justify-center">
-                  <CheckCircle className="w-5 h-5 text-white" />
-                </div>
+          {/* Completed */}
+          <div className="bg-gradient-to-br from-blue-50 to-blue-100/50 rounded-xl p-5 border border-blue-200/50 shadow-lg shadow-blue-500/10 hover:shadow-xl hover:shadow-blue-500/20 transition-all duration-300 backdrop-blur-sm">
+            <div className="flex items-start justify-between mb-4">
+              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[rgb(37,99,235)] to-blue-600 flex items-center justify-center flex-shrink-0 shadow-lg shadow-blue-500/30 ring-2 ring-blue-200/50">
+                <CheckCircle className="w-6 h-6 text-white" />
               </div>
-            </CardContent>
-          </Card>
+            </div>
+            <div className="mb-2">
+              <p className="text-xs sm:text-sm font-bold text-[rgb(37,99,235)] mb-1.5">Completed</p>
+              <h3 className="text-3xl lg:text-4xl font-bold text-slate-900">
+                {completedCount}
+              </h3>
+            </div>
+          </div>
 
+          {/* Average Score */}
           {averageScore > 0 && (
-            <Card className="border-2 shadow-lg bg-white/80 backdrop-blur-sm">
-              <CardContent className="pt-4 lg:pt-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600 mb-1">
-                      Average Score
-                    </p>
-                    <p
-                      className={`text-2xl lg:text-3xl font-bold ${getScoreColor(
-                        averageScore
-                      )}`}
-                    >
-                      {Math.round(averageScore)}%
-                    </p>
-                  </div>
-                  <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl flex items-center justify-center">
-                    <TrendingUp className="w-5 h-5 text-white" />
-                  </div>
+            <div className="bg-gradient-to-br from-blue-50 to-blue-100/50 rounded-xl p-5 border border-blue-200/50 shadow-lg shadow-blue-500/10 hover:shadow-xl hover:shadow-blue-500/20 transition-all duration-300 backdrop-blur-sm">
+              <div className="flex items-start justify-between mb-4">
+                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[rgb(37,99,235)] to-blue-600 flex items-center justify-center flex-shrink-0 shadow-lg shadow-blue-500/30 ring-2 ring-blue-200/50">
+                  <TrendingUp className="w-6 h-6 text-white" />
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+              <div className="mb-2">
+                <p className="text-xs sm:text-sm font-bold text-[rgb(37,99,235)] mb-1.5">Average Score</p>
+                <h3
+                  className={`text-3xl lg:text-4xl font-bold ${getScoreColor(
+                    averageScore
+                  )}`}
+                >
+                  {Math.round(averageScore)}%
+                </h3>
+              </div>
+            </div>
           )}
         </div>
       )}
@@ -244,7 +370,7 @@ export default function InterviewsPage() {
         <Link href="/dashboard/interviews/new">
           <Button
             size="lg"
-            className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white shadow-lg hover:shadow-xl transition-all"
+            className="!bg-[rgb(37,99,235)] hover:!bg-[rgb(17,24,39)] text-white shadow-lg hover:shadow-xl transition-all"
           >
             <Plus className="w-4 h-4 mr-2" />
             Start New Interview
@@ -254,12 +380,12 @@ export default function InterviewsPage() {
 
       {/* Interviews List */}
       {interviews.length === 0 ? (
-        <Card className="border-2 shadow-xl bg-white/80 backdrop-blur-sm">
+        <Card className="border-2 border-blue-200/50 shadow-xl bg-white/95 backdrop-blur-sm">
           <CardContent className="pt-16 pb-16 text-center">
-            <div className="w-24 h-24 bg-gradient-to-br from-purple-100 to-blue-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
-              <FileText className="w-12 h-12 text-purple-600" />
+            <div className="w-24 h-24 bg-gradient-to-br from-blue-100 to-blue-200 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg">
+              <FileText className="w-12 h-12 text-[rgb(37,99,235)]" />
             </div>
-            <h3 className="text-2xl font-bold text-gray-900 mb-3">
+            <h3 className="text-2xl font-bold text-slate-900 mb-3">
               No interviews yet
             </h3>
             <p className="text-gray-600 mb-8 max-w-md mx-auto text-lg">
@@ -269,7 +395,7 @@ export default function InterviewsPage() {
             <Link href="/dashboard/interviews/new">
               <Button
                 size="lg"
-                className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white shadow-lg hover:shadow-xl transition-all"
+                className="!bg-[rgb(37,99,235)] hover:!bg-[rgb(17,24,39)] text-white shadow-lg hover:shadow-xl transition-all"
               >
                 <Plus className="w-5 h-5 mr-2" />
                 Start Your First Interview
@@ -279,197 +405,178 @@ export default function InterviewsPage() {
         </Card>
       ) : (
         <>
-          <Card className="border-2 shadow-lg bg-white/80 backdrop-blur-sm">
-            <CardContent className="p-0">
-              <div className="divide-y divide-gray-200">
-                {currentInterviews.map((interview) => {
-                  const StatusIcon = getStatusIcon(interview.status);
-                  return (
-                    <div
-                      key={interview._id}
-                      className="p-4 lg:p-6 hover:bg-purple-50/50 transition-colors cursor-pointer group"
-                      onClick={() => {
-                        if (interview.status === "completed") {
-                          router.push(
-                            `/dashboard/interviews/${interview.interviewId}/report`
-                          );
-                        } else if (interview.status === "processing") {
-                          router.push(
-                            `/dashboard/interviews/${interview.interviewId}/processing`
-                          );
-                        } else {
-                          router.push(
-                            `/interview/${interview.interviewId}/realtime`
-                          );
-                        }
-                      }}
-                    >
-                      <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
-                        {/* Left Section - Main Info */}
-                        <div className="flex items-start gap-3 lg:gap-4 flex-1 min-w-0">
-                          <div className="w-10 h-10 lg:w-12 lg:h-12 bg-gradient-to-br from-purple-500 to-blue-500 rounded-xl flex items-center justify-center shadow-md flex-shrink-0">
-                            <StatusIcon className="w-5 h-5 lg:w-6 lg:h-6 text-white" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-start gap-3 mb-2 flex-wrap">
-                              <h3 className="text-base lg:text-lg font-bold text-gray-900">
-                                {interview.metadata.role || "General Interview"}
-                              </h3>
-                              <span
-                                className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${getStatusBadge(
-                                  interview.status
-                                )}`}
-                              >
-                                {interview.status}
-                              </span>
-                            </div>
-                            <div className="flex flex-wrap items-center gap-3 text-sm text-gray-600 mb-2">
-                              <span className="flex items-center gap-1.5">
-                                <Clock className="w-4 h-4" />
-                                {formatDate(interview.createdAt)}
-                              </span>
-                              {interview.metadata.targetCompany && (
-                                <>
-                                  <span>•</span>
-                                  <span className="flex items-center gap-1.5">
-                                    <Building2 className="w-4 h-4" />
-                                    {interview.metadata.targetCompany}
-                                  </span>
-                                </>
-                              )}
-                              {interview.metadata.experience > 0 && (
-                                <>
-                                  <span>•</span>
-                                  <span className="flex items-center gap-1.5">
-                                    <Briefcase className="w-4 h-4" />
-                                    {interview.metadata.experience} years exp
-                                  </span>
-                                </>
-                              )}
-                              <span>•</span>
-                              <span>
-                                {interview.metadata.language === "hi"
-                                  ? "Hindi"
-                                  : "English"}
-                              </span>
-                            </div>
+          <div className="space-y-3">
+            {currentInterviews.map((interview) => {
+              const StatusIcon = getStatusIcon(interview.status);
+              return (
+                <div
+                  key={interview._id}
+                  className="bg-gradient-to-br from-blue-50 to-blue-100/50 rounded-xl p-4 border border-blue-200/50 shadow-lg shadow-blue-500/10 hover:shadow-xl hover:shadow-blue-500/20 transition-all duration-300 backdrop-blur-sm cursor-pointer group"
+                  onClick={() => {
+                    if (interview.status === "completed") {
+                      router.push(
+                        `/dashboard/interviews/${interview.interviewId}/report`
+                      );
+                    } else if (interview.status === "processing") {
+                      router.push(
+                        `/dashboard/interviews/${interview.interviewId}/processing`
+                      );
+                    } else {
+                      router.push(
+                        `/interview/${interview.interviewId}/realtime`
+                      );
+                    }
+                  }}
+                >
+                  <div className="flex items-start gap-4">
+                    {/* Interview Icon Avatar */}
+                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[rgb(37,99,235)] to-blue-600 flex items-center justify-center flex-shrink-0 shadow-lg shadow-blue-500/30 ring-2 ring-blue-200/50">
+                      <StatusIcon className="w-6 h-6 text-white" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      {/* Header with Role and Status */}
+                      <div className="flex items-start justify-between gap-3 mb-2 flex-wrap">
+                        <div className="flex-1 min-w-0">
+                          <h4 className="text-base sm:text-lg font-bold text-slate-900 mb-1">
+                            {interview.metadata.role || "General Interview"}
+                          </h4>
+                          <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm text-gray-600">
+                            <span className="flex items-center gap-1">
+                              <Clock className="w-3 h-3" />
+                              {formatDate(interview.createdAt)}
+                            </span>
+                            {interview.metadata.targetCompany && (
+                              <>
+                                <span>•</span>
+                                <span className="flex items-center gap-1">
+                                  <Building2 className="w-3 h-3" />
+                                  {interview.metadata.targetCompany}
+                                </span>
+                              </>
+                            )}
+                            {interview.metadata.experience > 0 && (
+                              <>
+                                <span>•</span>
+                                <span className="flex items-center gap-1">
+                                  <Briefcase className="w-3 h-3" />
+                                  {interview.metadata.experience} years exp
+                                </span>
+                              </>
+                            )}
+                            <span>•</span>
+                            <span>
+                              {interview.metadata.language === "hi"
+                                ? "Hindi"
+                                : "English"}
+                            </span>
                             {interview.report && (
-                              <div className="flex items-center gap-4 mt-2">
-                                <div>
-                                  <span className="text-xs text-gray-500">
-                                    Score:{" "}
-                                  </span>
-                                  <span
-                                    className={`text-base font-bold ${getScoreColor(
-                                      interview.report.overallScore
-                                    )}`}
-                                  >
-                                    {interview.report.overallScore}%
-                                  </span>
-                                </div>
-                                {interview.report.strengths &&
-                                  interview.report.strengths.length > 0 && (
-                                    <div className="hidden sm:block">
-                                      <span className="text-xs text-gray-500">
-                                        Strength:{" "}
-                                      </span>
-                                      <span className="text-xs font-medium text-gray-700">
-                                        {interview.report.strengths[0]}
-                                      </span>
-                                    </div>
-                                  )}
-                              </div>
+                              <>
+                                <span>•</span>
+                                <span
+                                  className={`font-semibold ${getScoreColor(
+                                    interview.report.overallScore
+                                  )}`}
+                                >
+                                  Score: {interview.report.overallScore}/100
+                                </span>
+                              </>
                             )}
                           </div>
                         </div>
+                        <span
+                          className={`px-3 py-1 rounded-full text-xs font-semibold border flex-shrink-0 ${getStatusBadge(
+                            interview.status
+                          )}`}
+                        >
+                          {interview.status}
+                        </span>
+                      </div>
 
-                        {/* Right Section - Action Buttons */}
-                        <div className="flex-shrink-0 flex items-center gap-2">
-                          {interview.status === "completed" && (
-                            <>
-                              {(interview.session?.videoUrl ||
-                                interview.session?.s3VideoKey) && (
-                                <Button
-                                  variant="outline"
-                                  size="default"
-                                  className="border-blue-300 text-blue-700 hover:bg-blue-50 group-hover:border-blue-400 transition-all whitespace-nowrap"
-                                  onClick={async (e) => {
-                                    e.stopPropagation();
-                                    try {
-                                      // Get presigned URL from backend
-                                      const { videoUrl } =
-                                        await interviewApi.getRecordingVideoUrl(
-                                          interview.interviewId
-                                        );
-                                      window.open(videoUrl, "_blank");
-                                    } catch (error) {
-                                      console.error(
-                                        "Error getting video URL:",
-                                        error
+                      {/* Action Buttons */}
+                      <div className="flex items-center gap-2 mt-3 flex-wrap">
+                        {interview.status === "completed" && (
+                          <>
+                            {(interview.session?.videoUrl ||
+                              interview.session?.s3VideoKey) && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="border-blue-300 text-[rgb(37,99,235)] hover:!bg-[rgb(17,24,39)] hover:!text-white hover:border-[rgb(17,24,39)] transition-all"
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  try {
+                                    const { videoUrl } =
+                                      await interviewApi.getRecordingVideoUrl(
+                                        interview.interviewId
                                       );
-                                      alert(
-                                        "Failed to load video. Please try again."
-                                      );
-                                    }
-                                  }}
-                                >
-                                  <PlayCircle className="w-4 h-4 mr-2" />
-                                  Play Video
-                                </Button>
-                              )}
-                              <Link
-                                href={`/dashboard/interviews/${interview.interviewId}/report`}
-                                onClick={(e) => e.stopPropagation()}
+                                    window.open(videoUrl, "_blank");
+                                  } catch (error) {
+                                    console.error(
+                                      "Error getting video URL:",
+                                      error
+                                    );
+                                    alert(
+                                      "Failed to load video. Please try again."
+                                    );
+                                  }
+                                }}
                               >
-                                <Button
-                                  variant="outline"
-                                  size="default"
-                                  className="border-purple-300 text-purple-700 hover:bg-purple-50 group-hover:border-purple-400 transition-all whitespace-nowrap"
-                                >
-                                  <CheckCircle className="w-4 h-4 mr-2" />
-                                  View Report
-                                </Button>
-                              </Link>
-                            </>
-                          )}
-                          {interview.status === "processing" && (
+                                <PlayCircle className="w-3.5 h-3.5 mr-1.5" />
+                                Play Video
+                              </Button>
+                            )}
                             <Link
-                              href={`/dashboard/interviews/${interview.interviewId}/processing`}
+                              href={`/dashboard/interviews/${interview.interviewId}/report`}
                               onClick={(e) => e.stopPropagation()}
                             >
                               <Button
                                 variant="outline"
-                                size="default"
-                                className="border-blue-300 text-blue-700 hover:bg-blue-50 whitespace-nowrap"
+                                size="sm"
+                                className="border-blue-300 text-[rgb(37,99,235)] hover:!bg-[rgb(17,24,39)] hover:!text-white hover:border-[rgb(17,24,39)] transition-all"
                               >
-                                <Clock className="w-4 h-4 mr-2" />
-                                Processing
+                                <CheckCircle className="w-3.5 h-3.5 mr-1.5" />
+                                View Report
+                              </Button>
+                            </Link>
+                          </>
+                        )}
+                        {interview.status === "processing" && (
+                          <Link
+                            href={`/dashboard/interviews/${interview.interviewId}/processing`}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="border-blue-300 text-[rgb(37,99,235)] hover:!bg-[rgb(17,24,39)] hover:!text-white hover:border-[rgb(17,24,39)] transition-all"
+                            >
+                              <Clock className="w-3.5 h-3.5 mr-1.5" />
+                              Processing
+                            </Button>
+                          </Link>
+                        )}
+                        {interview.status !== "completed" &&
+                          interview.status !== "processing" && (
+                            <Link
+                              href={`/interview/${interview.interviewId}/realtime`}
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <Button
+                                size="sm"
+                                className="!bg-[rgb(37,99,235)] hover:!bg-[rgb(17,24,39)] text-white shadow-md transition-all"
+                              >
+                                <PlayCircle className="w-3.5 h-3.5 mr-1.5" />
+                                Continue
                               </Button>
                             </Link>
                           )}
-                          {interview.status !== "completed" &&
-                            interview.status !== "processing" && (
-                              <Link
-                                href={`/interview/${interview.interviewId}/realtime`}
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                <Button
-                                  size="default"
-                                  className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white shadow-md hover:shadow-lg transition-all whitespace-nowrap"
-                                >
-                                  <PlayCircle className="w-4 h-4 mr-2" />
-                                  Continue
-                                </Button>
-                              </Link>
-                            )}
-                        </div>
                       </div>
                     </div>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
 
           {/* Pagination */}
           {totalPages > 1 && (
@@ -480,10 +587,10 @@ export default function InterviewsPage() {
               <div className="flex items-center gap-2">
                 <Button
                   variant="outline"
-                  size="default"
+                  size="sm"
                   onClick={() => goToPage(currentPage - 1)}
                   disabled={currentPage === 1}
-                  className="border-gray-300"
+                  className="border-blue-300 text-[rgb(37,99,235)] hover:!bg-[rgb(17,24,39)] hover:!text-white hover:border-[rgb(17,24,39)] disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                 >
                   <ChevronLeft className="w-4 h-4 mr-1" />
                   Previous
@@ -494,12 +601,12 @@ export default function InterviewsPage() {
                     <Button
                       key={pageNum}
                       variant={currentPage === pageNum ? "default" : "outline"}
-                      size="default"
+                      size="sm"
                       onClick={() => goToPage(pageNum)}
                       className={
                         currentPage === pageNum
-                          ? "bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white border-0"
-                          : "border-gray-300"
+                          ? "!bg-[rgb(37,99,235)] hover:!bg-[rgb(17,24,39)] text-white border-0"
+                          : "border-blue-300 text-[rgb(37,99,235)] hover:!bg-[rgb(17,24,39)] hover:!text-white hover:border-[rgb(17,24,39)] transition-all"
                       }
                     >
                       {pageNum}
@@ -509,10 +616,10 @@ export default function InterviewsPage() {
 
                 <Button
                   variant="outline"
-                  size="default"
+                  size="sm"
                   onClick={() => goToPage(currentPage + 1)}
                   disabled={currentPage === totalPages}
-                  className="border-gray-300"
+                  className="border-blue-300 text-[rgb(37,99,235)] hover:!bg-[rgb(17,24,39)] hover:!text-white hover:border-[rgb(17,24,39)] disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                 >
                   Next
                   <ChevronRight className="w-4 h-4 ml-1" />

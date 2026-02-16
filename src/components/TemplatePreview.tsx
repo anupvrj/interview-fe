@@ -39,7 +39,7 @@ export function TemplatePreview({
         {/* Selection Badge */}
         {isSelected && (
           <div className="absolute top-2 right-2 z-10">
-            <div className="w-6 h-6 bg-purple-600 rounded-full flex items-center justify-center shadow-lg">
+            <div className="w-6 h-6 bg-landing-blue-700 rounded-full flex items-center justify-center shadow-lg">
               <CheckCircle className="w-4 h-4 text-white" />
             </div>
           </div>
@@ -1042,7 +1042,7 @@ export function TemplatePreview({
       {/* Selection Badge */}
       {isSelected && (
         <div className="absolute top-2 right-2 z-10">
-          <div className="w-6 h-6 bg-purple-600 rounded-full flex items-center justify-center shadow-lg">
+          <div className="w-6 h-6 bg-landing-blue-700 rounded-full flex items-center justify-center shadow-lg">
             <CheckCircle className="w-4 h-4 text-white" />
           </div>
         </div>
