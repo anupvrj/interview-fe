@@ -123,6 +123,7 @@ export default function OnboardingPage() {
   const [checkingStatus, setCheckingStatus] = useState(true);
 
   const checkOnboardingStatus = async () => {
+    let didRedirect = false;
     if (!user) {
       setCheckingStatus(false);
       return;
@@ -147,6 +148,7 @@ export default function OnboardingPage() {
         if (returnUrl) {
           console.log("🔄 Redirecting to resume builder return URL");
           localStorage.removeItem("resumeBuilderReturnUrl");
+          didRedirect = true;
           router.replace(returnUrl);
           return;
         }
@@ -158,9 +160,11 @@ export default function OnboardingPage() {
         ) {
           console.log("📦 Pending plan found, redirecting to checkout");
           localStorage.removeItem("pendingPlan");
+          didRedirect = true;
           router.replace(`/checkout?plan=${pendingPlan}`);
         } else {
           console.log("🏠 Redirecting to dashboard");
+          didRedirect = true;
           router.replace("/dashboard");
         }
         return;
@@ -171,7 +175,10 @@ export default function OnboardingPage() {
       console.error("❌ Error checking onboarding status:", error);
       // Continue with onboarding if check fails
     } finally {
-      setCheckingStatus(false);
+      // Avoid briefly flashing the onboarding form if we've already triggered a redirect.
+      if (!didRedirect) {
+        setCheckingStatus(false);
+      }
     }
   };
 
