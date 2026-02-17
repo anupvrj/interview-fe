@@ -88,17 +88,24 @@ export const researchApi = {
         return response.data;
     },
 
-    // Stream an Agent (Research Lab)
-    streamAgent: async (agentId: string, input: string, onChunk: (chunk: any) => void) => {
+    // Stream an Agent (Runtime via Proxy)
+    streamAgent: async (agentId: string, input: any, onChunk: (chunk: any) => void) => {
         const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5004/api";
         const url = `${API_URL}/internal/research/stream-agent`;
-        console.log("Streaming from:", url);
 
         try {
+            // we need to get the token for auth if apiClient uses it
+            // Assuming apiClient sets it globally or we can get it from storage/clerk
+            // For now, let's use fetch but we might need headers from apiClient if it has an interceptor
+            // A common pattern with Clerk is getting the token.
+            // Let's rely on the browser cookie if it's same domain or just try default fetch for now.
+            // If API requires auth, we need to attach "Authorization: Bearer ..."
+
             const response = await fetch(url, {
                 method: "POST",
                 headers: {
-                    "Content-Type": "application/json"
+                    "Content-Type": "application/json",
+                    // "Authorization": `Bearer ${token}` // TODO: Add auth
                 },
                 body: JSON.stringify({
                     agent_id: agentId,
@@ -107,28 +114,33 @@ export const researchApi = {
             });
 
             if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
+                const errorText = await response.text();
+                throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
             }
-
 
             if (!response.body) throw new Error("No response body");
 
             const reader = response.body.getReader();
             const decoder = new TextDecoder();
+            let buffer = '';
 
             while (true) {
                 const { done, value } = await reader.read();
                 if (done) break;
 
-                const text = decoder.decode(value);
-                const lines = text.split("\n\n");
+                const text = decoder.decode(value, { stream: true });
+                buffer += text;
+
+                const lines = buffer.split("\n\n");
+                buffer = lines.pop() || ''; // Keep the last partial line in buffer
 
                 for (const line of lines) {
                     if (line.startsWith("data: ")) {
                         const data = line.slice(6);
                         if (data === "[DONE]") return;
                         try {
-                            onChunk(JSON.parse(data));
+                            const parsed = JSON.parse(data);
+                            onChunk(parsed);
                         } catch (e) {
                             console.error("Error parsing SSE chunk", e);
                         }

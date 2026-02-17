@@ -26,7 +26,6 @@ export function PromptEditor({ initialData, isNew = false }: PromptEditorProps) 
         content: initialData?.content || "",
         environment: initialData?.environment || "development",
         tags: initialData?.tags || [],
-        tags: initialData?.tags || [],
         inputVariables: initialData?.inputVariables || [],
     });
 
