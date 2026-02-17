@@ -3310,16 +3310,18 @@ export default function EditResumePage() {
                                         const updated = [
                                           ...resume.content.experience,
                                         ];
+                                        const value = e.target.value;
                                         updated[index] = {
                                           ...exp,
-                                          endDate: e.target.value,
-                                          current: !e.target.value,
+                                          endDate: value,
+                                          current:
+                                            value.toLowerCase() === "present" ||
+                                            !value,
                                         };
                                         updateContent({ experience: updated });
                                       }}
                                       className="mt-1 h-9 text-sm"
-                                      placeholder="MM/YYYY or leave blank"
-                                      disabled={exp.current}
+                                      placeholder="MM/YYYY or Present"
                                     />
                                   </div>
                                 </div>
