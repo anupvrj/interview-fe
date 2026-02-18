@@ -13,6 +13,8 @@ const isPublicRoute = createRouteMatcher([
   "/about-us(.*)",
   "/pricing(.*)",
   "/ats-checker(.*)",
+  "/robots.txt",
+  "/sitemap.xml",
 ]);
 
 export default clerkMiddleware(
@@ -26,7 +28,7 @@ export default clerkMiddleware(
   },
   {
     debug: false,
-  }
+  },
 );
 
 export const config = {
