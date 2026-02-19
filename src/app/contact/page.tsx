@@ -234,14 +234,6 @@ export default function ContactPage() {
                       <ArrowRight className="w-4 h-4 ml-2" />
                     </Button>
                   </Link>
-                  <Link href="/dashboard">
-                    <Button
-                      variant="outline"
-                      className="border-blue-600 text-blue-600 hover:bg-blue-50"
-                    >
-                      Go to Dashboard
-                    </Button>
-                  </Link>
                 </div>
               </CardContent>
             </Card>
