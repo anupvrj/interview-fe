@@ -153,7 +153,7 @@ export interface TemplateRenderingRules {
   };
   layout?: {
     type: "single" | "double" | "header-plus-columns";
-    columnWidths: {
+    columnWidths?: {
       left: number;
       right: number;
     };

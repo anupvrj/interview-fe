@@ -1,9 +1,11 @@
 /**
- * Client-side PDF Generator using html2pdf.js
- * Generates ATS-friendly PDFs with proper SVG rendering
+ * Client-side PDF Generator
+ * Generates PDFs from HTML elements using html2canvas and jspdf
+ * This ensures the PDF matches exactly what the user sees in the preview
  */
 
-import html2pdf from "html2pdf.js";
+import html2canvas from "html2canvas";
+import { jsPDF } from "jspdf";
 
 export interface PDFGenerationOptions {
   filename?: string;
@@ -13,88 +15,136 @@ export interface PDFGenerationOptions {
 }
 
 /**
- * Generate ATS-friendly PDF from HTML element
+ * Generate PDF from multiple HTML page elements
+ * @param pageElements - Array of HTML elements representing each page
+ * @param options - PDF generation options
+ * @returns Promise<Blob> - The generated PDF as a Blob
+ */
+export async function generatePDFFromPages(
+  pageElements: HTMLElement[],
+  options: PDFGenerationOptions = {},
+): Promise<Blob> {
+  const { filename = "resume.pdf" } = options;
+
+  try {
+    if (pageElements.length === 0) {
+      throw new Error("No page elements provided");
+    }
+
+    // A4 dimensions in mm
+    const a4Width = 210;
+    const a4Height = 297;
+
+    // Create PDF document
+    const pdf = new jsPDF({
+      orientation: "portrait",
+      unit: "mm",
+      format: "a4",
+      compress: true,
+    });
+
+    // Process each page
+    for (let i = 0; i < pageElements.length; i++) {
+      const pageElement = pageElements[i];
+
+      // Clone the element to avoid modifying the original
+      const clonedElement = pageElement.cloneNode(true) as HTMLElement;
+
+      // Remove any shadows, transforms, or margins that might affect rendering
+      clonedElement.style.boxShadow = "none";
+      clonedElement.style.transform = "none";
+      clonedElement.style.margin = "0";
+      clonedElement.style.marginBottom = "0";
+
+      // Create a temporary container for the cloned element
+      const tempContainer = document.createElement("div");
+      tempContainer.style.position = "absolute";
+      tempContainer.style.left = "-9999px";
+      tempContainer.style.top = "0";
+      tempContainer.style.width = "210mm";
+      tempContainer.appendChild(clonedElement);
+      document.body.appendChild(tempContainer);
+
+      try {
+        // Wait for images to load
+        const images = clonedElement.querySelectorAll("img");
+        await Promise.all(
+          Array.from(images).map(
+            (img) =>
+              new Promise<void>((resolve) => {
+                if (img.complete) {
+                  resolve();
+                } else {
+                  img.onload = () => resolve();
+                  img.onerror = () => resolve();
+                  setTimeout(() => resolve(), 3000);
+                }
+              }),
+          ),
+        );
+
+        // Convert HTML to canvas
+        const canvas = await html2canvas(clonedElement, {
+          scale: 2,
+          useCORS: true,
+          allowTaint: true,
+          backgroundColor: "#ffffff",
+          logging: false,
+          width: clonedElement.offsetWidth,
+          height: clonedElement.offsetHeight,
+          windowWidth: clonedElement.offsetWidth,
+          windowHeight: clonedElement.offsetHeight,
+        } as any);
+
+        // Convert canvas to image
+        const imgData = canvas.toDataURL("image/jpeg", 0.95);
+
+        // Calculate dimensions to fit A4
+        const imgWidth = a4Width;
+        const imgHeight = (canvas.height * a4Width) / canvas.width;
+
+        // Add new page if not the first page
+        if (i > 0) {
+          pdf.addPage();
+        }
+
+        // Add image to PDF
+        pdf.addImage(
+          imgData,
+          "JPEG",
+          0,
+          0,
+          imgWidth,
+          imgHeight,
+          undefined,
+          "FAST",
+        );
+      } finally {
+        // Clean up temporary container
+        document.body.removeChild(tempContainer);
+      }
+    }
+
+    // Generate PDF blob
+    const pdfBlob = pdf.output("blob");
+    return pdfBlob;
+  } catch (error) {
+    console.error("Error generating PDF:", error);
+    throw new Error("Failed to generate PDF");
+  }
+}
+
+/**
+ * Generate PDF from a single HTML element
  * @param element - The HTML element to convert to PDF
  * @param options - PDF generation options
  * @returns Promise<Blob> - The generated PDF as a Blob
  */
 export async function generatePDFFromElement(
   element: HTMLElement,
-  options: PDFGenerationOptions = {}
+  options: PDFGenerationOptions = {},
 ): Promise<Blob> {
-  const {
-    filename = "resume.pdf",
-    format = "a4",
-    margin = 0,
-    orientation = "portrait",
-  } = options;
-
-  try {
-    // Clone element and prepare for PDF generation
-    const clonedElement = element.cloneNode(true) as HTMLElement;
-    clonedElement.style.transform = "none";
-    clonedElement.style.boxShadow = "none";
-    clonedElement.style.width = "210mm";
-    clonedElement.style.height = "297mm";
-    clonedElement.style.maxHeight = "297mm";
-    clonedElement.style.overflow = "hidden";
-
-    // Configure html2pdf options - strict single page
-    const opt = {
-      margin: 0,
-      filename: filename,
-      image: { type: "jpeg" as const, quality: 0.98 },
-      html2canvas: {
-        scale: 2,
-        useCORS: true,
-        logging: false,
-        letterRendering: true,
-        width: 794, // A4 width in pixels at 96 DPI
-        height: 1123, // A4 height in pixels at 96 DPI - strict limit
-        windowWidth: 794,
-        windowHeight: 1123,
-        scrollY: 0,
-        scrollX: 0,
-      },
-      jsPDF: {
-        unit: "mm" as const,
-        format: [210, 297] as [number, number], // Exact A4 dimensions
-        orientation: "portrait" as const,
-        compress: true,
-      },
-      pagebreak: {
-        mode: ["avoid-all"],
-      },
-    };
-
-    // Generate PDF - strict single page
-    const pdfBlob = await new Promise<Blob>((resolve, reject) => {
-      html2pdf()
-        .set(opt)
-        .from(clonedElement)
-        .toPdf()
-        .get("pdf")
-        .then((pdf: any) => {
-          // Get total pages
-          const totalPages = pdf.internal.getNumberOfPages();
-
-          // Delete all pages except the first one
-          for (let i = totalPages; i > 1; i--) {
-            pdf.deletePage(i);
-          }
-
-          // Output as blob
-          const blob = pdf.output("blob");
-          resolve(blob);
-        })
-        .catch(reject);
-    });
-
-    return pdfBlob;
-  } catch (error) {
-    console.error("Error generating PDF:", error);
-    throw new Error("Failed to generate PDF");
-  }
+  return generatePDFFromPages([element], options);
 }
 
 /**
@@ -105,7 +155,7 @@ export async function generatePDFFromElement(
  */
 export async function uploadPDFToS3(
   blob: Blob,
-  presignedUrl: string
+  presignedUrl: string,
 ): Promise<void> {
   try {
     const response = await fetch(presignedUrl, {

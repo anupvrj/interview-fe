@@ -61,7 +61,7 @@ export const cleanslateExtendedConfig: Partial<ExtendedResumeTemplate> = {
     },
     headerStyle: "left",
     sectionSpacing: 10,
-    padding: { top: 8, bottom: 8, left: 8, right: 8 },
+    padding: { top: 6, bottom: 6, left: 8, right: 8 },
     sectionHeader: {
       style: "border-top-bottom",
       borderWidth: 1,
