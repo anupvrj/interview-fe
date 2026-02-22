@@ -1205,7 +1205,7 @@ export default function LandingPage() {
               </div>
               
               <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-3 sm:gap-4 pt-2 px-2 sm:px-0">
-                <Link href="/job-search" className="w-full sm:w-auto">
+                <Link href="/ai-job-search" className="w-full sm:w-auto">
                   <Button
                     size="lg"
                     className="w-full sm:w-auto text-white font-medium shadow-sm transition-all h-12 px-6 hover:opacity-90 !bg-[rgb(37,99,235)]"
@@ -1214,7 +1214,7 @@ export default function LandingPage() {
                     <Bell className="w-4 h-4 ml-2" />
                   </Button>
                 </Link>
-                <Link href="/job-search" className="w-full sm:w-auto">
+                <Link href="/ai-job-search" className="w-full sm:w-auto">
                   <Button
                     variant="outline"
                     size="lg"
