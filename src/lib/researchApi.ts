@@ -21,6 +21,21 @@ export interface ResearchPrompt {
     updatedAt: string;
 }
 
+export interface VoiceAgentInfo {
+    _id: string;
+    name: string;
+    version: string;
+    description?: string;
+    environment: string;
+    voice: string;
+    systemPrompt: string;
+    temperature: number;
+    silenceDurationMs: number;
+    language?: string;
+    createdAt: string;
+    updatedAt: string;
+}
+
 export const researchApi = {
     // Get all agents
     listAgents: async (): Promise<ResearchAgentInfo[]> => {
@@ -37,6 +52,27 @@ export const researchApi = {
 
     deleteAgent: async (id: string): Promise<any> => {
         const response = await apiClient.delete(`/internal/research/agents/${id}`);
+        return response.data;
+    },
+
+    // Voice Agent Operations
+    listVoiceAgents: async (): Promise<VoiceAgentInfo[]> => {
+        const response = await apiClient.get<VoiceAgentInfo[]>("/voice-agents");
+        return response.data;
+    },
+
+    createVoiceAgent: async (agent: Partial<VoiceAgentInfo>): Promise<any> => {
+        const response = await apiClient.post("/voice-agents", agent);
+        return response.data;
+    },
+
+    updateVoiceAgent: async (id: string, agent: Partial<VoiceAgentInfo>): Promise<any> => {
+        const response = await apiClient.put(`/voice-agents/${id}`, agent);
+        return response.data;
+    },
+
+    deleteVoiceAgent: async (id: string): Promise<any> => {
+        const response = await apiClient.delete(`/voice-agents/${id}`);
         return response.data;
     },
 

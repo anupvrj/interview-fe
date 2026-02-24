@@ -13,7 +13,7 @@ import {
     CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Play, Code, Loader2, AlertCircle, Bot, Trash2 } from "lucide-react";
+import { Plus, Play, Code, Loader2, AlertCircle, Bot, Trash2, Mic } from "lucide-react";
 import {
     AlertDialog,
     AlertDialogAction,
@@ -28,11 +28,12 @@ import {
 export default function ResearchDashboard() {
     const [prompts, setPrompts] = useState<ResearchPrompt[]>([]);
     const [agents, setAgents] = useState<any[]>([]);
+    const [voiceAgents, setVoiceAgents] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
     // Deletion State
-    const [deleteItem, setDeleteItem] = useState<{ id: string, type: 'agent' | 'prompt', name: string } | null>(null);
+    const [deleteItem, setDeleteItem] = useState<{ id: string, type: 'agent' | 'prompt' | 'voiceAgent', name: string } | null>(null);
 
     useEffect(() => {
         fetchData();
@@ -41,12 +42,14 @@ export default function ResearchDashboard() {
     const fetchData = async () => {
         try {
             setLoading(true);
-            const [promptsData, agentsData] = await Promise.all([
+            const [promptsData, agentsData, voiceAgentsData] = await Promise.all([
                 researchApi.listPrompts(),
-                researchApi.listAgents()
+                researchApi.listAgents(),
+                researchApi.listVoiceAgents().catch(() => []) // Catch if backend route isn't ready
             ]);
             setPrompts(promptsData);
             setAgents(agentsData);
+            setVoiceAgents(voiceAgentsData);
             setError(null);
         } catch (err: any) {
             console.error("Failed to fetch data:", err);
@@ -62,6 +65,8 @@ export default function ResearchDashboard() {
         try {
             if (deleteItem.type === 'agent') {
                 await researchApi.deleteAgent(deleteItem.id);
+            } else if (deleteItem.type === 'voiceAgent') {
+                await researchApi.deleteVoiceAgent(deleteItem.id);
             } else {
                 await researchApi.deletePrompt(deleteItem.id);
             }
@@ -108,6 +113,12 @@ export default function ResearchDashboard() {
                         <Button variant="outline">
                             <Bot className="mr-2 h-4 w-4" />
                             New Agent
+                        </Button>
+                    </Link>
+                    <Link href="/research/voice-agents/new">
+                        <Button variant="outline">
+                            <Mic className="mr-2 h-4 w-4" />
+                            New Voice Agent
                         </Button>
                     </Link>
                 </div>
@@ -243,6 +254,64 @@ export default function ResearchDashboard() {
                             )}
                         </div>
                     </section>
+
+                    <section>
+                        <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+                            <Mic className="w-5 h-5" /> Voice Agents
+                        </h2>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {voiceAgents.map((agent) => (
+                                <Card key={agent._id} className="flex flex-col bg-green-50/30 border-green-100">
+                                    <CardHeader>
+                                        <div className="flex items-center justify-between mb-2">
+                                            <Badge variant={getEnvironmentColor(agent.environment) as any}>
+                                                {agent.environment}
+                                            </Badge>
+                                            <div className="flex items-center gap-1">
+                                                <span className="text-xs text-muted-foreground font-mono mr-2">
+                                                    v{agent.version}
+                                                </span>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-6 w-6 text-muted-foreground hover:text-red-600"
+                                                    onClick={() => setDeleteItem({ id: agent._id, type: 'voiceAgent', name: agent.name })}
+                                                >
+                                                    <Trash2 className="h-4 w-4" />
+                                                </Button>
+                                            </div>
+                                        </div>
+                                        <CardTitle className="text-lg">{agent.name}</CardTitle>
+                                        <CardDescription className="line-clamp-1">
+                                            Voice: {agent.voice} | Temp: {agent.temperature}
+                                        </CardDescription>
+                                    </CardHeader>
+                                    <CardFooter className="mt-auto pt-4 flex gap-2">
+                                        <Link href={`/research/voice-agents/tester?agentId=${agent._id}`} className="flex-1">
+                                            <Button className="w-full bg-white text-green-700 border border-green-200 hover:bg-green-50 hover:text-green-800">
+                                                <Mic className="mr-2 h-4 w-4" />
+                                                Test Voice
+                                            </Button>
+                                        </Link>
+                                        <Link href={`/research/voice-agents/${agent._id}`}>
+                                            <Button variant="outline" size="icon">
+                                                <Code className="h-4 w-4" />
+                                            </Button>
+                                        </Link>
+                                    </CardFooter>
+                                </Card>
+                            ))}
+
+                            {voiceAgents.length === 0 && !error && (
+                                <div className="col-span-full text-center py-12 bg-green-50/20 rounded-lg border border-dashed border-green-100">
+                                    <p className="text-muted-foreground mb-4">No Voice Agents found.</p>
+                                    <Link href="/research/voice-agents/new">
+                                        <Button variant="outline" className="border-green-200 text-green-700 hover:bg-green-50">Create your first Voice Agent</Button>
+                                    </Link>
+                                </div>
+                            )}
+                        </div>
+                    </section>
                 </div>
             )}
 
@@ -261,6 +330,6 @@ export default function ResearchDashboard() {
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
-        </div>
+        </div >
     );
 }
