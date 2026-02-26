@@ -10,7 +10,7 @@ import { apiClient } from "./api";
  * Capture screenshot of resume preview
  */
 export async function captureResumeThumbnail(
-  elementId: string = "resume-preview-container"
+  elementId: string = "resume-preview-container",
 ): Promise<Blob | null> {
   try {
     const element = document.getElementById(elementId);
@@ -98,7 +98,7 @@ export async function captureResumeThumbnail(
             setTimeout(() => resolve(), 3000);
           }
         });
-      })
+      }),
     );
 
     // Store original styles to restore later
@@ -172,15 +172,15 @@ export async function captureResumeThumbnail(
     const width = Math.max(
       rect.width || finalWidth,
       element.offsetWidth || finalWidth,
-      element.scrollWidth || finalWidth
+      element.scrollWidth || finalWidth,
     );
     const height = Math.min(
       Math.max(
         rect.height || finalHeight,
         element.offsetHeight || finalHeight,
-        element.scrollHeight || finalHeight
+        element.scrollHeight || finalHeight,
       ),
-      maxHeight
+      maxHeight,
     );
 
     console.log("Final capturing dimensions:", {
@@ -202,13 +202,34 @@ export async function captureResumeThumbnail(
     // This avoids issues with CSS units like "mm" that html2canvas might not handle well
     console.log("Starting html2canvas capture (auto-detecting dimensions)...");
 
-    // Capture the screenshot with optimized settings
+    // Replace cross-origin image URLs with proxy URLs so html2canvas can fetch them
+    const proxyBase =
+      typeof window !== "undefined"
+        ? `${window.location.origin}/api/proxy-image`
+        : "";
     const canvas = await html2canvas(element, {
       useCORS: true,
       logging: true, // Enable logging to debug
       background: "#ffffff",
-      allowTaint: true, // Allow tainted canvas for external images
-    });
+      allowTaint: false,
+      onclone: (_clonedDoc: Document, clonedElement: HTMLElement) => {
+        // Replace S3/external img src with proxy URL before html2canvas fetches
+        const imgs = clonedElement.querySelectorAll("img[src]");
+        imgs.forEach((img) => {
+          const src = img.getAttribute("src");
+          if (
+            src &&
+            src.startsWith("http") &&
+            !src.startsWith(window.location.origin)
+          ) {
+            img.setAttribute(
+              "src",
+              `${proxyBase}?url=${encodeURIComponent(src)}`,
+            );
+          }
+        });
+      },
+    } as any);
 
     // Restore element styles
     element.style.display = originalStyles.display;
@@ -263,7 +284,7 @@ export async function captureResumeThumbnail(
 
       if (contentRatio < 0.01) {
         console.error(
-          "❌ Canvas appears to be blank (less than 1% non-white pixels)"
+          "❌ Canvas appears to be blank (less than 1% non-white pixels)",
         );
         // Restore styles before returning
         element.style.display = originalStyles.display;
@@ -293,13 +314,13 @@ export async function captureResumeThumbnail(
               "❌ Failed to create blob from canvas or blob is empty",
               {
                 blobSize: blob?.size,
-              }
+              },
             );
             resolve(null);
           }
         },
         "image/png",
-        0.9 // Increased quality
+        0.9, // Increased quality
       );
     });
   } catch (error) {
@@ -313,7 +334,7 @@ export async function captureResumeThumbnail(
  */
 export async function uploadResumeThumbnail(
   resumeId: string,
-  blob: Blob
+  blob: Blob,
 ): Promise<{ success: boolean; thumbnailUrl?: string; error?: string }> {
   try {
     console.log("📤 Uploading thumbnail to backend...", {
@@ -363,7 +384,7 @@ export async function uploadResumeThumbnail(
  */
 export async function captureAndUploadThumbnail(
   resumeId: string,
-  elementId: string = "resume-preview-container"
+  elementId: string = "resume-preview-container",
 ): Promise<{ success: boolean; thumbnailUrl?: string; error?: string }> {
   try {
     // Capture thumbnail

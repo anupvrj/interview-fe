@@ -4,18 +4,17 @@
  */
 
 /* Import Zilla Slab font from Google Fonts */
-@import url('https://fonts.googleapis.com/css2?family=Zilla+Slab:wght@400;500;600;700&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Zilla+Slab:wght@400;500;600;700&display=swap");
 
 /* Template Container */
 .atlantic-blue-template {
-  font-family: 'Zilla Slab', 'Roboto Slab', Rockwell, 'Courier New', serif;
+  font-family: "Zilla Slab", "Roboto Slab", Rockwell, "Courier New", serif;
   color: #000000;
   background-color: #ffffff;
   line-height: 1.4;
 }
 
 /* Override any global section header styles */
-.atlantic-blue-template h2,
 .atlantic-blue-template .atlantic-blue-section-header {
   border: none !important;
   text-decoration: none !important;
@@ -75,49 +74,55 @@
   fill: none !important;
 }
 
-/* Sidebar Section Headers - Simple white text, no borders */
-.atlantic-blue-sidebar .atlantic-blue-section-header,
-.atlantic-blue-sidebar .section-header {
-  color: #ffffff !important;
-  font-size: 13px !important;
-  font-weight: bold;
-  text-transform: uppercase;
-  margin-bottom: 12px !important;
-  padding: 8px 0 !important;
-  background-color: transparent !important;
-  border: none !important;
-  border-top: none !important;
-  border-bottom: none !important;
-  text-decoration: none !important;
-  text-align: left !important;
+/* Section Header Styles */
+.atlantic-blue-section-header-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
-
-/* Main Content Styles */
-.atlantic-blue-main-content {
-  padding: 20px;
-}
-
-.atlantic-blue-section {
-  margin-bottom: 20px;
-}
-
-/* Section Header Styles - Main Content */
-.atlantic-blue-section-header {
+.atlantic-blue-section-header-wrapper--background {
+  margin-bottom: 12px;
+  padding: 8px 12px;
   background-color: #ecf0f1 !important;
+}
+.atlantic-blue-section-header-wrapper--sidebar,
+.atlantic-blue-section-header-wrapper--background.atlantic-blue-section-header-wrapper--sidebar {
+  justify-content: flex-start;
+  margin-bottom: 12px;
+  padding: 8px 0;
+  background-color: transparent !important;
+}
+.atlantic-blue-section-header {
+  margin: 0;
+  padding: 0;
   text-align: center;
-  font-size: 13px !important;
+  font-size: 13px;
   font-weight: bold;
   text-transform: uppercase;
-  padding: 8px 12px !important;
-  margin-bottom: 12px !important;
-  margin-top: 0 !important;
   border: none !important;
-  border-top: none !important;
-  border-bottom: none !important;
-  text-decoration: none !important;
   color: #2c3e50 !important;
 }
-
+.atlantic-blue-sidebar .atlantic-blue-section-header {
+  color: #ffffff !important;
+  text-align: left !important;
+}
+.atlantic-blue-left-column .atlantic-blue-section-header {
+  width: 100%;
+  color: #e8edf2 !important;
+  text-align: center !important;
+  justify-content: center !important;
+}
+.atlantic-blue-left-column .atlantic-blue-section-header-wrapper--sidebar,
+.atlantic-blue-left-column
+  .atlantic-blue-section-header-wrapper--background.atlantic-blue-section-header-wrapper--sidebar {
+  justify-content: center !important;
+  padding: 6px 12px !important;
+  background-color: #2f4a60 !important;
+  border-radius: 2px;
+}
+.atlantic-blue-left-column .atlantic-blue-section-header i {
+  color: #e8edf2 !important;
+}
 /* Contact Info Styles */
 .atlantic-blue-contact {
   display: flex;
@@ -131,6 +136,27 @@
   gap: 8px;
   color: #ffffff;
   font-size: 11px;
+}
+
+/* Prevent clipping/truncation of long contact values in sidebar */
+.atlantic-blue-left-column a.no-underline {
+  display: block !important;
+  width: 100%;
+  min-width: 0;
+}
+
+.atlantic-blue-left-column .atlantic-blue-contact-item {
+  width: 100%;
+  min-width: 0;
+  align-items: flex-start;
+}
+
+.atlantic-blue-left-column .atlantic-blue-contact-value {
+  display: block;
+  min-width: 0;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .atlantic-blue-contact-icon {
@@ -204,9 +230,8 @@
   .atlantic-blue-template {
     padding: 0;
   }
-  
+
   .atlantic-blue-two-column {
     break-inside: avoid;
   }
 }
-

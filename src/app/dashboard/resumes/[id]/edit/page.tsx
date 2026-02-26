@@ -47,24 +47,24 @@ import { ProfilePictureCropper } from "@/components/ProfilePictureCropper";
 interface Section {
   id: string;
   type:
-    | "personalInfo"
-    | "profileSummary"
-    | "experience"
-    | "education"
-    | "skills"
-    | "projects"
-    | "achievements"
-    | "languages"
-    | "certificates"
-    | "interests"
-    | "courses"
-    | "awards"
-    | "organisations"
-    | "publications"
-    | "references"
-    | "declaration"
-    | "spacer"
-    | "custom";
+  | "personalInfo"
+  | "profileSummary"
+  | "experience"
+  | "education"
+  | "skills"
+  | "projects"
+  | "achievements"
+  | "languages"
+  | "certificates"
+  | "interests"
+  | "courses"
+  | "awards"
+  | "organisations"
+  | "publications"
+  | "references"
+  | "declaration"
+  | "spacer"
+  | "custom";
   title: string;
   visible: boolean;
   expanded: boolean;
@@ -320,6 +320,7 @@ export default function EditResumePage() {
             resumeData.layout.padding.right !== 20
           ) {
             const updatedLayout = {
+              ...resumeData.layout,
               type: resumeData.layout.type || "single",
               columnWidths: resumeData.layout.columnWidths || {
                 left: 60,
@@ -331,7 +332,7 @@ export default function EditResumePage() {
                 right: 20,
               },
             };
-            setLayout(updatedLayout);
+            setLayout(updatedLayout as any);
             // Save updated layout to database
             (async () => {
               try {
@@ -673,33 +674,51 @@ export default function EditResumePage() {
       }
 
       try {
-        // Get all pages: first page + additional pages
+        // Get all pages from PaginatedPreview component
+        // PaginatedPreview creates pages with class "resume-page" inside the preview container
         const allPageElements: HTMLElement[] = [];
-        if (page1Element) {
-          allPageElements.push(page1Element as HTMLElement);
-        }
 
-        // Find additional pages (resume-preview-container-{id}-page-2, etc.)
-        let pageNum = 2;
-        while (true) {
-          const pageElement = document.getElementById(
-            `${previewContainerId}-page-${pageNum}`,
-          );
-          if (!pageElement) break;
-          allPageElements.push(pageElement as HTMLElement);
-          pageNum++;
+        if (page1Element) {
+          // Find the paginated container first (it's the only one with this class structure)
+          // PaginatedPreview renders pages into a targetRef div with class "flex flex-col items-center"
+          const paginatedContainer = page1Element.querySelector(".flex.flex-col.items-center");
+
+          if (paginatedContainer) {
+            // Look for all resume-page elements ONLY within the paginated container
+            const pages = paginatedContainer.querySelectorAll(".resume-page");
+
+            console.log(
+              `Found ${pages.length} paginated page(s) inside preview container`,
+            );
+
+            if (pages.length > 0) {
+              pages.forEach((page) => {
+                allPageElements.push(page as HTMLElement);
+              });
+            }
+          }
+
+          if (allPageElements.length === 0) {
+            // Fallback: if no paginated pages found, use the main preview container
+            console.log("No paginated pages found, using main preview container");
+            allPageElements.push(page1Element as HTMLElement);
+          }
         }
 
         if (allPageElements.length === 0) {
           throw new Error("Preview element not found");
         }
 
-        // Wait for all images to load before capturing HTML
+        console.log(`Generating PDF from ${allPageElements.length} page(s)`);
+
+        // Wait for all images to load before generating PDF
         const allImages: HTMLImageElement[] = [];
         allPageElements.forEach((pageElement) => {
           const images = pageElement.querySelectorAll("img");
           allImages.push(...Array.from(images));
         });
+
+        console.log(`Waiting for ${allImages.length} image(s) to load`);
 
         await Promise.all(
           allImages.map((img) => {
@@ -722,45 +741,34 @@ export default function EditResumePage() {
           }),
         );
 
-        // Combine all pages into a single HTML document
-        let combinedHTML = "";
+        console.log("All images loaded, generating PDF...");
 
-        allPageElements.forEach((pageElement, index) => {
-          const clonedPage = pageElement.cloneNode(true) as HTMLElement;
-
-          // Keep the original styling but remove shadow
-          clonedPage.classList.remove("shadow-2xl", "mx-auto");
-
-          // Ensure all images in the cloned element have their src attributes preserved
-          const originalImages = pageElement.querySelectorAll("img");
-          const clonedImages = clonedPage.querySelectorAll("img");
-
-          originalImages.forEach((originalImg, imgIndex) => {
-            if (clonedImages[imgIndex]) {
-              clonedImages[imgIndex].src = originalImg.src;
-              clonedImages[imgIndex].setAttribute("crossorigin", "anonymous");
-            }
-          });
-
-          // Add page break before each page except the first
-          if (index > 0) {
-            combinedHTML += '<div style="page-break-before: always;"></div>';
-          }
-
-          combinedHTML += clonedPage.outerHTML;
+        // Generate PDF from the page elements using frontend library
+        const { generatePDFFromPages, uploadPDFToS3 } =
+          await import("@/lib/pdf-generator");
+        const pdfBlob = await generatePDFFromPages(allPageElements, {
+          filename: `${resume?.title || "resume"}.pdf`,
         });
 
-        // Get the cleaned HTML content
-        const htmlContent = combinedHTML;
+        console.log(`PDF generated, size: ${pdfBlob.size} bytes`);
 
-        // Send HTML to backend for PDF generation with Puppeteer
-        // Backend will generate pixel-perfect PDF matching the browser preview
-        const { downloadUrl } = await resumeApi.generatePDF(
+        // Get presigned URL from backend
+        console.log("Getting presigned upload URL...");
+        const { uploadUrl, s3Key } =
+          await resumeApi.getPresignedUploadUrl(resumeId);
+
+        // Upload PDF to S3
+        console.log("Uploading PDF to S3...");
+        await uploadPDFToS3(pdfBlob, uploadUrl);
+
+        // Confirm upload and get download URL
+        console.log("Confirming upload and getting download URL...");
+        const { downloadUrl } = await resumeApi.confirmPDFUpload(
           resumeId,
-          htmlContent,
-          layout?.padding,
+          s3Key,
         );
 
+        console.log("PDF ready! Opening in new tab...");
         // Open the PDF in a new tab
         window.open(downloadUrl, "_blank");
       } finally {
@@ -899,19 +907,33 @@ export default function EditResumePage() {
       return;
     }
 
-    // If deleting a custom section, also remove its data from customSections
-    if (sectionToDelete.type === "custom" && resume) {
-      const updatedCustomSections =
-        resume.content.customSections?.filter(
-          (cs: any) => cs.id !== sectionToDelete.id,
-        ) || [];
-      updateContent({
-        customSections: updatedCustomSections,
-      });
+    // For non-essential standard sections, just mark them as hidden
+    const isMultipleAllowed =
+      sectionToDelete.type === "spacer" || sectionToDelete.type === "custom";
+
+    if (!isMultipleAllowed) {
+      setSections((prev) =>
+        prev.map((s) =>
+          s.id === sectionToDelete.id
+            ? { ...s, visible: false, expanded: false }
+            : s,
+        ),
+      );
+    } else {
+      // If deleting a custom section, also remove its data from customSections
+      if (sectionToDelete.type === "custom" && resume) {
+        const updatedCustomSections =
+          resume.content.customSections?.filter(
+            (cs: any) => cs.id !== sectionToDelete.id,
+          ) || [];
+        updateContent({
+          customSections: updatedCustomSections,
+        });
+      }
+      // Remove the section entirely from the array
+      setSections((prev) => prev.filter((s) => s.id !== sectionToDelete.id));
     }
 
-    // Remove the section
-    setSections((prev) => prev.filter((s) => s.id !== sectionToDelete.id));
     setHasChanges(true);
 
     // Close dialog and reset state
@@ -970,7 +992,6 @@ export default function EditResumePage() {
     setSectionTitleValue("");
     setHasChanges(true);
   };
-
   const addSection = (type: Section["type"]) => {
     // Convert type to readable title
     const titleMap: Record<Section["type"], string> = {
@@ -993,6 +1014,25 @@ export default function EditResumePage() {
       spacer: "Column Placeholder", // Can be added multiple times
       custom: "Custom Section",
     };
+
+    const isMultipleAllowed = type === "spacer" || type === "custom";
+
+    // Check if the section already exists (and multiple isn't allowed).
+    // If so, just make it visible and expanded.
+    if (!isMultipleAllowed) {
+      const existingSectionIndex = sections.findIndex((s) => s.type === type);
+      if (existingSectionIndex >= 0) {
+        setSections((prev) =>
+          prev.map((s, idx) =>
+            idx === existingSectionIndex
+              ? { ...s, visible: true, expanded: true }
+              : s
+          )
+        );
+        setHasChanges(true);
+        return;
+      }
+    }
 
     const sectionId = `${type}_${Date.now()}`;
     const newSection: Section = {
@@ -1171,13 +1211,12 @@ export default function EditResumePage() {
               {resume.atsScore !== undefined && resume.atsScore !== null && (
                 <div className="flex items-center gap-2">
                   <div
-                    className={`px-4 py-2 rounded-lg border-2 font-semibold text-sm flex items-center gap-2 ${
-                      resume.atsScore >= 80
-                        ? "bg-green-50 text-green-700 border-green-300"
-                        : resume.atsScore >= 60
-                          ? "bg-yellow-50 text-yellow-700 border-yellow-300"
-                          : "bg-red-50 text-red-700 border-red-300"
-                    }`}
+                    className={`px-4 py-2 rounded-lg border-2 font-semibold text-sm flex items-center gap-2 ${resume.atsScore >= 80
+                      ? "bg-green-50 text-green-700 border-green-300"
+                      : resume.atsScore >= 60
+                        ? "bg-yellow-50 text-yellow-700 border-yellow-300"
+                        : "bg-red-50 text-red-700 border-red-300"
+                      }`}
                   >
                     <span>ATS Score:</span>
                     <span className="text-xl font-bold">{resume.atsScore}</span>
@@ -1267,21 +1306,19 @@ export default function EditResumePage() {
             <div className="flex">
               <button
                 onClick={() => setViewMode("edit")}
-                className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
-                  viewMode === "edit"
-                    ? "bg-white text-purple-600 border-b-2 border-purple-600"
-                    : "text-gray-600 hover:text-gray-900"
-                }`}
+                className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${viewMode === "edit"
+                  ? "bg-white text-purple-600 border-b-2 border-purple-600"
+                  : "text-gray-600 hover:text-gray-900"
+                  }`}
               >
                 Edit Resume
               </button>
               <button
                 onClick={() => setViewMode("ats")}
-                className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
-                  viewMode === "ats"
-                    ? "bg-white text-purple-600 border-b-2 border-purple-600"
-                    : "text-gray-600 hover:text-gray-900"
-                }`}
+                className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${viewMode === "ats"
+                  ? "bg-white text-purple-600 border-b-2 border-purple-600"
+                  : "text-gray-600 hover:text-gray-900"
+                  }`}
               >
                 ATS Report
               </button>
@@ -2029,12 +2066,11 @@ export default function EditResumePage() {
                     return (
                       <Card
                         key={section.id}
-                        className={`border transition-all ${
-                          dragOverId === section.id &&
+                        className={`border transition-all ${dragOverId === section.id &&
                           draggedSection !== section.id
-                            ? "border-purple-400 border-2 shadow-md"
-                            : ""
-                        }`}
+                          ? "border-purple-400 border-2 shadow-md"
+                          : ""
+                          }`}
                         draggable
                         onDragStart={(e) => handleDragStart(e, section.id)}
                         onDragOver={(e) => handleDragOver(e, section.id)}
@@ -3012,12 +3048,11 @@ export default function EditResumePage() {
                     return (
                       <Card
                         key={section.id}
-                        className={`border transition-all ${
-                          dragOverId === section.id &&
+                        className={`border transition-all ${dragOverId === section.id &&
                           draggedSection !== section.id
-                            ? "border-purple-400 border-2 shadow-md"
-                            : ""
-                        }`}
+                          ? "border-purple-400 border-2 shadow-md"
+                          : ""
+                          }`}
                         draggable
                         onDragStart={(e) => handleDragStart(e, section.id)}
                         onDragOver={(e) => handleDragOver(e, section.id)}
@@ -3120,9 +3155,9 @@ export default function EditResumePage() {
                                 setResume((prev) =>
                                   prev
                                     ? {
-                                        ...prev,
-                                        profileSummary: html,
-                                      }
+                                      ...prev,
+                                      profileSummary: html,
+                                    }
                                     : null,
                                 );
                                 setHasChanges(true);
@@ -3141,12 +3176,11 @@ export default function EditResumePage() {
                     return (
                       <Card
                         key={section.id}
-                        className={`border transition-all ${
-                          dragOverId === section.id &&
+                        className={`border transition-all ${dragOverId === section.id &&
                           draggedSection !== section.id
-                            ? "border-purple-400 border-2 shadow-md"
-                            : ""
-                        }`}
+                          ? "border-purple-400 border-2 shadow-md"
+                          : ""
+                          }`}
                         draggable
                         onDragStart={(e) => handleDragStart(e, section.id)}
                         onDragOver={(e) => handleDragOver(e, section.id)}
@@ -3333,8 +3367,8 @@ export default function EditResumePage() {
                                         ? exp.description
                                         : Array.isArray(exp.description)
                                           ? exp.description
-                                              .map((d) => `<p>${d}</p>`)
-                                              .join("")
+                                            .map((d) => `<p>${d}</p>`)
+                                            .join("")
                                           : ""
                                     }
                                     onChange={(html) => {
@@ -3403,12 +3437,11 @@ export default function EditResumePage() {
                     return (
                       <Card
                         key={section.id}
-                        className={`border transition-all ${
-                          dragOverId === section.id &&
+                        className={`border transition-all ${dragOverId === section.id &&
                           draggedSection !== section.id
-                            ? "border-purple-400 border-2 shadow-md"
-                            : ""
-                        }`}
+                          ? "border-purple-400 border-2 shadow-md"
+                          : ""
+                          }`}
                         draggable
                         onDragStart={(e) => handleDragStart(e, section.id)}
                         onDragOver={(e) => handleDragOver(e, section.id)}
@@ -3745,12 +3778,11 @@ export default function EditResumePage() {
                     return (
                       <Card
                         key={section.id}
-                        className={`border transition-all ${
-                          dragOverId === section.id &&
+                        className={`border transition-all ${dragOverId === section.id &&
                           draggedSection !== section.id
-                            ? "border-purple-400 border-2 shadow-md"
-                            : ""
-                        }`}
+                          ? "border-purple-400 border-2 shadow-md"
+                          : ""
+                          }`}
                         draggable
                         onDragStart={(e) => handleDragStart(e, section.id)}
                         onDragOver={(e) => handleDragOver(e, section.id)}
@@ -3909,12 +3941,11 @@ export default function EditResumePage() {
                     return (
                       <Card
                         key={section.id}
-                        className={`border transition-all ${
-                          dragOverId === section.id &&
+                        className={`border transition-all ${dragOverId === section.id &&
                           draggedSection !== section.id
-                            ? "border-purple-400 border-2 shadow-md"
-                            : ""
-                        }`}
+                          ? "border-purple-400 border-2 shadow-md"
+                          : ""
+                          }`}
                         draggable
                         onDragStart={(e) => handleDragStart(e, section.id)}
                         onDragOver={(e) => handleDragOver(e, section.id)}
@@ -4128,8 +4159,8 @@ export default function EditResumePage() {
                                         typeof project.technologies === "string"
                                           ? project.technologies
                                           : (project.technologies || []).join(
-                                              ", ",
-                                            )
+                                            ", ",
+                                          )
                                       }
                                       onChange={(e) => {
                                         const updated = [
@@ -4318,12 +4349,12 @@ export default function EditResumePage() {
                                             setResume((prev) =>
                                               prev
                                                 ? {
-                                                    ...prev,
-                                                    content: {
-                                                      ...prev.content,
-                                                      certificates: updated,
-                                                    },
-                                                  }
+                                                  ...prev,
+                                                  content: {
+                                                    ...prev.content,
+                                                    certificates: updated,
+                                                  },
+                                                }
                                                 : null,
                                             );
                                             setHasChanges(true);
@@ -4350,12 +4381,12 @@ export default function EditResumePage() {
                                             setResume((prev) =>
                                               prev
                                                 ? {
-                                                    ...prev,
-                                                    content: {
-                                                      ...prev.content,
-                                                      certificates: updated,
-                                                    },
-                                                  }
+                                                  ...prev,
+                                                  content: {
+                                                    ...prev.content,
+                                                    certificates: updated,
+                                                  },
+                                                }
                                                 : null,
                                             );
                                             setHasChanges(true);
@@ -4382,12 +4413,12 @@ export default function EditResumePage() {
                                             setResume((prev) =>
                                               prev
                                                 ? {
-                                                    ...prev,
-                                                    content: {
-                                                      ...prev.content,
-                                                      certificates: updated,
-                                                    },
-                                                  }
+                                                  ...prev,
+                                                  content: {
+                                                    ...prev.content,
+                                                    certificates: updated,
+                                                  },
+                                                }
                                                 : null,
                                             );
                                             setHasChanges(true);
@@ -4415,12 +4446,12 @@ export default function EditResumePage() {
                                             setResume((prev) =>
                                               prev
                                                 ? {
-                                                    ...prev,
-                                                    content: {
-                                                      ...prev.content,
-                                                      certificates: updated,
-                                                    },
-                                                  }
+                                                  ...prev,
+                                                  content: {
+                                                    ...prev.content,
+                                                    certificates: updated,
+                                                  },
+                                                }
                                                 : null,
                                             );
                                             setHasChanges(true);
@@ -4447,12 +4478,12 @@ export default function EditResumePage() {
                                             setResume((prev) =>
                                               prev
                                                 ? {
-                                                    ...prev,
-                                                    content: {
-                                                      ...prev.content,
-                                                      certificates: updated,
-                                                    },
-                                                  }
+                                                  ...prev,
+                                                  content: {
+                                                    ...prev.content,
+                                                    certificates: updated,
+                                                  },
+                                                }
                                                 : null,
                                             );
                                             setHasChanges(true);
@@ -4479,12 +4510,12 @@ export default function EditResumePage() {
                                             setResume((prev) =>
                                               prev
                                                 ? {
-                                                    ...prev,
-                                                    content: {
-                                                      ...prev.content,
-                                                      certificates: updated,
-                                                    },
-                                                  }
+                                                  ...prev,
+                                                  content: {
+                                                    ...prev.content,
+                                                    certificates: updated,
+                                                  },
+                                                }
                                                 : null,
                                             );
                                             setHasChanges(true);
@@ -4502,15 +4533,15 @@ export default function EditResumePage() {
                                         setResume((prev) =>
                                           prev
                                             ? {
-                                                ...prev,
-                                                content: {
-                                                  ...prev.content,
-                                                  certificates:
-                                                    prev.content.certificates?.filter(
-                                                      (_, i) => i !== index,
-                                                    ) || [],
-                                                },
-                                              }
+                                              ...prev,
+                                              content: {
+                                                ...prev.content,
+                                                certificates:
+                                                  prev.content.certificates?.filter(
+                                                    (_, i) => i !== index,
+                                                  ) || [],
+                                              },
+                                            }
                                             : null,
                                         );
                                         setHasChanges(true);
@@ -4531,24 +4562,24 @@ export default function EditResumePage() {
                                 setResume((prev) =>
                                   prev
                                     ? {
-                                        ...prev,
-                                        content: {
-                                          ...prev.content,
-                                          certificates: [
-                                            ...(prev.content.certificates ||
-                                              []),
-                                            {
-                                              id: nanoid(),
-                                              title: "",
-                                              issuer: "",
-                                              issueDate: "",
-                                              expiryDate: "",
-                                              certificateId: "",
-                                              link: "",
-                                            },
-                                          ],
-                                        },
-                                      }
+                                      ...prev,
+                                      content: {
+                                        ...prev.content,
+                                        certificates: [
+                                          ...(prev.content.certificates ||
+                                            []),
+                                          {
+                                            id: nanoid(),
+                                            title: "",
+                                            issuer: "",
+                                            issueDate: "",
+                                            expiryDate: "",
+                                            certificateId: "",
+                                            link: "",
+                                          },
+                                        ],
+                                      },
+                                    }
                                     : null,
                                 );
                                 setHasChanges(true);
@@ -4666,12 +4697,12 @@ export default function EditResumePage() {
                                 setResume((prev) =>
                                   prev
                                     ? {
-                                        ...prev,
-                                        content: {
-                                          ...prev.content,
-                                          interests: html,
-                                        },
-                                      }
+                                      ...prev,
+                                      content: {
+                                        ...prev.content,
+                                        interests: html,
+                                      },
+                                    }
                                     : null,
                                 );
                                 setHasChanges(true);
@@ -4696,12 +4727,11 @@ export default function EditResumePage() {
                     return (
                       <Card
                         key={section.id}
-                        className={`border transition-all ${
-                          dragOverId === section.id &&
+                        className={`border transition-all ${dragOverId === section.id &&
                           draggedSection !== section.id
-                            ? "border-purple-400 border-2 shadow-md"
-                            : ""
-                        }`}
+                          ? "border-purple-400 border-2 shadow-md"
+                          : ""
+                          }`}
                         draggable
                         onDragStart={(e) => handleDragStart(e, section.id)}
                         onDragOver={(e) => handleDragOver(e, section.id)}
@@ -4791,9 +4821,8 @@ export default function EditResumePage() {
                         {section.expanded && (
                           <CardContent className="p-4 space-y-4">
                             <RichTextEditor
-                              key={`${section.id}-${
-                                customContent.length > 0 ? "loaded" : "empty"
-                              }`}
+                              key={`${section.id}-${customContent.length > 0 ? "loaded" : "empty"
+                                }`}
                               value={customContent}
                               onChange={(html) => {
                                 if (!resume) return;
@@ -4842,12 +4871,11 @@ export default function EditResumePage() {
                     return (
                       <Card
                         key={section.id}
-                        className={`border transition-all ${
-                          dragOverId === section.id &&
+                        className={`border transition-all ${dragOverId === section.id &&
                           draggedSection !== section.id
-                            ? "border-purple-400 border-2 shadow-md"
-                            : ""
-                        }`}
+                          ? "border-purple-400 border-2 shadow-md"
+                          : ""
+                          }`}
                         draggable
                         onDragStart={(e) => handleDragStart(e, section.id)}
                         onDragOver={(e) => handleDragOver(e, section.id)}
@@ -5003,12 +5031,12 @@ export default function EditResumePage() {
                                 setResume((prev) =>
                                   prev
                                     ? {
-                                        ...prev,
-                                        content: {
-                                          ...prev.content,
-                                          declaration: html,
-                                        },
-                                      }
+                                      ...prev,
+                                      content: {
+                                        ...prev.content,
+                                        declaration: html,
+                                      },
+                                    }
                                     : null,
                                 );
                                 setHasChanges(true);
@@ -5121,19 +5149,19 @@ export default function EditResumePage() {
                               languages={
                                 Array.isArray(resume.content.languages)
                                   ? resume.content.languages.map(
-                                      (lang: any) => ({
-                                        id:
-                                          lang.id ||
-                                          `lang-${Date.now()}-${Math.random()}`,
-                                        name: lang.name || "",
-                                        proficiency:
-                                          typeof lang.proficiency === "number"
-                                            ? lang.proficiency
-                                            : typeof lang.level === "number"
-                                              ? lang.level
-                                              : undefined, // No default proficiency
-                                      }),
-                                    )
+                                    (lang: any) => ({
+                                      id:
+                                        lang.id ||
+                                        `lang-${Date.now()}-${Math.random()}`,
+                                      name: lang.name || "",
+                                      proficiency:
+                                        typeof lang.proficiency === "number"
+                                          ? lang.proficiency
+                                          : typeof lang.level === "number"
+                                            ? lang.level
+                                            : undefined, // No default proficiency
+                                    }),
+                                  )
                                   : []
                               }
                               onChange={(updatedLanguages) => {
@@ -5265,12 +5293,12 @@ export default function EditResumePage() {
                                           setResume((prev) =>
                                             prev
                                               ? {
-                                                  ...prev,
-                                                  content: {
-                                                    ...prev.content,
-                                                    awards: updated,
-                                                  },
-                                                }
+                                                ...prev,
+                                                content: {
+                                                  ...prev.content,
+                                                  awards: updated,
+                                                },
+                                              }
                                               : null,
                                           );
                                           setHasChanges(true);
@@ -5296,12 +5324,12 @@ export default function EditResumePage() {
                                           setResume((prev) =>
                                             prev
                                               ? {
-                                                  ...prev,
-                                                  content: {
-                                                    ...prev.content,
-                                                    awards: updated,
-                                                  },
-                                                }
+                                                ...prev,
+                                                content: {
+                                                  ...prev.content,
+                                                  awards: updated,
+                                                },
+                                              }
                                               : null,
                                           );
                                           setHasChanges(true);
@@ -5325,12 +5353,12 @@ export default function EditResumePage() {
                                           setResume((prev) =>
                                             prev
                                               ? {
-                                                  ...prev,
-                                                  content: {
-                                                    ...prev.content,
-                                                    awards: updated,
-                                                  },
-                                                }
+                                                ...prev,
+                                                content: {
+                                                  ...prev.content,
+                                                  awards: updated,
+                                                },
+                                              }
                                               : null,
                                           );
                                           setHasChanges(true);
@@ -5356,12 +5384,12 @@ export default function EditResumePage() {
                                           setResume((prev) =>
                                             prev
                                               ? {
-                                                  ...prev,
-                                                  content: {
-                                                    ...prev.content,
-                                                    awards: updated,
-                                                  },
-                                                }
+                                                ...prev,
+                                                content: {
+                                                  ...prev.content,
+                                                  awards: updated,
+                                                },
+                                              }
                                               : null,
                                           );
                                           setHasChanges(true);
@@ -5378,15 +5406,15 @@ export default function EditResumePage() {
                                       setResume((prev) =>
                                         prev
                                           ? {
-                                              ...prev,
-                                              content: {
-                                                ...prev.content,
-                                                awards:
-                                                  prev.content.awards?.filter(
-                                                    (_, i) => i !== index,
-                                                  ) || [],
-                                              },
-                                            }
+                                            ...prev,
+                                            content: {
+                                              ...prev.content,
+                                              awards:
+                                                prev.content.awards?.filter(
+                                                  (_, i) => i !== index,
+                                                ) || [],
+                                            },
+                                          }
                                           : null,
                                       );
                                       setHasChanges(true);
@@ -5406,21 +5434,21 @@ export default function EditResumePage() {
                                 setResume((prev) =>
                                   prev
                                     ? {
-                                        ...prev,
-                                        content: {
-                                          ...prev.content,
-                                          awards: [
-                                            ...(prev.content.awards || []),
-                                            {
-                                              id: nanoid(),
-                                              title: "",
-                                              issuer: "",
-                                              date: "",
-                                              description: "",
-                                            },
-                                          ],
-                                        },
-                                      }
+                                      ...prev,
+                                      content: {
+                                        ...prev.content,
+                                        awards: [
+                                          ...(prev.content.awards || []),
+                                          {
+                                            id: nanoid(),
+                                            title: "",
+                                            issuer: "",
+                                            date: "",
+                                            description: "",
+                                          },
+                                        ],
+                                      },
+                                    }
                                     : null,
                                 );
                                 setHasChanges(true);
@@ -5554,12 +5582,12 @@ export default function EditResumePage() {
                                           setResume((prev) =>
                                             prev
                                               ? {
-                                                  ...prev,
-                                                  content: {
-                                                    ...prev.content,
-                                                    references: updated,
-                                                  },
-                                                }
+                                                ...prev,
+                                                content: {
+                                                  ...prev.content,
+                                                  references: updated,
+                                                },
+                                              }
                                               : null,
                                           );
                                           setHasChanges(true);
@@ -5586,12 +5614,12 @@ export default function EditResumePage() {
                                           setResume((prev) =>
                                             prev
                                               ? {
-                                                  ...prev,
-                                                  content: {
-                                                    ...prev.content,
-                                                    references: updated,
-                                                  },
-                                                }
+                                                ...prev,
+                                                content: {
+                                                  ...prev.content,
+                                                  references: updated,
+                                                },
+                                              }
                                               : null,
                                           );
                                           setHasChanges(true);
@@ -5618,12 +5646,12 @@ export default function EditResumePage() {
                                           setResume((prev) =>
                                             prev
                                               ? {
-                                                  ...prev,
-                                                  content: {
-                                                    ...prev.content,
-                                                    references: updated,
-                                                  },
-                                                }
+                                                ...prev,
+                                                content: {
+                                                  ...prev.content,
+                                                  references: updated,
+                                                },
+                                              }
                                               : null,
                                           );
                                           setHasChanges(true);
@@ -5648,12 +5676,12 @@ export default function EditResumePage() {
                                           setResume((prev) =>
                                             prev
                                               ? {
-                                                  ...prev,
-                                                  content: {
-                                                    ...prev.content,
-                                                    references: updated,
-                                                  },
-                                                }
+                                                ...prev,
+                                                content: {
+                                                  ...prev.content,
+                                                  references: updated,
+                                                },
+                                              }
                                               : null,
                                           );
                                           setHasChanges(true);
@@ -5679,12 +5707,12 @@ export default function EditResumePage() {
                                           setResume((prev) =>
                                             prev
                                               ? {
-                                                  ...prev,
-                                                  content: {
-                                                    ...prev.content,
-                                                    references: updated,
-                                                  },
-                                                }
+                                                ...prev,
+                                                content: {
+                                                  ...prev.content,
+                                                  references: updated,
+                                                },
+                                              }
                                               : null,
                                           );
                                           setHasChanges(true);
@@ -5702,15 +5730,15 @@ export default function EditResumePage() {
                                       setResume((prev) =>
                                         prev
                                           ? {
-                                              ...prev,
-                                              content: {
-                                                ...prev.content,
-                                                references:
-                                                  prev.content.references?.filter(
-                                                    (_, i) => i !== index,
-                                                  ) || [],
-                                              },
-                                            }
+                                            ...prev,
+                                            content: {
+                                              ...prev.content,
+                                              references:
+                                                prev.content.references?.filter(
+                                                  (_, i) => i !== index,
+                                                ) || [],
+                                            },
+                                          }
                                           : null,
                                       );
                                       setHasChanges(true);
@@ -5730,22 +5758,22 @@ export default function EditResumePage() {
                                 setResume((prev) =>
                                   prev
                                     ? {
-                                        ...prev,
-                                        content: {
-                                          ...prev.content,
-                                          references: [
-                                            ...(prev.content.references || []),
-                                            {
-                                              id: nanoid(),
-                                              name: "",
-                                              position: "",
-                                              company: "",
-                                              email: "",
-                                              phone: "",
-                                            },
-                                          ],
-                                        },
-                                      }
+                                      ...prev,
+                                      content: {
+                                        ...prev.content,
+                                        references: [
+                                          ...(prev.content.references || []),
+                                          {
+                                            id: nanoid(),
+                                            name: "",
+                                            position: "",
+                                            company: "",
+                                            email: "",
+                                            phone: "",
+                                          },
+                                        ],
+                                      },
+                                    }
                                     : null,
                                 );
                                 setHasChanges(true);
@@ -5918,9 +5946,9 @@ export default function EditResumePage() {
                                               (c: any) =>
                                                 c.id === course.id
                                                   ? {
-                                                      ...c,
-                                                      name: e.target.value,
-                                                    }
+                                                    ...c,
+                                                    name: e.target.value,
+                                                  }
                                                   : c,
                                             );
                                           updateContent({
@@ -5942,10 +5970,10 @@ export default function EditResumePage() {
                                               (c: any) =>
                                                 c.id === course.id
                                                   ? {
-                                                      ...c,
-                                                      institution:
-                                                        e.target.value,
-                                                    }
+                                                    ...c,
+                                                    institution:
+                                                      e.target.value,
+                                                  }
                                                   : c,
                                             );
                                           updateContent({
@@ -5987,9 +6015,9 @@ export default function EditResumePage() {
                                             (c: any) =>
                                               c.id === course.id
                                                 ? {
-                                                    ...c,
-                                                    description: html,
-                                                  }
+                                                  ...c,
+                                                  description: html,
+                                                }
                                                 : c,
                                           );
                                         updateContent({
@@ -6167,9 +6195,9 @@ export default function EditResumePage() {
                                               (o: any) =>
                                                 o.id === org.id
                                                   ? {
-                                                      ...o,
-                                                      name: e.target.value,
-                                                    }
+                                                    ...o,
+                                                    name: e.target.value,
+                                                  }
                                                   : o,
                                             );
                                           updateContent({
@@ -6191,9 +6219,9 @@ export default function EditResumePage() {
                                               (o: any) =>
                                                 o.id === org.id
                                                   ? {
-                                                      ...o,
-                                                      role: e.target.value,
-                                                    }
+                                                    ...o,
+                                                    role: e.target.value,
+                                                  }
                                                   : o,
                                             );
                                           updateContent({
@@ -6217,9 +6245,9 @@ export default function EditResumePage() {
                                               (o: any) =>
                                                 o.id === org.id
                                                   ? {
-                                                      ...o,
-                                                      startDate: e.target.value,
-                                                    }
+                                                    ...o,
+                                                    startDate: e.target.value,
+                                                  }
                                                   : o,
                                             );
                                           updateContent({
@@ -6241,9 +6269,9 @@ export default function EditResumePage() {
                                               (o: any) =>
                                                 o.id === org.id
                                                   ? {
-                                                      ...o,
-                                                      endDate: e.target.value,
-                                                    }
+                                                    ...o,
+                                                    endDate: e.target.value,
+                                                  }
                                                   : o,
                                             );
                                           updateContent({
@@ -6266,9 +6294,9 @@ export default function EditResumePage() {
                                             (o: any) =>
                                               o.id === org.id
                                                 ? {
-                                                    ...o,
-                                                    description: html,
-                                                  }
+                                                  ...o,
+                                                  description: html,
+                                                }
                                                 : o,
                                           );
                                         updateContent({
@@ -6442,9 +6470,9 @@ export default function EditResumePage() {
                                             (p: any) =>
                                               p.id === pub.id
                                                 ? {
-                                                    ...p,
-                                                    title: e.target.value,
-                                                  }
+                                                  ...p,
+                                                  title: e.target.value,
+                                                }
                                                 : p,
                                           );
                                         updateContent({
@@ -6467,9 +6495,9 @@ export default function EditResumePage() {
                                               (p: any) =>
                                                 p.id === pub.id
                                                   ? {
-                                                      ...p,
-                                                      publisher: e.target.value,
-                                                    }
+                                                    ...p,
+                                                    publisher: e.target.value,
+                                                  }
                                                   : p,
                                             );
                                           updateContent({
@@ -6489,9 +6517,9 @@ export default function EditResumePage() {
                                               (p: any) =>
                                                 p.id === pub.id
                                                   ? {
-                                                      ...p,
-                                                      date: e.target.value,
-                                                    }
+                                                    ...p,
+                                                    date: e.target.value,
+                                                  }
                                                   : p,
                                             );
                                           updateContent({
@@ -6613,18 +6641,17 @@ export default function EditResumePage() {
                         const alreadyAdded = allowMultiple
                           ? false // Always allow adding spacers and custom sections
                           : sections.find(
-                              (s) => s.type === section.type && s.visible,
-                            );
+                            (s) => s.type === section.type && s.visible,
+                          );
                         return (
                           <Button
                             key={section.type}
                             variant="outline"
                             size="sm"
-                            className={`text-xs justify-start ${
-                              alreadyAdded
-                                ? "opacity-50 cursor-not-allowed"
-                                : "hover:bg-purple-50"
-                            }`}
+                            className={`text-xs justify-start ${alreadyAdded
+                              ? "opacity-50 cursor-not-allowed"
+                              : "hover:bg-purple-50"
+                              }`}
                             onClick={() => {
                               if (!alreadyAdded) {
                                 addSection(section.type);
@@ -6681,25 +6708,25 @@ export default function EditResumePage() {
         onOpenChange={setDeleteDialogOpen}
         title={
           sectionToDelete &&
-          ["personalInfo", "experience", "education"].includes(
-            sectionToDelete.type,
-          )
+            ["personalInfo", "experience", "education"].includes(
+              sectionToDelete.type,
+            )
             ? "Cannot Delete Essential Section"
             : "Delete Section"
         }
         description={
           sectionToDelete &&
-          ["personalInfo", "experience", "education"].includes(
-            sectionToDelete.type,
-          )
+            ["personalInfo", "experience", "education"].includes(
+              sectionToDelete.type,
+            )
             ? "Cannot delete essential sections like Personal Info, Experience, and Education. These sections are required for your resume."
             : `Are you sure you want to delete the "${sectionToDelete?.title}" section? This action cannot be undone.`
         }
         confirmText={
           sectionToDelete &&
-          ["personalInfo", "experience", "education"].includes(
-            sectionToDelete.type,
-          )
+            ["personalInfo", "experience", "education"].includes(
+              sectionToDelete.type,
+            )
             ? "OK"
             : "Delete"
         }
@@ -6707,9 +6734,9 @@ export default function EditResumePage() {
         onConfirm={handleConfirmDelete}
         variant={
           sectionToDelete &&
-          ["personalInfo", "experience", "education"].includes(
-            sectionToDelete.type,
-          )
+            ["personalInfo", "experience", "education"].includes(
+              sectionToDelete.type,
+            )
             ? "default"
             : "destructive"
         }

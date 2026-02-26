@@ -6,6 +6,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { Resume } from "@/lib/api";
+import "@fortawesome/fontawesome-free/css/all.min.css";
 
 interface ExecutiveTemplateProps {
   resume: Resume;
@@ -396,25 +397,41 @@ export function ExecutiveTemplate({ resume, padding }: ExecutiveTemplateProps) {
         >
           {personalInfo.location && (
             <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-              <span style={{ fontSize: "10pt" }}>📍</span>
+              <i
+                className="fa-fw fa-solid fa-location-dot"
+                style={{ fontSize: "10pt", verticalAlign: "text-top" }}
+                aria-hidden
+              />
               <span>{personalInfo.location}</span>
             </div>
           )}
           {personalInfo.email && (
             <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-              <span style={{ fontSize: "10pt" }}>✉️</span>
+              <i
+                className="fa-fw fa-solid fa-envelope"
+                style={{ fontSize: "10pt", verticalAlign: "text-top" }}
+                aria-hidden
+              />
               <span>{personalInfo.email}</span>
             </div>
           )}
           {personalInfo.phone && (
             <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-              <span style={{ fontSize: "10pt" }}>📞</span>
+              <i
+                className="fa-fw fa-solid fa-phone"
+                style={{ fontSize: "10pt", verticalAlign: "text-top" }}
+                aria-hidden
+              />
               <span>{personalInfo.phone}</span>
             </div>
           )}
           {personalInfo.linkedin && (
             <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-              <span style={{ fontSize: "10pt" }}>🔗</span>
+              <i
+                className="fa-fw fa-brands fa-linkedin"
+                style={{ fontSize: "10pt", verticalAlign: "text-top" }}
+                aria-hidden
+              />
               <span>
                 {personalInfo.linkedin.replace(
                   /^https?:\/\/(www\.)?linkedin\.com\/in\//,

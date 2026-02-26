@@ -48,15 +48,25 @@
 }
 
 /* Section Header Styles */
+.harvard-section-header-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+.harvard-section-header-wrapper--border-bottom {
+  margin-bottom: 8px;
+  margin-top: 18px;
+  padding: 0 12px 4px;
+  border-bottom: 1px solid #000000;
+}
 .harvard-section-header {
+  margin: 0;
+  padding: 0;
   font-size: 12px;
   font-weight: bold;
   text-transform: uppercase;
   text-align: left;
-  border-bottom: 1px solid #000000;
-  padding-bottom: 4px;
-  margin-bottom: 12px;
-  margin-top: 18px;
+  border: none;
   color: #000000;
 }
 
