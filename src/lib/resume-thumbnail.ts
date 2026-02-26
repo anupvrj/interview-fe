@@ -212,7 +212,7 @@ export async function captureResumeThumbnail(
       logging: true, // Enable logging to debug
       background: "#ffffff",
       allowTaint: false,
-      onclone: (_clonedDoc, clonedElement) => {
+      onclone: (_clonedDoc: Document, clonedElement: HTMLElement) => {
         // Replace S3/external img src with proxy URL before html2canvas fetches
         const imgs = clonedElement.querySelectorAll("img[src]");
         imgs.forEach((img) => {
@@ -229,7 +229,7 @@ export async function captureResumeThumbnail(
           }
         });
       },
-    });
+    } as any);
 
     // Restore element styles
     element.style.display = originalStyles.display;
