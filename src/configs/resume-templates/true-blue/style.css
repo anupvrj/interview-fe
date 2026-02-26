@@ -5,7 +5,7 @@
 
 /* Template Container */
 .true-blue-template {
-  font-family: Calibri, 'Segoe UI', 'Trebuchet MS', sans-serif;
+  font-family: Calibri, "Segoe UI", "Trebuchet MS", sans-serif;
   color: #000000;
   background-color: #ffffff;
   padding: 8px;
@@ -70,18 +70,25 @@
 }
 
 /* Section Header Styles */
-.true-blue-section-header,
-.true-blue-template h2 {
-  font-size: 12px !important;
+.true-blue-section-header-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+.true-blue-section-header-wrapper--border-bottom {
+  margin-bottom: 10px;
+  margin-top: 16px;
+  padding: 0 12px 4px;
+  border-bottom: 1.5px solid #2c5f9e;
+}
+.true-blue-section-header {
+  margin: 0;
+  padding: 0;
+  font-size: 12px;
   font-weight: bold;
   text-transform: uppercase;
   text-align: left;
-  border-bottom: 1.5px solid #2c5f9e !important;
-  border-top: none !important;
-  padding-bottom: 4px !important;
-  padding-top: 0 !important;
-  margin-bottom: 10px !important;
-  margin-top: 16px !important;
+  border: none !important;
   color: #2c5f9e !important;
   letter-spacing: 0.5px;
   -webkit-print-color-adjust: exact !important;
@@ -272,21 +279,17 @@
   /* Force all blue elements to preserve color */
   .true-blue-name,
   .true-blue-job-title,
-  .true-blue-section-header,
-  .true-blue-template h2 {
+  .true-blue-section-header {
     color: #2c5f9e !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
     color-adjust: exact !important;
   }
 
-  .true-blue-section-header,
-  .true-blue-template h2 {
+  .true-blue-section-header-wrapper--border-bottom {
     border-bottom-color: #2c5f9e !important;
-    border-bottom-style: solid !important;
-    border-bottom-width: 1.5px !important;
   }
-  
+
   /* Ensure all text colors are preserved */
   * {
     -webkit-print-color-adjust: exact !important;

@@ -24,7 +24,10 @@ export const PaginatedPreview: React.FC<PaginatedPreviewProps> = ({
 
   // Create a tracking key so the paginator knows exactly when to rerun
   const rendererKey = useMemo(() => {
-    return sections?.map((s, idx) => `${idx}:${s.id}-${s.visible}`).join("|") + `-${currentLayout.type}`;
+    return (
+      sections?.map((s, idx) => `${idx}:${s.id}-${s.visible}`).join("|") +
+      `-${currentLayout.type}`
+    );
   }, [sections, currentLayout.type]);
 
   const A4_HEIGHT_IN_PX = 1120; // safe approximation for a standard 297mm print height at web DPI (minus margins)
@@ -33,15 +36,16 @@ export const PaginatedPreview: React.FC<PaginatedPreviewProps> = ({
   const TOP_MARGIN_MM = 5; // Reduced from 15mm
   const BOTTOM_MARGIN_MM = 5; // Reduced from 15mm
   const CONTENT_HEIGHT_MM = PAGE_HEIGHT_MM - TOP_MARGIN_MM - BOTTOM_MARGIN_MM;
+  const isAtlanticBlue = template.id === "atlantic-blue";
 
   // 1. Hook up the math pagination engine
-  const { pages, totalHeight, isPaginating, measuringRef } = useResumePagination({
-    resume,
-    sections: sections || [],
-    isTwoColumn,
-    pageHeightLimit: (CONTENT_HEIGHT_MM / 297) * 1122.5, // Calc pixel limit based on content height
-  });
-
+  const { pages, totalHeight, isPaginating, measuringRef } =
+    useResumePagination({
+      resume,
+      sections: sections || [],
+      isTwoColumn,
+      pageHeightLimit: (CONTENT_HEIGHT_MM / 297) * 1122.5, // Calc pixel limit based on content height
+    });
 
   return (
     <>
@@ -79,8 +83,11 @@ export const PaginatedPreview: React.FC<PaginatedPreviewProps> = ({
               overflow: "hidden",
               marginBottom: "20px",
               position: "relative",
-              background: "white",
-              boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)",
+              background: isAtlanticBlue
+                ? "linear-gradient(to right, #2c3e50 0 40%, #ffffff 40% 100%)"
+                : "white",
+              boxShadow:
+                "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)",
             }}
           >
             {/* 
