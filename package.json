@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@clerk/nextjs": "^6.36.0",
+    "@fortawesome/fontawesome-free": "^7.2.0",
     "@hookform/resolvers": "^3.9.1",
     "@radix-ui/react-alert-dialog": "^1.1.15",
     "@radix-ui/react-avatar": "^1.1.1",
@@ -37,6 +38,7 @@
     "@tiptap/starter-kit": "^3.13.0",
     "@types/dagre": "^0.7.53",
     "axios": "^1.7.7",
+    "bootstrap-icons": "^1.13.1",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
     "dagre": "^0.8.5",

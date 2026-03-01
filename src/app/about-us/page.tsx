@@ -566,7 +566,7 @@ export default function AboutPage() {
                 </ul>
 
                 {/* CTA Button */}
-                <Link href="/job-search">
+                <Link href="/ai-job-search">
                   <Button
                     size="lg"
                     className="w-full bg-amber-600 hover:bg-amber-700 text-white font-medium shadow-lg hover:shadow-xl transition-all h-12"

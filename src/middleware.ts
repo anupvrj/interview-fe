@@ -8,12 +8,18 @@ const isPublicRoute = createRouteMatcher([
   "/onboarding(.*)",
   "/api/webhooks(.*)",
   "/ai-resume-builder(.*)",
-  "/job-search(.*)",
+  "/ai-job-search(.*)",
+  "/ai-job-search",
   "/ai-interview-coach(.*)",
   "/about-us(.*)",
   "/pricing(.*)",
   "/ats-checker(.*)",
   "/research(.*)",
+  "/contact(.*)",
+  "/refund(.*)",
+  "/terms(.*)",
+  "/robots.txt",
+  "/sitemap.xml",
 ]);
 
 export default clerkMiddleware(
@@ -27,7 +33,7 @@ export default clerkMiddleware(
   },
   {
     debug: false,
-  }
+  },
 );
 
 export const config = {
