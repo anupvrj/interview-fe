@@ -51,6 +51,7 @@ export default function RealtimeInterviewPage() {
   const [currentAssistantTranscript, setCurrentAssistantTranscript] =
     useState("");
   const [currentUserTranscript, setCurrentUserTranscript] = useState(""); // For Gemini partial transcripts
+  const [lastUserTranscript, setLastUserTranscript] = useState(""); // Track last added user transcript to prevent duplicates
   const [isAISpeaking, setIsAISpeaking] = useState(false); // Track if AI is actually speaking
   const [lastAIMessage, setLastAIMessage] = useState("");
 
@@ -356,10 +357,12 @@ export default function RealtimeInterviewPage() {
             handleGeminiAudioResponse(data.audioData);
             setIsAISpeaking(true); // AI is sending audio, so it's speaking
           } else if (data.type === "text_response") {
-            // AI transcript - only add complete sentences to transcript
+            // AI transcript - show partials in real-time, add complete to history
             if (data.text) {
-              console.log(`🤖 AI transcript: "${data.text.substring(0, 50)}..." (finished: ${data.finished !== false})`);
-              if (data.finished !== false) {
+              const isComplete = data.finished === true;
+              console.log(`🤖 AI transcript: "${data.text.substring(0, 50)}..." (finished: ${isComplete})`);
+              
+              if (isComplete) {
                 // Complete transcript - add to chat history
                 console.log(`✅ Adding complete AI transcript to UI`);
                 setTranscript((prev) => [
@@ -367,6 +370,10 @@ export default function RealtimeInterviewPage() {
                   { role: "assistant", content: data.text, timestamp: new Date() },
                 ]);
                 setLastAIMessage(data.text);
+                setCurrentAssistantTranscript(""); // Clear partial
+              } else {
+                // Partial transcript - show in "speaking..." area for real-time display
+                setCurrentAssistantTranscript(data.text);
               }
             }
           } else if (data.type === "turn_complete") {
@@ -376,19 +383,26 @@ export default function RealtimeInterviewPage() {
             setCurrentAssistantTranscript("");
             isPlayingAudioRef.current = false;
           } else if (data.type === "user_transcript") {
-            // Gemini sends partial transcripts - only show complete ones
+            // User transcript - show partials in real-time, add complete to history
             if (data.text) {
-              console.log(`📝 User transcript: "${data.text.substring(0, 50)}..." (finished: ${data.finished !== false})`);
-              if (data.finished !== false) {
-                // Complete transcript - add to chat history
-                console.log(`✅ Adding complete user transcript to UI`);
-                setTranscript((prev) => [
-                  ...prev,
-                  { role: "user", content: data.text, timestamp: new Date() },
-                ]);
+              const isComplete = data.finished === true;
+              console.log(`📝 User transcript: "${data.text.substring(0, 50)}..." (finished: ${isComplete})`);
+              
+              if (isComplete) {
+                // Complete transcript - add to chat history only if not duplicate
+                if (data.text !== lastUserTranscript) {
+                  console.log(`✅ Adding complete user transcript to UI`);
+                  setTranscript((prev) => [
+                    ...prev,
+                    { role: "user", content: data.text, timestamp: new Date() },
+                  ]);
+                  setLastUserTranscript(data.text); // Remember to prevent duplicates
+                } else {
+                  console.log(`⚠️ Skipping duplicate user transcript`);
+                }
                 setCurrentUserTranscript(""); // Clear partial
               } else {
-                // Partial transcript - just update state (for debugging, not shown in UI)
+                // Partial transcript - update for real-time display
                 setCurrentUserTranscript(data.text);
               }
             }
@@ -1729,14 +1743,14 @@ export default function RealtimeInterviewPage() {
               ) : null}
               {isInterviewActive && (
                 <div className="flex items-center justify-center min-h-[200px] px-4">
-                  {isAISpeaking && lastAIMessage ? (
-                    // AI is actively speaking - show last complete message
+                  {isAISpeaking || currentAssistantTranscript ? (
+                    // AI is actively speaking - show real-time partial or last complete message
                     <div className="p-6 rounded-lg bg-purple-600/20 max-w-xl w-full">
                       <div className="text-xs text-purple-400 mb-2 font-semibold">
                         Speaking...
                       </div>
                       <div className="text-base leading-relaxed">
-                        {lastAIMessage}
+                        {currentAssistantTranscript || lastAIMessage}
                       </div>
                     </div>
                   ) : lastAIMessage ? (
