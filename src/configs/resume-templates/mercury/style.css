@@ -5,8 +5,7 @@
 
 /* Main Container */
 .mercury-template {
-  font-family:
-    "Rockwell Std", "Zilla Slab", "Roboto Slab", Rockwell, "Courier New", serif;
+  font-family: 'Rockwell Std', 'Zilla Slab', 'Roboto Slab', Rockwell, 'Courier New', serif;
   color: #3d3d3d;
   background-color: #ffffff;
 }
@@ -97,30 +96,18 @@
   padding: 0 55px;
 }
 
-/* Section Header Styles */
-.mercury-section-header-wrapper {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.mercury-section-header-wrapper--background {
-  margin-top: 25px;
-  margin-bottom: 15px;
-  padding: 8px 0;
-  width: 100%;
-  background-color: #efefef;
-}
+/* Section Header Styles - Gray Bar */
 .mercury-section-header {
-  margin: 0;
-  padding: 0;
-  width: 100%;
+  background-color: #efefef;
   text-align: center;
   font-size: 13px;
   font-weight: bold;
   text-transform: uppercase;
+  padding: 8px 0;
+  margin-top: 25px;
+  margin-bottom: 15px;
   letter-spacing: 1px;
-  border: none;
-  color: #000000;
+  width: 100%;
 }
 
 /* Timeline Layouts (Grid-based Date/Location on Left) */
