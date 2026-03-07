@@ -50,6 +50,8 @@ export default function RealtimeInterviewPage() {
   >([]);
   const [currentAssistantTranscript, setCurrentAssistantTranscript] =
     useState("");
+  const [currentUserTranscript, setCurrentUserTranscript] = useState(""); // For Gemini partial transcripts
+  const [isAISpeaking, setIsAISpeaking] = useState(false); // Track if AI is actually speaking
   const [lastAIMessage, setLastAIMessage] = useState("");
 
   // Refs
@@ -352,24 +354,43 @@ export default function RealtimeInterviewPage() {
             handleOpenAIEvent(data.event);
           } else if (data.type === "audio_response") {
             handleGeminiAudioResponse(data.audioData);
+            setIsAISpeaking(true); // AI is sending audio, so it's speaking
           } else if (data.type === "text_response") {
+            // AI transcript - only add complete sentences to transcript
             if (data.text) {
-              setCurrentAssistantTranscript(data.text);
+              console.log(`🤖 AI transcript: "${data.text.substring(0, 50)}..." (finished: ${data.finished !== false})`);
               if (data.finished !== false) {
+                // Complete transcript - add to chat history
+                console.log(`✅ Adding complete AI transcript to UI`);
                 setTranscript((prev) => [
                   ...prev,
                   { role: "assistant", content: data.text, timestamp: new Date() },
                 ]);
                 setLastAIMessage(data.text);
-                setCurrentAssistantTranscript("");
               }
             }
+          } else if (data.type === "turn_complete") {
+            // AI finished speaking - clear the "speaking..." indicator
+            console.log("✅ AI turn complete - clearing speaking indicator");
+            setIsAISpeaking(false);
+            setCurrentAssistantTranscript("");
+            isPlayingAudioRef.current = false;
           } else if (data.type === "user_transcript") {
+            // Gemini sends partial transcripts - only show complete ones
             if (data.text) {
-              setTranscript((prev) => [
-                ...prev,
-                { role: "user", content: data.text, timestamp: new Date() },
-              ]);
+              console.log(`📝 User transcript: "${data.text.substring(0, 50)}..." (finished: ${data.finished !== false})`);
+              if (data.finished !== false) {
+                // Complete transcript - add to chat history
+                console.log(`✅ Adding complete user transcript to UI`);
+                setTranscript((prev) => [
+                  ...prev,
+                  { role: "user", content: data.text, timestamp: new Date() },
+                ]);
+                setCurrentUserTranscript(""); // Clear partial
+              } else {
+                // Partial transcript - just update state (for debugging, not shown in UI)
+                setCurrentUserTranscript(data.text);
+              }
             }
           } else if (data.type === "interrupted") {
             audioQueueRef.current = [];
@@ -379,7 +400,9 @@ export default function RealtimeInterviewPage() {
               audioBufferTimerRef.current = null;
             }
             isPlayingAudioRef.current = false;
+            setIsAISpeaking(false); // Clear AI speaking state
             setCurrentAssistantTranscript("");
+            setCurrentUserTranscript(""); // Clear partial user transcript
           } else if (data.type === "error") {
             setError(data.message);
           }
@@ -1683,7 +1706,7 @@ export default function RealtimeInterviewPage() {
                       ? "Connecting..."
                       : isUserSpeaking
                       ? "🎤 Listening to you..."
-                      : currentAssistantTranscript
+                      : isAISpeaking
                       ? "🗣️ Speaking..."
                       : "Ready"}
                   </p>
@@ -1706,18 +1729,18 @@ export default function RealtimeInterviewPage() {
               ) : null}
               {isInterviewActive && (
                 <div className="flex items-center justify-center min-h-[200px] px-4">
-                  {currentAssistantTranscript ? (
-                    // AI is actively speaking
+                  {isAISpeaking && lastAIMessage ? (
+                    // AI is actively speaking - show last complete message
                     <div className="p-6 rounded-lg bg-purple-600/20 max-w-xl w-full">
                       <div className="text-xs text-purple-400 mb-2 font-semibold">
                         Speaking...
                       </div>
                       <div className="text-base leading-relaxed">
-                        {currentAssistantTranscript}
+                        {lastAIMessage}
                       </div>
                     </div>
                   ) : lastAIMessage ? (
-                    // Show last AI message until next one starts
+                    // Show last AI message when not speaking
                     <div className="p-6 rounded-lg bg-purple-600/10 max-w-xl w-full border border-purple-500/20">
                       <div className="text-base leading-relaxed text-gray-300">
                         {lastAIMessage}
@@ -1804,17 +1827,7 @@ export default function RealtimeInterviewPage() {
                       </span>
                       <span className="text-gray-200">{item.content}</span>
                     </div>
-                  ))}
-                  {currentAssistantTranscript && (
-                    <div className="text-sm p-3 rounded bg-purple-600/40 border border-purple-500/50 animate-pulse">
-                      <span className="font-semibold text-purple-300">
-                        AI (speaking...):
-                      </span>
-                      <span className="text-gray-200">
-                        {currentAssistantTranscript}
-                      </span>
-                    </div>
-                  )}
+                  )                  )}
                 </>
               )}
             </div>
