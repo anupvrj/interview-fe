@@ -22,6 +22,10 @@ import { formatDuration } from "@/lib/utils";
 
 const MAX_INTERVIEW_DURATION = 15 * 60; // 15 minutes in seconds
 
+/** Voice provider for realtime: "chatgpt" (default) or "gemini". Set via NEXT_PUBLIC_VOICE_PROVIDER. */
+const VOICE_PROVIDER: "chatgpt" | "gemini" =
+  (process.env.NEXT_PUBLIC_VOICE_PROVIDER as "chatgpt" | "gemini") || "chatgpt";
+
 export default function RealtimeInterviewPage() {
   const params = useParams();
   const router = useRouter();
@@ -56,14 +60,18 @@ export default function RealtimeInterviewPage() {
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const audioProcessorRef = useRef<ScriptProcessorNode | null>(null);
   const audioQueueRef = useRef<Int16Array[]>([]);
+  const audioBufferRef = useRef<Int16Array[]>([]); // Buffer for batching small chunks
+  const audioBufferTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isPlayingAudioRef = useRef(false);
   const isInterviewActiveRef = useRef(false);
+  const connectionInitiatedRef = useRef(false); // Prevent duplicate connections
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordedChunksRef = useRef<Blob[]>([]);
   const screenStreamRef = useRef<MediaStream | null>(null);
   const aiAudioDestinationRef = useRef<MediaStreamAudioDestinationNode | null>(
     null
   );
+  const voiceProviderRef = useRef<"chatgpt" | "gemini">(VOICE_PROVIDER);
 
   useEffect(() => {
     loadInterview();
@@ -283,13 +291,28 @@ export default function RealtimeInterviewPage() {
       mediaStreamRef.current.getTracks().forEach((track) => track.stop());
     }
     audioQueueRef.current = [];
+    audioBufferRef.current = [];
+    if (audioBufferTimerRef.current) {
+      clearTimeout(audioBufferTimerRef.current);
+      audioBufferTimerRef.current = null;
+    }
     recordedChunksRef.current = [];
     isPlayingAudioRef.current = false;
     isInterviewActiveRef.current = false;
+    connectionInitiatedRef.current = false; // Reset for next connection
   };
 
   const connectWebSocket = async () => {
+    // Prevent duplicate connections (React Strict Mode can cause double mounting)
+    if (connectionInitiatedRef.current) {
+      console.warn("⚠️ WebSocket connection already initiated, skipping duplicate");
+      return;
+    }
+    
     try {
+      console.log("🔌 Initiating WebSocket connection");
+      connectionInitiatedRef.current = true;
+      
       const userId = localStorage.getItem("clerk-user-id");
       if (!userId) {
         throw new Error("User not authenticated");
@@ -304,7 +327,11 @@ export default function RealtimeInterviewPage() {
       // Use wss:// for HTTPS sites, ws:// for HTTP (localhost)
       const wsProtocol =
         globalThis.location.protocol === "https:" ? "wss:" : "ws:";
-      const wsUrl = `${wsProtocol}//${baseUrl}/api/interviews/${interviewId}/realtime?userId=${userId}`;
+      const realtimePath =
+        VOICE_PROVIDER === "gemini"
+          ? `interviews/${interviewId}/realtime/gemini`
+          : `interviews/${interviewId}/realtime`;
+      const wsUrl = `${wsProtocol}//${baseUrl}/api/${realtimePath}?userId=${userId}`;
 
       console.log("🔌 Connecting to WebSocket:", wsUrl);
       const ws = new WebSocket(wsUrl);
@@ -320,8 +347,39 @@ export default function RealtimeInterviewPage() {
 
           if (data.type === "connected") {
             console.log("✅ Realtime interview connected");
+            if (data.provider) voiceProviderRef.current = data.provider;
           } else if (data.type === "openai_event") {
             handleOpenAIEvent(data.event);
+          } else if (data.type === "audio_response") {
+            handleGeminiAudioResponse(data.audioData);
+          } else if (data.type === "text_response") {
+            if (data.text) {
+              setCurrentAssistantTranscript(data.text);
+              if (data.finished !== false) {
+                setTranscript((prev) => [
+                  ...prev,
+                  { role: "assistant", content: data.text, timestamp: new Date() },
+                ]);
+                setLastAIMessage(data.text);
+                setCurrentAssistantTranscript("");
+              }
+            }
+          } else if (data.type === "user_transcript") {
+            if (data.text) {
+              setTranscript((prev) => [
+                ...prev,
+                { role: "user", content: data.text, timestamp: new Date() },
+              ]);
+            }
+          } else if (data.type === "interrupted") {
+            audioQueueRef.current = [];
+            audioBufferRef.current = [];
+            if (audioBufferTimerRef.current) {
+              clearTimeout(audioBufferTimerRef.current);
+              audioBufferTimerRef.current = null;
+            }
+            isPlayingAudioRef.current = false;
+            setCurrentAssistantTranscript("");
           } else if (data.type === "error") {
             setError(data.message);
           }
@@ -391,6 +449,57 @@ export default function RealtimeInterviewPage() {
     source.start();
   };
 
+  /** Decode Gemini audio_response (base64 PCM 24kHz) and batch for smooth playback. */
+  const handleGeminiAudioResponse = (base64Audio: string) => {
+    if (!base64Audio) return;
+    try {
+      const binaryString = atob(base64Audio);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.codePointAt(i) ?? 0;
+      }
+      
+      // Skip empty audio chunks (0 bytes) to prevent stuttering
+      if (bytes.length === 0) return;
+      
+      const pcm16 = new Int16Array(bytes.buffer);
+      
+      // Add to buffer for batching
+      audioBufferRef.current.push(pcm16);
+      
+      // Clear existing timer
+      if (audioBufferTimerRef.current) {
+        clearTimeout(audioBufferTimerRef.current);
+      }
+      
+      // Flush buffer after 20ms of no new chunks (batches small chunks together, low latency)
+      audioBufferTimerRef.current = setTimeout(() => {
+        if (audioBufferRef.current.length > 0) {
+          // Concatenate all buffered chunks into one
+          const totalLength = audioBufferRef.current.reduce((sum, chunk) => sum + chunk.length, 0);
+          const combined = new Int16Array(totalLength);
+          let offset = 0;
+          
+          for (const chunk of audioBufferRef.current) {
+            combined.set(chunk, offset);
+            offset += chunk.length;
+          }
+          
+          // Add combined chunk to playback queue
+          audioQueueRef.current.push(combined);
+          audioBufferRef.current = [];
+          
+          // Start playing if not already playing
+          if (!isPlayingAudioRef.current) {
+            playAudioQueue();
+          }
+        }
+      }, 20);
+    } catch (err) {
+      console.error("Error queueing Gemini audio:", err);
+    }
+  };
+
   const handleOpenAIEvent = (event: any) => {
     switch (event.type) {
       case "conversation.item.input_audio_transcription.completed":
@@ -411,6 +520,11 @@ export default function RealtimeInterviewPage() {
         // User started speaking - stop AI audio immediately
         setIsUserSpeaking(true);
         audioQueueRef.current = [];
+        audioBufferRef.current = [];
+        if (audioBufferTimerRef.current) {
+          clearTimeout(audioBufferTimerRef.current);
+          audioBufferTimerRef.current = null;
+        }
         isPlayingAudioRef.current = false;
         // Stop any currently playing audio
         if (audioContextRef.current) {
@@ -432,12 +546,22 @@ export default function RealtimeInterviewPage() {
         // New response starting - clear current transcript and audio queue
         setCurrentAssistantTranscript(""); // Clear to start fresh
         audioQueueRef.current = [];
+        audioBufferRef.current = [];
+        if (audioBufferTimerRef.current) {
+          clearTimeout(audioBufferTimerRef.current);
+          audioBufferTimerRef.current = null;
+        }
         isPlayingAudioRef.current = false;
         break;
 
       case "response.cancelled":
         // Response was cancelled (due to interruption)
         audioQueueRef.current = [];
+        audioBufferRef.current = [];
+        if (audioBufferTimerRef.current) {
+          clearTimeout(audioBufferTimerRef.current);
+          audioBufferTimerRef.current = null;
+        }
         isPlayingAudioRef.current = false;
         setCurrentAssistantTranscript("");
         break;
@@ -609,17 +733,14 @@ export default function RealtimeInterviewPage() {
         }
         const base64Audio = btoa(binary);
 
-        // Continuously stream audio to OpenAI (server VAD handles turn detection)
-        if (audioChunkCount % 50 === 0) {
-          console.log(
-            `✅ Sending audio chunk #${audioChunkCount} to backend (${base64Audio.length} bytes, ${inputData.length}→${resampledData.length} samples)`
-          );
-        }
+        // Stream audio: Gemini expects { type: "audio", audioData }; ChatGPT expects { type: "audio_chunk", audio }
+        const isGemini = voiceProviderRef.current === "gemini";
         websocketRef.current.send(
-          JSON.stringify({
-            type: "audio_chunk",
-            audio: base64Audio,
-          })
+          JSON.stringify(
+            isGemini
+              ? { type: "audio", audioData: base64Audio }
+              : { type: "audio_chunk", audio: base64Audio }
+          )
         );
       };
 
@@ -657,15 +778,23 @@ export default function RealtimeInterviewPage() {
         setElapsedTime((prev) => prev + 1);
       }, 1000);
 
-      // Request first response from AI
+      // Request first response: ChatGPT uses response.create; Gemini uses a text nudge
       setTimeout(() => {
         if (websocketRef.current?.readyState === WebSocket.OPEN) {
-          console.log("🎤 Requesting AI to start the conversation...");
-          websocketRef.current.send(
-            JSON.stringify({
-              type: "response.create",
-            })
-          );
+          if (voiceProviderRef.current === "gemini") {
+            console.log("🎤 Telling Gemini to start the interview...");
+            websocketRef.current.send(
+              JSON.stringify({
+                type: "text",
+                text: "I'm ready. Please start the interview with a brief greeting and your first question.",
+              })
+            );
+          } else {
+            console.log("🎤 Requesting AI to start the conversation...");
+            websocketRef.current.send(
+              JSON.stringify({ type: "response.create" })
+            );
+          }
         }
       }, 1000);
     } catch (error: any) {
@@ -705,9 +834,13 @@ export default function RealtimeInterviewPage() {
       // Stop timer
       if (timerRef.current) clearInterval(timerRef.current);
 
-      // Close WebSocket
+      // Close WebSocket (Gemini expects end_session first)
       if (websocketRef.current) {
-        websocketRef.current.send(JSON.stringify({ type: "close" }));
+        if (voiceProviderRef.current === "gemini") {
+          websocketRef.current.send(JSON.stringify({ type: "end_session" }));
+        } else {
+          websocketRef.current.send(JSON.stringify({ type: "close" }));
+        }
         websocketRef.current.close();
       }
 

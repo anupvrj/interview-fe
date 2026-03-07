@@ -9,7 +9,21 @@ import React, { useRef, useMemo } from "react";
 import { Resume, ResumeTemplate } from "@/lib/api";
 import { getExtendedTemplate } from "@/lib/templateConfigs";
 import { getTemplateStyle, TemplateStyleConfig } from "@/lib/templateRenderer";
-import "@fortawesome/fontawesome-free/css/all.min.css";
+import {
+  User,
+  Briefcase,
+  GraduationCap,
+  Brain,
+  Globe,
+  Award,
+  FileText,
+  Mail,
+  Phone,
+  MapPin,
+  Linkedin,
+  ExternalLink,
+  Github,
+} from "lucide-react";
 
 interface Section {
   id: string;
@@ -37,37 +51,24 @@ interface PageBreak {
   sections: string[];
 }
 
-// Font Awesome (font) for contact items - aligns better with text in html2canvas/PDF
-const CONTACT_ICON_MAP: Record<string, string> = {
-  email: "fa-solid fa-envelope",
-  phone: "fa-solid fa-phone",
-  location: "fa-solid fa-location-dot",
-  linkedin: "fa-brands fa-linkedin",
-  github: "fa-brands fa-github",
-  website: "fa-solid fa-arrow-up-right-from-square",
-};
-
-// Font Awesome for section headers
-const SECTION_ICON_MAP: Record<string, string> = {
-  personalInfo: "fa-solid fa-user",
-  profileSummary: "fa-solid fa-file-lines",
-  experience: "fa-solid fa-briefcase",
-  education: "fa-solid fa-graduation-cap",
-  skills: "fa-solid fa-brain",
-  projects: "fa-solid fa-folder",
-  achievements: "fa-solid fa-trophy",
-  languages: "fa-solid fa-globe",
-  certificates: "fa-solid fa-certificate",
-  interests: "fa-solid fa-star",
-  courses: "fa-solid fa-graduation-cap",
-  awards: "fa-solid fa-trophy",
-  organisations: "fa-solid fa-briefcase",
-  publications: "fa-solid fa-book",
-  references: "fa-solid fa-user",
-  declaration: "fa-solid fa-file-signature",
-  custom: "fa-solid fa-file-lines",
-  spacer: "fa-solid fa-file-lines",
-  quote: "fa-solid fa-quote-left",
+const ICON_MAP = {
+  personalInfo: User,
+  experience: Briefcase,
+  education: GraduationCap,
+  skills: Brain,
+  languages: Globe,
+  awards: Award,
+  projects: FileText,
+  achievements: Award,
+  certificates: Award,
+  interests: FileText,
+  courses: GraduationCap,
+  organisations: Briefcase,
+  publications: FileText,
+  references: User,
+  declaration: FileText,
+  profileSummary: User,
+  quote: FileText,
 };
 
 export function ResumeRenderer({
@@ -232,19 +233,14 @@ export function ResumeRenderer({
       const rightColumn: Section[] = [];
 
       const extendedTemplate = getExtendedTemplate(template);
-      const columnAssignment =
-        extendedTemplate?.rendering?.layout?.columnAssignment;
+      const columnAssignment = extendedTemplate?.rendering?.layout?.columnAssignment;
 
       // Track position for alternating distribution (for Atlantic Blue)
       let nonPersonalInfoIndex = 0;
 
       bodySections.forEach((section, index) => {
         // First check if explicit column assignment exists
-        if (
-          columnAssignment &&
-          (columnAssignment.left?.length > 0 ||
-            columnAssignment.right?.length > 0)
-        ) {
+        if (columnAssignment && (columnAssignment.left?.length > 0 || columnAssignment.right?.length > 0)) {
           if (columnAssignment.left?.includes(section.type)) {
             leftColumn.push(section);
             return;
@@ -255,6 +251,17 @@ export function ResumeRenderer({
           }
           // Default unassigned sections to the left column (main body)
           leftColumn.push(section);
+          return;
+        }
+
+        // Specifically handle the "clean-slate" distribution
+        if (template.id === "clean-slate") {
+          const rightColumnTypes = ["skills", "certificates", "interests", "languages", "awards", "certifications"];
+          if (rightColumnTypes.includes(section.type)) {
+            rightColumn.push(section);
+          } else {
+            leftColumn.push(section); // profileSummary, experience, education, projects, etc.
+          }
           return;
         }
 
@@ -302,8 +309,30 @@ export function ResumeRenderer({
     template.id,
   ]);
 
-  const getSectionIconClass = (sectionType: string) =>
-    SECTION_ICON_MAP[sectionType] || "fa-solid fa-file-lines";
+  // Get icon for section type
+  const getSectionIcon = (sectionType: string) => {
+    const iconMap: Record<string, React.ComponentType<any>> = {
+      personalInfo: User,
+      profileSummary: FileText,
+      experience: Briefcase,
+      education: GraduationCap,
+      skills: Brain,
+      projects: FileText,
+      achievements: Award,
+      languages: Globe,
+      certificates: Award,
+      interests: User,
+      courses: GraduationCap,
+      awards: Award,
+      organisations: Briefcase,
+      publications: FileText,
+      references: User,
+      declaration: FileText,
+      custom: FileText,
+      spacer: FileText,
+    };
+    return iconMap[sectionType] || FileText;
+  };
 
   // Render section header based on template configuration
   const renderSectionHeader = (
@@ -311,57 +340,159 @@ export function ResumeRenderer({
     isInSidebar: boolean = false,
     sectionType?: string,
   ) => {
+    const icon = ICON_MAP[sectionType as keyof typeof ICON_MAP];
     const headerTitle = title;
     const headerConfig = templateStyle.sectionHeader;
+
+    // Generate template-specific class name for CSS styling
     const templateClassName = `${template.id}-section-header`;
-    const sidebarModifier =
-      isInSidebar && templateStyle.headerStyle === "two-column"
-        ? ` ${templateClassName}-wrapper--sidebar`
-        : "";
 
-    const wrapperClassName = `${templateClassName}-wrapper ${templateClassName}-wrapper--${headerConfig.style}${sidebarModifier}`;
-    const wrapperStyle = {
-      display: "block",
-      textAlign: headerConfig.textAlign || "left",
-    } as const;
-
-    const computedHeaderFontSize =
-      typeof headerConfig.fontSize === "number"
-        ? `${headerConfig.fontSize}px`
-        : `${templateStyle.fontSize.body}px`;
-
-    const headingStyle = {
-      display: "inline-flex",
-      alignItems: "center",
-      margin: 0,
-      padding: 0,
-      lineHeight: 1,
-      verticalAlign: "middle",
-      fontSize: computedHeaderFontSize,
+    const baseStyle: React.CSSProperties = {
+      fontSize: `${headerConfig.fontSize || 13}px`,
       fontWeight: headerConfig.fontWeight || "bold",
-    } as const;
+      textAlign: headerConfig.textAlign || "center",
+      marginBottom: headerConfig.marginBottom || "6px",
+      paddingBottom: headerConfig.paddingBottom || "2px",
+      paddingTop: headerConfig.paddingTop || "2px",
+      textTransform: (headerConfig.textTransform as any) || "none",
+      fontFamily: templateStyle.fontFamily,
+      color: isInSidebar
+        ? templateStyle.colors.sidebarText || "#ffffff"
+        : templateStyle.colors.text,
+    };
 
-    return (
-      <div className={wrapperClassName} style={wrapperStyle}>
-        <h3 className={templateClassName} style={headingStyle}>
-          {sectionType && templateStyle.headerStyle === "two-column" && (
-            <i
-              className={`fa-fw ${getSectionIconClass(sectionType)}`}
-              style={{
-                marginRight: "8px",
-                fontSize: "14px",
-                lineHeight: 1,
-                display: "inline-block",
-              }}
-              aria-hidden
-            />
-          )}
-          {headerConfig.textTransform === "uppercase"
-            ? headerTitle.toUpperCase()
-            : headerTitle}
-        </h3>
-      </div>
-    );
+    // Apply style based on configuration
+    switch (headerConfig.style) {
+      case "border-top-bottom":
+        return (
+          <h2
+            className={templateClassName}
+            style={{
+              ...baseStyle,
+              borderTop: `${headerConfig.borderWidth || 2}px solid ${headerConfig.borderColor || "#000000"
+                }`,
+              borderBottom: `${headerConfig.borderWidth || 2}px solid ${headerConfig.borderColor || "#000000"
+                }`,
+            }}
+          >
+            {sectionType && templateStyle.headerStyle === "two-column" && (
+              <>
+                {React.createElement(getSectionIcon(sectionType), {
+                  size: 16,
+                  style: { marginRight: "8px", display: "inline" },
+                })}
+              </>
+            )}
+            {headerConfig.textTransform === "uppercase"
+              ? headerTitle.toUpperCase()
+              : headerTitle}
+          </h2>
+        );
+
+      case "border-bottom":
+        return (
+          <h2
+            className={templateClassName}
+            style={{
+              ...baseStyle,
+              borderBottom: `${headerConfig.borderWidth || 1}px solid ${headerConfig.borderColor || "#000000"
+                }`,
+            }}
+          >
+            {sectionType && templateStyle.headerStyle === "two-column" && (
+              <>
+                {React.createElement(getSectionIcon(sectionType), {
+                  size: 16,
+                  style: { marginRight: "8px", display: "inline" },
+                })}
+              </>
+            )}
+            {headerConfig.textTransform === "uppercase"
+              ? headerTitle.toUpperCase()
+              : headerTitle}
+          </h2>
+        );
+
+      case "background":
+        return (
+          <h2
+            className={templateClassName}
+            style={{
+              ...baseStyle,
+              // Don't apply background in sidebar for Atlantic Blue template
+              backgroundColor: isInSidebar
+                ? "rgba(255, 255, 255, 0.1)"
+                : headerConfig.backgroundColor ||
+                templateStyle.colors.sectionHeaderBg ||
+                "#f0f0f0",
+              padding: isInSidebar
+                ? "8px 12px"
+                : `${headerConfig.paddingTop || "8px"} ${headerConfig.paddingRight || "12px"
+                } ${headerConfig.paddingBottom || "8px"} ${headerConfig.paddingLeft || "12px"
+                }`,
+              borderRadius:
+                headerConfig.borderRadius !== undefined
+                  ? `${headerConfig.borderRadius}px`
+                  : isInSidebar
+                    ? "4px"
+                    : "0px",
+              boxShadow: isInSidebar ? "0 2px 4px rgba(0, 0, 0, 0.2)" : "none",
+            }}
+          >
+            {sectionType && templateStyle.headerStyle === "two-column" && (
+              <>
+                {React.createElement(getSectionIcon(sectionType), {
+                  size: 16,
+                  style: { marginRight: "8px", display: "inline" },
+                })}
+              </>
+            )}
+            {headerConfig.textTransform === "uppercase"
+              ? headerTitle.toUpperCase()
+              : headerTitle}
+          </h2>
+        );
+
+      case "underline":
+        return (
+          <h2
+            className={templateClassName}
+            style={{
+              ...baseStyle,
+              textDecoration: "underline",
+            }}
+          >
+            {sectionType && templateStyle.headerStyle === "two-column" && (
+              <>
+                {React.createElement(getSectionIcon(sectionType), {
+                  size: 16,
+                  style: { marginRight: "8px", display: "inline" },
+                })}
+              </>
+            )}
+            {headerConfig.textTransform === "uppercase"
+              ? headerTitle.toUpperCase()
+              : headerTitle}
+          </h2>
+        );
+
+      default:
+        return (
+          <h2 className={templateClassName} style={baseStyle}>
+            {sectionType && templateStyle.headerStyle === "two-column" && (
+              <>
+                {React.createElement(getSectionIcon(sectionType), {
+                  size: 16,
+                  style: { marginRight: "8px", display: "inline" },
+                })}
+              </>
+            )}
+            {headerConfig.textTransform === "uppercase"
+              ? headerTitle.toUpperCase()
+              : headerTitle}
+          </h2>
+        );
+    }
   };
 
   // Render additional personal information fields
@@ -552,24 +683,20 @@ export function ResumeRenderer({
       {
         type: "email",
         value: personalInfo.email,
-        iconClass: CONTACT_ICON_MAP.email,
+        icon: Mail,
         href: `mailto:${personalInfo.email}`,
       },
       {
         type: "phone",
         value: personalInfo.phone,
-        iconClass: CONTACT_ICON_MAP.phone,
+        icon: Phone,
         href: `tel:${personalInfo.phone}`,
       },
-      {
-        type: "location",
-        value: personalInfo.location,
-        iconClass: CONTACT_ICON_MAP.location,
-      },
+      { type: "location", value: personalInfo.location, icon: MapPin },
       {
         type: "linkedin",
         value: personalInfo.linkedin,
-        iconClass: CONTACT_ICON_MAP.linkedin,
+        icon: Linkedin,
         href: personalInfo.linkedin?.startsWith("http")
           ? personalInfo.linkedin
           : `https://linkedin.com/in/${personalInfo.linkedin}`,
@@ -577,7 +704,7 @@ export function ResumeRenderer({
       {
         type: "github",
         value: personalInfo.github,
-        iconClass: CONTACT_ICON_MAP.github,
+        icon: Github,
         href: personalInfo.github?.startsWith("http")
           ? personalInfo.github
           : personalInfo.github?.startsWith("@")
@@ -587,7 +714,7 @@ export function ResumeRenderer({
       {
         type: "website",
         value: personalInfo.website,
-        iconClass: CONTACT_ICON_MAP.website,
+        icon: ExternalLink,
         href: personalInfo.website?.startsWith("http")
           ? personalInfo.website
           : `https://${personalInfo.website}`,
@@ -611,13 +738,14 @@ export function ResumeRenderer({
             flexWrap: "wrap",
             justifyContent:
               templateStyle.headerStyle === "centered" ||
-              resume.templateId === "classic"
+                resume.templateId === "classic"
                 ? "center"
                 : "flex-start",
             color: textColor,
           }}
         >
           {contactItems.map((item, index) => {
+            const IconComponent = item.icon;
             const content = (
               <div
                 key={index}
@@ -629,18 +757,8 @@ export function ResumeRenderer({
                   color: textColor,
                 }}
               >
-                <i
-                  className={`fa-fw ${item.iconClass}`}
-                  style={{
-                    fontSize: "14px",
-                    verticalAlign: "text-top",
-                    flexShrink: 0,
-                    color: "inherit",
-                  }}
-                  aria-hidden
-                />
+                <IconComponent size={16} style={{ flexShrink: 0 }} />
                 <span
-                  className={`${template.id}-contact-value`}
                   style={{
                     fontSize: `${templateStyle.fontSize.small}px`,
                     fontFamily: templateStyle.fontFamily,
@@ -657,12 +775,7 @@ export function ResumeRenderer({
                 key={index}
                 href={item.href}
                 className="no-underline"
-                style={{
-                  textDecoration: "none",
-                  color: textColor,
-                  display: "flex",
-                  alignItems: "center",
-                }}
+                style={{ textDecoration: "none", color: textColor, display: "flex", alignItems: "center" }}
               >
                 {content}
               </a>
@@ -681,7 +794,7 @@ export function ResumeRenderer({
           fontSize: `${templateStyle.fontSize.small}px`,
           textAlign:
             templateStyle.headerStyle === "centered" ||
-            resume.templateId === "classic"
+              resume.templateId === "classic"
               ? "center"
               : "left",
           color: textColor,
@@ -716,26 +829,26 @@ export function ResumeRenderer({
       templateStyle.headerStyle === "two-column" && column === "left";
     const sidebarStyle = isInSidebar
       ? {
-          color: templateStyle.colors.sidebarText || "#ffffff",
-          backgroundColor: templateStyle.colors.sidebarBackground,
-        }
+        color: templateStyle.colors.sidebarText || "#ffffff",
+        backgroundColor: templateStyle.colors.sidebarBackground,
+      }
       : {};
 
     // Enhanced sidebar style for all text elements
     const sidebarTextStyle = isInSidebar
       ? {
-          color: templateStyle.colors.sidebarText || "#ffffff",
-        }
+        color: templateStyle.colors.sidebarText || "#ffffff",
+      }
       : {
-          color: templateStyle.colors.text,
-        };
+        color: templateStyle.colors.text,
+      };
 
     switch (section.type) {
       case "personalInfo":
         if (templateStyle.headerStyle === "two-column" && isInSidebar) {
           // Sidebar style for Atlantic Blue
           return (
-            <div style={{ ...sidebarStyle, paddingBottom: "8px" }}>
+            <div style={{ ...sidebarStyle }}>
               <div style={{ textAlign: "left", marginBottom: "12px" }}>
                 {resume.content.personalInfo.fullName && (
                   <h1
@@ -822,24 +935,20 @@ export function ResumeRenderer({
             {
               type: "email",
               value: personalInfo.email,
-              iconClass: CONTACT_ICON_MAP.email,
+              icon: Mail,
               href: `mailto:${personalInfo.email}`,
             },
             {
               type: "phone",
               value: personalInfo.phone,
-              iconClass: CONTACT_ICON_MAP.phone,
+              icon: Phone,
               href: `tel:${personalInfo.phone}`,
             },
-            {
-              type: "location",
-              value: personalInfo.location,
-              iconClass: CONTACT_ICON_MAP.location,
-            },
+            { type: "location", value: personalInfo.location, icon: MapPin },
             {
               type: "linkedin",
               value: personalInfo.linkedin,
-              iconClass: CONTACT_ICON_MAP.linkedin,
+              icon: Linkedin,
               href: personalInfo.linkedin?.startsWith("http")
                 ? personalInfo.linkedin
                 : `https://linkedin.com/in/${personalInfo.linkedin}`,
@@ -847,7 +956,7 @@ export function ResumeRenderer({
             {
               type: "website",
               value: personalInfo.website,
-              iconClass: CONTACT_ICON_MAP.website,
+              icon: ExternalLink,
               href: personalInfo.website?.startsWith("http")
                 ? personalInfo.website
                 : `https://${personalInfo.website}`,
@@ -873,6 +982,7 @@ export function ResumeRenderer({
                   }}
                 >
                   {pair.map((item, itemIndex) => {
+                    const IconComponent = item.icon;
                     const content = (
                       <div
                         key={itemIndex}
@@ -882,16 +992,7 @@ export function ResumeRenderer({
                           gap: "4px",
                         }}
                       >
-                        <i
-                          className={`fa-fw ${item.iconClass}`}
-                          style={{
-                            fontSize: "12px",
-                            verticalAlign: "text-top",
-                            flexShrink: 0,
-                            color: "inherit",
-                          }}
-                          aria-hidden
-                        />
+                        <IconComponent size={12} />
                         <span
                           style={{
                             fontSize: `${templateStyle.fontSize.small}px`,
@@ -908,12 +1009,7 @@ export function ResumeRenderer({
                         key={itemIndex}
                         href={item.href}
                         className="no-underline"
-                        style={{
-                          textDecoration: "none",
-                          color: "inherit",
-                          display: "flex",
-                          alignItems: "center",
-                        }}
+                        style={{ textDecoration: "none", color: "inherit", display: "flex", alignItems: "center" }}
                       >
                         {content}
                       </a>
@@ -1304,7 +1400,7 @@ export function ResumeRenderer({
               style={{
                 textAlign:
                   templateStyle.headerLayout?.type === "standard" &&
-                  templateStyle.headerStyle === "centered"
+                    templateStyle.headerStyle === "centered"
                     ? "center"
                     : "left",
                 display: "flex",
@@ -1337,7 +1433,7 @@ export function ResumeRenderer({
                   flex: 1,
                   textAlign:
                     templateStyle.headerStyle === "centered" ||
-                    resume.templateId === "classic"
+                      resume.templateId === "classic"
                       ? "center"
                       : "left",
                 }}
@@ -1352,10 +1448,10 @@ export function ResumeRenderer({
                       ...(templateStyle.useCSSClassesForHeader
                         ? {}
                         : {
-                            color: isInSidebar
-                              ? templateStyle.colors.sidebarText
-                              : templateStyle.colors.text,
-                          }),
+                          color: isInSidebar
+                            ? templateStyle.colors.sidebarText
+                            : templateStyle.colors.text,
+                        }),
                       margin: "0 0 4px 0",
                       fontFamily: templateStyle.fontFamily,
                     }}
@@ -1438,16 +1534,15 @@ export function ResumeRenderer({
         return (
           <div
             style={{
-              marginBottom: `${
-                isInSidebar && templateStyle.headerStyle === "two-column"
-                  ? templateStyle.sectionSpacing * 2
-                  : templateStyle.sectionSpacing
-              }px`,
+              marginBottom: `${isInSidebar && templateStyle.headerStyle === "two-column"
+                ? templateStyle.sectionSpacing * 2
+                : templateStyle.sectionSpacing
+                }px`,
               ...(isInSidebar &&
                 templateStyle.headerStyle === "two-column" && {
-                  paddingTop: "15px",
-                  paddingBottom: "15px",
-                }),
+                paddingTop: "15px",
+                paddingBottom: "15px",
+              }),
               ...sidebarStyle,
             }}
           >
@@ -1507,16 +1602,15 @@ export function ResumeRenderer({
             data-section={section.id}
             style={{
               position: "relative",
-              marginBottom: `${
-                isInSidebar && templateStyle.headerStyle === "two-column"
-                  ? templateStyle.sectionSpacing * 2
-                  : templateStyle.sectionSpacing
-              }px`,
+              marginBottom: `${isInSidebar && templateStyle.headerStyle === "two-column"
+                ? templateStyle.sectionSpacing * 2
+                : templateStyle.sectionSpacing
+                }px`,
               ...(isInSidebar &&
                 templateStyle.headerStyle === "two-column" && {
-                  paddingTop: "15px",
-                  paddingBottom: "15px",
-                }),
+                paddingTop: "15px",
+                paddingBottom: "15px",
+              }),
               ...sidebarStyle,
             }}
           >
@@ -1535,13 +1629,12 @@ export function ResumeRenderer({
                     // Templates with table-cell layout should define it in their CSS files
                     ...(templateStyle.timelineLayout.type === "grid"
                       ? {
-                          // Let CSS override if needed (table-cell templates will override via !important)
-                          display: "grid",
-                          gridTemplateColumns: `${
-                            templateStyle.timelineLayout.dateWidth || 140
+                        // Let CSS override if needed (table-cell templates will override via !important)
+                        display: "grid",
+                        gridTemplateColumns: `${templateStyle.timelineLayout.dateWidth || 140
                           }px 1fr`,
-                          gap: "16px",
-                        }
+                        gap: "16px",
+                      }
                       : { display: "block" }),
                   }}
                 >
@@ -1609,8 +1702,8 @@ export function ResumeRenderer({
                             dangerouslySetInnerHTML={{
                               __html: Array.isArray(exp.description)
                                 ? exp.description
-                                    .map((d: any) => `<p>${d}</p>`)
-                                    .join("")
+                                  .map((d: any) => `<p>${d}</p>`)
+                                  .join("")
                                 : exp.description || "",
                             }}
                           />
@@ -1686,8 +1779,8 @@ export function ResumeRenderer({
                           dangerouslySetInnerHTML={{
                             __html: Array.isArray(exp.description)
                               ? exp.description
-                                  .map((d: any) => `<p>${d}</p>`)
-                                  .join("")
+                                .map((d: any) => `<p>${d}</p>`)
+                                .join("")
                               : exp.description || "",
                           }}
                         />
@@ -1730,16 +1823,15 @@ export function ResumeRenderer({
           <div
             data-section={section.id}
             style={{
-              marginBottom: `${
-                isInSidebar && templateStyle.headerStyle === "two-column"
-                  ? templateStyle.sectionSpacing * 2
-                  : templateStyle.sectionSpacing
-              }px`,
+              marginBottom: `${isInSidebar && templateStyle.headerStyle === "two-column"
+                ? templateStyle.sectionSpacing * 2
+                : templateStyle.sectionSpacing
+                }px`,
               ...(isInSidebar &&
                 templateStyle.headerStyle === "two-column" && {
-                  paddingTop: "15px",
-                  paddingBottom: "15px",
-                }),
+                paddingTop: "15px",
+                paddingBottom: "15px",
+              }),
               ...sidebarStyle,
             }}
           >
@@ -1758,13 +1850,12 @@ export function ResumeRenderer({
                     // Templates with table-cell layout should define it in their CSS files
                     ...(templateStyle.timelineLayout.type === "grid"
                       ? {
-                          // Let CSS override if needed (table-cell templates will override via !important)
-                          display: "grid",
-                          gridTemplateColumns: `${
-                            templateStyle.timelineLayout.dateWidth || 140
+                        // Let CSS override if needed (table-cell templates will override via !important)
+                        display: "grid",
+                        gridTemplateColumns: `${templateStyle.timelineLayout.dateWidth || 140
                           }px 1fr`,
-                          gap: "16px",
-                        }
+                        gap: "16px",
+                      }
                       : { display: "block" }),
                   }}
                 >
@@ -1944,16 +2035,15 @@ export function ResumeRenderer({
         return (
           <div
             style={{
-              marginBottom: `${
-                isInSidebar && templateStyle.headerStyle === "two-column"
-                  ? templateStyle.sectionSpacing * 2
-                  : templateStyle.sectionSpacing
-              }px`,
+              marginBottom: `${isInSidebar && templateStyle.headerStyle === "two-column"
+                ? templateStyle.sectionSpacing * 2
+                : templateStyle.sectionSpacing
+                }px`,
               ...(isInSidebar &&
                 templateStyle.headerStyle === "two-column" && {
-                  paddingTop: "15px",
-                  paddingBottom: "15px",
-                }),
+                paddingTop: "15px",
+                paddingBottom: "15px",
+              }),
               ...sidebarStyle,
             }}
           >
@@ -2103,11 +2193,7 @@ export function ResumeRenderer({
                               <div
                                 key={`${colIndex}-${itemIndex}`}
                                 data-item-id={`skill-bullet-${colIndex}-${itemIndex}`}
-                                data-item-index={
-                                  colIndex *
-                                    Math.ceil(uniqueItems.length / numColumns) +
-                                  itemIndex
-                                }
+                                data-item-index={colIndex * (Math.ceil(uniqueItems.length / numColumns)) + itemIndex}
                                 className={`${template.id}-skill-item`}
                                 style={{
                                   display: "flex",
@@ -2206,16 +2292,15 @@ export function ResumeRenderer({
           <div
             data-section={section.id}
             style={{
-              marginBottom: `${
-                isInSidebar && templateStyle.headerStyle === "two-column"
-                  ? templateStyle.sectionSpacing * 2
-                  : templateStyle.sectionSpacing
-              }px`,
+              marginBottom: `${isInSidebar && templateStyle.headerStyle === "two-column"
+                ? templateStyle.sectionSpacing * 2
+                : templateStyle.sectionSpacing
+                }px`,
               ...(isInSidebar &&
                 templateStyle.headerStyle === "two-column" && {
-                  paddingTop: "15px",
-                  paddingBottom: "15px",
-                }),
+                paddingTop: "15px",
+                paddingBottom: "15px",
+              }),
               ...sidebarStyle,
             }}
           >
@@ -2294,8 +2379,8 @@ export function ResumeRenderer({
                       dangerouslySetInnerHTML={{
                         __html: Array.isArray(project.description)
                           ? project.description
-                              .map((d) => `<p>${d}</p>`)
-                              .join("")
+                            .map((d) => `<p>${d}</p>`)
+                            .join("")
                           : project.description || "",
                       }}
                     />
@@ -2306,13 +2391,13 @@ export function ResumeRenderer({
                         ? ""
                         : typeof project.technologies === "string"
                           ? project.technologies
-                              .split(",")
-                              .map((t) => t.trim())
-                              .filter(Boolean)
-                              .join(", ")
+                            .split(",")
+                            .map((t) => t.trim())
+                            .filter(Boolean)
+                            .join(", ")
                           : (project.technologies as string[])
-                              .filter(Boolean)
-                              .join(", ");
+                            .filter(Boolean)
+                            .join(", ");
                     return (
                       tech && (
                         <div
@@ -2429,16 +2514,15 @@ export function ResumeRenderer({
             data-section={section.id}
             style={{
               position: "relative",
-              marginBottom: `${
-                isInSidebar && templateStyle.headerStyle === "two-column"
-                  ? templateStyle.sectionSpacing * 2
-                  : templateStyle.sectionSpacing
-              }px`,
+              marginBottom: `${isInSidebar && templateStyle.headerStyle === "two-column"
+                ? templateStyle.sectionSpacing * 2
+                : templateStyle.sectionSpacing
+                }px`,
               ...(isInSidebar &&
                 templateStyle.headerStyle === "two-column" && {
-                  paddingTop: "15px",
-                  paddingBottom: "15px",
-                }),
+                paddingTop: "15px",
+                paddingBottom: "15px",
+              }),
               ...sidebarStyle,
             }}
           >
@@ -2501,11 +2585,10 @@ export function ResumeRenderer({
                               key={level}
                               className={
                                 langConfig.dotClass
-                                  ? `${langConfig.dotClass} ${
-                                      level <= (lang.level || lang.proficiency)
-                                        ? "filled"
-                                        : ""
-                                    }`
+                                  ? `${langConfig.dotClass} ${level <= (lang.level || lang.proficiency)
+                                    ? "filled"
+                                    : ""
+                                  }`
                                   : ""
                               }
                               style={{
@@ -2516,7 +2599,7 @@ export function ResumeRenderer({
                                   level <= (lang.level || lang.proficiency)
                                     ? isInSidebar
                                       ? templateStyle.colors.sidebarText ||
-                                        "#000"
+                                      "#000"
                                       : templateStyle.colors.text || "#000"
                                     : isInSidebar
                                       ? "rgba(255,255,255,0.3)"
@@ -2551,16 +2634,15 @@ export function ResumeRenderer({
         return (
           <div
             style={{
-              marginBottom: `${
-                isInSidebar && templateStyle.headerStyle === "two-column"
-                  ? templateStyle.sectionSpacing * 2
-                  : templateStyle.sectionSpacing
-              }px`,
+              marginBottom: `${isInSidebar && templateStyle.headerStyle === "two-column"
+                ? templateStyle.sectionSpacing * 2
+                : templateStyle.sectionSpacing
+                }px`,
               ...(isInSidebar &&
                 templateStyle.headerStyle === "two-column" && {
-                  paddingTop: "15px",
-                  paddingBottom: "15px",
-                }),
+                paddingTop: "15px",
+                paddingBottom: "15px",
+              }),
               ...sidebarStyle,
             }}
           >
@@ -2575,9 +2657,8 @@ export function ResumeRenderer({
                     .awards-sidebar-content p,
                     .awards-sidebar-content span,
                     .awards-sidebar-content div {
-                      color: ${
-                        templateStyle.colors.sidebarText || "#ffffff"
-                      } !important;
+                      color: ${templateStyle.colors.sidebarText || "#ffffff"
+                    } !important;
                     }
                   `,
                 }}
@@ -2679,22 +2760,11 @@ export function ResumeRenderer({
         }
 
         return (
-          <div
-            data-section={section.id}
-            style={{
-              position: "relative",
-              marginBottom: templateStyle.sectionSpacing,
-            }}
-          >
+          <div data-section={section.id} style={{ position: "relative", marginBottom: templateStyle.sectionSpacing }}>
             {renderSectionHeader(section.title, isInSidebar, section.type)}
             <div style={{ marginLeft: "0px" }}>
               {certificatesData.map((cert: any, index: number) => (
-                <div
-                  key={index}
-                  data-item-id={cert.id || `cert-${index}`}
-                  data-item-index={index}
-                  style={{ marginBottom: "8px" }}
-                >
+                <div key={index} data-item-id={cert.id || `cert-${index}`} data-item-index={index} style={{ marginBottom: "8px" }}>
                   <div
                     style={{
                       fontWeight: "600",
@@ -2817,22 +2887,11 @@ export function ResumeRenderer({
         }
 
         return (
-          <div
-            data-section={section.id}
-            style={{
-              position: "relative",
-              marginBottom: templateStyle.sectionSpacing,
-            }}
-          >
+          <div data-section={section.id} style={{ position: "relative", marginBottom: templateStyle.sectionSpacing }}>
             {renderSectionHeader(section.title, isInSidebar, section.type)}
             <div style={{ marginLeft: "0px" }}>
               {achievementsData.map((achievement: any, index: number) => (
-                <div
-                  key={index}
-                  data-item-id={achievement.id || `achievement-${index}`}
-                  data-item-index={index}
-                  style={{ marginBottom: "8px" }}
-                >
+                <div key={index} data-item-id={achievement.id || `achievement-${index}`} data-item-index={index} style={{ marginBottom: "8px" }}>
                   <div
                     style={{
                       fontSize: `${templateStyle.fontSize.body}px`,
@@ -2885,13 +2944,7 @@ export function ResumeRenderer({
         }
 
         return (
-          <div
-            data-section={section.id}
-            style={{
-              position: "relative",
-              marginBottom: templateStyle.sectionSpacing,
-            }}
-          >
+          <div data-section={section.id} style={{ position: "relative", marginBottom: templateStyle.sectionSpacing }}>
             {renderSectionHeader(section.title, isInSidebar, section.type)}
             <div
               style={{
@@ -2944,27 +2997,22 @@ export function ResumeRenderer({
             data-section={section.id}
             style={{
               position: "relative",
-              marginBottom: `${
-                isInSidebar && templateStyle.headerStyle === "two-column"
-                  ? templateStyle.sectionSpacing * 2
-                  : templateStyle.sectionSpacing
-              }px`,
+              marginBottom: `${isInSidebar && templateStyle.headerStyle === "two-column"
+                ? templateStyle.sectionSpacing * 2
+                : templateStyle.sectionSpacing
+                }px`,
               ...(isInSidebar &&
                 templateStyle.headerStyle === "two-column" && {
-                  paddingTop: "15px",
-                  paddingBottom: "15px",
-                }),
+                paddingTop: "15px",
+                paddingBottom: "15px",
+              }),
               ...sidebarStyle,
             }}
           >
             {renderSectionHeader(section.title, isInSidebar, section.type)}
             <div style={{ marginLeft: "0px" }}>
               {coursesData.map((course: any, index: number) => (
-                <div
-                  key={index}
-                  data-item-id={course.id || `course-${index}`}
-                  style={{ marginBottom: "12px" }}
-                >
+                <div key={index} data-item-id={course.id || `course-${index}`} style={{ marginBottom: "12px" }}>
                   <div
                     style={{
                       fontWeight: "600",
@@ -3042,28 +3090,22 @@ export function ResumeRenderer({
             data-section={section.id}
             style={{
               position: "relative",
-              marginBottom: `${
-                isInSidebar && templateStyle.headerStyle === "two-column"
-                  ? templateStyle.sectionSpacing * 2
-                  : templateStyle.sectionSpacing
-              }px`,
+              marginBottom: `${isInSidebar && templateStyle.headerStyle === "two-column"
+                ? templateStyle.sectionSpacing * 2
+                : templateStyle.sectionSpacing
+                }px`,
               ...(isInSidebar &&
                 templateStyle.headerStyle === "two-column" && {
-                  paddingTop: "15px",
-                  paddingBottom: "15px",
-                }),
+                paddingTop: "15px",
+                paddingBottom: "15px",
+              }),
               ...sidebarStyle,
             }}
           >
             {renderSectionHeader(section.title, isInSidebar, section.type)}
             <div style={{ marginLeft: "0px" }}>
               {publicationsData.map((pub: any, index: number) => (
-                <div
-                  key={index}
-                  data-item-id={pub.id || `pub-${index}`}
-                  data-item-index={index}
-                  style={{ marginBottom: "8px" }}
-                >
+                <div key={index} data-item-id={pub.id || `pub-${index}`} data-item-index={index} style={{ marginBottom: "8px" }}>
                   <div
                     style={{
                       fontWeight: "600",
@@ -3136,16 +3178,15 @@ export function ResumeRenderer({
             data-section={section.id}
             style={{
               position: "relative",
-              marginBottom: `${
-                isInSidebar && templateStyle.headerStyle === "two-column"
-                  ? templateStyle.sectionSpacing * 2
-                  : templateStyle.sectionSpacing
-              }px`,
+              marginBottom: `${isInSidebar && templateStyle.headerStyle === "two-column"
+                ? templateStyle.sectionSpacing * 2
+                : templateStyle.sectionSpacing
+                }px`,
               ...(isInSidebar &&
                 templateStyle.headerStyle === "two-column" && {
-                  paddingTop: "15px",
-                  paddingBottom: "15px",
-                }),
+                paddingTop: "15px",
+                paddingBottom: "15px",
+              }),
               ...sidebarStyle,
             }}
           >
@@ -3236,16 +3277,15 @@ export function ResumeRenderer({
             data-section={section.id}
             key={section.id}
             style={{
-              marginBottom: `${
-                isInSidebar && templateStyle.headerStyle === "two-column"
-                  ? templateStyle.sectionSpacing * 2
-                  : templateStyle.sectionSpacing
-              }px`,
+              marginBottom: `${isInSidebar && templateStyle.headerStyle === "two-column"
+                ? templateStyle.sectionSpacing * 2
+                : templateStyle.sectionSpacing
+                }px`,
               ...(isInSidebar &&
                 templateStyle.headerStyle === "two-column" && {
-                  paddingTop: "15px",
-                  paddingBottom: "15px",
-                }),
+                paddingTop: "15px",
+                paddingBottom: "15px",
+              }),
               ...sidebarStyle,
             }}
           >
@@ -3294,16 +3334,15 @@ export function ResumeRenderer({
         return (
           <div
             style={{
-              marginBottom: `${
-                isInSidebar && templateStyle.headerStyle === "two-column"
-                  ? templateStyle.sectionSpacing * 2
-                  : templateStyle.sectionSpacing
-              }px`,
+              marginBottom: `${isInSidebar && templateStyle.headerStyle === "two-column"
+                ? templateStyle.sectionSpacing * 2
+                : templateStyle.sectionSpacing
+                }px`,
               ...(isInSidebar &&
                 templateStyle.headerStyle === "two-column" && {
-                  paddingTop: "15px",
-                  paddingBottom: "15px",
-                }),
+                paddingTop: "15px",
+                paddingBottom: "15px",
+              }),
               ...sidebarStyle,
             }}
           >
@@ -3326,6 +3365,7 @@ export function ResumeRenderer({
         return null;
     }
   };
+
 
   return (
     <div
@@ -3361,58 +3401,32 @@ export function ResumeRenderer({
         </div>
       )}
 
-      {resumeLayout.type === "double" ||
-      templateStyle.headerStyle === "two-column" ? (
-        <div style={{ display: "flex" }}>
+      {resumeLayout.type === "double" || templateStyle.headerStyle === "two-column" ? (
+        <div style={{ display: "flex", minHeight: "270mm" }}>
           <div
-            className={`${template.id}-left-column`}
             style={{
-              width:
-                templateStyle.headerStyle === "two-column"
-                  ? "40%"
-                  : `${resumeLayout.columnWidths?.left || 60}%`,
-              paddingRight:
-                templateStyle.headerStyle === "two-column" ? "0" : "10px",
-              backgroundColor:
-                templateStyle.headerStyle === "two-column"
-                  ? templateStyle.colors.sidebarBackground
-                  : "transparent",
+              width: templateStyle.headerStyle === "two-column" ? "40%" : `${resumeLayout.columnWidths?.left || 60}%`,
+              paddingRight: templateStyle.headerStyle === "two-column" ? "0" : "10px",
+              backgroundColor: templateStyle.headerStyle === "two-column" ? templateStyle.colors.sidebarBackground : "transparent",
               minHeight: "100%",
-              ...(templateStyle.headerStyle === "two-column" && {
-                padding: "40px",
-              }),
+              ...(templateStyle.headerStyle === "two-column" && { padding: "40px" }),
             }}
           >
             {leftColumn.map((section) => (
-              <div
-                key={section.id}
-                data-section={section.id}
-                className={`${template.id}-section`}
-              >
+              <div key={section.id} data-section={section.id} className={`${template.id}-section`}>
                 {renderSectionContent(section, "left")}
               </div>
             ))}
           </div>
           <div
-            className={`${template.id}-right-column`}
             style={{
-              width:
-                templateStyle.headerStyle === "two-column"
-                  ? "60%"
-                  : `${resumeLayout.columnWidths?.right || 40}%`,
-              paddingLeft:
-                templateStyle.headerStyle === "two-column" ? "0" : "10px",
-              ...(templateStyle.headerStyle === "two-column" && {
-                padding: "40px",
-              }),
+              width: templateStyle.headerStyle === "two-column" ? "60%" : `${resumeLayout.columnWidths?.right || 40}%`,
+              paddingLeft: templateStyle.headerStyle === "two-column" ? "0" : "10px",
+              ...(templateStyle.headerStyle === "two-column" && { padding: "40px" }),
             }}
           >
             {rightColumn.map((section) => (
-              <div
-                key={section.id}
-                data-section={section.id}
-                className={`${template.id}-section`}
-              >
+              <div key={section.id} data-section={section.id} className={`${template.id}-section`}>
                 {renderSectionContent(section, "right")}
               </div>
             ))}
@@ -3421,11 +3435,7 @@ export function ResumeRenderer({
       ) : (
         <div>
           {leftColumn.map((section) => (
-            <div
-              key={section.id}
-              data-section={section.id}
-              className={`${template.id}-section`}
-            >
+            <div key={section.id} data-section={section.id} className={`${template.id}-section`}>
               {renderSectionContent(section)}
             </div>
           ))}

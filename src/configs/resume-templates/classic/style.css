@@ -4,11 +4,11 @@
  */
 
 /* Import Zilla Slab font from Google Fonts */
-@import url("https://fonts.googleapis.com/css2?family=Zilla+Slab:wght@400;500;600;700&display=swap");
+@import url('https://fonts.googleapis.com/css2?family=Zilla+Slab:wght@400;500;600;700&display=swap');
 
 /* Template Container */
 .classic-template {
-  font-family: "Zilla Slab", serif;
+  font-family: 'Zilla Slab', serif;
   color: #000000;
   background-color: #ffffff;
   padding: 8mm; /* Standard print padding */
@@ -62,32 +62,21 @@
 }
 
 /* Section Header Styles */
-.classic-section-header-wrapper {
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-}
-.classic-section-header-wrapper--border-bottom {
-  margin-bottom: 8px;
-  margin-top: 14px;
-  padding: 0 12px 3px;
-  border-bottom: 1.5px solid #000000;
-}
 .classic-section-header {
-  margin: 0;
-  padding: 0;
-  font-size: 16px;
-  font-weight: bold;
+  font-size: 11px;
+  font-weight: 700;
   text-transform: uppercase;
   text-align: left;
-  border: none;
+  border-bottom: 1.5px solid #000000 !important;
+  padding-bottom: 3px !important;
+  margin-bottom: 8px !important;
+  margin-top: 14px !important;
   color: #000000;
   letter-spacing: 0.5px;
 }
 
 /* Profile Summary */
-.classic-summary,
-.classic-description {
+.classic-summary, .classic-description {
   font-size: 10.5px;
   line-height: 1.4;
   color: #000000;
@@ -96,45 +85,39 @@
 }
 
 /* Experience & Education Styles */
-.classic-experience-item,
-.classic-education-item {
+.classic-experience-item, .classic-education-item {
   margin-bottom: 12px;
   page-break-inside: avoid;
 }
 
-.classic-job-header,
-.classic-education-header {
+.classic-job-header, .classic-education-header {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
   margin-bottom: 1px;
 }
 
-.classic-job-title-exp,
-.classic-degree {
+.classic-job-title-exp, .classic-degree {
   font-size: 10.5px;
   font-weight: 700;
   color: #000000;
 }
 
-.classic-job-date,
-.classic-education-date {
+.classic-job-date, .classic-education-date {
   font-size: 10.5px;
   color: #000000;
   font-style: normal;
   font-weight: 400;
 }
 
-.classic-company,
-.classic-institution {
+.classic-company, .classic-institution {
   font-size: 10.5px;
   color: #000000;
   margin-bottom: 4px;
   font-style: italic;
 }
 
-.classic-location,
-.classic-education-location {
+.classic-location, .classic-education-location {
   font-size: 10.5px;
   color: #000000;
   font-style: normal;
