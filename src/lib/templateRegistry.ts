@@ -81,6 +81,13 @@ export function getExtendedTemplate(baseTemplate: any): ExtendedResumeTemplate {
         executive: require("@/configs/resume-templates/executive/config"),
         "true-blue": require("@/configs/resume-templates/true-blue/config"),
         harvard: require("@/configs/resume-templates/harvard/config"),
+        "precision-ai": require("@/configs/resume-templates/precision-ai/config"),
+        "minimalist-bar": require("@/configs/resume-templates/minimalist-bar/config"),
+        "hawk": require("@/configs/resume-templates/hawk/config"),
+        "falcon": require("@/configs/resume-templates/falcon/config"),
+        "rhino": require("@/configs/resume-templates/rhino/config"),
+        "berlin": require("@/configs/resume-templates/berlin/config"),
+
       };
 
       const configModule = knownConfigs[baseTemplate.id];
@@ -187,7 +194,7 @@ export function hasFeature(templateId: string, feature: string): boolean {
   const config = TEMPLATE_REGISTRY[templateId];
   return (
     config?.rendering?.features?.[
-      feature as keyof typeof config.rendering.features
+    feature as keyof typeof config.rendering.features
     ] === true
   );
 }

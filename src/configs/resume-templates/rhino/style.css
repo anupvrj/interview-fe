@@ -1,0 +1,119 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+.rhino-template {
+    font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif;
+    background-color: #ffffff;
+    color: #000000;
+    line-height: 1.45;
+}
+
+/* Layout */
+.rhino-two-column {
+    display: flex;
+}
+
+.rhino-left-column {
+    width: 32%;
+    background-color: #0f4c75 !important;
+    color: #ffffff !important;
+    padding: 24px;
+}
+
+.rhino-right-column {
+    width: 68%;
+    padding: 24px;
+}
+
+/* Header */
+.rhino-name {
+    font-size: 26px;
+    font-weight: 700;
+    color: #0f4c75 !important;
+}
+
+.rhino-title {
+    font-size: 14px;
+    color: #3282b8 !important;
+    margin-bottom: 16px;
+}
+
+/* Sidebar */
+.rhino-sidebar-section {
+    margin-bottom: 22px;
+}
+
+.rhino-sidebar-header {
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+}
+
+/* Contact */
+.rhino-contact-item {
+    display: flex;
+    gap: 8px;
+    font-size: 11px;
+    margin-bottom: 8px;
+}
+
+/* Section headers */
+.rhino-section-header {
+    background-color: #f2f4f6 !important;
+    font-size: 12px !important;
+    font-weight: bold;
+    text-transform: uppercase;
+    padding: 8px 12px;
+    margin-bottom: 10px;
+    color: #0f4c75 !important;
+}
+
+/* Experience */
+.rhino-experience-item {
+    margin-bottom: 16px;
+    break-inside: avoid;
+}
+
+.rhino-job-title {
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.rhino-company {
+    font-size: 12px;
+    color: #3282b8 !important;
+}
+
+.rhino-date {
+    font-size: 10px;
+    color: #666666;
+    margin-bottom: 6px;
+}
+
+/* Skills */
+/* Skills */
+.rhino-skills-list {
+    margin: 0;
+    padding-left: 16px;
+    list-style-type: disc;
+}
+
+.rhino-skill-item {
+    font-size: 11px;
+    margin-bottom: 6px;
+    display: list-item;
+    /* Ensure it behaves as a list item */
+}
+
+/* Print */
+@media print {
+    .rhino-template {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+
+    .rhino-experience-item,
+    .rhino-section {
+        break-inside: avoid;
+    }
+}

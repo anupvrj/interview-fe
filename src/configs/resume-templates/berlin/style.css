@@ -1,0 +1,219 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+.berlin-template {
+    font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif;
+    color: #000000;
+    background-color: #ffffff;
+    line-height: 1.6;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Header */
+.berlin-header {
+    padding-bottom: 20px;
+    margin-bottom: 20px;
+    border-bottom: 1px solid #cccccc;
+    /* Horizontal line under header */
+    width: 100%;
+}
+
+.berlin-name {
+    font-size: 36px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #000000 !important;
+    margin-bottom: 8px;
+}
+
+.berlin-title {
+    font-size: 16px;
+    color: #444444 !important;
+    font-weight: 400;
+    letter-spacing: 1px;
+}
+
+/* Layout */
+.berlin-columns {
+    display: flex;
+    flex-direction: row;
+    width: 100%;
+}
+
+/* Left Column */
+.berlin-left-column {
+    width: 32%;
+    /* Slightly wider to accommodate labels */
+    padding-right: 24px;
+    border-right: 1px solid #e0e0e0;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+/* Right Column */
+.berlin-right-column {
+    width: 68%;
+    padding-left: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+/* Section Headers */
+.berlin-section-header {
+    font-size: 14px !important;
+    font-weight: 700;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+    padding-bottom: 4px;
+    border-bottom: 2px solid #000000;
+    color: #000000 !important;
+    display: inline-block;
+    /* Bottom border only under text */
+    min-width: 50px;
+}
+
+/* Details Section */
+.berlin-detail-item {
+    font-size: 12px;
+    margin-bottom: 12px;
+    color: #333;
+}
+
+.berlin-detail-label {
+    font-weight: 700;
+    text-transform: uppercase;
+    font-size: 10px;
+    color: #000000;
+    display: block;
+    margin-bottom: 2px;
+}
+
+/* Experience & Education */
+.berlin-experience-item,
+.berlin-education-item {
+    margin-bottom: 20px;
+    break-inside: avoid;
+    page-break-inside: avoid;
+}
+
+.berlin-job-title,
+.berlin-degree {
+    font-size: 14px;
+    font-weight: 700;
+    color: #000000;
+    margin-bottom: 2px;
+}
+
+.berlin-company,
+.berlin-institution {
+    font-size: 13px;
+    font-weight: 400;
+    color: #000000;
+}
+
+.berlin-date {
+    font-size: 11px;
+    color: #666666;
+    margin-bottom: 8px;
+    font-style: italic;
+}
+
+.berlin-location {
+    float: right;
+    font-size: 11px;
+    color: #666666;
+}
+
+.berlin-description {
+    font-size: 12px;
+    color: #444;
+    line-height: 1.5;
+}
+
+.berlin-description ul {
+    padding-left: 16px;
+    margin-top: 4px;
+    margin-bottom: 0;
+}
+
+.berlin-description li {
+    margin-bottom: 4px;
+}
+
+/* Skills */
+.berlin-skill-item {
+    margin-bottom: 12px;
+}
+
+.berlin-skill-name {
+    font-size: 11px;
+    font-weight: 500;
+    margin-bottom: 4px;
+    display: block;
+}
+
+.berlin-skill-bar {
+    height: 6px;
+    background-color: #f0f0f0;
+    border-radius: 0;
+    width: 100%;
+}
+
+.berlin-skill-fill {
+    height: 100%;
+    background-color: #000000 !important;
+    border-radius: 0;
+}
+
+/* Languages */
+.berlin-language-item {
+    margin-bottom: 10px;
+}
+
+.berlin-language-name {
+    font-size: 11px;
+    font-weight: 500;
+    display: block;
+    margin-bottom: 4px;
+}
+
+.berlin-language-bar {
+    height: 6px;
+    background-color: #f0f0f0;
+    width: 100%;
+}
+
+.berlin-language-fill {
+    height: 100%;
+    background-color: #000000 !important;
+}
+
+/* Print */
+@media print {
+    .berlin-template {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+
+    .berlin-header {
+        border-bottom-color: #cccccc !important;
+    }
+
+    .berlin-left-column {
+        border-right-color: #e0e0e0 !important;
+    }
+
+    .berlin-section-header {
+        border-bottom-color: #000000 !important;
+    }
+
+    .berlin-skill-fill,
+    .berlin-language-fill {
+        background-color: #000000 !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+}

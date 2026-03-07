@@ -35,6 +35,12 @@ const TEMPLATE_MANIFEST = [
   "harvard",
   "mercury",
   "true-blue",
+  "precision-ai",
+  "minimalist-bar",
+  "hawk",
+  "falcon",
+  "rhino",
+  "berlin",
 ] as const;
 
 export type TemplateId = (typeof TEMPLATE_MANIFEST)[number];
@@ -61,7 +67,7 @@ class CSSRegistry {
       const cssModule = await import(
         `../configs/resume-templates/${templateId}/style.css`
       );
-      
+
       this.loadedStyles.add(templateId);
       return true;
     } catch (error) {

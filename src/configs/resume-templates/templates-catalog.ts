@@ -403,6 +403,197 @@ export const TEMPLATES_CATALOG: TemplateCatalogItem[] = [
       industry: ["All Industries"],
     },
   },
+
+  {
+    id: "minimalist-bar",
+    name: "Minimalist Bar",
+    category: "modern",
+    description:
+      "Modern split-layout with a clean side bar and elegant typography. Perfect for creative and digital professionals.",
+    shortDescription: "Modern split-layout with side bar",
+    thumbnail: "/resume-template-images/minimalist-bar-preview.webp",
+    previewImages: {
+      main: "/resume-template-images/minimalist-bar-preview.webp",
+    },
+    features: [
+      "Distinct sidebar layout",
+      "Modern typography",
+      "Clean content area",
+      "ATS-optimized",
+    ],
+    tags: ["modern", "sidebar", "creative", "clean"],
+    atsOptimized: true,
+    popular: true,
+    new: true,
+    colors: {
+      primary: "#2c3e50",
+      secondary: "#34495e",
+      accent: "#3498db",
+    },
+    seo: {
+      title: "Minimalist Bar Resume Template - Modern Sidebar Design",
+      description:
+        "Modern resume template with a clean sidebar layout. Perfect for product designers, developers, and creative professionals.",
+      keywords: ["modern resume", "sidebar resume", "creative template", "minimalist"],
+    },
+    marketing: {
+      headline: "Modern Minimalist Design",
+      benefits: [
+        "Clean, structured layout",
+        "Highlight skills effectively",
+        "Professional yet creative",
+      ],
+      bestFor: [
+        "Product Designers",
+        "Developers",
+        "Creative Professionals",
+      ],
+      industry: ["Technology", "Design", "Media"],
+    },
+  },
+
+  {
+    id: "hawk",
+    name: "Hawk",
+    category: "modern",
+    description:
+      "A strategic two-column template designed for Product Managers and Business Leaders. Highlights impact and leadership.",
+    shortDescription: "Strategic two-column for leaders",
+    thumbnail: "/resume-template-images/hawk-preview.webp",
+    previewImages: {
+      main: "/resume-template-images/hawk-preview.webp",
+    },
+    features: [
+      "High-impact sidebar",
+      "Strategic layout",
+      "Leadership focused",
+      "ATS-optimized",
+    ],
+    tags: ["modern", "corporate", "leadership", "product-manager"],
+    atsOptimized: true,
+    popular: true,
+    new: true,
+    colors: {
+      primary: "#0f4c5c",
+      secondary: "#444444",
+      accent: "#0f4c5c",
+    },
+    seo: {
+      title: "Hawk Resume Template - Product & Leadership Design",
+      description:
+        "Professional resume template for Product Managers and Business Leaders. Features a strategic sidebar layout to highlight key achievements.",
+      keywords: ["product manager resume", "leadership resume", "business template", "modern resume"],
+    },
+    marketing: {
+      headline: "Command Attention",
+      benefits: [
+        "Strategic sidebar layout",
+        "Highlights leadership metrics",
+        "Clean, authoritative design",
+      ],
+      bestFor: [
+        "Product Managers",
+        "Business Leaders",
+        "Strategists",
+      ],
+      industry: ["Tech", "Business", "Management"],
+    },
+  },
+
+  // {
+  //   id: "rhino",
+  //   name: "Rhino",
+  //   category: "modern",
+  //   description:
+  //     "Professional two-column resume with strong blue sidebar emphasis. Perfect for corporate and tech roles.",
+  //   shortDescription: "Professional blue sidebar template",
+  //   thumbnail: "/resume-template-images/rhino-preview.webp",
+  //   previewImages: {
+  //     main: "/resume-template-images/rhino-preview.webp",
+  //   },
+  //   features: [
+  //     "Strong sidebar design",
+  //     "Clean tech aesthetic",
+  //     "Skill rating dots",
+  //     "ATS-optimized",
+  //   ],
+  //   tags: ["modern", "corporate", "tech", "blue"],
+  //   atsOptimized: true,
+  //   popular: true,
+  //   new: true,
+  //   colors: {
+  //     primary: "#0f4c75",
+  //     secondary: "#3282b8",
+  //     accent: "#3282b8",
+  //   },
+  //   seo: {
+  //     title: "Rhino Resume Template - Professional Blue Sidebar",
+  //     description:
+  //       "Professional two-column resume template with a strong blue sidebar. Ideal for corporate, tech, and management roles.",
+  //     keywords: ["tech resume", "blue resume", "sidebar template", "modern resume"],
+  //   },
+  //   marketing: {
+  //     headline: "Strong Professional Presence",
+  //     benefits: [
+  //       "Distinctive blue sidebar",
+  //       "Clean, organized layout",
+  //       "Highlights technical skills",
+  //     ],
+  //     bestFor: [
+  //       "Software Engineers",
+  //       "IT Professionals",
+  //       "Corporate Managers",
+  //     ],
+  //     industry: ["Technology", "Corporate", "Engineering"],
+  //   },
+  // },
+  // {
+  //   id: "rhino",
+  //   name: "Rhino",
+  //   category: "modern",
+  //   description:
+  //     "Professional two-column resume template with strong blue sidebar emphasis. Perfect for corporate and tech roles.",
+  //   shortDescription: "Professional blue sidebar template",
+  //   thumbnail: "/resume-template-images/rhino-preview.webp",
+  //   previewImages: {
+  //     main: "/resume-template-images/rhino-preview.webp",
+  //   },
+  //   features: [
+  //     "Strong sidebar design",
+  //     "Clean tech aesthetic",
+  //     "Skill rating dots",
+  //     "ATS-optimized",
+  //   ],
+  //   tags: ["modern", "corporate", "tech", "blue"],
+  //   atsOptimized: true,
+  //   popular: true,
+  //   new: true,
+  //   colors: {
+  //     primary: "#0f4c75",
+  //     secondary: "#3282b8",
+  //     accent: "#3282b8",
+  //   },
+  //   seo: {
+  //     title: "Rhino Resume Template - Professional Blue Sidebar",
+  //     description:
+  //       "Professional two-column resume template with a strong blue sidebar. Ideal for corporate, tech, and management roles.",
+  //     keywords: ["tech resume", "blue resume", "sidebar template", "modern resume"],
+  //   },
+  //   marketing: {
+  //     headline: "Strong Professional Presence",
+  //     benefits: [
+  //       "Distinctive blue sidebar",
+  //       "Clean, organized layout",
+  //       "Highlights technical skills",
+  //     ],
+  //     bestFor: [
+  //       "Software Engineers",
+  //       "IT Professionals",
+  //       "Corporate Managers",
+  //     ],
+  //     industry: ["Technology", "Corporate", "Engineering"],
+  //   },
+  // }
 ];
 
 /**

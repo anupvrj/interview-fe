@@ -1,0 +1,181 @@
+/* ===============================
+   Falcon Resume Template (Refined)
+   =============================== */
+
+.falcon-template {
+    font-family: 'Arial', 'Helvetica', sans-serif;
+    color: #1a1a1a;
+    background-color: #ffffff;
+    padding: 24px 32px;
+    line-height: 1.5;
+    max-width: 100%;
+    box-sizing: border-box;
+
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+}
+
+/* ---------- Header ---------- */
+
+.falcon-header {
+    border-bottom: 3px solid #000000;
+    padding-bottom: 8px;
+    margin-bottom: 20px;
+}
+
+.falcon-name {
+    font-size: 32px;
+    font-weight: 700;
+    color: #000000;
+    margin-bottom: 4px;
+    line-height: 1.2;
+}
+
+.falcon-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #333333;
+    margin-bottom: 8px;
+}
+
+/* ---------- Contact ---------- */
+
+.falcon-contact {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0;
+    font-size: 11px;
+    color: #333333;
+    align-items: center;
+}
+
+.falcon-contact-item {
+    display: flex;
+    align-items: center;
+}
+
+/* Add slash separator between items */
+.falcon-contact-item:not(:last-child)::after {
+    content: "/";
+    margin: 0 8px;
+    color: #666;
+}
+
+.falcon-contact-item svg {
+    display: none;
+    /* Hide icons to match text-only style in image */
+}
+
+/* ---------- Section Headers ---------- */
+
+.falcon-template h2 {
+    font-size: 15px !important;
+    font-weight: 700 !important;
+    color: #000000 !important;
+    text-transform: none !important;
+    margin-top: 24px !important;
+    margin-bottom: 12px !important;
+    padding-bottom: 0 !important;
+    border-bottom: none !important;
+}
+
+/* Thin divider line ABOVE sections (except the first one or Summary) */
+/* Ideally we want spacing, but the image has lines between sections. 
+   We'll use a border-top on the section container or the H2 if possible.
+   Since we can't easily target the container, we'll try adding it to h2 with enough padding. */
+.falcon-template h2 {
+    /* Using pseudo-element to create the full-width line above if needed, 
+       but simple top border works if spacing is right. */
+}
+
+/* ---------- Content Blocks ---------- */
+
+.falcon-item {
+    margin-bottom: 16px;
+}
+
+.falcon-item-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: #000000;
+    margin-bottom: 2px;
+}
+
+.falcon-item-subtitle {
+    font-size: 12px;
+    color: #444444;
+    margin-bottom: 2px;
+}
+
+.falcon-item-meta {
+    font-size: 11px;
+    color: #666666;
+    margin-bottom: 6px;
+    font-style: normal;
+}
+
+.falcon-item-description {
+    font-size: 12px;
+    color: #222;
+    line-height: 1.6;
+}
+
+/* ---------- Lists ---------- */
+
+.falcon-item ul {
+    padding-left: 18px;
+    margin: 4px 0 0 0;
+}
+
+.falcon-item li {
+    margin-bottom: 4px;
+}
+
+/* ---------- Skills ---------- */
+
+.falcon-skills {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 12px;
+}
+
+.falcon-skill-item {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+}
+
+/* ---------- Projects ---------- */
+.falcon-project-item {
+    margin-bottom: 16px;
+}
+
+.falcon-project-link {
+    font-size: 11px;
+    color: #666;
+    text-decoration: none;
+    display: block;
+    margin-bottom: 4px;
+}
+
+/* ---------- Print ---------- */
+
+@media print {
+    @page {
+        margin: 0;
+    }
+
+    .falcon-template {
+        padding: 40px !important;
+        /* Proper print padding */
+    }
+
+    .falcon-header {
+        border-bottom: 3px solid #000000 !important;
+    }
+
+    .falcon-item {
+        page-break-inside: avoid;
+    }
+}

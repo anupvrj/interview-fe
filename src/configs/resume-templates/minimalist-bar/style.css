@@ -1,0 +1,181 @@
+/* ===============================
+   Minimalist Bar Resume Template
+   =============================== */
+
+.minimalist-bar-template {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+    color: #1a1a1a;
+    background-color: #ffffff;
+    padding: 35px 50px;
+    line-height: 1.5;
+    letter-spacing: -0.01em;
+
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+}
+
+/* ---------- Header ---------- */
+
+.minimalist-bar-header {
+    margin-bottom: 5px !important;
+}
+
+.minimalist-bar-name {
+    font-size: 28px;
+    font-weight: 800;
+    color: #000000 !important;
+    margin-bottom: 4px !important;
+    letter-spacing: -0.02em;
+    text-transform: uppercase;
+}
+
+.minimalist-bar-job-title {
+    font-size: 14px;
+    color: #666666 !important;
+    margin-bottom: 12px !important;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+}
+
+.minimalist-bar-contact {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 16px !important;
+    font-size: 10.5px !important;
+    color: #444444 !important;
+    font-weight: 500 !important;
+    margin-bottom: 0 !important;
+}
+
+/* Ensure no hidden dots or pipes appear from previous logic */
+.minimalist-bar-contact>*::after {
+    content: none !important;
+    display: none !important;
+}
+
+/* Hide any auto-generated separator spans that might contain dots */
+.minimalist-bar-contact .separator,
+.minimalist-bar-contact .symbol {
+    display: none !important;
+}
+
+/* ---------- Section Headers ---------- */
+
+.minimalist-bar-template h2,
+.minimalist-bar-section-header {
+    font-size: 11.5px !important;
+    font-weight: 800 !important;
+    text-transform: uppercase !important;
+    background-color: #e5e7eb !important;
+    /* Slightly darker gray for better definition */
+    padding: 6px 20px !important;
+    margin-top: 16px !important;
+    margin-bottom: 10px !important;
+    color: #000000 !important;
+    letter-spacing: 0.1em !important;
+    border-left: none !important;
+    border-radius: 20px !important;
+    display: inline-block !important;
+    /* Makes the pill width wrap content slightly better if needed, but the renderer uses h2 */
+    width: 100% !important;
+
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+}
+
+/* ---------- Experience / Education ---------- */
+
+.minimalist-bar-experience-item,
+.minimalist-bar-education-item {
+    margin-bottom: 10px !important;
+}
+
+.minimalist-bar-job-header,
+.minimalist-bar-education-header {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: baseline !important;
+    margin-bottom: 2px !important;
+}
+
+.minimalist-bar-job-title-exp,
+.minimalist-bar-degree {
+    font-size: 13.5px !important;
+    font-weight: 700 !important;
+    color: #000000 !important;
+}
+
+.minimalist-bar-company,
+.minimalist-bar-institution {
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    color: #4b5563 !important;
+    font-style: italic !important;
+}
+
+.minimalist-bar-job-details-container,
+.minimalist-bar-education-details-container {
+    text-align: right !important;
+    font-size: 10.5px !important;
+    color: #666666 !important;
+    font-weight: 600 !important;
+}
+
+.minimalist-bar-template .resume-content {
+    font-size: 11px !important;
+    line-height: 1.6 !important;
+    color: #374151 !important;
+}
+
+.minimalist-bar-template ul {
+    padding-left: 16px !important;
+    margin: 4px 0 !important;
+}
+
+.minimalist-bar-template li {
+    margin-bottom: 3px !important;
+}
+
+/* ---------- Skills (Bullets) ---------- */
+
+.minimalist-bar-skills-container {
+    margin-top: 5px !important;
+}
+
+.minimalist-bar-skill-item {
+    display: flex !important;
+    align-items: center !important;
+    gap: 10px !important;
+    margin-bottom: 5px !important;
+    font-size: 11px !important;
+    color: #1a1a1a !important;
+    font-weight: 500 !important;
+}
+
+.minimalist-bar-skill-item::before {
+    content: "" !important;
+    width: 4px !important;
+    height: 4px !important;
+    background-color: #000000 !important;
+    border-radius: 50% !important;
+    flex-shrink: 0 !important;
+}
+
+/* ---------- Print ---------- */
+
+@media print {
+    * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+
+    .minimalist-bar-template {
+        padding: 0;
+    }
+
+    .minimalist-bar-experience-item,
+    .minimalist-bar-education-item {
+        page-break-inside: avoid !important;
+    }
+}

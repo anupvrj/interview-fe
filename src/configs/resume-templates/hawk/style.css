@@ -1,0 +1,203 @@
+/* ===============================
+   Hawk Resume Template (Product Sidebar)
+   =============================== */
+
+.hawk-template {
+    font-family: Arial, Helvetica, sans-serif;
+    background: #ffffff;
+    color: #000000;
+    display: flex;
+    gap: 0;
+    /* Remove gap to prevent white space between columns */
+    padding: 0;
+    /* Full bleed layout based on screenshot usually implies minimal outer padding or handled by page */
+    min-height: 100%;
+    width: 100%;
+
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+}
+
+/* ---------- Sidebar (Left) ---------- */
+
+.hawk-left {
+    width: 32%;
+    background-color: #0f4c5c !important;
+    /* Teal/Dark Green background */
+    color: #ffffff !important;
+    padding: 20px;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+}
+
+.hawk-name {
+    font-size: 24px;
+    font-weight: bold;
+    margin-bottom: 4px;
+    color: #ffffff !important;
+    line-height: 1.2;
+}
+
+.hawk-title {
+    font-size: 14px;
+    text-transform: uppercase;
+    margin-bottom: 20px;
+    letter-spacing: 1px;
+    color: #e0f2f1 !important;
+    /* Lighter teal for subtitle */
+    font-weight: 500;
+}
+
+.hawk-section {
+    margin-bottom: 20px;
+}
+
+.hawk-section h2 {
+    font-size: 14px !important;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.3) !important;
+    padding-bottom: 4px;
+    color: #ffffff !important;
+    letter-spacing: 0.5px;
+}
+
+/* Contact Info in Sidebar */
+.hawk-contact-item {
+    font-size: 11px;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    word-break: break-word;
+}
+
+.hawk-contact-item svg {
+    width: 14px;
+    height: 14px;
+    stroke: #ffffff;
+}
+
+/* Skills List */
+.hawk-skills-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.hawk-skills-list li {
+    font-size: 12px;
+    margin-bottom: 6px;
+    padding-left: 0;
+}
+
+/* ---------- Main Content (Right) ---------- */
+
+.hawk-right {
+    width: 68%;
+    padding: 25px 30px;
+    box-sizing: border-box;
+    background-color: #ffffff;
+}
+
+.hawk-right h2 {
+    font-size: 16px !important;
+    text-transform: uppercase;
+    margin-bottom: 15px;
+    color: #0f4c5c !important;
+    /* Matches sidebar color */
+    border-bottom: 2px solid #0f4c5c !important;
+    padding-bottom: 5px;
+    letter-spacing: 0.5px;
+    font-weight: 700;
+    margin-top: 20px;
+}
+
+.hawk-right h2:first-child {
+    margin-top: 0;
+}
+
+/* ---------- Experience & Education Items ---------- */
+
+.hawk-item {
+    margin-bottom: 18px;
+}
+
+.hawk-item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 4px;
+}
+
+.hawk-item-title {
+    font-size: 14px;
+    font-weight: bold;
+    color: #333;
+}
+
+.hawk-item-meta {
+    font-size: 12px;
+    color: #666;
+    font-style: italic;
+    margin-bottom: 6px;
+}
+
+.hawk-item-date {
+    font-size: 12px;
+    color: #666;
+    font-weight: 500;
+}
+
+.hawk-item ul {
+    padding-left: 18px;
+    margin: 4px 0 0 0;
+}
+
+.hawk-item li {
+    font-size: 12px;
+    margin-bottom: 4px;
+    line-height: 1.4;
+    color: #333;
+}
+
+/* ---------- Print Overrides ---------- */
+
+@media print {
+    @page {
+        margin: 0;
+        size: auto;
+    }
+
+    body {
+        margin: 0;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+
+    .hawk-template {
+        display: flex !important;
+        min-height: 100vh;
+        height: 100%;
+    }
+
+    .hawk-left {
+        background-color: #0f4c5c !important;
+        -webkit-print-color-adjust: exact !important;
+        height: auto;
+    }
+
+    .hawk-item {
+        page-break-inside: avoid;
+    }
+
+    .hawk-section h2,
+    .hawk-right h2 {
+        page-break-after: avoid;
+    }
+}
