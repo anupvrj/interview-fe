@@ -23,6 +23,7 @@ export default function PlaygroundPage() {
     const [input, setInput] = useState("");
     const [messages, setMessages] = useState<Message[]>([]);
     const [loading, setLoading] = useState(false);
+    const [provider, setProvider] = useState<"openai" | "gemini">("gemini");
 
     // Trace State
     const [traceSteps, setTraceSteps] = useState<TraceStep[]>([]);
@@ -98,12 +99,12 @@ export default function PlaygroundPage() {
                         };
                         setMessages((prev) => [...prev, assistantMsg]);
                     }
-                });
+                }, provider);
             } else {
                 // Use Standard Invoke Flow
                 const result = await researchApi.invokeAgent(agentId, input, {
                     prompt_id: promptId
-                });
+                }, provider);
 
                 const assistantMsg: Message = {
                     role: "assistant",
@@ -209,15 +210,25 @@ export default function PlaygroundPage() {
                             </CardHeader>
                             <CardContent className="p-4 space-y-4">
                                 <div>
-                                    <label className="text-sm font-medium mb-1.5 block">Agent ID</label>
-                                    <Input value={agentId} disabled readOnly />
-                                </div>
-
-                                <div>
                                     <label className="text-sm font-medium mb-1.5 block">Active Prompt</label>
                                     <div className="bg-slate-50 border rounded-md p-2 text-sm font-mono truncate">
                                         {promptId}
                                     </div>
+                                </div>
+
+                                <div className="pt-4 border-t">
+                                    <label className="text-sm font-medium mb-1.5 block">LLM Provider</label>
+                                    <select
+                                        className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm"
+                                        value={provider}
+                                        onChange={(e) => setProvider(e.target.value as any)}
+                                    >
+                                        <option value="openai">OpenAI (Default)</option>
+                                        <option value="gemini">Google Gemini</option>
+                                    </select>
+                                    <p className="text-[10px] text-muted-foreground mt-1.5 italic">
+                                        Affects both logic and voice generation.
+                                    </p>
                                 </div>
 
                                 {agentId === "deep-researcher" && (
@@ -252,7 +263,7 @@ export default function PlaygroundPage() {
                                             };
                                             try {
                                                 alert("Running Agent in Production Runtime...");
-                                                const res = await researchApi.executeAgent(spec, { messages: [{ role: "user", content: "Hello Production" }] });
+                                                const res = await researchApi.executeAgent(spec, { messages: [{ role: "user", content: "Hello Production" }] }, provider);
                                                 alert("Result: " + JSON.stringify(res, null, 2));
                                             } catch (e: any) {
                                                 alert("Error: " + e.message);
@@ -270,7 +281,7 @@ export default function PlaygroundPage() {
                         </Card>
                     )}
                 </div>
-            </div>
-        </div>
+            </div >
+        </div >
     );
 }

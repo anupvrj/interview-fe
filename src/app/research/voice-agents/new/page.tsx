@@ -25,7 +25,8 @@ export default function NewVoiceAgentPage() {
         temperature: 0.8,
         silenceDurationMs: 2500,
         systemPrompt: "You are a helpful AI assistant. Respond warmly and concisely.",
-        language: "en"
+        language: "en",
+        provider: "gemini"
     });
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -131,6 +132,18 @@ export default function NewVoiceAgentPage() {
                             <div className="space-y-4">
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-2">
+                                        <label className="text-sm font-medium">LLM Provider</label>
+                                        <select
+                                            name="provider"
+                                            className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm"
+                                            value={formData.provider}
+                                            onChange={handleChange}
+                                        >
+                                            <option value="openai">OpenAI (Realtime)</option>
+                                            <option value="gemini">Google Gemini (Multimodal Live)</option>
+                                        </select>
+                                    </div>
+                                    <div className="space-y-2">
                                         <label className="text-sm font-medium">Voice Model</label>
                                         <select
                                             name="voice"
@@ -146,23 +159,23 @@ export default function NewVoiceAgentPage() {
                                             <option value="shimmer">Shimmer (Clear Female)</option>
                                         </select>
                                     </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-2">
                                         <label className="text-sm font-medium">Language Hint</label>
                                         <Input name="language" value={formData.language} onChange={handleChange} placeholder="e.g. 'en', 'es'" />
                                     </div>
-                                </div>
-
-                                <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-2">
                                         <label className="text-sm font-medium">Temperature</label>
                                         <Input type="number" step="0.1" name="temperature" value={formData.temperature} onChange={handleChange} />
                                         <p className="text-xs text-muted-foreground">Creativity (0.0 to 1.0)</p>
                                     </div>
-                                    <div className="space-y-2">
-                                        <label className="text-sm font-medium">Silence Threshold (ms)</label>
-                                        <Input type="number" step="100" name="silenceDurationMs" value={formData.silenceDurationMs} onChange={handleChange} />
-                                        <p className="text-xs text-muted-foreground">Time before AI responds</p>
-                                    </div>
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium">Silence Threshold (ms)</label>
+                                    <Input type="number" step="100" name="silenceDurationMs" value={formData.silenceDurationMs} onChange={handleChange} />
+                                    <p className="text-xs text-muted-foreground">Time before AI responds</p>
                                 </div>
                             </div>
                         </div>
