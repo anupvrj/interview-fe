@@ -13,7 +13,7 @@ import {
     CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Play, Code, Loader2, AlertCircle, Bot, Trash2, Mic } from "lucide-react";
+import { Plus, Play, Code, Loader2, AlertCircle, Bot, Trash2, Mic, Rocket, Lock } from "lucide-react";
 import {
     AlertDialog,
     AlertDialogAction,
@@ -34,6 +34,9 @@ export default function ResearchDashboard() {
 
     // Deletion State
     const [deleteItem, setDeleteItem] = useState<{ id: string, type: 'agent' | 'prompt' | 'voiceAgent', name: string } | null>(null);
+    // Promotion State
+    const [promoteItem, setPromoteItem] = useState<{ id: string, type: 'agent' | 'prompt' | 'voiceAgent', name: string } | null>(null);
+    const [promoting, setPromoting] = useState(false);
 
     useEffect(() => {
         fetchData();
@@ -70,7 +73,6 @@ export default function ResearchDashboard() {
             } else {
                 await researchApi.deletePrompt(deleteItem.id);
             }
-            // Refresh
             await fetchData();
             setDeleteItem(null);
         } catch (err: any) {
@@ -78,19 +80,40 @@ export default function ResearchDashboard() {
         }
     };
 
+    const handlePromote = async () => {
+        if (!promoteItem) return;
+        setPromoting(true);
+        try {
+            if (promoteItem.type === 'agent') {
+                await researchApi.promoteAgent(promoteItem.id);
+            } else if (promoteItem.type === 'voiceAgent') {
+                await researchApi.promoteVoiceAgent(promoteItem.id);
+            } else {
+                await researchApi.promotePrompt(promoteItem.id);
+            }
+            await fetchData();
+            setPromoteItem(null);
+        } catch (err: any) {
+            alert(err.response?.data?.message || err.message || "Failed to promote");
+        } finally {
+            setPromoting(false);
+        }
+    };
+
     const getEnvironmentColor = (env: string) => {
         switch (env) {
-            case "production":
-                return "default"; // Primary color
-            case "staging":
-                return "secondary";
-            case "development":
-                return "outline";
-            case "experiment":
-                return "secondary"; // Or maybe a different variant if available
-            default:
-                return "outline";
+            case "production": return "default";
+            case "staging": return "secondary";
+            case "development": return "outline";
+            case "experiment": return "secondary";
+            default: return "outline";
         }
+    };
+
+    const getEnvironmentStyle = (env: string) => {
+        if (env === "production") return "bg-green-100 text-green-800 border-green-300";
+        if (env === "staging") return "bg-yellow-100 text-yellow-800 border-yellow-300";
+        return "bg-slate-100 text-slate-600 border-slate-300";
     };
 
     return (
@@ -146,14 +169,21 @@ export default function ResearchDashboard() {
                         </h2>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                             {agents.map((agent) => (
-                                <Card key={agent.id} className="flex flex-col bg-slate-50 border-indigo-100">
+                                <Card key={agent.id} className={`flex flex-col ${agent.environment === 'production' ? 'bg-green-50/30 border-green-200' : 'bg-slate-50 border-indigo-100'}`}>
                                     <CardHeader>
                                         <div className="flex items-center justify-between mb-2">
-                                            <Badge variant="secondary" className="bg-indigo-100 text-indigo-700 hover:bg-indigo-200">
-                                                {agent.type}
-                                            </Badge>
-                                            {/* Only show delete for custom agents (assumed via ID format or type) */}
-                                            {agent.type === 'custom-dsl' && (
+                                            <div className="flex items-center gap-2">
+                                                <Badge variant="secondary" className="bg-indigo-100 text-indigo-700 hover:bg-indigo-200">
+                                                    {agent.type}
+                                                </Badge>
+                                                {agent.environment && (
+                                                    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${getEnvironmentStyle(agent.environment)}`}>
+                                                        {agent.environment === 'production' && <Lock className="inline h-2.5 w-2.5 mr-1" />}
+                                                        {agent.environment}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            {agent.type === 'custom-dsl' && agent.environment !== 'production' && (
                                                 <Button
                                                     variant="ghost"
                                                     size="icon"
@@ -169,13 +199,24 @@ export default function ResearchDashboard() {
                                             {agent.description}
                                         </CardDescription>
                                     </CardHeader>
-                                    <CardFooter className="mt-auto pt-4">
-                                        <Link href={`/research/playground?agentId=${agent.id}`} className="w-full">
+                                    <CardFooter className="mt-auto pt-4 flex gap-2">
+                                        <Link href={`/research/playground?agentId=${agent.id}`} className="flex-1">
                                             <Button className="w-full bg-white text-indigo-600 border border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700">
                                                 <Play className="mr-2 h-4 w-4" />
                                                 Chat with Agent
                                             </Button>
                                         </Link>
+                                        {agent.type === 'custom-dsl' && agent.environment !== 'production' && (
+                                            <Button
+                                                variant="outline"
+                                                size="icon"
+                                                className="text-green-700 border-green-300 hover:bg-green-50"
+                                                title="Promote to Production"
+                                                onClick={() => setPromoteItem({ id: agent.id, type: 'agent', name: agent.name })}
+                                            >
+                                                <Rocket className="h-4 w-4" />
+                                            </Button>
+                                        )}
                                     </CardFooter>
                                 </Card>
                             ))}
@@ -188,24 +229,27 @@ export default function ResearchDashboard() {
                         </h2>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                             {prompts.map((prompt) => (
-                                <Card key={prompt._id} className="flex flex-col">
+                                <Card key={prompt._id} className={`flex flex-col ${prompt.environment === 'production' ? 'border-green-200 bg-green-50/20' : ''}`}>
                                     <CardHeader>
                                         <div className="flex items-center justify-between mb-2">
-                                            <Badge variant={getEnvironmentColor(prompt.environment) as any}>
+                                            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${getEnvironmentStyle(prompt.environment)}`}>
+                                                {prompt.environment === 'production' && <Lock className="inline h-2.5 w-2.5 mr-1" />}
                                                 {prompt.environment}
-                                            </Badge>
+                                            </span>
                                             <div className="flex items-center gap-1">
                                                 <span className="text-xs text-muted-foreground font-mono mr-2">
                                                     v{prompt.version}
                                                 </span>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    className="h-6 w-6 text-muted-foreground hover:text-red-600"
-                                                    onClick={() => setDeleteItem({ id: prompt._id, type: 'prompt', name: prompt.name })}
-                                                >
-                                                    <Trash2 className="h-4 w-4" />
-                                                </Button>
+                                                {prompt.environment !== 'production' && (
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-6 w-6 text-muted-foreground hover:text-red-600"
+                                                        onClick={() => setDeleteItem({ id: prompt._id, type: 'prompt', name: prompt.name })}
+                                                    >
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </Button>
+                                                )}
                                             </div>
                                         </div>
                                         <CardTitle className="text-xl">{prompt.name}</CardTitle>
@@ -216,10 +260,7 @@ export default function ResearchDashboard() {
                                     <CardContent className="flex-1">
                                         <div className="flex flex-wrap gap-2 mb-4">
                                             {prompt.tags?.map((tag) => (
-                                                <span
-                                                    key={tag}
-                                                    className="px-2 py-1 bg-slate-100 text-slate-600 rounded-md text-xs font-medium"
-                                                >
+                                                <span key={tag} className="px-2 py-1 bg-slate-100 text-slate-600 rounded-md text-xs font-medium">
                                                     #{tag}
                                                 </span>
                                             ))}
@@ -240,6 +281,17 @@ export default function ResearchDashboard() {
                                                 <Code className="h-4 w-4" />
                                             </Button>
                                         </Link>
+                                        {prompt.environment !== 'production' && (
+                                            <Button
+                                                variant="outline"
+                                                size="icon"
+                                                className="text-green-700 border-green-300 hover:bg-green-50"
+                                                title="Promote to Production"
+                                                onClick={() => setPromoteItem({ id: prompt._id, type: 'prompt', name: prompt.name })}
+                                            >
+                                                <Rocket className="h-4 w-4" />
+                                            </Button>
+                                        )}
                                     </CardFooter>
                                 </Card>
                             ))}
@@ -261,43 +313,52 @@ export default function ResearchDashboard() {
                         </h2>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                             {voiceAgents.map((agent) => (
-                                <Card key={agent._id} className="flex flex-col bg-green-50/30 border-green-100">
+                                <Card key={agent._id} className={`flex flex-col ${agent.environment === 'production' ? 'bg-green-50/50 border-green-300' : 'bg-green-50/20 border-green-100'}`}>
                                     <CardHeader>
                                         <div className="flex items-center justify-between mb-2">
-                                            <Badge variant={getEnvironmentColor(agent.environment) as any}>
+                                            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${getEnvironmentStyle(agent.environment)}`}>
+                                                {agent.environment === 'production' && <Lock className="inline h-2.5 w-2.5 mr-1" />}
                                                 {agent.environment}
-                                            </Badge>
+                                            </span>
                                             <div className="flex items-center gap-1">
                                                 <span className="text-xs text-muted-foreground font-mono mr-2">
                                                     v{agent.version}
                                                 </span>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    className="h-6 w-6 text-muted-foreground hover:text-red-600"
-                                                    onClick={() => setDeleteItem({ id: agent._id, type: 'voiceAgent', name: agent.name })}
-                                                >
-                                                    <Trash2 className="h-4 w-4" />
-                                                </Button>
+                                                {agent.environment !== 'production' && (
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-6 w-6 text-muted-foreground hover:text-red-600"
+                                                        onClick={() => setDeleteItem({ id: agent._id, type: 'voiceAgent', name: agent.name })}
+                                                    >
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </Button>
+                                                )}
                                             </div>
                                         </div>
                                         <CardTitle className="text-lg">{agent.name}</CardTitle>
                                         <CardDescription className="line-clamp-1">
-                                            Voice: {agent.voice} | Temp: {agent.temperature}
+                                            Voice: {agent.voice} | Provider: {agent.provider} | Temp: {agent.temperature}
                                         </CardDescription>
                                     </CardHeader>
                                     <CardFooter className="mt-auto pt-4 flex gap-2">
                                         <Link href={`/research/voice-agents/tester?agentId=${agent._id}`} className="flex-1">
                                             <Button className="w-full bg-white text-green-700 border border-green-200 hover:bg-green-50 hover:text-green-800">
                                                 <Mic className="mr-2 h-4 w-4" />
-                                                Test Voice
+                                                Test
                                             </Button>
                                         </Link>
-                                        <Link href={`/research/voice-agents/${agent._id}`}>
-                                            <Button variant="outline" size="icon">
-                                                <Code className="h-4 w-4" />
+                                        {agent.environment !== 'production' && (
+                                            <Button
+                                                variant="outline"
+                                                size="icon"
+                                                className="text-green-700 border-green-300 hover:bg-green-50"
+                                                title="Promote to Production"
+                                                onClick={() => setPromoteItem({ id: agent._id, type: 'voiceAgent', name: agent.name })}
+                                            >
+                                                <Rocket className="h-4 w-4" />
                                             </Button>
-                                        </Link>
+                                        )}
                                     </CardFooter>
                                 </Card>
                             ))}
@@ -320,13 +381,38 @@ export default function ResearchDashboard() {
                     <AlertDialogHeader>
                         <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                         <AlertDialogDescription>
-                            This will permanently delete the {deleteItem?.type} "{deleteItem?.name}".
-                            {/* Production warning is handled by backend, but we could add visual cue here too */}
+                            This will permanently delete "{deleteItem?.name}". This action cannot be undone.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                         <AlertDialogCancel>Cancel</AlertDialogCancel>
                         <AlertDialogAction onClick={handleDelete} className="bg-red-600 hover:bg-red-700">Delete</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            <AlertDialog open={!!promoteItem} onOpenChange={() => setPromoteItem(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle className="flex items-center gap-2">
+                            <Rocket className="h-5 w-5 text-green-600" />
+                            Promote to Production?
+                        </AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This will promote <strong>"{promoteItem?.name}"</strong> to production.
+                            Any existing production version of the same name will be automatically demoted to staging.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel disabled={promoting}>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={handlePromote}
+                            disabled={promoting}
+                            className="bg-green-600 hover:bg-green-700"
+                        >
+                            {promoting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Rocket className="h-4 w-4 mr-2" />}
+                            {promoting ? "Promoting..." : "Promote to Production"}
+                        </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>

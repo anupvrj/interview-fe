@@ -32,6 +32,7 @@ export interface VoiceAgentInfo {
     temperature: number;
     silenceDurationMs: number;
     language?: string;
+    provider: string;
     createdAt: string;
     updatedAt: string;
 }
@@ -76,8 +77,28 @@ export const researchApi = {
         return response.data;
     },
 
+    getVoiceAgent: async (id: string): Promise<VoiceAgentInfo> => {
+        const response = await apiClient.get<VoiceAgentInfo>(`/voice-agents/${id}`);
+        return response.data;
+    },
+
     deletePrompt: async (id: string): Promise<any> => {
         const response = await apiClient.delete(`/internal/research/prompts/${id}`);
+        return response.data;
+    },
+
+    promoteAgent: async (id: string): Promise<any> => {
+        const response = await apiClient.post(`/internal/research/agents/${id}/promote`);
+        return response.data;
+    },
+
+    promotePrompt: async (id: string): Promise<any> => {
+        const response = await apiClient.post(`/internal/research/prompts/${id}/promote`);
+        return response.data;
+    },
+
+    promoteVoiceAgent: async (id: string): Promise<any> => {
+        const response = await apiClient.post(`/voice-agents/${id}/promote`);
         return response.data;
     },
 
@@ -100,11 +121,12 @@ export const researchApi = {
     },
 
     // Invoke an agent
-    invokeAgent: async (agentId: string, input: any, promptConfig?: any) => {
+    invokeAgent: async (agentId: string, input: any, promptConfig?: any, provider?: string) => {
         const response = await apiClient.post("/internal/research/invoke-agent", {
             agent_id: agentId,
             input,
-            prompt_config: promptConfig
+            prompt_config: promptConfig,
+            provider
         });
         return response.data;
     },
@@ -116,16 +138,17 @@ export const researchApi = {
     },
 
     // Execute an AgentSpec (Production Runtime)
-    executeAgent: async (spec: any, input: any): Promise<any> => {
+    executeAgent: async (spec: any, input: any, provider?: string): Promise<any> => {
         const response = await apiClient.post("/internal/research/execute", {
             spec,
-            input
+            input,
+            provider
         });
         return response.data;
     },
 
     // Stream an Agent (Runtime via Proxy)
-    streamAgent: async (agentId: string, input: any, onChunk: (chunk: any) => void) => {
+    streamAgent: async (agentId: string, input: any, onChunk: (chunk: any) => void, provider?: string) => {
         const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5004/api";
         const url = `${API_URL}/internal/research/stream-agent`;
 
@@ -145,7 +168,8 @@ export const researchApi = {
                 },
                 body: JSON.stringify({
                     agent_id: agentId,
-                    input: input
+                    input: input,
+                    provider
                 })
             });
 
