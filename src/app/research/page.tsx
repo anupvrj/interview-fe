@@ -206,6 +206,11 @@ export default function ResearchDashboard() {
                                                 Chat with Agent
                                             </Button>
                                         </Link>
+                                        <Link href={`/research/agents/${agent.id}`}>
+                                            <Button variant="outline" size="icon">
+                                                <Code className="h-4 w-4" />
+                                            </Button>
+                                        </Link>
                                         {agent.type === 'custom-dsl' && agent.environment !== 'production' && (
                                             <Button
                                                 variant="outline"
@@ -346,6 +351,11 @@ export default function ResearchDashboard() {
                                             <Button className="w-full bg-white text-green-700 border border-green-200 hover:bg-green-50 hover:text-green-800">
                                                 <Mic className="mr-2 h-4 w-4" />
                                                 Test
+                                            </Button>
+                                        </Link>
+                                        <Link href={`/research/voice-agents/${agent._id}`}>
+                                            <Button variant="outline" size="icon">
+                                                <Code className="h-4 w-4" />
                                             </Button>
                                         </Link>
                                         {agent.environment !== 'production' && (

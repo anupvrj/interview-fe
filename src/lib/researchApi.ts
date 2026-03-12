@@ -45,9 +45,20 @@ export const researchApi = {
         return response.data;
     },
 
-    // Create a new agent
     createAgent: async (agent: any): Promise<any> => {
         const response = await apiClient.post("/internal/research/agents", agent);
+        return response.data;
+    },
+
+    // Get a specific agent
+    getAgent: async (id: string): Promise<any> => {
+        const response = await apiClient.get<any>(`/internal/research/agents/${id}`);
+        return response.data;
+    },
+
+    // Update an agent
+    updateAgent: async (id: string, agent: any): Promise<any> => {
+        const response = await apiClient.put(`/internal/research/agents/${id}`, agent);
         return response.data;
     },
 

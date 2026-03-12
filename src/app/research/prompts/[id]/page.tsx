@@ -5,7 +5,8 @@ import { PromptEditor } from "@/components/research/PromptEditor";
 import { researchApi, ResearchPrompt } from "@/lib/researchApi";
 import { Loader2 } from "lucide-react";
 
-export default function EditPromptPage({ params }: { params: { id: string } }) {
+export default function EditPromptPage({ params }: { params: Promise<{ id: string }> }) {
+    const resolvedParams = require("react").use(params) as { id: string };
     const [prompt, setPrompt] = useState<ResearchPrompt | null>(null);
     const [loading, setLoading] = useState(true);
 
@@ -30,7 +31,7 @@ export default function EditPromptPage({ params }: { params: { id: string } }) {
         const loadPrompt = async () => {
             try {
                 const prompts = await researchApi.listPrompts();
-                const found = prompts.find(p => p._id === params.id);
+                const found = prompts.find(p => p._id === resolvedParams.id);
                 if (found) {
                     setPrompt(found);
                 } else {
@@ -44,7 +45,7 @@ export default function EditPromptPage({ params }: { params: { id: string } }) {
             }
         };
         loadPrompt();
-    }, [params.id]);
+    }, [resolvedParams.id]);
 
     if (loading) {
         return <div className="flex justify-center p-12"><Loader2 className="animate-spin" /></div>;
