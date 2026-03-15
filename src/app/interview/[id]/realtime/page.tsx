@@ -24,11 +24,13 @@ import {
   Volume2,
   Circle,
   Square,
+  CheckCircle2,
 } from "lucide-react";
 import { interviewApi, Interview } from "@/lib/api";
 import { formatDuration } from "@/lib/utils";
 
-const MAX_INTERVIEW_DURATION = 15 * 60; // 15 minutes in seconds
+const TARGET_INTERVIEW_DURATION = 15 * 60; // 15 minutes - AI says final thank you
+const MAX_INTERVIEW_DURATION = 20 * 60; // 20 minutes - hard fallback if AI doesn't complete
 
 /** Voice provider for realtime: "chatgpt" (default) or "gemini". Set via NEXT_PUBLIC_VOICE_PROVIDER. */
 const VOICE_PROVIDER: "chatgpt" | "gemini" =
@@ -62,8 +64,14 @@ export default function RealtimeInterviewPage() {
   const [isPreparing, setIsPreparing] = useState(true);
   const [lastAIMessage, setLastAIMessage] = useState("");
   const [connectionFailed, setConnectionFailed] = useState(false);
+  const [isReconnecting, setIsReconnecting] = useState(false);
   const [isClosingFailed, setIsClosingFailed] = useState(false);
   const [isResuming, setIsResuming] = useState(false);
+  const [showEndInterviewConfirm, setShowEndInterviewConfirm] = useState(false);
+  const [showInterviewComplete, setShowInterviewComplete] = useState(false);
+  const [interviewCompleteCountdown, setInterviewCompleteCountdown] = useState(15);
+  const interviewCompleteAutoCloseRef = useRef<NodeJS.Timeout | null>(null);
+  const interviewCompleteCountdownRef = useRef<NodeJS.Timeout | null>(null);
 
   // Refs
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -71,6 +79,7 @@ export default function RealtimeInterviewPage() {
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const websocketRef = useRef<WebSocket | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const timerStartedRef = useRef(false);
   const audioProcessorRef = useRef<ScriptProcessorNode | null>(null);
   const audioQueueRef = useRef<Int16Array[]>([]);
   const audioBufferRef = useRef<Int16Array[]>([]);
@@ -116,6 +125,16 @@ export default function RealtimeInterviewPage() {
       endInterview();
     }
   }, [elapsedTime, isInterviewActive]);
+
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isInterviewActiveRef.current) {
+        e.preventDefault();
+      }
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, []);
 
   const loadInterview = async () => {
     try {
@@ -384,9 +403,13 @@ export default function RealtimeInterviewPage() {
             setIsAIProcessing(true);
             setIsAISpeaking(false);
             setLastAIMessage("Reconnecting AI session...");
+            setIsReconnecting(true);
+            if (isInterviewActiveRef.current) setConnectionFailed(true);
           } else if (data.type === "reconnected") {
             setIsAIProcessing(false);
             setLastAIMessage("AI session resumed.");
+            setIsReconnecting(false);
+            setConnectionFailed(false);
           } else if (data.type === "connected") {
             if (data.provider) voiceProviderRef.current = data.provider;
           } else if (data.type === "openai_event") {
@@ -396,6 +419,13 @@ export default function RealtimeInterviewPage() {
             setIsAISpeaking(true); // AI is sending audio, so it's speaking
             setIsAIProcessing(false);
             setIsPreparing(false); // AI has started speaking, no longer preparing
+            // Start timer when AI is ready (first response)
+            if (!timerStartedRef.current && isInterviewActiveRef.current) {
+              timerStartedRef.current = true;
+              timerRef.current = setInterval(() => {
+                setElapsedTime((prev) => prev + 1);
+              }, 1000);
+            }
           } else if (data.type === "text_response") {
             // AI transcript - show partials in real-time, add complete to history
             if (data.text) {
@@ -407,6 +437,13 @@ export default function RealtimeInterviewPage() {
               // Clear preparing state when AI starts responding
               setIsPreparing(false);
               setIsAIProcessing(false);
+              // Start timer when AI is ready (first response)
+              if (!timerStartedRef.current && isInterviewActiveRef.current) {
+                timerStartedRef.current = true;
+                timerRef.current = setInterval(() => {
+                  setElapsedTime((prev) => prev + 1);
+                }, 1000);
+              }
 
               if (isComplete) {
                 setTranscript((prev) => [
@@ -424,6 +461,36 @@ export default function RealtimeInterviewPage() {
                 setCurrentAssistantTranscript(data.text);
               }
             }
+          } else if (data.type === "interview_complete") {
+            setShowInterviewComplete(true);
+            setInterviewCompleteCountdown(15);
+            if (interviewCompleteAutoCloseRef.current) {
+              clearTimeout(interviewCompleteAutoCloseRef.current);
+            }
+            if (interviewCompleteCountdownRef.current) {
+              clearInterval(interviewCompleteCountdownRef.current);
+            }
+            interviewCompleteCountdownRef.current = setInterval(() => {
+              setInterviewCompleteCountdown((prev) => {
+                if (prev <= 1) {
+                  if (interviewCompleteCountdownRef.current) {
+                    clearInterval(interviewCompleteCountdownRef.current);
+                    interviewCompleteCountdownRef.current = null;
+                  }
+                  return 0;
+                }
+                return prev - 1;
+              });
+            }, 1000);
+            interviewCompleteAutoCloseRef.current = setTimeout(() => {
+              if (interviewCompleteCountdownRef.current) {
+                clearInterval(interviewCompleteCountdownRef.current);
+                interviewCompleteCountdownRef.current = null;
+              }
+              interviewCompleteAutoCloseRef.current = null;
+              setShowInterviewComplete(false);
+              endInterview();
+            }, 15000);
           } else if (data.type === "turn_complete") {
             // AI finished speaking - clear the "speaking..." indicator
             setIsAISpeaking(false);
@@ -451,6 +518,7 @@ export default function RealtimeInterviewPage() {
             setLastAIMessage("AI is understanding your answer...");
           } else if (data.type === "error") {
             setError(data.message || "Something went wrong at server side.");
+            setIsReconnecting(false);
             if (isInterviewActiveRef.current) setConnectionFailed(true);
           }
         } catch (error) {
@@ -469,6 +537,7 @@ export default function RealtimeInterviewPage() {
 
       ws.onclose = (event) => {
         setConnected(false);
+        setIsReconnecting(false);
         if (event.code !== 1000 && isInterviewActiveRef.current) {
           setConnectionFailed(true);
           setError("Something went wrong at server side.");
@@ -636,6 +705,13 @@ export default function RealtimeInterviewPage() {
 
       case "response.audio_transcript.delta":
         if (event.delta) {
+          setIsPreparing(false);
+          if (!timerStartedRef.current && isInterviewActiveRef.current) {
+            timerStartedRef.current = true;
+            timerRef.current = setInterval(() => {
+              setElapsedTime((prev) => prev + 1);
+            }, 1000);
+          }
           setCurrentAssistantTranscript((prev) => prev + event.delta);
         }
         break;
@@ -663,6 +739,13 @@ export default function RealtimeInterviewPage() {
       case "response.audio.delta":
         // Queue AI audio for sequential playback
         if (event.delta) {
+          setIsPreparing(false);
+          if (!timerStartedRef.current && isInterviewActiveRef.current) {
+            timerStartedRef.current = true;
+            timerRef.current = setInterval(() => {
+              setElapsedTime((prev) => prev + 1);
+            }, 1000);
+          }
           try {
             // Decode base64 to PCM16
             const binaryString = atob(event.delta);
@@ -839,6 +922,8 @@ export default function RealtimeInterviewPage() {
       setIsInterviewActive(true);
       isInterviewActiveRef.current = true;
       setIsPreparing(true); // Show preparing state until AI speaks
+      setElapsedTime(0); // Reset counter; starts when AI is ready
+      timerStartedRef.current = false; // Timer starts when AI is ready
 
       // Explicitly start Gemini interview only after user click
       if (voiceProviderRef.current === "gemini" && websocketRef.current) {
@@ -848,10 +933,7 @@ export default function RealtimeInterviewPage() {
       // Setup audio capture (must be after setIsInterviewActive)
       setupAudioCapture();
 
-      // Start timer
-      timerRef.current = setInterval(() => {
-        setElapsedTime((prev) => prev + 1);
-      }, 1000);
+      // Timer starts when AI is ready (first audio_response or text_response)
 
       // Request first response only for ChatGPT path
       setTimeout(() => {
@@ -898,6 +980,8 @@ export default function RealtimeInterviewPage() {
 
       // Stop timer
       if (timerRef.current) clearInterval(timerRef.current);
+      timerRef.current = null;
+      timerStartedRef.current = false;
 
       // Close WebSocket (Gemini expects end_session first)
       if (websocketRef.current) {
@@ -1603,17 +1687,103 @@ export default function RealtimeInterviewPage() {
 
   return (
     <div className="relative min-h-screen bg-[radial-gradient(circle_at_top,_#1f2937_0%,_#0b1220_45%,_#060913_100%)] text-white">
+      <AlertDialog
+        open={showInterviewComplete}
+        onOpenChange={setShowInterviewComplete}
+      >
+        <AlertDialogContent className="sm:max-w-md border-2 border-green-200 bg-white shadow-xl">
+          <AlertDialogHeader>
+            <div className="flex flex-col items-center text-center">
+              <CheckCircle2 className="mx-auto mb-4 h-12 w-12 text-green-500" />
+              <AlertDialogTitle className="text-xl font-bold text-gray-900">
+                Your interview is complete
+              </AlertDialogTitle>
+              <AlertDialogDescription className="mt-2 text-base text-gray-600">
+                Thank you for completing the interview. Click OK to view your
+                report and transcript.
+                {interviewCompleteCountdown > 0 && (
+                  <span className="mt-2 block text-sm text-gray-500">
+                    Auto-closing in {interviewCompleteCountdown} seconds...
+                  </span>
+                )}
+              </AlertDialogDescription>
+            </div>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="mt-4 sm:justify-center">
+            <Button
+              size="lg"
+              onClick={() => {
+                if (interviewCompleteAutoCloseRef.current) {
+                  clearTimeout(interviewCompleteAutoCloseRef.current);
+                  interviewCompleteAutoCloseRef.current = null;
+                }
+                if (interviewCompleteCountdownRef.current) {
+                  clearInterval(interviewCompleteCountdownRef.current);
+                  interviewCompleteCountdownRef.current = null;
+                }
+                setShowInterviewComplete(false);
+                endInterview();
+              }}
+              className="min-w-[120px] bg-gradient-to-r from-violet-600 to-blue-600 hover:from-violet-700 hover:to-blue-700 text-white"
+            >
+              View Report
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      <AlertDialog
+        open={showEndInterviewConfirm}
+        onOpenChange={setShowEndInterviewConfirm}
+      >
+        <AlertDialogContent className="sm:max-w-md border-2 border-amber-200 bg-white shadow-xl">
+          <AlertDialogHeader>
+            <div className="flex flex-col items-center text-center">
+              <AlertCircle className="mx-auto h-12 w-12 text-amber-500 mb-4" />
+              <AlertDialogTitle className="text-xl font-bold text-gray-900">
+                You are about to close the interview. Are you sure?
+              </AlertDialogTitle>
+              <AlertDialogDescription className="text-base mt-2 text-gray-600">
+                Your interview will be ended and credit will be deducted based on
+                your usage. You might see incomplete report of your interview or
+                report generation might fail.
+              </AlertDialogDescription>
+            </div>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="sm:justify-center gap-3 mt-4">
+            <Button
+              variant="outline"
+              size="lg"
+              onClick={() => setShowEndInterviewConfirm(false)}
+              className="min-w-[100px]"
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              size="lg"
+              onClick={async () => {
+                setShowEndInterviewConfirm(false);
+                await endInterview();
+              }}
+              className="min-w-[120px]"
+            >
+              End Interview
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <AlertDialog open={connectionFailed} onOpenChange={() => {}}>
         <AlertDialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto mx-4 w-[calc(100%-2rem)] border-2 border-red-200 bg-white shadow-xl">
           <AlertDialogHeader>
             <div className="flex flex-col items-center text-center">
               <AlertCircle className="mx-auto h-12 w-12 shrink-0 text-red-500 mb-4" />
               <AlertDialogTitle className="text-xl font-bold text-gray-900">
-                Connection Lost
+                {isReconnecting ? "Reconnecting..." : "Connection Lost"}
               </AlertDialogTitle>
               <AlertDialogDescription className="text-base mt-2 text-gray-600 break-words">
-                Something went wrong at server side. You can try to resume or
-                close this interview without losing credits.
+                {isReconnecting
+                  ? "Something went wrong at server side. Attempting to reconnect..."
+                  : "Something went wrong at server side. You can try to resume or close this interview without losing credits."}
               </AlertDialogDescription>
             </div>
           </AlertDialogHeader>
@@ -1622,7 +1792,7 @@ export default function RealtimeInterviewPage() {
               variant="outline"
               size="lg"
               onClick={closeFailedInterview}
-              disabled={isClosingFailed}
+              disabled={isClosingFailed || isReconnecting}
               className="w-full sm:w-auto sm:whitespace-nowrap text-center h-auto py-2 px-4"
             >
               {isClosingFailed ? (
@@ -1637,10 +1807,10 @@ export default function RealtimeInterviewPage() {
             <Button
               size="lg"
               onClick={resumeInterview}
-              disabled={isResuming}
+              disabled={isResuming || isReconnecting}
               className="w-full sm:w-auto sm:whitespace-nowrap text-center h-auto py-2 px-4 bg-gradient-to-r from-violet-600 to-blue-600 hover:from-violet-700 hover:to-blue-700 text-white"
             >
-              {isResuming ? (
+              {isResuming || isReconnecting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 shrink-0 animate-spin" />
                   Reconnecting...
@@ -1665,19 +1835,19 @@ export default function RealtimeInterviewPage() {
             </h1>
             <p className="text-sm text-gray-300/80">
               {formatDuration(elapsedTime)} /{" "}
-              {formatDuration(MAX_INTERVIEW_DURATION)}
+              {formatDuration(TARGET_INTERVIEW_DURATION)}
             </p>
           </div>
           <div className="flex items-center gap-3">
             <Progress
-              value={(elapsedTime / MAX_INTERVIEW_DURATION) * 100}
+              value={(elapsedTime / TARGET_INTERVIEW_DURATION) * 100}
               className="h-2 w-40 bg-white/10"
             />
             {isInterviewActive && (
               <Button
                 variant="destructive"
                 size="sm"
-                onClick={endInterview}
+                onClick={() => setShowEndInterviewConfirm(true)}
                 className="ml-2 rounded-xl"
               >
                 <PhoneOff className="w-4 h-4 mr-2" />
@@ -1705,7 +1875,7 @@ export default function RealtimeInterviewPage() {
                   <Volume2 className="w-8 h-8 text-white" />
                 </div>
                 <div>
-                  <h2 className="text-xl font-semibold tracking-tight">AI Interviewer</h2>
+                  <h2 className="text-xl font-semibold tracking-tight text-white">AI Interviewer</h2>
                   <p className="text-sm text-gray-300/80">
                     {!connected
                       ? "Connecting..."
