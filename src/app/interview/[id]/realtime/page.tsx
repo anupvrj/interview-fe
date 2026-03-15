@@ -6,6 +6,14 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Mic,
   MicOff,
   Video,
@@ -53,6 +61,9 @@ export default function RealtimeInterviewPage() {
   const [isAIProcessing, setIsAIProcessing] = useState(false);
   const [isPreparing, setIsPreparing] = useState(true);
   const [lastAIMessage, setLastAIMessage] = useState("");
+  const [connectionFailed, setConnectionFailed] = useState(false);
+  const [isClosingFailed, setIsClosingFailed] = useState(false);
+  const [isResuming, setIsResuming] = useState(false);
 
   // Refs
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -67,6 +78,7 @@ export default function RealtimeInterviewPage() {
   const isPlayingAudioRef = useRef(false);
   const isInterviewActiveRef = useRef(false);
   const connectionInitiatedRef = useRef(false);
+  const isResumingRef = useRef(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordedChunksRef = useRef<Blob[]>([]);
   const screenStreamRef = useRef<MediaStream | null>(null);
@@ -109,14 +121,44 @@ export default function RealtimeInterviewPage() {
     try {
       const data = await interviewApi.get(interviewId);
       setInterview(data);
-      // Don't call setupMediaStream here - let useEffect handle it after video element is mounted
-      // setupMediaStream will be called by useEffect when videoRef.current is available
       await connectWebSocket();
     } catch (error: any) {
       console.error("Error loading interview:", error);
       setError("Failed to load interview. Please allow camera/mic access.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const resumeInterview = async () => {
+    setIsResuming(true);
+    isResumingRef.current = true;
+    setConnectionFailed(false);
+    setError("");
+    connectionInitiatedRef.current = false;
+    websocketRef.current = null;
+    try {
+      await connectWebSocket();
+      setConnectionFailed(false);
+      setError("");
+    } catch (err: any) {
+      setError(err.message || "Failed to reconnect.");
+      setConnectionFailed(true);
+      isResumingRef.current = false;
+    } finally {
+      setIsResuming(false);
+    }
+  };
+
+  const closeFailedInterview = async () => {
+    setIsClosingFailed(true);
+    try {
+      await interviewApi.closeAsFailed(interviewId);
+      router.push("/dashboard");
+    } catch (err: any) {
+      setError(err.message || "Failed to close interview.");
+    } finally {
+      setIsClosingFailed(false);
     }
   };
 
@@ -320,6 +362,14 @@ export default function RealtimeInterviewPage() {
 
       ws.onopen = () => {
         setConnected(true);
+        if (isResumingRef.current && isInterviewActiveRef.current) {
+          if (voiceProviderRef.current === "gemini") {
+            ws.send(JSON.stringify({ type: "start_interview" }));
+          } else {
+            ws.send(JSON.stringify({ type: "response.create" }));
+          }
+          isResumingRef.current = false;
+        }
       };
 
       ws.onmessage = (event) => {
@@ -330,6 +380,13 @@ export default function RealtimeInterviewPage() {
             console.log("⏳ Preparing interview...");
             // Show preparing state in UI
             setLastAIMessage(data.message || "Preparing your interview...");
+          } else if (data.type === "reconnecting") {
+            setIsAIProcessing(true);
+            setIsAISpeaking(false);
+            setLastAIMessage("Reconnecting AI session...");
+          } else if (data.type === "reconnected") {
+            setIsAIProcessing(false);
+            setLastAIMessage("AI session resumed.");
           } else if (data.type === "connected") {
             if (data.provider) voiceProviderRef.current = data.provider;
           } else if (data.type === "openai_event") {
@@ -393,21 +450,29 @@ export default function RealtimeInterviewPage() {
             setIsAISpeaking(false);
             setLastAIMessage("AI is understanding your answer...");
           } else if (data.type === "error") {
-            setError(data.message);
+            setError(data.message || "Something went wrong at server side.");
+            if (isInterviewActiveRef.current) setConnectionFailed(true);
           }
         } catch (error) {
           console.error("Error parsing WebSocket message:", error);
         }
       };
 
-      ws.onerror = (error) => {
-        console.error("WebSocket error:", error);
-        setError("Connection error. Please try again.");
+      ws.onerror = () => {
+        if (isInterviewActiveRef.current) {
+          setConnectionFailed(true);
+          setError("Something went wrong at server side.");
+        } else {
+          setError("Connection error. Please try again.");
+        }
       };
 
-      ws.onclose = () => {
-        console.log("WebSocket closed");
+      ws.onclose = (event) => {
         setConnected(false);
+        if (event.code !== 1000 && isInterviewActiveRef.current) {
+          setConnectionFailed(true);
+          setError("Something went wrong at server side.");
+        }
       };
     } catch (error: any) {
       console.error("Error connecting WebSocket:", error);
@@ -1519,7 +1584,7 @@ export default function RealtimeInterviewPage() {
     );
   }
 
-  if (error && !isInterviewActive) {
+  if (error && !isInterviewActive && !connectionFailed) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-pink-50 flex items-center justify-center p-4">
         <Card className="max-w-md w-full">
@@ -1538,6 +1603,55 @@ export default function RealtimeInterviewPage() {
 
   return (
     <div className="relative min-h-screen bg-[radial-gradient(circle_at_top,_#1f2937_0%,_#0b1220_45%,_#060913_100%)] text-white">
+      <AlertDialog open={connectionFailed} onOpenChange={() => {}}>
+        <AlertDialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto mx-4 w-[calc(100%-2rem)] border-2 border-red-200 bg-white shadow-xl">
+          <AlertDialogHeader>
+            <div className="flex flex-col items-center text-center">
+              <AlertCircle className="mx-auto h-12 w-12 shrink-0 text-red-500 mb-4" />
+              <AlertDialogTitle className="text-xl font-bold text-gray-900">
+                Connection Lost
+              </AlertDialogTitle>
+              <AlertDialogDescription className="text-base mt-2 text-gray-600 break-words">
+                Something went wrong at server side. You can try to resume or
+                close this interview without losing credits.
+              </AlertDialogDescription>
+            </div>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex flex-col-reverse sm:flex-row sm:justify-center gap-3 mt-4">
+            <Button
+              variant="outline"
+              size="lg"
+              onClick={closeFailedInterview}
+              disabled={isClosingFailed}
+              className="w-full sm:w-auto sm:whitespace-nowrap text-center h-auto py-2 px-4"
+            >
+              {isClosingFailed ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 shrink-0 animate-spin" />
+                  Closing...
+                </>
+              ) : (
+                "Close Interview (No credits deducted)"
+              )}
+            </Button>
+            <Button
+              size="lg"
+              onClick={resumeInterview}
+              disabled={isResuming}
+              className="w-full sm:w-auto sm:whitespace-nowrap text-center h-auto py-2 px-4 bg-gradient-to-r from-violet-600 to-blue-600 hover:from-violet-700 hover:to-blue-700 text-white"
+            >
+              {isResuming ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 shrink-0 animate-spin" />
+                  Reconnecting...
+                </>
+              ) : (
+                "Resume Interview"
+              )}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="absolute -top-28 -left-24 h-72 w-72 rounded-full bg-purple-500/15 blur-3xl" />
         <div className="absolute top-24 right-0 h-80 w-80 rounded-full bg-blue-500/10 blur-3xl" />
@@ -1621,13 +1735,12 @@ export default function RealtimeInterviewPage() {
               {isInterviewActive && (
                 <div className="flex items-center justify-center min-h-[200px] px-4">
                   {isPreparing ? (
-                    // Show preparing state until AI speaks for the first time
                     <div className="w-full max-w-xl rounded-2xl border border-blue-400/30 bg-blue-500/15 p-6">
                       <div className="flex items-center justify-center gap-3">
                         <Loader2 className="w-5 h-5 animate-spin text-blue-400" />
                         <div>
                           <div className="text-sm font-semibold text-blue-400 mb-1">
-                            Preparing for interview...
+                            {lastAIMessage || "Preparing for interview..."}
                           </div>
                           <div className="text-xs text-gray-400">
                             AI interviewer is getting ready
