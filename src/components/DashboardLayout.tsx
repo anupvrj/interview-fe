@@ -1,6 +1,6 @@
 "use client";
 
-import { ReactNode, useState } from "react";
+import { ReactNode, useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useUser, UserButton } from "@clerk/nextjs";
@@ -16,14 +16,17 @@ import {
   Sparkles,
   PlayCircle,
   FileEdit,
+  Shield,
+  Building2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { userApi, AccessRole } from "@/lib/api";
 
 interface DashboardLayoutProps {
   children: ReactNode;
 }
 
-const menuItems = [
+const baseMenuItems = [
   {
     title: "Dashboard",
     href: "/dashboard",
@@ -61,6 +64,39 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const { user, isLoaded } = useUser();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [accessRole, setAccessRole] = useState<AccessRole | null>(null);
+
+  useEffect(() => {
+    if (isLoaded && user) {
+      userApi
+        .getMyProfile()
+        .then((profile) => setAccessRole(profile.accessRole || "user"))
+        .catch(() => setAccessRole("user"));
+    }
+  }, [isLoaded, user]);
+
+  const isAdmin = accessRole === "super_admin" || accessRole === "institution_admin";
+  const menuItems = [
+    ...baseMenuItems,
+    ...(isAdmin
+      ? [
+          {
+            title: "Institution Admin",
+            href: "/dashboard/institution",
+            icon: Building2,
+          },
+        ]
+      : []),
+    ...(accessRole === "super_admin"
+      ? [
+          {
+            title: "Super Admin",
+            href: "/dashboard/super-admin",
+            icon: Shield,
+          },
+        ]
+      : []),
+  ];
 
   // Don't render until user is loaded to avoid hydration issues
   if (!isLoaded) {
