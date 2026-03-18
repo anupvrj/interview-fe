@@ -8,19 +8,30 @@ export const apiClient: AxiosInstance = axios.create({
   // Don't set default Content-Type - let each request set its own
 });
 
+// Token getter - set by AuthTokenProvider for JWT verification on backend
+let tokenGetter: (() => Promise<string | null>) | null = null;
+export function setAuthTokenGetter(getter: () => Promise<string | null>) {
+  tokenGetter = getter;
+}
+
 // Request interceptor to add auth token and userId
 apiClient.interceptors.request.use(
   async (config) => {
-    // Get Clerk userId if available
     if (typeof window !== "undefined") {
       try {
-        // Get userId from Clerk (we'll pass it from components)
         const userId = localStorage.getItem("clerk-user-id");
         if (userId) {
           config.headers["x-user-id"] = userId;
         }
+        // Add JWT for backend verification when available
+        if (tokenGetter) {
+          const token = await tokenGetter();
+          if (token) {
+            config.headers["Authorization"] = `Bearer ${token}`;
+          }
+        }
       } catch (error) {
-        console.error("Error getting userId:", error);
+        console.error("Error getting auth:", error);
       }
     }
     return config;
@@ -45,12 +56,16 @@ apiClient.interceptors.response.use(
 );
 
 // API Types
+export type AccessRole = "super_admin" | "institution_admin" | "user";
+
 export interface User {
   _id: string;
   clerkId: string;
   email: string;
   name: string;
   role: "student" | "college";
+  accessRole?: AccessRole;
+  institutionId?: string;
   onboardingCompleted?: boolean;
   userType?: "student" | "fresher" | "experienced";
   experience?: number;
@@ -72,6 +87,11 @@ export interface User {
     currentPeriodEnd?: string;
     interviewsUsed?: number;
     interviewsLimit?: number;
+  };
+  credits?: {
+    total: number;
+    used: number;
+    expiring?: Array<{ amount: number; expiryDate: string }>;
   };
   createdAt: string;
   profileCompletionPercentage?: number;
@@ -997,6 +1017,116 @@ export const planApi = {
 
   getPlanById: async (planId: string): Promise<any> => {
     const response = await apiClient.get<{ data: any }>(`/plans/${planId}`);
+    return response.data.data;
+  },
+};
+
+// Admin API (requires admin role)
+export const adminApi = {
+  listUsers: async (params?: {
+    limit?: number;
+    skip?: number;
+    search?: string;
+  }): Promise<{ data: User[]; total: number }> => {
+    const q = new URLSearchParams();
+    if (params?.limit) q.set("limit", String(params.limit));
+    if (params?.skip) q.set("skip", String(params.skip));
+    if (params?.search) q.set("search", params.search);
+    const response = await apiClient.get<{ success: boolean; data: User[]; total: number }>(
+      `/admin/users?${q.toString()}`
+    );
+    return { data: response.data.data, total: response.data.total };
+  },
+
+  addUser: async (
+    email: string,
+    plan: "free" | "starter" | "premium" | "elite",
+    institutionId?: string
+  ): Promise<{ invitationId: string; message: string }> => {
+    const response = await apiClient.post<{
+      success: boolean;
+      data: { invitationId: string; message: string };
+    }>("/admin/users", { email, plan, institutionId });
+    return response.data.data;
+  },
+
+  updateUser: async (
+    userId: string,
+    updates: { name?: string; email?: string; institutionId?: string | null; plan?: string; accessRole?: string }
+  ): Promise<User> => {
+    const response = await apiClient.put<{ success: boolean; data: User }>(
+      `/admin/users/${userId}`,
+      updates
+    );
+    return response.data.data;
+  },
+
+  deleteUser: async (userId: string): Promise<void> => {
+    await apiClient.delete(`/admin/users/${userId}`);
+  },
+
+  addCredits: async (
+    userId: string,
+    amount: number,
+    description?: string
+  ): Promise<{ newBalance: number }> => {
+    const response = await apiClient.post<{ success: boolean; data: { newBalance: number } }>(
+      `/admin/users/${userId}/credits`,
+      { amount, description }
+    );
+    return response.data.data;
+  },
+
+  updatePlan: async (
+    userId: string,
+    plan: "free" | "starter" | "premium" | "elite"
+  ): Promise<User> => {
+    const response = await apiClient.put<{ success: boolean; data: User }>(
+      `/admin/users/${userId}/plan`,
+      { plan }
+    );
+    return response.data.data;
+  },
+
+  getUserInterviews: async (userId: string): Promise<any[]> => {
+    const response = await apiClient.get<{ success: boolean; data: any[] }>(
+      `/admin/users/${userId}/interviews`
+    );
+    return response.data.data;
+  },
+
+  getInterviewReport: async (interviewId: string): Promise<any> => {
+    const response = await apiClient.get<{ success: boolean; data: any }>(
+      `/admin/interviews/${interviewId}/report`
+    );
+    return response.data.data;
+  },
+
+  getInterviewVideoUrl: async (interviewId: string): Promise<{ videoUrl: string; expiresIn: number }> => {
+    const response = await apiClient.get<{
+      success: boolean;
+      data: { videoUrl: string; expiresIn: number };
+    }>(`/admin/interviews/${interviewId}/video-url`);
+    return response.data.data;
+  },
+
+  listInstitutions: async (): Promise<any[]> => {
+    const response = await apiClient.get<{ success: boolean; data: any[] }>(
+      "/admin/institutions"
+    );
+    return response.data.data;
+  },
+
+  createInstitution: async (data: {
+    name: string;
+    slug?: string;
+    domain?: string;
+    contactEmail?: string;
+  }): Promise<any> => {
+    const response = await apiClient.post<{ success: boolean; data: any }>(
+      "/admin/institutions",
+      data
+    );
     return response.data.data;
   },
 };
