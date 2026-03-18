@@ -364,6 +364,10 @@ export const interviewApi = {
     await apiClient.post(`/interviews/${interviewId}/complete`, formData);
   },
 
+  closeAsFailed: async (interviewId: string): Promise<void> => {
+    await apiClient.post(`/interviews/${interviewId}/close-failed`);
+  },
+
   getInterview: async (interviewId: string): Promise<Interview> => {
     const response = await apiClient.get<{ data: Interview }>(
       `/interviews/detail/${interviewId}`,

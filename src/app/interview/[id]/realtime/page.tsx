@@ -6,6 +6,14 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Mic,
   MicOff,
   Video,
@@ -16,11 +24,17 @@ import {
   Volume2,
   Circle,
   Square,
+  CheckCircle2,
 } from "lucide-react";
 import { interviewApi, Interview } from "@/lib/api";
 import { formatDuration } from "@/lib/utils";
 
-const MAX_INTERVIEW_DURATION = 15 * 60; // 15 minutes in seconds
+const TARGET_INTERVIEW_DURATION = 15 * 60; // 15 minutes - AI says final thank you
+const MAX_INTERVIEW_DURATION = 20 * 60; // 20 minutes - hard fallback if AI doesn't complete
+
+/** Voice provider for realtime: "chatgpt" (default) or "gemini". Set via NEXT_PUBLIC_VOICE_PROVIDER. */
+const VOICE_PROVIDER: "chatgpt" | "gemini" =
+  (process.env.NEXT_PUBLIC_VOICE_PROVIDER as "chatgpt" | "gemini") || "chatgpt";
 
 export default function RealtimeInterviewPage() {
   const params = useParams();
@@ -36,7 +50,6 @@ export default function RealtimeInterviewPage() {
   const [isCameraOn, setIsCameraOn] = useState(true);
   const [videoStreamActive, setVideoStreamActive] = useState(false);
   const [isMicOn, setIsMicOn] = useState(true);
-  const [isUserSpeaking, setIsUserSpeaking] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [isUploadingRecording, setIsUploadingRecording] = useState(false);
 
@@ -46,7 +59,19 @@ export default function RealtimeInterviewPage() {
   >([]);
   const [currentAssistantTranscript, setCurrentAssistantTranscript] =
     useState("");
+  const [isAISpeaking, setIsAISpeaking] = useState(false);
+  const [isAIProcessing, setIsAIProcessing] = useState(false);
+  const [isPreparing, setIsPreparing] = useState(true);
   const [lastAIMessage, setLastAIMessage] = useState("");
+  const [connectionFailed, setConnectionFailed] = useState(false);
+  const [isReconnecting, setIsReconnecting] = useState(false);
+  const [isClosingFailed, setIsClosingFailed] = useState(false);
+  const [isResuming, setIsResuming] = useState(false);
+  const [showEndInterviewConfirm, setShowEndInterviewConfirm] = useState(false);
+  const [showInterviewComplete, setShowInterviewComplete] = useState(false);
+  const [interviewCompleteCountdown, setInterviewCompleteCountdown] = useState(15);
+  const interviewCompleteAutoCloseRef = useRef<NodeJS.Timeout | null>(null);
+  const interviewCompleteCountdownRef = useRef<NodeJS.Timeout | null>(null);
 
   // Refs
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -54,16 +79,22 @@ export default function RealtimeInterviewPage() {
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const websocketRef = useRef<WebSocket | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const timerStartedRef = useRef(false);
   const audioProcessorRef = useRef<ScriptProcessorNode | null>(null);
   const audioQueueRef = useRef<Int16Array[]>([]);
+  const audioBufferRef = useRef<Int16Array[]>([]);
+  const audioBufferTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isPlayingAudioRef = useRef(false);
   const isInterviewActiveRef = useRef(false);
+  const connectionInitiatedRef = useRef(false);
+  const isResumingRef = useRef(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordedChunksRef = useRef<Blob[]>([]);
   const screenStreamRef = useRef<MediaStream | null>(null);
   const aiAudioDestinationRef = useRef<MediaStreamAudioDestinationNode | null>(
-    null
+    null,
   );
+  const voiceProviderRef = useRef<"chatgpt" | "gemini">(VOICE_PROVIDER);
 
   useEffect(() => {
     loadInterview();
@@ -77,10 +108,8 @@ export default function RealtimeInterviewPage() {
     // Wait for video element to be available
     const checkVideoElement = () => {
       if (videoRef.current && !mediaStreamRef.current) {
-        console.log("✅ Video element found, setting up media stream");
         setupMediaStream();
       } else if (!videoRef.current) {
-        // Retry after a short delay if element not found
         setTimeout(checkVideoElement, 100);
       }
     };
@@ -97,12 +126,20 @@ export default function RealtimeInterviewPage() {
     }
   }, [elapsedTime, isInterviewActive]);
 
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isInterviewActiveRef.current) {
+        e.preventDefault();
+      }
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, []);
+
   const loadInterview = async () => {
     try {
       const data = await interviewApi.get(interviewId);
       setInterview(data);
-      // Don't call setupMediaStream here - let useEffect handle it after video element is mounted
-      // setupMediaStream will be called by useEffect when videoRef.current is available
       await connectWebSocket();
     } catch (error: any) {
       console.error("Error loading interview:", error);
@@ -112,16 +149,48 @@ export default function RealtimeInterviewPage() {
     }
   };
 
+  const resumeInterview = async () => {
+    setIsResuming(true);
+    isResumingRef.current = true;
+    setConnectionFailed(false);
+    setError("");
+    connectionInitiatedRef.current = false;
+    websocketRef.current = null;
+    try {
+      await connectWebSocket();
+      setConnectionFailed(false);
+      setError("");
+    } catch (err: any) {
+      setError(err.message || "Failed to reconnect.");
+      setConnectionFailed(true);
+      isResumingRef.current = false;
+    } finally {
+      setIsResuming(false);
+    }
+  };
+
+  const closeFailedInterview = async () => {
+    setIsClosingFailed(true);
+    try {
+      await interviewApi.closeAsFailed(interviewId);
+      router.push("/dashboard");
+    } catch (err: any) {
+      setError(err.message || "Failed to close interview.");
+    } finally {
+      setIsClosingFailed(false);
+    }
+  };
+
   const setupMediaStream = async () => {
     // Check if video element exists first
     if (!videoRef.current) {
-      console.warn("⚠️ Video element not found yet, will retry...");
+      console.warn("Video element not found yet, will retry...");
       // Retry after a short delay
       setTimeout(() => {
         if (videoRef.current) {
           setupMediaStream();
         } else {
-          console.error("❌ Video element still not found after retry");
+          console.error("Video element still not found after retry");
           setError("Video element not found. Please refresh the page.");
         }
       }, 500);
@@ -132,7 +201,7 @@ export default function RealtimeInterviewPage() {
       // Check if getUserMedia is available
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         throw new Error(
-          "getUserMedia is not supported in this browser. Please use a modern browser."
+          "getUserMedia is not supported in this browser. Please use a modern browser.",
         );
       }
 
@@ -142,79 +211,57 @@ export default function RealtimeInterviewPage() {
         globalThis.location.hostname !== "localhost"
       ) {
         console.warn(
-          "⚠️ Camera/microphone access requires HTTPS in production"
+          "⚠️ Camera/microphone access requires HTTPS in production",
         );
       }
 
-      console.log("🎤 Requesting camera and microphone access...");
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
           width: { ideal: 1280 },
           height: { ideal: 720 },
-          facingMode: "user", // Front-facing camera
+          facingMode: "user",
         },
         audio: {
           echoCancellation: true,
           noiseSuppression: true,
           autoGainControl: true,
-          sampleRate: 24000, // Match OpenAI's expected sample rate
-          channelCount: 1, // Mono audio
+          sampleRate: 24000,
+          channelCount: 1,
         } as MediaTrackConstraints,
       });
-
-      console.log("✅ Media stream acquired");
-      console.log("Video tracks:", stream.getVideoTracks().length);
-      console.log("Audio tracks:", stream.getAudioTracks().length);
-      console.log(
-        "Video track:",
-        stream.getVideoTracks().map((t) => ({
-          label: t.label,
-          kind: t.kind,
-          enabled: t.enabled,
-          readyState: t.readyState,
-        }))
-      );
 
       mediaStreamRef.current = stream;
 
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        videoRef.current.muted = true; // Required for autoplay
-        videoRef.current.playsInline = true; // Required for mobile
+        videoRef.current.muted = true;
+        videoRef.current.playsInline = true;
 
-        // Explicitly play the video with better error handling
         try {
           await videoRef.current.play();
-          console.log("✅ Video playback started");
           setVideoStreamActive(true);
 
-          // Verify video is actually playing
           videoRef.current.addEventListener("playing", () => {
-            console.log("✅ Video is playing");
             setVideoStreamActive(true);
           });
-
-          videoRef.current.addEventListener("loadedmetadata", () => {
-            console.log("✅ Video metadata loaded");
-          });
         } catch (playError: any) {
-          console.error("❌ Error playing video:", playError);
+          console.error("Error playing video:", playError);
           setVideoStreamActive(false);
           // Try to get more specific error info
           if (playError.name === "NotAllowedError") {
             setError(
-              "Video autoplay was blocked. Please interact with the page first."
+              "Video autoplay was blocked. Please interact with the page first.",
             );
           } else {
             setError(`Video playback error: ${playError.message}`);
           }
         }
       } else {
-        console.error("❌ Video element ref is null");
+        console.error("Video element ref is null");
         setError("Video element not found. Please refresh the page.");
       }
     } catch (error: any) {
-      console.error("❌ Error accessing media devices:", error);
+      console.error("Error accessing media devices:", error);
 
       // Provide specific error messages
       let errorMessage =
@@ -257,6 +304,7 @@ export default function RealtimeInterviewPage() {
     if (websocketRef.current) websocketRef.current.close();
     if (audioProcessorRef.current) audioProcessorRef.current.disconnect();
     if (audioContextRef.current) audioContextRef.current.close();
+
     // Stop recording if active
     if (
       mediaRecorderRef.current &&
@@ -283,13 +331,30 @@ export default function RealtimeInterviewPage() {
       mediaStreamRef.current.getTracks().forEach((track) => track.stop());
     }
     audioQueueRef.current = [];
+    audioBufferRef.current = [];
+    if (audioBufferTimerRef.current) {
+      clearTimeout(audioBufferTimerRef.current);
+      audioBufferTimerRef.current = null;
+    }
     recordedChunksRef.current = [];
     isPlayingAudioRef.current = false;
     isInterviewActiveRef.current = false;
+    connectionInitiatedRef.current = false; // Reset for next connection
   };
 
   const connectWebSocket = async () => {
+    // Prevent duplicate connections (React Strict Mode can cause double mounting)
+    if (connectionInitiatedRef.current) {
+      console.warn(
+        "⚠️ WebSocket connection already initiated, skipping duplicate",
+      );
+      return;
+    }
+
     try {
+      console.log("🔌 Initiating WebSocket connection");
+      connectionInitiatedRef.current = true;
+
       const userId = localStorage.getItem("clerk-user-id");
       if (!userId) {
         throw new Error("User not authenticated");
@@ -304,7 +369,11 @@ export default function RealtimeInterviewPage() {
       // Use wss:// for HTTPS sites, ws:// for HTTP (localhost)
       const wsProtocol =
         globalThis.location.protocol === "https:" ? "wss:" : "ws:";
-      const wsUrl = `${wsProtocol}//${baseUrl}/api/interviews/${interviewId}/realtime?userId=${userId}`;
+      const realtimePath =
+        VOICE_PROVIDER === "gemini"
+          ? `interviews/${interviewId}/realtime/gemini`
+          : `interviews/${interviewId}/realtime`;
+      const wsUrl = `${wsProtocol}//${baseUrl}/api/${realtimePath}?userId=${userId}`;
 
       console.log("🔌 Connecting to WebSocket:", wsUrl);
       const ws = new WebSocket(wsUrl);
@@ -312,32 +381,167 @@ export default function RealtimeInterviewPage() {
 
       ws.onopen = () => {
         setConnected(true);
+        if (isResumingRef.current && isInterviewActiveRef.current) {
+          if (voiceProviderRef.current === "gemini") {
+            ws.send(JSON.stringify({ type: "start_interview" }));
+          } else {
+            ws.send(JSON.stringify({ type: "response.create" }));
+          }
+          isResumingRef.current = false;
+        }
       };
 
       ws.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
 
-          if (data.type === "connected") {
-            console.log("✅ Realtime interview connected");
+          if (data.type === "preparing") {
+            console.log("⏳ Preparing interview...");
+            // Show preparing state in UI
+            setLastAIMessage(data.message || "Preparing your interview...");
+          } else if (data.type === "reconnecting") {
+            setIsAIProcessing(true);
+            setIsAISpeaking(false);
+            setLastAIMessage("Reconnecting AI session...");
+            setIsReconnecting(true);
+            if (isInterviewActiveRef.current) setConnectionFailed(true);
+          } else if (data.type === "reconnected") {
+            setIsAIProcessing(false);
+            setLastAIMessage("AI session resumed.");
+            setIsReconnecting(false);
+            setConnectionFailed(false);
+          } else if (data.type === "connected") {
+            if (data.provider) voiceProviderRef.current = data.provider;
           } else if (data.type === "openai_event") {
             handleOpenAIEvent(data.event);
+          } else if (data.type === "audio_response") {
+            handleGeminiAudioResponse(data.audioData);
+            setIsAISpeaking(true); // AI is sending audio, so it's speaking
+            setIsAIProcessing(false);
+            setIsPreparing(false); // AI has started speaking, no longer preparing
+            // Start timer when AI is ready (first response)
+            if (!timerStartedRef.current && isInterviewActiveRef.current) {
+              timerStartedRef.current = true;
+              timerRef.current = setInterval(() => {
+                setElapsedTime((prev) => prev + 1);
+              }, 1000);
+            }
+          } else if (data.type === "text_response") {
+            // AI transcript - show partials in real-time, add complete to history
+            if (data.text) {
+              const isComplete = data.finished === true;
+              console.log(
+                `🤖 AI transcript: "${data.text.substring(0, 50)}..." (finished: ${isComplete})`,
+              );
+              
+              // Clear preparing state when AI starts responding
+              setIsPreparing(false);
+              setIsAIProcessing(false);
+              // Start timer when AI is ready (first response)
+              if (!timerStartedRef.current && isInterviewActiveRef.current) {
+                timerStartedRef.current = true;
+                timerRef.current = setInterval(() => {
+                  setElapsedTime((prev) => prev + 1);
+                }, 1000);
+              }
+
+              if (isComplete) {
+                setTranscript((prev) => [
+                  ...prev,
+                  {
+                    role: "assistant",
+                    content: data.text,
+                    timestamp: new Date(),
+                  },
+                ]);
+                setLastAIMessage(data.text);
+                setCurrentAssistantTranscript(""); // Clear partial
+              } else {
+                // Partial transcript - show in "speaking..." area for real-time display
+                setCurrentAssistantTranscript(data.text);
+              }
+            }
+          } else if (data.type === "interview_complete") {
+            setShowInterviewComplete(true);
+            setInterviewCompleteCountdown(15);
+            if (interviewCompleteAutoCloseRef.current) {
+              clearTimeout(interviewCompleteAutoCloseRef.current);
+            }
+            if (interviewCompleteCountdownRef.current) {
+              clearInterval(interviewCompleteCountdownRef.current);
+            }
+            interviewCompleteCountdownRef.current = setInterval(() => {
+              setInterviewCompleteCountdown((prev) => {
+                if (prev <= 1) {
+                  if (interviewCompleteCountdownRef.current) {
+                    clearInterval(interviewCompleteCountdownRef.current);
+                    interviewCompleteCountdownRef.current = null;
+                  }
+                  return 0;
+                }
+                return prev - 1;
+              });
+            }, 1000);
+            interviewCompleteAutoCloseRef.current = setTimeout(() => {
+              if (interviewCompleteCountdownRef.current) {
+                clearInterval(interviewCompleteCountdownRef.current);
+                interviewCompleteCountdownRef.current = null;
+              }
+              interviewCompleteAutoCloseRef.current = null;
+              setShowInterviewComplete(false);
+              endInterview();
+            }, 15000);
+          } else if (data.type === "turn_complete") {
+            // AI finished speaking - clear the "speaking..." indicator
+            setIsAISpeaking(false);
+            setIsAIProcessing(false);
+            setCurrentAssistantTranscript("");
+            isPlayingAudioRef.current = false;
+          } else if (data.type === "user_transcript") {
+            // Intentionally not shown live; transcript is processed asynchronously
+            // and persisted server-side for analysis/dashboard.
+          } else if (data.type === "interrupted") {
+            audioQueueRef.current = [];
+            audioBufferRef.current = [];
+            if (audioBufferTimerRef.current) {
+              clearTimeout(audioBufferTimerRef.current);
+              audioBufferTimerRef.current = null;
+            }
+            isPlayingAudioRef.current = false;
+            setIsAISpeaking(false); // Clear AI speaking state
+            setIsAIProcessing(false);
+            setCurrentAssistantTranscript("");
+          } else if (data.type === "ai_processing") {
+            // User finished speaking, AI is now processing
+            setIsAIProcessing(true);
+            setIsAISpeaking(false);
+            setLastAIMessage("AI is understanding your answer...");
           } else if (data.type === "error") {
-            setError(data.message);
+            setError(data.message || "Something went wrong at server side.");
+            setIsReconnecting(false);
+            if (isInterviewActiveRef.current) setConnectionFailed(true);
           }
         } catch (error) {
           console.error("Error parsing WebSocket message:", error);
         }
       };
 
-      ws.onerror = (error) => {
-        console.error("WebSocket error:", error);
-        setError("Connection error. Please try again.");
+      ws.onerror = () => {
+        if (isInterviewActiveRef.current) {
+          setConnectionFailed(true);
+          setError("Something went wrong at server side.");
+        } else {
+          setError("Connection error. Please try again.");
+        }
       };
 
-      ws.onclose = () => {
-        console.log("WebSocket closed");
+      ws.onclose = (event) => {
         setConnected(false);
+        setIsReconnecting(false);
+        if (event.code !== 1000 && isInterviewActiveRef.current) {
+          setConnectionFailed(true);
+          setError("Something went wrong at server side.");
+        }
       };
     } catch (error: any) {
       console.error("Error connecting WebSocket:", error);
@@ -364,7 +568,7 @@ export default function RealtimeInterviewPage() {
     const audioBuffer = audioContextRef.current.createBuffer(
       1,
       float32.length,
-      24000 // 24kHz sample rate for OpenAI audio
+      24000, // 24kHz sample rate for OpenAI audio
     );
     audioBuffer.copyToChannel(float32, 0);
 
@@ -391,26 +595,74 @@ export default function RealtimeInterviewPage() {
     source.start();
   };
 
+  /** Decode Gemini audio_response (base64 PCM 24kHz) and batch for smooth playback. */
+  const handleGeminiAudioResponse = (base64Audio: string) => {
+    if (!base64Audio) return;
+    try {
+      const binaryString = atob(base64Audio);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.codePointAt(i) ?? 0;
+      }
+
+      // Skip empty audio chunks (0 bytes) to prevent stuttering
+      if (bytes.length === 0) return;
+
+      const pcm16 = new Int16Array(bytes.buffer);
+
+      // Add to buffer for batching
+      audioBufferRef.current.push(pcm16);
+
+      // Clear existing timer
+      if (audioBufferTimerRef.current) {
+        clearTimeout(audioBufferTimerRef.current);
+      }
+
+      // Flush buffer after 20ms of no new chunks (batches small chunks together, low latency)
+      audioBufferTimerRef.current = setTimeout(() => {
+        if (audioBufferRef.current.length > 0) {
+          // Concatenate all buffered chunks into one
+          const totalLength = audioBufferRef.current.reduce(
+            (sum, chunk) => sum + chunk.length,
+            0,
+          );
+          const combined = new Int16Array(totalLength);
+          let offset = 0;
+
+          for (const chunk of audioBufferRef.current) {
+            combined.set(chunk, offset);
+            offset += chunk.length;
+          }
+
+          // Add combined chunk to playback queue
+          audioQueueRef.current.push(combined);
+          audioBufferRef.current = [];
+
+          // Start playing if not already playing
+          if (!isPlayingAudioRef.current) {
+            playAudioQueue();
+          }
+        }
+      }, 20);
+    } catch (err) {
+      console.error("Error queueing Gemini audio:", err);
+    }
+  };
+
   const handleOpenAIEvent = (event: any) => {
     switch (event.type) {
       case "conversation.item.input_audio_transcription.completed":
-        if (event.transcript) {
-          const userContent = event.transcript;
-          setTranscript((prev) => [
-            ...prev,
-            {
-              role: "user",
-              content: userContent,
-              timestamp: new Date(),
-            },
-          ]);
-        }
+        // Intentionally hidden in live UI. Stored and processed server-side.
         break;
 
       case "input_audio_buffer.speech_started":
         // User started speaking - stop AI audio immediately
-        setIsUserSpeaking(true);
         audioQueueRef.current = [];
+        audioBufferRef.current = [];
+        if (audioBufferTimerRef.current) {
+          clearTimeout(audioBufferTimerRef.current);
+          audioBufferTimerRef.current = null;
+        }
         isPlayingAudioRef.current = false;
         // Stop any currently playing audio
         if (audioContextRef.current) {
@@ -425,25 +677,41 @@ export default function RealtimeInterviewPage() {
 
       case "input_audio_buffer.speech_stopped":
         // User stopped speaking
-        setIsUserSpeaking(false);
         break;
 
       case "response.created":
         // New response starting - clear current transcript and audio queue
         setCurrentAssistantTranscript(""); // Clear to start fresh
         audioQueueRef.current = [];
+        audioBufferRef.current = [];
+        if (audioBufferTimerRef.current) {
+          clearTimeout(audioBufferTimerRef.current);
+          audioBufferTimerRef.current = null;
+        }
         isPlayingAudioRef.current = false;
         break;
 
       case "response.cancelled":
         // Response was cancelled (due to interruption)
         audioQueueRef.current = [];
+        audioBufferRef.current = [];
+        if (audioBufferTimerRef.current) {
+          clearTimeout(audioBufferTimerRef.current);
+          audioBufferTimerRef.current = null;
+        }
         isPlayingAudioRef.current = false;
         setCurrentAssistantTranscript("");
         break;
 
       case "response.audio_transcript.delta":
         if (event.delta) {
+          setIsPreparing(false);
+          if (!timerStartedRef.current && isInterviewActiveRef.current) {
+            timerStartedRef.current = true;
+            timerRef.current = setInterval(() => {
+              setElapsedTime((prev) => prev + 1);
+            }, 1000);
+          }
           setCurrentAssistantTranscript((prev) => prev + event.delta);
         }
         break;
@@ -471,6 +739,13 @@ export default function RealtimeInterviewPage() {
       case "response.audio.delta":
         // Queue AI audio for sequential playback
         if (event.delta) {
+          setIsPreparing(false);
+          if (!timerStartedRef.current && isInterviewActiveRef.current) {
+            timerStartedRef.current = true;
+            timerRef.current = setInterval(() => {
+              setElapsedTime((prev) => prev + 1);
+            }, 1000);
+          }
           try {
             // Decode base64 to PCM16
             const binaryString = atob(event.delta);
@@ -504,27 +779,28 @@ export default function RealtimeInterviewPage() {
 
   const setupAudioCapture = () => {
     if (!mediaStreamRef.current) {
-      console.error("❌ No media stream available for audio capture");
+      console.error("No media stream available for audio capture");
       return;
     }
 
     try {
-      const audioContext = new (globalThis.AudioContext ||
-        (globalThis as any).webkitAudioContext)();
+      const audioContext = new (
+        globalThis.AudioContext || (globalThis as any).webkitAudioContext
+      )();
       audioContextRef.current = audioContext;
 
       console.log(
-        `🎵 Audio resampling: ${audioContext.sampleRate}Hz → 24000Hz`
+        `🎵 Audio resampling: ${audioContext.sampleRate}Hz → 24000Hz`,
       );
 
       if (audioContext.sampleRate !== 24000) {
         console.warn(
-          `⚠️ Sample rate mismatch! Browser: ${audioContext.sampleRate}Hz, OpenAI: 24000Hz. This may cause transcription issues.`
+          `⚠️ Sample rate mismatch! Browser: ${audioContext.sampleRate}Hz, OpenAI: 24000Hz. This may cause transcription issues.`,
         );
       }
 
       const source = audioContext.createMediaStreamSource(
-        mediaStreamRef.current
+        mediaStreamRef.current,
       );
       const processor = audioContext.createScriptProcessor(4096, 1, 1);
 
@@ -538,8 +814,8 @@ export default function RealtimeInterviewPage() {
 
       console.log(
         `🎵 Audio Resampling: ${browserSampleRate}Hz → ${targetSampleRate}Hz (ratio: ${resampleRatio.toFixed(
-          4
-        )})`
+          4,
+        )})`,
       );
 
       processor.onaudioprocess = (e) => {
@@ -550,7 +826,7 @@ export default function RealtimeInterviewPage() {
               isInterviewActiveRef.current
             }, mic=${isMicOn}, ws=${
               websocketRef.current?.readyState
-            }, maxLevel=${maxAmplitude.toFixed(3)}`
+            }, maxLevel=${maxAmplitude.toFixed(3)}`,
           );
           maxAmplitude = 0; // Reset
         }
@@ -609,24 +885,21 @@ export default function RealtimeInterviewPage() {
         }
         const base64Audio = btoa(binary);
 
-        // Continuously stream audio to OpenAI (server VAD handles turn detection)
-        if (audioChunkCount % 50 === 0) {
-          console.log(
-            `✅ Sending audio chunk #${audioChunkCount} to backend (${base64Audio.length} bytes, ${inputData.length}→${resampledData.length} samples)`
-          );
-        }
+        // Stream audio: Gemini expects { type: "audio", audioData }; ChatGPT expects { type: "audio_chunk", audio }
+        const isGemini = voiceProviderRef.current === "gemini";
         websocketRef.current.send(
-          JSON.stringify({
-            type: "audio_chunk",
-            audio: base64Audio,
-          })
+          JSON.stringify(
+            isGemini
+              ? { type: "audio", audioData: base64Audio }
+              : { type: "audio_chunk", audio: base64Audio },
+          ),
         );
+
       };
 
       source.connect(processor);
       processor.connect(audioContext.destination);
       audioProcessorRef.current = processor;
-      console.log("✅ Audio capture setup complete");
     } catch (error) {
       console.error("Error setting up audio capture:", error);
     }
@@ -648,24 +921,28 @@ export default function RealtimeInterviewPage() {
       // Set interview as active BEFORE setting up audio capture
       setIsInterviewActive(true);
       isInterviewActiveRef.current = true;
+      setIsPreparing(true); // Show preparing state until AI speaks
+      setElapsedTime(0); // Reset counter; starts when AI is ready
+      timerStartedRef.current = false; // Timer starts when AI is ready
+
+      // Explicitly start Gemini interview only after user click
+      if (voiceProviderRef.current === "gemini" && websocketRef.current) {
+        websocketRef.current.send(JSON.stringify({ type: "start_interview" }));
+      }
 
       // Setup audio capture (must be after setIsInterviewActive)
       setupAudioCapture();
 
-      // Start timer
-      timerRef.current = setInterval(() => {
-        setElapsedTime((prev) => prev + 1);
-      }, 1000);
+      // Timer starts when AI is ready (first audio_response or text_response)
 
-      // Request first response from AI
+      // Request first response only for ChatGPT path
       setTimeout(() => {
         if (websocketRef.current?.readyState === WebSocket.OPEN) {
-          console.log("🎤 Requesting AI to start the conversation...");
-          websocketRef.current.send(
-            JSON.stringify({
-              type: "response.create",
-            })
-          );
+          if (voiceProviderRef.current !== "gemini") {
+            websocketRef.current.send(
+              JSON.stringify({ type: "response.create" }),
+            );
+          }
         }
       }, 1000);
     } catch (error: any) {
@@ -683,7 +960,6 @@ export default function RealtimeInterviewPage() {
         currentScreenStream.getTracks().forEach((track: MediaStreamTrack) => {
           if (track.readyState === "live") {
             track.stop();
-            console.log(`✅ Stopped screen track: ${track.kind}`);
           }
         });
         screenStreamRef.current = null;
@@ -704,10 +980,16 @@ export default function RealtimeInterviewPage() {
 
       // Stop timer
       if (timerRef.current) clearInterval(timerRef.current);
+      timerRef.current = null;
+      timerStartedRef.current = false;
 
-      // Close WebSocket
+      // Close WebSocket (Gemini expects end_session first)
       if (websocketRef.current) {
-        websocketRef.current.send(JSON.stringify({ type: "close" }));
+        if (voiceProviderRef.current === "gemini") {
+          websocketRef.current.send(JSON.stringify({ type: "end_session" }));
+        } else {
+          websocketRef.current.send(JSON.stringify({ type: "close" }));
+        }
         websocketRef.current.close();
       }
 
@@ -760,13 +1042,12 @@ export default function RealtimeInterviewPage() {
   const startRecording = async () => {
     try {
       // Request screen capture (user will select tab/window/screen)
-      console.log("🖥️ Requesting screen capture...");
       console.log("💡 The current tab should now appear in the picker!");
       console.log(
-        "   1. Select the 'Interview Trix' tab (should be visible now)"
+        "   1. Select the 'Interview Trix' tab (should be visible now)",
       );
       console.log(
-        "   2. Enable 'Also share tab audio' checkbox for best quality"
+        "   2. Enable 'Also share tab audio' checkbox for best quality",
       );
       console.log("   3. Click 'Share' to start recording");
 
@@ -813,7 +1094,7 @@ export default function RealtimeInterviewPage() {
       if (initialScreenAudioTracks.length === 0 && displayType !== "browser") {
         // User selected window or screen, which doesn't support tab audio
         console.warn(
-          "⚠️ No tab audio available - tab audio only works when sharing a browser tab"
+          "⚠️ No tab audio available - tab audio only works when sharing a browser tab",
         );
 
         // Ask user to cancel and try again with a tab
@@ -825,7 +1106,7 @@ export default function RealtimeInterviewPage() {
             "2. Click 'Start Recording' again\n" +
             "3. In the screen share dialog, select the tab with 'Interview Trix'\n" +
             "4. Enable the 'Also share tab audio' checkbox\n\n" +
-            "Click OK to continue anyway (AI voice may not be captured fully), or Cancel to retry."
+            "Click OK to continue anyway (AI voice may not be captured fully), or Cancel to retry.",
         );
 
         if (!shouldRetry) {
@@ -835,13 +1116,13 @@ export default function RealtimeInterviewPage() {
         }
       } else if (displayType === "browser") {
         console.log(
-          "✅ Browser tab selected - perfect! Tab audio should be available."
+          "✅ Browser tab selected - perfect! Tab audio should be available.",
         );
       } else if (displayType === "window" || displayType === "monitor") {
         console.log(
           `ℹ️ ${
             displayType === "window" ? "Window" : "Screen"
-          } selected - tab audio not available, but AI voice will be captured via AudioContext.`
+          } selected - tab audio not available, but AI voice will be captured via AudioContext.`,
         );
       }
 
@@ -860,10 +1141,10 @@ export default function RealtimeInterviewPage() {
             micStream!.addTrack(track);
           });
           console.log(
-            `🎤 Using existing microphone track for recording (${existingMicTracks.length} track(s))`
+            `🎤 Using existing microphone track for recording (${existingMicTracks.length} track(s))`,
           );
         } else {
-          console.warn("⚠️ No microphone track found in existing media stream");
+          console.warn("No microphone track found in existing media stream");
         }
       }
 
@@ -878,9 +1159,8 @@ export default function RealtimeInterviewPage() {
               sampleRate: 48000,
             } as MediaTrackConstraints,
           });
-          console.log("🎤 Microphone stream acquired separately for recording");
         } catch (micError) {
-          console.warn("⚠️ Could not get microphone for recording:", micError);
+          console.warn("Could not get microphone for recording:", micError);
           // Continue without microphone audio
         }
       }
@@ -894,7 +1174,7 @@ export default function RealtimeInterviewPage() {
       // Verify video track is active
       if (videoTrack.readyState !== "live") {
         throw new Error(
-          "Screen capture video track is not live. Please try again."
+          "Screen capture video track is not live. Please try again.",
         );
       }
 
@@ -905,16 +1185,7 @@ export default function RealtimeInterviewPage() {
       let hasTabAudio = screenAudioTracks.length > 0;
 
       if (hasTabAudio) {
-        console.log(
-          `🔊 Tab audio tracks: ${screenAudioTracks.length} (AI voice will be captured from tab)`
-        );
-        // Add tab audio tracks to recording - this is the PRIMARY source for AI voice
         audioTracks.push(...screenAudioTracks);
-        console.log("✅ Tab audio tracks added to recording");
-      } else {
-        console.warn(
-          "⚠️ No tab audio detected - will use AudioContext as fallback"
-        );
       }
 
       // Create MediaStreamAudioDestination to capture AI audio directly from AudioContext
@@ -924,7 +1195,7 @@ export default function RealtimeInterviewPage() {
           audioContextRef.current.createMediaStreamDestination();
         aiAudioDestinationRef.current = aiAudioDestination;
         console.log(
-          "🎙️ Created AI audio capture destination (fallback - no tab audio)"
+          "🎙️ Created AI audio capture destination (fallback - no tab audio)",
         );
 
         // Add AI audio track to recording (only if tab audio is not available)
@@ -932,7 +1203,7 @@ export default function RealtimeInterviewPage() {
         if (aiAudioTrack) {
           audioTracks.push(aiAudioTrack);
           console.log(
-            "✅ AI audio track added to recording (AudioContext fallback)"
+            "✅ AI audio track added to recording (AudioContext fallback)",
           );
         }
       } else if (hasTabAudio && audioContextRef.current) {
@@ -942,11 +1213,11 @@ export default function RealtimeInterviewPage() {
           audioContextRef.current.createMediaStreamDestination();
         aiAudioDestinationRef.current = aiAudioDestination;
         console.log(
-          "🎙️ Created AI audio destination (for playback only - tab audio used for recording)"
+          "🎙️ Created AI audio destination (for playback only - tab audio used for recording)",
         );
       } else if (!audioContextRef.current) {
         console.warn(
-          "⚠️ AudioContext not available - AI audio capture may not work"
+          "⚠️ AudioContext not available - AI audio capture may not work",
         );
       }
 
@@ -954,31 +1225,17 @@ export default function RealtimeInterviewPage() {
       if (micStream) {
         const micAudioTracks = micStream.getAudioTracks();
         if (micAudioTracks.length > 0) {
-          console.log(
-            `🎤 Microphone audio tracks: ${micAudioTracks.length} (Your voice will be captured)`
-          );
-          // Verify tracks are enabled and not muted
-          micAudioTracks.forEach((track, index) => {
-            console.log(`🎤 Mic track ${index + 1}:`, {
-              id: track.id,
-              label: track.label,
-              enabled: track.enabled,
-              muted: track.muted,
-              readyState: track.readyState,
-            });
-            // Ensure track is enabled
+          micAudioTracks.forEach((track) => {
             if (!track.enabled) {
               track.enabled = true;
-              console.log(`✅ Enabled microphone track ${index + 1}`);
             }
           });
           audioTracks.push(...micAudioTracks);
-          console.log("✅ Microphone audio tracks added to recording");
         } else {
-          console.warn("⚠️ Microphone stream has no audio tracks");
+          console.warn("Microphone stream has no audio tracks");
         }
       } else {
-        console.warn("⚠️ No microphone stream available for recording");
+        console.warn("No microphone stream available for recording");
       }
 
       // Mix all audio tracks into a single track using AudioContext
@@ -988,15 +1245,16 @@ export default function RealtimeInterviewPage() {
       if (audioTracks.length > 0) {
         try {
           // Create a new AudioContext for mixing (separate from the interview AudioContext)
-          const mixAudioContext = new (globalThis.AudioContext ||
-            (globalThis as any).webkitAudioContext)();
+          const mixAudioContext = new (
+            globalThis.AudioContext || (globalThis as any).webkitAudioContext
+          )();
 
           // Create a destination node for the mixed audio
           const mixedDestination =
             mixAudioContext.createMediaStreamDestination();
 
           console.log(
-            `🎚️ Mixing ${audioTracks.length} audio tracks into one...`
+            `🎚️ Mixing ${audioTracks.length} audio tracks into one...`,
           );
 
           // Connect all audio tracks to the mixer
@@ -1009,40 +1267,19 @@ export default function RealtimeInterviewPage() {
 
               // Connect to the mixer destination
               source.connect(mixedDestination);
-
-              console.log(`✅ Connected audio track ${index + 1} to mixer:`, {
-                label: track.label || "unknown",
-                kind: track.kind,
-                enabled: track.enabled,
-                muted: track.muted,
-              });
             } catch (err) {
-              console.warn(
-                `⚠️ Failed to connect audio track ${index + 1} to mixer:`,
-                err
-              );
+              console.warn(`Failed to connect audio track ${index + 1} to mixer:`, err);
             }
           });
 
-          // Get the mixed audio track
           const mixedTracks = mixedDestination.stream.getAudioTracks();
           if (mixedTracks.length > 0) {
             finalAudioTrack = mixedTracks[0];
-            console.log("✅ Created mixed audio track with all sources:", {
-              id: finalAudioTrack.id,
-              label: finalAudioTrack.label,
-              enabled: finalAudioTrack.enabled,
-              muted: finalAudioTrack.muted,
-            });
           } else {
-            console.warn("⚠️ No mixed audio track created");
+            console.warn("No mixed audio track created");
           }
         } catch (mixError) {
-          console.error("❌ Failed to create audio mixer:", mixError);
-          // Fallback: use all tracks (let MediaRecorder handle it)
-          console.log(
-            "⚠️ Falling back to multiple audio tracks (MediaRecorder may only record first)"
-          );
+          console.error("Failed to create audio mixer:", mixError);
         }
       }
 
@@ -1052,20 +1289,16 @@ export default function RealtimeInterviewPage() {
 
       if (finalAudioTrack) {
         combinedStream.addTrack(finalAudioTrack);
-        console.log("✅ Added mixed audio track to recording stream");
       } else if (audioTracks.length > 0) {
-        // Fallback: add all tracks if mixing failed
         audioTracks.forEach((track) => combinedStream.addTrack(track));
-        console.warn(
-          `⚠️ Added ${audioTracks.length} audio tracks directly (mixing failed - MediaRecorder may only record first)`
-        );
+        console.warn(`Added ${audioTracks.length} audio tracks directly (mixing failed)`);
       } else {
-        console.warn("⚠️ No audio track available for recording");
+        console.warn("No audio track available for recording");
       }
 
       // Monitor video track for issues
       videoTrack.addEventListener("ended", () => {
-        console.warn("⚠️ Screen capture video track ended unexpectedly");
+        console.warn("Screen capture video track ended unexpectedly");
         if (
           mediaRecorderRef.current &&
           mediaRecorderRef.current.state !== "inactive"
@@ -1075,12 +1308,9 @@ export default function RealtimeInterviewPage() {
       });
 
       videoTrack.addEventListener("mute", () => {
-        console.warn("⚠️ Screen capture video track muted");
+        console.warn("Screen capture video track muted");
       });
 
-      videoTrack.addEventListener("unmute", () => {
-        console.log("✅ Screen capture video track unmuted");
-      });
 
       // Handle screen share stop (user clicks stop sharing)
       screenStream.getVideoTracks()[0].addEventListener("ended", () => {
@@ -1093,26 +1323,6 @@ export default function RealtimeInterviewPage() {
         }
       });
 
-      console.log("🎥 Recording setup:", {
-        videoTracks: combinedStream.getVideoTracks().length,
-        audioTracks: combinedStream.getAudioTracks().length,
-        tabAudio: screenAudioTracks.length,
-        aiAudioContext: aiAudioDestinationRef.current ? 1 : 0,
-        micAudio: micStream ? micStream.getAudioTracks().length : 0,
-        totalAudioTracks: audioTracks.length,
-      });
-
-      // Log each audio track for debugging
-      combinedStream.getAudioTracks().forEach((track, index) => {
-        console.log(`🎵 Audio track ${index + 1}:`, {
-          id: track.id,
-          label: track.label,
-          kind: track.kind,
-          enabled: track.enabled,
-          muted: track.muted,
-          readyState: track.readyState,
-        });
-      });
 
       // Check if MediaRecorder is supported
       const mimeType = "video/webm;codecs=vp8,opus";
@@ -1133,7 +1343,7 @@ export default function RealtimeInterviewPage() {
         if (!supportedType) {
           throw new Error("No supported video format found in this browser.");
         }
-        console.log(`⚠️ Using alternative format: ${supportedType}`);
+        console.log(`Using alternative format: ${supportedType}`);
       }
 
       recordedChunksRef.current = [];
@@ -1150,10 +1360,10 @@ export default function RealtimeInterviewPage() {
           recordedChunksRef.current.push(event.data);
           totalSize += event.data.size;
           console.log(
-            `📦 Chunk received: ${event.data.size} bytes (total: ${totalSize} bytes)`
+            `📦 Chunk received: ${event.data.size} bytes (total: ${totalSize} bytes)`,
           );
         } else {
-          console.warn("⚠️ Empty data chunk received");
+          console.warn("Empty data chunk received");
         }
       };
 
@@ -1176,21 +1386,21 @@ export default function RealtimeInterviewPage() {
 
         const totalBytes = recordedChunksRef.current.reduce(
           (sum, chunk) => sum + chunk.size,
-          0
+          0,
         );
         console.log(
           `📹 Recording stopped. Total size: ${(
             totalBytes /
             1024 /
             1024
-          ).toFixed(2)} MB, Chunks: ${recordedChunksRef.current.length}`
+          ).toFixed(2)} MB, Chunks: ${recordedChunksRef.current.length}`,
         );
 
         // Minimum size check - should be at least 100KB for a meaningful recording
         if (totalBytes < 100 * 1024) {
-          console.error("❌ Recording too small, likely failed");
+          console.error("Recording too small, likely failed");
           setError(
-            "Recording failed - file too small. Please ensure screen sharing is active and try again."
+            "Recording failed - file too small. Please ensure screen sharing is active and try again.",
           );
           setIsRecording(false);
           recordedChunksRef.current = [];
@@ -1208,7 +1418,7 @@ export default function RealtimeInterviewPage() {
       };
 
       mediaRecorder.onerror = (event: any) => {
-        console.error("❌ MediaRecorder error:", event);
+        console.error("MediaRecorder error:", event);
         setError(`Recording error: ${event.error?.message || "Unknown error"}`);
         setIsRecording(false);
       };
@@ -1219,7 +1429,7 @@ export default function RealtimeInterviewPage() {
       // Verify combined stream is active
       if (!combinedStream || combinedStream.active === false) {
         throw new Error(
-          "Screen capture stream is not active. Please try again."
+          "Screen capture stream is not active. Please try again.",
         );
       }
 
@@ -1232,7 +1442,7 @@ export default function RealtimeInterviewPage() {
 
       if (activeVideoTracks.length === 0) {
         throw new Error(
-          "No video track available. Please ensure screen sharing is active."
+          "No video track available. Please ensure screen sharing is active.",
         );
       }
 
@@ -1256,22 +1466,22 @@ export default function RealtimeInterviewPage() {
         const currentChunks = recordedChunksRef.current.length;
         const currentSize = recordedChunksRef.current.reduce(
           (sum, chunk) => sum + chunk.size,
-          0
+          0,
         );
 
         console.log(
           `📊 Recording health: ${currentChunks} chunks, ${(
             currentSize / 1024
-          ).toFixed(2)} KB`
+          ).toFixed(2)} KB`,
         );
 
         // If after 10 seconds we have less than 10KB, something is wrong
         if (currentSize < 10 * 1024 && currentChunks > 10) {
           console.error(
-            "❌ Recording appears to be producing very little data"
+            "❌ Recording appears to be producing very little data",
           );
           setError(
-            "Recording may not be working properly. Please stop and try again."
+            "Recording may not be working properly. Please stop and try again.",
           );
         }
       }, 5000);
@@ -1281,7 +1491,7 @@ export default function RealtimeInterviewPage() {
         clearInterval(recordingHealthCheck);
       });
     } catch (error: any) {
-      console.error("❌ Error starting recording:", error);
+      console.error("Error starting recording:", error);
 
       // Cleanup on error
       if (screenStreamRef.current) {
@@ -1294,14 +1504,14 @@ export default function RealtimeInterviewPage() {
         error.name === "PermissionDeniedError"
       ) {
         setError(
-          "Screen capture was denied. Please allow screen sharing to record the interview."
+          "Screen capture was denied. Please allow screen sharing to record the interview.",
         );
       } else if (
         error.name === "NotFoundError" ||
         error.name === "NotReadableError"
       ) {
         setError(
-          "Could not access screen. Please ensure no other application is using your screen."
+          "Could not access screen. Please ensure no other application is using your screen.",
         );
       } else {
         setError(`Failed to start recording: ${error.message}`);
@@ -1316,7 +1526,6 @@ export default function RealtimeInterviewPage() {
       screenStreamRef.current.getTracks().forEach((track) => {
         if (track.readyState === "live") {
           track.stop();
-          console.log(`✅ Stopped track: ${track.kind} (${track.label})`);
         }
       });
       // Don't set to null yet - let MediaRecorder finish first
@@ -1330,13 +1539,13 @@ export default function RealtimeInterviewPage() {
       const chunksCount = recordedChunksRef.current.length;
       const totalSize = recordedChunksRef.current.reduce(
         (sum, chunk) => sum + chunk.size,
-        0
+        0,
       );
 
       console.log(
         `⏹️ Stopping MediaRecorder... State: ${state}, Chunks: ${chunksCount}, Size: ${(
           totalSize / 1024
-        ).toFixed(2)} KB`
+        ).toFixed(2)} KB`,
       );
 
       // Request final data before stopping
@@ -1375,7 +1584,7 @@ export default function RealtimeInterviewPage() {
 
   const uploadRecording = async () => {
     if (recordedChunksRef.current.length === 0) {
-      console.error("❌ No recording data to upload");
+      console.error("No recording data to upload");
       setError("No recording data available. Please record again.");
       setIsUploadingRecording(false);
       return;
@@ -1387,7 +1596,7 @@ export default function RealtimeInterviewPage() {
       // Calculate total size
       const totalSize = recordedChunksRef.current.reduce(
         (sum, chunk) => sum + chunk.size,
-        0
+        0,
       );
 
       console.log(
@@ -1395,12 +1604,12 @@ export default function RealtimeInterviewPage() {
           totalSize /
           1024 /
           1024
-        ).toFixed(2)} MB`
+        ).toFixed(2)} MB`,
       );
 
       if (totalSize < 100 * 1024) {
         throw new Error(
-          "Recording file is too small. Please ensure video and audio are enabled and try recording again."
+          "Recording file is too small. Please ensure video and audio are enabled and try recording again.",
         );
       }
 
@@ -1409,25 +1618,19 @@ export default function RealtimeInterviewPage() {
       // Verify blob size matches
       if (blob.size !== totalSize) {
         console.warn(
-          `⚠️ Blob size mismatch: blob=${blob.size}, calculated=${totalSize}`
+          `⚠️ Blob size mismatch: blob=${blob.size}, calculated=${totalSize}`,
         );
       }
 
       console.log(
         `📤 Uploading recording: ${(blob.size / 1024 / 1024).toFixed(2)} MB (${
           blob.size
-        } bytes)`
+        } bytes)`,
       );
 
-      // Step 1: Get presigned upload URL from backend
-      console.log("🔑 Getting presigned upload URL...");
-      const { uploadUrl, s3Key } = await interviewApi.getRecordingUploadUrl(
-        interviewId
-      );
-      console.log(`✅ Got upload URL for key: ${s3Key}`);
+      const { uploadUrl, s3Key } =
+        await interviewApi.getRecordingUploadUrl(interviewId);
 
-      // Step 2: Upload directly to S3 using presigned URL
-      console.log("☁️ Uploading to S3...");
       const uploadResponse = await fetch(uploadUrl, {
         method: "PUT",
         body: blob,
@@ -1439,24 +1642,15 @@ export default function RealtimeInterviewPage() {
       if (!uploadResponse.ok) {
         const errorText = await uploadResponse.text();
         throw new Error(
-          `S3 upload failed: ${uploadResponse.status} ${uploadResponse.statusText} - ${errorText}`
+          `S3 upload failed: ${uploadResponse.status} ${uploadResponse.statusText} - ${errorText}`,
         );
       }
 
-      console.log("✅ Recording uploaded to S3 successfully");
+      await interviewApi.saveRecordingKey(interviewId, s3Key);
 
-      // Step 3: Notify backend to save the S3 key
-      console.log("💾 Saving S3 key to database...");
-      const saveResult = await interviewApi.saveRecordingKey(
-        interviewId,
-        s3Key
-      );
-      console.log("✅ Recording key saved:", saveResult);
-
-      // Clear recorded chunks
       recordedChunksRef.current = [];
     } catch (error: any) {
-      console.error("❌ Error uploading recording:", error);
+      console.error("Error uploading recording:", error);
       setError(`Failed to upload recording: ${error.message}`);
     } finally {
       setIsUploadingRecording(false);
@@ -1474,7 +1668,7 @@ export default function RealtimeInterviewPage() {
     );
   }
 
-  if (error && !isInterviewActive) {
+  if (error && !isInterviewActive && !connectionFailed) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-pink-50 flex items-center justify-center p-4">
         <Card className="max-w-md w-full">
@@ -1492,30 +1686,169 @@ export default function RealtimeInterviewPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white">
+    <div className="relative min-h-screen bg-[radial-gradient(circle_at_top,_#1f2937_0%,_#0b1220_45%,_#060913_100%)] text-white">
+      <AlertDialog
+        open={showInterviewComplete}
+        onOpenChange={setShowInterviewComplete}
+      >
+        <AlertDialogContent className="sm:max-w-md border-2 border-green-200 bg-white shadow-xl">
+          <AlertDialogHeader>
+            <div className="flex flex-col items-center text-center">
+              <CheckCircle2 className="mx-auto mb-4 h-12 w-12 text-green-500" />
+              <AlertDialogTitle className="text-xl font-bold text-gray-900">
+                Your interview is complete
+              </AlertDialogTitle>
+              <AlertDialogDescription className="mt-2 text-base text-gray-600">
+                Thank you for completing the interview. Click OK to view your
+                report and transcript.
+                {interviewCompleteCountdown > 0 && (
+                  <span className="mt-2 block text-sm text-gray-500">
+                    Auto-closing in {interviewCompleteCountdown} seconds...
+                  </span>
+                )}
+              </AlertDialogDescription>
+            </div>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="mt-4 sm:justify-center">
+            <Button
+              size="lg"
+              onClick={() => {
+                if (interviewCompleteAutoCloseRef.current) {
+                  clearTimeout(interviewCompleteAutoCloseRef.current);
+                  interviewCompleteAutoCloseRef.current = null;
+                }
+                if (interviewCompleteCountdownRef.current) {
+                  clearInterval(interviewCompleteCountdownRef.current);
+                  interviewCompleteCountdownRef.current = null;
+                }
+                setShowInterviewComplete(false);
+                endInterview();
+              }}
+              className="min-w-[120px] bg-gradient-to-r from-violet-600 to-blue-600 hover:from-violet-700 hover:to-blue-700 text-white"
+            >
+              View Report
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      <AlertDialog
+        open={showEndInterviewConfirm}
+        onOpenChange={setShowEndInterviewConfirm}
+      >
+        <AlertDialogContent className="sm:max-w-md border-2 border-amber-200 bg-white shadow-xl">
+          <AlertDialogHeader>
+            <div className="flex flex-col items-center text-center">
+              <AlertCircle className="mx-auto h-12 w-12 text-amber-500 mb-4" />
+              <AlertDialogTitle className="text-xl font-bold text-gray-900">
+                You are about to close the interview. Are you sure?
+              </AlertDialogTitle>
+              <AlertDialogDescription className="text-base mt-2 text-gray-600">
+                Your interview will be ended and credit will be deducted based on
+                your usage. You might see incomplete report of your interview or
+                report generation might fail.
+              </AlertDialogDescription>
+            </div>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="sm:justify-center gap-3 mt-4">
+            <Button
+              variant="outline"
+              size="lg"
+              onClick={() => setShowEndInterviewConfirm(false)}
+              className="min-w-[100px]"
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              size="lg"
+              onClick={async () => {
+                setShowEndInterviewConfirm(false);
+                await endInterview();
+              }}
+              className="min-w-[120px]"
+            >
+              End Interview
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      <AlertDialog open={connectionFailed} onOpenChange={() => {}}>
+        <AlertDialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto mx-4 w-[calc(100%-2rem)] border-2 border-red-200 bg-white shadow-xl">
+          <AlertDialogHeader>
+            <div className="flex flex-col items-center text-center">
+              <AlertCircle className="mx-auto h-12 w-12 shrink-0 text-red-500 mb-4" />
+              <AlertDialogTitle className="text-xl font-bold text-gray-900">
+                {isReconnecting ? "Reconnecting..." : "Connection Lost"}
+              </AlertDialogTitle>
+              <AlertDialogDescription className="text-base mt-2 text-gray-600 break-words">
+                {isReconnecting
+                  ? "Something went wrong at server side. Attempting to reconnect..."
+                  : "Something went wrong at server side. You can try to resume or close this interview without losing credits."}
+              </AlertDialogDescription>
+            </div>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex flex-col-reverse sm:flex-row sm:justify-center gap-3 mt-4">
+            <Button
+              variant="outline"
+              size="lg"
+              onClick={closeFailedInterview}
+              disabled={isClosingFailed || isReconnecting}
+              className="w-full sm:w-auto sm:whitespace-nowrap text-center h-auto py-2 px-4"
+            >
+              {isClosingFailed ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 shrink-0 animate-spin" />
+                  Closing...
+                </>
+              ) : (
+                "Close Interview (No credits deducted)"
+              )}
+            </Button>
+            <Button
+              size="lg"
+              onClick={resumeInterview}
+              disabled={isResuming || isReconnecting}
+              className="w-full sm:w-auto sm:whitespace-nowrap text-center h-auto py-2 px-4 bg-gradient-to-r from-violet-600 to-blue-600 hover:from-violet-700 hover:to-blue-700 text-white"
+            >
+              {isResuming || isReconnecting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 shrink-0 animate-spin" />
+                  Reconnecting...
+                </>
+              ) : (
+                "Resume Interview"
+              )}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="absolute -top-28 -left-24 h-72 w-72 rounded-full bg-purple-500/15 blur-3xl" />
+        <div className="absolute top-24 right-0 h-80 w-80 rounded-full bg-blue-500/10 blur-3xl" />
+      </div>
       {/* Header */}
-      <div className="bg-black/50 backdrop-blur-sm border-b border-white/10 p-4">
+      <div className="sticky top-0 z-20 border-b border-white/10 bg-black/35 backdrop-blur-xl">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold">
+          <div className="py-4">
+            <h1 className="text-xl font-semibold tracking-tight">
               {interview?.metadata.role || "Interview"}
             </h1>
-            <p className="text-sm text-gray-400">
+            <p className="text-sm text-gray-300/80">
               {formatDuration(elapsedTime)} /{" "}
-              {formatDuration(MAX_INTERVIEW_DURATION)}
+              {formatDuration(TARGET_INTERVIEW_DURATION)}
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             <Progress
-              value={(elapsedTime / MAX_INTERVIEW_DURATION) * 100}
-              className="w-32 h-2"
+              value={(elapsedTime / TARGET_INTERVIEW_DURATION) * 100}
+              className="h-2 w-40 bg-white/10"
             />
             {isInterviewActive && (
               <Button
                 variant="destructive"
                 size="sm"
-                onClick={endInterview}
-                className="ml-4"
+                onClick={() => setShowEndInterviewConfirm(true)}
+                className="ml-2 rounded-xl"
               >
                 <PhoneOff className="w-4 h-4 mr-2" />
                 End Interview
@@ -1526,46 +1859,44 @@ export default function RealtimeInterviewPage() {
       </div>
 
       {/* Main Content */}
-      <div className="max-w-7xl mx-auto p-4 lg:p-6">
-        <div className="grid lg:grid-cols-2 gap-6 mb-6">
+      <div className="relative z-10 mx-auto max-w-7xl p-4 lg:p-8">
+        <div className="mb-6 grid gap-6 lg:grid-cols-2">
           {/* Left: AI Avatar/Conversation */}
-          <Card className="bg-gray-800/50 border-gray-700">
-            <CardContent className="p-6">
+          <Card className="border-white/10 bg-white/[0.04] shadow-2xl shadow-black/25 backdrop-blur-xl">
+            <CardContent className="p-7">
               <div className="flex items-center gap-4 mb-6">
                 <div
-                  className={`w-16 h-16 bg-gradient-to-br from-purple-500 to-blue-500 rounded-full flex items-center justify-center transition-all ${
-                    isUserSpeaking
-                      ? "ring-4 ring-green-400 scale-110"
-                      : currentAssistantTranscript
-                      ? "ring-4 ring-purple-400 scale-110"
-                      : ""
+                  className={`flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-blue-500 shadow-lg transition-all ${
+                    currentAssistantTranscript
+                        ? "scale-110 ring-4 ring-violet-300/70"
+                        : ""
                   }`}
                 >
                   <Volume2 className="w-8 h-8 text-white" />
                 </div>
                 <div>
-                  <h2 className="text-xl font-bold">AI Interviewer</h2>
-                  <p className="text-sm text-gray-400">
+                  <h2 className="text-xl font-semibold tracking-tight text-white">AI Interviewer</h2>
+                  <p className="text-sm text-gray-300/80">
                     {!connected
                       ? "Connecting..."
-                      : isUserSpeaking
-                      ? "🎤 Listening to you..."
-                      : currentAssistantTranscript
-                      ? "🗣️ Speaking..."
-                      : "Ready"}
+                      : isAIProcessing
+                          ? "🤔 Understanding your answer..."
+                      : isAISpeaking
+                          ? "🗣️ Speaking..."
+                          : "Ready"}
                   </p>
                 </div>
               </div>
 
               {!isInterviewActive ? (
-                <div className="text-center py-12">
-                  <p className="text-gray-400 mb-6">
+                <div className="py-12 text-center">
+                  <p className="mb-6 text-gray-300/80">
                     Ready to start your interview?
                   </p>
                   <Button
                     onClick={startInterview}
                     disabled={!connected}
-                    className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+                    className="rounded-xl bg-gradient-to-r from-violet-600 to-blue-600 px-6 hover:from-violet-700 hover:to-blue-700"
                   >
                     Start Interview
                   </Button>
@@ -1573,19 +1904,47 @@ export default function RealtimeInterviewPage() {
               ) : null}
               {isInterviewActive && (
                 <div className="flex items-center justify-center min-h-[200px] px-4">
-                  {currentAssistantTranscript ? (
-                    // AI is actively speaking
-                    <div className="p-6 rounded-lg bg-purple-600/20 max-w-xl w-full">
+                  {isPreparing ? (
+                    <div className="w-full max-w-xl rounded-2xl border border-blue-400/30 bg-blue-500/15 p-6">
+                      <div className="flex items-center justify-center gap-3">
+                        <Loader2 className="w-5 h-5 animate-spin text-blue-400" />
+                        <div>
+                          <div className="text-sm font-semibold text-blue-400 mb-1">
+                            {lastAIMessage || "Preparing for interview..."}
+                          </div>
+                          <div className="text-xs text-gray-400">
+                            AI interviewer is getting ready
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ) : isAIProcessing ? (
+                    <div className="w-full max-w-xl rounded-2xl border border-blue-400/30 bg-blue-500/15 p-6">
+                      <div className="flex items-center gap-3 mb-2">
+                        <Loader2 className="w-4 h-4 animate-spin text-blue-400" />
+                        <div className="text-xs text-blue-400 font-semibold">
+                          AI is understanding your answer...
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1 text-blue-300">
+                        <span className="w-2 h-2 bg-blue-400 rounded-full animate-bounce [animation-delay:-0.3s]" />
+                        <span className="w-2 h-2 bg-blue-400 rounded-full animate-bounce [animation-delay:-0.15s]" />
+                        <span className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" />
+                      </div>
+                    </div>
+                  ) : isAISpeaking || currentAssistantTranscript ? (
+                    // AI is actively speaking - show real-time partial or last complete message
+                    <div className="w-full max-w-xl rounded-2xl border border-violet-400/30 bg-violet-500/15 p-6">
                       <div className="text-xs text-purple-400 mb-2 font-semibold">
                         Speaking...
                       </div>
                       <div className="text-base leading-relaxed">
-                        {currentAssistantTranscript}
+                        {currentAssistantTranscript || lastAIMessage}
                       </div>
                     </div>
                   ) : lastAIMessage ? (
-                    // Show last AI message until next one starts
-                    <div className="p-6 rounded-lg bg-purple-600/10 max-w-xl w-full border border-purple-500/20">
+                    // Show last AI message when not speaking
+                    <div className="w-full max-w-xl rounded-2xl border border-violet-400/20 bg-violet-500/10 p-6">
                       <div className="text-base leading-relaxed text-gray-300">
                         {lastAIMessage}
                       </div>
@@ -1601,9 +1960,9 @@ export default function RealtimeInterviewPage() {
           </Card>
 
           {/* Right: Webcam */}
-          <Card className="bg-gray-800/50 border-gray-700">
-            <CardContent className="p-6">
-              <div className="aspect-video bg-black rounded-lg overflow-hidden relative">
+          <Card className="border-white/10 bg-white/[0.04] shadow-2xl shadow-black/25 backdrop-blur-xl">
+            <CardContent className="p-7">
+              <div className="relative aspect-video overflow-hidden rounded-2xl bg-black">
                 <video
                   ref={videoRef}
                   autoPlay
@@ -1624,7 +1983,7 @@ export default function RealtimeInterviewPage() {
                   }}
                 />
                 {(!isCameraOn || !videoStreamActive) && (
-                  <div className="absolute inset-0 bg-gray-900 flex items-center justify-center">
+                  <div className="absolute inset-0 flex items-center justify-center bg-gray-900/95">
                     <VideoOff className="w-16 h-16 text-gray-600" />
                     {!videoStreamActive && (
                       <p className="absolute bottom-4 text-sm text-gray-400">
@@ -1633,55 +1992,40 @@ export default function RealtimeInterviewPage() {
                     )}
                   </div>
                 )}
+                <div className="absolute left-3 top-3 rounded-full border border-white/20 bg-black/45 px-3 py-1 text-xs text-white/90 backdrop-blur">
+                  Candidate Camera
+                </div>
               </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Real-time Transcription */}
-        <Card className="bg-gray-800/50 border-gray-700">
-          <CardContent className="p-6">
-            <h3 className="text-lg font-bold mb-4">Real-time Transcription</h3>
+        {/* Live AI Responses */}
+        <Card className="border-white/10 bg-white/[0.04] shadow-2xl shadow-black/25 backdrop-blur-xl">
+          <CardContent className="p-7">
+            <h3 className="mb-4 text-lg font-semibold tracking-tight text-white">AI Live Responses</h3>
             <div className="space-y-2 max-h-64 overflow-y-auto">
               {transcript.length === 0 && !currentAssistantTranscript ? (
                 <p className="text-gray-400 text-sm">
-                  Transcription will appear here...
+                  AI responses will appear here...
                 </p>
               ) : (
                 <>
-                  {transcript.map((item, index) => (
+                  {transcript
+                    .filter((item) => item.role === "assistant")
+                    .map((item, index) => (
                     <div
                       key={`transcript-${index}-${
                         item.role
                       }-${item.content.slice(0, 10)}`}
-                      className={`text-sm p-3 rounded ${
-                        item.role === "user"
-                          ? "bg-blue-600/30"
-                          : "bg-purple-600/30"
-                      }`}
+                      className="rounded-xl border border-violet-400/20 bg-violet-500/15 p-4 text-sm"
                     >
-                      <span
-                        className={`font-semibold ${
-                          item.role === "user"
-                            ? "text-blue-400"
-                            : "text-purple-400"
-                        }`}
-                      >
-                        {item.role === "user" ? "You: " : "AI: "}
+                      <span className="font-semibold text-white">
+                        {`Question ${index + 1}: `}
                       </span>
-                      <span className="text-gray-200">{item.content}</span>
+                      <span className="text-white">{item.content}</span>
                     </div>
                   ))}
-                  {currentAssistantTranscript && (
-                    <div className="text-sm p-3 rounded bg-purple-600/40 border border-purple-500/50 animate-pulse">
-                      <span className="font-semibold text-purple-300">
-                        AI (speaking...):
-                      </span>
-                      <span className="text-gray-200">
-                        {currentAssistantTranscript}
-                      </span>
-                    </div>
-                  )}
                 </>
               )}
             </div>
@@ -1689,13 +2033,19 @@ export default function RealtimeInterviewPage() {
         </Card>
 
         {/* Controls */}
-        <div className="flex flex-col items-center gap-4 mt-6">
-          <div className="flex items-center justify-center gap-4">
+        <Card className="mt-6 border-white/10 bg-white/[0.04] shadow-2xl shadow-black/25 backdrop-blur-xl">
+          <CardContent className="p-6">
+            <div className="mb-5 text-center">
+              <h4 className="text-sm font-semibold uppercase tracking-wide text-gray-300/90">
+                Interview Controls
+              </h4>
+            </div>
+            <div className="flex items-center justify-center gap-4">
             <Button
               variant={isMicOn ? "default" : "destructive"}
               size="lg"
               onClick={toggleMic}
-              className="rounded-full w-16 h-16"
+              className="h-16 w-16 rounded-2xl"
             >
               {isMicOn ? (
                 <Mic className="w-6 h-6" />
@@ -1707,7 +2057,7 @@ export default function RealtimeInterviewPage() {
               variant={isCameraOn ? "default" : "destructive"}
               size="lg"
               onClick={toggleCamera}
-              className="rounded-full w-16 h-16"
+              className="h-16 w-16 rounded-2xl"
             >
               {isCameraOn ? (
                 <Video className="w-6 h-6" />
@@ -1721,7 +2071,7 @@ export default function RealtimeInterviewPage() {
                 size="lg"
                 onClick={isRecording ? stopRecording : startRecording}
                 disabled={isUploadingRecording || !mediaStreamRef.current}
-                className={`rounded-full w-16 h-16 ${
+                className={`h-16 w-16 rounded-2xl ${
                   isRecording ? "animate-pulse" : ""
                 }`}
               >
@@ -1743,8 +2093,8 @@ export default function RealtimeInterviewPage() {
               )}
             </div>
           </div>
-          {!isRecording && (
-            <div className="text-xs text-gray-400 text-center max-w-md space-y-2">
+            {!isRecording && (
+              <div className="mt-5 space-y-2 text-center text-xs text-gray-300/80">
               <p>
                 💡 <strong>Tip:</strong> The current tab should appear in the
                 picker
@@ -1756,9 +2106,10 @@ export default function RealtimeInterviewPage() {
                 🔊 Enable <strong>"Also share tab audio"</strong> to capture AI
                 voice
               </p>
-            </div>
-          )}
-        </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

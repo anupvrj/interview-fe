@@ -47,17 +47,29 @@
   color: #7f8c8d;
 }
 
-/* Section Header Styles - Border Top and Bottom */
-.corporate-section-header {
-  font-size: 12px;
-  font-weight: bold;
-  text-transform: uppercase;
-  text-align: center;
+/* Section Header Styles */
+.corporate-section-header-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+}
+.corporate-section-header-wrapper--border-top-bottom {
+  margin-bottom: 10px;
+  padding: 6px 12px;
   border-top: 2px solid #000000;
   border-bottom: 2px solid #000000;
-  padding: 6px 0;
-  margin-bottom: 14px;
-  margin-top: 20px;
+  min-height: 2.5em;
+}
+.corporate-section-header {
+  margin: 0;
+  padding: 0;
+  font-size: 12px;
+  font-weight: bold;
+  line-height: 1;
+  text-transform: uppercase;
+  text-align: center;
+  border: none;
   color: #000000;
 }
 
