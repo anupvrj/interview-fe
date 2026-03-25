@@ -1,40 +1,239 @@
 /**
- * Atlantic Blue Template Styles
- * Modern two-column template with blue sidebar
+ * Atlantic Blue — design tokens + layout
+ * Matches marketing reference: full-bleed navy sidebar, light gray main section bars,
+ * sidebar section chips (lighter blue), stacked identity + photo in sidebar.
+ *
+ * Tune appearance via the variables under .atlantic-blue-template (single place).
  */
 
-/* Import Zilla Slab font from Google Fonts */
-@import url('https://fonts.googleapis.com/css2?family=Zilla+Slab:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600&family=Zilla+Slab:wght@500;600;700&display=swap');
 
-/* Template Container */
+/* ----- Design tokens (scoped; safe for PDF string injection) ----- */
 .atlantic-blue-template {
-  font-family: 'Zilla Slab', 'Roboto Slab', Rockwell, 'Courier New', serif;
-  color: #000000;
-  background-color: #ffffff;
-  line-height: 1.4;
+  --ab-sidebar: #2c3e50;
+  --ab-sidebar-accent: #34495e;
+  --ab-sidebar-text: #ffffff;
+  --ab-sidebar-muted: rgba(255, 255, 255, 0.88);
+  --ab-main-bg: #ffffff;
+  --ab-main-text: #000000;
+  --ab-main-muted: #666666;
+  --ab-section-bar: #ecf0f1;
+  --ab-section-bar-text: #1a1a1a;
+  --ab-accent-line: #3498db;
+  --ab-sidebar-width-pct: 40%;
+  --ab-font-display: 'Zilla Slab', 'Roboto Slab', Rockwell, 'Courier New', serif;
+  --ab-font-body: 'Roboto', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  --ab-space-column-x: 40px;
+  --ab-space-column-y: 44px;
+  /* Inner gutter between sidebar and main (left column padding-right + right column padding-left) */
+  --ab-column-gutter: 16px;
+  --ab-photo-size: 132px;
 }
 
-/* Override any global section header styles */
-.atlantic-blue-template h2,
-.atlantic-blue-template .atlantic-blue-section-header {
+.atlantic-blue-template {
+  font-family: var(--ab-font-body);
+  color: var(--ab-main-text);
+  background-color: var(--ab-main-bg);
+  line-height: 1.45;
+}
+
+/* ----- Paginated A4 / PDF snapshot stripe (must match --ab-sidebar-width-pct) ----- */
+.resume-page.resume-page--atlantic-blue {
+  background: linear-gradient(
+    to right,
+    var(--ab-sidebar) 0% var(--ab-sidebar-width-pct),
+    #ffffff var(--ab-sidebar-width-pct) 100%
+  );
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+/* ----- Two-column shell ----- */
+.atlantic-blue-two-column {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  min-height: 270mm;
+}
+
+.atlantic-blue-left-column {
+  box-sizing: border-box;
+  width: var(--ab-sidebar-width-pct);
+  flex-shrink: 0;
+  min-height: 100%;
+  align-self: stretch;
+  background-color: var(--ab-sidebar);
+  color: var(--ab-sidebar-text);
+  /* top | right (gutter toward main column) | bottom | left (page edge) */
+  padding: var(--ab-space-column-y) var(--ab-column-gutter) var(--ab-space-column-y)
+    var(--ab-space-column-x);
+  font-family: var(--ab-font-body);
+}
+
+.atlantic-blue-right-column {
+  box-sizing: border-box;
+  width: 60%;
+  flex-shrink: 0;
+  background-color: var(--ab-main-bg);
+  color: var(--ab-main-text);
+  /* top | right (page edge) | bottom | left (gutter toward sidebar) */
+  padding: var(--ab-space-column-y) var(--ab-space-column-x) var(--ab-space-column-y)
+    var(--ab-column-gutter);
+  font-family: var(--ab-font-body);
+}
+
+/* ----- Sidebar: identity block (name, title, photo) ----- */
+.atlantic-blue-sidebar-personal {
+  text-align: center;
+}
+
+.atlantic-blue-sidebar-personal .atlantic-blue-identity-text {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.atlantic-blue-left-column .atlantic-blue-name {
+  font-family: var(--ab-font-display);
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--ab-sidebar-text) !important;
+  margin: 0 0 8px 0;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+}
+
+.atlantic-blue-left-column .atlantic-blue-job-title {
+  font-family: var(--ab-font-body);
+  font-size: 15px;
+  font-weight: 400;
+  font-style: normal;
+  color: var(--ab-sidebar-muted) !important;
+  margin: 0 0 0 0;
+  line-height: 1.35;
+}
+
+.atlantic-blue-sidebar-photo-wrap {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 24px;
+}
+
+.atlantic-blue-sidebar-photo-wrap img,
+.atlantic-blue-sidebar-photo-wrap .atlantic-blue-photo-placeholder {
+  width: var(--ab-photo-size);
+  height: var(--ab-photo-size);
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid rgba(255, 255, 255, 0.35);
+  box-sizing: border-box;
+}
+
+.atlantic-blue-photo-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #e5e7eb;
+  overflow: hidden;
+}
+
+/* ----- Sidebar: contact list ----- */
+.atlantic-blue-left-column .atlantic-blue-contact-item,
+.atlantic-blue-left-column a {
+  color: var(--ab-sidebar-text) !important;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.atlantic-blue-left-column svg {
+  color: var(--ab-sidebar-text) !important;
+  stroke: currentColor !important;
+  flex-shrink: 0;
+}
+
+/* ----- Sidebar: section headers (lighter blue chips) ----- */
+.atlantic-blue-left-column h2[data-section-header].atlantic-blue-section-header {
+  background-color: var(--ab-sidebar-accent) !important;
+  color: var(--ab-sidebar-text) !important;
+  text-align: left !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.06em !important;
+  text-transform: uppercase !important;
+  padding: 10px 14px !important;
+  margin: 0 0 12px 0 !important;
+  border-radius: 2px !important;
   border: none !important;
-  text-decoration: none !important;
+  box-shadow: none !important;
+  display: flex !important;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  box-sizing: border-box;
+  font-family: var(--ab-font-body) !important;
 }
 
-/* Header Styles */
+.atlantic-blue-left-column h2[data-section-header].atlantic-blue-section-header svg {
+  color: var(--ab-sidebar-text) !important;
+  stroke: currentColor !important;
+}
+
+/* ----- Main column: full-width gray bars, left-aligned + icon ----- */
+.atlantic-blue-right-column h2[data-section-header].atlantic-blue-section-header {
+  background-color: var(--ab-section-bar) !important;
+  color: var(--ab-section-bar-text) !important;
+  text-align: left !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.06em !important;
+  text-transform: uppercase !important;
+  padding: 10px 14px !important;
+  margin: 0 0 12px 0 !important;
+  border: none !important;
+  border-radius: 0 !important;
+  display: flex !important;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  box-sizing: border-box;
+  font-family: var(--ab-font-body) !important;
+}
+
+.atlantic-blue-right-column h2[data-section-header].atlantic-blue-section-header svg {
+  color: var(--ab-main-text) !important;
+  stroke: currentColor !important;
+  flex-shrink: 0;
+}
+
+/* ----- Section body copy ----- */
+.atlantic-blue-section {
+  margin-bottom: 4px;
+}
+
+.atlantic-blue-right-column .atlantic-blue-section {
+  margin-bottom: 14px;
+}
+
+/* Experience / education meta */
+.atlantic-blue-right-column .atlantic-blue-job-title-exp,
+.atlantic-blue-right-column h3 {
+  font-family: var(--ab-font-display);
+}
+
+.atlantic-blue-company {
+  color: var(--ab-accent-line);
+}
+
+/* Skills list in main column */
+.atlantic-blue-right-column ul {
+  padding-left: 18px;
+  margin: 6px 0 0 0;
+}
+
+/* Legacy class names (older markup) */
 .atlantic-blue-header {
   display: flex;
   justify-content: space-between;
   margin-bottom: 20px;
-}
-
-.atlantic-blue-header-left {
-  flex: 1;
-}
-
-.atlantic-blue-header-right {
-  flex: 1;
-  text-align: right;
 }
 
 .atlantic-blue-name {
@@ -50,124 +249,10 @@
   margin-bottom: 12px;
 }
 
-/* Sidebar Styles */
-.atlantic-blue-sidebar {
-  background-color: #2c3e50;
-  color: #ffffff;
-  padding: 20px;
-  min-height: 100%;
-}
-
-.atlantic-blue-sidebar-section {
-  margin-bottom: 24px;
-}
-
-/* Contact Info in Sidebar */
-.atlantic-blue-sidebar a,
-.atlantic-blue-sidebar a:visited {
-  color: #ffffff !important;
-  text-decoration: none;
-}
-
-.atlantic-blue-sidebar svg {
-  color: #ffffff !important;
-  stroke: #ffffff !important;
-  fill: none !important;
-}
-
-/* Sidebar Section Headers - Simple white text, no borders */
-.atlantic-blue-sidebar .atlantic-blue-section-header,
-.atlantic-blue-sidebar .section-header {
-  color: #ffffff !important;
-  font-size: 13px !important;
-  font-weight: bold;
-  text-transform: uppercase;
-  margin-bottom: 12px !important;
-  padding: 8px 0 !important;
-  background-color: transparent !important;
-  border: none !important;
-  border-top: none !important;
-  border-bottom: none !important;
-  text-decoration: none !important;
-  text-align: left !important;
-}
-
-/* Main Content Styles */
-.atlantic-blue-main-content {
-  padding: 20px;
-}
-
-.atlantic-blue-section {
-  margin-bottom: 20px;
-}
-
-/* Section Header Styles - Main Content */
-.atlantic-blue-section-header {
-  background-color: #ecf0f1 !important;
-  text-align: center;
-  font-size: 13px !important;
-  font-weight: bold;
-  text-transform: uppercase;
-  padding: 8px 12px !important;
-  margin-bottom: 12px !important;
-  margin-top: 0 !important;
-  border: none !important;
-  border-top: none !important;
-  border-bottom: none !important;
-  text-decoration: none !important;
-  color: #2c3e50 !important;
-}
-
-/* Contact Info Styles */
-.atlantic-blue-contact {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
 .atlantic-blue-contact-item {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 8px;
-  color: #ffffff;
-  font-size: 11px;
-}
-
-.atlantic-blue-contact-icon {
-  width: 16px;
-  height: 16px;
-  color: #3498db;
-}
-
-/* Skills Styles */
-.atlantic-blue-skills-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-
-.atlantic-blue-skill-item {
-  padding: 6px 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  font-size: 11px;
-}
-
-/* Experience Styles */
-.atlantic-blue-experience-item {
-  margin-bottom: 16px;
-}
-
-.atlantic-blue-job-title-exp {
-  font-size: 14px;
-  font-weight: bold;
-  color: #000000;
-  margin-bottom: 4px;
-}
-
-.atlantic-blue-company {
-  font-size: 13px;
-  color: #3498db;
-  margin-bottom: 4px;
 }
 
 .atlantic-blue-date-location {
@@ -182,49 +267,8 @@
   line-height: 1.5;
 }
 
-/* Paginated A4 preview / PDF snapshot: sidebar stripe on each page slice */
-.resume-page.resume-page--atlantic-blue {
-  background: linear-gradient(to right, #2c3e50 0% 40%, #ffffff 40% 100%);
-  -webkit-print-color-adjust: exact;
-  print-color-adjust: exact;
-}
-
-/* Two Column Layout — matches ResumeRenderer (40% / 60%) */
-.atlantic-blue-two-column {
-  display: flex;
-  align-items: stretch;
-  gap: 0;
-  min-height: 270mm;
-}
-
-.atlantic-blue-left-column {
-  box-sizing: border-box;
-  width: 40%;
-  flex-shrink: 0;
-  min-height: 100%;
-  align-self: stretch;
-  background-color: #2c3e50;
-  color: #ffffff;
-  padding: 40px 0 40px 40px;
-}
-
-.atlantic-blue-right-column {
-  box-sizing: border-box;
-  width: 60%;
-  flex-shrink: 0;
-  background-color: #ffffff;
-  color: #000000;
-  padding: 40px 40px 40px 0;
-}
-
-/* Responsive adjustments */
 @media print {
-  .atlantic-blue-template {
-    padding: 0;
-  }
-  
   .atlantic-blue-two-column {
     break-inside: avoid;
   }
 }
-

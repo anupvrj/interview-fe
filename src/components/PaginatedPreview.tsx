@@ -2,11 +2,14 @@
 
 import React, { useMemo } from "react";
 import { Resume, ResumeTemplate } from "@/lib/api";
+import { getExtendedTemplate } from "@/lib/templateConfigs";
+import { getTemplateStyle } from "@/lib/templateRenderer";
 import { ResumeRenderer } from "./ResumeRenderer";
 import { useResumePagination } from "@/hooks/useResumePagination";
 import {
   A4_HEIGHT_MM,
   A4_WIDTH_MM,
+  mergeLayoutPaddingWithTemplateStyle,
   pageVerticalGuttersMm,
   resolveLayoutPaddingMm,
 } from "@/lib/resume-page-dimensions";
@@ -27,10 +30,25 @@ export const PaginatedPreview: React.FC<PaginatedPreviewProps> = ({
   const currentLayout = layout || resume.layout || { type: "single" };
   const isTwoColumn = currentLayout.type === "double";
 
-  /** Same padding as ResumeRenderer template root + server PDF (no double-counting @page). */
-  const paddingMm = resolveLayoutPaddingMm(
-    currentLayout.padding as { top: number; bottom: number; left: number; right: number } | undefined,
-  );
+  /** Same padding merge as ResumeRenderer + server PDF (no double-counting @page). */
+  const paddingMm = useMemo(() => {
+    const templatePadding = getTemplateStyle(getExtendedTemplate(template)).padding;
+    return resolveLayoutPaddingMm(
+      mergeLayoutPaddingWithTemplateStyle(
+        currentLayout.padding as
+          | { top: number; bottom: number; left: number; right: number }
+          | undefined,
+        templatePadding,
+      ),
+    );
+  }, [
+    template.id,
+    currentLayout.type,
+    currentLayout.padding?.top,
+    currentLayout.padding?.bottom,
+    currentLayout.padding?.left,
+    currentLayout.padding?.right,
+  ]);
   const { topMm: TOP_MARGIN_MM, contentHeightMm: CONTENT_HEIGHT_MM } =
     pageVerticalGuttersMm(paddingMm);
 

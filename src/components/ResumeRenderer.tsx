@@ -7,6 +7,7 @@
 
 import React, { useRef, useMemo } from "react";
 import { Resume, ResumeTemplate } from "@/lib/api";
+import { mergeLayoutPaddingWithTemplateStyle } from "@/lib/resume-page-dimensions";
 import { getExtendedTemplate } from "@/lib/templateConfigs";
 import { getTemplateStyle, TemplateStyleConfig } from "@/lib/templateRenderer";
 import {
@@ -100,7 +101,10 @@ export function ResumeRenderer({
   // Merge custom layout (padding, user font size, font family) into template style
   const templateStyle = {
     ...baseTemplateStyle,
-    padding: resumeLayout.padding || baseTemplateStyle.padding,
+    padding: mergeLayoutPaddingWithTemplateStyle(
+      resumeLayout.padding,
+      baseTemplateStyle.padding,
+    ),
     fontSize: {
       ...baseTemplateStyle.fontSize,
       ...layoutTypo.fontSize,
@@ -426,24 +430,34 @@ export function ResumeRenderer({
             className={templateClassName}
             style={{
               ...baseStyle,
-              // Don't apply background in sidebar for Atlantic Blue template
               backgroundColor: isInSidebar
-                ? "rgba(255, 255, 255, 0.1)"
+                ? template.id === "atlantic-blue"
+                  ? "transparent"
+                  : "rgba(255, 255, 255, 0.1)"
                 : headerConfig.backgroundColor ||
-                templateStyle.colors.sectionHeaderBg ||
-                "#f0f0f0",
+                  templateStyle.colors.sectionHeaderBg ||
+                  "#f0f0f0",
               padding: isInSidebar
-                ? "8px 12px"
+                ? template.id === "atlantic-blue"
+                  ? "0"
+                  : "8px 12px"
                 : `${headerConfig.paddingTop || "8px"} ${headerConfig.paddingRight || "12px"
-                } ${headerConfig.paddingBottom || "8px"} ${headerConfig.paddingLeft || "12px"
-                }`,
+                  } ${headerConfig.paddingBottom || "8px"} ${headerConfig.paddingLeft || "12px"
+                  }`,
               borderRadius:
                 headerConfig.borderRadius !== undefined
                   ? `${headerConfig.borderRadius}px`
                   : isInSidebar
-                    ? "4px"
+                    ? template.id === "atlantic-blue"
+                      ? "0px"
+                      : "4px"
                     : "0px",
-              boxShadow: isInSidebar ? "0 2px 4px rgba(0, 0, 0, 0.2)" : "none",
+              boxShadow:
+                isInSidebar && template.id === "atlantic-blue"
+                  ? "none"
+                  : isInSidebar
+                    ? "0 2px 4px rgba(0, 0, 0, 0.2)"
+                    : "none",
             }}
           >
             {sectionType && templateStyle.headerStyle === "two-column" && (
@@ -860,17 +874,39 @@ export function ResumeRenderer({
     switch (section.type) {
       case "personalInfo":
         if (templateStyle.headerStyle === "two-column" && isInSidebar) {
-          // Sidebar style for Atlantic Blue
+          // Two-column sidebar: stacked identity + photo (Atlantic Blue design reference)
           return (
-            <div style={{ ...sidebarStyle }}>
-              <div style={{ textAlign: "left", marginBottom: "12px" }}>
+            <div
+              className={
+                template.id === "atlantic-blue"
+                  ? "atlantic-blue-sidebar-personal"
+                  : undefined
+              }
+              style={{ ...sidebarStyle }}
+            >
+              <div
+                className={
+                  template.id === "atlantic-blue"
+                    ? "atlantic-blue-identity-text"
+                    : undefined
+                }
+                style={
+                  template.id === "atlantic-blue"
+                    ? undefined
+                    : { textAlign: "left", marginBottom: "12px" }
+                }
+              >
                 {resume.content.personalInfo.fullName && (
                   <h1
+                    className={`${template.id}-name`}
                     style={{
                       fontSize: `${templateStyle.fontSize.heading}px`,
                       fontWeight: "bold",
                       color: templateStyle.colors.sidebarText || "#ffffff",
                       margin: "0 0 4px 0",
+                      ...(template.id === "atlantic-blue"
+                        ? { fontFamily: "inherit" }
+                        : {}),
                     }}
                   >
                     {resume.content.personalInfo.fullName}
@@ -878,10 +914,17 @@ export function ResumeRenderer({
                 )}
                 {resume.content.personalInfo.portfolio && (
                   <p
+                    className={`${template.id}-job-title`}
                     style={{
-                      fontSize: `${templateStyle.fontSize.subheading}px`,
+                      fontSize:
+                        template.id === "atlantic-blue"
+                          ? "15px"
+                          : `${templateStyle.fontSize.subheading}px`,
                       color: templateStyle.colors.sidebarText || "#ffffff",
-                      margin: "0 0 8px 0",
+                      margin: template.id === "atlantic-blue" ? "0" : "0 0 8px 0",
+                      ...(template.id === "atlantic-blue"
+                        ? { fontFamily: "inherit", fontStyle: "normal" }
+                        : {}),
                     }}
                   >
                     {resume.content.personalInfo.portfolio}
@@ -900,33 +943,69 @@ export function ResumeRenderer({
                 )}
               </div>
 
-              {/* Profile Picture for Atlantic Blue */}
-              <div style={{ textAlign: "center", marginBottom: "20px" }}>
+              <div
+                className={
+                  template.id === "atlantic-blue"
+                    ? "atlantic-blue-sidebar-photo-wrap"
+                    : undefined
+                }
+                style={
+                  template.id === "atlantic-blue"
+                    ? undefined
+                    : { textAlign: "center", marginBottom: "20px" }
+                }
+              >
                 {resume.content.personalInfo?.profilePicture ? (
                   <img
                     src={resume.content.personalInfo.profilePicture}
                     alt="Profile"
-                    style={{
-                      width: "120px",
-                      height: "120px",
-                      borderRadius: "50%",
-                      objectFit: "cover",
-                      border: "3px solid #ffffff",
-                    }}
+                    className={
+                      template.id === "atlantic-blue"
+                        ? "atlantic-blue-profile-photo"
+                        : undefined
+                    }
+                    style={
+                      template.id === "atlantic-blue"
+                        ? { borderRadius: "50%", objectFit: "cover" as const }
+                        : {
+                            width: "120px",
+                            height: "120px",
+                            borderRadius: "50%",
+                            objectFit: "cover",
+                            border: "3px solid #ffffff",
+                          }
+                    }
                   />
                 ) : (
-                  <svg
-                    width="120"
-                    height="120"
-                    viewBox="0 0 120 120"
-                    style={{
-                      borderRadius: "50%",
-                      backgroundColor: "#e5e7eb",
-                    }}
+                  <div
+                    className={
+                      template.id === "atlantic-blue"
+                        ? "atlantic-blue-photo-placeholder"
+                        : undefined
+                    }
+                    style={
+                      template.id === "atlantic-blue"
+                        ? undefined
+                        : { borderRadius: "50%", backgroundColor: "#e5e7eb" }
+                    }
                   >
-                    <circle cx="60" cy="45" r="20" fill="#9ca3af" />
-                    <ellipse cx="60" cy="95" rx="30" ry="25" fill="#9ca3af" />
-                  </svg>
+                    <svg
+                      width={template.id === "atlantic-blue" ? 132 : 120}
+                      height={template.id === "atlantic-blue" ? 132 : 120}
+                      viewBox="0 0 120 120"
+                      style={
+                        template.id === "atlantic-blue"
+                          ? undefined
+                          : {
+                              borderRadius: "50%",
+                              backgroundColor: "#e5e7eb",
+                            }
+                      }
+                    >
+                      <circle cx="60" cy="45" r="20" fill="#9ca3af" />
+                      <ellipse cx="60" cy="95" rx="30" ry="25" fill="#9ca3af" />
+                    </svg>
+                  </div>
                 )}
               </div>
 

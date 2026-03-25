@@ -42,7 +42,10 @@ import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import { LanguagesEditor } from "@/components/LanguagesEditor";
 import { captureAndUploadThumbnail } from "@/lib/resume-thumbnail";
 import { generateResumePdfViaServer } from "@/lib/resume-pdf-export";
-import { resolveLayoutPaddingMm } from "@/lib/resume-page-dimensions";
+import {
+  mergeLayoutPaddingWithTemplateStyle,
+  resolveLayoutPaddingMm,
+} from "@/lib/resume-page-dimensions";
 import { ATSFeedback } from "@/components/ATSFeedback";
 import { ProfilePictureCropper } from "@/components/ProfilePictureCropper";
 
@@ -805,8 +808,14 @@ export default function EditResumePage() {
 
         const templateId =
           resume?.templateId || template?.id || "classic";
+        const pdfTemplate = template ?? {
+          id: templateId,
+        } as ResumeTemplate;
         const pdfPadding = resolveLayoutPaddingMm(
-          resume?.layout?.padding ?? layout?.padding,
+          mergeLayoutPaddingWithTemplateStyle(
+            resume?.layout?.padding ?? layout?.padding,
+            getTemplateStyle(getExtendedTemplate(pdfTemplate)).padding,
+          ),
         );
 
         let downloadUrl: string;

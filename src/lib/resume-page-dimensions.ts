@@ -21,6 +21,23 @@ export type LayoutPaddingMm = {
   right: number;
 };
 
+/**
+ * Merge saved resume.layout.padding with template defaults per side (undefined → template).
+ * Matches ResumeRenderer so preview, pagination, and PDF use the same gutters (e.g. Atlantic Blue top/bottom while left/right stay 0).
+ */
+export function mergeLayoutPaddingWithTemplateStyle(
+  resumePadding: Partial<LayoutPaddingMm> | undefined,
+  templatePadding: LayoutPaddingMm,
+): LayoutPaddingMm {
+  const p = resumePadding ?? {};
+  return {
+    top: p.top ?? templatePadding.top,
+    bottom: p.bottom ?? templatePadding.bottom,
+    left: p.left ?? templatePadding.left,
+    right: p.right ?? templatePadding.right,
+  };
+}
+
 export function resolveLayoutPaddingMm(
   padding?: Partial<LayoutPaddingMm> | null,
 ): LayoutPaddingMm {
