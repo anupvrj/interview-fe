@@ -91,10 +91,9 @@ export async function generatePDFFromPages(
         window.location.origin,
       );
 
-      // Remove any shadows, transforms, or margins that might affect rendering
+      // Preview-only chrome: drop shadow / between-page margin. Do not strip inner
+      // transforms (pagination translateY lives on children).
       clonedElement.style.boxShadow = "none";
-      clonedElement.style.transform = "none";
-      clonedElement.style.margin = "0";
       clonedElement.style.marginBottom = "0";
 
       // Create a temporary container for the cloned element
@@ -115,18 +114,32 @@ export async function generatePDFFromPages(
         // Wait for images to load (now from proxy - same origin)
         await waitForImagesToLoad(clonedElement);
 
+        const w = Math.max(
+          clonedElement.scrollWidth,
+          clonedElement.offsetWidth,
+          1,
+        );
+        const h = Math.max(
+          clonedElement.scrollHeight,
+          clonedElement.offsetHeight,
+          1,
+        );
+
         // Convert HTML to canvas
         const canvas = await html2canvas(clonedElement, {
-          scale: 2,
+          scale: Math.min(
+            3,
+            Math.max(2, (window.devicePixelRatio || 1) * 1.5),
+          ),
           useCORS: true,
           allowTaint: false,
           foreignObjectRendering: false,
           backgroundColor: "#ffffff",
           logging: false,
-          width: clonedElement.offsetWidth,
-          height: clonedElement.offsetHeight,
-          windowWidth: clonedElement.offsetWidth,
-          windowHeight: clonedElement.offsetHeight,
+          width: w,
+          height: h,
+          windowWidth: w,
+          windowHeight: h,
           onclone: (clonedDoc: Document) => {
             // Universal export normalization: html2canvas tends to render heading glyphs
             // slightly lower than browser preview. Use one relative adjustment for all templates.
@@ -197,17 +210,6 @@ export async function generatePDFFromPages(
               li.appendChild(contentWrapper);
             });
 
-            // Atlantic Blue: ensure full-height left background coverage in export.
-            // Keep column backgrounds intact; this only fills any tiny clone/render gaps.
-            const captureRoot = clonedDoc.querySelector<HTMLElement>(
-              "[data-pdf-capture-root]",
-            );
-            const hasAtlanticBlue =
-              captureRoot?.querySelector(".atlantic-blue-left-column") !== null;
-            if (captureRoot && hasAtlanticBlue) {
-              captureRoot.style.background =
-                "linear-gradient(to right, #2c3e50 0 40%, #ffffff 40% 100%)";
-            }
           },
         } as any);
 

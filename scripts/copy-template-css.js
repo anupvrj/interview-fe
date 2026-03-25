@@ -53,5 +53,20 @@ templateDirs.forEach(templateId => {
 });
 
 console.log(`\n✓ Successfully copied ${copiedCount} CSS files to public folder`);
+
+// Mercury: editor-only bullet/ATS fixes (imported in edit page) — needed for server PDF parity
+const mercuryOverridesSrc = path.join(__dirname, '../src/styles/mercury-template.css');
+const mercuryDir = path.join(TEMPLATES_PUBLIC, 'mercury');
+if (fs.existsSync(mercuryOverridesSrc)) {
+  if (!fs.existsSync(mercuryDir)) {
+    fs.mkdirSync(mercuryDir, { recursive: true });
+  }
+  const mercuryOverridesDest = path.join(mercuryDir, 'mercury-overrides.css');
+  fs.copyFileSync(mercuryOverridesSrc, mercuryOverridesDest);
+  console.log('  ✓ Copied mercury/mercury-overrides.css (editor + PDF parity)');
+} else {
+  console.log('  ⚠ mercury-template.css not found for overrides');
+}
+
 console.log('✓ Template CSS files are now accessible for PDF generation');
 

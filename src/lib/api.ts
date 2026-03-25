@@ -949,7 +949,7 @@ export const resumeApi = {
         headers: {
           "Content-Type": "application/json",
         },
-        timeout: 60000, // 60 seconds for PDF generation
+        timeout: 120000, // Puppeteer + S3 can exceed 60s on cold start
       },
     );
     return response.data.data;

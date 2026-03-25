@@ -339,6 +339,7 @@ export function ResumeRenderer({
     title: string,
     isInSidebar: boolean = false,
     sectionType?: string,
+    sectionId?: string,
   ) => {
     const icon = ICON_MAP[sectionType as keyof typeof ICON_MAP];
     const headerTitle = title;
@@ -366,6 +367,8 @@ export function ResumeRenderer({
       case "border-top-bottom":
         return (
           <h2
+            data-section-header
+            data-section-id={sectionId}
             className={templateClassName}
             style={{
               ...baseStyle,
@@ -392,6 +395,8 @@ export function ResumeRenderer({
       case "border-bottom":
         return (
           <h2
+            data-section-header
+            data-section-id={sectionId}
             className={templateClassName}
             style={{
               ...baseStyle,
@@ -416,6 +421,8 @@ export function ResumeRenderer({
       case "background":
         return (
           <h2
+            data-section-header
+            data-section-id={sectionId}
             className={templateClassName}
             style={{
               ...baseStyle,
@@ -456,6 +463,8 @@ export function ResumeRenderer({
       case "underline":
         return (
           <h2
+            data-section-header
+            data-section-id={sectionId}
             className={templateClassName}
             style={{
               ...baseStyle,
@@ -478,7 +487,12 @@ export function ResumeRenderer({
 
       default:
         return (
-          <h2 className={templateClassName} style={baseStyle}>
+          <h2
+            data-section-header
+            data-section-id={sectionId}
+            className={templateClassName}
+            style={baseStyle}
+          >
             {sectionType && templateStyle.headerStyle === "two-column" && (
               <>
                 {React.createElement(getSectionIcon(sectionType), {
@@ -1513,7 +1527,7 @@ export function ResumeRenderer({
                 ...sidebarStyle,
               }}
             >
-              {renderSectionHeader(section.title, isInSidebar, section.type)}
+              {renderSectionHeader(section.title, isInSidebar, section.type, section.id)}
               <div
                 style={{
                   fontSize: `${templateStyle.fontSize.body}px`,
@@ -1546,7 +1560,7 @@ export function ResumeRenderer({
               ...sidebarStyle,
             }}
           >
-            {renderSectionHeader(section.title, isInSidebar, section.type)}
+            {renderSectionHeader(section.title, isInSidebar, section.type, section.id)}
             <div
               className="resume-content"
               style={{
@@ -1583,7 +1597,7 @@ export function ResumeRenderer({
                 ...sidebarStyle,
               }}
             >
-              {renderSectionHeader(section.title, isInSidebar, section.type)}
+              {renderSectionHeader(section.title, isInSidebar, section.type, section.id)}
               <p
                 style={{
                   fontSize: `${templateStyle.fontSize.body}px`,
@@ -1614,7 +1628,7 @@ export function ResumeRenderer({
               ...sidebarStyle,
             }}
           >
-            {renderSectionHeader(section.title, isInSidebar, section.type)}
+            {renderSectionHeader(section.title, isInSidebar, section.type, section.id)}
             <div>
               {experienceData.map((exp, index) => (
                 <div
@@ -1835,7 +1849,7 @@ export function ResumeRenderer({
               ...sidebarStyle,
             }}
           >
-            {renderSectionHeader(section.title, isInSidebar, section.type)}
+            {renderSectionHeader(section.title, isInSidebar, section.type, section.id)}
             <div>
               {educationData.map((edu, index) => (
                 <div
@@ -2047,7 +2061,7 @@ export function ResumeRenderer({
               ...sidebarStyle,
             }}
           >
-            {renderSectionHeader(section.title, isInSidebar, section.type)}
+            {renderSectionHeader(section.title, isInSidebar, section.type, section.id)}
             <div
               style={{
                 fontSize: `${templateStyle.fontSize.body}px`,
@@ -2304,13 +2318,14 @@ export function ResumeRenderer({
               ...sidebarStyle,
             }}
           >
-            {renderSectionHeader(section.title, isInSidebar, section.type)}
+            {renderSectionHeader(section.title, isInSidebar, section.type, section.id)}
             <div>
               {projectsData.map((project, index) => (
                 <div
                   key={index}
                   data-item-id={project.id || `project-${index}`}
                   data-item-index={index}
+                  data-pagination-atomic-if-fits=""
                   style={{
                     marginBottom: "16px",
                     pageBreakInside: "auto", // Allow splitting for better pagination
@@ -2458,7 +2473,7 @@ export function ResumeRenderer({
                 ...sidebarStyle,
               }}
             >
-              {renderSectionHeader(section.title, isInSidebar, section.type)}
+              {renderSectionHeader(section.title, isInSidebar, section.type, section.id)}
               <div
                 style={{
                   fontSize: `${templateStyle.fontSize.body}px`,
@@ -2483,7 +2498,7 @@ export function ResumeRenderer({
                 ...sidebarStyle,
               }}
             >
-              {renderSectionHeader(section.title, isInSidebar, section.type)}
+              {renderSectionHeader(section.title, isInSidebar, section.type, section.id)}
               <div
                 style={{
                   fontSize: `${templateStyle.fontSize.body}px`,
@@ -2526,7 +2541,7 @@ export function ResumeRenderer({
               ...sidebarStyle,
             }}
           >
-            {renderSectionHeader(section.title, isInSidebar, section.type)}
+            {renderSectionHeader(section.title, isInSidebar, section.type, section.id)}
             <div
               className={langConfig.containerClass || ""}
               style={{
@@ -2646,7 +2661,7 @@ export function ResumeRenderer({
               ...sidebarStyle,
             }}
           >
-            {renderSectionHeader(section.title, isInSidebar, section.type)}
+            {renderSectionHeader(section.title, isInSidebar, section.type, section.id)}
             {/* Add style tag to override CSS class color for sidebar */}
             {isInSidebar && (
               <style
@@ -2742,7 +2757,7 @@ export function ResumeRenderer({
         if (certificatesData.length === 0) {
           return (
             <div style={{ marginBottom: templateStyle.sectionSpacing }}>
-              {renderSectionHeader(section.title, isInSidebar, section.type)}
+              {renderSectionHeader(section.title, isInSidebar, section.type, section.id)}
               <div
                 style={{
                   fontSize: `${templateStyle.fontSize.body}px`,
@@ -2761,7 +2776,7 @@ export function ResumeRenderer({
 
         return (
           <div data-section={section.id} style={{ position: "relative", marginBottom: templateStyle.sectionSpacing }}>
-            {renderSectionHeader(section.title, isInSidebar, section.type)}
+            {renderSectionHeader(section.title, isInSidebar, section.type, section.id)}
             <div style={{ marginLeft: "0px" }}>
               {certificatesData.map((cert: any, index: number) => (
                 <div key={index} data-item-id={cert.id || `cert-${index}`} data-item-index={index} style={{ marginBottom: "8px" }}>
@@ -2830,7 +2845,7 @@ export function ResumeRenderer({
           if (isEmpty) {
             return (
               <div style={{ marginBottom: templateStyle.sectionSpacing }}>
-                {renderSectionHeader(section.title, isInSidebar, section.type)}
+                {renderSectionHeader(section.title, isInSidebar, section.type, section.id)}
                 <div
                   style={{
                     fontSize: `${templateStyle.fontSize.body}px`,
@@ -2849,7 +2864,7 @@ export function ResumeRenderer({
 
           return (
             <div style={{ marginBottom: templateStyle.sectionSpacing }}>
-              {renderSectionHeader(section.title, isInSidebar, section.type)}
+              {renderSectionHeader(section.title, isInSidebar, section.type, section.id)}
               <div
                 style={{
                   fontSize: `${templateStyle.fontSize.body}px`,
@@ -2869,7 +2884,7 @@ export function ResumeRenderer({
         if (Array.isArray(achievementsData) && achievementsData.length === 0) {
           return (
             <div style={{ marginBottom: templateStyle.sectionSpacing }}>
-              {renderSectionHeader(section.title, isInSidebar, section.type)}
+              {renderSectionHeader(section.title, isInSidebar, section.type, section.id)}
               <div
                 style={{
                   fontSize: `${templateStyle.fontSize.body}px`,
@@ -2888,7 +2903,7 @@ export function ResumeRenderer({
 
         return (
           <div data-section={section.id} style={{ position: "relative", marginBottom: templateStyle.sectionSpacing }}>
-            {renderSectionHeader(section.title, isInSidebar, section.type)}
+            {renderSectionHeader(section.title, isInSidebar, section.type, section.id)}
             <div style={{ marginLeft: "0px" }}>
               {achievementsData.map((achievement: any, index: number) => (
                 <div key={index} data-item-id={achievement.id || `achievement-${index}`} data-item-index={index} style={{ marginBottom: "8px" }}>
@@ -2926,7 +2941,7 @@ export function ResumeRenderer({
         if (isEmpty) {
           return (
             <div style={{ marginBottom: templateStyle.sectionSpacing }}>
-              {renderSectionHeader(section.title, isInSidebar, section.type)}
+              {renderSectionHeader(section.title, isInSidebar, section.type, section.id)}
               <div
                 style={{
                   fontSize: `${templateStyle.fontSize.body}px`,
@@ -2945,7 +2960,7 @@ export function ResumeRenderer({
 
         return (
           <div data-section={section.id} style={{ position: "relative", marginBottom: templateStyle.sectionSpacing }}>
-            {renderSectionHeader(section.title, isInSidebar, section.type)}
+            {renderSectionHeader(section.title, isInSidebar, section.type, section.id)}
             <div
               style={{
                 fontSize: `${templateStyle.fontSize.body}px`,
@@ -2975,7 +2990,7 @@ export function ResumeRenderer({
                 ...sidebarStyle,
               }}
             >
-              {renderSectionHeader(section.title, isInSidebar, section.type)}
+              {renderSectionHeader(section.title, isInSidebar, section.type, section.id)}
               <div
                 style={{
                   fontSize: `${templateStyle.fontSize.body}px`,
@@ -3009,7 +3024,7 @@ export function ResumeRenderer({
               ...sidebarStyle,
             }}
           >
-            {renderSectionHeader(section.title, isInSidebar, section.type)}
+            {renderSectionHeader(section.title, isInSidebar, section.type, section.id)}
             <div style={{ marginLeft: "0px" }}>
               {coursesData.map((course: any, index: number) => (
                 <div key={index} data-item-id={course.id || `course-${index}`} style={{ marginBottom: "12px" }}>
@@ -3068,7 +3083,7 @@ export function ResumeRenderer({
                 ...sidebarStyle,
               }}
             >
-              {renderSectionHeader(section.title, isInSidebar, section.type)}
+              {renderSectionHeader(section.title, isInSidebar, section.type, section.id)}
               <div
                 style={{
                   fontSize: `${templateStyle.fontSize.body}px`,
@@ -3102,7 +3117,7 @@ export function ResumeRenderer({
               ...sidebarStyle,
             }}
           >
-            {renderSectionHeader(section.title, isInSidebar, section.type)}
+            {renderSectionHeader(section.title, isInSidebar, section.type, section.id)}
             <div style={{ marginLeft: "0px" }}>
               {publicationsData.map((pub: any, index: number) => (
                 <div key={index} data-item-id={pub.id || `pub-${index}`} data-item-index={index} style={{ marginBottom: "8px" }}>
@@ -3156,7 +3171,7 @@ export function ResumeRenderer({
                 ...sidebarStyle,
               }}
             >
-              {renderSectionHeader(section.title, isInSidebar, section.type)}
+              {renderSectionHeader(section.title, isInSidebar, section.type, section.id)}
               <div
                 style={{
                   fontSize: `${templateStyle.fontSize.body}px`,
@@ -3190,7 +3205,7 @@ export function ResumeRenderer({
               ...sidebarStyle,
             }}
           >
-            {renderSectionHeader(section.title, isInSidebar, section.type)}
+            {renderSectionHeader(section.title, isInSidebar, section.type, section.id)}
             <div style={{ marginLeft: "0px" }}>
               {referencesData.map((ref: any, index: number) => (
                 <div key={index} style={{ marginBottom: "12px" }}>
@@ -3289,7 +3304,7 @@ export function ResumeRenderer({
               ...sidebarStyle,
             }}
           >
-            {renderSectionHeader(section.title, isInSidebar, section.type)}
+            {renderSectionHeader(section.title, isInSidebar, section.type, section.id)}
             <div
               style={{
                 fontSize: `${templateStyle.fontSize.body}px`,
@@ -3314,7 +3329,7 @@ export function ResumeRenderer({
                 ...sidebarStyle,
               }}
             >
-              {renderSectionHeader(section.title, isInSidebar, section.type)}
+              {renderSectionHeader(section.title, isInSidebar, section.type, section.id)}
               <div
                 style={{
                   fontSize: `${templateStyle.fontSize.body}px`,
@@ -3346,7 +3361,7 @@ export function ResumeRenderer({
               ...sidebarStyle,
             }}
           >
-            {renderSectionHeader(section.title, isInSidebar, section.type)}
+            {renderSectionHeader(section.title, isInSidebar, section.type, section.id)}
             <div
               className="resume-content"
               style={{
@@ -3366,6 +3381,8 @@ export function ResumeRenderer({
     }
   };
 
+  const isAtlanticBlueTwoColumn =
+    template.id === "atlantic-blue" && templateStyle.headerStyle === "two-column";
 
   return (
     <div
@@ -3402,15 +3419,29 @@ export function ResumeRenderer({
       )}
 
       {resumeLayout.type === "double" || templateStyle.headerStyle === "two-column" ? (
-        <div style={{ display: "flex", minHeight: "270mm" }}>
+        <div
+          data-resume-two-column-root=""
+          className={isAtlanticBlueTwoColumn ? "atlantic-blue-two-column" : undefined}
+          style={
+            isAtlanticBlueTwoColumn
+              ? undefined
+              : { display: "flex", minHeight: "270mm" }
+          }
+        >
           <div
-            style={{
-              width: templateStyle.headerStyle === "two-column" ? "40%" : `${resumeLayout.columnWidths?.left || 60}%`,
-              paddingRight: templateStyle.headerStyle === "two-column" ? "0" : "10px",
-              backgroundColor: templateStyle.headerStyle === "two-column" ? templateStyle.colors.sidebarBackground : "transparent",
-              minHeight: "100%",
-              ...(templateStyle.headerStyle === "two-column" && { padding: "40px" }),
-            }}
+            data-resume-left-column=""
+            className={isAtlanticBlueTwoColumn ? "atlantic-blue-left-column" : undefined}
+            style={
+              isAtlanticBlueTwoColumn
+                ? undefined
+                : {
+                    width: templateStyle.headerStyle === "two-column" ? "40%" : `${resumeLayout.columnWidths?.left || 60}%`,
+                    paddingRight: templateStyle.headerStyle === "two-column" ? "0" : "10px",
+                    backgroundColor: templateStyle.headerStyle === "two-column" ? templateStyle.colors.sidebarBackground : "transparent",
+                    minHeight: "100%",
+                    ...(templateStyle.headerStyle === "two-column" && { padding: "40px" }),
+                  }
+            }
           >
             {leftColumn.map((section) => (
               <div key={section.id} data-section={section.id} className={`${template.id}-section`}>
@@ -3419,11 +3450,17 @@ export function ResumeRenderer({
             ))}
           </div>
           <div
-            style={{
-              width: templateStyle.headerStyle === "two-column" ? "60%" : `${resumeLayout.columnWidths?.right || 40}%`,
-              paddingLeft: templateStyle.headerStyle === "two-column" ? "0" : "10px",
-              ...(templateStyle.headerStyle === "two-column" && { padding: "40px" }),
-            }}
+            data-resume-right-column=""
+            className={isAtlanticBlueTwoColumn ? "atlantic-blue-right-column" : undefined}
+            style={
+              isAtlanticBlueTwoColumn
+                ? undefined
+                : {
+                    width: templateStyle.headerStyle === "two-column" ? "60%" : `${resumeLayout.columnWidths?.right || 40}%`,
+                    paddingLeft: templateStyle.headerStyle === "two-column" ? "0" : "10px",
+                    ...(templateStyle.headerStyle === "two-column" && { padding: "40px" }),
+                  }
+            }
           >
             {rightColumn.map((section) => (
               <div key={section.id} data-section={section.id} className={`${template.id}-section`}>

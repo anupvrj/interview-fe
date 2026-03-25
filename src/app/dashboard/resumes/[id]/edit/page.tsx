@@ -41,6 +41,8 @@ import { ExecutiveSkills } from "@/components/resume-editor/ExecutiveSkills";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import { LanguagesEditor } from "@/components/LanguagesEditor";
 import { captureAndUploadThumbnail } from "@/lib/resume-thumbnail";
+import { generateResumePdfViaServer } from "@/lib/resume-pdf-export";
+import { resolveLayoutPaddingMm } from "@/lib/resume-page-dimensions";
 import { ATSFeedback } from "@/components/ATSFeedback";
 import { ProfilePictureCropper } from "@/components/ProfilePictureCropper";
 
@@ -745,23 +747,15 @@ export default function EditResumePage() {
       }
 
       try {
-        // Get all pages from PaginatedPreview component
-        // PaginatedPreview creates pages with class "resume-page" inside the preview container
         const allPageElements: HTMLElement[] = [];
 
         if (page1Element) {
-          // Find the paginated container first (it's the only one with this class structure)
-          // PaginatedPreview renders pages into a targetRef div with class "flex flex-col items-center"
-          const paginatedContainer = page1Element.querySelector(".flex.flex-col.items-center");
+          const paginatedContainer = page1Element.querySelector(
+            ".flex.flex-col.items-center",
+          );
 
           if (paginatedContainer) {
-            // Look for all resume-page elements ONLY within the paginated container
             const pages = paginatedContainer.querySelectorAll(".resume-page");
-
-            console.log(
-              `Found ${pages.length} paginated page(s) inside preview container`,
-            );
-
             if (pages.length > 0) {
               pages.forEach((page) => {
                 allPageElements.push(page as HTMLElement);
@@ -770,8 +764,6 @@ export default function EditResumePage() {
           }
 
           if (allPageElements.length === 0) {
-            // Fallback: if no paginated pages found, use the main preview container
-            console.log("No paginated pages found, using main preview container");
             allPageElements.push(page1Element as HTMLElement);
           }
         }
@@ -780,16 +772,11 @@ export default function EditResumePage() {
           throw new Error("Preview element not found");
         }
 
-        console.log(`Generating PDF from ${allPageElements.length} page(s)`);
-
-        // Wait for all images to load before generating PDF
         const allImages: HTMLImageElement[] = [];
         allPageElements.forEach((pageElement) => {
           const images = pageElement.querySelectorAll("img");
           allImages.push(...Array.from(images));
         });
-
-        console.log(`Waiting for ${allImages.length} image(s) to load`);
 
         await Promise.all(
           allImages.map((img) => {
@@ -812,35 +799,44 @@ export default function EditResumePage() {
           }),
         );
 
-        console.log("All images loaded, generating PDF...");
+        if (typeof document !== "undefined" && "fonts" in document) {
+          await (document as Document & { fonts: FontFaceSet }).fonts.ready;
+        }
 
-        // Generate PDF from the page elements using frontend library
-        const { generatePDFFromPages, uploadPDFToS3 } =
-          await import("@/lib/pdf-generator");
-        const pdfBlob = await generatePDFFromPages(allPageElements, {
-          filename: `${resume?.title || "resume"}.pdf`,
-        });
-
-        console.log(`PDF generated, size: ${pdfBlob.size} bytes`);
-
-        // Get presigned URL from backend
-        console.log("Getting presigned upload URL...");
-        const { uploadUrl, s3Key } =
-          await resumeApi.getPresignedUploadUrl(resumeId);
-
-        // Upload PDF to S3
-        console.log("Uploading PDF to S3...");
-        await uploadPDFToS3(pdfBlob, uploadUrl);
-
-        // Confirm upload and get download URL
-        console.log("Confirming upload and getting download URL...");
-        const { downloadUrl } = await resumeApi.confirmPDFUpload(
-          resumeId,
-          s3Key,
+        const templateId =
+          resume?.templateId || template?.id || "classic";
+        const pdfPadding = resolveLayoutPaddingMm(
+          resume?.layout?.padding ?? layout?.padding,
         );
 
-        console.log("PDF ready! Opening in new tab...");
-        // Open the PDF in a new tab
+        let downloadUrl: string;
+
+        try {
+          const result = await generateResumePdfViaServer({
+            resumeId,
+            templateId,
+            pageElements: allPageElements,
+            padding: pdfPadding,
+          });
+          downloadUrl = result.downloadUrl;
+        } catch (serverErr) {
+          console.warn(
+            "Server PDF failed, falling back to client html2canvas:",
+            serverErr,
+          );
+          const { generatePDFFromPages, uploadPDFToS3 } =
+            await import("@/lib/pdf-generator");
+          const pdfBlob = await generatePDFFromPages(allPageElements, {
+            filename: `${resume?.title || "resume"}.pdf`,
+          });
+
+          const { uploadUrl, s3Key } =
+            await resumeApi.getPresignedUploadUrl(resumeId);
+          await uploadPDFToS3(pdfBlob, uploadUrl);
+          const confirm = await resumeApi.confirmPDFUpload(resumeId, s3Key);
+          downloadUrl = confirm.downloadUrl;
+        }
+
         window.open(downloadUrl, "_blank");
       } finally {
         // Restore original zoom level
