@@ -163,6 +163,73 @@ export default function EditResumePage() {
 
   // Track dragging state
   const isDraggingRef = useRef(false);
+  const isThumbnailUploadingRef = useRef(false);
+  const autoThumbnailAttemptsRef = useRef(0);
+  const MAX_AUTO_THUMBNAIL_ATTEMPTS = 3;
+
+  const triggerThumbnailCapture = useCallback(
+    async (targetResumeId: string) => {
+      if (!targetResumeId) return;
+      if (isThumbnailUploadingRef.current) return;
+      if (autoThumbnailAttemptsRef.current >= MAX_AUTO_THUMBNAIL_ATTEMPTS) return;
+      if (resume?.thumbnailS3Key) {
+        return;
+      }
+
+      const previewContainerId = `resume-preview-container-${targetResumeId}`;
+      const previewElement = document.getElementById(previewContainerId);
+      if (!previewElement) {
+        return;
+      }
+
+      isThumbnailUploadingRef.current = true;
+      autoThumbnailAttemptsRef.current += 1;
+
+      try {
+        const result = await captureAndUploadThumbnail(
+          targetResumeId,
+          previewContainerId,
+        );
+
+        if (result.success) {
+          const updatedResume = await resumeApi.get(targetResumeId);
+          setResume(updatedResume);
+        } else {
+          console.error("Auto thumbnail upload failed:", result.error);
+        }
+      } catch (error) {
+        console.error("Error during auto thumbnail capture:", error);
+      } finally {
+        isThumbnailUploadingRef.current = false;
+      }
+    },
+    [resume?.thumbnailS3Key, MAX_AUTO_THUMBNAIL_ATTEMPTS],
+  );
+
+  // Attempt thumbnail generation on initial preview render (not only after save).
+  useEffect(() => {
+    if (!mounted || loading || !resume || !template || !resumeId) return;
+    if (resume.thumbnailS3Key) return;
+    if (autoThumbnailAttemptsRef.current >= MAX_AUTO_THUMBNAIL_ATTEMPTS) return;
+
+    const timers = [
+      setTimeout(() => void triggerThumbnailCapture(resumeId), 1500),
+      setTimeout(() => void triggerThumbnailCapture(resumeId), 4500),
+      setTimeout(() => void triggerThumbnailCapture(resumeId), 9000),
+    ];
+
+    return () => {
+      timers.forEach((timerId) => clearTimeout(timerId));
+    };
+  }, [
+    mounted,
+    loading,
+    resume,
+    template,
+    resumeId,
+    triggerThumbnailCapture,
+    MAX_AUTO_THUMBNAIL_ATTEMPTS,
+  ]);
 
   // Autosave effect - saves 5 seconds after last change
   useEffect(() => {
@@ -196,6 +263,8 @@ export default function EditResumePage() {
 
         setHasChanges(false);
         setLastSaved(new Date());
+        // Capture thumbnail after first successful autosave so dashboard has preview.
+        void triggerThumbnailCapture(resumeId);
       } catch (error) {
         console.error("Autosave failed:", error);
       } finally {
@@ -204,7 +273,7 @@ export default function EditResumePage() {
     }, 5000); // 5 seconds after last change
 
     return () => clearTimeout(autoSaveTimer);
-  }, [hasChanges, resume, layout, sections, resumeId]);
+  }, [hasChanges, resume, layout, sections, resumeId, triggerThumbnailCapture]);
 
   const loadResume = async () => {
     try {
@@ -616,6 +685,8 @@ export default function EditResumePage() {
         },
       });
       setHasChanges(false);
+      // Trigger thumbnail generation right after a successful manual save.
+      void triggerThumbnailCapture(resumeId);
       await loadResume();
 
       // ATS score calculation is now only done on manual refresh
