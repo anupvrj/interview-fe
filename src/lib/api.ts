@@ -879,6 +879,70 @@ export const resumeApi = {
     return response.data.data;
   },
 
+  /**
+   * AI: shrink resume content toward one page. Server loads resume from DB by id.
+   * saveMode "overwrite" updates in place; "duplicate" creates "(1-Page Optimized)" copy.
+   */
+  optimizeOnePage: async (
+    resumeId: string,
+    options?: { saveMode?: "duplicate" | "overwrite" },
+  ): Promise<{
+    data: {
+      resume: Resume;
+      pagesBefore: number;
+      pagesAfter: number;
+      optimized: boolean;
+      saveMode: "duplicate" | "overwrite";
+      targetResumeId: string;
+    };
+    message: string;
+  }> => {
+    const saveMode = options?.saveMode ?? "overwrite";
+    try {
+      const response = await apiClient.post<{
+        success: boolean;
+        data?: {
+          resume: Resume;
+          pagesBefore: number;
+          pagesAfter: number;
+          optimized: boolean;
+          saveMode: "duplicate" | "overwrite";
+          targetResumeId: string;
+        };
+        message?: string;
+      }>(
+        `/resumes/${resumeId}/optimize-one-page`,
+        { saveMode },
+        {
+          headers: {
+            "Content-Type": "application/json",
+          },
+          timeout: 180000,
+        },
+      );
+      if (!response.data.success || !response.data.data) {
+        throw new Error(
+          response.data.message ||
+            "Unable to optimize resume right now. Please try again in a few minutes.",
+        );
+      }
+      return {
+        data: response.data.data,
+        message: response.data.message ?? "",
+      };
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        const body = error.response?.data as
+          | { message?: string; success?: boolean }
+          | undefined;
+        if (body?.message) {
+          throw new Error(body.message);
+        }
+      }
+      throw error;
+    }
+  },
+
   getPresignedUploadUrl: async (
     resumeId: string,
   ): Promise<{ uploadUrl: string; s3Key: string }> => {

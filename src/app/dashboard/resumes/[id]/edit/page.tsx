@@ -31,6 +31,7 @@ import {
   X,
   Check,
   RefreshCw,
+  FileStack,
 } from "lucide-react";
 import { Resume, ResumeTemplate, resumeApi, apiClient } from "@/lib/api";
 import { ResumePreview } from "@/components/ResumePreview";
@@ -43,6 +44,7 @@ import { LanguagesEditor } from "@/components/LanguagesEditor";
 import { captureAndUploadThumbnail } from "@/lib/resume-thumbnail";
 import { ATSFeedback } from "@/components/ATSFeedback";
 import { ProfilePictureCropper } from "@/components/ProfilePictureCropper";
+import { toast } from "sonner";
 
 interface Section {
   id: string;
@@ -74,10 +76,20 @@ export default function EditResumePage() {
   const { user, isLoaded } = useUser();
   const router = useRouter();
   const params = useParams();
-  const resumeId = params.id as string;
+  /** Route param can be string | string[] in App Router; fall back to loaded resume. */
+  const routeResumeId = useMemo(() => {
+    const raw = params?.id;
+    if (typeof raw === "string") return raw;
+    if (Array.isArray(raw) && raw[0]) return raw[0];
+    return undefined;
+  }, [params]);
 
   const [mounted, setMounted] = useState(false);
   const [resume, setResume] = useState<Resume | null>(null);
+  const resumeId = useMemo(
+    () => routeResumeId || resume?.resumeId || "",
+    [routeResumeId, resume?.resumeId],
+  );
   const [template, setTemplate] = useState<ResumeTemplate | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -85,6 +97,9 @@ export default function EditResumePage() {
   const [hasChanges, setHasChanges] = useState(false);
   const [autoSaving, setAutoSaving] = useState(false);
   const [refreshingATS, setRefreshingATS] = useState(false);
+  const [optimizingOnePage, setOptimizingOnePage] = useState(false);
+  const [optimizeOnePageDialogOpen, setOptimizeOnePageDialogOpen] =
+    useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [profilePictureFileName, setProfilePictureFileName] = useState("");
   const [previewKey, setPreviewKey] = useState(0);
@@ -166,6 +181,44 @@ export default function EditResumePage() {
   const isThumbnailUploadingRef = useRef(false);
   const autoThumbnailAttemptsRef = useRef(0);
   const MAX_AUTO_THUMBNAIL_ATTEMPTS = 3;
+  const autoSavingRef = useRef(false);
+
+  useEffect(() => {
+    autoSavingRef.current = autoSaving;
+  }, [autoSaving]);
+
+  /** Wait until autosave finishes (or timeout). Used instead of blocking with an error toast. */
+  const waitForAutosaveToFinish = useCallback(async (maxMs = 45000) => {
+    const start = Date.now();
+    while (autoSavingRef.current) {
+      if (Date.now() - start > maxMs) {
+        throw new Error(
+          "Auto-save is taking longer than expected. Please try again in a moment.",
+        );
+      }
+      await new Promise((r) => setTimeout(r, 100));
+    }
+  }, []);
+
+  const getPreviewPageCount = useCallback(
+    (preferredResumeId?: string): number | null => {
+      const id = preferredResumeId || resume?.resumeId || resumeId;
+      if (!id) return null;
+
+      const previewContainerId = `resume-preview-container-${id}`;
+      const previewElement = document.getElementById(previewContainerId);
+      if (!previewElement) return null;
+
+      const pages = previewElement.querySelectorAll(".resume-page");
+      if (pages.length > 0) {
+        return pages.length;
+      }
+
+      // If paginated pages are not in DOM yet, we cannot confidently decide.
+      return null;
+    },
+    [resume?.resumeId, resumeId],
+  );
 
   const triggerThumbnailCapture = useCallback(
     async (targetResumeId: string) => {
@@ -275,10 +328,43 @@ export default function EditResumePage() {
     return () => clearTimeout(autoSaveTimer);
   }, [hasChanges, resume, layout, sections, resumeId, triggerThumbnailCapture]);
 
-  const loadResume = async () => {
+  const loadResume = async (prefetchedData?: Resume) => {
     try {
-      setLoading(true);
-      const resumeData = await resumeApi.get(resumeId);
+      if (!prefetchedData) {
+        setLoading(true);
+      }
+      const fetchId = resumeId || prefetchedData?.resumeId || "";
+      if (!prefetchedData && !fetchId) {
+        throw new Error("Missing resume id");
+      }
+      const resumeData =
+        prefetchedData ?? (await resumeApi.get(fetchId));
+
+      const effectiveResumeId =
+        resumeData.resumeId || fetchId || resumeId;
+      if (!resumeData.resumeId && effectiveResumeId) {
+        resumeData.resumeId = effectiveResumeId;
+      }
+
+      // Normalize shape — some API responses (e.g. optimize-one-page) may omit nested
+      // fields; accessing resumeData.content before this would throw and trigger redirect.
+      if (!resumeData.content || typeof resumeData.content !== "object") {
+        resumeData.content = {
+          personalInfo: {} as Resume["content"]["personalInfo"],
+          experience: [],
+          education: [],
+          customSections: [],
+        } as Resume["content"];
+      }
+      if (!Array.isArray(resumeData.content.customSections)) {
+        resumeData.content.customSections = [];
+      }
+      if (
+        resumeData.sectionOrder != null &&
+        !Array.isArray(resumeData.sectionOrder)
+      ) {
+        resumeData.sectionOrder = undefined;
+      }
 
       // Normalize profileSummary - check multiple locations
       if (!resumeData.profileSummary) {
@@ -297,11 +383,6 @@ export default function EditResumePage() {
             resumeData.profileSummary = profileSection.content;
           }
         }
-      }
-
-      // Ensure customSections is properly initialized
-      if (!resumeData.content.customSections) {
-        resumeData.content.customSections = [];
       }
 
       setResume(resumeData);
@@ -405,7 +486,7 @@ export default function EditResumePage() {
             // Save updated layout to database
             (async () => {
               try {
-                await resumeApi.update(resumeId, {
+                await resumeApi.update(effectiveResumeId, {
                   layout: updatedLayout,
                 });
               } catch (error) {
@@ -471,7 +552,7 @@ export default function EditResumePage() {
                 visible: s.visible,
               }));
 
-              await resumeApi.update(resumeId, {
+              await resumeApi.update(effectiveResumeId, {
                 content: resumeData.content,
                 sectionOrder: sectionOrderData,
               });
@@ -722,6 +803,132 @@ export default function EditResumePage() {
       alert("Failed to refresh ATS score. Please try again.");
     } finally {
       setRefreshingATS(false);
+    }
+  };
+
+  const handleOptimizeOnePageClick = async () => {
+    if (autoSavingRef.current) {
+      const toastId = toast.loading("Finishing save…");
+      try {
+        await waitForAutosaveToFinish();
+      } catch (e) {
+        toast.dismiss(toastId);
+        toast.error(
+          e instanceof Error
+            ? e.message
+            : "Auto-save is taking longer than expected. Please try again.",
+        );
+        return;
+      }
+      toast.dismiss(toastId);
+    }
+
+    const currentPages = getPreviewPageCount();
+    if (currentPages === null) {
+      toast.info("Page count is still loading. Please try again in a moment.");
+      return;
+    }
+    if (currentPages <= 1) {
+      toast.info("Resume is already one page.");
+      return;
+    }
+
+    setOptimizeOnePageDialogOpen(true);
+  };
+
+  const handleOptimizeOnePageConfirm = async () => {
+    if (!resume || !layout || sections.length === 0) return;
+    const effectiveId = resume.resumeId || resumeId;
+    if (!effectiveId) {
+      toast.error("Could not determine resume id. Try refreshing the page.");
+      return;
+    }
+    try {
+      await waitForAutosaveToFinish();
+    } catch (e) {
+      const msg =
+        e instanceof Error
+          ? e.message
+          : "Auto-save is taking longer than expected. Please try again.";
+      toast.error(msg);
+      throw e;
+    }
+
+    const currentPages = getPreviewPageCount(effectiveId);
+    if (currentPages === null) {
+      toast.info("Page count is still loading. Please try again in a moment.");
+      return;
+    }
+    if (currentPages <= 1) {
+      toast.info("Resume is already one page.");
+      return;
+    }
+
+    if (hasChanges) {
+      const sectionOrderData = sections.map((s) => ({
+        id: s.id,
+        type: s.type,
+        title: s.title,
+        visible: s.visible,
+      }));
+      await resumeApi.update(effectiveId, {
+        title: resume.title,
+        content: resume.content,
+        profileSummary: resume.profileSummary,
+        sectionOrder: sectionOrderData,
+        layout: layout,
+      });
+      setHasChanges(false);
+      setLastSaved(new Date());
+      void triggerThumbnailCapture(effectiveId);
+    }
+
+    setOptimizingOnePage(true);
+    try {
+      const { data, message } = await resumeApi.optimizeOnePage(effectiveId, {
+        saveMode: "overwrite",
+      });
+      // If API omits targetResumeId, `undefined !== effectiveId` was true and
+      // router.replace(`/.../${undefined}/edit`) became /resumes/undefined/edit.
+      const targetFromApi = data.targetResumeId;
+      const shouldOpenOtherResume =
+        typeof targetFromApi === "string" &&
+        targetFromApi.length > 0 &&
+        targetFromApi !== effectiveId;
+
+      if (shouldOpenOtherResume) {
+        router.replace(`/dashboard/resumes/${targetFromApi}/edit`);
+        return;
+      }
+
+      if (data.resume) {
+        await loadResume(data.resume);
+      } else {
+        await loadResume();
+      }
+      setHasChanges(false);
+      void triggerThumbnailCapture(data.resume?.resumeId || effectiveId);
+      const pagesHint =
+        data.pagesBefore !== data.pagesAfter
+          ? ` (~${data.pagesBefore} → ~${data.pagesAfter} pages)`
+          : "";
+      const fullMessage = message
+        ? `${message}${pagesHint}`
+        : `Optimized${pagesHint}`;
+      if (data.optimized) {
+        toast.success(fullMessage);
+      } else {
+        toast.info(message || "Resume is already approximately one page.");
+      }
+    } catch (error) {
+      const msg =
+        error instanceof Error
+          ? error.message
+          : "Unable to optimize resume right now. Please try again in a few minutes.";
+      toast.error(msg);
+      throw error;
+    } finally {
+      setOptimizingOnePage(false);
     }
   };
 
@@ -1342,6 +1549,26 @@ export default function EditResumePage() {
                   <>
                     <Save className="w-4 h-4 mr-2" />
                     {hasChanges ? "Save Now" : "Saved"}
+                  </>
+                )}
+              </Button>
+              <Button
+                type="button"
+                onClick={handleOptimizeOnePageClick}
+                disabled={optimizingOnePage || refreshingATS || saving}
+                variant="outline"
+                size="sm"
+                title="Shrink content toward one page using AI (updates this resume)"
+              >
+                {optimizingOnePage ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Optimizing...
+                  </>
+                ) : (
+                  <>
+                    <FileStack className="w-4 h-4 mr-2" />
+                    Optimize to 1 page
                   </>
                 )}
               </Button>
@@ -2376,7 +2603,7 @@ export default function EditResumePage() {
                                         message: string;
                                         data: { profilePictureUrl: string };
                                       }>(
-                                        `/resumes/${resume.resumeId}/profile-picture`,
+                                        `/resumes/${resume.resumeId || resumeId}/profile-picture`,
                                         formData,
                                         {
                                           headers: {
@@ -6772,6 +6999,18 @@ export default function EditResumePage() {
           </div>
         </div>
       </div>
+
+      <ConfirmationDialog
+        open={optimizeOnePageDialogOpen}
+        onOpenChange={setOptimizeOnePageDialogOpen}
+        title="Optimize to one page?"
+        description="This will replace the current resume with an AI-optimized version that aims to fit about one page. Your unsaved edits will be saved first. This cannot be undone."
+        confirmText="Optimize (overwrite)"
+        cancelText="Cancel"
+        onConfirm={handleOptimizeOnePageConfirm}
+        variant="destructive"
+        isLoading={optimizingOnePage}
+      />
 
       {/* Delete Section Confirmation Dialog */}
       <ConfirmationDialog
