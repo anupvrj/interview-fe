@@ -110,6 +110,8 @@ export async function generatePDFFromPages(
         // Ensure web fonts are fully resolved before rasterizing.
         if (typeof document !== "undefined" && "fonts" in document) {
           await (document as Document & { fonts: FontFaceSet }).fonts.ready;
+          // Give layout a moment to settle after font swap.
+          await new Promise((resolve) => setTimeout(resolve, 250));
         }
 
         // Wait for images to load (now from proxy - same origin)
@@ -169,6 +171,20 @@ export async function generatePDFFromPages(
                 flex: 1;
                 min-width: 0;
               }
+
+              [data-pdf-capture-root] [class$="classic-contact-item"] svg {
+                width: 13px !important;
+                height: 13px !important;
+                display: block !important;
+                flex-shrink: 0 !important;
+                margin-top: 16px !important;
+              }
+
+              [data-pdf-capture-root] [class="classic-section-header"] {
+                padding-bottom: 8px !important;
+              }
+
+
             `;
             clonedDoc.head.appendChild(style);
 

@@ -101,6 +101,14 @@ export async function captureResumeThumbnail(
       }),
     );
 
+    // Ensure web fonts are fully resolved before rasterizing.
+    // html2canvas is sensitive to line-box changes during font swap.
+    if (typeof document !== "undefined" && "fonts" in document) {
+      await (document as Document & { fonts: FontFaceSet }).fonts.ready;
+      // Give layout a moment to settle after font swap.
+      await new Promise((resolve) => setTimeout(resolve, 250));
+    }
+
     // Store original styles to restore later
     const originalStyles = {
       display: element.style.display,
@@ -108,6 +116,8 @@ export async function captureResumeThumbnail(
       opacity: element.style.opacity,
       position: element.style.position,
       zIndex: element.style.zIndex,
+      transform: element.style.transform,
+      transformOrigin: element.style.transformOrigin,
     };
 
     // Ensure element is visible and in viewport
@@ -116,6 +126,11 @@ export async function captureResumeThumbnail(
     element.style.opacity = "1";
     element.style.position = "relative";
     element.style.zIndex = "9999";
+
+    // Prevent zoom/transform sub-pixel rounding from affecting capture alignment.
+    // (ResumePreview applies `transform: scale(...)` based on zoom level.)
+    element.style.transform = "scale(1)";
+    element.style.transformOrigin = "top left";
 
     // Check if element or its parents are hidden
     let parent = element.parentElement;
@@ -212,7 +227,31 @@ export async function captureResumeThumbnail(
       logging: true, // Enable logging to debug
       background: "#ffffff",
       allowTaint: false,
-      onclone: (_clonedDoc: Document, clonedElement: HTMLElement) => {
+      onclone: (clonedDoc: Document, clonedElement: HTMLElement) => {
+        // Normalize contact icon + text vertical alignment in html2canvas export
+        // (fixes "download-only" misalignment vs live preview).
+        clonedElement.setAttribute("data-thumb-capture-root", "true");
+        const styleEl = clonedDoc.createElement("style");
+        styleEl.textContent = `
+          [data-thumb-capture-root] [class$="-contact"] {
+            align-items: center !important;
+          }
+          [data-thumb-capture-root] [class$="-contact-item"] {
+            align-items: center !important;
+          }
+          [data-thumb-capture-root] [class$="-contact-item"] svg {
+            width: 13px !important;
+            height: 13px !important;
+            display: block !important;
+          }
+          [data-thumb-capture-root] [class$="-contact-item"] span {
+            display: inline-block !important;
+            line-height: 1.4 !important;
+            white-space: nowrap !important;
+          }
+        `;
+        clonedDoc.head.appendChild(styleEl);
+
         // Replace S3/external img src with proxy URL before html2canvas fetches
         const imgs = clonedElement.querySelectorAll("img[src]");
         imgs.forEach((img) => {
@@ -237,6 +276,8 @@ export async function captureResumeThumbnail(
     element.style.opacity = originalStyles.opacity;
     element.style.position = originalStyles.position;
     element.style.zIndex = originalStyles.zIndex;
+    element.style.transform = originalStyles.transform;
+    element.style.transformOrigin = originalStyles.transformOrigin;
 
     // Restore scroll position
     window.scrollTo(0, scrollPosition);
