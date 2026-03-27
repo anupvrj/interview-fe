@@ -15,8 +15,19 @@ import {
 } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { toast } from "sonner";
+import {
   ArrowLeft,
+  Copy,
   Download,
+  Mail,
   Share2,
   TrendingUp,
   AlertCircle,
@@ -28,6 +39,7 @@ import {
   Mic,
 } from "lucide-react";
 import { interviewApi, InterviewReport, Interview } from "@/lib/api";
+import { uploadPDFToS3 } from "@/lib/pdf-generator";
 import { getScoreColor, getScoreGradient, formatDate } from "@/lib/utils";
 
 export default function ReportPage() {
@@ -40,6 +52,7 @@ export default function ReportPage() {
   const [interview, setInterview] = useState<Interview | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>("");
+  const [shareBusy, setShareBusy] = useState(false);
 
   useEffect(() => {
     loadReport();
@@ -62,8 +75,8 @@ export default function ReportPage() {
     }
   };
 
-  const downloadPDF = () => {
-    if (!report || !interview) return;
+  const buildReportPdfBlob = (): Blob | null => {
+    if (!report || !interview) return null;
 
     const doc = new jsPDF({ unit: "pt", format: "a4" });
     const pageWidth = doc.internal.pageSize.getWidth();
@@ -519,7 +532,98 @@ export default function ReportPage() {
       );
     }
 
-    doc.save(`easy-interview-${interview.interviewId}.pdf`);
+    return doc.output("blob");
+  };
+
+  const downloadPDF = () => {
+    const blob = buildReportPdfBlob();
+    if (!blob || !interview) return;
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `easy-interview-${interview.interviewId}.pdf`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const resolveShareUrl = async (): Promise<string> => {
+    if (!report || !interview) {
+      throw new Error("Report not ready");
+    }
+    const existing = await interviewApi.getReportPdfShareUrl(interviewId);
+    if (existing.stored) {
+      return existing.shareUrl;
+    }
+    const blob = buildReportPdfBlob();
+    if (!blob) {
+      throw new Error("Could not generate PDF");
+    }
+    const { uploadUrl, s3Key } =
+      await interviewApi.getReportPdfUploadUrl(interviewId);
+    await uploadPDFToS3(blob, uploadUrl);
+    const { downloadUrl } = await interviewApi.confirmReportPdfUpload(
+      interviewId,
+      s3Key,
+    );
+    setReport((r) => (r ? { ...r, reportPdfS3Key: s3Key } : null));
+    return downloadUrl;
+  };
+
+  const copyReportLink = async () => {
+    setShareBusy(true);
+    try {
+      const url = await resolveShareUrl();
+      await navigator.clipboard.writeText(url);
+      toast.success("Link copied to clipboard");
+    } catch (e: unknown) {
+      console.error(e);
+      const message =
+        e instanceof Error ? e.message : "Could not prepare share link";
+      toast.error(message);
+    } finally {
+      setShareBusy(false);
+    }
+  };
+
+  const openEmailShare = async () => {
+    if (!interview) return;
+    setShareBusy(true);
+    try {
+      const shareUrl = await resolveShareUrl();
+      const subjectPlain = `Interview report: ${interview.metadata.role}`;
+      const bodyPlain = `Interview report PDF (link expires in 7 days):\n\n${shareUrl}`;
+
+      const mobileUa =
+        typeof navigator !== "undefined" &&
+        /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(
+          navigator.userAgent,
+        );
+
+      if (mobileUa) {
+        window.location.href = `mailto:?subject=${encodeURIComponent(subjectPlain)}&body=${encodeURIComponent(bodyPlain)}`;
+        return;
+      }
+
+      // Desktop: open web mail in the browser (Gmail compose) instead of a native mail client
+      const gmailCompose = `https://mail.google.com/mail/?view=cm&fs=1&su=${encodeURIComponent(subjectPlain)}&body=${encodeURIComponent(bodyPlain)}`;
+      const opened = window.open(
+        gmailCompose,
+        "_blank",
+        "noopener,noreferrer",
+      );
+      if (!opened) {
+        toast.error(
+          "Could not open a new tab (popup blocked). Allow popups for this site or use Copy link.",
+        );
+      }
+    } catch (e: unknown) {
+      console.error(e);
+      const message =
+        e instanceof Error ? e.message : "Could not prepare share link";
+      toast.error(message);
+    } finally {
+      setShareBusy(false);
+    }
   };
 
   const getQuestionTypeText = (type: string) => {
@@ -634,9 +738,55 @@ export default function ReportPage() {
               </p>
             </div>
             <div className="flex gap-2">
-              <Button variant="outline" className="gap-2">
-                <Share2 className="w-4 h-4" /> Share
-              </Button>
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button variant="outline" className="gap-2">
+                    <Share2 className="w-4 h-4" /> Share
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Share interview report</DialogTitle>
+                    <DialogDescription>
+                      Shares a PDF download link from cloud storage. If this
+                      interview has not been uploaded yet, the PDF is generated
+                      and stored once; later shares reuse the same file. Links
+                      expire after 7 days. On desktop, Email opens Gmail in your
+                      browser; on phones, it opens your mail app.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="flex flex-col gap-2 sm:flex-row">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="gap-2 w-full sm:flex-1"
+                      disabled={shareBusy}
+                      onClick={() => void copyReportLink()}
+                    >
+                      {shareBusy ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Copy className="w-4 h-4" />
+                      )}
+                      Copy link
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="gap-2 w-full sm:flex-1"
+                      disabled={shareBusy}
+                      onClick={() => void openEmailShare()}
+                    >
+                      {shareBusy ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Mail className="w-4 h-4" />
+                      )}
+                      Email
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
               <Button
                 variant="outline"
                 className="gap-2"

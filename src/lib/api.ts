@@ -193,6 +193,8 @@ export interface InterviewReport {
     cost: number;
     generatedAt: string;
   };
+  /** Set after PDF is uploaded for sharing */
+  reportPdfS3Key?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -398,6 +400,64 @@ export const interviewApi = {
   getReport: async (interviewId: string): Promise<InterviewReport> => {
     const response = await apiClient.get<{ data: InterviewReport }>(
       `/interviews/${interviewId}/report`,
+    );
+    return response.data.data;
+  },
+
+  /** Presigned GET for stored report PDF, or stored: false if not uploaded yet */
+  getReportPdfShareUrl: async (
+    interviewId: string,
+  ): Promise<
+    | {
+        stored: true;
+        shareUrl: string;
+        expiresIn: number;
+      }
+    | { stored: false; expiresIn: number }
+  > => {
+    const userId = localStorage.getItem("clerk-user-id");
+    if (!userId) {
+      throw new Error("User not authenticated");
+    }
+    const response = await apiClient.get<{
+      data:
+        | { stored: true; shareUrl: string; expiresIn: number }
+        | { stored: false; expiresIn: number };
+    }>(`/interviews/${interviewId}/report/pdf-share-url`, {
+      params: { userId },
+    });
+    return response.data.data;
+  },
+
+  getReportPdfUploadUrl: async (
+    interviewId: string,
+  ): Promise<{ uploadUrl: string; s3Key: string; expiresIn: number }> => {
+    const userId = localStorage.getItem("clerk-user-id");
+    if (!userId) {
+      throw new Error("User not authenticated");
+    }
+    const response = await apiClient.get<{
+      data: { uploadUrl: string; s3Key: string; expiresIn: number };
+    }>(`/interviews/${interviewId}/report/pdf-upload-url`, {
+      params: { userId },
+    });
+    return response.data.data;
+  },
+
+  confirmReportPdfUpload: async (
+    interviewId: string,
+    s3Key: string,
+  ): Promise<{ downloadUrl: string; s3Key: string; expiresIn: number }> => {
+    const userId = localStorage.getItem("clerk-user-id");
+    if (!userId) {
+      throw new Error("User not authenticated");
+    }
+    const response = await apiClient.post<{
+      data: { downloadUrl: string; s3Key: string; expiresIn: number };
+    }>(
+      `/interviews/${interviewId}/report/confirm-pdf-upload`,
+      { s3Key },
+      { params: { userId } },
     );
     return response.data.data;
   },
