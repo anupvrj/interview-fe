@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
+import { AppGoogleAnalytics } from "@/components/AppGoogleAnalytics";
 import { UserProvider } from "@/components/UserProvider";
 import { TemplateRegistryInitializer } from "@/components/TemplateRegistryInitializer";
+import { getGaMeasurementId } from "@/config/google-analytics";
 import { Toaster } from "sonner";
 import {
   StructuredData,
@@ -83,6 +85,8 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const gaMeasurementId = getGaMeasurementId();
+
   return (
     <ClerkProvider>
       <html lang="en">
@@ -91,6 +95,7 @@ export default function RootLayout({
           <StructuredData data={webApplicationSchema} />
         </head>
         <body className={inter.className}>
+          <AppGoogleAnalytics gaId={gaMeasurementId} />
           <TemplateRegistryInitializer />
           <UserProvider>{children}</UserProvider>
           <Toaster
