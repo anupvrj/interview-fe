@@ -5,6 +5,8 @@ import { AppGoogleAnalytics } from "@/components/AppGoogleAnalytics";
 import { UserProvider } from "@/components/UserProvider";
 import { TemplateRegistryInitializer } from "@/components/TemplateRegistryInitializer";
 import { getGaMeasurementId } from "@/config/google-analytics";
+import { getClarityProjectId } from "@/config/microsoft-clarity";
+import { AppMicrosoftClarity } from "@/components/AppMicrosoftClarity";
 import { Toaster } from "sonner";
 import {
   StructuredData,
@@ -86,6 +88,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   const gaMeasurementId = getGaMeasurementId();
+  const clarityProjectId = getClarityProjectId();
 
   return (
     <ClerkProvider>
@@ -96,6 +99,7 @@ export default function RootLayout({
         </head>
         <body className={inter.className}>
           <AppGoogleAnalytics gaId={gaMeasurementId} />
+          <AppMicrosoftClarity projectId={clarityProjectId} />
           <TemplateRegistryInitializer />
           <UserProvider>{children}</UserProvider>
           <Toaster
