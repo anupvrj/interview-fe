@@ -160,10 +160,9 @@ export default function NewResumePage() {
     setSelectedTemplate(templateId);
   };
 
-  const handleNext = () => {
-    if (selectedTemplate) {
-      setStep("upload");
-    }
+  const useTemplateAndGoToUpload = (templateId: string) => {
+    setSelectedTemplate(templateId);
+    setStep("upload");
   };
 
   const handleSkip = () => {
@@ -661,13 +660,6 @@ export default function NewResumePage() {
                     </p>
                   </div>
                 </div>
-                <Button
-                  onClick={handleNext}
-                  className="w-full sm:w-auto bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white"
-                >
-                  Next: Upload Resume
-                  <ArrowRight className="w-4 h-4 ml-2" />
-                </Button>
               </CardContent>
             </Card>
           )}
@@ -712,32 +704,32 @@ export default function NewResumePage() {
             </div>
 
             {filteredTemplates.length > 0 ? (
-              <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 lg:gap-6">
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 lg:gap-6 items-stretch">
                 {filteredTemplates.map((template) => {
                   const isSelected = selectedTemplate === template.id;
                   return (
                     <Card
                       key={template.id}
-                      className={`border-2 cursor-pointer transition-all hover:shadow-xl ${
+                      className={`group relative flex h-full min-h-0 flex-col overflow-hidden border-2 cursor-pointer transition-all hover:shadow-xl ${
                         isSelected
                           ? "border-purple-500 shadow-lg ring-2 ring-purple-200"
                           : "border-gray-200 hover:border-purple-300"
                       }`}
                       onClick={() => handleTemplateSelect(template.id)}
                     >
-                      <CardContent className="p-0">
+                      <CardContent className="relative flex min-h-0 flex-1 flex-col p-0">
                         <TemplatePreview
                           template={template}
                           isSelected={isSelected}
                         />
-                        <div className="p-4">
+                        <div className="flex flex-1 flex-col bg-white p-4">
                           <h3 className="font-bold text-gray-900 mb-1">
                             {template.name}
                           </h3>
                           <p className="text-sm text-gray-600 mb-3">
                             {template.description}
                           </p>
-                          <div className="flex items-center gap-2 flex-wrap">
+                          <div className="flex flex-wrap items-center gap-2">
                             <span
                               className="px-2 py-1 text-xs font-medium rounded"
                               style={{
@@ -753,6 +745,23 @@ export default function NewResumePage() {
                               </span>
                             )}
                           </div>
+                        </div>
+                        <div
+                          className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-black/45 opacity-0 transition-opacity duration-200 group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <Button
+                            type="button"
+                            className="shadow-lg bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              useTemplateAndGoToUpload(template.id);
+                            }}
+                            aria-label={`Use ${template.name} template and continue to upload`}
+                          >
+                            Use Template
+                            <ArrowRight className="w-4 h-4 ml-2" />
+                          </Button>
                         </div>
                       </CardContent>
                     </Card>
