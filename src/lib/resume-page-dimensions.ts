@@ -7,6 +7,13 @@
 export const A4_WIDTH_MM = 210;
 export const A4_HEIGHT_MM = 297;
 
+/**
+ * Paginated preview / snapshot: full A4 fill for Atlantic Blue (must match
+ * `--ab-sidebar-width-pct` and colors in atlantic-blue/style.css).
+ */
+export const ATLANTIC_BLUE_PAGINATED_PAGE_BG =
+  "linear-gradient(to right, #2c3e50 0%, #2c3e50 40%, #ffffff 40%, #ffffff 100%)";
+
 export const DEFAULT_LAYOUT_PADDING_MM = {
   top: 8,
   bottom: 8,

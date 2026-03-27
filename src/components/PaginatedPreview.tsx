@@ -9,6 +9,7 @@ import { useResumePagination } from "@/hooks/useResumePagination";
 import {
   A4_HEIGHT_MM,
   A4_WIDTH_MM,
+  ATLANTIC_BLUE_PAGINATED_PAGE_BG,
   mergeLayoutPaddingWithTemplateStyle,
   pageVerticalGuttersMm,
   resolveLayoutPaddingMm,
@@ -106,7 +107,10 @@ export const PaginatedPreview: React.FC<PaginatedPreviewProps> = ({
               overflow: "hidden",
               marginBottom: "20px",
               position: "relative",
-              background: isAtlanticBlue ? undefined : "white",
+              /* Inline fill so every page (incl. page 2+) paints full A4; class alone can composite transparent gaps above clipped content */
+              background: isAtlanticBlue
+                ? ATLANTIC_BLUE_PAGINATED_PAGE_BG
+                : "#ffffff",
               boxShadow:
                 "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)",
             }}
@@ -119,6 +123,10 @@ export const PaginatedPreview: React.FC<PaginatedPreviewProps> = ({
                 width: `${A4_WIDTH_MM}mm`,
                 height: `${page.height}px`,
                 overflow: "hidden",
+                /* Same fill under the clip so empty tail of the slice is not transparent */
+                background: isAtlanticBlue
+                  ? ATLANTIC_BLUE_PAGINATED_PAGE_BG
+                  : "#ffffff",
               }}
             >
               <div

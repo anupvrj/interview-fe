@@ -23,10 +23,11 @@
   --ab-sidebar-width-pct: 40%;
   --ab-font-display: 'Zilla Slab', 'Roboto Slab', Rockwell, 'Courier New', serif;
   --ab-font-body: 'Roboto', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  /* Inner inset from page side edges (sync column-insets.ts) */
   --ab-space-column-x: 40px;
   --ab-space-column-y: 44px;
-  /* Inner gutter between sidebar and main (left column padding-right + right column padding-left) */
-  --ab-column-gutter: 16px;
+  /* Seam inset — sync ATLANTIC_BLUE_INNER_PADDING_PX.seam */
+  --ab-seam-inset: 36px;
   --ab-photo-size: 132px;
 }
 
@@ -48,12 +49,22 @@
   print-color-adjust: exact;
 }
 
-/* ----- Two-column shell ----- */
+/* ----- Two-column shell -----
+   Paint sidebar + main as one full-height gradient on the row so the navy stripe
+   always runs top–bottom (matches tallest column; no short left-column gap). */
 .atlantic-blue-two-column {
   display: flex;
   align-items: stretch;
+  align-content: stretch;
   gap: 0;
   min-height: 270mm;
+  background: linear-gradient(
+    to right,
+    var(--ab-sidebar) 0% var(--ab-sidebar-width-pct),
+    var(--ab-main-bg) var(--ab-sidebar-width-pct) 100%
+  );
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
 }
 
 .atlantic-blue-left-column {
@@ -62,10 +73,11 @@
   flex-shrink: 0;
   min-height: 100%;
   align-self: stretch;
-  background-color: var(--ab-sidebar);
+  /* Color comes from .atlantic-blue-two-column gradient (full row height) */
+  background-color: transparent;
   color: var(--ab-sidebar-text);
-  /* top | right (gutter toward main column) | bottom | left (page edge) */
-  padding: var(--ab-space-column-y) var(--ab-column-gutter) var(--ab-space-column-y)
+  /* Mirror column-insets.ts (inline styles in ResumeRenderer win over this when both set) */
+  padding: var(--ab-space-column-y) var(--ab-seam-inset) var(--ab-space-column-y)
     var(--ab-space-column-x);
   font-family: var(--ab-font-body);
 }
@@ -74,11 +86,11 @@
   box-sizing: border-box;
   width: 60%;
   flex-shrink: 0;
-  background-color: var(--ab-main-bg);
+  align-self: stretch;
+  background-color: transparent;
   color: var(--ab-main-text);
-  /* top | right (page edge) | bottom | left (gutter toward sidebar) */
   padding: var(--ab-space-column-y) var(--ab-space-column-x) var(--ab-space-column-y)
-    var(--ab-column-gutter);
+    var(--ab-seam-inset);
   font-family: var(--ab-font-body);
 }
 

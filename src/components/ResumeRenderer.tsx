@@ -7,6 +7,7 @@
 
 import React, { useRef, useMemo } from "react";
 import { Resume, ResumeTemplate } from "@/lib/api";
+import { ATLANTIC_BLUE_INNER_PADDING_PX } from "@/configs/resume-templates/atlantic-blue/column-insets";
 import { mergeLayoutPaddingWithTemplateStyle } from "@/lib/resume-page-dimensions";
 import { getExtendedTemplate } from "@/lib/templateConfigs";
 import { getTemplateStyle, TemplateStyleConfig } from "@/lib/templateRenderer";
@@ -3512,7 +3513,13 @@ export function ResumeRenderer({
             className={isAtlanticBlueTwoColumn ? "atlantic-blue-left-column" : undefined}
             style={
               isAtlanticBlueTwoColumn
-                ? undefined
+                ? {
+                    boxSizing: "border-box",
+                    paddingTop: ATLANTIC_BLUE_INNER_PADDING_PX.vertical,
+                    paddingBottom: ATLANTIC_BLUE_INNER_PADDING_PX.vertical,
+                    paddingLeft: ATLANTIC_BLUE_INNER_PADDING_PX.outerEdge,
+                    paddingRight: ATLANTIC_BLUE_INNER_PADDING_PX.seam,
+                  }
                 : {
                     width: templateStyle.headerStyle === "two-column" ? "40%" : `${resumeLayout.columnWidths?.left || 60}%`,
                     paddingRight: templateStyle.headerStyle === "two-column" ? "0" : "10px",
@@ -3533,7 +3540,13 @@ export function ResumeRenderer({
             className={isAtlanticBlueTwoColumn ? "atlantic-blue-right-column" : undefined}
             style={
               isAtlanticBlueTwoColumn
-                ? undefined
+                ? {
+                    boxSizing: "border-box",
+                    paddingTop: ATLANTIC_BLUE_INNER_PADDING_PX.vertical,
+                    paddingBottom: ATLANTIC_BLUE_INNER_PADDING_PX.vertical,
+                    paddingLeft: ATLANTIC_BLUE_INNER_PADDING_PX.seam,
+                    paddingRight: ATLANTIC_BLUE_INNER_PADDING_PX.outerEdge,
+                  }
                 : {
                     width: templateStyle.headerStyle === "two-column" ? "60%" : `${resumeLayout.columnWidths?.right || 40}%`,
                     paddingLeft: templateStyle.headerStyle === "two-column" ? "0" : "10px",
