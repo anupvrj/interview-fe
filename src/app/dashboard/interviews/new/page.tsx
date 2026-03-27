@@ -296,8 +296,7 @@ export default function NewInterviewPage() {
                   credits available
                 </p>
                 <p className="text-sm text-gray-600 mt-1">
-                  Ready to start your mock interview! (5 credits/min • Min. 150
-                  credits)
+                  Ready to start your mock interview! (5 credits/min)
                 </p>
               </div>
             </div>

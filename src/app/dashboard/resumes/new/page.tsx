@@ -648,8 +648,8 @@ export default function NewResumePage() {
         <>
           {/* Selected Template Actions */}
           {selectedTemplate && (
-            <Card className="border-2 border-purple-200 bg-purple-50/50">
-              <CardContent className="p-4 flex items-center justify-between">
+            <Card className="sticky top-20 z-20 border-2 border-purple-200 bg-purple-50/95 backdrop-blur supports-[backdrop-filter]:bg-purple-50/80 shadow-sm">
+              <CardContent className="p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-3">
                   <CheckCircle className="w-5 h-5 text-purple-600" />
                   <div>
@@ -663,7 +663,7 @@ export default function NewResumePage() {
                 </div>
                 <Button
                   onClick={handleNext}
-                  className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white"
+                  className="w-full sm:w-auto bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white"
                 >
                   Next: Upload Resume
                   <ArrowRight className="w-4 h-4 ml-2" />
