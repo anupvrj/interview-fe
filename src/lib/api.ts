@@ -1,12 +1,47 @@
-import axios, { AxiosInstance, AxiosError } from "axios";
+import axios, {
+  AxiosInstance,
+  AxiosError,
+  type InternalAxiosRequestConfig,
+} from "axios";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5004/api";
 
 export const apiClient: AxiosInstance = axios.create({
   baseURL: API_URL,
-  timeout: 30000,
+  timeout: 60000,
   // Don't set default Content-Type - let each request set its own
 });
+
+/**
+ * Mobile Safari / Chrome often break multipart uploads if `Content-Type` is set
+ * without a `boundary`. Axios must not send Content-Type for FormData — the
+ * browser will set `multipart/form-data; boundary=...`.
+ */
+function stripContentTypeForFormData(config: InternalAxiosRequestConfig) {
+  if (!(config.data instanceof FormData)) return;
+  const h = config.headers;
+  if (!h) return;
+  if (typeof h.delete === "function") {
+    h.delete("Content-Type");
+    h.delete("content-type");
+  } else {
+    const raw = h as Record<string, unknown>;
+    delete raw["Content-Type"];
+    delete raw["content-type"];
+  }
+}
+
+/**
+ * Copy `File` bytes into a `Blob` before appending to FormData.
+ * Android Chrome can throw `net::ERR_UPLOAD_FILE_CHANGED` / Axios "Network Error"
+ * when the OS invalidates the original file handle during the XHR (Downloads, cloud pickers).
+ */
+async function snapshotFileForUpload(file: File): Promise<Blob> {
+  const buffer = await file.arrayBuffer();
+  return new Blob([buffer], {
+    type: file.type || "application/octet-stream",
+  });
+}
 
 // Token getter - set by AuthTokenProvider for JWT verification on backend
 let tokenGetter: (() => Promise<string | null>) | null = null;
@@ -34,6 +69,7 @@ apiClient.interceptors.request.use(
         console.error("Error getting auth:", error);
       }
     }
+    stripContentTypeForFormData(config);
     return config;
   },
   (error) => {
@@ -243,13 +279,13 @@ export const userApi = {
   },
 
   updateResume: async (file: File): Promise<{ resume: User["resume"] }> => {
+    const blob = await snapshotFileForUpload(file);
     const formData = new FormData();
-    formData.append("resume", file);
+    formData.append("resume", blob, file.name);
 
-    const response = await apiClient.post<{ data: { resume: User["resume"] } }>(
-      "/users/me/resume",
-      formData,
-    );
+    const response = await apiClient.post<{
+      data: { resume: User["resume"] };
+    }>("/users/me/resume", formData);
     return response.data.data;
   },
 
@@ -277,8 +313,9 @@ export const userApi = {
     };
     resume: User["resume"];
   }> => {
+    const blob = await snapshotFileForUpload(file);
     const formData = new FormData();
-    formData.append("resume", file);
+    formData.append("resume", blob, file.name);
 
     const response = await apiClient.post<{
       data: {
@@ -345,7 +382,8 @@ export const interviewApi = {
       formData.append("useSavedResume", "true");
     }
     if (data.resume) {
-      formData.append("resume", data.resume);
+      const resumeBlob = await snapshotFileForUpload(data.resume);
+      formData.append("resume", resumeBlob, data.resume.name);
     }
 
     const response = await apiClient.post<CreateInterviewResponse>(
