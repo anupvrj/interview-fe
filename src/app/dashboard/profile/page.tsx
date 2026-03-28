@@ -43,8 +43,11 @@ import {
 } from "@/components/ui/select";
 import { userApi, User } from "@/lib/api";
 import { formatDate } from "@/lib/utils";
-
-const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
+import {
+  PDF_RESUME_MAX_BYTES,
+  pdfResumeDropzoneAccept,
+  pdfResumeFileValidator,
+} from "@/lib/pdf-dropzone";
 
 export default function ProfilePage() {
   const { user: clerkUser, isLoaded } = useUser();
@@ -188,21 +191,20 @@ export default function ProfilePage() {
   };
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    accept: {
-      "application/pdf": [".pdf"],
-    },
-    maxSize: MAX_FILE_SIZE,
+    accept: pdfResumeDropzoneAccept,
+    maxSize: PDF_RESUME_MAX_BYTES,
     multiple: false,
+    validator: pdfResumeFileValidator,
     onDrop: (acceptedFiles, rejectedFiles) => {
       setError("");
       setSuccess("");
 
       if (rejectedFiles.length > 0) {
-        const error = rejectedFiles[0].errors[0];
-        if (error.code === "file-too-large") {
+        const err = rejectedFiles[0].errors[0];
+        if (err.code === "file-too-large") {
           setError("File size must be less than 5 MB");
         } else {
-          setError("Only PDF files are allowed");
+          setError(err.message || "Only PDF files are allowed");
         }
         return;
       }

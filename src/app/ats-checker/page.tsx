@@ -22,7 +22,13 @@ import {
 } from "lucide-react";
 import { resumeApi, resumeDataExtractionApi } from "@/lib/api";
 import { extractTextFromPDF } from "@/lib/pdf-utils";
+import {
+  PDF_RESUME_MAX_BYTES,
+  pdfResumeDropzoneAccept,
+  pdfResumeFileValidator,
+} from "@/lib/pdf-dropzone";
 import { Menu, X } from "lucide-react";
+import type { FileRejection } from "react-dropzone";
 
 type Step = "upload" | "processing" | "results";
 
@@ -183,7 +189,21 @@ export default function ATSCheckerPage() {
   const [resumeId, setResumeId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const onDrop = async (acceptedFiles: File[]) => {
+  const onDrop = async (
+    acceptedFiles: File[],
+    fileRejections: FileRejection[],
+  ) => {
+    if (fileRejections.length > 0) {
+      const err = fileRejections[0].errors[0];
+      if (err.code === "file-too-large") {
+        setError("File size must be less than 5 MB");
+      } else {
+        setError(err.message || "Only PDF files are allowed");
+      }
+      setStep("upload");
+      return;
+    }
+
     const file = acceptedFiles[0];
     if (!file) return;
 
@@ -296,10 +316,10 @@ export default function ATSCheckerPage() {
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
-    accept: {
-      "application/pdf": [".pdf"],
-    },
+    accept: pdfResumeDropzoneAccept,
+    maxSize: PDF_RESUME_MAX_BYTES,
     maxFiles: 1,
+    validator: pdfResumeFileValidator,
     disabled: uploading || processing,
   });
 

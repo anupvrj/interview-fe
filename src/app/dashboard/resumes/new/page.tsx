@@ -31,6 +31,12 @@ import {
 import { ResumeTemplate, resumeApi, resumeDataExtractionApi } from "@/lib/api";
 import { TemplatePreview } from "@/components/TemplatePreview";
 import { extractTextFromPDF } from "@/lib/pdf-utils";
+import {
+  PDF_RESUME_MAX_BYTES,
+  pdfResumeDropzoneAccept,
+  pdfResumeFileValidator,
+} from "@/lib/pdf-dropzone";
+import type { FileRejection } from "react-dropzone";
 
 const categoryLabels = {
   simple: "Popular",
@@ -126,7 +132,20 @@ export default function NewResumePage() {
     }
   };
 
-  const onDrop = async (acceptedFiles: File[]) => {
+  const onDrop = async (
+    acceptedFiles: File[],
+    fileRejections: FileRejection[],
+  ) => {
+    if (fileRejections.length > 0) {
+      const err = fileRejections[0].errors[0];
+      alert(
+        err.code === "file-too-large"
+          ? "File size must be less than 5 MB"
+          : err.message || "Only PDF files are allowed",
+      );
+      return;
+    }
+
     const file = acceptedFiles[0];
     if (!file) return;
 
@@ -150,10 +169,10 @@ export default function NewResumePage() {
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
-    accept: {
-      "application/pdf": [".pdf"],
-    },
+    accept: pdfResumeDropzoneAccept,
+    maxSize: PDF_RESUME_MAX_BYTES,
     maxFiles: 1,
+    validator: pdfResumeFileValidator,
   });
 
   const handleTemplateSelect = (templateId: string) => {
