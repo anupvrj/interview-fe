@@ -39,6 +39,10 @@ import {
   Mic,
 } from "lucide-react";
 import { interviewApi, InterviewReport, Interview } from "@/lib/api";
+import {
+  buildInterviewReportPdfHtml,
+  generateInterviewReportPdfViaServer,
+} from "@/lib/interview-report-pdf-export";
 import { uploadPDFToS3 } from "@/lib/pdf-generator";
 import { getScoreColor, getScoreGradient, formatDate } from "@/lib/utils";
 
@@ -53,6 +57,7 @@ export default function ReportPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>("");
   const [shareBusy, setShareBusy] = useState(false);
+  const [pdfDownloading, setPdfDownloading] = useState(false);
 
   useEffect(() => {
     loadReport();
@@ -535,15 +540,41 @@ export default function ReportPage() {
     return doc.output("blob");
   };
 
-  const downloadPDF = () => {
-    const blob = buildReportPdfBlob();
-    if (!blob || !interview) return;
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `easy-interview-${interview.interviewId}.pdf`;
-    a.click();
-    URL.revokeObjectURL(url);
+  const candidateDisplayName =
+    user?.fullName || user?.firstName || "Candidate";
+
+  const downloadPDF = async () => {
+    if (!report || !interview) return;
+    setPdfDownloading(true);
+    try {
+      const html = buildInterviewReportPdfHtml(
+        report,
+        interview,
+        candidateDisplayName,
+      );
+      const { downloadUrl, s3Key } =
+        await generateInterviewReportPdfViaServer({
+          interviewId,
+          htmlContent: html,
+        });
+      setReport((r) => (r ? { ...r, reportPdfS3Key: s3Key } : null));
+      window.open(downloadUrl, "_blank");
+    } catch (serverErr) {
+      console.warn(
+        "Server report PDF failed, falling back to client jsPDF:",
+        serverErr,
+      );
+      const blob = buildReportPdfBlob();
+      if (!blob) return;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `easy-interview-${interview.interviewId}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } finally {
+      setPdfDownloading(false);
+    }
   };
 
   const resolveShareUrl = async (): Promise<string> => {
@@ -553,6 +584,27 @@ export default function ReportPage() {
     const existing = await interviewApi.getReportPdfShareUrl(interviewId);
     if (existing.stored) {
       return existing.shareUrl;
+    }
+    try {
+      const html = buildInterviewReportPdfHtml(
+        report,
+        interview,
+        candidateDisplayName,
+      );
+      const { s3Key } = await generateInterviewReportPdfViaServer({
+        interviewId,
+        htmlContent: html,
+      });
+      const after = await interviewApi.getReportPdfShareUrl(interviewId);
+      if (after.stored) {
+        setReport((r) => (r ? { ...r, reportPdfS3Key: s3Key } : null));
+        return after.shareUrl;
+      }
+    } catch (serverErr) {
+      console.warn(
+        "Server report PDF for share failed, falling back to client jsPDF:",
+        serverErr,
+      );
     }
     const blob = buildReportPdfBlob();
     if (!blob) {
@@ -790,9 +842,15 @@ export default function ReportPage() {
               <Button
                 variant="outline"
                 className="gap-2"
-                onClick={() => downloadPDF()}
+                disabled={pdfDownloading}
+                onClick={() => void downloadPDF()}
               >
-                <Download className="w-4 h-4" /> Download PDF
+                {pdfDownloading ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Download className="w-4 h-4" />
+                )}
+                {pdfDownloading ? "Generating…" : "Download PDF"}
               </Button>
             </div>
           </div>
