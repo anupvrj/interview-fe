@@ -39,8 +39,11 @@ import {
   BarChart3,
 } from "lucide-react";
 import { interviewApi, paymentApi, userApi, User } from "@/lib/api";
-
-const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
+import {
+  PDF_RESUME_MAX_BYTES,
+  pdfResumeDropzoneAccept,
+  pdfResumeFileValidator,
+} from "@/lib/pdf-dropzone";
 
 export default function NewInterviewPage() {
   const { user, isLoaded } = useUser();
@@ -102,24 +105,29 @@ export default function NewInterviewPage() {
   }, [isLoaded, user]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    accept: {
-      "application/pdf": [".pdf"],
-    },
-    maxSize: MAX_FILE_SIZE,
+    accept: pdfResumeDropzoneAccept,
+    maxSize: PDF_RESUME_MAX_BYTES,
     multiple: false,
+    validator: pdfResumeFileValidator,
     onDrop: (acceptedFiles, rejectedFiles) => {
       if (rejectedFiles.length > 0) {
-        const error = rejectedFiles[0].errors[0];
-        if (error.code === "file-too-large") {
-          setErrors({ ...errors, resume: "File size must be less than 5 MB" });
+        const err = rejectedFiles[0].errors[0];
+        if (err.code === "file-too-large") {
+          setErrors((prev) => ({
+            ...prev,
+            resume: "File size must be less than 5 MB",
+          }));
         } else {
-          setErrors({ ...errors, resume: "Only PDF files are allowed" });
+          setErrors((prev) => ({
+            ...prev,
+            resume: err.message || "Only PDF files are allowed",
+          }));
         }
         return;
       }
       if (acceptedFiles.length > 0) {
         setUploadedFile(acceptedFiles[0]);
-        setErrors({ ...errors, resume: "" });
+        setErrors((prev) => ({ ...prev, resume: "" }));
       }
     },
   });

@@ -31,8 +31,11 @@ import {
   Eye,
 } from "lucide-react";
 import { userApi } from "@/lib/api";
-
-const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
+import {
+  PDF_RESUME_MAX_BYTES,
+  pdfResumeDropzoneAccept,
+  pdfResumeFileValidator,
+} from "@/lib/pdf-dropzone";
 
 const INDUSTRIES = [
   "IT/Software",
@@ -98,19 +101,18 @@ export default function OnboardingPage() {
   });
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    accept: {
-      "application/pdf": [".pdf"],
-    },
-    maxSize: MAX_FILE_SIZE,
+    accept: pdfResumeDropzoneAccept,
+    maxSize: PDF_RESUME_MAX_BYTES,
     multiple: false,
+    validator: pdfResumeFileValidator,
     onDrop: (acceptedFiles, rejectedFiles) => {
       setError("");
       if (rejectedFiles.length > 0) {
-        const error = rejectedFiles[0].errors[0];
-        if (error.code === "file-too-large") {
+        const err = rejectedFiles[0].errors[0];
+        if (err.code === "file-too-large") {
           setError("File size must be less than 5 MB");
         } else {
-          setError("Only PDF files are allowed");
+          setError(err.message || "Only PDF files are allowed");
         }
         return;
       }

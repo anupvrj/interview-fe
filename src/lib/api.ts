@@ -1069,10 +1069,24 @@ export const contentApi = {
 };
 
 // Plan API
+function normalizePlansPayload(payload: unknown): any[] {
+  if (payload == null || typeof payload !== "object") {
+    return [];
+  }
+  const p = payload as Record<string, unknown>;
+  if (Array.isArray(p.data)) {
+    return p.data;
+  }
+  if (Array.isArray(payload)) {
+    return payload;
+  }
+  return [];
+}
+
 export const planApi = {
   getAllPlans: async (): Promise<any[]> => {
-    const response = await apiClient.get<{ data: any[] }>("/plans");
-    return response.data.data;
+    const response = await apiClient.get("/plans");
+    return normalizePlansPayload(response.data);
   },
 
   getPlanById: async (planId: string): Promise<any> => {

@@ -39,30 +39,45 @@ export default function PricingPage() {
   >("monthly");
   const [plans, setPlans] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     loadPlans();
   }, []);
 
+  const isRenderablePaidPlan = (plan: any) =>
+    plan?.planId &&
+    plan.planId !== "free" &&
+    plan.pricing &&
+    typeof plan.pricing === "object" &&
+    plan.creditsIncluded &&
+    typeof plan.creditsIncluded === "object" &&
+    plan.features &&
+    typeof plan.features === "object";
+
   const loadPlans = async () => {
     try {
       setLoading(true);
+      setLoadError(null);
       const allPlans = await planApi.getAllPlans();
-      console.log("📊 Loaded plans from API:", allPlans);
 
       // Filter out free plan and ensure plans have required fields
-      const paidPlans = allPlans.filter(
-        (plan) =>
-          plan.planId !== "free" &&
-          plan.pricing &&
-          plan.creditsIncluded &&
-          plan.features,
+      const paidPlans = (Array.isArray(allPlans) ? allPlans : []).filter(
+        isRenderablePaidPlan,
       );
 
-      console.log("✅ Filtered paid plans:", paidPlans);
       setPlans(paidPlans);
+      if (paidPlans.length === 0 && Array.isArray(allPlans) && allPlans.length > 0) {
+        setLoadError(
+          "Plans loaded but none matched the paid-plan format. Check API data.",
+        );
+      }
     } catch (error) {
       console.error("Error loading plans:", error);
+      const message =
+        error instanceof Error ? error.message : "Failed to load plans";
+      setLoadError(message);
+      setPlans([]);
     } finally {
       setLoading(false);
     }
@@ -202,11 +217,14 @@ export default function PricingPage() {
 
   if (!loading && plans.length === 0) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <p className="text-gray-600 mb-4">
+      <div className="flex items-center justify-center min-h-screen px-4">
+        <div className="text-center max-w-md">
+          <p className="text-gray-600 mb-2">
             No plans available at the moment.
           </p>
+          {loadError && (
+            <p className="text-sm text-gray-500 mb-4 break-words">{loadError}</p>
+          )}
           <Button onClick={loadPlans}>Retry</Button>
         </div>
       </div>
