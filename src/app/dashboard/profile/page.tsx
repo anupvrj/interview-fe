@@ -42,6 +42,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { userApi, User } from "@/lib/api";
+import { getApiErrorMessage } from "@/lib/api-error-message";
 import { formatDate } from "@/lib/utils";
 import {
   PDF_RESUME_MAX_BYTES,
@@ -232,11 +233,16 @@ export default function ProfilePage() {
       setUploadedFile(null);
 
       await loadProfile();
-    } catch (error: any) {
-      console.error("Error uploading resume:", error);
+    } catch (error: unknown) {
+      console.error(
+        "Error uploading resume:",
+        error instanceof Error ? error.stack ?? error : error
+      );
       setError(
-        error.response?.data?.message ||
-          "Failed to upload resume. Please try again."
+        getApiErrorMessage(
+          error,
+          "Failed to upload resume. Please try again.",
+        ),
       );
     } finally {
       setUploading(false);

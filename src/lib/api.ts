@@ -1,12 +1,35 @@
-import axios, { AxiosInstance, AxiosError } from "axios";
+import axios, {
+  AxiosInstance,
+  AxiosError,
+  type InternalAxiosRequestConfig,
+} from "axios";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5004/api";
 
 export const apiClient: AxiosInstance = axios.create({
   baseURL: API_URL,
-  timeout: 30000,
+  timeout: 60000,
   // Don't set default Content-Type - let each request set its own
 });
+
+/**
+ * Mobile Safari / Chrome often break multipart uploads if `Content-Type` is set
+ * without a `boundary`. Axios must not send Content-Type for FormData — the
+ * browser will set `multipart/form-data; boundary=...`.
+ */
+function stripContentTypeForFormData(config: InternalAxiosRequestConfig) {
+  if (!(config.data instanceof FormData)) return;
+  const h = config.headers;
+  if (!h) return;
+  if (typeof h.delete === "function") {
+    h.delete("Content-Type");
+    h.delete("content-type");
+  } else {
+    const raw = h as Record<string, unknown>;
+    delete raw["Content-Type"];
+    delete raw["content-type"];
+  }
+}
 
 // Token getter - set by AuthTokenProvider for JWT verification on backend
 let tokenGetter: (() => Promise<string | null>) | null = null;
@@ -34,6 +57,7 @@ apiClient.interceptors.request.use(
         console.error("Error getting auth:", error);
       }
     }
+    stripContentTypeForFormData(config);
     return config;
   },
   (error) => {
@@ -246,10 +270,9 @@ export const userApi = {
     const formData = new FormData();
     formData.append("resume", file);
 
-    const response = await apiClient.post<{ data: { resume: User["resume"] } }>(
-      "/users/me/resume",
-      formData,
-    );
+    const response = await apiClient.post<{
+      data: { resume: User["resume"] };
+    }>("/users/me/resume", formData);
     return response.data.data;
   },
 
