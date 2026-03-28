@@ -31,6 +31,18 @@ function stripContentTypeForFormData(config: InternalAxiosRequestConfig) {
   }
 }
 
+/**
+ * Copy `File` bytes into a `Blob` before appending to FormData.
+ * Android Chrome can throw `net::ERR_UPLOAD_FILE_CHANGED` / Axios "Network Error"
+ * when the OS invalidates the original file handle during the XHR (Downloads, cloud pickers).
+ */
+async function snapshotFileForUpload(file: File): Promise<Blob> {
+  const buffer = await file.arrayBuffer();
+  return new Blob([buffer], {
+    type: file.type || "application/octet-stream",
+  });
+}
+
 // Token getter - set by AuthTokenProvider for JWT verification on backend
 let tokenGetter: (() => Promise<string | null>) | null = null;
 export function setAuthTokenGetter(getter: () => Promise<string | null>) {
@@ -267,8 +279,9 @@ export const userApi = {
   },
 
   updateResume: async (file: File): Promise<{ resume: User["resume"] }> => {
+    const blob = await snapshotFileForUpload(file);
     const formData = new FormData();
-    formData.append("resume", file);
+    formData.append("resume", blob, file.name);
 
     const response = await apiClient.post<{
       data: { resume: User["resume"] };
@@ -300,8 +313,9 @@ export const userApi = {
     };
     resume: User["resume"];
   }> => {
+    const blob = await snapshotFileForUpload(file);
     const formData = new FormData();
-    formData.append("resume", file);
+    formData.append("resume", blob, file.name);
 
     const response = await apiClient.post<{
       data: {
@@ -368,7 +382,8 @@ export const interviewApi = {
       formData.append("useSavedResume", "true");
     }
     if (data.resume) {
-      formData.append("resume", data.resume);
+      const resumeBlob = await snapshotFileForUpload(data.resume);
+      formData.append("resume", resumeBlob, data.resume.name);
     }
 
     const response = await apiClient.post<CreateInterviewResponse>(
