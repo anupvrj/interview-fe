@@ -500,6 +500,37 @@ export const interviewApi = {
     return response.data.data;
   },
 
+  /** Server Puppeteer PDF (same pipeline as resume generate-pdf). Updates reportPdfS3Key. */
+  generateReportPDF: async (
+    interviewId: string,
+    htmlContent: string,
+    padding?: {
+      top: number;
+      bottom: number;
+      left: number;
+      right: number;
+    },
+    templateCSS?: string,
+  ): Promise<{ downloadUrl: string; s3Key: string }> => {
+    const response = await apiClient.post<{
+      data: { downloadUrl: string; s3Key: string };
+    }>(
+      `/interviews/${interviewId}/report/generate-pdf`,
+      {
+        htmlContent,
+        padding,
+        templateCSS,
+      },
+      {
+        headers: {
+          "Content-Type": "application/json",
+        },
+        timeout: 120000,
+      },
+    );
+    return response.data.data;
+  },
+
   getRecordingVideoUrl: async (
     interviewId: string,
   ): Promise<{ videoUrl: string; expiresIn: number }> => {
