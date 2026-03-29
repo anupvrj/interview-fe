@@ -145,6 +145,8 @@ export interface Interview {
     resumeS3Key?: string;
     targetCompany?: string;
     createdAt: string;
+    /** Interview duration in minutes (15 or 30). */
+    interviewDuration?: number;
   };
   session?: {
     s3VideoKey?: string;
@@ -242,6 +244,8 @@ export interface CreateInterviewRequest {
   targetCompany?: string;
   resume?: File;
   useSavedResume?: boolean;
+  /** Interview duration in minutes: 15 (default) or 30 (premium/elite only). */
+  duration?: number;
 }
 
 export interface CreateInterviewResponse {
@@ -380,6 +384,9 @@ export const interviewApi = {
     }
     if (data.useSavedResume) {
       formData.append("useSavedResume", "true");
+    }
+    if (data.duration) {
+      formData.append("duration", data.duration.toString());
     }
     if (data.resume) {
       const resumeBlob = await snapshotFileForUpload(data.resume);
