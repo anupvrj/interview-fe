@@ -21,6 +21,7 @@ import {
   Scale,
   Mail,
 } from "lucide-react";
+import { InterviewTrixLogo } from "@/components/InterviewTrixLogo";
 import { NavigationMenu } from "@/components/NavigationMenu";
 import { MarketingFooter } from "@/components/MarketingFooter";
 
@@ -46,24 +47,12 @@ export default function TermsOfServicePage() {
 
                 <Link
                   href="/"
-                  className="flex items-center gap-2 hover:opacity-80 transition-opacity mx-auto sm:mx-0"
+                  className="flex items-center hover:opacity-80 transition-opacity mx-auto sm:mx-0"
                 >
-                  <div className="flex items-center gap-1.5">
-                    <div className="w-8 h-8 sm:w-9 sm:h-9 bg-gradient-to-br from-blue-600 to-blue-700 rounded-lg flex items-center justify-center shadow-sm">
-                      <span className="text-white font-bold text-xs sm:text-sm">
-                        i<span className="text-sm sm:text-base">X</span>
-                      </span>
-                    </div>
-                    <span className="text-lg sm:text-xl lg:text-2xl font-bold text-slate-900">
-                      Interview{" "}
-                      <span className="text-blue-600">
-                        Tri
-                        <span className="text-xl sm:text-2xl lg:text-3xl">
-                          X
-                        </span>
-                      </span>
-                    </span>
-                  </div>
+                  <InterviewTrixLogo
+                    className="h-7 sm:h-8 lg:h-10 w-auto"
+                    priority
+                  />
                 </Link>
 
                 <div className="sm:hidden w-8"></div>

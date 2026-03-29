@@ -2,6 +2,7 @@
 
 import { SignUp } from "@clerk/nextjs";
 import Link from "next/link";
+import { InterviewTrixLogo } from "@/components/InterviewTrixLogo";
 import { ArrowLeft, Check, Code, Briefcase, Award, Target, Zap, Users } from "lucide-react";
 
 export default function SignUpPage() {
@@ -25,15 +26,12 @@ export default function SignUpPage() {
         <div className="hidden lg:flex lg:w-1/2 flex-col justify-center items-end px-8 xl:px-12 py-12 pr-8 xl:pr-16">
         <div className="max-w-md w-full">
           {/* Logo */}
-          <Link href="/" className="inline-flex items-center gap-3 mb-12 hover:opacity-90 transition-opacity">
-            <div className="w-14 h-14 bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl flex items-center justify-center shadow-lg">
-              <span className="text-white font-bold text-lg">
-                i<span className="text-xl">X</span>
-              </span>
-            </div>
-            <span className="text-3xl font-bold text-slate-900">
-              Interview <span className="text-blue-600">Tri<span className="text-4xl">X</span></span>
-            </span>
+          <Link href="/" className="inline-flex items-center mb-12 hover:opacity-90 transition-opacity">
+            <InterviewTrixLogo
+              variant="onLightBg"
+              className="h-12 lg:h-14 w-auto"
+              priority
+            />
           </Link>
 
           <p className="text-sm text-gray-600 mb-2">Start your journey</p>
@@ -74,15 +72,12 @@ export default function SignUpPage() {
           {/* Mobile Header (Visible only on mobile) */}
           <div className="lg:hidden text-center mb-8">
             {/* Logo */}
-            <Link href="/" className="inline-flex items-center gap-2 mb-6 hover:opacity-90 transition-opacity">
-              <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl flex items-center justify-center shadow-lg">
-                <span className="text-white font-bold text-base">
-                  i<span className="text-lg">X</span>
-                </span>
-              </div>
-              <span className="text-2xl font-bold text-slate-900">
-                Interview <span className="text-blue-600">Tri<span className="text-3xl">X</span></span>
-              </span>
+            <Link href="/" className="inline-flex items-center justify-center mb-6 hover:opacity-90 transition-opacity">
+              <InterviewTrixLogo
+                variant="onLightBg"
+                className="h-10 w-auto"
+                priority
+              />
             </Link>
             
             <p className="text-sm text-gray-600 mb-2">Start your journey</p>
