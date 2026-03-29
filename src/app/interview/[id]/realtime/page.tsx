@@ -27,6 +27,7 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { interviewApi, Interview } from "@/lib/api";
+import { normalizeInterviewDurationMinutes } from "@/lib/interviewDuration";
 import { formatDuration } from "@/lib/utils";
 
 /** Hard fallback minutes added on top of target (used if AI never sends interview_complete). */
@@ -43,8 +44,9 @@ export default function RealtimeInterviewPage() {
 
   const [interview, setInterview] = useState<Interview | null>(null);
   const [loading, setLoading] = useState(true);
-  // Target duration in seconds — derived from interview metadata once loaded.
-  const targetDurationSec = (interview?.metadata?.interviewDuration ?? 15) * 60;
+  // Target duration in seconds — from interview metadata (set when the interview was created).
+  const targetDurationSec =
+    normalizeInterviewDurationMinutes(interview?.metadata?.interviewDuration) * 60;
   const maxDurationSec = targetDurationSec + EXTRA_BUFFER_MINUTES * 60;
   const [error, setError] = useState<string>("");
   const [connected, setConnected] = useState(false);
@@ -68,8 +70,14 @@ export default function RealtimeInterviewPage() {
   const [lastAIMessage, setLastAIMessage] = useState("");
   const [connectionFailed, setConnectionFailed] = useState(false);
   const [isReconnecting, setIsReconnecting] = useState(false);
+  // Number of consecutive reconnect attempts received — used to escalate from
+  // non-blocking banner (1-2 attempts) to blocking dialog (all attempts failed).
+  const [reconnectAttemptCount, setReconnectAttemptCount] = useState(0);
   const [isClosingFailed, setIsClosingFailed] = useState(false);
   const [isResuming, setIsResuming] = useState(false);
+  // Non-blocking toast shown for soft failures during an active interview
+  // (upload errors, WS send errors). Does not interrupt the interview.
+  const [activeError, setActiveError] = useState<string>("");
   const [showEndInterviewConfirm, setShowEndInterviewConfirm] = useState(false);
   const [showInterviewComplete, setShowInterviewComplete] = useState(false);
   const [interviewCompleteCountdown, setInterviewCompleteCountdown] = useState(15);
@@ -85,7 +93,8 @@ export default function RealtimeInterviewPage() {
   const websocketRef = useRef<WebSocket | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const timerStartedRef = useRef(false);
-  const audioProcessorRef = useRef<ScriptProcessorNode | null>(null);
+  // AudioWorkletNode is the primary processor; ScriptProcessorNode used as fallback only.
+  const audioProcessorRef = useRef<AudioWorkletNode | ScriptProcessorNode | null>(null);
   const audioQueueRef = useRef<Int16Array[]>([]);
   const audioBufferRef = useRef<Int16Array[]>([]);
   const audioBufferTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -100,6 +109,8 @@ export default function RealtimeInterviewPage() {
     null,
   );
   const voiceProviderRef = useRef<"chatgpt" | "gemini">(VOICE_PROVIDER);
+  // Ref mirror for isMicOn — avoids stale closure in sendAudioChunk / onaudioprocess
+  const isMicOnRef = useRef(true);
 
   useEffect(() => {
     loadInterview();
@@ -145,7 +156,7 @@ export default function RealtimeInterviewPage() {
     try {
       const data = await interviewApi.get(interviewId);
       setInterview(data);
-      await connectWebSocket();
+      await connectWebSocket(data);
     } catch (error: any) {
       console.error("Error loading interview:", error);
       setError("Failed to load interview. Please allow camera/mic access.");
@@ -347,7 +358,7 @@ export default function RealtimeInterviewPage() {
     connectionInitiatedRef.current = false; // Reset for next connection
   };
 
-  const connectWebSocket = async () => {
+  const connectWebSocket = async (interviewForWs?: Interview | null) => {
     // Prevent duplicate connections (React Strict Mode can cause double mounting)
     if (connectionInitiatedRef.current) {
       console.warn(
@@ -378,7 +389,11 @@ export default function RealtimeInterviewPage() {
         VOICE_PROVIDER === "gemini"
           ? `interviews/${interviewId}/realtime/gemini`
           : `interviews/${interviewId}/realtime`;
-      const wsUrl = `${wsProtocol}//${baseUrl}/api/${realtimePath}?userId=${userId}`;
+      const iv = interviewForWs ?? interview;
+      const durationParam = normalizeInterviewDurationMinutes(
+        iv?.metadata?.interviewDuration,
+      );
+      const wsUrl = `${wsProtocol}//${baseUrl}/api/${realtimePath}?userId=${encodeURIComponent(userId)}&interviewDurationMinutes=${durationParam}`;
 
       console.log("🔌 Connecting to WebSocket:", wsUrl);
       const ws = new WebSocket(wsUrl);
@@ -392,7 +407,14 @@ export default function RealtimeInterviewPage() {
         }
         if (isResumingRef.current && isInterviewActiveRef.current) {
           if (voiceProviderRef.current === "gemini") {
-            ws.send(JSON.stringify({ type: "start_interview" }));
+            ws.send(
+              JSON.stringify({
+                type: "start_interview",
+                interviewDurationMinutes: normalizeInterviewDurationMinutes(
+                  interview?.metadata?.interviewDuration,
+                ),
+              }),
+            );
           } else {
             ws.send(JSON.stringify({ type: "response.create" }));
           }
@@ -413,12 +435,22 @@ export default function RealtimeInterviewPage() {
             setIsAISpeaking(false);
             setLastAIMessage("Reconnecting AI session...");
             setIsReconnecting(true);
-            if (isInterviewActiveRef.current) setConnectionFailed(true);
+            setReconnectAttemptCount((prev) => {
+              const next = prev + 1;
+              // Only escalate to blocking connectionFailed dialog after the
+              // backend has exhausted all its reconnect attempts (3-5 attempts).
+              // Until then, show the non-blocking reconnecting banner only.
+              if (isInterviewActiveRef.current && next >= 3) {
+                setConnectionFailed(true);
+              }
+              return next;
+            });
           } else if (data.type === "reconnected") {
             setIsAIProcessing(false);
             setLastAIMessage("AI session resumed.");
             setIsReconnecting(false);
             setConnectionFailed(false);
+            setReconnectAttemptCount(0);
             setConnected(true);
           } else if (data.type === "connected") {
             if (data.provider) voiceProviderRef.current = data.provider;
@@ -542,6 +574,8 @@ export default function RealtimeInterviewPage() {
       };
 
       ws.onerror = () => {
+        // Reset so a future connectWebSocket() call isn't blocked.
+        connectionInitiatedRef.current = false;
         if (isInterviewActiveRef.current) {
           setConnectionFailed(true);
           setError("Something went wrong at server side.");
@@ -553,6 +587,8 @@ export default function RealtimeInterviewPage() {
       ws.onclose = (event) => {
         setConnected(false);
         setIsReconnecting(false);
+        // Always reset so a future reconnect attempt can proceed.
+        connectionInitiatedRef.current = false;
         if (event.code !== 1000 && isInterviewActiveRef.current) {
           setConnectionFailed(true);
           setError("Something went wrong at server side.");
@@ -798,123 +834,129 @@ export default function RealtimeInterviewPage() {
       return;
     }
 
-    try {
-      const audioContext = new (
-        globalThis.AudioContext || (globalThis as any).webkitAudioContext
-      )();
-      audioContextRef.current = audioContext;
+    const TARGET_SAMPLE_RATE = 24000;
 
-      console.log(
-        `🎵 Audio resampling: ${audioContext.sampleRate}Hz → 24000Hz`,
-      );
-
-      if (audioContext.sampleRate !== 24000) {
-        console.warn(
-          `⚠️ Sample rate mismatch! Browser: ${audioContext.sampleRate}Hz, OpenAI: 24000Hz. This may cause transcription issues.`,
-        );
+    const sendAudioChunk = (base64Audio: string) => {
+      // Use isMicOnRef (not state) to avoid stale closure — state captured at
+      // setup time never updates when the user toggles mute after setup.
+      if (
+        !isInterviewActiveRef.current ||
+        !isMicOnRef.current ||
+        !websocketRef.current ||
+        websocketRef.current.readyState !== WebSocket.OPEN
+      ) {
+        return;
       }
-
-      const source = audioContext.createMediaStreamSource(
-        mediaStreamRef.current,
+      const isGemini = voiceProviderRef.current === "gemini";
+      websocketRef.current.send(
+        JSON.stringify(
+          isGemini
+            ? { type: "audio", audioData: base64Audio }
+            : { type: "audio_chunk", audio: base64Audio },
+        ),
       );
+    };
+
+    const setupWithScriptProcessor = (audioContext: AudioContext) => {
+      const browserSampleRate = audioContext.sampleRate;
+      const resampleRatio = TARGET_SAMPLE_RATE / browserSampleRate;
+      console.log(`🎵 ScriptProcessor fallback: ${browserSampleRate}Hz → ${TARGET_SAMPLE_RATE}Hz`);
+
+      const source = audioContext.createMediaStreamSource(mediaStreamRef.current!);
       const processor = audioContext.createScriptProcessor(4096, 1, 1);
 
-      let audioChunkCount = 0;
-      let maxAmplitude = 0;
-
-      // Critical: Calculate resampling ratio
-      const browserSampleRate = audioContext.sampleRate;
-      const targetSampleRate = 24000; // OpenAI expects 24kHz
-      const resampleRatio = targetSampleRate / browserSampleRate;
-
-      console.log(
-        `🎵 Audio Resampling: ${browserSampleRate}Hz → ${targetSampleRate}Hz (ratio: ${resampleRatio.toFixed(
-          4,
-        )})`,
-      );
-
       processor.onaudioprocess = (e) => {
-        // Log status and audio level every 50 chunks (~5 seconds)
-        if (audioChunkCount % 50 === 0) {
-          console.log(
-            `🎤 Audio status: active=${
-              isInterviewActiveRef.current
-            }, mic=${isMicOn}, ws=${
-              websocketRef.current?.readyState
-            }, maxLevel=${maxAmplitude.toFixed(3)}`,
-          );
-          maxAmplitude = 0; // Reset
-        }
-        audioChunkCount++;
-
-        // Continuously stream audio when interview is active and mic is on
-        if (
-          !isInterviewActiveRef.current ||
-          !isMicOn ||
-          !websocketRef.current ||
-          websocketRef.current.readyState !== WebSocket.OPEN
-        ) {
-          return;
-        }
-
+        if (!isInterviewActiveRef.current || !isMicOnRef.current) return;
         const inputData = e.inputBuffer.getChannelData(0);
-
-        // CRITICAL FIX: Resample audio to 24kHz for OpenAI
-        let resampledData = inputData;
-        if (browserSampleRate !== targetSampleRate) {
-          const targetLength = Math.floor(inputData.length * resampleRatio);
-          resampledData = new Float32Array(targetLength);
-
-          for (let i = 0; i < targetLength; i++) {
-            const sourceIndex = i / resampleRatio;
-            const index0 = Math.floor(sourceIndex);
-            const index1 = Math.min(index0 + 1, inputData.length - 1);
-            const fraction = sourceIndex - index0;
-
-            // Linear interpolation for resampling
-            resampledData[i] =
-              inputData[index0] * (1 - fraction) + inputData[index1] * fraction;
+        let resampled = inputData;
+        if (browserSampleRate !== TARGET_SAMPLE_RATE) {
+          const len = Math.floor(inputData.length * resampleRatio);
+          resampled = new Float32Array(len);
+          for (let i = 0; i < len; i++) {
+            const src = i / resampleRatio;
+            const i0 = Math.floor(src);
+            const i1 = Math.min(i0 + 1, inputData.length - 1);
+            resampled[i] = inputData[i0] * (1 - (src - i0)) + inputData[i1] * (src - i0);
           }
         }
-
-        const pcm16 = new Int16Array(resampledData.length);
-
-        // Convert float32 to int16 and track amplitude
-        for (let i = 0; i < resampledData.length; i++) {
-          const s = Math.max(-1, Math.min(1, resampledData[i]));
+        const pcm16 = new Int16Array(resampled.length);
+        for (let i = 0; i < resampled.length; i++) {
+          const s = Math.max(-1, Math.min(1, resampled[i]));
           pcm16[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
-
-          // Track max amplitude for debugging
-          const absVal = Math.abs(s);
-          if (absVal > maxAmplitude) {
-            maxAmplitude = absVal;
-          }
         }
-
-        // Convert Int16Array to base64 string
-        const buffer = new Uint8Array(pcm16.buffer);
+        const bytes = new Uint8Array(pcm16.buffer);
         let binary = "";
-        const len = buffer.byteLength;
-        for (let i = 0; i < len; i++) {
-          binary += String.fromCodePoint(buffer[i]);
-        }
-        const base64Audio = btoa(binary);
-
-        // Stream audio: Gemini expects { type: "audio", audioData }; ChatGPT expects { type: "audio_chunk", audio }
-        const isGemini = voiceProviderRef.current === "gemini";
-        websocketRef.current.send(
-          JSON.stringify(
-            isGemini
-              ? { type: "audio", audioData: base64Audio }
-              : { type: "audio_chunk", audio: base64Audio },
-          ),
-        );
-
+        for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCodePoint(bytes[i]);
+        sendAudioChunk(btoa(binary));
       };
 
       source.connect(processor);
       processor.connect(audioContext.destination);
       audioProcessorRef.current = processor;
+    };
+
+    try {
+      const audioContext = new (
+        globalThis.AudioContext || (globalThis as any).webkitAudioContext
+      )();
+      audioContextRef.current = audioContext;
+      console.log(`🎵 AudioContext ready: ${audioContext.sampleRate}Hz → ${TARGET_SAMPLE_RATE}Hz`);
+
+      // Chrome auto-suspends AudioContext when there's no audio OUTPUT (e.g. after
+      // the AI greeting finishes playing). When suspended, the AudioWorklet and
+      // ScriptProcessorNode stop firing entirely — mic audio is silently dropped.
+      // Resume immediately whenever the context suspends to keep capture running.
+      audioContext.onstatechange = () => {
+        console.log(`🎵 AudioContext state: ${audioContext.state}`);
+        if (audioContext.state === "suspended") {
+          audioContext.resume().catch((err) =>
+            console.warn("AudioContext resume failed:", err)
+          );
+        }
+      };
+
+      // Try AudioWorklet first; fall back to deprecated ScriptProcessorNode
+      if (audioContext.audioWorklet) {
+        audioContext.audioWorklet
+          .addModule("/mic-processor.worklet.js")
+          .then(() => {
+            const source = audioContext.createMediaStreamSource(mediaStreamRef.current!);
+            const workletNode = new AudioWorkletNode(audioContext, "mic-processor", {
+              processorOptions: { targetSampleRate: TARGET_SAMPLE_RATE },
+            });
+
+            let chunkCount = 0;
+            workletNode.port.onmessage = (event) => {
+              if (event.data.type === "audio_chunk") {
+                chunkCount++;
+                if (chunkCount % 50 === 0) {
+                  console.log(`🎤 AudioWorklet: ${chunkCount} chunks sent`);
+                }
+                // btoa is not available in AudioWorklet scope — the worklet
+                // sends the raw Int16Array buffer; we encode here on the main thread.
+                const bytes = new Uint8Array(event.data.pcm16 as ArrayBuffer);
+                let binary = "";
+                for (let i = 0; i < bytes.byteLength; i++) {
+                  binary += String.fromCharCode(bytes[i]);
+                }
+                sendAudioChunk(btoa(binary));
+              }
+            };
+
+            source.connect(workletNode);
+            workletNode.connect(audioContext.destination);
+            // Store as ref so cleanup can disconnect it
+            (audioProcessorRef as any).current = workletNode;
+            console.log("🎤 Using AudioWorklet for mic capture");
+          })
+          .catch((err) => {
+            console.warn("AudioWorklet failed, falling back to ScriptProcessor:", err);
+            setupWithScriptProcessor(audioContext);
+          });
+      } else {
+        // Browser doesn't support AudioWorklet (e.g. old Safari)
+        setupWithScriptProcessor(audioContext);
+      }
     } catch (error) {
       console.error("Error setting up audio capture:", error);
     }
@@ -942,7 +984,14 @@ export default function RealtimeInterviewPage() {
 
       // Explicitly start Gemini interview only after user click
       if (voiceProviderRef.current === "gemini" && websocketRef.current) {
-        websocketRef.current.send(JSON.stringify({ type: "start_interview" }));
+        websocketRef.current.send(
+          JSON.stringify({
+            type: "start_interview",
+            interviewDurationMinutes: normalizeInterviewDurationMinutes(
+              interview?.metadata?.interviewDuration,
+            ),
+          }),
+        );
       }
 
       // Setup audio capture (must be after setIsInterviewActive)
@@ -1030,7 +1079,8 @@ export default function RealtimeInterviewPage() {
       router.push(`/dashboard/interviews/${interviewId}/processing`);
     } catch (error: any) {
       console.error("Error ending interview:", error);
-      setError(error.message || "Failed to end interview.");
+      // Use non-blocking toast so the interview isn't interrupted.
+      setActiveError(error.message || "Failed to end interview. Please try again.");
     }
   };
 
@@ -1048,8 +1098,10 @@ export default function RealtimeInterviewPage() {
     if (mediaStreamRef.current) {
       const audioTrack = mediaStreamRef.current.getAudioTracks()[0];
       if (audioTrack) {
-        audioTrack.enabled = !isMicOn;
-        setIsMicOn(!isMicOn);
+        const next = !isMicOn;
+        audioTrack.enabled = next;
+        isMicOnRef.current = next; // keep ref in sync for audio capture closure
+        setIsMicOn(next);
       }
     }
   };
@@ -1895,6 +1947,30 @@ export default function RealtimeInterviewPage() {
         <div className="absolute -top-28 -left-24 h-72 w-72 rounded-full bg-purple-500/15 blur-3xl" />
         <div className="absolute top-24 right-0 h-80 w-80 rounded-full bg-blue-500/10 blur-3xl" />
       </div>
+
+      {/* Non-blocking reconnect banner — shown during reconnect before escalation to dialog */}
+      {isReconnecting && !connectionFailed && (
+        <div className="fixed top-0 left-0 right-0 z-50 flex items-center justify-center gap-2 bg-yellow-500/90 px-4 py-2 text-sm font-medium text-yellow-950 shadow-md">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Reconnecting AI session... ({reconnectAttemptCount}/3 attempts)
+        </div>
+      )}
+
+      {/* Non-blocking active error toast — shown during interview without blocking it */}
+      {activeError && isInterviewActive && (
+        <div className="fixed bottom-4 left-1/2 z-50 -translate-x-1/2 flex items-center gap-2 rounded-lg bg-red-600/90 px-4 py-3 text-sm text-white shadow-lg">
+          <AlertCircle className="h-4 w-4 shrink-0" />
+          <span>{activeError}</span>
+          <button
+            onClick={() => setActiveError("")}
+            className="ml-2 rounded-full p-0.5 hover:bg-white/20"
+            aria-label="Dismiss"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       {/* Header */}
       <div className="sticky top-0 z-20 border-b border-white/10 bg-black/35 backdrop-blur-xl">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
@@ -1909,7 +1985,7 @@ export default function RealtimeInterviewPage() {
           </div>
           <div className="flex items-center gap-3">
             <Progress
-              value={(elapsedTime / targetDurationSec) * 100}
+              value={Math.min((elapsedTime / targetDurationSec) * 100, 100)}
               className="h-2 w-40 bg-white/10"
             />
             {isInterviewActive && (
