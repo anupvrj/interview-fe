@@ -57,6 +57,7 @@ export default function NewInterviewPage() {
     experience: "0",
     language: "en",
     targetCompany: "",
+    duration: "15",
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [limitCheck, setLimitCheck] = useState<any>(null);
@@ -169,6 +170,7 @@ export default function NewInterviewPage() {
         resume: useSavedResume ? undefined : uploadedFile || undefined,
         useSavedResume:
           useSavedResume && userProfile?.resume ? true : undefined,
+        duration: parseInt(formData.duration),
       });
 
       router.push(`/interview/${response.data.interviewId}/realtime`);
@@ -420,6 +422,58 @@ export default function NewInterviewPage() {
                         </SelectContent>
                       </Select>
                     </div>
+                  </div>
+
+                  {/* Interview Duration */}
+                  <div className="space-y-2">
+                    <Label
+                      htmlFor="duration"
+                      className="text-sm font-semibold text-gray-700 flex items-center gap-2"
+                    >
+                      <Clock className="w-4 h-4 text-purple-600" />
+                      Interview Duration
+                    </Label>
+                    <Select
+                      value={formData.duration}
+                      onValueChange={(value) =>
+                        setFormData({ ...formData, duration: value })
+                      }
+                    >
+                      <SelectTrigger className="h-11 sm:h-12 text-sm sm:text-base w-full">
+                        <SelectValue placeholder="Select duration" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="15">15 minutes</SelectItem>
+                        <SelectItem
+                          value="30"
+                          disabled={
+                            !["premium", "elite"].includes(
+                              userProfile?.subscription?.plan ?? "",
+                            )
+                          }
+                        >
+                          <span className="flex items-center gap-2">
+                            30 minutes
+                            {!["premium", "elite"].includes(
+                              userProfile?.subscription?.plan ?? "",
+                            ) && (
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-gradient-to-r from-yellow-400 to-amber-500 text-white">
+                                <Crown className="w-2.5 h-2.5" />
+                                PRO
+                              </span>
+                            )}
+                          </span>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-gray-500 flex items-center gap-1">
+                      <Zap className="w-3 h-3" />
+                      {["premium", "elite"].includes(
+                        userProfile?.subscription?.plan ?? "",
+                      )
+                        ? "Choose 15 or 30 minutes for a deeper session"
+                        : "30-minute interviews available on Premium & Elite plans"}
+                    </p>
                   </div>
 
                   {/* Target Company */}

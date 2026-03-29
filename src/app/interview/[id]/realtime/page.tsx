@@ -29,8 +29,8 @@ import {
 import { interviewApi, Interview } from "@/lib/api";
 import { formatDuration } from "@/lib/utils";
 
-const TARGET_INTERVIEW_DURATION = 15 * 60; // 15 minutes - AI says final thank you
-const MAX_INTERVIEW_DURATION = 20 * 60; // 20 minutes - hard fallback if AI doesn't complete
+/** Hard fallback minutes added on top of target (used if AI never sends interview_complete). */
+const EXTRA_BUFFER_MINUTES = 5;
 
 /** Voice provider for realtime: "chatgpt" (default) or "gemini". Set via NEXT_PUBLIC_VOICE_PROVIDER. */
 const VOICE_PROVIDER: "chatgpt" | "gemini" =
@@ -43,6 +43,9 @@ export default function RealtimeInterviewPage() {
 
   const [interview, setInterview] = useState<Interview | null>(null);
   const [loading, setLoading] = useState(true);
+  // Target duration in seconds — derived from interview metadata once loaded.
+  const targetDurationSec = (interview?.metadata?.interviewDuration ?? 15) * 60;
+  const maxDurationSec = targetDurationSec + EXTRA_BUFFER_MINUTES * 60;
   const [error, setError] = useState<string>("");
   const [connected, setConnected] = useState(false);
   const [isInterviewActive, setIsInterviewActive] = useState(false);
@@ -72,6 +75,8 @@ export default function RealtimeInterviewPage() {
   const [interviewCompleteCountdown, setInterviewCompleteCountdown] = useState(15);
   const interviewCompleteAutoCloseRef = useRef<NodeJS.Timeout | null>(null);
   const interviewCompleteCountdownRef = useRef<NodeJS.Timeout | null>(null);
+  // Candidate-initiated end-interview confirmation dialog
+  const [showConfirmEndInterview, setShowConfirmEndInterview] = useState(false);
 
   // Refs
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -121,7 +126,7 @@ export default function RealtimeInterviewPage() {
   }, []);
 
   useEffect(() => {
-    if (isInterviewActive && elapsedTime >= MAX_INTERVIEW_DURATION) {
+    if (isInterviewActive && elapsedTime >= maxDurationSec) {
       endInterview();
     }
   }, [elapsedTime, isInterviewActive]);
@@ -380,7 +385,11 @@ export default function RealtimeInterviewPage() {
       websocketRef.current = ws;
 
       ws.onopen = () => {
-        setConnected(true);
+        // For Gemini, wait for the backend "connected" message (Gemini session ready)
+        // before enabling the Start button. For ChatGPT, enable immediately on WS open.
+        if (voiceProviderRef.current !== "gemini") {
+          setConnected(true);
+        }
         if (isResumingRef.current && isInterviewActiveRef.current) {
           if (voiceProviderRef.current === "gemini") {
             ws.send(JSON.stringify({ type: "start_interview" }));
@@ -410,8 +419,11 @@ export default function RealtimeInterviewPage() {
             setLastAIMessage("AI session resumed.");
             setIsReconnecting(false);
             setConnectionFailed(false);
+            setConnected(true);
           } else if (data.type === "connected") {
             if (data.provider) voiceProviderRef.current = data.provider;
+            // Gemini session is ready — enable the Start Interview button
+            setConnected(true);
           } else if (data.type === "openai_event") {
             handleOpenAIEvent(data.event);
           } else if (data.type === "audio_response") {
@@ -491,6 +503,9 @@ export default function RealtimeInterviewPage() {
               setShowInterviewComplete(false);
               endInterview();
             }, 15000);
+          } else if (data.type === "confirm_end_interview") {
+            // Candidate said they want to end — show confirmation dialog.
+            setShowConfirmEndInterview(true);
           } else if (data.type === "turn_complete") {
             // AI finished speaking - clear the "speaking..." indicator
             setIsAISpeaking(false);
@@ -1696,14 +1711,14 @@ export default function RealtimeInterviewPage() {
             <div className="flex flex-col items-center text-center">
               <CheckCircle2 className="mx-auto mb-4 h-12 w-12 text-green-500" />
               <AlertDialogTitle className="text-xl font-bold text-gray-900">
-                Your interview is complete
+                Your interview is complete!
               </AlertDialogTitle>
               <AlertDialogDescription className="mt-2 text-base text-gray-600">
-                Thank you for completing the interview. Click OK to view your
-                report and transcript.
+                Great job! Your report and analysis are being generated — this
+                usually takes about a minute.
                 {interviewCompleteCountdown > 0 && (
                   <span className="mt-2 block text-sm text-gray-500">
-                    Auto-closing in {interviewCompleteCountdown} seconds...
+                    Redirecting in {interviewCompleteCountdown}s...
                   </span>
                 )}
               </AlertDialogDescription>
@@ -1727,6 +1742,60 @@ export default function RealtimeInterviewPage() {
               className="min-w-[120px] bg-gradient-to-r from-violet-600 to-blue-600 hover:from-violet-700 hover:to-blue-700 text-white"
             >
               View Report
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Candidate-initiated end confirmation dialog */}
+      <AlertDialog
+        open={showConfirmEndInterview}
+        onOpenChange={(open) => {
+          if (!open) {
+            // Dialog closed without choosing — treat as cancel
+            setShowConfirmEndInterview(false);
+            websocketRef.current?.send(JSON.stringify({ type: "cancel_end" }));
+          }
+        }}
+      >
+        <AlertDialogContent className="sm:max-w-md border-2 border-amber-200 bg-white shadow-xl">
+          <AlertDialogHeader>
+            <div className="flex flex-col items-center text-center">
+              <AlertCircle className="mx-auto h-12 w-12 text-amber-500 mb-4" />
+              <AlertDialogTitle className="text-xl font-bold text-gray-900">
+                End the interview?
+              </AlertDialogTitle>
+              <AlertDialogDescription className="mt-2 text-base text-gray-600">
+                It sounds like you&apos;d like to finish. Would you like to end
+                the interview now and generate your report?
+              </AlertDialogDescription>
+            </div>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="mt-4 flex gap-3 sm:justify-center">
+            <Button
+              variant="outline"
+              size="lg"
+              onClick={() => {
+                setShowConfirmEndInterview(false);
+                websocketRef.current?.send(
+                  JSON.stringify({ type: "cancel_end" }),
+                );
+              }}
+              className="min-w-[120px]"
+            >
+              Continue Interview
+            </Button>
+            <Button
+              size="lg"
+              onClick={() => {
+                setShowConfirmEndInterview(false);
+                websocketRef.current?.send(
+                  JSON.stringify({ type: "confirm_end" }),
+                );
+              }}
+              className="min-w-[120px] bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white"
+            >
+              End Interview
             </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -1835,12 +1904,12 @@ export default function RealtimeInterviewPage() {
             </h1>
             <p className="text-sm text-gray-300/80">
               {formatDuration(elapsedTime)} /{" "}
-              {formatDuration(TARGET_INTERVIEW_DURATION)}
+              {formatDuration(targetDurationSec)}
             </p>
           </div>
           <div className="flex items-center gap-3">
             <Progress
-              value={(elapsedTime / TARGET_INTERVIEW_DURATION) * 100}
+              value={(elapsedTime / targetDurationSec) * 100}
               className="h-2 w-40 bg-white/10"
             />
             {isInterviewActive && (
@@ -1890,9 +1959,18 @@ export default function RealtimeInterviewPage() {
 
               {!isInterviewActive ? (
                 <div className="py-12 text-center">
-                  <p className="mb-6 text-gray-300/80">
-                    Ready to start your interview?
-                  </p>
+                  {!connected ? (
+                    <div className="mb-6 flex flex-col items-center gap-2">
+                      <Loader2 className="w-5 h-5 animate-spin text-blue-400" />
+                      <p className="text-sm text-blue-400">
+                        AI interviewer is getting ready...
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="mb-6 text-gray-300/80">
+                      Ready to start your interview?
+                    </p>
+                  )}
                   <Button
                     onClick={startInterview}
                     disabled={!connected}
