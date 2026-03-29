@@ -1009,12 +1009,50 @@ export const resumeApi = {
     await apiClient.delete(`/resumes/${resumeId}`);
   },
 
+  /**
+   * Full duplicate: loads the source resume and creates a new one with the same
+   * template, content, section order, layout, and profile summary. Avoids the
+   * server-only duplicate route when it omits nested fields or runs slow side effects.
+   */
   duplicate: async (resumeId: string, title?: string): Promise<Resume> => {
-    const response = await apiClient.post<{ data: Resume }>(
-      `/resumes/${resumeId}/duplicate`,
-      { title },
-    );
-    return response.data.data;
+    const source = await resumeApi.get(resumeId);
+    const userId = source.userId;
+
+    const baseTitle = source.title?.trim() || "Resume";
+    const copyTitle =
+      title?.trim() ||
+      (baseTitle.toLowerCase().startsWith("copy of ")
+        ? baseTitle
+        : `Copy of ${baseTitle}`);
+
+    const clone = <T,>(v: T | undefined): T | undefined => {
+      if (v === undefined) return undefined;
+      return structuredClone(v);
+    };
+
+    let created = await resumeApi.create(userId, {
+      templateId: source.templateId,
+      title: copyTitle,
+      content: clone(source.content) ?? {},
+      sectionOrder: clone(source.sectionOrder),
+      layout: clone(source.layout),
+    });
+
+    const patch: {
+      profileSummary?: string;
+      isDefault?: boolean;
+    } = {};
+    if (source.profileSummary !== undefined) {
+      patch.profileSummary = source.profileSummary;
+    }
+    if (source.isDefault) {
+      patch.isDefault = false;
+    }
+    if (Object.keys(patch).length > 0) {
+      created = await resumeApi.update(created.resumeId, patch);
+    }
+
+    return created;
   },
 
   recalculateATS: async (resumeId: string): Promise<Resume> => {
