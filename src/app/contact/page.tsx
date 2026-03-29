@@ -39,7 +39,7 @@ export default function ContactPage() {
     {
       question: "How do I request a refund?",
       answer:
-        "You can write an email to us regarding refunds at hello@interviewtrix.com. Our team will reach out to you within 48-72 hours to process your request.",
+        "You can write an email to us regarding refunds at info@interviewtrix.com. Our team will reach out to you within 48-72 hours to process your request.",
       icon: RefreshCw,
     },
   ];
@@ -167,11 +167,11 @@ export default function ContactPage() {
               </CardHeader>
               <CardContent className="text-center">
                 <a
-                  href="mailto:hello@interviewtrix.com"
+                  href="mailto:info@interviewtrix.com"
                   className="inline-flex items-center gap-3 text-xl sm:text-2xl font-semibold text-blue-600 hover:text-blue-700 transition-colors group"
                 >
                   <Mail className="w-6 h-6 group-hover:scale-110 transition-transform" />
-                  hello@interviewtrix.com
+                  info@interviewtrix.com
                 </a>
                 <p className="text-sm text-gray-500 mt-4">
                   We typically respond within 48-72 hours

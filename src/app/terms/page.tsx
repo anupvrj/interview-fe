@@ -394,10 +394,10 @@ export default function TermsOfServicePage() {
                 <div className="bg-white rounded-lg p-4 border border-blue-200">
                   <p className="font-semibold text-slate-900 mb-2">Email:</p>
                   <a
-                    href="mailto:hello@interviewtrix.com"
+                    href="mailto:info@interviewtrix.com"
                     className="text-blue-600 hover:text-blue-700 font-medium text-lg"
                   >
-                    hello@interviewtrix.com
+                    info@interviewtrix.com
                   </a>
                   <p className="text-sm text-gray-600 mt-3">
                     We operate Monday to Saturday and respond within 48-72 hours
