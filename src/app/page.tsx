@@ -34,12 +34,12 @@ import {
   Quote,
   Search,
   Briefcase,
-  Bell,
 } from "lucide-react";
 import Image from "next/image";
 import { PlansSection } from "@/components/PlansSection";
 import { ScrollSection } from "@/components/ScrollSection";
 import { NavigationMenu } from "@/components/NavigationMenu";
+import { AiJobSearchNotifyButton } from "@/components/AiJobSearchNotifyButton";
 
 // Custom hook for counting animation
 function useCountUp(end: number, duration: number = 2000, suffix: string = "", prefix: string = "") {
@@ -1205,15 +1205,7 @@ export default function LandingPage() {
               </div>
               
               <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-3 sm:gap-4 pt-2 px-2 sm:px-0">
-                <Link href="/ai-job-search" className="w-full sm:w-auto">
-                  <Button
-                    size="lg"
-                    className="w-full sm:w-auto text-white font-medium shadow-sm transition-all h-12 px-6 hover:opacity-90 !bg-[rgb(37,99,235)]"
-                  >
-                    Get Notified
-                    <Bell className="w-4 h-4 ml-2" />
-                  </Button>
-                </Link>
+                <AiJobSearchNotifyButton className="w-full sm:w-auto" />
                 <Link href="/ai-job-search" className="w-full sm:w-auto">
                   <Button
                     variant="outline"

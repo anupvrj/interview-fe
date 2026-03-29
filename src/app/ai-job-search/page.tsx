@@ -10,7 +10,6 @@ import {
   ArrowRight,
   Menu,
   User,
-  Bell,
   Zap,
   Target,
   Rocket,
@@ -24,6 +23,7 @@ import {
   Trophy,
 } from "lucide-react";
 import { NavigationMenu } from "@/components/NavigationMenu";
+import { AiJobSearchNotifyButton } from "@/components/AiJobSearchNotifyButton";
 
 export default function JobSearchComingSoonPage() {
   // Animated Heading States
@@ -413,25 +413,7 @@ export default function JobSearchComingSoonPage() {
               </div>
               
               <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-3 sm:gap-4 pt-2 px-2 sm:px-0">
-                <Link href="/job-search" className="w-full sm:w-auto">
-                  <Button
-                    size="lg"
-                    className="w-full sm:w-auto text-white font-medium shadow-sm transition-all h-12 px-6 hover:opacity-90 !bg-[rgb(37,99,235)]"
-                  >
-                    Get Notified
-                    <Bell className="w-4 h-4 ml-2" />
-                  </Button>
-                </Link>
-                <Link href="/about-us" className="w-full sm:w-auto">
-                  <Button
-                    variant="outline"
-                    size="lg"
-                    className="w-full sm:w-auto border-gray-200 text-gray-700 font-medium h-12 px-6 hover:!bg-[rgb(17,24,39)] hover:!text-white transition-all"
-                  >
-                    Learn More
-                    <ArrowRight className="w-4 h-4 ml-2" />
-                  </Button>
-                </Link>
+                <AiJobSearchNotifyButton className="w-full sm:w-auto" />
               </div>
             </div>
 
