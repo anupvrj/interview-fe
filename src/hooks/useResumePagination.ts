@@ -1,11 +1,15 @@
 import { useState, useEffect, useRef } from "react";
 import { Resume } from "@/lib/api";
 import {
+  collectOrphanRepairBoxes,
+  fixOrphanSemanticBoxes,
   runResumePagination,
+  trimTrailingEmptySliverPages,
   type PaginationAtomicIfFitsBox,
   type PaginationElementInput,
 } from "@/lib/resume-pagination-engine";
 import { resolvePaginationStraddleColumn } from "@/lib/resolve-pagination-straddle-column";
+import { snapResumePageBreaksToLineBounds } from "@/lib/snap-resume-page-breaks";
 
 export interface PageData {
   pageNumber: number;
@@ -133,12 +137,37 @@ export function useResumePagination({
         };
       });
 
-    const trimmedPages = runResumePagination(
+    let trimmedPages = runResumePagination(
       fullHeight,
       elements,
       integerLimit,
       atomicIfFitsOnOnePage,
     );
+
+    trimmedPages = snapResumePageBreaksToLineBounds(
+      container,
+      trimmedPages,
+      fullHeight,
+    );
+
+    const orphanBoxes = collectOrphanRepairBoxes(elements);
+    for (let pass = 0; pass < 6; pass++) {
+      const next = fixOrphanSemanticBoxes(trimmedPages, orphanBoxes);
+      if (
+        next.length === trimmedPages.length &&
+        next.every(
+          (p, idx) =>
+            p.offsetY === trimmedPages[idx].offsetY &&
+            p.height === trimmedPages[idx].height,
+        )
+      ) {
+        trimmedPages = next;
+        break;
+      }
+      trimmedPages = next;
+    }
+
+    trimmedPages = trimTrailingEmptySliverPages(trimmedPages, elements);
 
     setPages(trimmedPages);
     setIsPaginating(false);
