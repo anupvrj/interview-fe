@@ -44,6 +44,7 @@ export default function ResumesPage() {
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [resumeToDelete, setResumeToDelete] = useState<string | null>(null);
   const [showLimitModal, setShowLimitModal] = useState(false);
@@ -171,16 +172,16 @@ export default function ResumesPage() {
     };
   }, []);
 
-  const loadResumes = async () => {
+  const loadResumes = async (opts?: { silent?: boolean }) => {
     if (!user) return;
     try {
-      setLoading(true);
+      if (!opts?.silent) setLoading(true);
       const data = await resumeApi.list(user.id);
       setResumes(data);
     } catch (error) {
       console.error("Error loading resumes:", error);
     } finally {
-      setLoading(false);
+      if (!opts?.silent) setLoading(false);
     }
   };
 
@@ -226,11 +227,14 @@ export default function ResumesPage() {
 
   const handleDuplicate = async (resumeId: string) => {
     try {
+      setDuplicatingId(resumeId);
       await resumeApi.duplicate(resumeId);
-      await loadResumes();
+      await loadResumes({ silent: true });
     } catch (error) {
       console.error("Error duplicating resume:", error);
       alert("Failed to duplicate resume. Please try again.");
+    } finally {
+      setDuplicatingId(null);
     }
   };
 
@@ -924,10 +928,15 @@ export default function ResumesPage() {
                   variant="outline"
                   size="sm"
                   onClick={() => handleDuplicate(resume.resumeId)}
-                  className="h-8 px-2 border-blue-300 text-[rgb(37,99,235)] hover:!bg-[rgb(17,24,39)] hover:!text-white hover:border-[rgb(17,24,39)] transition-all"
+                  disabled={duplicatingId === resume.resumeId}
+                  className="h-8 px-2 border-blue-300 text-[rgb(37,99,235)] hover:!bg-[rgb(17,24,39)] hover:!text-white hover:border-[rgb(17,24,39)] transition-all disabled:opacity-50"
                   title="Duplicate"
                 >
-                  <Copy className="w-3.5 h-3.5" />
+                  {duplicatingId === resume.resumeId ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Copy className="w-3.5 h-3.5" />
+                  )}
                 </Button>
                 <Button
                   variant="outline"

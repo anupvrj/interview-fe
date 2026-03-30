@@ -2,6 +2,7 @@
 
 import { ReactNode, useState, useEffect } from "react";
 import Link from "next/link";
+import { InterviewTrixLogo } from "@/components/InterviewTrixLogo";
 import { usePathname } from "next/navigation";
 import { useUser, UserButton } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
@@ -127,19 +128,11 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             </Button>
             <Link
               href="/"
-              className="flex items-center gap-1.5 hover:opacity-80 transition-opacity min-w-0"
+              className="flex items-center hover:opacity-80 transition-opacity min-w-0"
             >
-              <div className="w-7 h-7 bg-gradient-to-br from-blue-600 to-blue-700 rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm">
-                <span className="text-white font-bold text-[10px]">
-                  i<span className="text-xs">X</span>
-                </span>
-              </div>
-              <span className="text-base sm:text-lg font-bold text-slate-900 truncate">
-                Interview{" "}
-                <span className="text-[rgb(37,99,235)]">
-                  Tri<span className="text-lg sm:text-xl">X</span>
-                </span>
-              </span>
+              <InterviewTrixLogo
+                className="h-7 w-auto max-w-[min(100%,11rem)] object-contain object-left"
+              />
             </Link>
           </div>
           <Link href="/dashboard/interviews/new" className="flex-shrink-0">
@@ -173,21 +166,17 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             <div className="p-4 border-b hidden lg:block">
               <Link
                 href="/"
-                className="flex items-center gap-2 hover:opacity-80 transition-opacity"
-              >
-                <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-blue-700 rounded-lg flex items-center justify-center shadow-sm">
-                  <span className="text-white font-bold text-sm">
-                    i<span className="text-base">X</span>
-                  </span>
-                </div>
-                {sidebarOpen && (
-                  <span className="text-xl font-bold text-slate-900">
-                    Interview{" "}
-                    <span className="text-[rgb(37,99,235)]">
-                      Tri<span className="text-2xl">X</span>
-                    </span>
-                  </span>
+                className={cn(
+                  "flex items-center hover:opacity-80 transition-opacity",
+                  sidebarOpen ? "justify-start" : "justify-center",
                 )}
+              >
+                <InterviewTrixLogo
+                  className={cn(
+                    "w-auto object-contain object-left",
+                    sidebarOpen ? "h-8 max-w-[11rem]" : "h-7 max-w-[4rem]",
+                  )}
+                />
               </Link>
             </div>
 

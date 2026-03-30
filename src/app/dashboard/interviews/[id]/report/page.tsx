@@ -782,21 +782,27 @@ export default function ReportPage() {
       <main className="container mx-auto px-4 py-8 max-w-6xl">
         {/* Header Section */}
         <div className="mb-8">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h1 className="text-4xl font-bold mb-2">Interview Report</h1>
-              <p className="text-gray-600">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-4 min-w-0">
+            <div className="min-w-0">
+              <h1 className="text-3xl sm:text-4xl font-bold mb-2 break-words">
+                Interview Report
+              </h1>
+              <p className="text-gray-600 break-words">
                 {interview.metadata.role} • {formatDate(interview.createdAt)}
               </p>
             </div>
-            <div className="flex gap-2">
-              <Dialog>
-                <DialogTrigger asChild>
-                  <Button variant="outline" className="gap-2">
-                    <Share2 className="w-4 h-4" /> Share
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
+            <div className="grid grid-cols-2 gap-2 w-full min-w-0 shrink-0 md:w-[min(100%,24rem)] md:ml-auto">
+              <div className="min-w-0">
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="gap-2 w-full justify-center min-w-0"
+                    >
+                      <Share2 className="w-4 h-4 shrink-0" /> Share
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
                   <DialogHeader>
                     <DialogTitle>Share interview report</DialogTitle>
                     <DialogDescription>
@@ -837,20 +843,23 @@ export default function ReportPage() {
                       Email
                     </Button>
                   </div>
-                </DialogContent>
-              </Dialog>
+                  </DialogContent>
+                </Dialog>
+              </div>
               <Button
                 variant="outline"
-                className="gap-2"
+                className="gap-2 w-full min-w-0 justify-center"
                 disabled={pdfDownloading}
                 onClick={() => void downloadPDF()}
               >
                 {pdfDownloading ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <Loader2 className="w-4 h-4 animate-spin shrink-0" />
                 ) : (
-                  <Download className="w-4 h-4" />
+                  <Download className="w-4 h-4 shrink-0" />
                 )}
-                {pdfDownloading ? "Generating…" : "Download PDF"}
+                <span className="truncate">
+                  {pdfDownloading ? "Generating…" : "Download PDF"}
+                </span>
               </Button>
             </div>
           </div>

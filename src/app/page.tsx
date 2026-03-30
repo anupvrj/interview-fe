@@ -34,12 +34,14 @@ import {
   Quote,
   Search,
   Briefcase,
-  Bell,
 } from "lucide-react";
 import Image from "next/image";
+import { InterviewTrixLogo } from "@/components/InterviewTrixLogo";
 import { PlansSection } from "@/components/PlansSection";
 import { ScrollSection } from "@/components/ScrollSection";
 import { NavigationMenu } from "@/components/NavigationMenu";
+import { MarketingFooter } from "@/components/MarketingFooter";
+import { AiJobSearchNotifyButton } from "@/components/AiJobSearchNotifyButton";
 
 // Custom hook for counting animation
 function useCountUp(end: number, duration: number = 2000, suffix: string = "", prefix: string = "") {
@@ -286,16 +288,12 @@ export default function LandingPage() {
                 {/* Logo - Centered on Mobile, Left on Desktop */}
                 <Link
                   href="/"
-                  className="flex items-center gap-2 hover:opacity-80 transition-opacity mx-auto sm:mx-0"
+                  className="flex items-center hover:opacity-80 transition-opacity mx-auto sm:mx-0"
                 >
-                  <div className="flex items-center gap-1.5">
-                    <div className="w-8 h-8 sm:w-9 sm:h-9 bg-gradient-to-br from-blue-600 to-blue-700 rounded-lg flex items-center justify-center shadow-sm">
-                      <span className="text-white font-bold text-xs sm:text-sm">i<span className="text-sm sm:text-base">X</span></span>
-                    </div>
-                    <span className="text-lg sm:text-xl lg:text-2xl font-bold text-slate-900">
-                      Interview <span className="text-blue-600">Tri<span className="text-xl sm:text-2xl lg:text-3xl">X</span></span>
-                    </span>
-                  </div>
+                  <InterviewTrixLogo
+                    className="h-7 sm:h-8 lg:h-10 w-auto"
+                    priority
+                  />
                 </Link>
 
                 {/* Right Side Icons - Mobile */}
@@ -1205,15 +1203,7 @@ export default function LandingPage() {
               </div>
               
               <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-3 sm:gap-4 pt-2 px-2 sm:px-0">
-                <Link href="/ai-job-search" className="w-full sm:w-auto">
-                  <Button
-                    size="lg"
-                    className="w-full sm:w-auto text-white font-medium shadow-sm transition-all h-12 px-6 hover:opacity-90 !bg-[rgb(37,99,235)]"
-                  >
-                    Get Notified
-                    <Bell className="w-4 h-4 ml-2" />
-                  </Button>
-                </Link>
+                <AiJobSearchNotifyButton className="w-full sm:w-auto" />
                 <Link href="/ai-job-search" className="w-full sm:w-auto">
                   <Button
                     variant="outline"
@@ -1630,42 +1620,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Footer Section */}
-      <section className="py-8 sm:py-10 px-4 sm:px-6 bg-slate-900">
-        <div className="container mx-auto max-w-6xl">
-          {/* Footer Content */}
-          <div className="flex flex-col md:flex-row items-center md:items-center justify-between gap-4 md:gap-6">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-blue-700 rounded-lg flex items-center justify-center shadow-sm">
-                <span className="text-white font-bold text-xs">i<span className="text-sm">X</span></span>
-              </div>
-              <span className="text-xl font-bold text-white">
-                Interview <span className="text-blue-400">Tri<span className="text-2xl">X</span></span>
-              </span>
-            </div>
-            <nav className="flex flex-wrap items-center justify-center md:justify-end gap-4 sm:gap-6">
-              <Link href="/about-us" className="text-sm text-gray-300 hover:text-white transition-colors">
-                About us
-              </Link>
-              <Link href="/terms" className="text-sm text-gray-300 hover:text-white transition-colors">
-                Terms of Service
-              </Link>
-              <Link href="/refund" className="text-sm text-gray-300 hover:text-white transition-colors">
-                Refund policy
-              </Link>
-              <Link href="/contact" className="text-sm text-gray-300 hover:text-white transition-colors">
-                Contact us
-              </Link>
-            </nav>
-          </div>
-          {/* Copyright */}
-          <div className="mt-6 pt-6 border-t border-white/10">
-            <p className="text-sm text-gray-400 text-center">
-              © 2026 Interview Trix. All rights reserved.
-            </p>
-          </div>
-        </div>
-      </section>
+      <MarketingFooter />
     </div>
   );
 }

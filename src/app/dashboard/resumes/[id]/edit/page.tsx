@@ -1263,9 +1263,9 @@ export default function EditResumePage() {
       {/* Top Header Bar */}
       <div className="bg-white border-b shadow-sm z-10">
         <div className="max-w-full mx-auto px-4 py-3">
-          <div className="flex items-center justify-between gap-4">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between md:gap-4">
             {/* Left Section: Back Button + Title */}
-            <div className="flex items-center gap-4 flex-1 min-w-0">
+            <div className="flex items-center gap-4 min-w-0 md:flex-1">
               <Link href="/dashboard/resumes">
                 <Button variant="ghost" size="icon" className="flex-shrink-0">
                   <ArrowLeft className="w-5 h-5" />
@@ -1277,24 +1277,24 @@ export default function EditResumePage() {
                   setResume({ ...resume, title: e.target.value });
                   setHasChanges(true);
                 }}
-                className="text-lg font-semibold border-0 p-0 h-auto focus-visible:ring-0 bg-transparent max-w-xs"
+                className="text-lg font-semibold border-0 p-0 h-auto focus-visible:ring-0 bg-transparent max-w-xs min-w-0 flex-1"
                 placeholder="Resume Title"
               />
             </div>
 
             {/* Middle Section: ATS Score (Centered) */}
-            <div className="flex items-center justify-center flex-1">
+            <div className="flex items-center justify-center min-w-0 shrink-0 md:flex-1">
               {resume.atsScore !== undefined && resume.atsScore !== null && (
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap justify-center">
                   <div
-                    className={`px-4 py-2 rounded-lg border-2 font-semibold text-sm flex items-center gap-2 ${resume.atsScore >= 80
+                    className={`px-3 py-2 sm:px-4 rounded-lg border-2 font-semibold text-sm flex items-center gap-1.5 sm:gap-2 ${resume.atsScore >= 80
                       ? "bg-green-50 text-green-700 border-green-300"
                       : resume.atsScore >= 60
                         ? "bg-yellow-50 text-yellow-700 border-yellow-300"
                         : "bg-red-50 text-red-700 border-red-300"
                       }`}
                   >
-                    <span>ATS Score:</span>
+                    <span className="whitespace-nowrap">ATS Score:</span>
                     <span className="text-xl font-bold">{resume.atsScore}</span>
                     <span className="text-xs opacity-70">/100</span>
                   </div>
@@ -1304,7 +1304,7 @@ export default function EditResumePage() {
                     size="sm"
                     onClick={handleRefreshATS}
                     disabled={refreshingATS}
-                    className="h-8 w-8 p-0"
+                    className="h-8 w-8 p-0 shrink-0"
                     title="Refresh ATS Score"
                   >
                     {refreshingATS ? (
@@ -1318,16 +1318,16 @@ export default function EditResumePage() {
             </div>
 
             {/* Right Section: Autosave Status + Buttons */}
-            <div className="flex items-center gap-2 flex-1 justify-end">
+            <div className="flex flex-wrap items-center gap-2 justify-start min-w-0 md:flex-1 md:justify-end">
               {/* Autosave Status */}
               {autoSaving && (
-                <span className="text-sm text-gray-500 flex items-center">
-                  <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                <span className="text-sm text-gray-500 flex items-center min-w-0">
+                  <Loader2 className="w-3 h-3 mr-1 animate-spin shrink-0" />
                   Auto-saving...
                 </span>
               )}
               {!autoSaving && lastSaved && !hasChanges && (
-                <span className="text-sm text-gray-500">
+                <span className="text-sm text-gray-500 max-md:w-full max-md:text-center md:max-w-[min(100%,14rem)] md:truncate">
                   Saved at {new Date(lastSaved).toLocaleTimeString()}
                 </span>
               )}
@@ -1335,7 +1335,7 @@ export default function EditResumePage() {
               <Button
                 onClick={handleSave}
                 disabled={saving || !hasChanges || autoSaving}
-                className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white"
+                className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white shrink-0 max-md:flex-1"
                 size="sm"
               >
                 {saving ? (
@@ -1355,6 +1355,7 @@ export default function EditResumePage() {
                 disabled={downloading}
                 variant="outline"
                 size="sm"
+                className="shrink-0 max-md:flex-1"
               >
                 {downloading ? (
                   <>
@@ -1373,10 +1374,10 @@ export default function EditResumePage() {
         </div>
       </div>
 
-      {/* Main Content: Side by Side */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* Left Panel: Edit Form */}
-        <div className="w-1/2 border-r bg-white overflow-y-auto">
+      {/* Main Content: preview on top on mobile; side-by-side from md */}
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden md:flex-row">
+        {/* Left Panel: Edit Form (below preview on mobile) */}
+        <div className="order-2 flex min-h-0 w-full flex-1 flex-col overflow-y-auto bg-white md:order-none md:w-1/2 md:border-r">
           {/* Toggle between Edit Resume and ATS Report */}
           <div className="border-b bg-gray-50">
             <div className="flex">
@@ -6748,8 +6749,8 @@ export default function EditResumePage() {
           )}
         </div>
 
-        {/* Right Panel: Preview */}
-        <div className="w-1/2 bg-gray-100 overflow-auto">
+        {/* Right Panel: Preview (on top on mobile) */}
+        <div className="order-1 flex min-h-0 w-full flex-1 flex-col overflow-auto border-b border-gray-200 bg-gray-100 md:order-none md:w-1/2 md:border-b-0">
           <div className="sticky top-0 bg-white border-b p-4 z-10 flex items-center justify-between">
             <h3 className="font-semibold text-sm flex items-center gap-2">
               <Eye className="w-4 h-4" />

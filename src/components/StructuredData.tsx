@@ -14,6 +14,15 @@ export function StructuredData({ data }: StructuredDataProps) {
   );
 }
 
+/** Organization `sameAs` for JSON-LD — keep in sync with `SocialLinks.tsx` hrefs + LinkedIn */
+export const ORGANIZATION_SAME_AS = [
+  "https://www.instagram.com/interviewtrix/",
+  "https://www.reddit.com/user/interviewtrix/",
+  "https://x.com/InterviewTrix",
+  "https://www.youtube.com/@interviewtrix_official",
+  "https://linkedin.com/company/interviewtrix",
+] as const;
+
 // Organization Schema
 export const organizationSchema = {
   "@context": "https://schema.org",
@@ -23,11 +32,7 @@ export const organizationSchema = {
   logo: `${process.env.NEXT_PUBLIC_APP_URL || "https://interviewtrix.com"}/logo.png`,
   description:
     "From ATS-optimized resumes to live AI mock interviews and detailed performance reports — everything you need to get shortlisted and hired.",
-  sameAs: [
-    // Add your social media links here
-    "https://twitter.com/interviewtrix",
-    "https://linkedin.com/company/interviewtrix",
-  ],
+  sameAs: [...ORGANIZATION_SAME_AS],
 };
 
 // WebApplication Schema
