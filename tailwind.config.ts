@@ -83,6 +83,15 @@ const config: Config = {
           from: { transform: "translateX(-100%)" },
           to: { transform: "translateX(0)" },
         },
+        /** Active speaker ring — “beep” / pulse while AI audio plays */
+        "ai-avatar-ring": {
+          "0%, 100%": { transform: "scale(1)", opacity: "0.45" },
+          "50%": { transform: "scale(1.12)", opacity: "0.95" },
+        },
+        "ai-avatar-inner": {
+          "0%, 100%": { transform: "scale(1)" },
+          "50%": { transform: "scale(1.03)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -90,6 +99,10 @@ const config: Config = {
         "fade-in": "fade-in 0.5s ease-out",
         "fade-in-up": "fade-in-up 0.8s ease-out",
         "slide-in": "slide-in 0.3s ease-out",
+        "ai-avatar-ring": "ai-avatar-ring 1.05s ease-in-out infinite",
+        "ai-avatar-ring-delayed":
+          "ai-avatar-ring 1.05s ease-in-out 0.35s infinite",
+        "ai-avatar-inner": "ai-avatar-inner 1.05s ease-in-out infinite",
       },
     },
   },

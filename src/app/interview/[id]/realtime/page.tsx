@@ -14,6 +14,14 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   Mic,
   MicOff,
   Video,
@@ -21,14 +29,18 @@ import {
   Loader2,
   AlertCircle,
   PhoneOff,
-  Volume2,
   Circle,
   Square,
   CheckCircle2,
+  ArrowLeft,
 } from "lucide-react";
 import { interviewApi, Interview } from "@/lib/api";
 import { normalizeInterviewDurationMinutes } from "@/lib/interviewDuration";
 import { formatDuration } from "@/lib/utils";
+import { pickRandomPersona } from "@/lib/aiPersonas";
+import type { AIInterviewerPersona } from "@/lib/aiPersonas";
+import { AiPersonaAvatar } from "@/components/interview/AiPersonaAvatar";
+import { toast } from "sonner";
 
 /** Hard fallback minutes added on top of target (used if AI never sends interview_complete). */
 const EXTRA_BUFFER_MINUTES = 5;
@@ -36,6 +48,8 @@ const EXTRA_BUFFER_MINUTES = 5;
 /** Voice provider for realtime: "chatgpt" (default) or "gemini". Set via NEXT_PUBLIC_VOICE_PROVIDER. */
 const VOICE_PROVIDER: "chatgpt" | "gemini" =
   (process.env.NEXT_PUBLIC_VOICE_PROVIDER as "chatgpt" | "gemini") || "chatgpt";
+
+const RECORDING_OPT_IN_STORAGE_PREFIX = "interviewRecordingOptIn_";
 
 export default function RealtimeInterviewPage() {
   const params = useParams();
@@ -85,6 +99,11 @@ export default function RealtimeInterviewPage() {
   const interviewCompleteCountdownRef = useRef<NodeJS.Timeout | null>(null);
   // Candidate-initiated end-interview confirmation dialog
   const [showConfirmEndInterview, setShowConfirmEndInterview] = useState(false);
+  /** Recording consent before interview starts (after "Start Interview"). */
+  const [showRecordingOptIn, setShowRecordingOptIn] = useState(false);
+  const launchingInterviewRef = useRef(false);
+  /** Avoid double-handling when Radix fires onOpenChange after Yes/No. */
+  const recordingOptInResolvedRef = useRef(false);
 
   // Refs
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -111,6 +130,17 @@ export default function RealtimeInterviewPage() {
   const voiceProviderRef = useRef<"chatgpt" | "gemini">(VOICE_PROVIDER);
   // Ref mirror for isMicOn — avoids stale closure in sendAudioChunk / onaudioprocess
   const isMicOnRef = useRef(true);
+
+  /** One random persona per page load; matches WebSocket voice query. */
+  const interviewerPersonaRef = useRef<AIInterviewerPersona | null>(null);
+  if (!interviewerPersonaRef.current) {
+    interviewerPersonaRef.current = pickRandomPersona();
+  }
+  const interviewerPersona = interviewerPersonaRef.current;
+
+  /** When true (e.g. institute policy), denying screen capture may use blocking error UI. */
+  const requireSessionRecording =
+    interview?.metadata?.requireSessionRecording === true;
 
   useEffect(() => {
     loadInterview();
@@ -393,7 +423,13 @@ export default function RealtimeInterviewPage() {
       const durationParam = normalizeInterviewDurationMinutes(
         iv?.metadata?.interviewDuration,
       );
-      const wsUrl = `${wsProtocol}//${baseUrl}/api/${realtimePath}?userId=${encodeURIComponent(userId)}&interviewDurationMinutes=${durationParam}`;
+      const p = interviewerPersonaRef.current!;
+      const voiceQuery =
+        VOICE_PROVIDER === "gemini"
+          ? `&geminiVoice=${encodeURIComponent(p.geminiVoice)}`
+          : `&openaiVoice=${encodeURIComponent(p.openaiVoice)}`;
+      const personaQuery = `&interviewerName=${encodeURIComponent(p.displayName)}&interviewerTitle=${encodeURIComponent(p.title)}`;
+      const wsUrl = `${wsProtocol}//${baseUrl}/api/${realtimePath}?userId=${encodeURIComponent(userId)}&interviewDurationMinutes=${durationParam}${voiceQuery}${personaQuery}`;
 
       console.log("🔌 Connecting to WebSocket:", wsUrl);
       const ws = new WebSocket(wsUrl);
@@ -1107,17 +1143,11 @@ export default function RealtimeInterviewPage() {
   };
 
   const startRecording = async () => {
+    if (isRecording) {
+      return;
+    }
     try {
       // Request screen capture (user will select tab/window/screen)
-      console.log("💡 The current tab should now appear in the picker!");
-      console.log(
-        "   1. Select the 'Interview Trix' tab (should be visible now)",
-      );
-      console.log(
-        "   2. Enable 'Also share tab audio' checkbox for best quality",
-      );
-      console.log("   3. Click 'Share' to start recording");
-
       // Try to get display media with flexible constraints
       // Include the current tab in the picker using selfBrowserSurface (prevents "hall of mirrors")
       const screenStream = await navigator.mediaDevices.getDisplayMedia({
@@ -1167,13 +1197,8 @@ export default function RealtimeInterviewPage() {
         // Ask user to cancel and try again with a tab
         const shouldRetry = globalThis.confirm(
           "⚠️ Tab audio is not available.\n\n" +
-            "To capture the AI's voice, you need to share THIS browser tab (not window or screen).\n\n" +
-            "Please:\n" +
-            "1. Click Cancel below\n" +
-            "2. Click 'Start Recording' again\n" +
-            "3. In the screen share dialog, select the tab with 'Interview Trix'\n" +
-            "4. Enable the 'Also share tab audio' checkbox\n\n" +
-            "Click OK to continue anyway (AI voice may not be captured fully), or Cancel to retry.",
+            "To capture the AI's voice, share THIS browser tab (not window or screen), with tab audio enabled if your browser offers it.\n\n" +
+            "Click OK to continue anyway (AI voice may not be captured fully), or Cancel to stop and try recording again.",
         );
 
         if (!shouldRetry) {
@@ -1466,8 +1491,8 @@ export default function RealtimeInterviewPage() {
         // Minimum size check - should be at least 100KB for a meaningful recording
         if (totalBytes < 100 * 1024) {
           console.error("Recording too small, likely failed");
-          setError(
-            "Recording failed - file too small. Please ensure screen sharing is active and try again.",
+          setActiveError(
+            "Recording failed — file too small. Try the record button again when you're ready.",
           );
           setIsRecording(false);
           recordedChunksRef.current = [];
@@ -1486,7 +1511,9 @@ export default function RealtimeInterviewPage() {
 
       mediaRecorder.onerror = (event: any) => {
         console.error("MediaRecorder error:", event);
-        setError(`Recording error: ${event.error?.message || "Unknown error"}`);
+        setActiveError(
+          `Recording issue: ${event.error?.message || "Unknown error"}. You can keep interviewing or try recording again.`,
+        );
         setIsRecording(false);
       };
 
@@ -1547,8 +1574,8 @@ export default function RealtimeInterviewPage() {
           console.error(
             "❌ Recording appears to be producing very little data",
           );
-          setError(
-            "Recording may not be working properly. Please stop and try again.",
+          setActiveError(
+            "Recording may not be working well. You can stop and try the record button again.",
           );
         }
       }, 5000);
@@ -1566,23 +1593,82 @@ export default function RealtimeInterviewPage() {
         screenStreamRef.current = null;
       }
 
-      if (
-        error.name === "NotAllowedError" ||
-        error.name === "PermissionDeniedError"
-      ) {
+      const name = error?.name ?? "";
+      const isUserDeniedOrCancelled =
+        name === "NotAllowedError" ||
+        name === "PermissionDeniedError" ||
+        name === "AbortError";
+
+      if (requireSessionRecording && isUserDeniedOrCancelled) {
         setError(
-          "Screen capture was denied. Please allow screen sharing to record the interview.",
+          "Screen recording is required for this interview. Please allow screen sharing and use the record button to try again.",
         );
-      } else if (
-        error.name === "NotFoundError" ||
-        error.name === "NotReadableError"
-      ) {
+        return;
+      }
+
+      if (isUserDeniedOrCancelled) {
+        toast.info(
+          "Screen recording wasn't started — that's OK. Continue your interview anytime; use the red record button if you want to try again.",
+        );
+        return;
+      }
+
+      if (name === "NotFoundError" || name === "NotReadableError") {
+        if (requireSessionRecording) {
+          setError(
+            "Could not access the screen for required recording. Close other apps using the display and try again.",
+          );
+        } else {
+          setActiveError(
+            "Couldn't access screen capture. Your interview continues — try the record button again when ready.",
+          );
+        }
+        return;
+      }
+
+      if (requireSessionRecording) {
         setError(
-          "Could not access screen. Please ensure no other application is using your screen.",
+          `Failed to start required recording: ${error?.message ?? "Unknown error"}`,
         );
       } else {
-        setError(`Failed to start recording: ${error.message}`);
+        setActiveError(
+          `Couldn't start recording: ${error?.message ?? "Unknown error"}. Your interview can continue as normal.`,
+        );
       }
+    }
+  };
+
+  /**
+   * After user chooses in the recording dialog: optional screen capture, then start interview.
+   * "Yes" awaits startRecording (toast on deny); both paths then call startInterview().
+   */
+  const resolveRecordingOptIn = async (choice: "yes" | "no") => {
+    if (launchingInterviewRef.current) return;
+    launchingInterviewRef.current = true;
+    recordingOptInResolvedRef.current = true;
+    try {
+      try {
+        sessionStorage.setItem(
+          `${RECORDING_OPT_IN_STORAGE_PREFIX}${interviewId}`,
+          choice,
+        );
+      } catch {
+        /* ignore quota / private mode */
+      }
+
+      if (choice === "yes") {
+        await startRecording();
+      }
+
+      setShowRecordingOptIn(false);
+      router.replace(`/interview/${interviewId}/realtime`, { scroll: false });
+
+      await startInterview();
+    } catch (e) {
+      console.error("Launch interview failed:", e);
+    } finally {
+      launchingInterviewRef.current = false;
+      recordingOptInResolvedRef.current = false;
     }
   };
 
@@ -1652,7 +1738,7 @@ export default function RealtimeInterviewPage() {
   const uploadRecording = async () => {
     if (recordedChunksRef.current.length === 0) {
       console.error("No recording data to upload");
-      setError("No recording data available. Please record again.");
+      setActiveError("No recording file to upload. You can record again with the red button if you like.");
       setIsUploadingRecording(false);
       return;
     }
@@ -1718,7 +1804,9 @@ export default function RealtimeInterviewPage() {
       recordedChunksRef.current = [];
     } catch (error: any) {
       console.error("Error uploading recording:", error);
-      setError(`Failed to upload recording: ${error.message}`);
+      setActiveError(
+        `Couldn't save recording: ${error.message}. Your interview is unaffected.`,
+      );
     } finally {
       setIsUploadingRecording(false);
     }
@@ -1739,7 +1827,7 @@ export default function RealtimeInterviewPage() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-pink-50 flex items-center justify-center p-4">
         <Card className="max-w-md w-full">
-          <CardContent className="p-6 text-center">
+          <CardContent className="p-4 text-center sm:p-5">
             <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
             <h2 className="text-xl font-bold text-gray-900 mb-2">Error</h2>
             <p className="text-gray-600 mb-4">{error}</p>
@@ -1799,6 +1887,44 @@ export default function RealtimeInterviewPage() {
         </AlertDialogContent>
       </AlertDialog>
 
+      <Dialog
+        open={showRecordingOptIn}
+        onOpenChange={(open) => {
+          if (!open && !recordingOptInResolvedRef.current) {
+            void resolveRecordingOptIn("no");
+          }
+        }}
+      >
+        <DialogContent className="border border-zinc-700 bg-zinc-900 text-zinc-100 sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-semibold text-white">
+              Would you like to record your interview session
+            </DialogTitle>
+            <DialogDescription className="text-base text-zinc-300">
+              Record your interview session for future reference and analysis of
+              how you answered each question.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              className="border-zinc-600 bg-zinc-800 text-zinc-100 hover:bg-zinc-700"
+              onClick={() => void resolveRecordingOptIn("no")}
+            >
+              No
+            </Button>
+            <Button
+              type="button"
+              className="bg-red-600 text-white hover:bg-red-700"
+              onClick={() => void resolveRecordingOptIn("yes")}
+            >
+              Yes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Candidate-initiated end confirmation dialog */}
       <AlertDialog
         open={showConfirmEndInterview}
@@ -1845,7 +1971,7 @@ export default function RealtimeInterviewPage() {
                   JSON.stringify({ type: "confirm_end" }),
                 );
               }}
-              className="min-w-[120px] bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white"
+              className="min-w-[120px] animate-none bg-gradient-to-r from-red-500 to-rose-600 text-white transition-none hover:from-red-600 hover:to-rose-700"
             >
               End Interview
             </Button>
@@ -1886,7 +2012,7 @@ export default function RealtimeInterviewPage() {
                 setShowEndInterviewConfirm(false);
                 await endInterview();
               }}
-              className="min-w-[120px]"
+              className="min-w-[120px] animate-none transition-none"
             >
               End Interview
             </Button>
@@ -1950,15 +2076,14 @@ export default function RealtimeInterviewPage() {
 
       {/* Non-blocking reconnect banner — shown during reconnect before escalation to dialog */}
       {isReconnecting && !connectionFailed && (
-        <div className="fixed top-0 left-0 right-0 z-50 flex items-center justify-center gap-2 bg-yellow-500/90 px-4 py-2 text-sm font-medium text-yellow-950 shadow-md">
-          <Loader2 className="h-4 w-4 animate-spin" />
-          Reconnecting AI session... ({reconnectAttemptCount}/3 attempts)
+        <div className="fixed top-0 left-0 right-0 z-50 flex items-center justify-center gap-2 bg-yellow-500/95 px-4 py-2 text-sm font-medium text-yellow-950 shadow-md">
+          Reconnecting AI session… ({reconnectAttemptCount}/3 attempts)
         </div>
       )}
 
-      {/* Non-blocking active error toast — shown during interview without blocking it */}
-      {activeError && isInterviewActive && (
-        <div className="fixed bottom-4 left-1/2 z-50 -translate-x-1/2 flex items-center gap-2 rounded-lg bg-red-600/90 px-4 py-3 text-sm text-white shadow-lg">
+      {/* Non-blocking recording / soft errors — never replaces full-page Error (camera, WS, etc.) */}
+      {activeError && (
+        <div className="fixed bottom-4 left-1/2 z-50 max-w-[min(100%-2rem,28rem)] -translate-x-1/2 flex items-center gap-2 rounded-lg bg-amber-950/95 border border-amber-600/40 px-4 py-3 text-sm text-amber-50 shadow-lg">
           <AlertCircle className="h-4 w-4 shrink-0" />
           <span>{activeError}</span>
           <button
@@ -1971,17 +2096,31 @@ export default function RealtimeInterviewPage() {
         </div>
       )}
 
-      {/* Header */}
-      <div className="sticky top-0 z-20 border-b border-white/10 bg-black/35 backdrop-blur-xl">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="py-4">
-            <h1 className="text-xl font-semibold tracking-tight">
-              {interview?.metadata.role || "Interview"}
-            </h1>
-            <p className="text-sm text-gray-300/80">
-              {formatDuration(elapsedTime)} /{" "}
-              {formatDuration(targetDurationSec)}
-            </p>
+      {/* Header — solid bg (no backdrop-blur) to avoid GPU flicker with content below */}
+      <div className="sticky top-0 z-20 border-b border-white/10 bg-[#0b1220]/95">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-3 sm:px-4 lg:px-5">
+          <div className="flex min-w-0 items-center gap-2 py-3 sm:gap-3">
+            {!isInterviewActive && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="shrink-0 text-white/90 hover:bg-white/10 hover:text-white"
+                aria-label="Back to interviews"
+                onClick={() => router.push("/dashboard/interviews")}
+              >
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+            )}
+            <div className="min-w-0">
+              <h1 className="text-xl font-semibold tracking-tight">
+                {interview?.metadata.role || "Interview"}
+              </h1>
+              <p className="text-sm text-gray-300/80">
+                {formatDuration(elapsedTime)} /{" "}
+                {formatDuration(targetDurationSec)}
+              </p>
+            </div>
           </div>
           <div className="flex items-center gap-3">
             <Progress
@@ -1993,7 +2132,7 @@ export default function RealtimeInterviewPage() {
                 variant="destructive"
                 size="sm"
                 onClick={() => setShowEndInterviewConfirm(true)}
-                className="ml-2 rounded-xl"
+                className="ml-2 rounded-xl animate-none transition-none"
               >
                 <PhoneOff className="w-4 h-4 mr-2" />
                 End Interview
@@ -2004,266 +2143,259 @@ export default function RealtimeInterviewPage() {
       </div>
 
       {/* Main Content */}
-      <div className="relative z-10 mx-auto max-w-7xl p-4 lg:p-8">
-        <div className="mb-6 grid gap-6 lg:grid-cols-2">
-          {/* Left: AI Avatar/Conversation */}
-          <Card className="border-white/10 bg-white/[0.04] shadow-2xl shadow-black/25 backdrop-blur-xl">
-            <CardContent className="p-7">
-              <div className="flex items-center gap-4 mb-6">
-                <div
-                  className={`flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-blue-500 shadow-lg transition-all ${
-                    currentAssistantTranscript
-                        ? "scale-110 ring-4 ring-violet-300/70"
-                        : ""
-                  }`}
-                >
-                  <Volume2 className="w-8 h-8 text-white" />
-                </div>
-                <div>
-                  <h2 className="text-xl font-semibold tracking-tight text-white">AI Interviewer</h2>
-                  <p className="text-sm text-gray-300/80">
-                    {!connected
-                      ? "Connecting..."
-                      : isAIProcessing
-                          ? "🤔 Understanding your answer..."
-                      : isAISpeaking
-                          ? "🗣️ Speaking..."
-                          : "Ready"}
-                  </p>
-                </div>
-              </div>
-
-              {!isInterviewActive ? (
-                <div className="py-12 text-center">
-                  {!connected ? (
-                    <div className="mb-6 flex flex-col items-center gap-2">
-                      <Loader2 className="w-5 h-5 animate-spin text-blue-400" />
-                      <p className="text-sm text-blue-400">
-                        AI interviewer is getting ready...
-                      </p>
-                    </div>
-                  ) : (
-                    <p className="mb-6 text-gray-300/80">
-                      Ready to start your interview?
+      <div className="relative z-10 mx-auto max-w-7xl px-3 py-4 sm:px-4 lg:px-5 lg:py-5">
+        <div className="mb-4 space-y-4">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:items-stretch">
+            {/* Left: profile + live speaking + start — same row height as camera on lg */}
+            <Card className="flex min-h-[300px] flex-col overflow-visible border-white/10 bg-white/[0.06] shadow-lg shadow-black/20 sm:min-h-[320px] lg:h-full lg:min-h-[360px]">
+              <CardContent className="flex min-h-0 flex-1 flex-col gap-4 overflow-visible p-4 sm:p-5">
+                <div className="flex items-center gap-4 overflow-visible">
+                  <AiPersonaAvatar
+                    persona={interviewerPersona}
+                    isSpeaking={
+                      isAISpeaking ||
+                      (!!currentAssistantTranscript && isInterviewActive)
+                    }
+                    isProcessing={isAIProcessing && isInterviewActive}
+                    size="lg"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <h2 className="text-xl font-semibold tracking-tight text-white">
+                      {interviewerPersona.displayName}
+                    </h2>
+                    <p className="text-sm text-violet-200/85">
+                      {interviewerPersona.title}
                     </p>
-                  )}
-                  <Button
-                    onClick={startInterview}
-                    disabled={!connected}
-                    className="rounded-xl bg-gradient-to-r from-violet-600 to-blue-600 px-6 hover:from-violet-700 hover:to-blue-700"
-                  >
-                    Start Interview
-                  </Button>
+                    <p className="text-sm text-gray-300/80 mt-1">
+                      {connected
+                        ? isAIProcessing
+                          ? "Understanding your answer..."
+                          : isAISpeaking || currentAssistantTranscript
+                            ? "Speaking..."
+                            : "Ready"
+                        : "Connecting..."}
+                    </p>
+                  </div>
                 </div>
-              ) : null}
-              {isInterviewActive && (
-                <div className="flex items-center justify-center min-h-[200px] px-4">
-                  {isPreparing ? (
-                    <div className="w-full max-w-xl rounded-2xl border border-blue-400/30 bg-blue-500/15 p-6">
-                      <div className="flex items-center justify-center gap-3">
-                        <Loader2 className="w-5 h-5 animate-spin text-blue-400" />
+
+                {isInterviewActive && (
+                  <div className="min-h-[11rem] flex-1 space-y-2 border-t border-white/10 pt-4 sm:min-h-[12rem]">
+                    {isPreparing ? (
+                      <div className="flex items-start gap-3 text-blue-400">
+                        <span
+                          className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-blue-400"
+                          aria-hidden
+                        />
                         <div>
-                          <div className="text-sm font-semibold text-blue-400 mb-1">
+                          <p className="text-sm font-semibold">
                             {lastAIMessage || "Preparing for interview..."}
-                          </div>
-                          <div className="text-xs text-gray-400">
+                          </p>
+                          <p className="text-xs text-gray-400">
                             AI interviewer is getting ready
-                          </div>
+                          </p>
                         </div>
                       </div>
-                    </div>
-                  ) : isAIProcessing ? (
-                    <div className="w-full max-w-xl rounded-2xl border border-blue-400/30 bg-blue-500/15 p-6">
-                      <div className="flex items-center gap-3 mb-2">
-                        <Loader2 className="w-4 h-4 animate-spin text-blue-400" />
-                        <div className="text-xs text-blue-400 font-semibold">
-                          AI is understanding your answer...
+                    ) : isAIProcessing ? (
+                      <div className="space-y-2 text-blue-400">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium">
+                            AI is understanding your answer...
+                          </span>
+                        </div>
+                        <div className="flex gap-1.5 pl-0 text-blue-300/90">
+                          <span className="h-1.5 w-1.5 rounded-full bg-blue-400" />
+                          <span className="h-1.5 w-1.5 rounded-full bg-blue-400" />
+                          <span className="h-1.5 w-1.5 rounded-full bg-blue-400" />
                         </div>
                       </div>
-                      <div className="flex items-center gap-1 text-blue-300">
-                        <span className="w-2 h-2 bg-blue-400 rounded-full animate-bounce [animation-delay:-0.3s]" />
-                        <span className="w-2 h-2 bg-blue-400 rounded-full animate-bounce [animation-delay:-0.15s]" />
-                        <span className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" />
+                    ) : isAISpeaking || currentAssistantTranscript ? (
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-wide text-purple-300/90">
+                          Speaking...
+                        </p>
+                        <p className="mt-2 text-base leading-relaxed text-white/95">
+                          {currentAssistantTranscript || lastAIMessage}
+                        </p>
                       </div>
-                    </div>
-                  ) : isAISpeaking || currentAssistantTranscript ? (
-                    // AI is actively speaking - show real-time partial or last complete message
-                    <div className="w-full max-w-xl rounded-2xl border border-violet-400/30 bg-violet-500/15 p-6">
-                      <div className="text-xs text-purple-400 mb-2 font-semibold">
-                        Speaking...
-                      </div>
-                      <div className="text-base leading-relaxed">
-                        {currentAssistantTranscript || lastAIMessage}
-                      </div>
-                    </div>
-                  ) : lastAIMessage ? (
-                    // Show last AI message when not speaking
-                    <div className="w-full max-w-xl rounded-2xl border border-violet-400/20 bg-violet-500/10 p-6">
-                      <div className="text-base leading-relaxed text-gray-300">
+                    ) : lastAIMessage ? (
+                      <p className="text-base leading-relaxed text-gray-300">
                         {lastAIMessage}
-                      </div>
-                    </div>
-                  ) : (
-                    <p className="text-gray-400 text-center">
-                      Listening to your response...
-                    </p>
-                  )}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Right: Webcam */}
-          <Card className="border-white/10 bg-white/[0.04] shadow-2xl shadow-black/25 backdrop-blur-xl">
-            <CardContent className="p-7">
-              <div className="relative aspect-video overflow-hidden rounded-2xl bg-black">
-                <video
-                  ref={videoRef}
-                  autoPlay
-                  playsInline
-                  muted
-                  className="w-full h-full object-cover"
-                  onLoadedMetadata={() => {
-                    console.log("Video metadata loaded");
-                    setVideoStreamActive(true);
-                  }}
-                  onPlaying={() => {
-                    console.log("Video is playing");
-                    setVideoStreamActive(true);
-                  }}
-                  onError={(e) => {
-                    console.error("Video element error:", e);
-                    setVideoStreamActive(false);
-                  }}
-                />
-                {(!isCameraOn || !videoStreamActive) && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-gray-900/95">
-                    <VideoOff className="w-16 h-16 text-gray-600" />
-                    {!videoStreamActive && (
-                      <p className="absolute bottom-4 text-sm text-gray-400">
-                        Waiting for camera...
+                      </p>
+                    ) : (
+                      <p className="text-sm text-gray-400">
+                        Listening to your response...
                       </p>
                     )}
                   </div>
                 )}
-                <div className="absolute left-3 top-3 rounded-full border border-white/20 bg-black/45 px-3 py-1 text-xs text-white/90 backdrop-blur">
-                  Candidate Camera
+
+                {!isInterviewActive && (
+                  <div className="mt-auto border-t border-white/10 pt-4 text-center">
+                    {!connected ? (
+                      <div className="mb-4 flex flex-col items-center gap-2">
+                        <span
+                          className="h-2 w-2 rounded-full bg-blue-400"
+                          aria-hidden
+                        />
+                        <p className="text-sm text-blue-400">
+                          AI interviewer is getting ready...
+                        </p>
+                      </div>
+                    ) : (
+                      <p className="mb-4 text-gray-300/80">
+                        Ready to start your interview?
+                      </p>
+                    )}
+                    <Button
+                      onClick={() => setShowRecordingOptIn(true)}
+                      disabled={!connected}
+                      className="rounded-xl bg-gradient-to-r from-violet-600 to-blue-600 px-6 hover:from-violet-700 hover:to-blue-700"
+                    >
+                      Start Interview
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card className="flex min-h-0 flex-col overflow-visible border-white/10 bg-white/[0.06] shadow-lg shadow-black/20 lg:h-full">
+              <CardContent className="flex min-h-0 flex-1 flex-col p-4 sm:p-5">
+                <div className="relative min-h-[200px] w-full flex-1 overflow-hidden rounded-2xl bg-black lg:min-h-0">
+                  <video
+                    ref={videoRef}
+                    autoPlay
+                    playsInline
+                    muted
+                    className="absolute inset-0 h-full w-full object-cover object-center"
+                    onLoadedMetadata={() => {
+                      console.log("Video metadata loaded");
+                      setVideoStreamActive(true);
+                    }}
+                    onPlaying={() => {
+                      console.log("Video is playing");
+                      setVideoStreamActive(true);
+                    }}
+                    onError={(e) => {
+                      console.error("Video element error:", e);
+                      setVideoStreamActive(false);
+                    }}
+                  />
+                  {(!isCameraOn || !videoStreamActive) && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-gray-900/95">
+                      <VideoOff className="h-16 w-16 text-gray-600" />
+                      {!videoStreamActive && (
+                        <p className="absolute bottom-4 text-sm text-gray-400">
+                          Waiting for camera...
+                        </p>
+                      )}
+                    </div>
+                  )}
+                  <div className="absolute left-3 top-3 rounded-full border border-white/20 bg-black/80 px-3 py-1 text-xs text-white/90">
+                    Candidate Camera
+                  </div>
                 </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Interview controls — above transcript history */}
+          <Card className="rounded-xl border border-white/10 bg-white/[0.04] shadow-lg shadow-black/20 backdrop-blur-md">
+            <CardContent className="p-4 sm:p-5">
+              <div className="mb-4 text-center">
+                <h4 className="text-sm font-semibold uppercase tracking-wide text-gray-300/90">
+                  Interview Controls
+                </h4>
+              </div>
+              <div className="flex items-center justify-center gap-4">
+                <Button
+                  type="button"
+                  variant={isMicOn ? "default" : "destructive"}
+                  size="lg"
+                  onClick={toggleMic}
+                  className="h-16 w-16 rounded-2xl"
+                  title={isMicOn ? "Mute microphone" : "Unmute microphone"}
+                >
+                  {isMicOn ? (
+                    <Mic className="w-6 h-6" />
+                  ) : (
+                    <MicOff className="w-6 h-6" />
+                  )}
+                </Button>
+                <Button
+                  type="button"
+                  variant={isCameraOn ? "default" : "destructive"}
+                  size="lg"
+                  onClick={toggleCamera}
+                  className="h-16 w-16 rounded-2xl"
+                  title={isCameraOn ? "Turn camera off" : "Turn camera on"}
+                >
+                  {isCameraOn ? (
+                    <Video className="w-6 h-6" />
+                  ) : (
+                    <VideoOff className="w-6 h-6" />
+                  )}
+                </Button>
+                <Button
+                  type="button"
+                  variant={isRecording ? "destructive" : "default"}
+                  size="lg"
+                  onClick={isRecording ? stopRecording : startRecording}
+                  disabled={isUploadingRecording || !mediaStreamRef.current}
+                  className="h-16 w-16 rounded-2xl"
+                  title={
+                    isUploadingRecording
+                      ? "Uploading recording…"
+                      : isRecording
+                        ? "Stop recording"
+                        : !mediaStreamRef.current
+                          ? "Waiting for camera and microphone"
+                          : "Record session — share this browser tab for best audio"
+                  }
+                >
+                  {isUploadingRecording ? (
+                    <Loader2 className="w-6 h-6 animate-spin" />
+                  ) : isRecording ? (
+                    <Square className="w-6 h-6" />
+                  ) : (
+                    <Circle className="w-6 h-6 fill-red-500 text-red-500" />
+                  )}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Full width: completed AI turns (history) */}
+          <Card className="animate-none border border-white/10 bg-white/[0.04] shadow-md">
+            <CardContent className="p-4 sm:p-5">
+              <h3 className="mb-3 text-lg font-semibold tracking-tight text-white">
+                AI Live Responses
+              </h3>
+              <div className="max-h-72 space-y-4 overflow-y-auto pr-1 text-sm leading-relaxed">
+                {transcript.length === 0 && !currentAssistantTranscript ? (
+                  <p className="text-gray-400">
+                    AI responses will appear here as the conversation progresses...
+                  </p>
+                ) : (
+                  transcript
+                    .filter((item) => item.role === "assistant")
+                    .map((item, index) => (
+                      <div
+                        key={`transcript-${index}-${
+                          item.role
+                        }-${item.content.slice(0, 10)}`}
+                        className="text-white/90"
+                      >
+                        <span className="font-semibold text-violet-200">
+                          Question {index + 1}:{" "}
+                        </span>
+                        <span>{item.content}</span>
+                      </div>
+                    ))
+                )}
               </div>
             </CardContent>
           </Card>
         </div>
-
-        {/* Live AI Responses */}
-        <Card className="border-white/10 bg-white/[0.04] shadow-2xl shadow-black/25 backdrop-blur-xl">
-          <CardContent className="p-7">
-            <h3 className="mb-4 text-lg font-semibold tracking-tight text-white">AI Live Responses</h3>
-            <div className="space-y-2 max-h-64 overflow-y-auto">
-              {transcript.length === 0 && !currentAssistantTranscript ? (
-                <p className="text-gray-400 text-sm">
-                  AI responses will appear here...
-                </p>
-              ) : (
-                <>
-                  {transcript
-                    .filter((item) => item.role === "assistant")
-                    .map((item, index) => (
-                    <div
-                      key={`transcript-${index}-${
-                        item.role
-                      }-${item.content.slice(0, 10)}`}
-                      className="rounded-xl border border-violet-400/20 bg-violet-500/15 p-4 text-sm"
-                    >
-                      <span className="font-semibold text-white">
-                        {`Question ${index + 1}: `}
-                      </span>
-                      <span className="text-white">{item.content}</span>
-                    </div>
-                  ))}
-                </>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Controls */}
-        <Card className="mt-6 border-white/10 bg-white/[0.04] shadow-2xl shadow-black/25 backdrop-blur-xl">
-          <CardContent className="p-6">
-            <div className="mb-5 text-center">
-              <h4 className="text-sm font-semibold uppercase tracking-wide text-gray-300/90">
-                Interview Controls
-              </h4>
-            </div>
-            <div className="flex items-center justify-center gap-4">
-            <Button
-              variant={isMicOn ? "default" : "destructive"}
-              size="lg"
-              onClick={toggleMic}
-              className="h-16 w-16 rounded-2xl"
-            >
-              {isMicOn ? (
-                <Mic className="w-6 h-6" />
-              ) : (
-                <MicOff className="w-6 h-6" />
-              )}
-            </Button>
-            <Button
-              variant={isCameraOn ? "default" : "destructive"}
-              size="lg"
-              onClick={toggleCamera}
-              className="h-16 w-16 rounded-2xl"
-            >
-              {isCameraOn ? (
-                <Video className="w-6 h-6" />
-              ) : (
-                <VideoOff className="w-6 h-6" />
-              )}
-            </Button>
-            <div className="relative group">
-              <Button
-                variant={isRecording ? "destructive" : "default"}
-                size="lg"
-                onClick={isRecording ? stopRecording : startRecording}
-                disabled={isUploadingRecording || !mediaStreamRef.current}
-                className={`h-16 w-16 rounded-2xl ${
-                  isRecording ? "animate-pulse" : ""
-                }`}
-              >
-                {isUploadingRecording ? (
-                  <Loader2 className="w-6 h-6 animate-spin" />
-                ) : isRecording ? (
-                  <Square className="w-6 h-6" />
-                ) : (
-                  <Circle className="w-6 h-6 fill-red-500 text-red-500" />
-                )}
-              </Button>
-              {!isRecording && (
-                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-800 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
-                  <div className="font-semibold mb-1">💡 Screen Share Tip:</div>
-                  <div>If current tab isn't listed,</div>
-                  <div>select "Window" or "Entire screen"</div>
-                  <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-full w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-800"></div>
-                </div>
-              )}
-            </div>
-          </div>
-            {!isRecording && (
-              <div className="mt-5 space-y-2 text-center text-xs text-gray-300/80">
-              <p>
-                💡 <strong>Tip:</strong> The current tab should appear in the
-                picker
-              </p>
-              <p>
-                ✅ Select the <strong>"Interview Trix"</strong> tab
-              </p>
-              <p>
-                🔊 Enable <strong>"Also share tab audio"</strong> to capture AI
-                voice
-              </p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
       </div>
     </div>
   );
