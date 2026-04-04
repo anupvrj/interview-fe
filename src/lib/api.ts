@@ -147,6 +147,8 @@ export interface Interview {
     createdAt: string;
     /** Interview duration in minutes (15 or 30). */
     interviewDuration?: number;
+    /** When true (e.g. institute admin), denying screen capture may block the session. */
+    requireSessionRecording?: boolean;
   };
   session?: {
     s3VideoKey?: string;
