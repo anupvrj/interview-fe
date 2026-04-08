@@ -100,7 +100,7 @@ export default function SuperAdminPage() {
   // Add user dialog
   const [addOpen, setAddOpen] = useState(false);
   const [addEmail, setAddEmail] = useState("");
-  const [addPlan, setAddPlan] = useState<"free" | "starter" | "premium" | "elite">("free");
+  const [addPlan, setAddPlan] = useState<"free" | "premium" | "enterprise">("free");
   const [addInstitutionId, setAddInstitutionId] = useState("");
   const [addSubmitting, setAddSubmitting] = useState(false);
 
@@ -254,7 +254,7 @@ export default function SuperAdminPage() {
     }
   };
 
-  const handleUpdatePlan = async (u: User, plan: "free" | "starter" | "premium" | "elite") => {
+  const handleUpdatePlan = async (u: User, plan: "free" | "premium" | "enterprise") => {
     try {
       await adminApi.updatePlan(u.clerkId, plan);
       loadUsers();
@@ -554,14 +554,13 @@ export default function SuperAdminPage() {
                         onChange={(e) =>
                           handleUpdatePlan(
                             u,
-                            e.target.value as "free" | "starter" | "premium" | "elite"
+                            e.target.value as "free" | "premium" | "enterprise"
                           )
                         }
                       >
                         <option value="free">Free</option>
-                        <option value="starter">Starter</option>
                         <option value="premium">Premium</option>
-                        <option value="elite">Elite</option>
+                        <option value="enterprise">Enterprise</option>
                       </select>
                     </TableCell>
                     <TableCell>
@@ -774,9 +773,8 @@ export default function SuperAdminPage() {
                 onChange={(e) => setAddPlan(e.target.value as any)}
               >
                 <option value="free">Free</option>
-                <option value="starter">Starter</option>
                 <option value="premium">Premium</option>
-                <option value="elite">Elite</option>
+                <option value="enterprise">Enterprise</option>
               </select>
             </div>
             <div>

@@ -60,7 +60,7 @@ export default function InstitutionAdminPage() {
   // Add user dialog
   const [addOpen, setAddOpen] = useState(false);
   const [addEmail, setAddEmail] = useState("");
-  const [addPlan, setAddPlan] = useState<"free" | "starter" | "premium" | "elite">("free");
+  const [addPlan, setAddPlan] = useState<"free" | "premium" | "enterprise">("free");
   const [addInstitutionId, setAddInstitutionId] = useState("");
   const [addSubmitting, setAddSubmitting] = useState(false);
 
@@ -166,7 +166,7 @@ export default function InstitutionAdminPage() {
     }
   };
 
-  const handleUpdatePlan = async (u: User, plan: "free" | "starter" | "premium" | "elite") => {
+  const handleUpdatePlan = async (u: User, plan: "free" | "premium" | "enterprise") => {
     try {
       await adminApi.updatePlan(u.clerkId, plan);
       loadUsers();
@@ -275,13 +275,11 @@ export default function InstitutionAdminPage() {
                     <TableCell>
                       <span
                         className={`px-2 py-0.5 rounded text-xs font-medium ${
-                          u.subscription?.plan === "elite"
+                          u.subscription?.plan === "enterprise"
                             ? "bg-amber-100 text-amber-800"
                             : u.subscription?.plan === "premium"
-                            ? "bg-purple-100 text-purple-800"
-                            : u.subscription?.plan === "starter"
-                            ? "bg-blue-100 text-blue-800"
-                            : "bg-gray-100 text-gray-700"
+                              ? "bg-purple-100 text-purple-800"
+                              : "bg-gray-100 text-gray-700"
                         }`}
                       >
                         {u.subscription?.plan || "free"}
@@ -313,14 +311,13 @@ export default function InstitutionAdminPage() {
                         onChange={(e) =>
                           handleUpdatePlan(
                             u,
-                            e.target.value as "free" | "starter" | "premium" | "elite"
+                            e.target.value as "free" | "premium" | "enterprise"
                           )
                         }
                       >
                         <option value="free">Free</option>
-                        <option value="starter">Starter</option>
                         <option value="premium">Premium</option>
-                        <option value="elite">Elite</option>
+                        <option value="enterprise">Enterprise</option>
                       </select>
                       <Button
                         variant="ghost"
@@ -502,13 +499,12 @@ export default function InstitutionAdminPage() {
                 className="w-full mt-2 border rounded px-3 py-2"
                 value={addPlan}
                 onChange={(e) =>
-                  setAddPlan(e.target.value as "free" | "starter" | "premium" | "elite")
+                  setAddPlan(e.target.value as "free" | "premium" | "enterprise")
                 }
               >
                 <option value="free">Free</option>
-                <option value="starter">Starter</option>
                 <option value="premium">Premium</option>
-                <option value="elite">Elite</option>
+                <option value="enterprise">Enterprise</option>
               </select>
             </div>
             {profile?.accessRole === "super_admin" && institutions.length > 0 && (

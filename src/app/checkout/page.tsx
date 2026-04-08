@@ -17,8 +17,9 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { paymentApi, Subscription } from "@/lib/api";
-import { PLAN_CONFIG } from "@/lib/payment";
+import { paymentApi, planApi, Subscription } from "@/lib/api";
+import type { PlanRecord } from "@/lib/planRecord";
+import { getPlanMarketingHighlights } from "@/lib/planHighlightsFromFeatures";
 import Script from "next/script";
 import Link from "next/link";
 import { InterviewTrixLogo } from "@/components/InterviewTrixLogo";
@@ -36,11 +37,7 @@ function CheckoutPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user, isLoaded } = useUser();
-  const planId = searchParams.get("plan") as
-    | "starter"
-    | "premium"
-    | "elite"
-    | null;
+  const planId = searchParams.get("plan") as "premium" | null;
   const billingCycle = (searchParams.get("cycle") || "monthly") as
     | "monthly"
     | "quarterly"
@@ -54,22 +51,22 @@ function CheckoutPageContent() {
   const [currentSubscription, setCurrentSubscription] =
     useState<Subscription | null>(null);
   const [samePlanError, setSamePlanError] = useState<string | null>(null);
+  const [premiumPlan, setPremiumPlan] = useState<PlanRecord | null>(null);
+  const [planCatalog, setPlanCatalog] = useState<PlanRecord[]>([]);
+  const [catalogError, setCatalogError] = useState<string | null>(null);
 
   // Plan hierarchy for upgrade checks
   const getPlanLevel = (plan: string): number => {
     const levels: Record<string, number> = {
       free: 0,
-      starter: 1,
-      premium: 2,
-      elite: 3,
+      premium: 1,
+      enterprise: 2,
     };
     return levels[plan] ?? 0;
   };
 
   const getNextPlan = (currentPlan: string): string | null => {
-    if (currentPlan === "free") return "starter";
-    if (currentPlan === "starter") return "premium";
-    if (currentPlan === "premium") return "elite";
+    if (currentPlan === "free") return "premium";
     return null;
   };
 
@@ -114,24 +111,41 @@ function CheckoutPageContent() {
     };
   }, [planId]); // Re-check when planId changes
 
-  // Check subscription status
+  // Load plan catalog from API (database) and check subscription
   useEffect(() => {
-    const checkSubscription = async () => {
+    const run = async () => {
       if (!isLoaded || !user) {
         setCheckingSubscription(false);
         return;
       }
 
-      if (!planId || !["starter", "premium", "elite"].includes(planId)) {
+      if (!planId || planId !== "premium") {
         router.push("/pricing");
         return;
       }
 
       try {
+        setCatalogError(null);
+        const catalog = await planApi.getAllPlans();
+        setPlanCatalog(catalog);
+        const premium = catalog.find((p) => p.planId === "premium");
+        if (!premium) {
+          setCatalogError(
+            "Premium plan is not available. Please try again later.",
+          );
+          setPremiumPlan(null);
+          return;
+        }
+        setPremiumPlan(premium);
+
+        const planLabel = (id: string) =>
+          catalog.find((p) => p.planId === id)?.displayName ??
+          catalog.find((p) => p.planId === id)?.name ??
+          id;
+
         const subscription = await paymentApi.getSubscription();
         setCurrentSubscription(subscription);
 
-        // Check if user already has the same plan
         if (
           subscription &&
           subscription.plan === planId &&
@@ -140,11 +154,11 @@ function CheckoutPageContent() {
           const nextPlan = getNextPlan(planId);
           if (nextPlan) {
             setSamePlanError(
-              `You are already subscribed to the ${PLAN_CONFIG[planId as keyof typeof PLAN_CONFIG].name} plan. Please upgrade to ${PLAN_CONFIG[nextPlan as keyof typeof PLAN_CONFIG].name} plan instead.`,
+              `You are already subscribed to the ${planLabel(planId)} plan. Please upgrade to ${planLabel(nextPlan)} plan instead.`,
             );
           } else {
             setSamePlanError(
-              `You are already subscribed to the ${PLAN_CONFIG[planId as keyof typeof PLAN_CONFIG].name} plan. This is our highest tier plan.`,
+              `You are already subscribed to the ${planLabel(planId)} plan. For Enterprise (teams & custom terms), contact us from the pricing page.`,
             );
           }
         } else if (
@@ -152,28 +166,28 @@ function CheckoutPageContent() {
           subscription.plan !== "free" &&
           getPlanLevel(subscription.plan) > getPlanLevel(planId)
         ) {
-          // User is trying to downgrade
           setSamePlanError(
-            `You are currently on the ${PLAN_CONFIG[subscription.plan as keyof typeof PLAN_CONFIG].name} plan. Please contact support if you want to change your plan.`,
+            `You are currently on the ${planLabel(subscription.plan)} plan. Please contact support if you want to change your plan.`,
           );
         } else {
-          // Valid upgrade or new subscription - clear any errors
           setSamePlanError(null);
         }
       } catch (error) {
-        console.error("Error checking subscription:", error);
-        // Continue with checkout if subscription check fails
+        console.error("Error loading checkout context:", error);
+        setCatalogError(
+          error instanceof Error ? error.message : "Failed to load plan",
+        );
         setSamePlanError(null);
       } finally {
         setCheckingSubscription(false);
       }
     };
 
-    checkSubscription();
+    run();
   }, [isLoaded, user, planId, router]);
 
   const handlePayment = async () => {
-    if (!planId || !user || samePlanError) return;
+    if (!planId || !user || samePlanError || !premiumPlan) return;
 
     setLoading(true);
     setError(null);
@@ -207,7 +221,7 @@ function CheckoutPageContent() {
           key: order.keyId,
           subscription_id: order.subscriptionId,
           name: "Interview Trix",
-          description: `${PLAN_CONFIG[planId].name} Plan - ${PLAN_CONFIG[planId].creditsIncluded[billingCycle]} credits (${billingCycle} billing)`,
+          description: `${premiumPlan.name} Plan - ${premiumPlan.creditsIncluded[billingCycle]} credits (${billingCycle} billing)`,
           prefill: {
             name: user.fullName || user.firstName || "",
             email: user.primaryEmailAddress?.emailAddress || "",
@@ -255,7 +269,7 @@ function CheckoutPageContent() {
           amount: order.amount,
           currency: order.currency,
           name: "Interview Trix",
-          description: `${PLAN_CONFIG[planId].name} Plan - ${PLAN_CONFIG[planId].creditsIncluded[billingCycle]} credits`,
+          description: `${premiumPlan.name} Plan - ${premiumPlan.creditsIncluded[billingCycle]} credits`,
           order_id: order.orderId,
           // Enable Indian payment methods
           method: {
@@ -327,9 +341,23 @@ function CheckoutPageContent() {
     );
   }
 
-  const plan = PLAN_CONFIG[planId];
+  if (catalogError || !premiumPlan) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-blue-50 px-4">
+        <p className="text-gray-700 mb-4 text-center max-w-md">
+          {catalogError ?? "Unable to load plan."}
+        </p>
+        <Link href="/pricing">
+          <Button variant="outline">Back to pricing</Button>
+        </Link>
+      </div>
+    );
+  }
+
+  const plan = premiumPlan;
   const planPrice = plan.pricing[billingCycle];
   const planCredits = plan.creditsIncluded[billingCycle];
+  const highlightLines = getPlanMarketingHighlights(plan);
 
   return (
     <>
@@ -534,22 +562,6 @@ function CheckoutPageContent() {
                         : "Yearly"}
                   </span>
                 </div>
-                {plan.creditExpiry && (
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-700">Credit Expiry</span>
-                    <span className="font-semibold text-gray-900">
-                      {plan.creditExpiry} days
-                    </span>
-                  </div>
-                )}
-                {!plan.creditExpiry && plan.id !== "free" && (
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-700">Credit Expiry</span>
-                    <span className="font-semibold text-green-600">
-                      Never expires! ✨
-                    </span>
-                  </div>
-                )}
                 <div className="border-t pt-3 mt-3">
                   <div className="flex justify-between items-center">
                     <span className="text-lg font-semibold text-gray-900">
@@ -579,7 +591,7 @@ function CheckoutPageContent() {
                   </div>
                 </div>
                 {currentSubscription &&
-                  currentSubscription.plan !== "elite" && (
+                  getNextPlan(currentSubscription.plan) && (
                     <Link
                       href={`/checkout?plan=${getNextPlan(currentSubscription.plan)}`}
                     >
@@ -597,11 +609,11 @@ function CheckoutPageContent() {
                       >
                         <ArrowUp className="h-4 w-4 mr-2" />
                         Upgrade to{" "}
-                        {PLAN_CONFIG[
-                          getNextPlan(
-                            currentSubscription.plan,
-                          ) as keyof typeof PLAN_CONFIG
-                        ]?.name || "Next Plan"}
+                        {planCatalog.find(
+                          (p) =>
+                            p.planId ===
+                            getNextPlan(currentSubscription.plan),
+                        )?.name ?? "Next Plan"}
                       </Button>
                     </Link>
                   )}
@@ -670,7 +682,7 @@ function CheckoutPageContent() {
               What you'll get:
             </h3>
             <ul className="space-y-2">
-              {plan.highlights.slice(0, 4).map((highlight, index) => (
+              {highlightLines.slice(0, 4).map((highlight, index) => (
                 <li
                   key={index}
                   className="flex items-center gap-2 text-gray-700"

@@ -156,15 +156,17 @@ export default function OnboardingPage() {
         }
 
         const pendingPlan = localStorage.getItem("pendingPlan");
-        if (
-          pendingPlan &&
-          ["starter", "premium", "elite"].includes(pendingPlan)
-        ) {
+        if (pendingPlan === "enterprise") {
+          localStorage.removeItem("pendingPlan");
+          didRedirect = true;
+          router.replace("/contact");
+        } else if (pendingPlan === "premium") {
           console.log("📦 Pending plan found, redirecting to checkout");
           localStorage.removeItem("pendingPlan");
           didRedirect = true;
           router.replace(`/checkout?plan=${pendingPlan}`);
         } else {
+          if (pendingPlan) localStorage.removeItem("pendingPlan");
           console.log("🏠 Redirecting to dashboard");
           didRedirect = true;
           router.replace("/dashboard");
@@ -309,15 +311,14 @@ export default function OnboardingPage() {
 
       // Check if there's a pending plan from homepage
       const pendingPlan = localStorage.getItem("pendingPlan");
-      if (
-        pendingPlan &&
-        ["starter", "premium", "elite"].includes(pendingPlan)
-      ) {
+      if (pendingPlan === "enterprise") {
         localStorage.removeItem("pendingPlan");
-        // Redirect to checkout with the plan
+        router.push("/contact");
+      } else if (pendingPlan === "premium") {
+        localStorage.removeItem("pendingPlan");
         router.push(`/checkout?plan=${pendingPlan}`);
       } else {
-        // Redirect to dashboard
+        if (pendingPlan) localStorage.removeItem("pendingPlan");
         router.push("/dashboard");
       }
     } catch (error: any) {

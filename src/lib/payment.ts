@@ -6,7 +6,7 @@
  * 
  * Credit Costs:
  * - Interview: 5 credits per minute
- * - Resume creation: 30 credits per resume design
+ * - Resume builder: no credits deducted (included with plan access)
  */
 
 export interface PlanFeatures {
@@ -76,10 +76,7 @@ export interface PlanConfig {
     quarterly: number;
     yearly: number;
   };
-  
-  // Credit expiry (in days, null for never expires)
-  creditExpiry: number | null;
-  
+
   // Features
   features: PlanFeatures;
   
@@ -95,17 +92,18 @@ export interface PlanConfig {
     yearly: number; // percentage
   };
   
-  // Marketing
+  // Marketing (bestFor etc. — bullet copy lives in DB only; see interview-core constants/plansSeedData.ts)
   bestFor?: string;
-  highlights: string[];
+  /** If true, hide Razorpay checkout — contact sales or admin assignment */
+  contactSalesOnly?: boolean;
 }
 
 export const PLAN_CONFIG: Record<string, PlanConfig> = {
   free: {
     id: "free",
     name: "Free",
-    displayName: "Free Plan",
-    description: "Perfect for trying out the platform",
+    displayName: "Free",
+    description: "Best for quick practice & exploration",
     minCreditsRequired: 0,
     pricing: {
       monthly: 0,
@@ -113,15 +111,14 @@ export const PLAN_CONFIG: Record<string, PlanConfig> = {
       yearly: 0,
     },
     creditsIncluded: {
-      monthly: 0,
-      quarterly: 0,
-      yearly: 0,
+      monthly: 1000,
+      quarterly: 1000,
+      yearly: 1000,
     },
-    creditExpiry: null,
     features: {
       freeInterviews: {
-        count: 2,
-        duration: 30,
+        count: 3,
+        duration: 15,
       },
       interviewCostPerMinute: 5,
       resumeBuilder: {
@@ -143,115 +140,39 @@ export const PLAN_CONFIG: Record<string, PlanConfig> = {
       behavioralAnalysis: false,
       progressTracking: true,
     },
-    color: "from-gray-500 to-gray-600",
+    color: "from-slate-500 to-slate-600",
     icon: "Sparkles",
     isPopular: false,
     order: 1,
-    bestFor: "Students & Beginners",
-    highlights: [
-      "2 free 30-min mock interviews",
-      "1 resume (lifetime free)",
-      "Basic ATS score",
-      "Unlimited downloads",
-      "Basic job recommendations",
-    ],
+    bestFor: "Exploration",
   },
-  
-  starter: {
-    id: "starter",
-    name: "Starter",
-    displayName: "Starter Plan",
-    description: "Great for active job seekers",
-    minCreditsRequired: 500,
-    pricing: {
-      monthly: 500,
-      quarterly: 1400, // ~7% discount
-      yearly: 5000, // ~17% discount
-    },
-    creditsIncluded: {
-      monthly: 500,
-      quarterly: 1400,
-      yearly: 5000,
-    },
-    creditExpiry: 60, // 60 days
-    features: {
-      freeInterviews: {
-        count: 2,
-        duration: 30,
-      },
-      additionalInterviews: {
-        count: 2,
-        duration: 30,
-      },
-      interviewCostPerMinute: 5,
-      resumeBuilder: {
-        enabled: true,
-        resumesIncluded: -1, // unlimited
-        costPerResume: 30,
-      },
-      atsScoring: {
-        basic: true,
-        detailed: true,
-        unlimited: true,
-      },
-      jobRecommendations: {
-        daily: 10,
-        refreshLimit: 1,
-      },
-      prioritySupport: false,
-      customQuestions: false,
-      behavioralAnalysis: false,
-      progressTracking: true,
-    },
-    color: "from-blue-500 to-blue-600",
-    icon: "Zap",
-    isPopular: false,
-    order: 2,
-    savings: {
-      quarterly: 7,
-      yearly: 17,
-    },
-    bestFor: "Job Seekers",
-    highlights: [
-      "2 free + 2 additional 30-min interviews",
-      "Resume Builder Pro (30 credits/resume)",
-      "Detailed ATS score",
-      "Credits expire in 60 days",
-      "10 daily job recommendations",
-    ],
-  },
-  
+
   premium: {
     id: "premium",
     name: "Premium",
-    displayName: "Premium Plan",
-    description: "Best for serious interview preparation",
+    displayName: "Premium",
+    description: "Unlimited practice across all scenarios",
     minCreditsRequired: 1999,
     pricing: {
-      monthly: 1999,
-      quarterly: 5500, // ~8% discount
-      yearly: 20000, // ~17% discount
-    },
-    creditsIncluded: {
       monthly: 1999,
       quarterly: 5500,
       yearly: 20000,
     },
-    creditExpiry: 120, // 120 days
+    creditsIncluded: {
+      monthly: 4000,
+      quarterly: 11000,
+      yearly: 40000,
+    },
     features: {
       freeInterviews: {
-        count: 2,
+        count: 999,
         duration: 30,
-      },
-      additionalInterviews: {
-        count: 5,
-        duration: 60,
       },
       interviewCostPerMinute: 5,
       resumeBuilder: {
         enabled: true,
         resumesIncluded: -1,
-        costPerResume: 30,
+        costPerResume: 0,
       },
       atsScoring: {
         basic: true,
@@ -270,53 +191,41 @@ export const PLAN_CONFIG: Record<string, PlanConfig> = {
     color: "from-blue-600 to-blue-700",
     icon: "Trophy",
     isPopular: true,
-    order: 3,
+    order: 2,
     savings: {
       quarterly: 8,
       yearly: 17,
     },
-    bestFor: "Professionals",
-    highlights: [
-      "2 free + 5 additional 60-min interviews",
-      "Resume Builder Pro (30 credits/resume)",
-      "Detailed ATS score",
-      "Credits expire in 120 days",
-      "20 daily job recommendations (3 refreshes)",
-      "Priority support",
-    ],
+    bestFor: "Individuals",
   },
-  
-  elite: {
-    id: "elite",
-    name: "Elite",
-    displayName: "Elite Plan",
-    description: "Ultimate package for career advancement",
-    minCreditsRequired: 5999,
+
+  enterprise: {
+    id: "enterprise",
+    name: "Enterprise",
+    displayName: "Enterprise",
+    description: "For organizations & teams",
+    minCreditsRequired: 0,
     pricing: {
-      monthly: 5999,
-      quarterly: 16500, // ~8% discount
-      yearly: 60000, // ~17% discount
+      monthly: 0,
+      quarterly: 0,
+      yearly: 0,
     },
     creditsIncluded: {
-      monthly: 5999,
-      quarterly: 16500,
-      yearly: 60000,
+      monthly: 0,
+      quarterly: 0,
+      yearly: 0,
     },
-    creditExpiry: null, // Never expires
+    contactSalesOnly: true,
     features: {
       freeInterviews: {
-        count: 2,
+        count: 999,
         duration: 30,
-      },
-      additionalInterviews: {
-        count: 10,
-        duration: 60,
       },
       interviewCostPerMinute: 5,
       resumeBuilder: {
         enabled: true,
         resumesIncluded: -1,
-        costPerResume: 30,
+        costPerResume: 0,
       },
       atsScoring: {
         basic: true,
@@ -324,36 +233,19 @@ export const PLAN_CONFIG: Record<string, PlanConfig> = {
         unlimited: true,
       },
       jobRecommendations: {
-        daily: -1, // unlimited
-        refreshLimit: -1, // unlimited
-      },
-      realInterviews: {
-        count: 2,
-        description: "Real interviews with top engineers from tier 1 & 2 companies",
+        daily: -1,
+        refreshLimit: -1,
       },
       prioritySupport: true,
       customQuestions: true,
       behavioralAnalysis: true,
       progressTracking: true,
     },
-    color: "from-purple-600 to-purple-700",
-    icon: "Crown",
+    color: "from-slate-700 to-slate-900",
+    icon: "Building2",
     isPopular: false,
-    order: 4,
-    savings: {
-      quarterly: 8,
-      yearly: 17,
-    },
-    bestFor: "Career Changers",
-    highlights: [
-      "2 free + 10 additional 60-min interviews",
-      "Resume Builder Pro (30 credits/resume)",
-      "Detailed ATS score",
-      "Credits NEVER expire",
-      "Unlimited job recommendations",
-      "2 real interviews with top engineers",
-      "Priority support",
-    ],
+    order: 3,
+    bestFor: "Organizations",
   },
 };
 
@@ -364,13 +256,14 @@ export type PlanId = keyof typeof PLAN_CONFIG;
  */
 export const CREDIT_COSTS = {
   INTERVIEW_PER_MINUTE: 5,
-  RESUME_CREATION: 30,
-  
+  /** Resume builder does not charge credits (0). */
+  RESUME_CREATION: 0,
+
   // Helper functions
   calculateInterviewCost: (durationMinutes: number): number => {
     return durationMinutes * CREDIT_COSTS.INTERVIEW_PER_MINUTE;
   },
-  
+
   calculateResumeCost: (): number => {
     return CREDIT_COSTS.RESUME_CREATION;
   },
@@ -384,12 +277,15 @@ export function getPlan(planId: string): PlanConfig | undefined {
 }
 
 /**
- * Get all active plans (excluding free)
+ * Paid plans for marketing (Free + Premium + Enterprise ordering)
  */
 export function getActivePlans(): PlanConfig[] {
-  return Object.values(PLAN_CONFIG)
-    .filter(plan => plan.id !== "free")
-    .sort((a, b) => a.order - b.order);
+  return Object.values(PLAN_CONFIG).sort((a, b) => a.order - b.order);
+}
+
+/** Self-serve Razorpay checkout — Premium only */
+export function getSelfServeCheckoutPlans(): PlanConfig[] {
+  return Object.values(PLAN_CONFIG).filter((p) => p.id === "premium");
 }
 
 /**

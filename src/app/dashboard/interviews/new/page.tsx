@@ -447,14 +447,14 @@ export default function NewInterviewPage() {
                         <SelectItem
                           value="30"
                           disabled={
-                            !["premium", "elite"].includes(
+                            !["premium", "enterprise"].includes(
                               userProfile?.subscription?.plan ?? "",
                             )
                           }
                         >
                           <span className="flex items-center gap-2">
                             30 minutes
-                            {!["premium", "elite"].includes(
+                            {!["premium", "enterprise"].includes(
                               userProfile?.subscription?.plan ?? "",
                             ) && (
                               <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-gradient-to-r from-yellow-400 to-amber-500 text-white">
@@ -468,7 +468,7 @@ export default function NewInterviewPage() {
                     </Select>
                     <p className="text-xs text-gray-500 flex items-center gap-1">
                       <Zap className="w-3 h-3" />
-                      {["premium", "elite"].includes(
+                      {["premium", "enterprise"].includes(
                         userProfile?.subscription?.plan ?? "",
                       )
                         ? "Choose 15 or 30 minutes for a deeper session"

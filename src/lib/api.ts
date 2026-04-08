@@ -118,7 +118,7 @@ export interface User {
     size: number;
   };
   subscription?: {
-    plan: "free" | "starter" | "premium" | "elite";
+    plan: "free" | "premium" | "enterprise";
     status: "active" | "cancelled" | "expired";
     currentPeriodEnd?: string;
     interviewsUsed?: number;
@@ -246,7 +246,7 @@ export interface CreateInterviewRequest {
   targetCompany?: string;
   resume?: File;
   useSavedResume?: boolean;
-  /** Interview duration in minutes: 15 (default) or 30 (premium/elite only). */
+  /** Interview duration in minutes: 15 (default) or 30 (premium & enterprise). */
   duration?: number;
 }
 
@@ -592,7 +592,7 @@ export const interviewApi = {
 };
 
 export interface Subscription {
-  plan: "free" | "starter" | "premium" | "elite";
+    plan: "free" | "premium" | "enterprise";
   status: "active" | "cancelled" | "expired";
   interviewsUsed?: number; // Deprecated: now using credits
   interviewsLimit?: number; // Deprecated: now using credits
@@ -629,7 +629,7 @@ export interface RazorpayOrder {
 
 export const paymentApi = {
   createOrder: async (
-    plan: "starter" | "premium" | "elite",
+    plan: "premium",
     billingCycle: "monthly" | "quarterly" | "yearly" = "monthly",
   ): Promise<RazorpayOrder> => {
     const response = await apiClient.post<{ data: RazorpayOrder }>(
@@ -1211,6 +1211,26 @@ export const planApi = {
   },
 };
 
+export interface EnterpriseSalesPayload {
+  name: string;
+  phone: string;
+  email: string;
+  organizationName: string;
+  industry: string;
+}
+
+export const contactApi = {
+  submitEnterpriseSales: async (
+    payload: EnterpriseSalesPayload,
+  ): Promise<{ success: boolean; message?: string }> => {
+    const response = await apiClient.post<{
+      success: boolean;
+      message?: string;
+    }>("/contact/enterprise-sales", payload);
+    return response.data;
+  },
+};
+
 // Admin API (requires admin role)
 export const adminApi = {
   listUsers: async (params?: {
@@ -1230,7 +1250,7 @@ export const adminApi = {
 
   addUser: async (
     email: string,
-    plan: "free" | "starter" | "premium" | "elite",
+    plan: "free" | "premium" | "enterprise",
     institutionId?: string
   ): Promise<{ invitationId: string; message: string }> => {
     const response = await apiClient.post<{
@@ -1269,7 +1289,7 @@ export const adminApi = {
 
   updatePlan: async (
     userId: string,
-    plan: "free" | "starter" | "premium" | "elite"
+    plan: "free" | "premium" | "enterprise"
   ): Promise<User> => {
     const response = await apiClient.put<{ success: boolean; data: User }>(
       `/admin/users/${userId}/plan`,
