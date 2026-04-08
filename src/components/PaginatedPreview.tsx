@@ -69,6 +69,7 @@ export const PaginatedPreview: React.FC<PaginatedPreviewProps> = ({
       sections: sections || [],
       isTwoColumn,
       pageHeightLimit: (CONTENT_HEIGHT_MM / A4_HEIGHT_MM) * 1122.5,
+      snapPageBreaksToLineBounds: template.id === "corporate",
     });
 
   return (
