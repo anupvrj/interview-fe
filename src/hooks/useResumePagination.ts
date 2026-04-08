@@ -22,6 +22,8 @@ interface PaginationOptions {
   sections: any[];
   isTwoColumn: boolean;
   pageHeightLimit: number; // Max content height per page in pixels
+  /** Snap cuts to text line bounds (corporate template only; other layouts rely on default bands). */
+  snapPageBreaksToLineBounds?: boolean;
 }
 
 const INITIAL_PAGINATION_DELAY_MS = 200;
@@ -32,6 +34,7 @@ export function useResumePagination({
   sections,
   isTwoColumn,
   pageHeightLimit,
+  snapPageBreaksToLineBounds = false,
 }: PaginationOptions) {
   const [pages, setPages] = useState<PageData[]>([]);
   const [isPaginating, setIsPaginating] = useState(false);
@@ -62,7 +65,7 @@ export function useResumePagination({
         settleTimeoutRef.current = null;
       }
     };
-  }, [resume, sections, isTwoColumn, pageHeightLimit]);
+  }, [resume, sections, isTwoColumn, pageHeightLimit, snapPageBreaksToLineBounds]);
 
   const calculatePages = () => {
     if (!measuringRef.current || !resume) {
@@ -144,11 +147,13 @@ export function useResumePagination({
       atomicIfFitsOnOnePage,
     );
 
-    trimmedPages = snapResumePageBreaksToLineBounds(
-      container,
-      trimmedPages,
-      fullHeight,
-    );
+    if (snapPageBreaksToLineBounds) {
+      trimmedPages = snapResumePageBreaksToLineBounds(
+        container,
+        trimmedPages,
+        fullHeight,
+      );
+    }
 
     const orphanBoxes = collectOrphanRepairBoxes(elements);
     for (let pass = 0; pass < 6; pass++) {

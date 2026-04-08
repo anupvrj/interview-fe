@@ -14,13 +14,13 @@ export function StructuredData({ data }: StructuredDataProps) {
   );
 }
 
-/** Organization `sameAs` for JSON-LD — keep in sync with `SocialLinks.tsx` hrefs + LinkedIn */
+/** Organization `sameAs` for JSON-LD — keep in sync with `SocialLinks.tsx` hrefs */
 export const ORGANIZATION_SAME_AS = [
   "https://www.instagram.com/interviewtrix/",
   "https://www.reddit.com/user/interviewtrix/",
   "https://x.com/InterviewTrix",
   "https://www.youtube.com/@interviewtrix_official",
-  "https://linkedin.com/company/interviewtrix",
+  "https://www.linkedin.com/company/interview-trix/",
 ] as const;
 
 // Organization Schema
