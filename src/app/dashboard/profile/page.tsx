@@ -42,6 +42,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { userApi, User } from "@/lib/api";
+import { InstitutionAffiliationFields } from "@/components/profile/InstitutionAffiliationFields";
+import {
+  affiliationFromUser,
+  toProfileAffiliationPayload,
+  type AffiliationValue,
+} from "@/lib/affiliation-payload";
 import { getApiErrorMessage } from "@/lib/api-error-message";
 import { formatDate } from "@/lib/utils";
 import {
@@ -73,6 +79,10 @@ export default function ProfilePage() {
       industry: "",
     },
     industries: [] as string[],
+    affiliation: {
+      affiliationInstitutionId: null,
+      affiliationInstitutionName: "",
+    } as AffiliationValue,
   });
 
   const INDUSTRIES = [
@@ -112,6 +122,7 @@ export default function ProfilePage() {
           industry: "",
         },
         industries: profile.industries || [],
+        affiliation: affiliationFromUser(profile),
       });
     } catch (error: any) {
       console.error("Error loading profile:", error);
@@ -142,6 +153,7 @@ export default function ProfilePage() {
           profileData.industries.length > 0
             ? profileData.industries
             : undefined,
+        ...toProfileAffiliationPayload(profileData.affiliation),
       });
 
       setSuccess("Profile updated successfully!");
@@ -518,6 +530,14 @@ export default function ProfilePage() {
                     </div>
                   )}
 
+                  <InstitutionAffiliationFields
+                    value={profileData.affiliation}
+                    onChange={(affiliation) =>
+                      setProfileData((prev) => ({ ...prev, affiliation }))
+                    }
+                    disabled={savingProfile}
+                  />
+
                   {/* Industries of Interest */}
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-gray-700">
@@ -582,6 +602,7 @@ export default function ProfilePage() {
                               industry: "",
                             },
                             industries: user.industries || [],
+                            affiliation: affiliationFromUser(user),
                           });
                         }
                       }}
@@ -605,6 +626,24 @@ export default function ProfilePage() {
                         </p>
                       </div>
                     </div>
+
+                    {user?.affiliationInstitutionName?.trim() ? (
+                      <div className="space-y-2 md:col-span-2">
+                        <Label className="text-sm font-semibold text-gray-700">
+                          Institute / organization
+                        </Label>
+                        <div className="p-4 bg-gradient-to-br from-slate-50 to-blue-50 rounded-xl border-2 border-slate-100">
+                          <p className="text-gray-900 font-semibold text-base">
+                            {user.affiliationInstitutionName}
+                          </p>
+                          {user.affiliationInstitutionId ? (
+                            <p className="mt-1 text-xs text-gray-500">
+                              Listed in our directory
+                            </p>
+                          ) : null}
+                        </div>
+                      </div>
+                    ) : null}
 
                     {user?.userType === "experienced" && user.experience && (
                       <div className="space-y-2">

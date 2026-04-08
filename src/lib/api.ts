@@ -102,6 +102,9 @@ export interface User {
   role: "student" | "college";
   accessRole?: AccessRole;
   institutionId?: string;
+  /** Self-reported institute (optional); separate from institutionId (org membership) */
+  affiliationInstitutionId?: string | null;
+  affiliationInstitutionName?: string;
   onboardingCompleted?: boolean;
   userType?: "student" | "fresher" | "experienced";
   experience?: number;
@@ -237,6 +240,9 @@ export interface InterviewReport {
   reportPdfS3Key?: string;
   createdAt: string;
   updatedAt: string;
+  /** Present when an institution admin loads the report and a passing score was set on the interview */
+  passingScoreThreshold?: number;
+  passStatus?: "pass" | "fail";
 }
 
 export interface CreateInterviewRequest {
@@ -281,6 +287,17 @@ export const userApi = {
 
   getMyProfile: async (): Promise<User> => {
     const response = await apiClient.get<{ data: User }>("/users/me/profile");
+    return response.data.data;
+  },
+
+  /** Search institutions by name (min 2 chars on server); for optional profile affiliation */
+  searchInstitutionsForAffiliation: async (
+    q: string
+  ): Promise<{ _id: string; name: string }[]> => {
+    const response = await apiClient.get<{
+      success: boolean;
+      data: { _id: string; name: string }[];
+    }>("/users/me/institutions/search", { params: { q } });
     return response.data.data;
   },
 
@@ -341,6 +358,8 @@ export const userApi = {
       industry: string;
     };
     industries?: string[];
+    affiliationInstitutionId?: string | null;
+    affiliationInstitutionName?: string | null;
   }): Promise<User> => {
     const response = await apiClient.post<{ data: User }>(
       "/users/me/onboarding",
@@ -359,6 +378,8 @@ export const userApi = {
       industry: string;
     };
     industries?: string[];
+    affiliationInstitutionId?: string | null;
+    affiliationInstitutionName?: string | null;
   }): Promise<User> => {
     const response = await apiClient.put<{ data: User }>(
       "/users/me/profile",
@@ -1217,11 +1238,14 @@ export const adminApi = {
     limit?: number;
     skip?: number;
     search?: string;
+    /** Super admin: scope list to this institution */
+    institutionId?: string;
   }): Promise<{ data: User[]; total: number }> => {
     const q = new URLSearchParams();
     if (params?.limit) q.set("limit", String(params.limit));
     if (params?.skip) q.set("skip", String(params.skip));
     if (params?.search) q.set("search", params.search);
+    if (params?.institutionId) q.set("institutionId", params.institutionId);
     const response = await apiClient.get<{ success: boolean; data: User[]; total: number }>(
       `/admin/users?${q.toString()}`
     );
@@ -1255,6 +1279,7 @@ export const adminApi = {
     await apiClient.delete(`/admin/users/${userId}`);
   },
 
+  /** Positive adds credits; negative removes (institution/super admin). */
   addCredits: async (
     userId: string,
     amount: number,
@@ -1281,6 +1306,20 @@ export const adminApi = {
   getUserInterviews: async (userId: string): Promise<any[]> => {
     const response = await apiClient.get<{ success: boolean; data: any[] }>(
       `/admin/users/${userId}/interviews`
+    );
+    return response.data.data;
+  },
+
+  getUserResumes: async (userId: string): Promise<any[]> => {
+    const response = await apiClient.get<{ success: boolean; data: any[] }>(
+      `/admin/users/${userId}/resumes`
+    );
+    return response.data.data;
+  },
+
+  getResumeForAdmin: async (resumeId: string): Promise<any> => {
+    const response = await apiClient.get<{ success: boolean; data: any }>(
+      `/admin/resumes/${resumeId}`
     );
     return response.data.data;
   },
@@ -1312,11 +1351,335 @@ export const adminApi = {
     slug?: string;
     domain?: string;
     contactEmail?: string;
+    maxUsers?: number | null;
   }): Promise<any> => {
     const response = await apiClient.post<{ success: boolean; data: any }>(
       "/admin/institutions",
       data
     );
+    return response.data.data;
+  },
+
+  updateInstitution: async (
+    institutionId: string,
+    data: {
+      name?: string;
+      slug?: string;
+      domain?: string | null;
+      contactEmail?: string | null;
+      maxUsers?: number | null;
+    }
+  ): Promise<any> => {
+    const response = await apiClient.put<{ success: boolean; data: any }>(
+      `/admin/institutions/${institutionId}`,
+      data
+    );
+    return response.data.data;
+  },
+
+  deleteInstitution: async (institutionId: string): Promise<void> => {
+    await apiClient.delete(`/admin/institutions/${institutionId}`);
+  },
+
+  listBatches: async (institutionId: string): Promise<any[]> => {
+    const response = await apiClient.get<{ success: boolean; data: any[] }>(
+      `/admin/institutions/${institutionId}/batches`
+    );
+    return response.data.data;
+  },
+
+  createBatch: async (institutionId: string, name: string): Promise<any> => {
+    const response = await apiClient.post<{ success: boolean; data: any }>(
+      `/admin/institutions/${institutionId}/batches`,
+      { name }
+    );
+    return response.data.data;
+  },
+
+  getBatch: async (batchId: string): Promise<any> => {
+    const response = await apiClient.get<{ success: boolean; data: any }>(
+      `/admin/batches/${batchId}`
+    );
+    return response.data.data;
+  },
+
+  /** Scores & leaderboard for interviews tied to this batch (bulk-scheduled runs). */
+  getBatchPerformance: async (batchId: string): Promise<{
+    memberCount: number;
+    schedulesWithBatchTag: number;
+    interviewsStarted: number;
+    reportsCompleted: number;
+    totalPassed: number;
+    totalFailed: number;
+    gradedWithThreshold: number;
+    averageScore: number | null;
+    highestScore: number | null;
+    topPerformers: Array<{
+      rank: number;
+      clerkId: string;
+      name: string | null;
+      email: string | null;
+      overallScore: number;
+      interviewId: string;
+      scheduledAt: string;
+    }>;
+    inProgress: Array<{
+      clerkId: string;
+      name: string | null;
+      email: string | null;
+      interviewId: string;
+    }>;
+  }> => {
+    const response = await apiClient.get<{ success: boolean; data: any }>(
+      `/admin/batches/${batchId}/performance`
+    );
+    return response.data.data;
+  },
+
+  listBatchScheduleRuns: async (
+    batchId: string
+  ): Promise<{
+    runs: Array<{
+      runId: string;
+      role: string;
+      scheduledAt: string;
+      passingScore: number | null;
+      candidateCount: number;
+      createdAt: string;
+      scheduleGroupId: string | null;
+    }>;
+  }> => {
+    const response = await apiClient.get<{ success: boolean; data: any }>(
+      `/admin/batches/${batchId}/schedule-runs`
+    );
+    return response.data.data;
+  },
+
+  getBatchScheduleRunDetail: async (
+    batchId: string,
+    runId: string
+  ): Promise<{
+    runId: string;
+    role: string;
+    scheduledAt: string;
+    passingScore: number | null;
+    scheduleGroupId: string | null;
+    totalScheduled: number;
+    interviewsStarted: number;
+    reportsCompleted: number;
+    totalPassed: number;
+    totalFailed: number;
+    gradedWithThreshold: number;
+    averageScore: number | null;
+    highestScore: number | null;
+    topPerformers: Array<{
+      rank: number;
+      clerkId: string;
+      name: string | null;
+      email: string | null;
+      overallScore: number;
+      interviewId: string;
+      scheduledAt: string;
+    }>;
+    inProgress: Array<{
+      clerkId: string;
+      name: string | null;
+      email: string | null;
+      interviewId: string;
+    }>;
+    participants: Array<{
+      scheduleId: string;
+      clerkId: string;
+      name: string | null;
+      email: string | null;
+      status: string;
+      scheduledAt: string;
+      interviewId: string | null;
+      overallScore: number | null;
+      passed: boolean | null;
+    }>;
+  }> => {
+    const response = await apiClient.get<{ success: boolean; data: any }>(
+      `/admin/batches/${batchId}/schedule-runs/${encodeURIComponent(runId)}`
+    );
+    return response.data.data;
+  },
+
+  updateBatch: async (batchId: string, name: string): Promise<any> => {
+    const response = await apiClient.put<{ success: boolean; data: any }>(
+      `/admin/batches/${batchId}`,
+      { name }
+    );
+    return response.data.data;
+  },
+
+  deleteBatch: async (batchId: string): Promise<void> => {
+    await apiClient.delete(`/admin/batches/${batchId}`);
+  },
+
+  addBatchMembers: async (
+    batchId: string,
+    body: { emails?: string[]; clerkIds?: string[] }
+  ): Promise<{ added: string[]; skipped: { email?: string; clerkId?: string; reason: string }[] }> => {
+    const response = await apiClient.post<{ success: boolean; data: any }>(
+      `/admin/batches/${batchId}/members`,
+      body
+    );
+    return response.data.data;
+  },
+
+  removeBatchMember: async (batchId: string, clerkId: string): Promise<any> => {
+    const response = await apiClient.delete<{ success: boolean; data: any }>(
+      `/admin/batches/${batchId}/members/${encodeURIComponent(clerkId)}`
+    );
+    return response.data.data;
+  },
+
+  bulkScheduleBatchInterviews: async (
+    batchId: string,
+    data: {
+      scheduledAt: string;
+      expiresAt?: string | null;
+      role: string;
+      experience: number;
+      language?: "en" | "hi";
+      targetCompany?: string;
+      interviewDuration?: 15 | 30;
+      notes?: string;
+      /** One entry per question, in order; AI asks these instead of generated questions */
+      customQuestions?: string[];
+      /** Minimum overall score (0–100) for pass/fail on reports */
+      passingScore?: number;
+      /** Optional; copied to each schedule and into interview context when they start */
+      jobDescription?: string;
+    }
+  ): Promise<{
+    institutionId: string;
+    total: number;
+    created: number;
+    failures: { clerkId: string; error: string }[];
+  }> => {
+    const response = await apiClient.post<{
+      success: boolean;
+      data: {
+        institutionId: string;
+        total: number;
+        created: number;
+        failures: { clerkId: string; error: string }[];
+      };
+    }>(`/admin/batches/${batchId}/schedule-interviews`, data);
+    return response.data.data;
+  },
+
+  listInterviewSchedules: async (institutionId?: string): Promise<any[]> => {
+    const q = institutionId
+      ? `?institutionId=${encodeURIComponent(institutionId)}`
+      : "";
+    const response = await apiClient.get<{ success: boolean; data: any[] }>(
+      `/admin/interview-schedules${q}`
+    );
+    return response.data.data;
+  },
+
+  getInstitutionDashboard: async (institutionId: string): Promise<{
+    institution: Record<string, unknown> & { userCount?: number };
+    userCount: number;
+    planCounts: Record<string, number>;
+    scheduledPending: number;
+    batchCount: number;
+    totalBatchMemberSlots: number;
+    scheduleCounts: { scheduled: number; started: number; cancelled: number };
+    creditsPool: number;
+    interviewsCompleted: number;
+  }> => {
+    const response = await apiClient.get<{ success: boolean; data: any }>(
+      `/admin/institutions/${institutionId}/dashboard`
+    );
+    return response.data.data;
+  },
+
+  /** Payments from the institution admin account (plans/credits), not candidate subscriptions. */
+  getInstitutionPayments: async (
+    institutionId: string,
+    params?: { limit?: number; skip?: number }
+  ): Promise<{ data: any[]; total: number }> => {
+    const q = new URLSearchParams();
+    if (params?.limit) q.set("limit", String(params.limit));
+    if (params?.skip) q.set("skip", String(params.skip));
+    const response = await apiClient.get<{
+      success: boolean;
+      data: any[];
+      total: number;
+    }>(`/admin/institutions/${institutionId}/payments?${q.toString()}`);
+    return { data: response.data.data, total: response.data.total };
+  },
+
+  createInterviewSchedule: async (data: {
+    candidateClerkId: string;
+    institutionId?: string;
+    scheduledAt: string;
+    /** ISO datetime — latest time the candidate may start (optional) */
+    expiresAt?: string;
+    role: string;
+    experience: number;
+    language?: "en" | "hi";
+    targetCompany?: string;
+    interviewDuration?: 15 | 30;
+    notes?: string;
+    customQuestions?: string[];
+    passingScore?: number;
+    /** Pasted JD — passed into interview context when the candidate starts */
+    jobDescription?: string;
+  }): Promise<any> => {
+    const response = await apiClient.post<{ success: boolean; data: any }>(
+      "/admin/interview-schedules",
+      data
+    );
+    return response.data.data;
+  },
+
+  updateInterviewSchedule: async (
+    scheduleId: string,
+    data: {
+      scheduledAt?: string;
+      expiresAt?: string | null;
+      role?: string;
+      experience?: number;
+      language?: "en" | "hi";
+      targetCompany?: string | null;
+      interviewDuration?: 15 | 30;
+      notes?: string | null;
+      customQuestions?: string[] | null;
+      passingScore?: number | null;
+      jobDescription?: string | null;
+    }
+  ): Promise<any> => {
+    const response = await apiClient.put<{ success: boolean; data: any }>(
+      `/admin/interview-schedules/${scheduleId}`,
+      data
+    );
+    return response.data.data;
+  },
+
+  cancelInterviewSchedule: async (scheduleId: string): Promise<void> => {
+    await apiClient.delete(`/admin/interview-schedules/${scheduleId}`);
+  },
+};
+
+/** Scheduled interviews (candidate: list mine, start). */
+export const interviewScheduleApi = {
+  listMine: async (): Promise<any[]> => {
+    const response = await apiClient.get<{ success: boolean; data: any[] }>(
+      "/interview-schedules/me"
+    );
+    return response.data.data;
+  },
+
+  start: async (scheduleId: string): Promise<{ interviewId: string }> => {
+    const response = await apiClient.post<{
+      success: boolean;
+      data: { interviewId: string };
+    }>(`/interview-schedules/${scheduleId}/start`);
     return response.data.data;
   },
 };
