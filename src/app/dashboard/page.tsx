@@ -211,7 +211,7 @@ export default function DashboardPage() {
   const getNextPlan = (currentPlan: string): NextPlanDisplay | null => {
     if (!allPlans || allPlans.length === 0) return null;
 
-    const planOrder = ["free", "starter", "premium", "elite"];
+    const planOrder = ["free", "premium", "enterprise"];
     const currentIndex = planOrder.indexOf(currentPlan);
 
     if (currentIndex === -1 || currentIndex === planOrder.length - 1) {
