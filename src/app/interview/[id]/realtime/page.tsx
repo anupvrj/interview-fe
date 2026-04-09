@@ -1015,8 +1015,17 @@ export default function RealtimeInterviewPage() {
       setIsInterviewActive(true);
       isInterviewActiveRef.current = true;
       setIsPreparing(true); // Show preparing state until AI speaks
-      setElapsedTime(0); // Reset counter; starts when AI is ready
-      timerStartedRef.current = false; // Timer starts when AI is ready
+      setElapsedTime(0);
+      // Match server wall clock (start_interview_after_greeting): count from Start click so
+      // on-screen minutes align with TIME IS UP / configured 15 or 30 min slot.
+      timerStartedRef.current = true;
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+      timerRef.current = setInterval(() => {
+        setElapsedTime((prev) => prev + 1);
+      }, 1000);
 
       // Explicitly start Gemini interview only after user click
       if (voiceProviderRef.current === "gemini" && websocketRef.current) {
