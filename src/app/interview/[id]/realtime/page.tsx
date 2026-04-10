@@ -1126,8 +1126,8 @@ export default function RealtimeInterviewPage() {
       // Complete interview
       await interviewApi.complete(interviewId);
 
-      // Redirect to processing page
-      router.push(`/dashboard/interviews/${interviewId}/processing`);
+      // Collect quick feedback, then processing/report flow
+      router.push(`/dashboard/interviews/${interviewId}/feedback`);
     } catch (error: any) {
       console.error("Error ending interview:", error);
       // Use non-blocking toast so the interview isn't interrupted.
