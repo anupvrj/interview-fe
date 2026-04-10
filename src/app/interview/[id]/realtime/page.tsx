@@ -146,6 +146,8 @@ export default function RealtimeInterviewPage() {
   const clientWsHeartbeatRef = useRef<ReturnType<typeof setInterval> | null>(
     null,
   );
+  /** Pending auto-reconnect timer after a benign WS drop during an active interview. */
+  const autoReconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const stopClientWsHeartbeat = () => {
     if (clientWsHeartbeatRef.current) {
@@ -156,12 +158,16 @@ export default function RealtimeInterviewPage() {
 
   const startClientWsHeartbeat = () => {
     stopClientWsHeartbeat();
+    // 10s interval — well under any 30–60s proxy idle timeout.
+    // Chrome throttles backgrounded-tab setInterval to ≥1s, so 10s is still fine.
+    // Server responds with {type:"pong"} so traffic flows in both directions.
     clientWsHeartbeatRef.current = setInterval(() => {
       const ws = websocketRef.current;
+      // Keepalive during prep (before Start) and mid-interview — some proxies idle-close
+      // without traffic; do not gate on isInterviewActive for Gemini.
       if (
         ws?.readyState === WebSocket.OPEN &&
-        voiceProviderRef.current === "gemini" &&
-        isInterviewActiveRef.current
+        voiceProviderRef.current === "gemini"
       ) {
         try {
           ws.send(JSON.stringify({ type: "client_ping", t: Date.now() }));
@@ -169,7 +175,7 @@ export default function RealtimeInterviewPage() {
           /* ignore */
         }
       }
-    }, 20_000);
+    }, 10_000);
   };
 
   /** One random persona per page load; matches WebSocket voice query. */
@@ -237,6 +243,11 @@ export default function RealtimeInterviewPage() {
   };
 
   const resumeInterview = async () => {
+    // Cancel any pending auto-reconnect — this manual tap takes priority.
+    if (autoReconnectTimerRef.current) {
+      clearTimeout(autoReconnectTimerRef.current);
+      autoReconnectTimerRef.current = null;
+    }
     setIsResuming(true);
     isResumingRef.current = true;
     if (voiceProviderRef.current === "gemini") {
@@ -395,6 +406,10 @@ export default function RealtimeInterviewPage() {
 
   const cleanup = () => {
     stopClientWsHeartbeat();
+    if (autoReconnectTimerRef.current) {
+      clearTimeout(autoReconnectTimerRef.current);
+      autoReconnectTimerRef.current = null;
+    }
     if (timerRef.current) clearInterval(timerRef.current);
     if (websocketRef.current) websocketRef.current.close();
     if (audioProcessorRef.current) audioProcessorRef.current.disconnect();
@@ -489,6 +504,9 @@ export default function RealtimeInterviewPage() {
         // before enabling the Start button. For ChatGPT, enable immediately on WS open.
         if (voiceProviderRef.current !== "gemini") {
           setConnected(true);
+        } else {
+          // App-level keepalive from first byte of session (covers long AI prep on Railway).
+          startClientWsHeartbeat();
         }
         if (isResumingRef.current && isInterviewActiveRef.current) {
           if (voiceProviderRef.current === "gemini") {
@@ -508,7 +526,6 @@ export default function RealtimeInterviewPage() {
                   : {}),
               }),
             );
-            startClientWsHeartbeat();
           } else {
             ws.send(JSON.stringify({ type: "response.create" }));
           }
@@ -671,8 +688,10 @@ export default function RealtimeInterviewPage() {
         // Reset so a future connectWebSocket() call isn't blocked.
         connectionInitiatedRef.current = false;
         if (isInterviewActiveRef.current) {
-          setConnectionFailed(true);
-          setError("Something went wrong at server side.");
+          // Treat as a benign transient drop — onclose fires right after onerror
+          // and handles auto-reconnect silently. No user-visible message here.
+          // If Gemini is truly broken the server sends type:"error" before closing,
+          // which correctly sets connectionFailed and shows the popup.
         } else {
           setError("Connection error. Please try again.");
         }
@@ -685,15 +704,39 @@ export default function RealtimeInterviewPage() {
         setIsReconnecting(false);
         // Always reset so a future reconnect attempt can proceed.
         connectionInitiatedRef.current = false;
-        // Benign codes: proxy / going away / no status / abnormal (1006) — use Resume, not blocking dialog.
+        websocketRef.current = null;
+        // Benign codes: proxy / going away / no status / abnormal (1006) — auto-reconnect.
         const code = event.code;
         const treatAsBenign =
           BENIGN_ACTIVE_INTERVIEW_WS_CLOSE_CODES.has(code) || code === 0;
         if (isInterviewActiveRef.current) {
           if (treatAsBenign) {
-            setLastAIMessage(
-              "Connection paused — tap Resume interview to reconnect without losing progress.",
-            );
+            // Auto-reconnect silently — no user-visible message during the gap.
+            if (autoReconnectTimerRef.current) {
+              clearTimeout(autoReconnectTimerRef.current);
+            }
+            autoReconnectTimerRef.current = setTimeout(() => {
+              autoReconnectTimerRef.current = null;
+              // Only attempt if still active and not already reconnecting.
+              if (!isInterviewActiveRef.current || connectionInitiatedRef.current) return;
+              console.log("[WS] Auto-reconnecting after benign close (code:", code, ")");
+              isResumingRef.current = true;
+              if (voiceProviderRef.current === "gemini") {
+                geminiResumePayloadRef.current = {
+                  reconnectResume: true,
+                  elapsedTimeSec: elapsedTime,
+                };
+              }
+              connectWebSocket().catch((err) => {
+                console.error("[WS] Auto-reconnect failed:", err);
+                geminiResumePayloadRef.current = null;
+                isResumingRef.current = false;
+                // Only show the manual-resume banner if auto-reconnect actually failed.
+                setLastAIMessage(
+                  "Connection paused — tap Resume interview to reconnect without losing progress.",
+                );
+              });
+            }, 2000);
           } else {
             setConnectionFailed(true);
             setError("Something went wrong at server side.");
@@ -1128,7 +1171,6 @@ export default function RealtimeInterviewPage() {
             ),
           }),
         );
-        startClientWsHeartbeat();
       }
 
       // Setup audio capture (must be after setIsInterviewActive)
