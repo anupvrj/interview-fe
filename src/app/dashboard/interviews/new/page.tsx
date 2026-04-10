@@ -45,6 +45,19 @@ import {
   pdfResumeFileValidator,
 } from "@/lib/pdf-dropzone";
 
+const disciplineOptionsByDepartment: Record<string, Array<{ value: string; label: string }>> = {
+  engineering: [
+    { value: "cse", label: "CSE" },
+    { value: "it", label: "IT" },
+    { value: "mech", label: "Mechanical" },
+    { value: "civil", label: "Civil" },
+  ],
+  management: [
+    { value: "mba", label: "MBA" },
+    { value: "bba", label: "BBA" },
+  ],
+};
+
 export default function NewInterviewPage() {
   const { user, isLoaded } = useUser();
   const router = useRouter();
@@ -56,6 +69,8 @@ export default function NewInterviewPage() {
     role: "",
     experience: "0",
     language: "en",
+    department: "",
+    discipline: "",
     targetCompany: "",
     duration: "15",
   });
@@ -166,6 +181,26 @@ export default function NewInterviewPage() {
         role: formData.role,
         experience: parseInt(formData.experience),
         language: formData.language as "en" | "hi",
+        department: formData.department
+          ? (formData.department as
+              | "engineering"
+              | "management"
+              | "commerce_finance"
+              | "healthcare_pharma"
+              | "marketing"
+              | "sales"
+              | "general")
+          : undefined,
+        discipline: formData.discipline
+          ? (formData.discipline as
+              | "cse"
+              | "it"
+              | "mech"
+              | "civil"
+              | "mba"
+              | "bba"
+              | "none")
+          : undefined,
         targetCompany: formData.targetCompany,
         resume: useSavedResume ? undefined : uploadedFile || undefined,
         useSavedResume:
@@ -419,6 +454,80 @@ export default function NewInterviewPage() {
                         <SelectContent>
                           <SelectItem value="en">English</SelectItem>
                           <SelectItem value="hi">Hindi</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  {/* Department and Discipline */}
+                  <div className="grid md:grid-cols-2 gap-3 sm:gap-4">
+                    <div className="space-y-2">
+                      <Label
+                        htmlFor="department"
+                        className="text-sm font-semibold text-gray-700 flex items-center gap-2"
+                      >
+                        <Briefcase className="w-4 h-4 text-indigo-600" />
+                        Department (Optional)
+                      </Label>
+                      <Select
+                        value={formData.department}
+                        onValueChange={(value) => {
+                          setFormData((prev) => ({
+                            ...prev,
+                            department: value,
+                            discipline:
+                              disciplineOptionsByDepartment[value]?.some(
+                                (option) => option.value === prev.discipline,
+                              )
+                                ? prev.discipline
+                                : "",
+                          }));
+                        }}
+                      >
+                        <SelectTrigger className="h-11 sm:h-12 text-sm sm:text-base w-full">
+                          <SelectValue placeholder="Select department" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="engineering">Engineering</SelectItem>
+                          <SelectItem value="management">Management</SelectItem>
+                          <SelectItem value="commerce_finance">
+                            Commerce & Finance
+                          </SelectItem>
+                          <SelectItem value="healthcare_pharma">
+                            Healthcare & Pharma
+                          </SelectItem>
+                          <SelectItem value="marketing">Marketing</SelectItem>
+                          <SelectItem value="sales">Sales</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label
+                        htmlFor="discipline"
+                        className="text-sm font-semibold text-gray-700 flex items-center gap-2"
+                      >
+                        <Building2 className="w-4 h-4 text-teal-600" />
+                        Discipline (Optional)
+                      </Label>
+                      <Select
+                        value={formData.discipline}
+                        onValueChange={(value) =>
+                          setFormData((prev) => ({ ...prev, discipline: value }))
+                        }
+                        disabled={!disciplineOptionsByDepartment[formData.department]}
+                      >
+                        <SelectTrigger className="h-11 sm:h-12 text-sm sm:text-base w-full">
+                          <SelectValue placeholder="Select discipline" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {(disciplineOptionsByDepartment[formData.department] ?? []).map(
+                            (option) => (
+                              <SelectItem key={option.value} value={option.value}>
+                                {option.label}
+                              </SelectItem>
+                            ),
+                          )}
                         </SelectContent>
                       </Select>
                     </div>
