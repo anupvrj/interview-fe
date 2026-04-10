@@ -847,27 +847,27 @@ export default function LandingPage() {
             </div>
 
             {/* Right Section - Resume Preview */}
-            <div className="relative flex justify-center">
-              <div className="relative rounded-lg shadow-2xl overflow-hidden bg-white w-full max-w-[280px] sm:max-w-[320px] lg:max-w-[400px]">
-                {/* Carousel Container */}
-                <div className="relative w-full overflow-hidden aspect-[210/297]">
+            <div className="relative flex justify-center min-w-0 w-full">
+              <div className="relative isolate rounded-lg shadow-2xl overflow-hidden bg-white w-full max-w-[280px] sm:max-w-[320px] lg:max-w-[400px]">
+                {/* Carousel Container — basis-full + min-w-0 avoids Safari flex % min-width bugs */}
+                <div className="relative w-full min-w-0 overflow-hidden aspect-[210/297]">
                   <div
-                    className="flex h-full transition-transform duration-700 ease-in-out"
+                    className="flex h-full w-full min-w-0 transition-transform duration-700 ease-in-out"
                     style={{
-                      transform: `translateX(-${currentSlide * 100}%)`,
+                      transform: `translate3d(-${currentSlide * 100}%, 0, 0)`,
                     }}
                   >
                     {resumeTemplates.map((template, index) => (
                       <div
                         key={index}
-                        className="min-w-full flex-shrink-0 h-full flex items-center justify-center"
+                        className="flex h-full min-w-0 shrink-0 grow-0 basis-full items-center justify-center overflow-hidden"
                       >
                         <Image
                           src={template}
                           alt={`Resume Template ${index + 1}`}
                           width={400}
                           height={500}
-                          className="w-full h-full object-contain"
+                          className="h-full w-full max-h-full object-contain object-center"
                           priority={index === 0}
                         />
                       </div>
