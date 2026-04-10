@@ -491,9 +491,15 @@ export default function RealtimeInterviewPage() {
       // Use wss:// for HTTPS sites, ws:// for HTTP (localhost)
       const wsProtocol =
         globalThis.location.protocol === "https:" ? "wss:" : "ws:";
+      // Set NEXT_PUBLIC_GEMINI_SIMPLE_ROUTE=true to use the lightweight
+      // no-RAG / no-embedding route (better for long interviews).
+      const useSimpleRoute =
+        process.env.NEXT_PUBLIC_GEMINI_SIMPLE_ROUTE === "true";
       const realtimePath =
         VOICE_PROVIDER === "gemini"
-          ? `interviews/${interviewId}/realtime/gemini`
+          ? useSimpleRoute
+            ? `interviews/${interviewId}/realtime/gemini-simple`
+            : `interviews/${interviewId}/realtime/gemini`
           : `interviews/${interviewId}/realtime`;
       const iv = interviewForWs ?? interview;
       const durationParam = normalizeInterviewDurationMinutes(
