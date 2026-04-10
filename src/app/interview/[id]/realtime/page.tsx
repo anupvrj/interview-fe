@@ -148,6 +148,9 @@ export default function RealtimeInterviewPage() {
   );
   /** Pending auto-reconnect timer after a benign WS drop during an active interview. */
   const autoReconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Ref mirror of elapsedTime so setTimeout/onclose closures always read the current
+  // value, not the stale value captured at the time connectWebSocket() was called.
+  const elapsedTimeRef = useRef(0);
 
   const stopClientWsHeartbeat = () => {
     if (clientWsHeartbeatRef.current) {
@@ -219,6 +222,11 @@ export default function RealtimeInterviewPage() {
     }
   }, [elapsedTime, isInterviewActive]);
 
+  // Keep the ref in sync so onclose/setTimeout closures always see the current value.
+  useEffect(() => {
+    elapsedTimeRef.current = elapsedTime;
+  }, [elapsedTime]);
+
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       if (isInterviewActiveRef.current) {
@@ -253,13 +261,17 @@ export default function RealtimeInterviewPage() {
     if (voiceProviderRef.current === "gemini") {
       geminiResumePayloadRef.current = {
         reconnectResume: true,
-        elapsedTimeSec: elapsedTime,
+        elapsedTimeSec: elapsedTimeRef.current,
       };
     }
     setConnectionFailed(false);
     setError("");
     connectionInitiatedRef.current = false;
+    // Explicitly close old WS so the server-side handler cleans up its Gemini
+    // session rather than staying alive as a zombie pinging every 15s.
+    const oldWs = websocketRef.current;
     websocketRef.current = null;
+    try { oldWs?.close(1000, "manual_resume"); } catch { /* already closed */ }
     try {
       await connectWebSocket();
       setConnectionFailed(false);
@@ -554,6 +566,7 @@ export default function RealtimeInterviewPage() {
             setLastAIMessage("AI session resumed.");
             setIsReconnecting(false);
             setConnectionFailed(false);
+            setError("");
             setReconnectAttemptCount(0);
             setConnected(true);
           } else if (data.type === "connected") {
@@ -639,6 +652,19 @@ export default function RealtimeInterviewPage() {
               setShowInterviewComplete(false);
               endInterview();
             }, 15000);
+          } else if (data.type === "session_ended") {
+            // Server's Gemini session has fully closed (normal or manual end).
+            // Flush any stale AI audio so it doesn't play after the session is over.
+            audioQueueRef.current = [];
+            audioBufferRef.current = [];
+            if (audioBufferTimerRef.current) {
+              clearTimeout(audioBufferTimerRef.current);
+              audioBufferTimerRef.current = null;
+            }
+            isPlayingAudioRef.current = false;
+            setIsAISpeaking(false);
+            setIsAIProcessing(false);
+            setIsReconnecting(false);
           } else if (data.type === "confirm_end_interview") {
             // Candidate said they want to end — show confirmation dialog.
             setShowConfirmEndInterview(true);
@@ -722,9 +748,11 @@ export default function RealtimeInterviewPage() {
               console.log("[WS] Auto-reconnecting after benign close (code:", code, ")");
               isResumingRef.current = true;
               if (voiceProviderRef.current === "gemini") {
+                // Use the ref (not the state closure) so the value reflects the
+                // elapsed time at reconnect time, not at the time onclose fired.
                 geminiResumePayloadRef.current = {
                   reconnectResume: true,
-                  elapsedTimeSec: elapsedTime,
+                  elapsedTimeSec: elapsedTimeRef.current,
                 };
               }
               connectWebSocket().catch((err) => {
@@ -1027,8 +1055,9 @@ export default function RealtimeInterviewPage() {
       console.log(`🎵 ScriptProcessor fallback: ${browserSampleRate}Hz → ${TARGET_SAMPLE_RATE}Hz`);
 
       const source = audioContext.createMediaStreamSource(mediaStreamRef.current!);
-      // ~42ms @ 48kHz before resample → closer to Live API 20–40ms guidance than 4096 (~85ms).
-      const processor = audioContext.createScriptProcessor(2048, 1, 1);
+      // 1024 samples @ 48kHz = ~21ms → resampled to ~21ms @ 24kHz, within Live API 20–40ms limit.
+      // Previous 2048 (42ms) slightly exceeded the 40ms max and could trigger 1007.
+      const processor = audioContext.createScriptProcessor(1024, 1, 1);
 
       processor.onaudioprocess = (e) => {
         if (!isInterviewActiveRef.current || !isMicOnRef.current) return;
