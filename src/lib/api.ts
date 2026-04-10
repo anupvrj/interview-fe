@@ -171,6 +171,7 @@ export interface Interview {
     interviewId: string;
     userId: string;
     sessionHelpful: boolean;
+    questionsRelevant: boolean;
     overallRating: number;
     sessionChallenge: InterviewPostSessionChallenge;
     comment?: string;
@@ -456,6 +457,7 @@ export const interviewApi = {
     interviewId: string,
     body: {
       sessionHelpful: boolean;
+      questionsRelevant: boolean;
       overallRating: number;
       sessionChallenge: InterviewPostSessionChallenge;
       comment?: string;

@@ -20,6 +20,8 @@ export type PostInterviewFeedbackPayload = {
   interviewId: string;
   /** Simple yes/no answer. */
   sessionHelpful: boolean;
+  /** Whether the interview questions felt relevant. */
+  questionsRelevant: boolean;
   /** 1–5 overall experience. */
   overallRating: number;
   /** Technical or connectivity issues during the session. */
@@ -42,6 +44,9 @@ export function PostInterviewFeedbackForm({
   submitting = false,
 }: PostInterviewFeedbackFormProps) {
   const [sessionHelpful, setSessionHelpful] = useState<boolean | null>(null);
+  const [questionsRelevant, setQuestionsRelevant] = useState<boolean | null>(
+    null,
+  );
   const [overallRating, setOverallRating] = useState<number | null>(null);
   const [sessionChallenge, setSessionChallenge] =
     useState<InterviewPostSessionChallenge>("none");
@@ -49,17 +54,25 @@ export function PostInterviewFeedbackForm({
   const [touchedSubmit, setTouchedSubmit] = useState(false);
 
   const showHelpfulError = touchedSubmit && sessionHelpful === null;
+  const showQuestionsRelevantError =
+    touchedSubmit && questionsRelevant === null;
   const showRatingError = touchedSubmit && overallRating === null;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (submitting) return;
     setTouchedSubmit(true);
-    if (sessionHelpful === null || overallRating === null) return;
+    if (
+      sessionHelpful === null ||
+      questionsRelevant === null ||
+      overallRating === null
+    )
+      return;
 
     onSubmitFeedback({
       interviewId,
       sessionHelpful,
+      questionsRelevant,
       overallRating,
       sessionChallenge,
       comment: comment.trim(),
@@ -102,6 +115,43 @@ export function PostInterviewFeedbackForm({
           </Button>
         </div>
         {showHelpfulError && (
+          <p className="text-sm text-red-600" role="alert">
+            Please choose Yes or No.
+          </p>
+        )}
+      </div>
+
+      <div className="space-y-3">
+        <Label className="text-base text-gray-900">
+          Were the interview questions relevant?
+        </Label>
+        <div className="flex flex-wrap gap-3">
+          <Button
+            type="button"
+            variant={questionsRelevant === true ? "default" : "outline"}
+            className={cn(
+              "min-w-[100px] border-gray-200",
+              questionsRelevant === true &&
+                "!bg-[rgb(37,99,235)] hover:!bg-[rgb(17,24,39)] text-white shadow-md",
+            )}
+            onClick={() => setQuestionsRelevant(true)}
+          >
+            Yes
+          </Button>
+          <Button
+            type="button"
+            variant={questionsRelevant === false ? "default" : "outline"}
+            className={cn(
+              "min-w-[100px] border-gray-200",
+              questionsRelevant === false &&
+                "!bg-[rgb(37,99,235)] hover:!bg-[rgb(17,24,39)] text-white shadow-md",
+            )}
+            onClick={() => setQuestionsRelevant(false)}
+          >
+            No
+          </Button>
+        </div>
+        {showQuestionsRelevantError && (
           <p className="text-sm text-red-600" role="alert">
             Please choose Yes or No.
           </p>

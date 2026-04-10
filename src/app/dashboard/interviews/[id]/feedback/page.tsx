@@ -24,6 +24,7 @@ export default function PostInterviewFeedbackPage() {
     try {
       await interviewApi.submitPostInterviewFeedback(interviewId, {
         sessionHelpful: payload.sessionHelpful,
+        questionsRelevant: payload.questionsRelevant,
         overallRating: payload.overallRating,
         sessionChallenge: payload.sessionChallenge,
         comment: payload.comment || undefined,
