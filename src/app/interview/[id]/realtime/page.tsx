@@ -600,7 +600,9 @@ export default function RealtimeInterviewPage() {
             setIsAISpeaking(false);
             setLastAIMessage("AI is understanding your answer...");
           } else if (data.type === "error") {
-            setError(data.message || "Something went wrong at server side.");
+            const errMsg = typeof data.message === "string" ? data.message : JSON.stringify(data.message);
+            console.error("[WS] Server error message:", errMsg);
+            setError(errMsg || "Something went wrong at server side.");
             setIsReconnecting(false);
             if (isInterviewActiveRef.current) setConnectionFailed(true);
           }
@@ -610,6 +612,7 @@ export default function RealtimeInterviewPage() {
       };
 
       ws.onerror = () => {
+        console.error("[WS] onerror fired – interview active:", isInterviewActiveRef.current);
         // Reset so a future connectWebSocket() call isn't blocked.
         connectionInitiatedRef.current = false;
         if (isInterviewActiveRef.current) {
@@ -621,11 +624,14 @@ export default function RealtimeInterviewPage() {
       };
 
       ws.onclose = (event) => {
+        console.error("[WS] onclose – code:", event.code, "reason:", event.reason, "clean:", event.wasClean);
         setConnected(false);
         setIsReconnecting(false);
         // Always reset so a future reconnect attempt can proceed.
         connectionInitiatedRef.current = false;
-        if (event.code !== 1000 && isInterviewActiveRef.current) {
+        // 1000 = normal, 1001 = going away, 1005 = no status (server called close() without args)
+        const normalClose = [1000, 1001, 1005].includes(event.code);
+        if (!normalClose && isInterviewActiveRef.current) {
           setConnectionFailed(true);
           setError("Something went wrong at server side.");
         }
