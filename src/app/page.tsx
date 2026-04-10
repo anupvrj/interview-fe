@@ -380,7 +380,7 @@ export default function LandingPage() {
           <div className="grid lg:grid-cols-2 gap-8 sm:gap-12 lg:gap-16 items-center">
             {/* Left Side - Marketing Content */}
             <div className="space-y-4 sm:space-y-5 md:space-y-6 text-center lg:text-left order-2 lg:order-1">
-              <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-[43px] font-bold tracking-tight text-slate-900 leading-[1.2] sm:leading-[1.1] lg:leading-[52px] min-h-[4.5em] sm:min-h-[2.4em] lg:h-[104px] mb-4 sm:mb-6">
+              <h1 className="text-2xl leading-snug sm:text-3xl sm:leading-[1.15] lg:text-[2.5rem] lg:leading-[1.2] xl:text-[2.75rem] xl:leading-[1.18] font-bold tracking-tight text-slate-900 min-h-[4.5em] sm:min-h-[2.4em] mb-4 sm:mb-6">
                 {/* First Line */}
                 <div className="block">
                   {displayedText.length > 0 && displayedText.length <= firstLine.length ? (
@@ -506,7 +506,7 @@ export default function LandingPage() {
                   )}
                 </div>
               </h1>
-              <p className="text-base sm:text-lg md:text-xl text-gray-600 leading-relaxed max-w-xl mx-auto lg:mx-0 px-2 sm:px-0">
+              <p className="text-sm sm:text-base lg:text-xl text-gray-600 leading-relaxed max-w-xl mx-auto lg:mx-0 px-2 sm:px-0">
                 From ATS-optimized resumes to live AI mock interviews and detailed performance reports — everything you need to get shortlisted and hired.
               </p>
               
