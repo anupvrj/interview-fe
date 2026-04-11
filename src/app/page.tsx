@@ -765,10 +765,10 @@ export default function LandingPage() {
         id="build-resume"
         className="py-12 sm:py-16 px-4 sm:px-6 bg-white scroll-mt-20 border-t border-gray-100"
       >
-        <div className="container mx-auto max-w-7xl">
-          <div className="grid lg:grid-cols-2 gap-16 items-center">
+        <div className="container mx-auto max-w-7xl min-w-0">
+          <div className="grid min-w-0 lg:grid-cols-2 gap-16 items-center">
             {/* Left Section - Marketing Content */}
-            <div className="space-y-6">
+            <div className="min-w-0 space-y-6">
               {/* Badge */}
               <div className="inline-flex items-center gap-2 px-3 py-1 bg-blue-50 rounded-full text-blue-700 font-medium text-sm">
                 <span>ATS-Optimized Resume Builder</span>
@@ -847,27 +847,27 @@ export default function LandingPage() {
             </div>
 
             {/* Right Section - Resume Preview */}
-            <div className="relative flex justify-center">
-              <div className="relative rounded-lg shadow-2xl overflow-hidden bg-white w-full max-w-[280px] sm:max-w-[320px] lg:max-w-[400px]">
-                {/* Carousel Container */}
-                <div className="relative w-full overflow-hidden aspect-[210/297]">
+            <div className="relative flex min-w-0 justify-center">
+              <div className="relative w-full min-w-0 max-w-[280px] sm:max-w-[320px] lg:max-w-[400px] rounded-lg bg-white shadow-2xl overflow-hidden">
+                {/* Carousel Container — min-w-0 + flex slide sizing fixes Safari clipping (flex default min-width:auto) */}
+                <div className="relative aspect-[210/297] w-full min-w-0 overflow-hidden">
                   <div
-                    className="flex h-full transition-transform duration-700 ease-in-out"
+                    className="flex h-full w-full min-w-0 transition-transform duration-700 ease-in-out"
                     style={{
-                      transform: `translateX(-${currentSlide * 100}%)`,
+                      transform: `translate3d(-${currentSlide * 100}%, 0, 0)`,
                     }}
                   >
                     {resumeTemplates.map((template, index) => (
                       <div
                         key={index}
-                        className="min-w-full flex-shrink-0 h-full flex items-center justify-center"
+                        className="flex h-full min-w-0 shrink-0 grow-0 basis-full items-center justify-center overflow-hidden"
                       >
                         <Image
                           src={template}
                           alt={`Resume Template ${index + 1}`}
                           width={400}
                           height={500}
-                          className="w-full h-full object-contain"
+                          className="h-full w-full max-w-full object-contain object-center"
                           priority={index === 0}
                         />
                       </div>
