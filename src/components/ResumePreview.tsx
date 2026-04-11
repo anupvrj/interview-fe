@@ -8,6 +8,7 @@ import { Resume, ResumeTemplate } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { ZoomIn, ZoomOut, RotateCcw } from "lucide-react";
 import { PaginatedPreview } from "./PaginatedPreview";
+import { debugResumePagination } from "@/lib/debug-resume-pagination";
 
 interface Section {
   id: string;
@@ -109,6 +110,15 @@ export function ResumePreview({
       container.removeEventListener("wheel", handleWheel);
     };
   }, [setZoomLevel]);
+
+  useEffect(() => {
+    debugResumePagination("ResumePreview:zoom", {
+      resumeId: resume.resumeId,
+      zoomLevel,
+      scale: zoomLevel / 100,
+      transform: `scale(${zoomLevel / 100})`,
+    });
+  }, [zoomLevel, resume.resumeId]);
 
   // Use provided template or show placeholder
   if (!template) {

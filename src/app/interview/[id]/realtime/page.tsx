@@ -37,6 +37,7 @@ import {
 import { interviewApi, Interview } from "@/lib/api";
 import { normalizeInterviewDurationMinutes } from "@/lib/interviewDuration";
 import { formatDuration } from "@/lib/utils";
+import { BENIGN_ACTIVE_INTERVIEW_WS_CLOSE_CODES } from "@/lib/interviewWebSocketPolicy";
 import { pickRandomPersona } from "@/lib/aiPersonas";
 import type { AIInterviewerPersona } from "@/lib/aiPersonas";
 import { AiPersonaAvatar } from "@/components/interview/AiPersonaAvatar";
@@ -44,6 +45,12 @@ import { toast } from "sonner";
 
 /** Hard fallback minutes added on top of target (used if AI never sends interview_complete). */
 const EXTRA_BUFFER_MINUTES = 5;
+
+/** Reconnect attempt counter (e.g. 1/3) in the yellow banner — production candidates see a generic message only. */
+const SHOW_RECONNECT_ATTEMPT_DEBUG =
+  process.env.NODE_ENV === "development" ||
+  process.env.NEXT_PUBLIC_VERCEL_ENV === "preview" ||
+  process.env.NEXT_PUBLIC_APP_ENV === "staging";
 
 /** Voice provider for realtime: "chatgpt" (default) or "gemini". Set via NEXT_PUBLIC_VOICE_PROVIDER. */
 const VOICE_PROVIDER: "chatgpt" | "gemini" =
@@ -121,6 +128,11 @@ export default function RealtimeInterviewPage() {
   const isInterviewActiveRef = useRef(false);
   const connectionInitiatedRef = useRef(false);
   const isResumingRef = useRef(false);
+  /** Gemini Resume button: server hydrates transcript from DB and skips re-greeting. */
+  const geminiResumePayloadRef = useRef<{
+    reconnectResume: boolean;
+    elapsedTimeSec: number;
+  } | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordedChunksRef = useRef<Blob[]>([]);
   const screenStreamRef = useRef<MediaStream | null>(null);
@@ -130,6 +142,44 @@ export default function RealtimeInterviewPage() {
   const voiceProviderRef = useRef<"chatgpt" | "gemini">(VOICE_PROVIDER);
   // Ref mirror for isMicOn — avoids stale closure in sendAudioChunk / onaudioprocess
   const isMicOnRef = useRef(true);
+  /** Application-level WS keepalive for Gemini path (reduces proxy idle closes). */
+  const clientWsHeartbeatRef = useRef<ReturnType<typeof setInterval> | null>(
+    null,
+  );
+  /** Pending auto-reconnect timer after a benign WS drop during an active interview. */
+  const autoReconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Ref mirror of elapsedTime so setTimeout/onclose closures always read the current
+  // value, not the stale value captured at the time connectWebSocket() was called.
+  const elapsedTimeRef = useRef(0);
+
+  const stopClientWsHeartbeat = () => {
+    if (clientWsHeartbeatRef.current) {
+      clearInterval(clientWsHeartbeatRef.current);
+      clientWsHeartbeatRef.current = null;
+    }
+  };
+
+  const startClientWsHeartbeat = () => {
+    stopClientWsHeartbeat();
+    // 10s interval — well under any 30–60s proxy idle timeout.
+    // Chrome throttles backgrounded-tab setInterval to ≥1s, so 10s is still fine.
+    // Server responds with {type:"pong"} so traffic flows in both directions.
+    clientWsHeartbeatRef.current = setInterval(() => {
+      const ws = websocketRef.current;
+      // Keepalive during prep (before Start) and mid-interview — some proxies idle-close
+      // without traffic; do not gate on isInterviewActive for Gemini.
+      if (
+        ws?.readyState === WebSocket.OPEN &&
+        voiceProviderRef.current === "gemini"
+      ) {
+        try {
+          ws.send(JSON.stringify({ type: "client_ping", t: Date.now() }));
+        } catch {
+          /* ignore */
+        }
+      }
+    }, 10_000);
+  };
 
   /** One random persona per page load; matches WebSocket voice query. */
   const interviewerPersonaRef = useRef<AIInterviewerPersona | null>(null);
@@ -184,6 +234,11 @@ export default function RealtimeInterviewPage() {
     }
   }, [elapsedTime, isInterviewActive]);
 
+  // Keep the ref in sync so onclose/setTimeout closures always see the current value.
+  useEffect(() => {
+    elapsedTimeRef.current = elapsedTime;
+  }, [elapsedTime]);
+
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       if (isInterviewActiveRef.current) {
@@ -208,17 +263,33 @@ export default function RealtimeInterviewPage() {
   };
 
   const resumeInterview = async () => {
+    // Cancel any pending auto-reconnect — this manual tap takes priority.
+    if (autoReconnectTimerRef.current) {
+      clearTimeout(autoReconnectTimerRef.current);
+      autoReconnectTimerRef.current = null;
+    }
     setIsResuming(true);
     isResumingRef.current = true;
+    if (voiceProviderRef.current === "gemini") {
+      geminiResumePayloadRef.current = {
+        reconnectResume: true,
+        elapsedTimeSec: elapsedTimeRef.current,
+      };
+    }
     setConnectionFailed(false);
     setError("");
     connectionInitiatedRef.current = false;
+    // Explicitly close old WS so the server-side handler cleans up its Gemini
+    // session rather than staying alive as a zombie pinging every 15s.
+    const oldWs = websocketRef.current;
     websocketRef.current = null;
+    try { oldWs?.close(1000, "manual_resume"); } catch { /* already closed */ }
     try {
       await connectWebSocket();
       setConnectionFailed(false);
       setError("");
     } catch (err: any) {
+      geminiResumePayloadRef.current = null;
       setError(err.message || "Failed to reconnect.");
       setConnectionFailed(true);
       isResumingRef.current = false;
@@ -362,6 +433,11 @@ export default function RealtimeInterviewPage() {
   };
 
   const cleanup = () => {
+    stopClientWsHeartbeat();
+    if (autoReconnectTimerRef.current) {
+      clearTimeout(autoReconnectTimerRef.current);
+      autoReconnectTimerRef.current = null;
+    }
     if (timerRef.current) clearInterval(timerRef.current);
     if (websocketRef.current) websocketRef.current.close();
     if (audioProcessorRef.current) audioProcessorRef.current.disconnect();
@@ -431,9 +507,15 @@ export default function RealtimeInterviewPage() {
       // Use wss:// for HTTPS sites, ws:// for HTTP (localhost)
       const wsProtocol =
         globalThis.location.protocol === "https:" ? "wss:" : "ws:";
+      // Set NEXT_PUBLIC_GEMINI_SIMPLE_ROUTE=true to use the lightweight
+      // no-RAG / no-embedding route (better for long interviews).
+      const useSimpleRoute =
+        process.env.NEXT_PUBLIC_GEMINI_SIMPLE_ROUTE === "true";
       const realtimePath =
         VOICE_PROVIDER === "gemini"
-          ? `interviews/${interviewId}/realtime/gemini`
+          ? useSimpleRoute
+            ? `interviews/${interviewId}/realtime/gemini-simple`
+            : `interviews/${interviewId}/realtime/gemini`
           : `interviews/${interviewId}/realtime`;
       const iv = interviewForWs ?? interview;
       const durationParam = normalizeInterviewDurationMinutes(
@@ -456,15 +538,26 @@ export default function RealtimeInterviewPage() {
         // before enabling the Start button. For ChatGPT, enable immediately on WS open.
         if (voiceProviderRef.current !== "gemini") {
           setConnected(true);
+        } else {
+          // App-level keepalive from first byte of session (covers long AI prep on Railway).
+          startClientWsHeartbeat();
         }
         if (isResumingRef.current && isInterviewActiveRef.current) {
           if (voiceProviderRef.current === "gemini") {
+            const resumeExtra = geminiResumePayloadRef.current;
+            geminiResumePayloadRef.current = null;
             ws.send(
               JSON.stringify({
                 type: "start_interview",
                 interviewDurationMinutes: normalizeInterviewDurationMinutes(
                   interview?.metadata?.interviewDuration,
                 ),
+                ...(resumeExtra
+                  ? {
+                      reconnectResume: resumeExtra.reconnectResume,
+                      elapsedTimeSec: resumeExtra.elapsedTimeSec,
+                    }
+                  : {}),
               }),
             );
           } else {
@@ -487,21 +580,15 @@ export default function RealtimeInterviewPage() {
             setIsAISpeaking(false);
             setLastAIMessage("Reconnecting AI session...");
             setIsReconnecting(true);
-            setReconnectAttemptCount((prev) => {
-              const next = prev + 1;
-              // Only escalate to blocking connectionFailed dialog after the
-              // backend has exhausted all its reconnect attempts (3-5 attempts).
-              // Until then, show the non-blocking reconnecting banner only.
-              if (isInterviewActiveRef.current && next >= 3) {
-                setConnectionFailed(true);
-              }
-              return next;
-            });
+            // Do not set connectionFailed here: backend may try up to ~12 Gemini reconnects.
+            // Blocking "Connection Lost" after 3 banners was a false positive in production.
+            setReconnectAttemptCount((prev) => prev + 1);
           } else if (data.type === "reconnected") {
             setIsAIProcessing(false);
             setLastAIMessage("AI session resumed.");
             setIsReconnecting(false);
             setConnectionFailed(false);
+            setError("");
             setReconnectAttemptCount(0);
             setConnected(true);
           } else if (data.type === "connected") {
@@ -587,6 +674,19 @@ export default function RealtimeInterviewPage() {
               setShowInterviewComplete(false);
               endInterview();
             }, 15000);
+          } else if (data.type === "session_ended") {
+            // Server's Gemini session has fully closed (normal or manual end).
+            // Flush any stale AI audio so it doesn't play after the session is over.
+            audioQueueRef.current = [];
+            audioBufferRef.current = [];
+            if (audioBufferTimerRef.current) {
+              clearTimeout(audioBufferTimerRef.current);
+              audioBufferTimerRef.current = null;
+            }
+            isPlayingAudioRef.current = false;
+            setIsAISpeaking(false);
+            setIsAIProcessing(false);
+            setIsReconnecting(false);
           } else if (data.type === "confirm_end_interview") {
             // Candidate said they want to end — show confirmation dialog.
             setShowConfirmEndInterview(true);
@@ -616,7 +716,13 @@ export default function RealtimeInterviewPage() {
             setIsAISpeaking(false);
             setLastAIMessage("AI is understanding your answer...");
           } else if (data.type === "error") {
-            setError(data.message || "Something went wrong at server side.");
+            const errMsg = typeof data.message === "string" ? data.message : JSON.stringify(data.message);
+            const diag = (data as { diagnostic?: unknown }).diagnostic;
+            console.error("[WS] Server error message:", errMsg, "diagnostic:", diag);
+            if (diag != null) {
+              console.info("[WS] Server error diagnostic (for Railway/debug):", JSON.stringify(diag));
+            }
+            setError(errMsg || "Something went wrong at server side.");
             setIsReconnecting(false);
             if (isInterviewActiveRef.current) setConnectionFailed(true);
           }
@@ -626,24 +732,65 @@ export default function RealtimeInterviewPage() {
       };
 
       ws.onerror = () => {
+        console.error("[WS] onerror fired – interview active:", isInterviewActiveRef.current);
         // Reset so a future connectWebSocket() call isn't blocked.
         connectionInitiatedRef.current = false;
         if (isInterviewActiveRef.current) {
-          setConnectionFailed(true);
-          setError("Something went wrong at server side.");
+          // Treat as a benign transient drop — onclose fires right after onerror
+          // and handles auto-reconnect silently. No user-visible message here.
+          // If Gemini is truly broken the server sends type:"error" before closing,
+          // which correctly sets connectionFailed and shows the popup.
         } else {
           setError("Connection error. Please try again.");
         }
       };
 
       ws.onclose = (event) => {
+        stopClientWsHeartbeat();
+        console.error("[WS] onclose – code:", event.code, "reason:", event.reason, "clean:", event.wasClean);
         setConnected(false);
         setIsReconnecting(false);
         // Always reset so a future reconnect attempt can proceed.
         connectionInitiatedRef.current = false;
-        if (event.code !== 1000 && isInterviewActiveRef.current) {
-          setConnectionFailed(true);
-          setError("Something went wrong at server side.");
+        websocketRef.current = null;
+        // Benign codes: proxy / going away / no status / abnormal (1006) — auto-reconnect.
+        const code = event.code;
+        const treatAsBenign =
+          BENIGN_ACTIVE_INTERVIEW_WS_CLOSE_CODES.has(code) || code === 0;
+        if (isInterviewActiveRef.current) {
+          if (treatAsBenign) {
+            // Auto-reconnect silently — no user-visible message during the gap.
+            if (autoReconnectTimerRef.current) {
+              clearTimeout(autoReconnectTimerRef.current);
+            }
+            autoReconnectTimerRef.current = setTimeout(() => {
+              autoReconnectTimerRef.current = null;
+              // Only attempt if still active and not already reconnecting.
+              if (!isInterviewActiveRef.current || connectionInitiatedRef.current) return;
+              console.log("[WS] Auto-reconnecting after benign close (code:", code, ")");
+              isResumingRef.current = true;
+              if (voiceProviderRef.current === "gemini") {
+                // Use the ref (not the state closure) so the value reflects the
+                // elapsed time at reconnect time, not at the time onclose fired.
+                geminiResumePayloadRef.current = {
+                  reconnectResume: true,
+                  elapsedTimeSec: elapsedTimeRef.current,
+                };
+              }
+              connectWebSocket().catch((err) => {
+                console.error("[WS] Auto-reconnect failed:", err);
+                geminiResumePayloadRef.current = null;
+                isResumingRef.current = false;
+                // Only show the manual-resume banner if auto-reconnect actually failed.
+                setLastAIMessage(
+                  "Connection paused — tap Resume interview to reconnect without losing progress.",
+                );
+              });
+            }, 2000);
+          } else {
+            setConnectionFailed(true);
+            setError("Something went wrong at server side.");
+          }
         }
       };
     } catch (error: any) {
@@ -887,6 +1034,21 @@ export default function RealtimeInterviewPage() {
     }
 
     const TARGET_SAMPLE_RATE = 24000;
+    /**
+     * Google Live API: stream mic PCM in ~20–40ms frames (not per–render-quantum);
+     * tiny chunks (~3ms) overload sendRealtimeInput and correlate with unstable WSS.
+     * @see https://ai.google.dev/gemini-api/docs/live-api/best-practices#streaming
+     */
+    const GEMINI_MIC_FRAME_SAMPLES_24K = 720; // ~30ms at 24 kHz
+
+    const pcm16ToBase64 = (pcm16: Int16Array) => {
+      const bytes = new Uint8Array(pcm16.buffer, pcm16.byteOffset, pcm16.byteLength);
+      let binary = "";
+      for (let i = 0; i < bytes.byteLength; i++) {
+        binary += String.fromCharCode(bytes[i]);
+      }
+      return btoa(binary);
+    };
 
     const sendAudioChunk = (base64Audio: string) => {
       // Use isMicOnRef (not state) to avoid stale closure — state captured at
@@ -915,7 +1077,9 @@ export default function RealtimeInterviewPage() {
       console.log(`🎵 ScriptProcessor fallback: ${browserSampleRate}Hz → ${TARGET_SAMPLE_RATE}Hz`);
 
       const source = audioContext.createMediaStreamSource(mediaStreamRef.current!);
-      const processor = audioContext.createScriptProcessor(4096, 1, 1);
+      // 1024 samples @ 48kHz = ~21ms → resampled to ~21ms @ 24kHz, within Live API 20–40ms limit.
+      // Previous 2048 (42ms) slightly exceeded the 40ms max and could trigger 1007.
+      const processor = audioContext.createScriptProcessor(1024, 1, 1);
 
       processor.onaudioprocess = (e) => {
         if (!isInterviewActiveRef.current || !isMicOnRef.current) return;
@@ -978,20 +1142,25 @@ export default function RealtimeInterviewPage() {
             });
 
             let chunkCount = 0;
+            const pendingMicSamples: number[] = [];
             workletNode.port.onmessage = (event) => {
               if (event.data.type === "audio_chunk") {
                 chunkCount++;
                 if (chunkCount % 50 === 0) {
                   console.log(`🎤 AudioWorklet: ${chunkCount} chunks sent`);
                 }
-                // btoa is not available in AudioWorklet scope — the worklet
-                // sends the raw Int16Array buffer; we encode here on the main thread.
-                const bytes = new Uint8Array(event.data.pcm16 as ArrayBuffer);
-                let binary = "";
-                for (let i = 0; i < bytes.byteLength; i++) {
-                  binary += String.fromCharCode(bytes[i]);
+                const chunk = new Int16Array(event.data.pcm16 as ArrayBuffer);
+                for (let i = 0; i < chunk.length; i++) {
+                  pendingMicSamples.push(chunk[i]);
                 }
-                sendAudioChunk(btoa(binary));
+                while (pendingMicSamples.length >= GEMINI_MIC_FRAME_SAMPLES_24K) {
+                  const frame = new Int16Array(GEMINI_MIC_FRAME_SAMPLES_24K);
+                  for (let i = 0; i < GEMINI_MIC_FRAME_SAMPLES_24K; i++) {
+                    frame[i] = pendingMicSamples[i]!;
+                  }
+                  pendingMicSamples.splice(0, GEMINI_MIC_FRAME_SAMPLES_24K);
+                  sendAudioChunk(pcm16ToBase64(frame));
+                }
               }
             };
 
@@ -1031,8 +1200,17 @@ export default function RealtimeInterviewPage() {
       setIsInterviewActive(true);
       isInterviewActiveRef.current = true;
       setIsPreparing(true); // Show preparing state until AI speaks
-      setElapsedTime(0); // Reset counter; starts when AI is ready
-      timerStartedRef.current = false; // Timer starts when AI is ready
+      setElapsedTime(0);
+      // Match server wall clock (start_interview_after_greeting): count from Start click so
+      // on-screen minutes align with TIME IS UP / configured 15 or 30 min slot.
+      timerStartedRef.current = true;
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+      timerRef.current = setInterval(() => {
+        setElapsedTime((prev) => prev + 1);
+      }, 1000);
 
       // Explicitly start Gemini interview only after user click
       if (voiceProviderRef.current === "gemini" && websocketRef.current) {
@@ -1069,6 +1247,7 @@ export default function RealtimeInterviewPage() {
 
   const endInterview = async () => {
     try {
+      stopClientWsHeartbeat();
       // Immediately stop screen capture to remove red indicator
       const currentScreenStream = screenStreamRef.current;
       if (currentScreenStream) {
@@ -1127,8 +1306,8 @@ export default function RealtimeInterviewPage() {
       // Complete interview
       await interviewApi.complete(interviewId);
 
-      // Redirect to processing page
-      router.push(`/dashboard/interviews/${interviewId}/processing`);
+      // Collect quick feedback, then processing/report flow
+      router.push(`/dashboard/interviews/${interviewId}/feedback`);
     } catch (error: any) {
       console.error("Error ending interview:", error);
       // Use non-blocking toast so the interview isn't interrupted.
@@ -2093,7 +2272,9 @@ export default function RealtimeInterviewPage() {
       {/* Non-blocking reconnect banner — shown during reconnect before escalation to dialog */}
       {isReconnecting && !connectionFailed && (
         <div className="fixed top-0 left-0 right-0 z-50 flex items-center justify-center gap-2 bg-yellow-500/95 px-4 py-2 text-sm font-medium text-yellow-950 shadow-md">
-          Reconnecting AI session… ({reconnectAttemptCount}/3 attempts)
+          {SHOW_RECONNECT_ATTEMPT_DEBUG
+            ? `Reconnecting AI session… (${reconnectAttemptCount}/3 attempts)`
+            : "Reconnecting AI session…"}
         </div>
       )}
 

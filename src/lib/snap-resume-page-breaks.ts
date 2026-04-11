@@ -1,4 +1,8 @@
 import type { PageBand } from "@/lib/resume-pagination-engine";
+import {
+  debugResumePagination,
+  isResumePaginationDebugEnabled,
+} from "@/lib/debug-resume-pagination";
 
 const LINE_CUT_EPS = 1;
 
@@ -49,7 +53,30 @@ export function snapResumePageBreaksToLineBounds(
     });
   }
 
-  return out.length === pages.length ? out : pages;
+  const result = out.length === pages.length ? out : pages;
+  if (
+    isResumePaginationDebugEnabled() &&
+    result !== pages &&
+    (pages.length !== result.length ||
+      pages.some(
+        (p, i) =>
+          !result[i] ||
+          p.offsetY !== result[i].offsetY ||
+          p.height !== result[i].height,
+      ))
+  ) {
+    debugResumePagination("pagination:snapLineBounds:adjusted", {
+      beforePagesCount: pages.length,
+      afterPagesCount: result.length,
+      beforeSummary: pages.map((p) => ({
+        offsetY: p.offsetY,
+        height: p.height,
+      })),
+      afterSummary: result.map((p) => ({ offsetY: p.offsetY, height: p.height })),
+    });
+  }
+
+  return result;
 }
 
 function snapCutToAvoidSplitLines(

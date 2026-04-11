@@ -133,6 +133,15 @@ export interface User {
   profileCompletionPercentage?: number;
 }
 
+/** Matches post-interview UX feedback form / API (session issues dropdown). */
+export type InterviewPostSessionChallenge =
+  | "none"
+  | "slowness"
+  | "connection_abort"
+  | "audio"
+  | "video"
+  | "other";
+
 export interface Interview {
   _id: string;
   interviewId: string;
@@ -165,6 +174,17 @@ export interface Interview {
     duration?: number;
     startedAt?: string;
     endedAt?: string;
+  };
+  /** Candidate survey after realtime; `interviewId` references this interview. */
+  postInterviewFeedback?: {
+    interviewId: string;
+    userId: string;
+    sessionHelpful: boolean;
+    questionsRelevant: boolean;
+    overallRating: number;
+    sessionChallenge: InterviewPostSessionChallenge;
+    comment?: string;
+    submittedAt: string;
   };
   report?: {
     overallScore: number;
@@ -455,6 +475,28 @@ export const interviewApi = {
     }
     // Don't set Content-Type manually - let Axios set it with the boundary
     await apiClient.post(`/interviews/${interviewId}/complete`, formData);
+  },
+
+  submitPostInterviewFeedback: async (
+    interviewId: string,
+    body: {
+      sessionHelpful: boolean;
+      questionsRelevant: boolean;
+      overallRating: number;
+      sessionChallenge: InterviewPostSessionChallenge;
+      comment?: string;
+    },
+  ): Promise<Interview> => {
+    const response = await apiClient.post<{ data: Interview }>(
+      `/interviews/${interviewId}/post-interview-feedback`,
+      body,
+      {
+        headers: {
+          "Content-Type": "application/json",
+        },
+      },
+    );
+    return response.data.data;
   },
 
   closeAsFailed: async (interviewId: string): Promise<void> => {
