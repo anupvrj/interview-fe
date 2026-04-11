@@ -17,6 +17,7 @@ import {
   Plus,
   TrendingUp,
   Clock,
+  CalendarClock,
   Award,
   PlayCircle,
   FileText,
@@ -35,11 +36,12 @@ import {
 import {
   Interview,
   interviewApi,
+  interviewScheduleApi,
   paymentApi,
   userApi,
   planApi,
 } from "@/lib/api";
-import { formatDate, getScoreColor } from "@/lib/utils";
+import { formatDate, getScoreColor, scheduledInterviewCanStartNow } from "@/lib/utils";
 
 interface Plan {
   _id: string;
@@ -76,6 +78,8 @@ export default function DashboardPage() {
   });
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
+  const [scheduledInterviews, setScheduledInterviews] = useState<any[]>([]);
+  const [startingScheduleId, setStartingScheduleId] = useState<string | null>(null);
 
   useEffect(() => {
     if (isLoaded && user) {
@@ -109,8 +113,19 @@ export default function DashboardPage() {
         return;
       }
 
+      let profile: Awaited<ReturnType<typeof userApi.getMyProfile>> | null =
+        null;
       try {
-        const profile = await userApi.getMyProfile();
+        profile = await userApi.getMyProfile();
+        if (
+          profile.accessRole === "institution_admin" &&
+          profile.institutionId
+        ) {
+          router.replace(
+            `/dashboard/institute/${String(profile.institutionId)}`
+          );
+          return;
+        }
         const completion = profile.profileCompletionPercentage || 0;
         console.log("📊 Profile completion:", completion);
         setProfileCompletion(completion);
@@ -145,6 +160,13 @@ export default function DashboardPage() {
 
       const userInterviews = await interviewApi.list(user.id);
       setInterviews(userInterviews);
+
+      try {
+        const schedules = await interviewScheduleApi.listMine();
+        setScheduledInterviews(schedules || []);
+      } catch {
+        setScheduledInterviews([]);
+      }
 
       const completed = userInterviews.filter((i) => i.status === "completed");
       const totalScore = completed.reduce(
@@ -295,6 +317,21 @@ export default function DashboardPage() {
     ? getPlanName(subscription.plan)
     : "Free Plan";
 
+  const handleStartScheduled = async (scheduleId: string) => {
+    try {
+      setStartingScheduleId(scheduleId);
+      const { interviewId } = await interviewScheduleApi.start(scheduleId);
+      router.push(`/interview/${interviewId}/realtime`);
+    } catch (e: any) {
+      alert(
+        e?.response?.data?.message ||
+          "Could not start interview. You may need a saved resume, or the scheduled time is not open yet (starts 24 hours before)."
+      );
+    } finally {
+      setStartingScheduleId(null);
+    }
+  };
+
   return (
     <div className="w-full max-w-7xl mx-auto space-y-4 lg:space-y-6">
       {/* Hero Header Section */}
@@ -317,6 +354,73 @@ export default function DashboardPage() {
         <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl"></div>
         <div className="absolute bottom-0 left-0 w-48 h-48 bg-blue-500/20 rounded-full blur-2xl"></div>
       </div>
+
+      {scheduledInterviews.length > 0 && (
+        <Card className="border-2 border-amber-200 bg-gradient-to-br from-amber-50/80 to-white shadow-lg">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-lg text-amber-950">
+              <CalendarClock className="h-5 w-5 text-amber-700" />
+              Scheduled interviews
+            </CardTitle>
+            <CardDescription>
+              Your institution scheduled these for you. You can start from 24 hours before the
+              scheduled time until the expire deadline (if set). A saved resume is required.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {scheduledInterviews.map((s) => {
+              const { canStart, reason } = scheduledInterviewCanStartNow(
+                s.scheduledAt,
+                s.expiresAt
+              );
+              const startDisabled =
+                startingScheduleId === String(s._id) || !canStart;
+              return (
+              <div
+                key={s._id}
+                className="flex flex-col gap-2 rounded-xl border border-amber-100 bg-white/90 p-4 sm:flex-row sm:items-center sm:justify-between"
+              >
+                <div>
+                  <p className="font-semibold text-slate-900">{s.role}</p>
+                  <p className="text-sm text-slate-600">
+                    {new Date(s.scheduledAt).toLocaleString()}
+                    {s.targetCompany ? ` · ${s.targetCompany}` : ""}
+                  </p>
+                  {s.expiresAt ? (
+                    <p className="mt-1 text-xs text-amber-800">
+                      Start by {new Date(s.expiresAt).toLocaleString()}
+                    </p>
+                  ) : null}
+                  {s.notes ? (
+                    <p className="mt-1 text-xs text-slate-500">{s.notes}</p>
+                  ) : null}
+                  {!canStart && reason === "too_early" ? (
+                    <p className="mt-1 text-xs text-slate-500">
+                      Opens {new Date(new Date(s.scheduledAt).getTime() - 24 * 60 * 60 * 1000).toLocaleString()}
+                    </p>
+                  ) : null}
+                  {!canStart && reason === "expired" ? (
+                    <p className="mt-1 text-xs text-red-600">Past expire deadline</p>
+                  ) : null}
+                </div>
+                <Button
+                  className="shrink-0 gap-2 bg-amber-600 hover:bg-amber-700"
+                  onClick={() => handleStartScheduled(String(s._id))}
+                  disabled={startDisabled}
+                >
+                  {startingScheduleId === String(s._id) ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <PlayCircle className="h-4 w-4" />
+                  )}
+                  Start interview
+                </Button>
+              </div>
+            );
+            })}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Profile & Subscription Section */}
       <div className="grid lg:grid-cols-2 gap-4 lg:gap-6">

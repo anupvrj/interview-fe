@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { InterviewQuestionsField } from "@/components/institute/InterviewQuestionsField";
 import {
   Loader2,
   Shield,
@@ -39,9 +40,12 @@ import {
   Trash2,
   Coins,
   ChevronDown,
+  Pencil,
+  CalendarClock,
+  LayoutDashboard,
 } from "lucide-react";
 import { userApi, adminApi, User } from "@/lib/api";
-import { formatDate } from "@/lib/utils";
+import { formatDate, parseQuestionLines, toDatetimeLocalValue } from "@/lib/utils";
 
 export default function SuperAdminPage() {
   const { user, isLoaded } = useUser();
@@ -61,7 +65,16 @@ export default function SuperAdminPage() {
   const [instSlug, setInstSlug] = useState("");
   const [instDomain, setInstDomain] = useState("");
   const [instEmail, setInstEmail] = useState("");
+  const [instMaxUsers, setInstMaxUsers] = useState("");
   const [instSubmitting, setInstSubmitting] = useState(false);
+
+  const [editInst, setEditInst] = useState<any | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editSlug, setEditSlug] = useState("");
+  const [editDomain, setEditDomain] = useState("");
+  const [editEmail, setEditEmail] = useState("");
+  const [editMaxUsers, setEditMaxUsers] = useState("");
+  const [editSubmitting, setEditSubmitting] = useState(false);
 
   // Institution dropdown (which user's dropdown is open)
   const [instDropdownUser, setInstDropdownUser] = useState<User | null>(null);
@@ -110,6 +123,19 @@ export default function SuperAdminPage() {
   const [creditsDescription, setCreditsDescription] = useState("");
   const [creditsSubmitting, setCreditsSubmitting] = useState(false);
 
+  const [schedules, setSchedules] = useState<any[]>([]);
+  const [scheduleUser, setScheduleUser] = useState<User | null>(null);
+  const [scheduleAt, setScheduleAt] = useState("");
+  const [scheduleRole, setScheduleRole] = useState("");
+  const [scheduleExperience, setScheduleExperience] = useState("2");
+  const [scheduleLang, setScheduleLang] = useState<"en" | "hi">("en");
+  const [scheduleCompany, setScheduleCompany] = useState("");
+  const [scheduleDuration, setScheduleDuration] = useState<"15" | "30">("15");
+  const [scheduleQuestionsText, setScheduleQuestionsText] = useState("");
+  const [schedulePassingScore, setSchedulePassingScore] = useState("");
+  const [scheduleExpiresAt, setScheduleExpiresAt] = useState("");
+  const [scheduleSubmitting, setScheduleSubmitting] = useState(false);
+
   useEffect(() => {
     if (isLoaded && user) {
       localStorage.setItem("clerk-user-id", user.id);
@@ -117,10 +143,20 @@ export default function SuperAdminPage() {
     }
   }, [isLoaded, user]);
 
+  const loadSchedules = async () => {
+    try {
+      const s = await adminApi.listInterviewSchedules();
+      setSchedules(s);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   useEffect(() => {
     if (profile?.accessRole === "super_admin") {
       loadInstitutions();
       loadUsers();
+      loadSchedules();
     }
   }, [profile, page, search]);
 
@@ -165,24 +201,94 @@ export default function SuperAdminPage() {
 
   const handleCreateInstitution = async () => {
     if (!instName.trim()) return;
+    const payload: Parameters<typeof adminApi.createInstitution>[0] = {
+      name: instName.trim(),
+      slug: instSlug.trim() || undefined,
+      domain: instDomain.trim() || undefined,
+      contactEmail: instEmail.trim() || undefined,
+    };
+    const mu = instMaxUsers.trim();
+    if (mu !== "") {
+      const n = Number.parseInt(mu, 10);
+      if (!Number.isFinite(n) || n < 1) {
+        alert("Max users must be a positive number, or leave empty for unlimited.");
+        return;
+      }
+      payload.maxUsers = n;
+    }
     try {
       setInstSubmitting(true);
-      await adminApi.createInstitution({
-        name: instName.trim(),
-        slug: instSlug.trim() || undefined,
-        domain: instDomain.trim() || undefined,
-        contactEmail: instEmail.trim() || undefined,
-      });
+      await adminApi.createInstitution(payload);
       setInstOpen(false);
       setInstName("");
       setInstSlug("");
       setInstDomain("");
       setInstEmail("");
+      setInstMaxUsers("");
       loadInstitutions();
     } catch (err: any) {
       alert(err?.response?.data?.message || "Failed to create institution");
     } finally {
       setInstSubmitting(false);
+    }
+  };
+
+  const openEditInstitution = (inst: any) => {
+    setEditInst(inst);
+    setEditName(inst.name ?? "");
+    setEditSlug(inst.slug ?? "");
+    setEditDomain(inst.domain ?? "");
+    setEditEmail(inst.contactEmail ?? "");
+    setEditMaxUsers(
+      inst.maxUsers != null && inst.maxUsers !== "" ? String(inst.maxUsers) : ""
+    );
+  };
+
+  const handleUpdateInstitution = async () => {
+    if (!editInst?._id || !editName.trim()) return;
+    const mu = editMaxUsers.trim();
+    let maxUsers: number | null | undefined = undefined;
+    if (mu === "") {
+      maxUsers = null;
+    } else {
+      const n = Number.parseInt(mu, 10);
+      if (!Number.isFinite(n) || n < 1) {
+        alert("Max users must be a positive number, or leave empty for unlimited.");
+        return;
+      }
+      maxUsers = n;
+    }
+    try {
+      setEditSubmitting(true);
+      await adminApi.updateInstitution(String(editInst._id), {
+        name: editName.trim(),
+        slug: editSlug.trim(),
+        domain: editDomain.trim() || null,
+        contactEmail: editEmail.trim() || null,
+        maxUsers,
+      });
+      setEditInst(null);
+      loadInstitutions();
+    } catch (err: any) {
+      alert(err?.response?.data?.message || "Failed to update institution");
+    } finally {
+      setEditSubmitting(false);
+    }
+  };
+
+  const handleDeleteInstitution = async (inst: any) => {
+    if (
+      !confirm(
+        `Delete institution "${inst.name}"? Deletion is only allowed when no users are assigned. This cannot be undone.`
+      )
+    ) {
+      return;
+    }
+    try {
+      await adminApi.deleteInstitution(String(inst._id));
+      loadInstitutions();
+    } catch (err: any) {
+      alert(err?.response?.data?.message || "Failed to delete institution");
     }
   };
 
@@ -263,6 +369,88 @@ export default function SuperAdminPage() {
     }
   };
 
+  const openScheduleDialog = (u: User) => {
+    const instId = (u as any).institutionId;
+    if (!instId) {
+      alert("Assign this user to an institution before scheduling an interview.");
+      return;
+    }
+    setScheduleUser(u);
+    setScheduleRole("Software Engineer");
+    setScheduleExperience("2");
+    setScheduleLang("en");
+    setScheduleCompany("");
+    setScheduleDuration("15");
+    setScheduleQuestionsText("");
+    setSchedulePassingScore("");
+    const t = new Date();
+    t.setDate(t.getDate() + 1);
+    t.setHours(10, 0, 0, 0);
+    setScheduleAt(toDatetimeLocalValue(t));
+    const exp = new Date(t);
+    exp.setDate(exp.getDate() + 7);
+    exp.setHours(23, 59, 0, 0);
+    setScheduleExpiresAt(toDatetimeLocalValue(exp));
+  };
+
+  const handleCreateSchedule = async () => {
+    if (!scheduleUser || !scheduleRole.trim() || !scheduleAt) return;
+    const instId = (scheduleUser as any).institutionId;
+    if (!instId) {
+      alert("User must belong to an institution.");
+      return;
+    }
+    const exp = Number.parseInt(scheduleExperience, 10);
+    if (!Number.isFinite(exp) || exp < 0) {
+      alert("Enter valid years of experience.");
+      return;
+    }
+    let passingScorePayload: number | undefined;
+    if (schedulePassingScore.trim()) {
+      const ps = Number.parseFloat(schedulePassingScore.trim());
+      if (!Number.isFinite(ps) || ps < 0 || ps > 100) {
+        alert("Passing score must be a number from 0 to 100.");
+        return;
+      }
+      passingScorePayload = ps;
+    }
+    const customQs = parseQuestionLines(scheduleQuestionsText);
+    try {
+      setScheduleSubmitting(true);
+      await adminApi.createInterviewSchedule({
+        candidateClerkId: scheduleUser.clerkId,
+        institutionId: String(instId),
+        scheduledAt: new Date(scheduleAt).toISOString(),
+        ...(scheduleExpiresAt.trim()
+          ? { expiresAt: new Date(scheduleExpiresAt).toISOString() }
+          : {}),
+        role: scheduleRole.trim(),
+        experience: exp,
+        language: scheduleLang,
+        targetCompany: scheduleCompany.trim() || undefined,
+        interviewDuration: scheduleDuration === "30" ? 30 : 15,
+        ...(customQs.length > 0 ? { customQuestions: customQs } : {}),
+        ...(passingScorePayload !== undefined ? { passingScore: passingScorePayload } : {}),
+      });
+      setScheduleUser(null);
+      await loadSchedules();
+    } catch (err: any) {
+      alert(err?.response?.data?.message || "Failed to schedule");
+    } finally {
+      setScheduleSubmitting(false);
+    }
+  };
+
+  const handleCancelSchedule = async (scheduleId: string) => {
+    if (!confirm("Cancel this scheduled interview?")) return;
+    try {
+      await adminApi.cancelInterviewSchedule(scheduleId);
+      loadSchedules();
+    } catch (err: any) {
+      alert(err?.response?.data?.message || "Failed to cancel");
+    }
+  };
+
   const handleDeleteUser = async (u: User) => {
     if (
       !confirm(
@@ -339,13 +527,16 @@ export default function SuperAdminPage() {
             <p className="text-slate-500">No institutions yet</p>
           ) : (
             <div className="overflow-x-auto w-full">
-              <Table className="min-w-[500px]">
+              <Table className="min-w-[720px]">
                 <TableHeader>
                   <TableRow>
                     <TableHead>Name</TableHead>
                     <TableHead>Slug</TableHead>
                     <TableHead>Domain</TableHead>
                     <TableHead>Contact</TableHead>
+                    <TableHead>Users</TableHead>
+                    <TableHead>Max users</TableHead>
+                    <TableHead className="text-right">Dashboard & actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -353,8 +544,46 @@ export default function SuperAdminPage() {
                     <TableRow key={inst._id}>
                       <TableCell className="font-medium">{inst.name}</TableCell>
                       <TableCell>{inst.slug}</TableCell>
-                      <TableCell>{inst.domain || "-"}</TableCell>
-                      <TableCell>{inst.contactEmail || "-"}</TableCell>
+                      <TableCell>{inst.domain || "—"}</TableCell>
+                      <TableCell>{inst.contactEmail || "—"}</TableCell>
+                      <TableCell>{inst.userCount ?? 0}</TableCell>
+                      <TableCell>
+                        {inst.maxUsers != null ? inst.maxUsers : "Unlimited"}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-1">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() =>
+                              router.push(`/dashboard/institute/${String(inst._id)}`)
+                            }
+                            title="Open institution dashboard"
+                            aria-label="Open institution dashboard"
+                          >
+                            <LayoutDashboard className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => openEditInstitution(inst)}
+                            title="Edit institution"
+                            aria-label="Edit institution"
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-red-600 hover:text-red-700"
+                            onClick={() => handleDeleteInstitution(inst)}
+                            title="Delete institution"
+                            aria-label="Delete institution"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -363,6 +592,76 @@ export default function SuperAdminPage() {
           )}
         </CardContent>
       </Card>
+
+      {schedules.filter((s) => s.status === "scheduled").length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <CalendarClock className="h-5 w-5" />
+              Scheduled interviews
+            </CardTitle>
+            <CardDescription>
+              Platform-wide — candidates see these on their dashboard
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>When</TableHead>
+                    <TableHead>Candidate</TableHead>
+                    <TableHead>Role</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {schedules
+                    .filter((s) => s.status === "scheduled")
+                    .map((s) => (
+                      <TableRow key={s._id}>
+                        <TableCell className="whitespace-nowrap">
+                          {new Date(s.scheduledAt).toLocaleString()}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex min-w-[10rem] max-w-[18rem] flex-col gap-0.5">
+                            <span className="font-medium text-slate-900">
+                              {s.candidateName?.trim()
+                                ? s.candidateName.trim()
+                                : "—"}
+                            </span>
+                            <span className="break-all text-sm text-slate-600">
+                              {s.candidateEmail?.trim()
+                                ? s.candidateEmail.trim()
+                                : "—"}
+                            </span>
+                            {!s.candidateName?.trim() &&
+                            !s.candidateEmail?.trim() ? (
+                              <span className="font-mono text-[11px] text-slate-400">
+                                {s.candidateClerkId}
+                              </span>
+                            ) : null}
+                          </div>
+                        </TableCell>
+                        <TableCell>{s.role}</TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-red-600"
+                            onClick={() => handleCancelSchedule(String(s._id))}
+                          >
+                            Cancel
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>
@@ -589,9 +888,29 @@ export default function SuperAdminPage() {
                         variant="outline"
                         size="sm"
                         className="ml-2"
-                        onClick={() =>
-                          router.push(`/dashboard/institution`)
+                        onClick={() => openScheduleDialog(u)}
+                        title="Schedule interview"
+                        aria-label="Schedule interview"
+                      >
+                        <CalendarClock className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="ml-2"
+                        disabled={!u.institutionId}
+                        title={
+                          u.institutionId
+                            ? "Open institution dashboard for this user’s org"
+                            : "User has no institution"
                         }
+                        onClick={() => {
+                          if (u.institutionId) {
+                            router.push(
+                              `/dashboard/institute/${String(u.institutionId)}`
+                            );
+                          }
+                        }}
                       >
                         View
                       </Button>
@@ -631,6 +950,145 @@ export default function SuperAdminPage() {
           )}
         </CardContent>
       </Card>
+
+      <Dialog
+        open={!!scheduleUser}
+        onOpenChange={(o) => {
+          if (!o) setScheduleUser(null);
+        }}
+      >
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Schedule interview</DialogTitle>
+            <DialogDescription>
+              {scheduleUser
+                ? `${scheduleUser.name ?? scheduleUser.email} — institution required on the user record`
+                : null}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-3 py-2">
+            <div>
+              <Label htmlFor="sa-sch-at">Date & time</Label>
+              <Input
+                id="sa-sch-at"
+                type="datetime-local"
+                value={scheduleAt}
+                onChange={(e) => setScheduleAt(e.target.value)}
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <Label htmlFor="sa-sch-expires">Expire deadline (optional)</Label>
+              <Input
+                id="sa-sch-expires"
+                type="datetime-local"
+                value={scheduleExpiresAt}
+                onChange={(e) => setScheduleExpiresAt(e.target.value)}
+                className="mt-1"
+              />
+              <p className="mt-1 text-xs text-slate-500">
+                Latest time the candidate can start. Must be on or after 24 hours before the
+                scheduled time. Leave empty for no upper limit.
+              </p>
+            </div>
+            <div>
+              <Label htmlFor="sa-sch-role">Role / position</Label>
+              <Input
+                id="sa-sch-role"
+                value={scheduleRole}
+                onChange={(e) => setScheduleRole(e.target.value)}
+                placeholder="e.g. Backend Engineer"
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <Label htmlFor="sa-sch-exp">Years of experience</Label>
+              <Input
+                id="sa-sch-exp"
+                type="number"
+                min={0}
+                value={scheduleExperience}
+                onChange={(e) => setScheduleExperience(e.target.value)}
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <Label htmlFor="sa-sch-lang">Language</Label>
+              <select
+                id="sa-sch-lang"
+                className="mt-1 w-full rounded-md border px-3 py-2"
+                value={scheduleLang}
+                onChange={(e) => setScheduleLang(e.target.value as "en" | "hi")}
+              >
+                <option value="en">English</option>
+                <option value="hi">Hindi</option>
+              </select>
+            </div>
+            <div>
+              <Label htmlFor="sa-sch-co">Target company (optional)</Label>
+              <Input
+                id="sa-sch-co"
+                value={scheduleCompany}
+                onChange={(e) => setScheduleCompany(e.target.value)}
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <Label htmlFor="sa-sch-dur">Duration</Label>
+              <select
+                id="sa-sch-dur"
+                className="mt-1 w-full rounded-md border px-3 py-2"
+                value={scheduleDuration}
+                onChange={(e) => setScheduleDuration(e.target.value as "15" | "30")}
+              >
+                <option value="15">15 minutes</option>
+                <option value="30">30 minutes</option>
+              </select>
+            </div>
+            <div>
+              <Label htmlFor="sa-sch-q" className="mb-1 block">
+                Interview questions (optional)
+              </Label>
+              <InterviewQuestionsField
+                id="sa-sch-q"
+                value={scheduleQuestionsText}
+                onChange={setScheduleQuestionsText}
+                disabled={scheduleSubmitting}
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <Label htmlFor="sa-sch-pass">Passing score (optional)</Label>
+              <Input
+                id="sa-sch-pass"
+                type="number"
+                min={0}
+                max={100}
+                step={1}
+                value={schedulePassingScore}
+                onChange={(e) => setSchedulePassingScore(e.target.value)}
+                placeholder="0–100"
+                className="mt-1"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setScheduleUser(null)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleCreateSchedule}
+              disabled={scheduleSubmitting || !scheduleRole.trim() || !scheduleAt}
+            >
+              {scheduleSubmitting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                "Create schedule"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={instOpen} onOpenChange={setInstOpen}>
         <DialogContent>
@@ -678,6 +1136,21 @@ export default function SuperAdminPage() {
                 placeholder="admin@acme.edu"
               />
             </div>
+            <div>
+              <Label htmlFor="inst-max-users">Max users (optional)</Label>
+              <Input
+                id="inst-max-users"
+                type="number"
+                min={1}
+                step={1}
+                value={instMaxUsers}
+                onChange={(e) => setInstMaxUsers(e.target.value)}
+                placeholder="Unlimited if empty"
+              />
+              <p className="mt-1 text-xs text-slate-500">
+                Caps how many users can be added to this institution. Leave empty for no limit.
+              </p>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setInstOpen(false)}>
@@ -691,6 +1164,89 @@ export default function SuperAdminPage() {
                 <Loader2 className="w-4 h-4 animate-spin" />
               ) : (
                 "Create"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={!!editInst}
+        onOpenChange={(o) => !o && setEditInst(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit institution</DialogTitle>
+            <DialogDescription>
+              Update name, slug, domain, contact, and user cap
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div>
+              <Label htmlFor="edit-inst-name">Name</Label>
+              <Input
+                id="edit-inst-name"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                placeholder="Institution name"
+              />
+            </div>
+            <div>
+              <Label htmlFor="edit-inst-slug">Slug</Label>
+              <Input
+                id="edit-inst-slug"
+                value={editSlug}
+                onChange={(e) => setEditSlug(e.target.value)}
+                placeholder="url-safe-slug"
+              />
+            </div>
+            <div>
+              <Label htmlFor="edit-inst-domain">Domain (optional)</Label>
+              <Input
+                id="edit-inst-domain"
+                value={editDomain}
+                onChange={(e) => setEditDomain(e.target.value)}
+                placeholder="college.edu"
+              />
+            </div>
+            <div>
+              <Label htmlFor="edit-inst-email">Contact email (optional)</Label>
+              <Input
+                id="edit-inst-email"
+                type="email"
+                value={editEmail}
+                onChange={(e) => setEditEmail(e.target.value)}
+                placeholder="admin@example.edu"
+              />
+            </div>
+            <div>
+              <Label htmlFor="edit-inst-max">Max users</Label>
+              <Input
+                id="edit-inst-max"
+                type="number"
+                min={1}
+                step={1}
+                value={editMaxUsers}
+                onChange={(e) => setEditMaxUsers(e.target.value)}
+                placeholder="Unlimited if empty"
+              />
+              <p className="mt-1 text-xs text-slate-500">
+                Empty = unlimited. Existing users are not removed if you lower the cap.
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditInst(null)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleUpdateInstitution}
+              disabled={!editName.trim() || editSubmitting}
+            >
+              {editSubmitting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                "Save changes"
               )}
             </Button>
           </DialogFooter>
