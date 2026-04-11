@@ -35,7 +35,12 @@ export default function PricingPage() {
                   className="flex items-center hover:opacity-80 transition-opacity mx-auto sm:mx-0"
                 >
                   <InterviewTrixLogo
-                    className="h-7 sm:h-8 lg:h-10 w-auto"
+                    variant="onLightBg"
+                    className="h-7 w-auto sm:hidden"
+                    priority
+                  />
+                  <InterviewTrixLogo
+                    className="hidden sm:block h-8 lg:h-10 w-auto"
                     priority
                   />
                 </Link>

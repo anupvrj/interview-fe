@@ -13,7 +13,6 @@ import {
   Mic,
   Brain,
   MessageSquare,
-  User,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -22,10 +21,8 @@ import type { PlanRecord } from "@/lib/planRecord";
 import { getPlanMarketingHighlights } from "@/lib/planHighlightsFromFeatures";
 import Script from "next/script";
 import Link from "next/link";
-import { InterviewTrixLogo } from "@/components/InterviewTrixLogo";
-import { NavigationMenu } from "@/components/NavigationMenu";
+import { SiteHeader } from "@/components/SiteHeader";
 import { MarketingFooter } from "@/components/MarketingFooter";
-import { SignedIn, SignedOut, UserButton } from "@clerk/nextjs";
 
 declare global {
   interface Window {
@@ -383,103 +380,7 @@ function CheckoutPageContent() {
       />
 
       <div className="min-h-screen bg-blue-50 scroll-smooth selection:bg-blue-100 relative overflow-hidden">
-        {/* Navigation */}
-        <nav className="fixed top-0 w-full z-50">
-          {/* Top Border - Mobile Only */}
-          <div
-            className="sm:hidden h-1"
-            style={{
-              backgroundColor: "rgb(37 99 235 / var(--tw-bg-opacity, 1))",
-            }}
-          ></div>
-
-          {/* Main Header */}
-          <div className="bg-white/95 backdrop-blur-xl border-b border-gray-100">
-            <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-              <div className="flex items-center justify-between h-14 sm:h-16 lg:h-20">
-                {/* Mobile Layout */}
-                <div className="flex items-center justify-between w-full sm:w-auto sm:justify-start sm:gap-4">
-                  {/* Hamburger Menu - Mobile Only */}
-                  <div className="sm:hidden">
-                    <NavigationMenu />
-                  </div>
-
-                  {/* Logo - Centered on Mobile, Left on Desktop */}
-                  <Link
-                    href="/"
-                    className="flex items-center hover:opacity-80 transition-opacity mx-auto sm:mx-0"
-                  >
-                    <InterviewTrixLogo
-                      className="h-7 sm:h-8 lg:h-10 w-auto"
-                      priority
-                    />
-                  </Link>
-
-                  {/* Right Side Icons - Mobile */}
-                  <div className="flex items-center gap-3 sm:hidden">
-                    <SignedOut>
-                      <Link href="/sign-in" className="p-1">
-                        <User className="w-5 h-5 text-slate-900" />
-                      </Link>
-                    </SignedOut>
-                    <SignedIn>
-                      <UserButton
-                        appearance={{
-                          elements: {
-                            avatarBox: "w-6 h-6",
-                          },
-                        }}
-                      />
-                    </SignedIn>
-                  </div>
-                </div>
-
-                {/* Desktop Layout */}
-                <div className="hidden sm:flex items-center gap-4 sm:gap-6">
-                  {/* Navigation Menu */}
-                  <NavigationMenu />
-                  <SignedOut>
-                    <Link href="/sign-in">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-xs sm:text-sm px-2 sm:px-4"
-                      >
-                        Sign In
-                      </Button>
-                    </Link>
-                    <Link href="/sign-up">
-                      <Button
-                        size="sm"
-                        className="bg-blue-600 hover:bg-blue-700 text-white font-medium shadow-sm transition-all text-xs sm:text-sm px-4 py-2"
-                      >
-                        Get Started
-                      </Button>
-                    </Link>
-                  </SignedOut>
-                  <SignedIn>
-                    <Link href="/dashboard" className="hidden md:block">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="text-xs sm:text-sm px-2 sm:px-4"
-                      >
-                        Dashboard
-                      </Button>
-                    </Link>
-                    <UserButton
-                      appearance={{
-                        elements: {
-                          avatarBox: "w-8 h-8 sm:w-9 sm:h-9 lg:w-10 lg:h-10",
-                        },
-                      }}
-                    />
-                  </SignedIn>
-                </div>
-              </div>
-            </div>
-          </div>
-        </nav>
+        <SiteHeader />
 
         {/* Animated Background Icons */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden">

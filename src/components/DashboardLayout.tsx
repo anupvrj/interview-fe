@@ -188,6 +188,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               className="flex items-center hover:opacity-80 transition-opacity min-w-0"
             >
               <InterviewTrixLogo
+                variant="onLightBg"
                 className="h-7 w-auto max-w-[min(100%,11rem)] object-contain object-left"
               />
             </Link>
