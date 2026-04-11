@@ -199,22 +199,34 @@ export default function RealtimeInterviewPage() {
     };
   }, [interviewId]);
 
-  // Setup media stream after video element is mounted
+  // Setup media stream only after the main UI (including <video>) is mounted.
+  // While `loading` is true we return early and there is no video ref — polling here used to race with
+  // WebSocket errors that swap to the full-screen error layout (unmounts video) during getUserMedia.
   useEffect(() => {
-    // Wait for video element to be available
+    if (loading) return;
+    // Full-screen error replaces main UI — no video node to attach; avoid infinite poll.
+    if (error && !isInterviewActive && !connectionFailed) return;
+
+    let cancelled = false;
+    let pollId: ReturnType<typeof setTimeout> | null = null;
+
     const checkVideoElement = () => {
+      if (cancelled) return;
       if (videoRef.current && !mediaStreamRef.current) {
-        setupMediaStream();
+        void setupMediaStream();
       } else if (!videoRef.current) {
-        setTimeout(checkVideoElement, 100);
+        pollId = setTimeout(checkVideoElement, 100);
       }
     };
 
-    // Start checking after component mounts
     const timeoutId = setTimeout(checkVideoElement, 100);
 
-    return () => clearTimeout(timeoutId);
-  }, []);
+    return () => {
+      cancelled = true;
+      clearTimeout(timeoutId);
+      if (pollId) clearTimeout(pollId);
+    };
+  }, [loading, error, isInterviewActive, connectionFailed]);
 
   useEffect(() => {
     if (isInterviewActive && elapsedTime >= maxDurationSec) {
@@ -374,8 +386,12 @@ export default function RealtimeInterviewPage() {
           }
         }
       } else {
-        console.error("Video element ref is null");
-        setError("Video element not found. Please refresh the page.");
+        console.error("Video element ref is null after getUserMedia (layout may have changed)");
+        stream.getTracks().forEach((track) => track.stop());
+        setError(
+          (prev) =>
+            prev || "Video element not found. Please refresh the page.",
+        );
       }
     } catch (error: any) {
       console.error("Error accessing media devices:", error);

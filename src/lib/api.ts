@@ -151,6 +151,15 @@ export interface Interview {
     role: string;
     experience: number;
     language: "en" | "hi";
+    department?:
+      | "engineering"
+      | "management"
+      | "commerce_finance"
+      | "healthcare_pharma"
+      | "marketing"
+      | "sales"
+      | "general";
+    discipline?: "cse" | "it" | "mech" | "civil" | "mba" | "bba" | "none";
     resumeS3Key?: string;
     targetCompany?: string;
     createdAt: string;
@@ -263,6 +272,15 @@ export interface CreateInterviewRequest {
   role: string;
   experience: number;
   language: "en" | "hi";
+  department?:
+    | "engineering"
+    | "management"
+    | "commerce_finance"
+    | "healthcare_pharma"
+    | "marketing"
+    | "sales"
+    | "general";
+  discipline?: "cse" | "it" | "mech" | "civil" | "mba" | "bba" | "none";
   targetCompany?: string;
   resume?: File;
   useSavedResume?: boolean;
@@ -401,6 +419,12 @@ export const interviewApi = {
     formData.append("role", data.role);
     formData.append("experience", data.experience.toString());
     formData.append("language", data.language);
+    if (data.department) {
+      formData.append("department", data.department);
+    }
+    if (data.discipline) {
+      formData.append("discipline", data.discipline);
+    }
     if (data.targetCompany) {
       formData.append("targetCompany", data.targetCompany);
     }
