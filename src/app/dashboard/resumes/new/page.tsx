@@ -47,6 +47,28 @@ const categoryLabels = {
 type FilterCategory = "all" | "simple" | "modern" | "creative";
 type Step = "template" | "upload" | "processing";
 
+const uploadedResumeProcessingMessages = [
+  "Extracting data from your resume and structuring it...",
+  "Analyzing your work experience and achievements...",
+  "Identifying key skills and strengths...",
+  "Mapping your experience into clear resume sections...",
+  "Refining wording for better recruiter impact...",
+  "Organizing sections for better readability...",
+  "Polishing details to make your resume stand out...",
+  "Final checks in progress. Almost done...",
+];
+
+const defaultResumeProcessingMessages = [
+  "Setting up your resume with default content...",
+  "Preparing sections and formatting your layout...",
+  "Adding professional starter content...",
+  "Arranging sections for maximum clarity...",
+  "Fine-tuning headings and structure...",
+  "Adding starter details so you can edit faster...",
+  "Finalizing your resume structure...",
+  "Final checks in progress. Almost done...",
+];
+
 export default function NewResumePage() {
   const { user, isLoaded } = useUser();
   const router = useRouter();
@@ -61,6 +83,32 @@ export default function NewResumePage() {
   const [resumeText, setResumeText] = useState<string>("");
   const [extracting, setExtracting] = useState(false);
   const [showLimitModal, setShowLimitModal] = useState(false);
+  const [processingMessageIndex, setProcessingMessageIndex] = useState(0);
+
+  const processingMessages = uploadedFile
+    ? uploadedResumeProcessingMessages
+    : defaultResumeProcessingMessages;
+
+  useEffect(() => {
+    if (step !== "processing") {
+      setProcessingMessageIndex(0);
+      return;
+    }
+
+    setProcessingMessageIndex(0);
+    const lastIndex = processingMessages.length - 1;
+    const interval = setInterval(() => {
+      setProcessingMessageIndex((prev) => {
+        if (prev >= lastIndex) {
+          clearInterval(interval);
+          return prev;
+        }
+        return prev + 1;
+      });
+    }, 4000);
+
+    return () => clearInterval(interval);
+  }, [step, processingMessages.length]);
 
   useEffect(() => {
     if (isLoaded) {
@@ -930,9 +978,7 @@ export default function NewResumePage() {
               Creating Your Resume
             </h3>
             <p className="text-gray-600">
-              {uploadedFile
-                ? "Extracting data from your resume and structuring it..."
-                : "Setting up your resume with default content..."}
+              {processingMessages[processingMessageIndex]}
             </p>
           </CardContent>
         </Card>

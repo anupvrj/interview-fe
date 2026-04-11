@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import { Loader2 } from "lucide-react";
@@ -10,6 +10,7 @@ import { userApi } from "@/lib/api";
 export default function LegacyInstitutionAdminRedirect() {
   const { user, isLoaded } = useUser();
   const router = useRouter();
+
   useEffect(() => {
     if (!isLoaded || !user) return;
     (async () => {

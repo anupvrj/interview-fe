@@ -262,7 +262,7 @@ export default function PlanPage() {
   const getNextPlan = (currentPlan: string): NextPlanDisplay | null => {
     if (!allPlans || allPlans.length === 0) return null;
 
-    const planOrder = ["free", "starter", "premium", "elite"];
+    const planOrder = ["free", "premium", "enterprise"];
     const currentIndex = planOrder.indexOf(currentPlan);
 
     if (currentIndex === -1 || currentIndex === planOrder.length - 1) {
@@ -335,12 +335,10 @@ export default function PlanPage() {
   }
 
   let planName = "Free Plan";
-  if (subscription?.plan === "starter") {
-    planName = "Starter Plan";
-  } else if (subscription?.plan === "premium") {
+  if (subscription?.plan === "premium") {
     planName = "Premium Plan";
-  } else if (subscription?.plan === "elite") {
-    planName = "Elite Plan";
+  } else if (subscription?.plan === "enterprise") {
+    planName = "Enterprise Plan";
   }
 
   const nextPlan = subscription?.plan ? getNextPlan(subscription.plan) : null;

@@ -121,7 +121,7 @@ export interface User {
     size: number;
   };
   subscription?: {
-    plan: "free" | "starter" | "premium" | "elite";
+    plan: "free" | "premium" | "enterprise";
     status: "active" | "cancelled" | "expired";
     currentPeriodEnd?: string;
     interviewsUsed?: number;
@@ -136,6 +136,15 @@ export interface User {
   profileCompletionPercentage?: number;
 }
 
+/** Matches post-interview UX feedback form / API (session issues dropdown). */
+export type InterviewPostSessionChallenge =
+  | "none"
+  | "slowness"
+  | "connection_abort"
+  | "audio"
+  | "video"
+  | "other";
+
 export interface Interview {
   _id: string;
   interviewId: string;
@@ -145,6 +154,15 @@ export interface Interview {
     role: string;
     experience: number;
     language: "en" | "hi";
+    department?:
+      | "engineering"
+      | "management"
+      | "commerce_finance"
+      | "healthcare_pharma"
+      | "marketing"
+      | "sales"
+      | "general";
+    discipline?: "cse" | "it" | "mech" | "civil" | "mba" | "bba" | "none";
     resumeS3Key?: string;
     targetCompany?: string;
     createdAt: string;
@@ -159,6 +177,17 @@ export interface Interview {
     duration?: number;
     startedAt?: string;
     endedAt?: string;
+  };
+  /** Candidate survey after realtime; `interviewId` references this interview. */
+  postInterviewFeedback?: {
+    interviewId: string;
+    userId: string;
+    sessionHelpful: boolean;
+    questionsRelevant: boolean;
+    overallRating: number;
+    sessionChallenge: InterviewPostSessionChallenge;
+    comment?: string;
+    submittedAt: string;
   };
   report?: {
     overallScore: number;
@@ -249,10 +278,19 @@ export interface CreateInterviewRequest {
   role: string;
   experience: number;
   language: "en" | "hi";
+  department?:
+    | "engineering"
+    | "management"
+    | "commerce_finance"
+    | "healthcare_pharma"
+    | "marketing"
+    | "sales"
+    | "general";
+  discipline?: "cse" | "it" | "mech" | "civil" | "mba" | "bba" | "none";
   targetCompany?: string;
   resume?: File;
   useSavedResume?: boolean;
-  /** Interview duration in minutes: 15 (default) or 30 (premium/elite only). */
+  /** Interview duration in minutes: 15 (default) or 30 (premium & enterprise). */
   duration?: number;
 }
 
@@ -402,6 +440,12 @@ export const interviewApi = {
     formData.append("role", data.role);
     formData.append("experience", data.experience.toString());
     formData.append("language", data.language);
+    if (data.department) {
+      formData.append("department", data.department);
+    }
+    if (data.discipline) {
+      formData.append("discipline", data.discipline);
+    }
     if (data.targetCompany) {
       formData.append("targetCompany", data.targetCompany);
     }
@@ -452,6 +496,28 @@ export const interviewApi = {
     }
     // Don't set Content-Type manually - let Axios set it with the boundary
     await apiClient.post(`/interviews/${interviewId}/complete`, formData);
+  },
+
+  submitPostInterviewFeedback: async (
+    interviewId: string,
+    body: {
+      sessionHelpful: boolean;
+      questionsRelevant: boolean;
+      overallRating: number;
+      sessionChallenge: InterviewPostSessionChallenge;
+      comment?: string;
+    },
+  ): Promise<Interview> => {
+    const response = await apiClient.post<{ data: Interview }>(
+      `/interviews/${interviewId}/post-interview-feedback`,
+      body,
+      {
+        headers: {
+          "Content-Type": "application/json",
+        },
+      },
+    );
+    return response.data.data;
   },
 
   closeAsFailed: async (interviewId: string): Promise<void> => {
@@ -613,7 +679,7 @@ export const interviewApi = {
 };
 
 export interface Subscription {
-  plan: "free" | "starter" | "premium" | "elite";
+    plan: "free" | "premium" | "enterprise";
   status: "active" | "cancelled" | "expired";
   interviewsUsed?: number; // Deprecated: now using credits
   interviewsLimit?: number; // Deprecated: now using credits
@@ -650,7 +716,7 @@ export interface RazorpayOrder {
 
 export const paymentApi = {
   createOrder: async (
-    plan: "starter" | "premium" | "elite",
+    plan: "premium",
     billingCycle: "monthly" | "quarterly" | "yearly" = "monthly",
   ): Promise<RazorpayOrder> => {
     const response = await apiClient.post<{ data: RazorpayOrder }>(
@@ -1232,6 +1298,26 @@ export const planApi = {
   },
 };
 
+export interface EnterpriseSalesPayload {
+  name: string;
+  phone: string;
+  email: string;
+  organizationName: string;
+  industry: string;
+}
+
+export const contactApi = {
+  submitEnterpriseSales: async (
+    payload: EnterpriseSalesPayload,
+  ): Promise<{ success: boolean; message?: string }> => {
+    const response = await apiClient.post<{
+      success: boolean;
+      message?: string;
+    }>("/contact/enterprise-sales", payload);
+    return response.data;
+  },
+};
+
 // Admin API (requires admin role)
 export const adminApi = {
   listUsers: async (params?: {
@@ -1254,7 +1340,7 @@ export const adminApi = {
 
   addUser: async (
     email: string,
-    plan: "free" | "starter" | "premium" | "elite",
+    plan: "free" | "premium" | "enterprise",
     institutionId?: string
   ): Promise<{ invitationId: string; message: string }> => {
     const response = await apiClient.post<{
@@ -1294,7 +1380,7 @@ export const adminApi = {
 
   updatePlan: async (
     userId: string,
-    plan: "free" | "starter" | "premium" | "elite"
+    plan: "free" | "premium" | "enterprise"
   ): Promise<User> => {
     const response = await apiClient.put<{ success: boolean; data: User }>(
       `/admin/users/${userId}/plan`,

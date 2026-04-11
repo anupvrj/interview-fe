@@ -175,7 +175,7 @@ export default function PurchaseCreditsPage() {
                 <ul className="text-sm text-gray-600 space-y-1">
                   <li>• 1 credit = ₹1</li>
                   <li>• Interview cost: 5 credits per minute</li>
-                  <li>• Credits expire based on the package you choose</li>
+                  <li>• Purchased credits are added to your balance until used</li>
                   <li>• Use credits for mock interviews anytime</li>
                 </ul>
               </div>
@@ -272,8 +272,9 @@ export default function PurchaseCreditsPage() {
                   Do credits expire?
                 </h3>
                 <p className="text-gray-600 text-sm">
-                  Yes, purchased credits expire based on the package validity
-                  period. Check each package for specific expiry details.
+                  No — purchased credits are not removed after a fixed number of
+                  days. Product access for premium features is tied to an active
+                  subscription (renewed via Razorpay).
                 </p>
               </div>
               <div>

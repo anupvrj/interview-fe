@@ -1,238 +1,16 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { SignedIn, SignedOut, UserButton, useUser } from "@clerk/nextjs";
-import {
-  Check,
-  Sparkles,
-  Zap,
-  Trophy,
-  Crown,
-  ArrowRight,
-  User,
-  Mic,
-  Brain,
-  MessageSquare,
-  Info,
-  Loader2,
-} from "lucide-react";
+import { SignedIn, SignedOut, UserButton } from "@clerk/nextjs";
+import { Sparkles, User, Mic, Brain, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import Link from "next/link";
 import { InterviewTrixLogo } from "@/components/InterviewTrixLogo";
 import { NavigationMenu } from "@/components/NavigationMenu";
 import { MarketingFooter } from "@/components/MarketingFooter";
-import { formatCurrency, formatCredits } from "@/lib/payment";
-import { planApi } from "@/lib/api";
-
-const ICON_MAP = {
-  Sparkles,
-  Zap,
-  Trophy,
-  Crown,
-};
+import { PricingPlansBlock } from "@/components/PricingPlansBlock";
 
 export default function PricingPage() {
-  const router = useRouter();
-  const { user, isLoaded } = useUser();
-  const [billingCycle, setBillingCycle] = useState<
-    "monthly" | "quarterly" | "yearly"
-  >("monthly");
-  const [plans, setPlans] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
-
-  useEffect(() => {
-    loadPlans();
-  }, []);
-
-  const isRenderablePaidPlan = (plan: any) =>
-    plan?.planId &&
-    plan.planId !== "free" &&
-    plan.pricing &&
-    typeof plan.pricing === "object" &&
-    plan.creditsIncluded &&
-    typeof plan.creditsIncluded === "object" &&
-    plan.features &&
-    typeof plan.features === "object";
-
-  const loadPlans = async () => {
-    try {
-      setLoading(true);
-      setLoadError(null);
-      const allPlans = await planApi.getAllPlans();
-
-      // Filter out free plan and ensure plans have required fields
-      const paidPlans = (Array.isArray(allPlans) ? allPlans : []).filter(
-        isRenderablePaidPlan,
-      );
-
-      setPlans(paidPlans);
-      if (paidPlans.length === 0 && Array.isArray(allPlans) && allPlans.length > 0) {
-        setLoadError(
-          "Plans loaded but none matched the paid-plan format. Check API data.",
-        );
-      }
-    } catch (error) {
-      console.error("Error loading plans:", error);
-      const message =
-        error instanceof Error ? error.message : "Failed to load plans";
-      setLoadError(message);
-      setPlans([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSelectPlan = (planId: string) => {
-    if (!isLoaded || !user) {
-      router.push("/sign-in");
-      return;
-    }
-    router.push(`/checkout?plan=${planId}&cycle=${billingCycle}`);
-  };
-
-  const getPrice = (plan: any) => {
-    return plan.pricing?.[billingCycle] || 0;
-  };
-
-  const getCredits = (plan: any) => {
-    return plan.creditsIncluded?.[billingCycle] || 0;
-  };
-
-  const getPeriodLabel = () => {
-    if (billingCycle === "yearly") return "year";
-    if (billingCycle === "quarterly") return "quarter";
-    return "month";
-  };
-
-  const getSavingsBadge = (plan: any) => {
-    if (billingCycle === "monthly" || !plan.metadata?.savingsPercentage)
-      return null;
-
-    const savingsPercent =
-      billingCycle === "yearly"
-        ? plan.metadata.savingsPercentage.yearly
-        : plan.metadata.savingsPercentage.quarterly;
-
-    if (!savingsPercent) return null;
-
-    return (
-      <div className="inline-block bg-green-100 text-green-700 text-xs font-semibold px-2 py-1 rounded-full">
-        Save {savingsPercent}%
-      </div>
-    );
-  };
-
-  const getPlanHighlights = (plan: any): string[] => {
-    const highlights: string[] = [];
-    const features = plan.features;
-
-    // Free interviews
-    if (features.freeInterviews) {
-      highlights.push(
-        `${features.freeInterviews.count} free ${features.freeInterviews.duration}-min interviews`,
-      );
-    }
-
-    // Additional interviews
-    if (features.additionalInterviews) {
-      highlights.push(
-        `${features.additionalInterviews.count} additional ${features.additionalInterviews.duration}-min interviews`,
-      );
-    }
-
-    // Resume builder
-    if (features.resumeBuilder?.enabled) {
-      if (features.resumeBuilder.resumesIncluded === -1) {
-        highlights.push(
-          `Unlimited resumes (${features.resumeBuilder.costPerResume} credits/resume)`,
-        );
-      } else {
-        highlights.push(
-          `${features.resumeBuilder.resumesIncluded} resume${features.resumeBuilder.resumesIncluded > 1 ? "s" : ""} included`,
-        );
-      }
-    }
-
-    // ATS Scoring
-    if (features.atsScoring?.detailed) {
-      highlights.push("Detailed ATS score");
-    } else if (features.atsScoring?.basic) {
-      highlights.push("Basic ATS score");
-    }
-
-    // Credit expiry
-    if (plan.creditExpiry) {
-      highlights.push(`Credits expire in ${plan.creditExpiry} days`);
-    } else if (plan.planId !== "free") {
-      highlights.push("Credits NEVER expire");
-    }
-
-    // Job recommendations
-    if (features.jobRecommendations) {
-      if (features.jobRecommendations.daily === -1) {
-        highlights.push("Unlimited job recommendations");
-      } else {
-        highlights.push(
-          `${features.jobRecommendations.daily} daily job recommendations`,
-        );
-      }
-    }
-
-    // Real interviews (Elite only)
-    if (features.realInterviews) {
-      highlights.push(
-        `${features.realInterviews.count} real interviews with top engineers`,
-      );
-    }
-
-    // Priority support
-    if (features.prioritySupport) {
-      highlights.push("Priority support");
-    }
-
-    // Custom questions
-    if (features.customQuestions) {
-      highlights.push("Custom interview questions");
-    }
-
-    // Behavioral analysis
-    if (features.behavioralAnalysis) {
-      highlights.push("Behavioral analysis");
-    }
-
-    return highlights;
-  };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <Loader2 className="w-12 h-12 animate-spin text-blue-600 mx-auto mb-4" />
-          <p className="text-gray-600">Loading plans...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!loading && plans.length === 0) {
-    return (
-      <div className="flex items-center justify-center min-h-screen px-4">
-        <div className="text-center max-w-md">
-          <p className="text-gray-600 mb-2">
-            No plans available at the moment.
-          </p>
-          {loadError && (
-            <p className="text-sm text-gray-500 mb-4 break-words">{loadError}</p>
-          )}
-          <Button onClick={loadPlans}>Retry</Button>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-white scroll-smooth selection:bg-blue-100">
       {/* Navigation */}
@@ -396,147 +174,21 @@ export default function PricingPage() {
             <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold mb-4 text-white">
               Choose Your Plan
             </h1>
-            <p className="text-lg sm:text-xl text-white/90 max-w-2xl mx-auto mb-4">
-              Credit-based pricing for maximum flexibility
+            <p className="text-lg sm:text-xl text-white/90 max-w-2xl mx-auto">
+              Flexible pricing plans designed to help you ace your interviews
             </p>
-            <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full text-white text-sm">
-              <Info className="w-4 h-4" />
-              <span>
-                1 Credit = ₹1 | Interview: 5 credits/min | Resume: 30 credits
-              </span>
-            </div>
           </div>
         </div>
       </section>
 
-      {/* Main Content */}
-      <div className="container mx-auto px-4 pt-8 pb-16">
-        {/* Billing Period Switcher */}
-        <div className="flex items-center justify-center gap-6 mb-12">
-          <div className="flex items-center gap-2 bg-white rounded-lg p-1 border border-gray-200 shadow-sm">
-            <button
-              onClick={() => setBillingCycle("monthly")}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
-                billingCycle === "monthly"
-                  ? "bg-blue-600 text-white shadow-sm"
-                  : "text-gray-700 hover:bg-gray-100"
-              }`}
-            >
-              Monthly
-            </button>
-            <button
-              onClick={() => setBillingCycle("quarterly")}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
-                billingCycle === "quarterly"
-                  ? "bg-blue-600 text-white shadow-sm"
-                  : "text-gray-700 hover:bg-gray-100"
-              }`}
-            >
-              Quarterly
-            </button>
-            <button
-              onClick={() => setBillingCycle("yearly")}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
-                billingCycle === "yearly"
-                  ? "bg-blue-600 text-white shadow-sm"
-                  : "text-gray-700 hover:bg-gray-100"
-              }`}
-            >
-              Yearly
-            </button>
-          </div>
-        </div>
+      {/* Main Content — plans from GET /plans (database) */}
+      <div className="container mx-auto px-4 pt-8 pb-16 max-w-6xl">
+        <PricingPlansBlock showHeading={false} />
+      </div>
 
-        {/* Plans Grid */}
-        <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-          {plans.map((plan) => {
-            const Icon =
-              ICON_MAP[plan.icon as keyof typeof ICON_MAP] || Sparkles;
-            const price = getPrice(plan);
-            const credits = getCredits(plan);
-
-            return (
-              <Card
-                key={plan.planId}
-                className={`relative p-8 ${
-                  plan.isPopular
-                    ? "border-2 border-blue-600 shadow-xl scale-105"
-                    : "border border-gray-200 shadow-lg"
-                } bg-white hover:shadow-2xl transition-all duration-300`}
-              >
-                {plan.isPopular && (
-                  <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-                    <span className="bg-blue-600 text-white px-4 py-1 rounded-full text-sm font-semibold">
-                      Most Popular
-                    </span>
-                  </div>
-                )}
-
-                <div className="text-center mb-6">
-                  <div className="flex justify-center mb-4">
-                    <div
-                      className={`inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-r ${plan.color} shadow-md`}
-                    >
-                      <Icon className="h-8 w-8 text-white" />
-                    </div>
-                  </div>
-                  <h3 className="text-2xl font-bold text-gray-900 mb-2">
-                    {plan.displayName}
-                  </h3>
-                  <p className="text-sm text-gray-600 mb-3">
-                    {plan.description}
-                  </p>
-                  <div className="mb-2">
-                    <span className="text-4xl font-bold text-gray-900">
-                      {formatCurrency(price)}
-                    </span>
-                    <span className="text-gray-600 ml-2">
-                      /{getPeriodLabel()}
-                    </span>
-                  </div>
-                  <div className="text-sm text-blue-600 font-medium mb-2">
-                    {formatCredits(credits)}
-                  </div>
-                  {getSavingsBadge(plan)}
-                  {plan.creditExpiry && (
-                    <p className="text-xs text-gray-500 mt-2">
-                      Credits expire in {plan.creditExpiry} days
-                    </p>
-                  )}
-                  {!plan.creditExpiry && plan.planId !== "free" && (
-                    <p className="text-xs text-green-600 font-semibold mt-2">
-                      Credits NEVER expire! ✨
-                    </p>
-                  )}
-                </div>
-
-                <ul className="space-y-3 mb-8">
-                  {getPlanHighlights(plan).map((highlight, idx) => (
-                    <li key={idx} className="flex items-start gap-3">
-                      <Check className="h-5 w-5 text-green-500 flex-shrink-0 mt-0.5" />
-                      <span className="text-gray-700 text-sm">{highlight}</span>
-                    </li>
-                  ))}
-                </ul>
-
-                <Button
-                  onClick={() => handleSelectPlan(plan.planId)}
-                  className={`w-full ${
-                    plan.isPopular
-                      ? "bg-blue-600 hover:bg-blue-700"
-                      : "bg-slate-900 hover:bg-slate-800"
-                  } text-white font-medium shadow-sm transition-all`}
-                >
-                  Choose Plan
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
-              </Card>
-            );
-          })}
-        </div>
-
-        {/* Credit Information */}
-        <div className="mt-16 max-w-4xl mx-auto">
+      {/* Credit Information */}
+      <div className="container mx-auto px-4 pb-16">
+        <div className="max-w-4xl mx-auto">
           <Card className="p-8 bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200">
             <h2 className="text-2xl font-bold text-center mb-6 text-gray-900">
               How Credits Work
@@ -561,11 +213,8 @@ export default function PricingPage() {
                 <h3 className="font-semibold text-gray-900 mb-2">
                   Resume Builder
                 </h3>
-                <p className="text-sm text-gray-600">30 credits per resume</p>
-                <p className="text-xs text-gray-500 mt-1">
-                  Includes unlimited
-                  <br />
-                  ATS analysis & downloads
+                <p className="text-sm text-gray-600">
+                  Unlimited ATS analysis and downloads
                 </p>
               </div>
               <div className="text-center">
@@ -596,16 +245,18 @@ export default function PricingPage() {
                 What are credits and how do they work?
               </h3>
               <p className="text-gray-600">
-                1 credit = ₹1. Credits are used for interviews (5 credits/min)
-                and resume creation (30 credits/resume). You can use your
-                credits flexibly across all features.
+                1 credit = ₹1. Mock interviews use credits at 5 credits per
+                minute. The resume builder is included with your plan and does
+                not deduct credits from your balance.
               </p>
             </Card>
             <Card className="p-6 bg-white">
               <h3 className="font-semibold text-lg mb-2">Do credits expire?</h3>
               <p className="text-gray-600">
-                Starter plan: 60 days | Premium plan: 120 days | Elite plan:
-                Never expires! Choose the plan that fits your timeline.
+                Credits in your wallet do not expire on a calendar schedule.
+                Premium access is managed by your subscription renewal through
+                Razorpay; if your plan lapses, you will not be able to start new
+                paid-tier sessions until you renew.
               </p>
             </Card>
             <Card className="p-6 bg-white">
@@ -613,8 +264,8 @@ export default function PricingPage() {
                 Can I purchase additional credits?
               </h3>
               <p className="text-gray-600">
-                Yes! You can purchase additional credits anytime. They follow
-                the expiry rules of your current plan.
+                Yes! You can purchase additional credits anytime. They are added
+                to your balance and used like other credits.
               </p>
             </Card>
             <Card className="p-6 bg-white">

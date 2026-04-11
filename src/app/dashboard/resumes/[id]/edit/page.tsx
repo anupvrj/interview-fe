@@ -48,6 +48,7 @@ import {
 } from "@/lib/resume-page-dimensions";
 import { ATSFeedback } from "@/components/ATSFeedback";
 import { ProfilePictureCropper } from "@/components/ProfilePictureCropper";
+import { debugResumePagination } from "@/lib/debug-resume-pagination";
 
 interface Section {
   id: string;
@@ -172,6 +173,14 @@ export default function EditResumePage() {
   const autoThumbnailAttemptsRef = useRef(0);
   const MAX_AUTO_THUMBNAIL_ATTEMPTS = 3;
 
+  const bumpPreviewKey = useCallback((reason: string) => {
+    setPreviewKey((prev) => {
+      const next = prev + 1;
+      debugResumePagination("previewKey:bump", { reason, next });
+      return next;
+    });
+  }, []);
+
   const triggerThumbnailCapture = useCallback(
     async (targetResumeId: string) => {
       if (!targetResumeId) return;
@@ -198,6 +207,9 @@ export default function EditResumePage() {
 
         if (result.success) {
           const updatedResume = await resumeApi.get(targetResumeId);
+          debugResumePagination("thumbnail:auto:setResume", {
+            targetResumeId,
+          });
           setResume(updatedResume);
         } else {
           console.error("Auto thumbnail upload failed:", result.error);
@@ -282,6 +294,7 @@ export default function EditResumePage() {
 
   const loadResume = async () => {
     try {
+      debugResumePagination("loadResume:start", { resumeId });
       setLoading(true);
       const resumeData = await resumeApi.get(resumeId);
 
@@ -310,8 +323,6 @@ export default function EditResumePage() {
       }
 
       setResume(resumeData);
-      // Force preview to re-render when resume loads
-      setPreviewKey((prev) => prev + 1);
 
       // Extract filename from profile picture URL if it exists
       if (resumeData.content.personalInfo?.profilePicture) {
@@ -463,8 +474,6 @@ export default function EditResumePage() {
             ...missingCustomSections,
           ];
           setResume(resumeData);
-          // Force preview to re-render when resume updates
-          setPreviewKey((prev) => prev + 1);
 
           // Immediately save missing custom sections to database to prevent data loss on reload
           (async () => {
@@ -654,11 +663,8 @@ export default function EditResumePage() {
         setSections(getDefaultSections());
       }
 
-      // Template was already set above (before sections) to ensure preview has it
-      // Force preview to re-render when both template and sections are ready
-      if (foundTemplate) {
-        setPreviewKey((prev) => prev + 1);
-      }
+      // Single remount after resume, template, layout, and sections are applied (avoids triple bump).
+      bumpPreviewKey("loadResume:complete");
     } catch (error) {
       console.error("Error loading resume:", error);
       alert("Failed to load resume. Please try again.");
@@ -733,6 +739,7 @@ export default function EditResumePage() {
   const handleDownload = async () => {
     try {
       setDownloading(true);
+      debugResumePagination("download:start", { resumeId, zoomLevel });
 
       // Get ALL page elements (we now have multiple pages)
       // Use unique ID per resume to avoid conflicts
@@ -744,9 +751,13 @@ export default function EditResumePage() {
       if (page1Element) {
         originalTransform = page1Element.style.transform;
         page1Element.style.transform = "scale(1)"; // Reset to 100%
+        debugResumePagination("download:transformReset", {
+          originalTransform,
+        });
 
         // Wait a moment for the DOM to update
         await new Promise((resolve) => setTimeout(resolve, 100));
+        debugResumePagination("download:after100ms", {});
       }
 
       try {
@@ -801,10 +812,19 @@ export default function EditResumePage() {
             });
           }),
         );
+        debugResumePagination("download:imagesReady", {
+          imageCount: allImages.length,
+        });
 
         if (typeof document !== "undefined" && "fonts" in document) {
           await (document as Document & { fonts: FontFaceSet }).fonts.ready;
         }
+        debugResumePagination("download:fontsReady", {
+          fontsStatus:
+            typeof document !== "undefined" && "fonts" in document
+              ? (document as Document & { fonts: FontFaceSet }).fonts.status
+              : "n/a",
+        });
 
         const templateId =
           resume?.templateId || template?.id || "classic";
@@ -821,6 +841,10 @@ export default function EditResumePage() {
         let downloadUrl: string;
 
         try {
+          debugResumePagination("download:pdfStart", {
+            path: "server",
+            pageCount: allPageElements.length,
+          });
           const result = await generateResumePdfViaServer({
             resumeId,
             templateId,
@@ -828,11 +852,16 @@ export default function EditResumePage() {
             padding: pdfPadding,
           });
           downloadUrl = result.downloadUrl;
+          debugResumePagination("download:pdfDone", { path: "server" });
         } catch (serverErr) {
           console.warn(
             "Server PDF failed, falling back to client html2canvas:",
             serverErr,
           );
+          debugResumePagination("download:pdfStart", {
+            path: "client-html2canvas",
+            pageCount: allPageElements.length,
+          });
           const { generatePDFFromPages, uploadPDFToS3 } =
             await import("@/lib/pdf-generator");
           const pdfBlob = await generatePDFFromPages(allPageElements, {
@@ -844,6 +873,9 @@ export default function EditResumePage() {
           await uploadPDFToS3(pdfBlob, uploadUrl);
           const confirm = await resumeApi.confirmPDFUpload(resumeId, s3Key);
           downloadUrl = confirm.downloadUrl;
+          debugResumePagination("download:pdfDone", {
+            path: "client-html2canvas",
+          });
         }
 
         window.open(downloadUrl, "_blank");
@@ -851,6 +883,9 @@ export default function EditResumePage() {
         // Restore original zoom level
         if (page1Element && originalTransform) {
           page1Element.style.transform = originalTransform;
+          debugResumePagination("download:transformRestored", {
+            originalTransform,
+          });
         }
       }
 
@@ -887,6 +922,7 @@ export default function EditResumePage() {
           if (result.success) {
             // Reload the resume to get updated data with thumbnail
             const updatedResume = await resumeApi.get(resumeId);
+            debugResumePagination("download:thumbnail:setResume", { resumeId });
             setResume(updatedResume);
           } else {
             console.error("❌ Failed to upload thumbnail:", result.error);
@@ -905,6 +941,12 @@ export default function EditResumePage() {
 
   const updateContent = (updates: Partial<Resume["content"]>) => {
     if (!resume) return;
+
+    debugResumePagination("updateContent", {
+      resumeId: resume.resumeId,
+      keys: Object.keys(updates),
+      customSectionsInUpdate: updates.customSections?.length ?? null,
+    });
 
     // Deep merge customSections if it's being updated
     let mergedContent = { ...resume.content, ...updates };
@@ -1227,7 +1269,7 @@ export default function EditResumePage() {
     // Force preview update after drag ends to ensure column assignment is recalculated
     // Use setTimeout to ensure sections state has fully updated
     setTimeout(() => {
-      setPreviewKey((prev) => prev + 1);
+      bumpPreviewKey("dragEnd");
     }, 50);
   };
 
@@ -2422,7 +2464,9 @@ export default function EditResumePage() {
                                       setTimeout(() => {
                                         // Force resume preview to re-render by updating key
                                         // This ensures the image loads immediately after upload
-                                        setPreviewKey((prev) => prev + 1);
+                                        bumpPreviewKey(
+                                          "profilePicture:upload-delay500",
+                                        );
                                       }, 500);
 
                                       // Trigger hasChanges to enable autosave

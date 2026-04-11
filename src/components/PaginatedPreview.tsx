@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo } from "react";
 import { Resume, ResumeTemplate } from "@/lib/api";
 import { getExtendedTemplate } from "@/lib/templateConfigs";
 import { getTemplateStyle } from "@/lib/templateRenderer";
@@ -14,6 +14,7 @@ import {
   pageVerticalGuttersMm,
   resolveLayoutPaddingMm,
 } from "@/lib/resume-page-dimensions";
+import { debugResumePagination } from "@/lib/debug-resume-pagination";
 
 interface PaginatedPreviewProps {
   resume: Resume;
@@ -63,13 +64,45 @@ export const PaginatedPreview: React.FC<PaginatedPreviewProps> = ({
 
   const isAtlanticBlue = template.id === "atlantic-blue";
 
+  const pageHeightLimit = (CONTENT_HEIGHT_MM / A4_HEIGHT_MM) * 1122.5;
+
+  useEffect(() => {
+    debugResumePagination("PaginatedPreview:layout", {
+      rendererKeyHead: rendererKey.slice(0, 160),
+      rendererKeyLen: rendererKey.length,
+      pageHeightLimit,
+      CONTENT_HEIGHT_MM,
+      paddingMm,
+      templateId: template.id,
+      resumeId: resume.resumeId,
+    });
+  }, [
+    rendererKey,
+    pageHeightLimit,
+    CONTENT_HEIGHT_MM,
+    paddingMm,
+    template.id,
+    resume.resumeId,
+  ]);
+
   const { pages, isPaginating, measuringRef } =
     useResumePagination({
       resume,
       sections: sections || [],
       isTwoColumn,
-      pageHeightLimit: (CONTENT_HEIGHT_MM / A4_HEIGHT_MM) * 1122.5,
+      pageHeightLimit,
+      /** Snap page cuts to line boundaries for all templates (rich text / multi-line items). */
+      snapPageBreaksToLineBounds: true,
+      measureLayoutKey: rendererKey,
     });
+
+  useEffect(() => {
+    debugResumePagination("PaginatedPreview:pages", {
+      pagesCount: pages.length,
+      resumeId: resume.resumeId,
+      templateId: template.id,
+    });
+  }, [pages.length, resume.resumeId, template.id]);
 
   return (
     <>
