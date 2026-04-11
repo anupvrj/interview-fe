@@ -34,8 +34,18 @@ import {
   GripVertical,
 } from "lucide-react";
 import Image from "next/image";
-import { Resume, resumeApi } from "@/lib/api";
+import { API_URL, Resume, resumeApi } from "@/lib/api";
+import { TEMPLATES_CATALOG } from "@/configs/resume-templates/templates-catalog";
 import { formatDate } from "@/lib/utils";
+
+function resumeCardThumbnailSrc(resume: Resume): string | null {
+  if (resume.thumbnailS3Key) {
+    const base = API_URL.replace(/\/+$/, "");
+    return `${base}/resumes/${resume.resumeId}/thumbnail-url`;
+  }
+  const item = TEMPLATES_CATALOG.find((t) => t.id === resume.templateId);
+  return item?.thumbnail ?? null;
+}
 
 export default function ResumesPage() {
   const { user, isLoaded } = useUser();
@@ -810,17 +820,19 @@ export default function ResumesPage() {
         </Card>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {resumes.map((resume) => (
+          {resumes.map((resume) => {
+            const cardThumbnailSrc = resumeCardThumbnailSrc(resume);
+            return (
             <div
               key={resume._id}
               className="bg-gradient-to-br from-blue-50 to-blue-100/50 rounded-xl p-4 border border-blue-200/50 shadow-lg shadow-blue-500/10 hover:shadow-xl hover:shadow-blue-500/20 transition-all duration-300 backdrop-blur-sm group"
             >
               {/* Resume Thumbnail - Clickable */}
               <Link href={`/dashboard/resumes/${resume.resumeId}/edit`}>
-                {resume.thumbnailS3Key ? (
+                {cardThumbnailSrc ? (
                   <div className="mb-3 relative aspect-[210/297] bg-gray-100 rounded-lg overflow-hidden border-2 border-blue-200/50 cursor-pointer hover:border-[rgb(37,99,235)] hover:shadow-lg transition-all group">
                     <img
-                      src={`${process.env.NEXT_PUBLIC_API_URL}/resumes/${resume.resumeId}/thumbnail-url`}
+                      src={cardThumbnailSrc}
                       alt={resume.title}
                       className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-300"
                       onLoad={() => {
@@ -954,7 +966,8 @@ export default function ResumesPage() {
                 </Button>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
 

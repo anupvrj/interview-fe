@@ -4,7 +4,9 @@ import axios, {
   type InternalAxiosRequestConfig,
 } from "axios";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5004/api";
+/** Base URL for API (includes `/api` path). Use for `<img src>` and other non-axios URLs. */
+export const API_URL =
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:5004/api";
 
 export const apiClient: AxiosInstance = axios.create({
   baseURL: API_URL,
