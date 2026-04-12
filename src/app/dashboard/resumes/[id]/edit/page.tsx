@@ -182,12 +182,17 @@ export default function EditResumePage() {
   }, []);
 
   const triggerThumbnailCapture = useCallback(
-    async (targetResumeId: string) => {
+    async (targetResumeId: string, options?: { force?: boolean }) => {
       if (!targetResumeId) return;
       if (isThumbnailUploadingRef.current) return;
-      if (autoThumbnailAttemptsRef.current >= MAX_AUTO_THUMBNAIL_ATTEMPTS) return;
-      if (resume?.thumbnailS3Key) {
-        return;
+      const force = options?.force === true;
+      if (!force) {
+        if (autoThumbnailAttemptsRef.current >= MAX_AUTO_THUMBNAIL_ATTEMPTS) {
+          return;
+        }
+        if (resume?.thumbnailS3Key) {
+          return;
+        }
       }
 
       const previewContainerId = `resume-preview-container-${targetResumeId}`;
@@ -197,7 +202,9 @@ export default function EditResumePage() {
       }
 
       isThumbnailUploadingRef.current = true;
-      autoThumbnailAttemptsRef.current += 1;
+      if (!force) {
+        autoThumbnailAttemptsRef.current += 1;
+      }
 
       try {
         const result = await captureAndUploadThumbnail(
@@ -280,8 +287,8 @@ export default function EditResumePage() {
 
         setHasChanges(false);
         setLastSaved(new Date());
-        // Capture thumbnail after first successful autosave so dashboard has preview.
-        void triggerThumbnailCapture(resumeId);
+        // Capture designed resume after save (force: bypass "already has thumbnail").
+        await triggerThumbnailCapture(resumeId, { force: true });
       } catch (error) {
         console.error("Autosave failed:", error);
       } finally {
@@ -696,8 +703,8 @@ export default function EditResumePage() {
         },
       });
       setHasChanges(false);
-      // Trigger thumbnail generation right after a successful manual save.
-      void triggerThumbnailCapture(resumeId);
+      // Capture thumbnail before loadResume — loadResume bumps preview key and remounts DOM.
+      await triggerThumbnailCapture(resumeId, { force: true });
       await loadResume();
 
       // ATS score calculation is now only done on manual refresh
@@ -2426,12 +2433,6 @@ export default function EditResumePage() {
                                       }>(
                                         `/resumes/${resume.resumeId}/profile-picture`,
                                         formData,
-                                        {
-                                          headers: {
-                                            "Content-Type":
-                                              "multipart/form-data",
-                                          },
-                                        },
                                       );
 
                                     if (

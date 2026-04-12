@@ -13,12 +13,50 @@ function isAllowedUrl(url: string): boolean {
   try {
     const parsed = new URL(url);
     const host = parsed.hostname.toLowerCase();
-    // Allow S3 buckets: bucket.s3.amazonaws.com, bucket.s3.region.amazonaws.com
-    return (
+
+    // CloudFront (common for S3-backed assets; profile pics often use signed CF URLs)
+    if (host.endsWith(".cloudfront.net")) {
+      return true;
+    }
+
+    // Virtual-hosted–style: bucket.s3.amazonaws.com, bucket.s3.region.amazonaws.com
+    if (
       host.endsWith(".s3.amazonaws.com") ||
-      host.endsWith(".s3.ap-south-1.amazonaws.com") ||
-      /\.s3\.[a-z0-9-]+\.amazonaws\.com$/.test(host)
-    );
+      /\.s3\.[a-z0-9-]+\.amazonaws\.com$/i.test(host)
+    ) {
+      return true;
+    }
+
+    // Dual-stack virtual-hosted: bucket.s3.dualstack.region.amazonaws.com
+    if (/\.s3\.dualstack\.[a-z0-9-]+\.amazonaws\.com$/i.test(host)) {
+      return true;
+    }
+
+    // Path-style regional endpoints: s3.region.amazonaws.com, s3.dualstack.region.amazonaws.com
+    if (
+      host === "s3.amazonaws.com" ||
+      /^s3\.(dualstack\.)?[a-z0-9-]+\.amazonaws\.com$/i.test(host)
+    ) {
+      return true;
+    }
+
+    // Transfer Acceleration
+    if (host.endsWith(".s3-accelerate.amazonaws.com")) {
+      return true;
+    }
+
+    // next dev: MinIO / local S3-compatible endpoints
+    if (process.env.NODE_ENV === "development") {
+      if (
+        host === "localhost" ||
+        host === "127.0.0.1" ||
+        host.endsWith(".localhost")
+      ) {
+        return true;
+      }
+    }
+
+    return false;
   } catch {
     return false;
   }
@@ -26,8 +64,7 @@ function isAllowedUrl(url: string): boolean {
 
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
-    const imageUrl = searchParams.get("url");
+    const imageUrl = request.nextUrl.searchParams.get("url");
 
     if (!imageUrl) {
       return NextResponse.json(
@@ -36,23 +73,38 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const decodedUrl = decodeURIComponent(imageUrl);
+    // searchParams are already decoded once. decodeURIComponent() again breaks AWS
+    // presigned URLs (signatures use %-encoding that must stay exact).
+    let targetUrl = imageUrl.trim();
+    if (!/^https?:\/\//i.test(targetUrl)) {
+      try {
+        targetUrl = decodeURIComponent(imageUrl);
+      } catch {
+        return NextResponse.json(
+          { error: "Invalid url parameter" },
+          { status: 400 },
+        );
+      }
+    }
 
-    if (!decodedUrl.startsWith("http")) {
+    if (!targetUrl.startsWith("http")) {
       return NextResponse.json(
         { error: "Invalid URL - must be http(s)" },
         { status: 400 },
       );
     }
 
-    if (!isAllowedUrl(decodedUrl)) {
+    if (!isAllowedUrl(targetUrl)) {
       return NextResponse.json(
-        { error: "URL not allowed - only S3 domains permitted" },
+        {
+          error:
+            "URL not allowed - only S3 and CloudFront image URLs are permitted",
+        },
         { status: 403 },
       );
     }
 
-    const response = await fetch(decodedUrl, {
+    const response = await fetch(targetUrl, {
       headers: {
         "User-Agent": "Mozilla/5.0 (compatible; ResumeProxy/1.0)",
         Accept: "image/*",

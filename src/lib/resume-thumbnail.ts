@@ -198,48 +198,92 @@ export async function captureResumeThumbnail(
       height: globalThis.getComputedStyle(element).height,
     });
 
-    // Don't specify width/height - let html2canvas auto-detect from the element
-    // This avoids issues with CSS units like "mm" that html2canvas might not handle well
-    console.log("Starting html2canvas capture (auto-detecting dimensions)...");
+    // Clone + rewrite + wait (same strategy as pdf-generator): rewriting only in
+    // html2canvas onclone runs too late — images never load before paint, so profile
+    // photos from S3 disappear in the thumbnail.
+    const proxyBase = `${globalThis.window.location.origin}/api/proxy-image`;
+    const pageOrigin = globalThis.window.location.origin;
 
-    // Replace cross-origin image URLs with proxy URLs so html2canvas can fetch them
-    const proxyBase =
-      typeof window !== "undefined"
-        ? `${window.location.origin}/api/proxy-image`
-        : "";
-    const canvas = await html2canvas(element, {
-      useCORS: true,
-      logging: true, // Enable logging to debug
-      background: "#ffffff",
-      allowTaint: false,
-      onclone: (_clonedDoc: Document, clonedElement: HTMLElement) => {
-        // Replace S3/external img src with proxy URL before html2canvas fetches
-        const imgs = clonedElement.querySelectorAll("img[src]");
-        imgs.forEach((img) => {
-          const src = img.getAttribute("src");
-          if (
-            src &&
-            src.startsWith("http") &&
-            !src.startsWith(window.location.origin)
-          ) {
-            img.setAttribute(
-              "src",
-              `${proxyBase}?url=${encodeURIComponent(src)}`,
-            );
-          }
-        });
-      },
-    } as any);
+    const rewriteExternalImageSources = (root: HTMLElement) => {
+      root.querySelectorAll("img[src]").forEach((img) => {
+        const src = img.getAttribute("src");
+        if (src && src.startsWith("http") && !src.startsWith(pageOrigin)) {
+          img.setAttribute(
+            "src",
+            `${proxyBase}?url=${encodeURIComponent(src)}`,
+          );
+          img.removeAttribute("srcset");
+        }
+      });
+    };
 
-    // Restore element styles
-    element.style.display = originalStyles.display;
-    element.style.visibility = originalStyles.visibility;
-    element.style.opacity = originalStyles.opacity;
-    element.style.position = originalStyles.position;
-    element.style.zIndex = originalStyles.zIndex;
+    const waitForImagesToLoad = async (root: HTMLElement) => {
+      const images = root.querySelectorAll("img");
+      await Promise.all(
+        Array.from(images).map(
+          (img) =>
+            new Promise<void>((resolve) => {
+              if (img.complete && img.naturalHeight > 0) {
+                resolve();
+              } else {
+                img.onload = () => resolve();
+                img.onerror = () => resolve();
+                setTimeout(() => resolve(), 15000);
+              }
+            }),
+        ),
+      );
+    };
 
-    // Restore scroll position
-    window.scrollTo(0, scrollPosition);
+    console.log("Starting thumbnail capture (clone + proxy + html2canvas)...");
+
+    if (typeof document !== "undefined" && "fonts" in document) {
+      await (document as Document & { fonts: FontFaceSet }).fonts.ready;
+    }
+
+    const captureRoot = element.cloneNode(true) as HTMLElement;
+    captureRoot.removeAttribute("id");
+    captureRoot.style.position = "fixed";
+    captureRoot.style.left = "-9999px";
+    captureRoot.style.top = "0";
+    captureRoot.style.width = `${element.offsetWidth}px`;
+    captureRoot.style.visibility = "visible";
+    captureRoot.style.transform = "none";
+    captureRoot.style.opacity = "1";
+    captureRoot.style.zIndex = "2147483646";
+    captureRoot.style.background = "#ffffff";
+
+    let canvas: HTMLCanvasElement | undefined;
+    try {
+      document.body.appendChild(captureRoot);
+      rewriteExternalImageSources(captureRoot);
+      await waitForImagesToLoad(captureRoot);
+
+      canvas = await html2canvas(captureRoot, {
+        useCORS: true,
+        logging: false,
+        background: "#ffffff",
+        allowTaint: false,
+        imageTimeout: 20000,
+        scale: Math.min(2, globalThis.window.devicePixelRatio || 1),
+        onclone: (_clonedDoc: Document, cloned: HTMLElement) => {
+          cloned.style.transform = "none";
+          cloned.style.transition = "none";
+        },
+      } as any);
+    } finally {
+      captureRoot.remove();
+      element.style.display = originalStyles.display;
+      element.style.visibility = originalStyles.visibility;
+      element.style.opacity = originalStyles.opacity;
+      element.style.position = originalStyles.position;
+      element.style.zIndex = originalStyles.zIndex;
+      globalThis.window.scrollTo(0, scrollPosition);
+    }
+
+    if (!canvas) {
+      return null;
+    }
 
     console.log("✅ Canvas created:", {
       width: canvas.width,
@@ -282,16 +326,11 @@ export async function captureResumeThumbnail(
         canvasHeight: canvas.height,
       });
 
-      if (contentRatio < 0.01) {
+      // Light/minimal resumes can be mostly white; avoid rejecting real captures.
+      if (contentRatio < 0.002) {
         console.error(
           "❌ Canvas appears to be blank (less than 1% non-white pixels)",
         );
-        // Restore styles before returning
-        element.style.display = originalStyles.display;
-        element.style.visibility = originalStyles.visibility;
-        element.style.opacity = originalStyles.opacity;
-        element.style.position = originalStyles.position;
-        element.style.zIndex = originalStyles.zIndex;
         return null;
       }
     } else {
