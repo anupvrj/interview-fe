@@ -266,11 +266,9 @@ export async function captureResumeThumbnail(
         allowTaint: false,
         imageTimeout: 20000,
         scale: Math.min(2, globalThis.window.devicePixelRatio || 1),
-        onclone: (_clonedDoc, cloned) => {
-          if (cloned instanceof HTMLElement) {
-            cloned.style.transform = "none";
-            cloned.style.transition = "none";
-          }
+        onclone: (_clonedDoc: Document, cloned: HTMLElement) => {
+          cloned.style.transform = "none";
+          cloned.style.transition = "none";
         },
       } as any);
     } finally {
