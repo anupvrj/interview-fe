@@ -2433,12 +2433,6 @@ export default function EditResumePage() {
                                       }>(
                                         `/resumes/${resume.resumeId}/profile-picture`,
                                         formData,
-                                        {
-                                          headers: {
-                                            "Content-Type":
-                                              "multipart/form-data",
-                                          },
-                                        },
                                       );
 
                                     if (
