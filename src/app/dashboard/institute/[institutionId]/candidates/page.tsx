@@ -73,6 +73,38 @@ function candidateInitials(name: string | undefined, email: string | undefined):
   return local.slice(0, 2).toUpperCase();
 }
 
+/** Institution UI plan labels; API only accepts free | premium | enterprise. */
+type InstitutionUiPlan = "free" | "starter" | "premium" | "elite";
+type ApiSubscriptionPlan = "free" | "premium" | "enterprise";
+
+function uiPlanToApi(plan: InstitutionUiPlan): ApiSubscriptionPlan {
+  switch (plan) {
+    case "free":
+      return "free";
+    case "starter":
+      return "premium";
+    case "premium":
+      return "premium";
+    case "elite":
+      return "enterprise";
+    default:
+      return "free";
+  }
+}
+
+function subscriptionToUiPlanSelect(apiPlan: string | undefined): InstitutionUiPlan {
+  const p = (apiPlan || "free").toLowerCase();
+  if (p === "enterprise") return "elite";
+  if (p === "premium") return "premium";
+  return "free";
+}
+
+function planBadgeLabel(apiPlan: string): string {
+  const p = (apiPlan || "free").toLowerCase();
+  if (p === "enterprise") return "Elite";
+  return p.charAt(0).toUpperCase() + p.slice(1);
+}
+
 export default function InstituteCandidatesPage() {
   const { user, isLoaded } = useUser();
   const router = useRouter();
@@ -89,7 +121,7 @@ export default function InstituteCandidatesPage() {
   // Add user dialog
   const [addOpen, setAddOpen] = useState(false);
   const [addEmail, setAddEmail] = useState("");
-  const [addPlan, setAddPlan] = useState<"free" | "starter" | "premium" | "elite">("free");
+  const [addPlan, setAddPlan] = useState<InstitutionUiPlan>("free");
   const [addSubmitting, setAddSubmitting] = useState(false);
 
   const [creditsOpen, setCreditsOpen] = useState(false);
@@ -169,7 +201,11 @@ export default function InstituteCandidatesPage() {
     }
     try {
       setAddSubmitting(true);
-      const result = await adminApi.addUser(addEmail, addPlan, instId);
+      const result = await adminApi.addUser(
+        addEmail,
+        uiPlanToApi(addPlan),
+        instId,
+      );
       setAddOpen(false);
       setAddEmail("");
       setAddPlan("free");
@@ -242,9 +278,9 @@ export default function InstituteCandidatesPage() {
     }
   };
 
-  const handleUpdatePlan = async (u: User, plan: "free" | "starter" | "premium" | "elite") => {
+  const handleUpdatePlan = async (u: User, plan: InstitutionUiPlan) => {
     try {
-      await adminApi.updatePlan(u.clerkId, plan);
+      await adminApi.updatePlan(u.clerkId, uiPlanToApi(plan));
       loadUsers();
     } catch (err: any) {
       alert(err?.response?.data?.message || "Failed to update plan");
@@ -507,7 +543,8 @@ export default function InstituteCandidatesPage() {
                   </TableHeader>
                   <TableBody>
                     {users.map((u) => {
-                      const plan = u.subscription?.plan || "free";
+                      const apiPlan = String(u.subscription?.plan || "free");
+                      const uiPlanValue = subscriptionToUiPlanSelect(apiPlan);
                       return (
                         <TableRow
                           key={u._id}
@@ -533,13 +570,13 @@ export default function InstituteCandidatesPage() {
                             <span
                               className={cn(
                                 "inline-flex rounded-full border px-2.5 py-0.5 text-xs font-semibold capitalize",
-                                plan === "elite" && "border-amber-200 bg-amber-50 text-amber-900",
-                                plan === "premium" && "border-purple-200 bg-purple-50 text-purple-900",
-                                plan === "starter" && "border-blue-200 bg-blue-50 text-blue-900",
-                                plan === "free" && "border-slate-200 bg-slate-50 text-slate-700"
+                                apiPlan === "enterprise" &&
+                                  "border-amber-200 bg-amber-50 text-amber-900",
+                                apiPlan === "premium" && "border-purple-200 bg-purple-50 text-purple-900",
+                                apiPlan === "free" && "border-slate-200 bg-slate-50 text-slate-700",
                               )}
                             >
-                              {plan}
+                              {planBadgeLabel(apiPlan)}
                             </span>
                           </TableCell>
                           <TableCell className="align-middle">
@@ -591,11 +628,11 @@ export default function InstituteCandidatesPage() {
                               </Button>
                               <select
                                 className="h-8 w-[104px] shrink-0 cursor-pointer rounded-lg border border-slate-200 bg-white px-2 text-xs font-medium text-slate-800 shadow-sm outline-none transition hover:border-slate-300 focus:ring-2 focus:ring-[rgb(37,99,235)]/20"
-                                value={plan}
+                                value={uiPlanValue}
                                 onChange={(e) =>
                                   handleUpdatePlan(
                                     u,
-                                    e.target.value as "free" | "starter" | "premium" | "elite"
+                                    e.target.value as InstitutionUiPlan,
                                   )
                                 }
                                 aria-label={`Plan for ${u.email}`}
@@ -934,7 +971,7 @@ export default function InstituteCandidatesPage() {
                 className="mt-1 h-11 w-full rounded-md border border-slate-200 bg-background px-3 text-sm shadow-sm"
                 value={addPlan}
                 onChange={(e) =>
-                  setAddPlan(e.target.value as "free" | "starter" | "premium" | "elite")
+                  setAddPlan(e.target.value as InstitutionUiPlan)
                 }
               >
                 <option value="free">Free</option>
