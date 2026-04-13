@@ -52,9 +52,9 @@ const SHOW_RECONNECT_ATTEMPT_DEBUG =
   process.env.NEXT_PUBLIC_VERCEL_ENV === "preview" ||
   process.env.NEXT_PUBLIC_APP_ENV === "staging";
 
-/** Voice provider for realtime: "chatgpt" (default) or "gemini". Set via NEXT_PUBLIC_VOICE_PROVIDER. */
+/** Voice provider for realtime: "gemini" (default) or "chatgpt". Set via NEXT_PUBLIC_VOICE_PROVIDER. */
 const VOICE_PROVIDER: "chatgpt" | "gemini" =
-  (process.env.NEXT_PUBLIC_VOICE_PROVIDER as "chatgpt" | "gemini") || "chatgpt";
+  (process.env.NEXT_PUBLIC_VOICE_PROVIDER as "chatgpt" | "gemini") || "gemini";
 
 const RECORDING_OPT_IN_STORAGE_PREFIX = "interviewRecordingOptIn_";
 
