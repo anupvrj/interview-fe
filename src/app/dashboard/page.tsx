@@ -32,6 +32,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Coins,
+  Lock,
+  UsersRound,
 } from "lucide-react";
 import {
   Interview,
@@ -42,6 +44,7 @@ import {
   planApi,
 } from "@/lib/api";
 import { formatDate, getScoreColor, scheduledInterviewCanStartNow } from "@/lib/utils";
+import { getPeerInterviewUnlockStatus } from "@/lib/peer-interviews";
 
 interface Plan {
   _id: string;
@@ -317,6 +320,8 @@ export default function DashboardPage() {
     ? getPlanName(subscription.plan)
     : "Free Plan";
 
+  const peerUnlock = getPeerInterviewUnlockStatus(interviews);
+
   const handleStartScheduled = async (scheduleId: string) => {
     try {
       setStartingScheduleId(scheduleId);
@@ -421,6 +426,62 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       )}
+
+      <Card
+        className={`border-2 shadow-lg ${
+          peerUnlock.unlocked
+            ? "border-emerald-200 bg-gradient-to-br from-emerald-50/80 to-white"
+            : "border-slate-200 bg-gradient-to-br from-slate-50/90 to-blue-50/40"
+        }`}
+      >
+        <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+          <div className="flex min-w-0 flex-1 items-start gap-4">
+            <div
+              className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border-2 shadow-inner ${
+                peerUnlock.unlocked
+                  ? "border-emerald-300 bg-emerald-100"
+                  : "border-slate-300 bg-gradient-to-br from-slate-200 to-slate-100"
+              }`}
+            >
+              {peerUnlock.unlocked ? (
+                <UsersRound className="h-7 w-7 text-emerald-700" />
+              ) : (
+                <Lock className="h-7 w-7 text-slate-500" strokeWidth={2.25} />
+              )}
+            </div>
+            <div className="min-w-0">
+              <div className="mb-1 flex flex-wrap items-center gap-2">
+                <h2 className="text-lg font-bold text-slate-900 sm:text-xl">
+                  Peer-to-peer interviews
+                </h2>
+                {!peerUnlock.unlocked && (
+                  <span className="rounded-full bg-slate-700 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
+                    Locked
+                  </span>
+                )}
+              </div>
+              <p className="text-sm leading-relaxed text-slate-600">
+                {peerUnlock.unlocked
+                  ? "You have unlocked peer-to-peer interviews. Open the hub to continue when matching is available."
+                  : "Unlock peer-to-peer interviews by scoring 80% on average in your last 10 completed interviews."}
+              </p>
+            </div>
+          </div>
+          <Link href="/dashboard/peer-interviews" className="w-full shrink-0 sm:w-auto">
+            <Button
+              type="button"
+              variant={peerUnlock.unlocked ? "default" : "outline"}
+              className={
+                peerUnlock.unlocked
+                  ? "w-full !bg-emerald-600 text-white hover:!bg-emerald-700"
+                  : "w-full border-slate-300"
+              }
+            >
+              {peerUnlock.unlocked ? "Open peer hub" : "View requirements"}
+            </Button>
+          </Link>
+        </CardContent>
+      </Card>
 
       {/* Profile & Subscription Section */}
       <div className="grid lg:grid-cols-2 gap-4 lg:gap-6">

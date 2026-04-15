@@ -1,15 +1,12 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useLayoutEffect, useRef } from "react";
 import Link from "next/link";
-import { SignedIn, SignedOut, UserButton } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
 import {
   FileText,
   Sparkles,
   ArrowRight,
-  Menu,
-  User,
   CheckCircle,
   Zap,
   Target,
@@ -30,10 +27,9 @@ import {
   FileUp,
   AlertCircle,
 } from "lucide-react";
-import { NavigationMenu } from "@/components/NavigationMenu";
+import { SiteHeader } from "@/components/SiteHeader";
 import { MarketingFooter } from "@/components/MarketingFooter";
 import Image from "next/image";
-import { InterviewTrixLogo } from "@/components/InterviewTrixLogo";
 import { TEMPLATES_CATALOG } from "@/configs/resume-templates/templates-catalog";
 
 export default function ResumeBuilderPage() {
@@ -48,6 +44,8 @@ export default function ResumeBuilderPage() {
   
   // Template Carousel States
   const [currentTemplateSlide, setCurrentTemplateSlide] = useState(0);
+  const templateCarouselViewportRef = useRef<HTMLDivElement>(null);
+  const [templateCarouselWidth, setTemplateCarouselWidth] = useState(0);
   
   // Resume Builder Animation States
   const [resumeText, setResumeText] = useState("");
@@ -60,6 +58,34 @@ export default function ResumeBuilderPage() {
   const [showDownload, setShowDownload] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const resumeBuilderRef = useRef<HTMLDivElement>(null);
+  const [isBelowSm, setIsBelowSm] = useState(false);
+
+  useLayoutEffect(() => {
+    const mq = window.matchMedia("(max-width: 639px)");
+    const update = () => setIsBelowSm(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
+
+  useLayoutEffect(() => {
+    const el = templateCarouselViewportRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => {
+      setTemplateCarouselWidth(el.getBoundingClientRect().width);
+    });
+    ro.observe(el);
+    setTemplateCarouselWidth(el.getBoundingClientRect().width);
+    return () => ro.disconnect();
+  }, []);
+
+  useLayoutEffect(() => {
+    const step = isBelowSm ? 3 : 5;
+    setCurrentTemplateSlide((s) => {
+      const n = Math.floor(s / step) * step;
+      return n >= TEMPLATES_CATALOG.length ? 0 : n;
+    });
+  }, [isBelowSm]);
 
   // Animated Heading Effect
   useEffect(() => {
@@ -214,117 +240,32 @@ export default function ResumeBuilderPage() {
     };
   }, []);
 
-  // Template Carousel Auto-Slide - Show 5 templates at a time with infinite loop
+  // Template Carousel Auto-Slide — 3 per view on mobile, 5 on sm+
   useEffect(() => {
     const totalTemplates = TEMPLATES_CATALOG.length;
+    const step = isBelowSm ? 3 : 5;
     const interval = setInterval(() => {
       setCurrentTemplateSlide((prev) => {
-        const nextSlide = prev + 5;
-        // Loop back to start when reaching the end of first set
+        const nextSlide = prev + step;
         if (nextSlide >= totalTemplates) {
           return 0;
         }
         return nextSlide;
       });
-    }, 4000); // Change slide every 4 seconds
+    }, 4000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [isBelowSm]);
+
+  const templateCarouselTemplatesPerPage = isBelowSm ? 3 : 5;
+  const templateCarouselSlideOffsetPx =
+    templateCarouselWidth > 0
+      ? (currentTemplateSlide / templateCarouselTemplatesPerPage) * templateCarouselWidth
+      : 0;
 
   return (
     <div className="min-h-screen bg-white scroll-smooth selection:bg-blue-100">
-      {/* Navigation */}
-      <nav className="fixed top-0 w-full z-50">
-        {/* Top Border - Mobile Only */}
-        <div className="sm:hidden h-1" style={{ backgroundColor: 'rgb(37 99 235 / var(--tw-bg-opacity, 1))' }}></div>
-        
-        {/* Main Header */}
-        <div className="bg-white/95 backdrop-blur-xl border-b border-gray-100">
-          <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex items-center justify-between h-14 sm:h-16 lg:h-20">
-              {/* Mobile Layout */}
-              <div className="flex items-center justify-between w-full sm:w-auto sm:justify-start sm:gap-4">
-                {/* Hamburger Menu - Mobile Only */}
-                <div className="sm:hidden">
-                  <NavigationMenu />
-                </div>
-
-                {/* Logo - Centered on Mobile, Left on Desktop */}
-                <Link
-                  href="/"
-                  className="flex items-center hover:opacity-80 transition-opacity mx-auto sm:mx-0"
-                >
-                  <InterviewTrixLogo
-                    className="h-7 sm:h-8 lg:h-10 w-auto"
-                    priority
-                  />
-                </Link>
-
-                {/* Right Side Icons - Mobile */}
-                <div className="flex items-center gap-3 sm:hidden">
-                  <SignedOut>
-                    <Link href="/sign-in" className="p-1">
-                      <User className="w-5 h-5 text-slate-900" />
-                    </Link>
-                  </SignedOut>
-                  <SignedIn>
-                    <UserButton
-                      appearance={{
-                        elements: {
-                          avatarBox: "w-6 h-6",
-                        },
-                      }}
-                    />
-                  </SignedIn>
-                </div>
-              </div>
-
-              {/* Desktop Layout */}
-              <div className="hidden sm:flex items-center gap-4 sm:gap-6">
-                {/* Navigation Menu */}
-                <NavigationMenu />
-                <SignedOut>
-                  <Link href="/sign-in">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-xs sm:text-sm px-2 sm:px-4"
-                    >
-                      Sign In
-                    </Button>
-                  </Link>
-                  <Link href="/sign-up">
-                    <Button
-                      size="sm"
-                      className="bg-blue-600 hover:bg-blue-700 text-white font-medium shadow-sm transition-all text-xs sm:text-sm px-4 py-2"
-                    >
-                      Get Started
-                    </Button>
-                  </Link>
-                </SignedOut>
-                <SignedIn>
-                  <Link href="/dashboard" className="hidden md:block">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="text-xs sm:text-sm px-2 sm:px-4"
-                    >
-                      Dashboard
-                    </Button>
-                  </Link>
-                  <UserButton
-                    appearance={{
-                      elements: {
-                        avatarBox: "w-8 h-8 sm:w-9 sm:h-9 lg:w-10 lg:h-10",
-                      },
-                    }}
-                  />
-                </SignedIn>
-              </div>
-            </div>
-          </div>
-        </div>
-      </nav>
+      <SiteHeader />
 
       {/* Resume Builder Hero Section - Top */}
       <section className="pt-32 sm:pt-40 lg:pt-48 pb-12 sm:pb-16 px-4 sm:px-6 overflow-hidden relative">
@@ -421,20 +362,22 @@ export default function ResumeBuilderPage() {
               <Sparkles className="w-3 h-3" />
               <span>AI Resume Builder</span>
             </div>
-            <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight mb-4 sm:mb-6">
+            <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight mb-4 sm:mb-6 max-sm:break-words max-sm:min-h-[5.1rem]">
               {(() => {
                 const fullText = "AI powered resume builder";
                 const builderStart = fullText.indexOf("builder");
                 const builderEnd = builderStart + "builder".length;
-                
-                return headingText.split('').map((char, index) => {
-                  const isBuilderChar = index >= builderStart && index < builderEnd;
+                const spaceChar = isBelowSm ? " " : "\u00A0";
+
+                return headingText.split("").map((char, index) => {
+                  const isBuilderChar =
+                    index >= builderStart && index < builderEnd;
                   return (
                     <span
                       key={index}
-                      className={isBuilderChar ? 'text-white/95' : 'text-white'}
+                      className={isBuilderChar ? "text-white/95" : "text-white"}
                     >
-                      {char === ' ' ? '\u00A0' : char}
+                      {char === " " ? spaceChar : char}
                     </span>
                   );
                 });
@@ -652,18 +595,18 @@ export default function ResumeBuilderPage() {
 
           {/* Template Carousel - Multiple Templates Visible */}
           <div className="relative">
-            <div className="overflow-hidden">
+            <div ref={templateCarouselViewportRef} className="overflow-hidden">
               <div
                 className="flex transition-transform duration-700 ease-in-out gap-2 sm:gap-3"
                 style={{
-                  transform: `translateX(-${currentTemplateSlide * (100 / 5)}%)`,
+                  transform: `translateX(-${templateCarouselSlideOffsetPx}px)`,
                 }}
               >
                 {/* Duplicate templates for seamless infinite loop */}
                 {[...TEMPLATES_CATALOG, ...TEMPLATES_CATALOG].map((template, index) => (
                   <div
                     key={`${template.id}-${index}`}
-                    className="min-w-[calc(20%-0.6rem)] sm:min-w-[calc(20%-0.8rem)] flex-shrink-0"
+                    className="flex-shrink-0 max-sm:min-w-0 max-sm:flex-[0_0_calc((100%-1rem)/3)] sm:min-w-[calc(20%-0.8rem)]"
                   >
                     <div className="relative group">
                       <div className="bg-white rounded-lg shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-200 hover:border-blue-300">
@@ -675,7 +618,7 @@ export default function ResumeBuilderPage() {
                             fill
                             className="object-contain group-hover:scale-105 transition-transform duration-300"
                             style={{ padding: 0 }}
-                            priority={index < 5}
+                            preload={index < 5}
                           />
                           {/* Hover Overlay with Button */}
                           <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
@@ -710,12 +653,16 @@ export default function ResumeBuilderPage() {
 
             {/* Navigation Dots */}
             <div className="flex justify-center gap-2 mt-8">
-              {Array.from({ length: Math.ceil(TEMPLATES_CATALOG.length / 5) }).map((_, index) => {
-                const currentPage = Math.floor((currentTemplateSlide % TEMPLATES_CATALOG.length) / 5);
+              {Array.from({
+                length: Math.ceil(TEMPLATES_CATALOG.length / templateCarouselTemplatesPerPage),
+              }).map((_, index) => {
+                const currentPage = Math.floor(
+                  (currentTemplateSlide % TEMPLATES_CATALOG.length) / templateCarouselTemplatesPerPage
+                );
                 return (
                   <button
                     key={index}
-                    onClick={() => setCurrentTemplateSlide(index * 5)}
+                    onClick={() => setCurrentTemplateSlide(index * templateCarouselTemplatesPerPage)}
                     className={`h-2 rounded-full transition-all duration-300 ${
                       currentPage === index
                         ? "w-8 bg-blue-600"

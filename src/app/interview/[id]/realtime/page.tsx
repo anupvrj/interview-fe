@@ -2295,8 +2295,8 @@ export default function RealtimeInterviewPage() {
 
       {/* Header — solid bg (no backdrop-blur) to avoid GPU flicker with content below */}
       <div className="sticky top-0 z-20 border-b border-white/10 bg-[#0b1220]/95">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-3 sm:px-4 lg:px-5">
-          <div className="flex min-w-0 items-center gap-2 py-3 sm:gap-3">
+        <div className="mx-auto flex max-w-7xl flex-col gap-2 px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-0 sm:px-4 sm:py-0 lg:px-5">
+          <div className="flex min-w-0 items-center gap-2 sm:gap-3 sm:py-3">
             {!isInterviewActive && (
               <Button
                 type="button"
@@ -2319,17 +2319,17 @@ export default function RealtimeInterviewPage() {
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex w-full min-w-0 flex-row items-center gap-2 sm:w-auto sm:gap-3">
             <Progress
               value={Math.min((elapsedTime / targetDurationSec) * 100, 100)}
-              className="h-2 w-40 bg-white/10"
+              className="h-2 min-w-0 flex-1 bg-white/10 sm:w-40 sm:flex-none"
             />
             {isInterviewActive && (
               <Button
                 variant="destructive"
                 size="sm"
                 onClick={() => setShowEndInterviewConfirm(true)}
-                className="ml-2 rounded-xl animate-none transition-none"
+                className="shrink-0 rounded-xl animate-none transition-none sm:ml-2"
               >
                 <PhoneOff className="w-4 h-4 mr-2" />
                 End Interview
