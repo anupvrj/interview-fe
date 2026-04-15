@@ -815,7 +815,7 @@ export default function DashboardPage() {
               <div className="flex-1 min-w-0">
                 <h3 className="text-lg lg:text-xl font-bold text-gray-900 mb-2">
                   {profileCompletion >= 100
-                    ? "Profile Complete! 🎉"
+                    ? "Profile Complete!"
                     : "Complete your onboarding"}
                 </h3>
                 <p className="text-sm lg:text-base text-gray-700 mb-4">
