@@ -42,6 +42,11 @@ import {
   X,
   FileCheck,
   Download,
+  Crown,
+  Sparkles,
+  ArrowRight,
+  Edit2,
+  Coins,
 } from "lucide-react";
 import {
   Bar,
@@ -61,6 +66,8 @@ import {
   interviewScheduleApi,
   resumeApi,
   userApi,
+  paymentApi,
+  planApi,
 } from "@/lib/api";
 import { TEMPLATES_CATALOG } from "@/configs/resume-templates/templates-catalog";
 import {
@@ -77,6 +84,24 @@ import {
 } from "@/components/institute/InstituteChrome";
 
 const ONBOARDING_BANNER_DISMISSED_KEY = "dashboard-onboarding-banner-dismissed";
+
+interface Plan {
+  _id: string;
+  planId: string;
+  name: string;
+  displayName: string;
+  features: any;
+  pricing: any;
+  creditsIncluded: any;
+}
+
+interface NextPlanDisplay {
+  id: string;
+  name: string;
+  price: number;
+  interviews: number;
+  features: string[];
+}
 
 /** session.duration from API is seconds; show whole minutes (ceil, min 1 when > 0). */
 function formatInterviewDurationMinutes(
@@ -124,6 +149,9 @@ export default function DashboardPage() {
   >(null);
   const [videoUnavailableOpen, setVideoUnavailableOpen] = useState(false);
   const [downloadingResumeId, setDownloadingResumeId] = useState<string | null>(null);
+  const [subscription, setSubscription] = useState<any>(null);
+  const [limitCheck, setLimitCheck] = useState<any>(null);
+  const [allPlans, setAllPlans] = useState<Plan[]>([]);
 
   useEffect(() => {
     try {
@@ -135,9 +163,19 @@ export default function DashboardPage() {
     }
   }, []);
 
+  const loadPlans = async () => {
+    try {
+      const plans = await planApi.getAllPlans();
+      setAllPlans(plans);
+    } catch (error) {
+      console.error("Error loading plans:", error);
+    }
+  };
+
   useEffect(() => {
     if (isLoaded && user) {
       initializeUser();
+      loadPlans();
     }
   }, [isLoaded, user]);
 
@@ -175,6 +213,30 @@ export default function DashboardPage() {
         setProfileCompletion(completion);
       } catch (error) {
         console.error("Error fetching profile:", error);
+      }
+
+      try {
+        const sub = await paymentApi.getSubscription();
+        setSubscription(sub);
+        console.log("Subscription fetched:", sub);
+      } catch (error) {
+        console.error("Error fetching subscription:", error);
+      }
+
+      try {
+        const limit = await paymentApi.checkInterviewLimit();
+        setLimitCheck(limit);
+        console.log("Limit check:", limit);
+
+        if (limit.creditsAvailable !== undefined) {
+          setSubscription((prev: any) => ({
+            ...prev,
+            creditsAvailable: limit.creditsAvailable,
+            minimumRequired: limit.minimumRequired,
+          }));
+        }
+      } catch (error) {
+        console.error("Error checking limit:", error);
       }
 
       const userInterviews = await interviewApi.list(user.id);
@@ -256,6 +318,93 @@ export default function DashboardPage() {
       </div>
     );
   }
+
+  const getNextPlan = (currentPlan: string): NextPlanDisplay | null => {
+    if (!allPlans || allPlans.length === 0) return null;
+
+    const planOrder = ["free", "premium", "enterprise"];
+    const currentIndex = planOrder.indexOf(currentPlan);
+
+    if (currentIndex === -1 || currentIndex === planOrder.length - 1) {
+      return null;
+    }
+
+    const nextPlanId = planOrder[currentIndex + 1];
+    const nextPlan = allPlans.find((p) => p.planId === nextPlanId);
+
+    if (!nextPlan) return null;
+
+    // Generate features list from plan data
+    const features: string[] = [];
+
+    if (nextPlan.features.freeInterviews) {
+      features.push(
+        `${nextPlan.features.freeInterviews.count} voice interviews per month`,
+      );
+    }
+
+    if (nextPlan.features.additionalInterviews) {
+      features.push(
+        `${nextPlan.features.additionalInterviews.count} additional interviews`,
+      );
+    }
+
+    if (nextPlan.features.resumeBuilder?.enabled) {
+      features.push("Resume Builder Pro");
+    }
+
+    if (nextPlan.features.atsScoring?.detailed) {
+      features.push("Detailed ATS scoring");
+    }
+
+    if (nextPlan.features.teacherAssistant?.enabled) {
+      features.push("Teacher Assistant");
+    }
+
+    if (nextPlan.features.progressTracking?.enabled) {
+      features.push("Progress tracking");
+    }
+
+    if (nextPlan.features.prioritySupport) {
+      features.push("Priority support");
+    }
+
+    if (nextPlan.features.customQuestions) {
+      features.push("Custom questions");
+    }
+
+    if (nextPlan.features.specializedQuestions) {
+      features.push("Specialized questions (BPSC/SSC/IBPS)");
+    }
+
+    if (nextPlan.features.curatedQuestionBank) {
+      features.push("Curated question bank");
+    }
+
+    if (nextPlan.features.certification) {
+      features.push("Certification/score report");
+    }
+
+    return {
+      id: nextPlan.planId,
+      name: nextPlan.displayName,
+      price: nextPlan.pricing?.monthly || 0,
+      interviews: nextPlan.features.freeInterviews?.count || 0,
+      features,
+    };
+  };
+
+  const nextPlan = subscription ? getNextPlan(subscription.plan) : null;
+
+  // Get plan display name from database
+  const getPlanName = (planId: string): string => {
+    const plan = allPlans.find((p) => p.planId === planId);
+    return plan?.displayName || "Free Plan";
+  };
+
+  const planName = subscription?.plan
+    ? getPlanName(subscription.plan)
+    : "Free Plan";
 
   const peerUnlock = getPeerInterviewUnlockStatus(interviews);
   const handleStartScheduled = async (scheduleId: string) => {
@@ -531,6 +680,273 @@ export default function DashboardPage() {
             </button>
           </div>
         )}
+
+      <Card
+        className={`border-2 shadow-lg ${
+          peerUnlock.unlocked
+            ? "border-emerald-200 bg-gradient-to-br from-emerald-50/80 to-white"
+            : "border-slate-200 bg-gradient-to-br from-slate-50/90 to-blue-50/40"
+        }`}
+      >
+        <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+          <div className="flex min-w-0 flex-1 items-start gap-4">
+            <div
+              className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border-2 shadow-inner ${
+                peerUnlock.unlocked
+                  ? "border-emerald-300 bg-emerald-100"
+                  : "border-slate-300 bg-gradient-to-br from-slate-200 to-slate-100"
+              }`}
+            >
+              {peerUnlock.unlocked ? (
+                <UsersRound className="h-7 w-7 text-emerald-700" />
+              ) : (
+                <Lock className="h-7 w-7 text-slate-500" strokeWidth={2.25} />
+              )}
+            </div>
+            <div className="min-w-0">
+              <div className="mb-1 flex flex-wrap items-center gap-2">
+                <h2 className="text-lg font-bold text-slate-900 sm:text-xl">
+                  Peer-to-peer interviews
+                </h2>
+                {!peerUnlock.unlocked && (
+                  <span className="rounded-full bg-slate-700 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
+                    Locked
+                  </span>
+                )}
+              </div>
+              <p className="text-sm leading-relaxed text-slate-600">
+                {peerUnlock.unlocked
+                  ? "You have unlocked peer-to-peer interviews. Open the hub to continue when matching is available."
+                  : "Unlock peer-to-peer interviews by scoring 80% on average in your last 10 completed interviews."}
+              </p>
+            </div>
+          </div>
+          <Link href="/dashboard/peer-interviews" className="w-full shrink-0 sm:w-auto">
+            <Button
+              type="button"
+              variant={peerUnlock.unlocked ? "default" : "outline"}
+              className={
+                peerUnlock.unlocked
+                  ? "w-full !bg-emerald-600 text-white hover:!bg-emerald-700"
+                  : "w-full border-slate-300"
+              }
+            >
+              {peerUnlock.unlocked ? "Open peer hub" : "View requirements"}
+            </Button>
+          </Link>
+        </CardContent>
+      </Card>
+
+      {/* Profile & Subscription Section */}
+      <div className="grid lg:grid-cols-2 gap-4 lg:gap-6">
+        {/* Subscription Status Card - Left Side (First) */}
+        {subscription && (
+          <Card className="border-2 shadow-xl bg-white/80 backdrop-blur-sm">
+            <CardHeader className="pb-3">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-blue-700 rounded-lg flex items-center justify-center shadow-md">
+                  <Crown className="w-5 h-5 text-white" />
+                </div>
+                <CardTitle className="text-xl lg:text-2xl">
+                  Your Subscription
+                </CardTitle>
+              </div>
+              <CardDescription className="text-sm">
+                Current plan and usage details
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="p-4 lg:p-5 bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl border-2 border-blue-200">
+                {/* Content Section - Top */}
+                <div className="flex items-center gap-3 lg:gap-4 mb-4">
+                  <div className="w-12 h-12 lg:w-14 lg:h-14 bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl flex items-center justify-center shadow-lg">
+                    <Crown className="h-6 w-6 lg:h-7 lg:w-7 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-lg lg:text-xl text-gray-900 mb-1">
+                      {planName}
+                    </h3>
+                    <p className="text-sm text-gray-600">
+                      {subscription.creditsAvailable || 0} credits available
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      5 credits per minute • Min. 25 credits to start
+                    </p>
+                  </div>
+                </div>
+
+                {/* Buttons Section - Bottom */}
+                <div className="flex flex-col sm:flex-row gap-2 w-full">
+                  {nextPlan && (
+                    <Link href="/pricing" className="flex-1">
+                      <Button
+                        size="lg"
+                        className="!bg-[rgb(37,99,235)] hover:!bg-[rgb(17,24,39)] text-white shadow-lg hover:shadow-xl transition-all w-full"
+                      >
+                        <Crown className="h-4 w-4 mr-2" />
+                        Upgrade to {nextPlan.name}
+                      </Button>
+                    </Link>
+                  )}
+                  <Link href="/purchase-credits" className="flex-1">
+                    <Button
+                      size="lg"
+                      variant="outline"
+                      className="border-2 border-blue-600 text-blue-600 hover:bg-blue-50 shadow-md hover:shadow-lg transition-all w-full"
+                    >
+                      <Coins className="h-4 w-4 mr-2" />
+                      Buy Credits
+                    </Button>
+                  </Link>
+                </div>
+              </div>
+
+              {subscription.creditsAvailable !== undefined && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="font-medium text-gray-700">
+                      Available Credits
+                    </span>
+                    <span className="font-semibold text-emerald-600">
+                      {subscription.creditsAvailable} credits
+                    </span>
+                  </div>
+                  <div className="text-xs text-gray-500 mt-1">
+                    <p>• 30-min interview = 150 credits</p>
+                    <p>• 60-min interview = 300 credits</p>
+                  </div>
+                </div>
+              )}
+
+              {nextPlan && (
+                <div className="p-4 lg:p-5 bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl border-2 border-blue-200 shadow-md">
+                  <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                    <div className="flex-1">
+                      <h4 className="font-bold text-base lg:text-lg text-slate-900 mb-3 flex items-center gap-2">
+                        <Sparkles className="w-4 h-4 lg:w-5 lg:h-5 text-[rgb(37,99,235)]" />
+                        Upgrade to {nextPlan.name} and get:
+                      </h4>
+                      <ul className="space-y-2 mb-4">
+                        {nextPlan.features.slice(0, 3).map((feature) => (
+                          <li
+                            key={feature}
+                            className="text-sm text-slate-700 flex items-start gap-2"
+                          >
+                            <CheckCircle className="w-4 h-4 text-[rgb(37,99,235)] mt-0.5 flex-shrink-0" />
+                            <span>{feature}</span>
+                          </li>
+                        ))}
+                      </ul>
+                      <p className="text-sm font-bold text-[rgb(37,99,235)]">
+                        Only ₹{nextPlan.price}/month
+                      </p>
+                    </div>
+                    <Link href="/pricing">
+                      <Button
+                        variant="outline"
+                        size="lg"
+                        className="border-blue-300 text-[rgb(37,99,235)] hover:bg-blue-50 whitespace-nowrap"
+                      >
+                        View Plans
+                        <ArrowRight className="w-4 h-4 ml-2" />
+                      </Button>
+                    </Link>
+                  </div>
+                </div>
+              )}
+
+              {!nextPlan && (
+                <div className="p-4 bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl border-2 border-green-200">
+                  <p className="text-sm font-semibold text-green-700 flex items-center gap-2">
+                    <Sparkles className="w-4 h-4" />
+                    You're on our highest plan! Enjoy unlimited benefits.
+                  </p>
+                </div>
+              )}
+
+              {limitCheck && !limitCheck.allowed && (
+                <div className="p-4 bg-gradient-to-br from-orange-50 to-red-50 rounded-xl border-2 border-orange-200">
+                  <p className="text-sm font-medium text-orange-700">
+                    {limitCheck.reason ||
+                      "You've reached your interview limit. Please upgrade to continue."}
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Profile Completion Card - Right Side (Second) */}
+        <Card
+          className={`border-2 shadow-xl ${
+            profileCompletion >= 100
+              ? "border-blue-300 bg-gradient-to-br from-blue-50 to-blue-100"
+              : "border-yellow-300 bg-gradient-to-br from-yellow-50 via-amber-50 to-orange-50"
+          }`}
+        >
+          <CardContent className="p-6 lg:p-8">
+            <div className="flex items-start gap-4">
+              <div
+                className={`w-14 h-14 rounded-xl flex items-center justify-center shadow-lg flex-shrink-0 ${
+                  profileCompletion >= 100
+                    ? "bg-gradient-to-br from-[rgb(37,99,235)] to-blue-600"
+                    : "bg-gradient-to-br from-yellow-500 to-orange-500"
+                }`}
+              >
+                {profileCompletion >= 100 ? (
+                  <CheckCircle className="w-7 h-7 text-white" />
+                ) : (
+                  <Sparkles className="w-7 h-7 text-white" />
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-lg lg:text-xl font-bold text-gray-900 mb-2">
+                  {profileCompletion >= 100
+                    ? "Profile Complete!"
+                    : "Complete your onboarding"}
+                </h3>
+                <p className="text-sm lg:text-base text-gray-700 mb-4">
+                  {profileCompletion >= 100
+                    ? "Your profile is complete. You can update it anytime from your profile page."
+                    : "Let us understand and serve you better. Complete your profile to get personalized interview experiences."}
+                </p>
+                <div className="space-y-2 mb-4">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="font-medium text-gray-700">
+                      Profile Completion
+                    </span>
+                    <span
+                      className={`font-semibold ${
+                        profileCompletion >= 100
+                          ? "text-[rgb(37,99,235)]"
+                          : "text-yellow-700"
+                      }`}
+                    >
+                      {profileCompletion}%
+                    </span>
+                  </div>
+                  <Progress value={profileCompletion} className="h-3" />
+                </div>
+                <Link href="/dashboard/profile">
+                  <Button
+                    size="lg"
+                    className={`w-full sm:w-auto ${
+                      profileCompletion >= 100
+                        ? "!bg-[rgb(37,99,235)] hover:!bg-[rgb(17,24,39)] text-white shadow-lg hover:shadow-xl transition-all"
+                        : "bg-gradient-to-r from-yellow-600 to-orange-600 hover:from-yellow-700 hover:to-orange-700 text-white shadow-lg hover:shadow-xl transition-all"
+                    }`}
+                  >
+                    <Edit2 className="h-4 w-4 mr-2" />
+                    {profileCompletion >= 100
+                      ? "Update Profile"
+                      : "Complete Profile"}
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Stats */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4">

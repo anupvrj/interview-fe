@@ -26,6 +26,7 @@ import {
   Layers,
   Lock,
   BarChart2,
+  Lock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { userApi, AccessRole } from "@/lib/api";
