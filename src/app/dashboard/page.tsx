@@ -64,10 +64,10 @@ import {
   Resume,
   interviewApi,
   interviewScheduleApi,
-  resumeApi,
-  userApi,
   paymentApi,
   planApi,
+  resumeApi,
+  userApi,
 } from "@/lib/api";
 import { TEMPLATES_CATALOG } from "@/configs/resume-templates/templates-catalog";
 import {
@@ -948,6 +948,37 @@ export default function DashboardPage() {
         </Card>
       </div>
 
+      {profileCompletion < 100 &&
+        onboardingBannerDismissed === false && (
+          <div className="flex items-center gap-2 rounded-md border border-amber-200/70 bg-amber-50/50 px-3 py-2 text-sm text-slate-800">
+            <p className="min-w-0 flex-1 leading-snug">
+              <span className="text-slate-700">
+                Complete your onboarding ({profileCompletion}% done) —{" "}
+              </span>
+              <Link
+                href="/dashboard/profile"
+                className="font-medium text-[rgb(37,99,235)] underline-offset-2 hover:underline"
+              >
+                Finish your profile
+              </Link>
+            </p>
+            <button
+              type="button"
+              aria-label="Dismiss reminder"
+              className="shrink-0 rounded-md p-1 text-slate-500 transition-colors hover:bg-amber-100/80 hover:text-slate-800"
+              onClick={() => {
+                try {
+                  sessionStorage.setItem(ONBOARDING_BANNER_DISMISSED_KEY, "1");
+                } catch {
+                  /* ignore */
+                }
+                setOnboardingBannerDismissed(true);
+              }}
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        )}
       {/* Stats */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4">
         {/* Total Interviews */}
