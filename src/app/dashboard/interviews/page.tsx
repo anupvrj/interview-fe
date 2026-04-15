@@ -24,12 +24,16 @@ import {
   Mic,
   Brain,
   MessageSquare,
-  Bot,
-  UserCircle,
   Sparkles,
+  CalendarClock,
 } from "lucide-react";
-import { Interview, interviewApi } from "@/lib/api";
-import { formatDate, getScoreColor } from "@/lib/utils";
+import { Interview, interviewApi, interviewScheduleApi } from "@/lib/api";
+import {
+  cn,
+  formatDate,
+  getScoreColor,
+  scheduledInterviewCanStartNow,
+} from "@/lib/utils";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -37,8 +41,11 @@ export default function InterviewsPage() {
   const { user, isLoaded } = useUser();
   const router = useRouter();
   const [interviews, setInterviews] = useState<Interview[]>([]);
+  const [scheduled, setScheduled] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
+  const [listTab, setListTab] = useState<"history" | "scheduled">("history");
+  const [startingScheduleId, setStartingScheduleId] = useState<string | null>(null);
 
   useEffect(() => {
     if (isLoaded && user) {
@@ -51,12 +58,31 @@ export default function InterviewsPage() {
     if (!user) return;
     try {
       setLoading(true);
-      const data = await interviewApi.list(user.id);
+      const [data, schedules] = await Promise.all([
+        interviewApi.list(user.id),
+        interviewScheduleApi.listMine().catch(() => [] as any[]),
+      ]);
       setInterviews(data);
+      setScheduled(Array.isArray(schedules) ? schedules : []);
     } catch (error) {
       console.error("Error loading interviews:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleStartScheduled = async (scheduleId: string) => {
+    try {
+      setStartingScheduleId(scheduleId);
+      const { interviewId } = await interviewScheduleApi.start(scheduleId);
+      router.push(`/interview/${interviewId}/realtime`);
+    } catch (e: any) {
+      alert(
+        e?.response?.data?.message ||
+          "Could not start interview. You may need a saved resume, or the scheduled time is not open yet (starts 24 hours before)."
+      );
+    } finally {
+      setStartingScheduleId(null);
     }
   };
 
@@ -348,38 +374,105 @@ export default function InterviewsPage() {
         </div>
       )}
 
-      {/* Action Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-xl lg:text-2xl font-bold text-gray-900">
-            Interview History
-          </h2>
-          <p className="text-gray-600 mt-1">
-            {(() => {
-              if (interviews.length === 0) {
-                return "Start your first interview to see it here";
-              }
-              const plural = interviews.length === 1 ? "" : "s";
-              return `Showing ${startIndex + 1}-${Math.min(
-                endIndex,
-                interviews.length
-              )} of ${interviews.length} interview${plural}`;
-            })()}
-          </p>
+      {/* List tabs + header */}
+      <div className="space-y-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div>
+            <h2 className="text-xl lg:text-2xl font-bold text-gray-900">
+              {listTab === "history" ? "Interview history" : "Scheduled interviews"}
+            </h2>
+            <p className="text-gray-600 mt-1">
+              {listTab === "history"
+                ? interviews.length === 0
+                  ? "Start your first interview to see it here"
+                  : (() => {
+                      const plural = interviews.length === 1 ? "" : "s";
+                      return `Showing ${startIndex + 1}-${Math.min(
+                        endIndex,
+                        interviews.length
+                      )} of ${interviews.length} interview${plural}`;
+                    })()
+                : scheduled.length === 0
+                  ? "When your institution schedules an interview, it will appear here"
+                  : "Set by your institution — start from 24 hours before the scheduled slot until the expire deadline (if any). Saved resume required."}
+            </p>
+          </div>
+          <Link href="/dashboard/interviews/new">
+            <Button
+              size="lg"
+              className="!bg-[rgb(37,99,235)] hover:!bg-[rgb(17,24,39)] text-white shadow-lg hover:shadow-xl transition-all"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Start New Interview
+            </Button>
+          </Link>
         </div>
-        <Link href="/dashboard/interviews/new">
-          <Button
-            size="lg"
-            className="!bg-[rgb(37,99,235)] hover:!bg-[rgb(17,24,39)] text-white shadow-lg hover:shadow-xl transition-all"
+
+        <div
+          role="tablist"
+          aria-label="Interview list sections"
+          className="flex flex-wrap gap-2 border-b border-slate-200 pb-3"
+        >
+          <button
+            type="button"
+            role="tab"
+            aria-selected={listTab === "history"}
+            id="interviews-tab-history"
+            onClick={() => {
+              setListTab("history");
+              setCurrentPage(1);
+            }}
+            className={cn(
+              "inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-colors",
+              listTab === "history"
+                ? "bg-[rgb(37,99,235)] text-white shadow-md"
+                : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+            )}
           >
-            <Plus className="w-4 h-4 mr-2" />
-            Start New Interview
-          </Button>
-        </Link>
+            <FileText className="h-4 w-4 shrink-0" />
+            All interviews
+            {interviews.length > 0 ? (
+              <span
+                className={cn(
+                  "rounded-full px-2 py-0.5 text-xs font-bold",
+                  listTab === "history" ? "bg-white/20 text-white" : "bg-white text-slate-700"
+                )}
+              >
+                {interviews.length}
+              </span>
+            ) : null}
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={listTab === "scheduled"}
+            id="interviews-tab-scheduled"
+            onClick={() => setListTab("scheduled")}
+            className={cn(
+              "inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-colors",
+              listTab === "scheduled"
+                ? "bg-amber-600 text-white shadow-md"
+                : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+            )}
+          >
+            <CalendarClock className="h-4 w-4 shrink-0" />
+            Scheduled
+            {scheduled.length > 0 ? (
+              <span
+                className={cn(
+                  "rounded-full px-2 py-0.5 text-xs font-bold",
+                  listTab === "scheduled" ? "bg-white/20 text-white" : "bg-white text-slate-700"
+                )}
+              >
+                {scheduled.length}
+              </span>
+            ) : null}
+          </button>
+        </div>
       </div>
 
-      {/* Interviews List */}
-      {interviews.length === 0 ? (
+      {/* Interviews List — history tab */}
+      {listTab === "history" && interviews.length === 0 ? (
         <Card className="border-2 border-blue-200/50 shadow-xl bg-white/95 backdrop-blur-sm">
           <CardContent className="pt-16 pb-16 text-center">
             <div className="w-24 h-24 bg-gradient-to-br from-blue-100 to-blue-200 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg">
@@ -403,7 +496,7 @@ export default function InterviewsPage() {
             </Link>
           </CardContent>
         </Card>
-      ) : (
+      ) : listTab === "history" ? (
         <>
           <div className="space-y-3">
             {currentInterviews.map((interview) => {
@@ -628,6 +721,107 @@ export default function InterviewsPage() {
             </div>
           )}
         </>
+      ) : (
+        /* Scheduled tab */
+        <div className="space-y-3">
+          {scheduled.length === 0 ? (
+            <Card className="border-2 border-amber-200/60 bg-gradient-to-br from-amber-50/50 to-white shadow-lg">
+              <CardContent className="pt-12 pb-12 text-center">
+                <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-100">
+                  <CalendarClock className="h-8 w-8 text-amber-700" />
+                </div>
+                <h3 className="mb-2 text-xl font-bold text-slate-900">
+                  No scheduled interviews
+                </h3>
+                <p className="mx-auto max-w-md text-gray-600">
+                  Your institution can schedule a session for you. You will see the role, time,
+                  and a button to start here when one is assigned.
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            scheduled.map((s) => {
+              const { canStart, reason } = scheduledInterviewCanStartNow(
+                s.scheduledAt,
+                s.expiresAt
+              );
+              const startDisabled =
+                startingScheduleId === String(s._id) || !canStart;
+              return (
+              <div
+                key={s._id}
+                className="flex flex-col gap-3 rounded-xl border-2 border-amber-200/70 bg-gradient-to-br from-amber-50/90 to-white p-4 shadow-lg shadow-amber-900/5 sm:flex-row sm:items-center sm:justify-between"
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="text-lg font-bold text-slate-900">{s.role}</p>
+                  <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-slate-600">
+                    <span className="inline-flex items-center gap-1">
+                      <Clock className="h-3.5 w-3.5" />
+                      {new Date(s.scheduledAt).toLocaleString()}
+                    </span>
+                    {s.targetCompany ? (
+                      <>
+                        <span className="text-slate-400">·</span>
+                        <span className="inline-flex items-center gap-1">
+                          <Building2 className="h-3.5 w-3.5" />
+                          {s.targetCompany}
+                        </span>
+                      </>
+                    ) : null}
+                    {s.experience != null && s.experience > 0 ? (
+                      <>
+                        <span className="text-slate-400">·</span>
+                        <span>
+                          {s.experience} yrs experience
+                        </span>
+                      </>
+                    ) : null}
+                    <span className="text-slate-400">·</span>
+                    <span>{s.language === "hi" ? "Hindi" : "English"}</span>
+                    {s.interviewDuration ? (
+                      <>
+                        <span className="text-slate-400">·</span>
+                        <span>{s.interviewDuration} min</span>
+                      </>
+                    ) : null}
+                  </p>
+                  {s.expiresAt ? (
+                    <p className="mt-2 text-sm font-medium text-amber-900">
+                      Start by {new Date(s.expiresAt).toLocaleString()}
+                    </p>
+                  ) : null}
+                  {s.notes ? (
+                    <p className="mt-2 text-sm text-slate-500">{s.notes}</p>
+                  ) : null}
+                  {!canStart && reason === "too_early" ? (
+                    <p className="mt-1 text-xs text-slate-500">
+                      Opens{" "}
+                      {new Date(
+                        new Date(s.scheduledAt).getTime() - 24 * 60 * 60 * 1000
+                      ).toLocaleString()}
+                    </p>
+                  ) : null}
+                  {!canStart && reason === "expired" ? (
+                    <p className="mt-1 text-xs text-red-600">Past expire deadline</p>
+                  ) : null}
+                </div>
+                <Button
+                  className="shrink-0 gap-2 bg-amber-600 hover:bg-amber-700"
+                  onClick={() => handleStartScheduled(String(s._id))}
+                  disabled={startDisabled}
+                >
+                  {startingScheduleId === String(s._id) ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <PlayCircle className="h-4 w-4" />
+                  )}
+                  Start interview
+                </Button>
+              </div>
+            );
+            })
+          )}
+        </div>
       )}
     </div>
   );

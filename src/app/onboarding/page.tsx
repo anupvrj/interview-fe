@@ -31,6 +31,11 @@ import {
   Eye,
 } from "lucide-react";
 import { userApi } from "@/lib/api";
+import { InstitutionAffiliationFields } from "@/components/profile/InstitutionAffiliationFields";
+import {
+  toOnboardingAffiliationPayload,
+  type AffiliationValue,
+} from "@/lib/affiliation-payload";
 import {
   PDF_RESUME_MAX_BYTES,
   pdfResumeDropzoneAccept,
@@ -98,6 +103,11 @@ export default function OnboardingPage() {
       industry: "",
     },
     industries: [] as string[],
+  });
+
+  const [affiliation, setAffiliation] = useState<AffiliationValue>({
+    affiliationInstitutionId: null,
+    affiliationInstitutionName: "",
   });
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -299,6 +309,7 @@ export default function OnboardingPage() {
             : undefined,
         industries:
           reviewData.industries.length > 0 ? reviewData.industries : undefined,
+        ...toOnboardingAffiliationPayload(affiliation),
       });
 
       // Check if there's a return URL from resume builder
@@ -506,6 +517,12 @@ export default function OnboardingPage() {
                     </button>
                   </div>
                 </div>
+
+                <InstitutionAffiliationFields
+                  value={affiliation}
+                  onChange={setAffiliation}
+                  disabled={loading || extracting}
+                />
 
                 {/* Resume Upload */}
                 <div>
@@ -855,6 +872,7 @@ export default function OnboardingPage() {
                           experience: undefined,
                           currentJob: undefined,
                           industries: undefined,
+                          ...toOnboardingAffiliationPayload(affiliation),
                         });
 
                         // Check if there's a return URL from resume builder
@@ -946,6 +964,7 @@ export default function OnboardingPage() {
                             reviewData.industries.length > 0
                               ? reviewData.industries
                               : undefined,
+                          ...toOnboardingAffiliationPayload(affiliation),
                         });
 
                         // Redirect to dashboard

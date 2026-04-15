@@ -3,6 +3,7 @@ node_modules/
 package-lock.json
 yarn.lock
 pnpm-lock.yaml
+tsconfig.tsbuildinfo
 
 # Environment variables
 .env
@@ -51,3 +52,6 @@ public/resume-templates/
 
 .vercel
 .env*.local
+
+# clerk configuration (can include secrets)
+/.clerk/

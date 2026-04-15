@@ -1,9 +1,9 @@
 "use client";
 
-import { ReactNode, useState, useEffect } from "react";
+import { ReactNode, useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { InterviewTrixLogo } from "@/components/InterviewTrixLogo";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useUser, UserButton } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
 import {
@@ -14,11 +14,15 @@ import {
   User,
   Menu,
   X,
-  Sparkles,
   PlayCircle,
   FileEdit,
   Shield,
   Building2,
+  Users,
+  CalendarClock,
+  Settings,
+  Receipt,
+  Layers,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { userApi, AccessRole } from "@/lib/api";
@@ -62,42 +66,91 @@ const baseMenuItems = [
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const { user, isLoaded } = useUser();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [accessRole, setAccessRole] = useState<AccessRole | null>(null);
+  const [institutionId, setInstitutionId] = useState<string | null>(null);
 
   useEffect(() => {
     if (isLoaded && user) {
       userApi
         .getMyProfile()
-        .then((profile) => setAccessRole(profile.accessRole || "user"))
-        .catch(() => setAccessRole("user"));
+        .then((profile) => {
+          setAccessRole(profile.accessRole || "user");
+          setInstitutionId(
+            profile.institutionId ? String(profile.institutionId) : null
+          );
+        })
+        .catch(() => {
+          setAccessRole("user");
+          setInstitutionId(null);
+        });
     }
   }, [isLoaded, user]);
 
-  const isAdmin = accessRole === "super_admin" || accessRole === "institution_admin";
-  const menuItems = [
-    ...baseMenuItems,
-    ...(isAdmin
-      ? [
-          {
-            title: "Institution Admin",
-            href: "/dashboard/institution",
-            icon: Building2,
-          },
-        ]
-      : []),
-    ...(accessRole === "super_admin"
-      ? [
-          {
-            title: "Super Admin",
-            href: "/dashboard/super-admin",
-            icon: Shield,
-          },
-        ]
-      : []),
-  ];
+  const isInstitutionAdmin = accessRole === "institution_admin";
+
+  useEffect(() => {
+    if (!isInstitutionAdmin || !institutionId || !pathname) return;
+    const base = `/dashboard/institute/${institutionId}`;
+    const allowed =
+      pathname === base ||
+      pathname.startsWith(`${base}/`) ||
+      pathname === "/dashboard/profile" ||
+      pathname.startsWith("/dashboard/profile/");
+    if (!allowed && pathname.startsWith("/dashboard")) {
+      router.replace(base);
+    }
+  }, [isInstitutionAdmin, institutionId, pathname, router]);
+
+  const menuItems = useMemo(() => {
+    if (isInstitutionAdmin && institutionId) {
+      const base = `/dashboard/institute/${institutionId}`;
+      return [
+        { title: "Overview", href: base, icon: LayoutDashboard },
+        { title: "Candidates", href: `${base}/candidates`, icon: Users },
+        { title: "Batches", href: `${base}/batches`, icon: Layers },
+        { title: "Schedules", href: `${base}/schedules`, icon: CalendarClock },
+        { title: "Institution", href: `${base}/settings`, icon: Settings },
+        { title: "Plans & payments", href: `${base}/billing`, icon: Receipt },
+        { title: "Your Profile", href: "/dashboard/profile", icon: User },
+      ];
+    }
+    if (isInstitutionAdmin && !institutionId) {
+      return [
+        {
+          title: "Institution",
+          href: "/dashboard/institute",
+          icon: Building2,
+        },
+        { title: "Your Profile", href: "/dashboard/profile", icon: User },
+      ];
+    }
+    return [
+      ...baseMenuItems,
+      ...(accessRole === "super_admin"
+        ? [
+            {
+              title: "Institution Admin",
+              href: "/dashboard/institute",
+              icon: Building2,
+            },
+            {
+              title: "Super Admin",
+              href: "/dashboard/super-admin",
+              icon: Shield,
+            },
+          ]
+        : []),
+    ];
+  }, [accessRole, institutionId, isInstitutionAdmin]);
+
+  const institutionBase =
+    isInstitutionAdmin && institutionId
+      ? `/dashboard/institute/${institutionId}`
+      : null;
 
   // Don't render until user is loaded to avoid hydration issues
   if (!isLoaded) {
@@ -127,7 +180,11 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               )}
             </Button>
             <Link
-              href="/"
+              href={
+                isInstitutionAdmin && institutionId
+                  ? `/dashboard/institute/${institutionId}`
+                  : "/"
+              }
               className="flex items-center hover:opacity-80 transition-opacity min-w-0"
             >
               <InterviewTrixLogo
@@ -135,16 +192,18 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               />
             </Link>
           </div>
-          <Link href="/dashboard/interviews/new" className="flex-shrink-0">
-            <Button
-              size="sm"
-              className="!bg-[rgb(37,99,235)] hover:!bg-[rgb(17,24,39)] text-white h-9 px-3 gap-1.5 text-xs sm:text-sm shadow-md transition-all"
-            >
-              <PlayCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-              <span className="hidden xs:inline">Start</span>
-              <span className="hidden sm:inline">Interview</span>
-            </Button>
-          </Link>
+          {!(isInstitutionAdmin && institutionId) && (
+            <Link href="/dashboard/interviews/new" className="flex-shrink-0">
+              <Button
+                size="sm"
+                className="!bg-[rgb(37,99,235)] hover:!bg-[rgb(17,24,39)] text-white h-9 px-3 gap-1.5 text-xs sm:text-sm shadow-md transition-all"
+              >
+                <PlayCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                <span className="hidden xs:inline">Start</span>
+                <span className="hidden sm:inline">Interview</span>
+              </Button>
+            </Link>
+          )}
         </div>
       </header>
 
@@ -165,7 +224,11 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             {/* Logo */}
             <div className="p-4 border-b hidden lg:block">
               <Link
-                href="/"
+                href={
+                  isInstitutionAdmin && institutionId
+                    ? `/dashboard/institute/${institutionId}`
+                    : "/"
+                }
                 className={cn(
                   "flex items-center hover:opacity-80 transition-opacity",
                   sidebarOpen ? "justify-start" : "justify-center",
@@ -186,8 +249,10 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 const Icon = item.icon;
                 const isActive =
                   pathname === item.href ||
-                  (item.href !== "/dashboard" &&
-                    pathname?.startsWith(item.href));
+                  (institutionBase && item.href === institutionBase
+                    ? false
+                    : item.href !== "/dashboard" &&
+                      (pathname?.startsWith(`${item.href}/`) ?? false));
 
                 return (
                   <Link
@@ -279,15 +344,17 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 <span className="text-sm text-gray-600">
                   Welcome, {user?.firstName || "User"}!
                 </span>
-                <Link href="/dashboard/interviews/new">
-                  <Button
-                    size="default"
-                    className="!bg-[rgb(37,99,235)] hover:!bg-[rgb(17,24,39)] text-white shadow-md hover:shadow-lg transition-all"
-                  >
-                    <PlayCircle className="w-4 h-4 mr-2" />
-                    Start Interview
-                  </Button>
-                </Link>
+                {!(isInstitutionAdmin && institutionId) && (
+                  <Link href="/dashboard/interviews/new">
+                    <Button
+                      size="default"
+                      className="!bg-[rgb(37,99,235)] hover:!bg-[rgb(17,24,39)] text-white shadow-md hover:shadow-lg transition-all"
+                    >
+                      <PlayCircle className="w-4 h-4 mr-2" />
+                      Start Interview
+                    </Button>
+                  </Link>
+                )}
               </div>
             </div>
           </header>
