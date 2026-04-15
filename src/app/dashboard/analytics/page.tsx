@@ -235,7 +235,7 @@ export default function AnalyticsPage() {
                   stats.averageScore
                 )}`}
               >
-                {stats.averageScore}/100
+                {stats.averageScore}
               </p>
             </div>
             <Progress
