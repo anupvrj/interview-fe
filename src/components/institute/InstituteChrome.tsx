@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
 import { Loader2 } from "lucide-react";
+import Link from "next/link";
 import { cn } from "@/lib/utils";
 
 /** Primary CTA — matches interviews / DashboardLayout */
@@ -105,19 +106,29 @@ export function InstituteStatCard({
   value,
   footer,
   layout = "vertical",
+  href,
 }: {
-  icon: LucideIcon;
+  icon?: LucideIcon;
   label: string;
   value: React.ReactNode;
   footer?: ReactNode;
   /** `horizontal`: icon left, label/value/footer right — shorter on the page */
   layout?: "vertical" | "horizontal";
+  href?: string;
 }) {
+  const ResolvedIcon = Icon ?? Loader2;
+  const shellClass = cn(
+    instituteStatCardShellClass,
+    href
+      ? "group cursor-pointer transition-transform hover:-translate-y-0.5 hover:shadow-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40"
+      : "",
+  );
+
   if (layout === "horizontal") {
-    return (
-      <div className={cn(instituteStatCardShellClass, "flex items-center gap-4 p-4")}>
+    const content = (
+      <>
         <div className={instituteStatCardIconWrapClass}>
-          <Icon className="h-5 w-5 text-white" />
+          <ResolvedIcon className="h-5 w-5 text-white" />
         </div>
         <div className="min-w-0 flex-1">
           <p className="text-xs font-bold text-[rgb(37,99,235)] sm:text-sm">{label}</p>
@@ -126,20 +137,44 @@ export function InstituteStatCard({
           </div>
           {footer ? <div className="mt-0.5 text-xs leading-snug text-slate-600">{footer}</div> : null}
         </div>
+      </>
+    );
+
+    if (href) {
+      return (
+        <Link href={href} className={cn(shellClass, "flex items-center gap-4 p-4")}>
+          {content}
+        </Link>
+      );
+    }
+
+    return (
+      <div className={cn(shellClass, "flex items-center gap-4 p-4")}>
+        {content}
       </div>
     );
   }
 
-  return (
-    <div className={cn(instituteStatCardShellClass, "p-5")}>
+  const verticalContent = (
+    <>
       <div className="mb-3 flex items-start justify-between">
         <div className={instituteStatCardIconWrapClass}>
-          <Icon className="h-5 w-5 text-white" />
+          <ResolvedIcon className="h-5 w-5 text-white" />
         </div>
       </div>
       <p className="mb-1 text-xs font-bold text-[rgb(37,99,235)] sm:text-sm">{label}</p>
       <div className="text-2xl font-bold tabular-nums text-slate-900 sm:text-3xl">{value}</div>
       {footer ? <div className="mt-2 text-xs text-slate-600">{footer}</div> : null}
+    </>
+  );
+
+  if (href) {
+    return <Link href={href} className={cn(shellClass, "block p-5")}>{verticalContent}</Link>;
+  }
+
+  return (
+    <div className={cn(shellClass, "p-5")}>
+      {verticalContent}
     </div>
   );
 }

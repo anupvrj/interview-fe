@@ -208,6 +208,8 @@ export interface Interview {
       fillersPerMinute: number;
     };
   };
+  /** Credits charged when the session was billed (5 per billed minute). */
+  creditsCharged?: number;
   createdAt: string;
   updatedAt: string;
 }
