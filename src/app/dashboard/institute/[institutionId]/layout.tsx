@@ -12,16 +12,18 @@ import {
   Settings,
   Receipt,
   Layers,
+  BarChart2,
+  Loader2,
 } from "lucide-react";
 import { userApi, adminApi } from "@/lib/api";
 import { cn } from "@/lib/utils";
-import { Loader2 } from "lucide-react";
 
 const nav = (base: string) => [
   { href: base, label: "Overview", icon: LayoutDashboard },
   { href: `${base}/candidates`, label: "Candidates", icon: Users },
   { href: `${base}/batches`, label: "Batches", icon: Layers },
   { href: `${base}/schedules`, label: "Schedules", icon: CalendarClock },
+  { href: `${base}/analytics`, label: "Analytics", icon: BarChart2 },
   { href: `${base}/settings`, label: "Institution", icon: Settings },
   { href: `${base}/billing`, label: "Plans & payments", icon: Receipt },
 ];
@@ -50,11 +52,11 @@ export default function InstituteDashboardLayout({
         if (p.accessRole === "institution_admin") {
           const mine = p.institutionId ? String(p.institutionId) : "";
           if (mine !== institutionId) {
-            window.location.replace("/dashboard");
+            globalThis.location.replace("/dashboard");
             return;
           }
         } else if (p.accessRole !== "super_admin") {
-          window.location.replace("/dashboard");
+          globalThis.location.replace("/dashboard");
           return;
         }
 
@@ -63,7 +65,7 @@ export default function InstituteDashboardLayout({
           setTitle(String((dash.institution as { name?: string }).name || "Institution"));
         }
       } catch {
-        if (!cancelled) window.location.replace("/dashboard");
+        if (!cancelled) globalThis.location.replace("/dashboard");
       } finally {
         if (!cancelled) setReady(true);
       }
