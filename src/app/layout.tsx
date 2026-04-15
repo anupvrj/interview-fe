@@ -97,7 +97,7 @@ export default function RootLayout({
           <StructuredData data={organizationSchema} />
           <StructuredData data={webApplicationSchema} />
         </head>
-        <body className={inter.className}>
+        <body className={inter.className} suppressHydrationWarning>
           <AppGoogleAnalytics gaId={gaMeasurementId} />
           <AppMicrosoftClarity projectId={clarityProjectId} />
           <TemplateRegistryInitializer />

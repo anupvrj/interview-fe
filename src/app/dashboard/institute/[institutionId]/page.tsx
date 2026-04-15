@@ -28,6 +28,19 @@ import {
   instituteSecondaryClass,
 } from "@/components/institute/InstituteChrome";
 import { cn } from "@/lib/utils";
+import { fetchInstitutionAnalytics, type InstituteAnalyticsData } from "@/lib/institute-analytics";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  ComposedChart,
+  Legend,
+  Line,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 
 const PLAN_ORDER = ["free", "starter", "premium", "elite"] as const;
 
@@ -46,6 +59,7 @@ export default function InstituteOverviewPage() {
     creditsPool: number;
     interviewsCompleted: number;
   } | null>(null);
+  const [analytics, setAnalytics] = useState<InstituteAnalyticsData | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -59,6 +73,20 @@ export default function InstituteOverviewPage() {
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [institutionId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchInstitutionAnalytics(institutionId, 14)
+      .then((d) => {
+        if (!cancelled) setAnalytics(d);
+      })
+      .catch(() => {
+        if (!cancelled) setAnalytics(null);
       });
     return () => {
       cancelled = true;
@@ -171,6 +199,7 @@ export default function InstituteOverviewPage() {
           label="Members"
           value={data.userCount}
           footer={maxU != null ? `Cap ${maxU}` : "No member cap"}
+          href={`/dashboard/institute/${institutionId}/candidates`}
         />
         <InstituteStatCard
           layout="horizontal"
@@ -178,6 +207,7 @@ export default function InstituteOverviewPage() {
           label="Batches"
           value={data.batchCount}
           footer={batchFooter}
+          href={`/dashboard/institute/${institutionId}/batches`}
         />
         <InstituteStatCard
           layout="horizontal"
@@ -185,6 +215,7 @@ export default function InstituteOverviewPage() {
           label="Schedules (pending)"
           value={sc.scheduled}
           footer="Awaiting candidate start"
+          href={`/dashboard/institute/${institutionId}/schedules`}
         />
         <InstituteStatCard
           layout="horizontal"
@@ -192,6 +223,7 @@ export default function InstituteOverviewPage() {
           label="Interviews in progress"
           value={sc.started}
           footer="Schedule started, session active"
+          href={`/dashboard/institute/${institutionId}/schedules`}
         />
         <InstituteStatCard
           layout="horizontal"
@@ -199,6 +231,7 @@ export default function InstituteOverviewPage() {
           label="Interviews completed"
           value={data.interviewsCompleted}
           footer="Finished sessions (candidates)"
+          href={`/dashboard/institute/${institutionId}/analytics`}
         />
         <InstituteStatCard
           layout="horizontal"
@@ -206,6 +239,7 @@ export default function InstituteOverviewPage() {
           label="Credits pool"
           value={data.creditsPool.toLocaleString()}
           footer="Sum of available credits (candidates)"
+          href={`/dashboard/institute/${institutionId}/billing`}
         />
       </div>
 
@@ -326,6 +360,165 @@ export default function InstituteOverviewPage() {
           </div>
         </section>
       </div>
+
+      {analytics && (
+        <>
+          <div className="grid gap-4 xl:grid-cols-3">
+            <section className={cn(institutePanelClass, "xl:col-span-2")}>
+              <div className="border-b border-slate-200 p-4">
+                <h3 className="text-sm font-bold text-slate-900">
+                  Day wise interviews and score trend
+                </h3>
+                <p className="text-xs text-slate-600">
+                  Last 14 days: bar = interviews, line = average score
+                </p>
+              </div>
+              <div className="h-[280px] p-3">
+                <ResponsiveContainer width="100%" height="100%">
+                  <ComposedChart data={analytics.daily}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                    <XAxis dataKey="label" tick={{ fontSize: 12 }} />
+                    <YAxis yAxisId="left" allowDecimals={false} tick={{ fontSize: 12 }} />
+                    <YAxis
+                      yAxisId="right"
+                      orientation="right"
+                      domain={[0, 100]}
+                      tick={{ fontSize: 12 }}
+                    />
+                    <Tooltip contentStyle={{ borderRadius: 8, borderColor: "#cbd5e1" }} />
+                    <Legend />
+                    <Bar
+                      yAxisId="left"
+                      dataKey="interviews"
+                      name="Interviews"
+                      fill="rgb(37,99,235)"
+                      radius={[4, 4, 0, 0]}
+                    />
+                    <Line
+                      yAxisId="right"
+                      type="monotone"
+                      dataKey="avgScore"
+                      name="Avg score"
+                      stroke="#16a34a"
+                      strokeWidth={2}
+                      dot={{ r: 2 }}
+                    />
+                  </ComposedChart>
+                </ResponsiveContainer>
+              </div>
+            </section>
+
+            <section className={cn(institutePanelClass)}>
+              <div className="border-b border-slate-200 p-4">
+                <h3 className="text-sm font-bold text-slate-900">Insights</h3>
+                <p className="text-xs text-slate-600">Quick institution snapshot</p>
+              </div>
+              <div className="space-y-3 p-4">
+                <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
+                  <p className="text-xs font-semibold text-slate-500">Users invited</p>
+                  <p className="text-xl font-bold tabular-nums text-slate-900">
+                    {analytics.totals.usersInvited}
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    Pending onboarding: {analytics.totals.usersPendingOnboarding}
+                  </p>
+                </div>
+                <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
+                  <p className="text-xs font-semibold text-slate-500">Token spend (credits)</p>
+                  <p className="text-xl font-bold tabular-nums text-slate-900">
+                    {analytics.totals.totalCreditsSpent}
+                  </p>
+                </div>
+                <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
+                  <p className="text-xs font-semibold text-slate-500">Schedules</p>
+                  <p className="text-xl font-bold tabular-nums text-slate-900">
+                    {analytics.totals.schedulesCount}
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    {analytics.totals.schedulesStarted} started · {analytics.totals.schedulesCompleted} completed
+                  </p>
+                </div>
+                <Button asChild variant="outline" className={cn(instituteSecondaryClass, "w-full")}>
+                  <Link href={`/dashboard/institute/${institutionId}/analytics`}>
+                    Open full analytics <ArrowRight className="ml-1 h-4 w-4" />
+                  </Link>
+                </Button>
+              </div>
+            </section>
+          </div>
+
+          <div className="grid gap-4 xl:grid-cols-2">
+            <section className={cn(institutePanelClass)}>
+              <div className="border-b border-slate-200 p-4">
+                <h3 className="text-sm font-bold text-slate-900">Day wise resume creation & credit spend</h3>
+                <p className="text-xs text-slate-600">Resumes vs daily credit consumption</p>
+              </div>
+              <div className="h-[260px] p-3">
+                <ResponsiveContainer width="100%" height="100%">
+                  <ComposedChart data={analytics.daily}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                    <XAxis dataKey="label" tick={{ fontSize: 11 }} />
+                    <YAxis yAxisId="left" allowDecimals={false} tick={{ fontSize: 12 }} />
+                    <YAxis yAxisId="right" orientation="right" allowDecimals={false} tick={{ fontSize: 12 }} />
+                    <Tooltip contentStyle={{ borderRadius: 8, borderColor: "#cbd5e1" }} />
+                    <Legend />
+                    <Bar
+                      yAxisId="left"
+                      dataKey="resumes"
+                      name="Resumes"
+                      fill="#64748b"
+                      radius={[4, 4, 0, 0]}
+                    />
+                    <Line
+                      yAxisId="right"
+                      type="monotone"
+                      dataKey="credits"
+                      name="Credits spent"
+                      stroke="#0f172a"
+                      strokeWidth={2}
+                      dot={false}
+                    />
+                  </ComposedChart>
+                </ResponsiveContainer>
+              </div>
+            </section>
+
+            <section className={cn(institutePanelClass)}>
+              <div className="border-b border-slate-200 p-4">
+                <h3 className="text-sm font-bold text-slate-900">Top performing batches</h3>
+                <p className="text-xs text-slate-600">Average score and completed reports</p>
+              </div>
+              <div className="h-[260px] p-3">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={analytics.batchPerformance.slice(0, 6)}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                    <XAxis dataKey="batchName" tick={{ fontSize: 11 }} interval={0} angle={-12} height={52} />
+                    <YAxis yAxisId="left" allowDecimals={false} tick={{ fontSize: 12 }} />
+                    <YAxis yAxisId="right" orientation="right" domain={[0, 100]} tick={{ fontSize: 12 }} />
+                    <Tooltip contentStyle={{ borderRadius: 8, borderColor: "#cbd5e1" }} />
+                    <Legend />
+                    <Bar
+                      yAxisId="left"
+                      dataKey="reportsCompleted"
+                      name="Completed reports"
+                      fill="#2563eb"
+                      radius={[3, 3, 0, 0]}
+                    />
+                    <Line
+                      yAxisId="right"
+                      type="monotone"
+                      dataKey="averageScore"
+                      name="Avg score"
+                      stroke="#16a34a"
+                      strokeWidth={2}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </section>
+          </div>
+        </>
+      )}
 
       <div className="flex flex-wrap items-center gap-3 border-t border-slate-200/80 pt-6">
         <Button asChild className={cn(institutePrimaryClass, "gap-2 shadow-md")}>
