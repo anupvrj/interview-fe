@@ -31,13 +31,9 @@ import {
   FileText,
   FileEdit,
   Loader2,
-  Crown,
-  Sparkles,
   BarChart3,
   Target,
-  ArrowRight,
   CheckCircle,
-  Edit2,
   ChevronLeft,
   ChevronRight,
   Coins,
@@ -47,6 +43,10 @@ import {
   X,
   FileCheck,
   Download,
+  Crown,
+  Sparkles,
+  ArrowRight,
+  Edit2,
 } from "lucide-react";
 import {
   Bar,
@@ -83,8 +83,6 @@ import {
   instituteSecondaryClass,
 } from "@/components/institute/InstituteChrome";
 
-const ONBOARDING_BANNER_DISMISSED_KEY = "dashboard-onboarding-banner-dismissed";
-
 interface Plan {
   _id: string;
   planId: string;
@@ -99,9 +97,10 @@ interface NextPlanDisplay {
   id: string;
   name: string;
   price: number;
-  interviews: number;
   features: string[];
 }
+
+const ONBOARDING_BANNER_DISMISSED_KEY = "dashboard-onboarding-banner-dismissed";
 
 /** session.duration from API is seconds; show whole minutes (ceil, min 1 when > 0). */
 function formatInterviewDurationMinutes(
@@ -166,18 +165,8 @@ export default function DashboardPage() {
   useEffect(() => {
     if (isLoaded && user) {
       initializeUser();
-      loadPlans();
     }
   }, [isLoaded, user]);
-
-  const loadPlans = async () => {
-    try {
-      const plans = await planApi.getAllPlans();
-      setAllPlans(plans);
-    } catch (error) {
-      console.error("Error loading plans:", error);
-    }
-  };
 
   const initializeUser = async () => {
     try {
@@ -237,6 +226,13 @@ export default function DashboardPage() {
         }
       } catch (error) {
         console.error("Error checking limit:", error);
+      }
+
+      try {
+        const plans = await planApi.getAllPlans();
+        setAllPlans(plans);
+      } catch (error) {
+        console.error("Error loading plans:", error);
       }
 
       const userInterviews = await interviewApi.list(user.id);
@@ -389,7 +385,6 @@ export default function DashboardPage() {
       id: nextPlan.planId,
       name: nextPlan.displayName,
       price: nextPlan.pricing?.monthly || 0,
-      interviews: nextPlan.features.freeInterviews?.count || 0,
       features,
     };
   };
@@ -789,29 +784,9 @@ export default function DashboardPage() {
           </Card>
         )}
 
-        {/* Profile Completion Card - Right Side (Second) */}
-        <Card
-          className={`border-2 shadow-xl ${
-            profileCompletion >= 100
-              ? "border-blue-300 bg-gradient-to-br from-blue-50 to-blue-100"
-              : "border-yellow-300 bg-gradient-to-br from-yellow-50 via-amber-50 to-orange-50"
-          }`}
-        >
-          <CardContent className="p-6 lg:p-8">
-            <div className="flex items-start gap-4">
-              <div
-                className={`w-14 h-14 rounded-xl flex items-center justify-center shadow-lg flex-shrink-0 ${
-                  profileCompletion >= 100
-                    ? "bg-gradient-to-br from-[rgb(37,99,235)] to-blue-600"
-                    : "bg-gradient-to-br from-yellow-500 to-orange-500"
-                }`}
-              >
-                {profileCompletion >= 100 ? (
-                  <CheckCircle className="w-7 h-7 text-white" />
-                ) : (
-                  <Sparkles className="w-7 h-7 text-white" />
-                )}
-              </div>
+        <Card className="border-2 shadow-xl bg-white/80 backdrop-blur-sm">
+          <CardContent className="p-6">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
               <div className="flex-1 min-w-0">
                 <h3 className="text-lg lg:text-xl font-bold text-gray-900 mb-2">
                   {profileCompletion >= 100
