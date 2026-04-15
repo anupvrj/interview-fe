@@ -41,6 +41,10 @@ import { BENIGN_ACTIVE_INTERVIEW_WS_CLOSE_CODES } from "@/lib/interviewWebSocket
 import { pickRandomPersona } from "@/lib/aiPersonas";
 import type { AIInterviewerPersona } from "@/lib/aiPersonas";
 import { AiPersonaAvatar } from "@/components/interview/AiPersonaAvatar";
+import {
+  useInterviewFaceDetection,
+  INTERVIEW_FACE_WARNING_COPY,
+} from "@/hooks/useInterviewFaceDetection";
 import { toast } from "sonner";
 
 /** Hard fallback minutes added on top of target (used if AI never sends interview_complete). */
@@ -191,6 +195,14 @@ export default function RealtimeInterviewPage() {
   /** When true (e.g. institute policy), denying screen capture may use blocking error UI. */
   const requireSessionRecording =
     interview?.metadata?.requireSessionRecording === true;
+
+  const faceDetectionEnabled =
+    isInterviewActive && isCameraOn && videoStreamActive;
+
+  const { warning: interviewFaceWarning } = useInterviewFaceDetection({
+    videoRef,
+    enabled: faceDetectionEnabled,
+  });
 
   useEffect(() => {
     loadInterview();
@@ -2490,6 +2502,18 @@ export default function RealtimeInterviewPage() {
                   <div className="absolute left-3 top-3 rounded-full border border-white/20 bg-black/80 px-3 py-1 text-xs text-white/90">
                     Candidate Camera
                   </div>
+                  {interviewFaceWarning && (
+                    <div
+                      role="status"
+                      aria-live="polite"
+                      className="absolute bottom-3 left-3 right-3 flex items-start gap-2 rounded-xl border border-amber-500/40 bg-amber-950/90 px-3 py-2 text-xs text-amber-100 shadow-lg sm:text-sm"
+                    >
+                      <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-400" />
+                      <span>
+                        {INTERVIEW_FACE_WARNING_COPY[interviewFaceWarning]}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
