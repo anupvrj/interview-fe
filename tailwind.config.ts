@@ -93,6 +93,16 @@ const config: Config = {
           "0%, 100%": { transform: "scale(1)" },
           "50%": { transform: "scale(1.03)" },
         },
+        /** Continuous highlight sweep across progress fill */
+        "progress-shimmer": {
+          "0%": { transform: "translateX(-120%)" },
+          "100%": { transform: "translateX(320%)" },
+        },
+        /** Soft pulse on progress fill (combined with shimmer for “alive” bars) */
+        "progress-pulse": {
+          "0%, 100%": { opacity: "1" },
+          "50%": { opacity: "0.88" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -104,6 +114,8 @@ const config: Config = {
         "ai-avatar-ring-delayed":
           "ai-avatar-ring 1.05s ease-in-out 0.35s infinite",
         "ai-avatar-inner": "ai-avatar-inner 1.05s ease-in-out infinite",
+        "progress-shimmer": "progress-shimmer 2.4s ease-in-out infinite",
+        "progress-pulse": "progress-pulse 2s ease-in-out infinite",
       },
     },
   },
