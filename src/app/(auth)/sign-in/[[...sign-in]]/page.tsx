@@ -171,6 +171,7 @@ export default function SignInPage() {
                 className="inline-flex items-center justify-center mb-6 hover:opacity-90 transition-opacity"
               >
                 <InterviewTrixLogo
+                  variant="onLightBg"
                   className="h-10 w-auto"
                   priority
                 />

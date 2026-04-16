@@ -40,6 +40,9 @@ import {
   X,
   FileCheck,
   Download,
+  Coins,
+  Lock,
+  UsersRound,
 } from "lucide-react";
 import {
   Bar,
