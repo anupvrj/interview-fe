@@ -68,6 +68,9 @@ export default function ProfilePage() {
   const [success, setSuccess] = useState<string>("");
   const [editingProfile, setEditingProfile] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
+  const [editingName, setEditingName] = useState(false);
+  const [savingName, setSavingName] = useState(false);
+  const [fullNameInput, setFullNameInput] = useState("");
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [profileData, setProfileData] = useState({
@@ -112,6 +115,7 @@ export default function ProfilePage() {
       setLoading(true);
       const profile = await userApi.getMyProfile();
       setUser(profile);
+      setFullNameInput(profile.name || "");
       // Initialize profile data
       setProfileData({
         userType: profile.userType || "",
@@ -170,6 +174,45 @@ export default function ProfilePage() {
     }
   };
 
+  const handleSaveName = async () => {
+    const nextName = fullNameInput.trim();
+    if (!nextName) {
+      setError("Full name is required");
+      return;
+    }
+    try {
+      setSavingName(true);
+      setError("");
+      setSuccess("");
+      await userApi.updateProfile({ name: nextName });
+
+      // Keep Clerk profile display in sync where permitted.
+      if (clerkUser) {
+        const [firstName, ...rest] = nextName.split(/\s+/);
+        const lastName = rest.join(" ") || undefined;
+        try {
+          await clerkUser.update({
+            firstName: firstName || undefined,
+            lastName,
+          });
+        } catch {
+          // Non-blocking: backend profile name is already updated.
+        }
+      }
+
+      setSuccess("Name updated successfully!");
+      setEditingName(false);
+      await loadProfile();
+    } catch (error: any) {
+      console.error("Error updating name:", error);
+      setError(
+        error.response?.data?.message || "Failed to update name. Please try again.",
+      );
+    } finally {
+      setSavingName(false);
+    }
+  };
+
   const toggleIndustry = (industry: string) => {
     setProfileData((prev) => ({
       ...prev,
@@ -203,7 +246,7 @@ export default function ProfilePage() {
     }
   };
 
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+  const { getInputProps, open } = useDropzone({
     accept: pdfResumeDropzoneAccept,
     maxSize: PDF_RESUME_MAX_BYTES,
     multiple: false,
@@ -271,7 +314,7 @@ export default function ProfilePage() {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
-          <Loader2 className="w-12 h-12 animate-spin text-landing-blue-700 mx-auto mb-4" />
+          <Loader2 className="w-12 h-12 animate-spin text-[rgb(37,99,235)] mx-auto mb-4" />
           <p className="text-gray-600">Loading your profile...</p>
         </div>
       </div>
@@ -279,38 +322,51 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="w-full max-w-6xl mx-auto space-y-4 lg:space-y-6">
+    <div className="w-full max-w-7xl mx-auto space-y-4 lg:space-y-6">
       {/* Hero Header Section */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-landing-blue-600 via-landing-blue-700 to-landing-blue-800 p-6 lg:p-8 text-white">
+      <div className="relative overflow-hidden rounded-md bg-blue-700 px-4 py-3 sm:px-5 sm:py-4 text-white shadow-lg">
         <div className="relative z-10">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
-              <UserIcon className="w-5 h-5" />
+          <div className="mb-1.5 flex min-w-0 items-center gap-2.5">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-white/20 shadow-sm sm:h-9 sm:w-9">
+              <UserIcon className="h-4 w-4" />
             </div>
-            <h1 className="text-2xl sm:text-3xl font-bold">Your Profile</h1>
+            <h1 className="truncate text-lg font-bold leading-tight sm:text-xl lg:text-2xl">Your Profile</h1>
           </div>
-          <p className="text-base lg:text-lg text-white/90 max-w-2xl">
+          <p className="max-w-2xl text-[10px] leading-tight text-white/85 sm:text-xs md:text-sm">
             Manage your profile information and keep your resume up to date for
             better interview experiences
           </p>
         </div>
-        <div className="absolute inset-0 bg-gradient-to-r from-purple-600/50 to-transparent opacity-50"></div>
-        <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl"></div>
-        <div className="absolute bottom-0 left-0 w-48 h-48 bg-blue-500/20 rounded-full blur-2xl"></div>
+        <div className="absolute inset-0 bg-blue-700/30"></div>
+        <div className="absolute right-0 top-0 h-44 w-44 rounded-full bg-white/10 blur-3xl"></div>
+        <div className="absolute bottom-0 left-0 h-32 w-32 rounded-full bg-blue-500/20 blur-2xl"></div>
       </div>
 
-      <div className="grid lg:grid-cols-3 gap-4 lg:gap-6">
+      <div className="grid gap-4 lg:grid-cols-3 lg:gap-4">
         {/* Left Column - Profile Information */}
-        <div className="lg:col-span-2 space-y-4 lg:space-y-6">
-          <Card className="border-2 shadow-xl bg-white/80 backdrop-blur-sm">
+        <div className="space-y-4 lg:col-span-2">
+          <Card className="rounded-md border border-slate-200/80 bg-white shadow-sm">
             <CardHeader className="pb-3">
-              <div className="flex items-center gap-3 mb-2">
-                <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-blue-500 rounded-lg flex items-center justify-center">
-                  <UserIcon className="w-5 h-5 text-white" />
+              <div className="mb-2 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
+                    <UserIcon className="w-5 h-5 text-white" />
+                  </div>
+                  <CardTitle className="text-xl lg:text-2xl">
+                    Profile Information
+                  </CardTitle>
                 </div>
-                <CardTitle className="text-xl lg:text-2xl">
-                  Profile Information
-                </CardTitle>
+                {!editingName && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setEditingName(true)}
+                    className="flex items-center gap-2"
+                  >
+                    <Edit2 className="w-4 h-4" />
+                    Edit name
+                  </Button>
+                )}
               </div>
               <CardDescription className="text-sm">
                 Your account details and membership information
@@ -321,13 +377,58 @@ export default function ProfilePage() {
                 {/* Name */}
                 <div className="space-y-2">
                   <Label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                    <UserIcon className="w-4 h-4 text-landing-blue-700" />
+                    <UserIcon className="w-4 h-4 text-[rgb(37,99,235)]" />
                     Full Name
                   </Label>
-                  <div className="p-4 bg-gradient-to-br from-purple-50 to-blue-50 rounded-xl border-2 border-purple-100">
-                    <p className="text-gray-900 font-semibold text-base">
-                      {clerkUser?.firstName} {clerkUser?.lastName}
-                    </p>
+                  <div className="p-4 bg-slate-50 rounded-md border border-slate-200">
+                    {editingName ? (
+                      <div className="space-y-3">
+                        <Input
+                          value={fullNameInput}
+                          onChange={(e) => setFullNameInput(e.target.value)}
+                          placeholder="Enter full name"
+                        />
+                        <div className="flex items-center gap-2">
+                          <Button
+                            size="sm"
+                            onClick={handleSaveName}
+                            disabled={savingName}
+                            className="flex items-center gap-2 !bg-[rgb(37,99,235)] hover:!bg-[rgb(17,24,39)]"
+                          >
+                            {savingName ? (
+                              <>
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                                Saving...
+                              </>
+                            ) : (
+                              <>
+                                <Save className="w-4 h-4" />
+                                Save
+                              </>
+                            )}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setEditingName(false);
+                              setFullNameInput(
+                                user?.name ||
+                                  `${clerkUser?.firstName || ""} ${clerkUser?.lastName || ""}`.trim(),
+                              );
+                            }}
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-gray-900 font-semibold text-base">
+                        {user?.name ||
+                          `${clerkUser?.firstName || ""} ${clerkUser?.lastName || ""}`.trim() ||
+                          "N/A"}
+                      </p>
+                    )}
                   </div>
                 </div>
 
@@ -337,7 +438,7 @@ export default function ProfilePage() {
                     <Mail className="w-4 h-4 text-blue-600" />
                     Email Address
                   </Label>
-                  <div className="p-4 bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl border-2 border-blue-100">
+                  <div className="p-4 bg-slate-50 rounded-md border border-slate-200">
                     <p className="text-gray-900 font-semibold text-base break-all">
                       {clerkUser?.primaryEmailAddress?.emailAddress}
                     </p>
@@ -347,10 +448,10 @@ export default function ProfilePage() {
                 {/* Member Since */}
                 <div className="space-y-2">
                   <Label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                    <Calendar className="w-4 h-4 text-green-600" />
+                    <Calendar className="w-4 h-4 text-slate-600" />
                     Member Since
                   </Label>
-                  <div className="p-4 bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl border-2 border-green-100">
+                  <div className="p-4 bg-slate-50 rounded-md border border-slate-200">
                     <p className="text-gray-900 font-semibold text-base">
                       {user?.createdAt ? formatDate(user.createdAt) : "N/A"}
                     </p>
@@ -360,10 +461,10 @@ export default function ProfilePage() {
                 {/* Role */}
                 <div className="space-y-2">
                   <Label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                    <Award className="w-4 h-4 text-pink-600" />
+                    <Award className="w-4 h-4 text-slate-600" />
                     Account Type
                   </Label>
-                  <div className="p-4 bg-gradient-to-br from-pink-50 to-rose-50 rounded-xl border-2 border-pink-100">
+                  <div className="p-4 bg-slate-50 rounded-md border border-slate-200">
                     <p className="text-gray-900 font-semibold text-base capitalize">
                       {user?.role || "Student"}
                     </p>
@@ -374,11 +475,11 @@ export default function ProfilePage() {
           </Card>
 
           {/* Professional Details */}
-          <Card className="border-2 shadow-xl bg-white/80 backdrop-blur-sm">
+          <Card className="rounded-md border border-slate-200/80 bg-white shadow-sm">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3 mb-2">
-                  <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-lg flex items-center justify-center">
+                  <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
                     <Briefcase className="w-5 h-5 text-white" />
                   </div>
                   <CardTitle className="text-xl lg:text-2xl">
@@ -457,7 +558,7 @@ export default function ProfilePage() {
 
                   {/* Current Job (for experienced users) */}
                   {profileData.userType === "experienced" && (
-                    <div className="space-y-4 p-4 bg-landing-blue-50 rounded-xl border-2 border-landing-blue-300">
+                    <div className="space-y-4 rounded-md border border-slate-200 bg-slate-50 p-4">
                       <h4 className="font-semibold text-gray-900 mb-3">
                         Current Job Details
                       </h4>
@@ -549,10 +650,10 @@ export default function ProfilePage() {
                           key={industry}
                           type="button"
                           onClick={() => toggleIndustry(industry)}
-                          className={`p-3 rounded-lg border-2 transition-all text-left text-sm ${
+                          className={`p-3 rounded-lg border transition-all text-left text-sm ${
                             profileData.industries.includes(industry)
-                              ? "border-purple-500 bg-landing-blue-50"
-                              : "border-gray-200 bg-white hover:border-purple-300"
+                              ? "border-[rgb(37,99,235)] bg-slate-50"
+                              : "border-gray-200 bg-white hover:border-blue-300"
                           }`}
                         >
                           <div className="flex items-center justify-between">
@@ -560,7 +661,7 @@ export default function ProfilePage() {
                               {industry}
                             </span>
                             {profileData.industries.includes(industry) && (
-                              <CheckCircle className="w-4 h-4 text-landing-blue-700" />
+                              <CheckCircle className="w-4 h-4 text-[rgb(37,99,235)]" />
                             )}
                           </div>
                         </button>
@@ -573,7 +674,7 @@ export default function ProfilePage() {
                     <Button
                       onClick={handleSaveProfile}
                       disabled={savingProfile}
-                      className="flex items-center gap-2 bg-gradient-to-r from-landing-blue-600 to-landing-blue-700 hover:from-landing-blue-800 hover:to-landing-blue-900"
+                      className="flex items-center gap-2 !bg-[rgb(37,99,235)] hover:!bg-[rgb(17,24,39)]"
                     >
                       {savingProfile ? (
                         <>
@@ -614,103 +715,93 @@ export default function ProfilePage() {
                 </>
               ) : (
                 <div className="space-y-4">
-                  {/* User Type */}
-                  <div className="grid md:grid-cols-2 gap-4">
+                  <div className="grid gap-4 md:grid-cols-2">
                     <div className="space-y-2">
-                      <Label className="text-sm font-semibold text-gray-700">
-                        User Type
-                      </Label>
-                      <div className="p-4 bg-gradient-to-br from-purple-50 to-blue-50 rounded-xl border-2 border-purple-100">
-                        <p className="text-gray-900 font-semibold text-base capitalize">
+                      <Label className="text-sm font-semibold text-gray-700">User Type</Label>
+                      <div className="rounded-md border border-slate-200 bg-slate-50 p-4">
+                        <p className="text-base font-semibold capitalize text-gray-900">
                           {user?.userType || "Not set"}
                         </p>
                       </div>
                     </div>
 
-                    {user?.affiliationInstitutionName?.trim() ? (
-                      <div className="space-y-2 md:col-span-2">
-                        <Label className="text-sm font-semibold text-gray-700">
-                          Institute / organization
-                        </Label>
-                        <div className="p-4 bg-gradient-to-br from-slate-50 to-blue-50 rounded-xl border-2 border-slate-100">
-                          <p className="text-gray-900 font-semibold text-base">
-                            {user.affiliationInstitutionName}
-                          </p>
-                          {user.affiliationInstitutionId ? (
-                            <p className="mt-1 text-xs text-gray-500">
-                              Listed in our directory
-                            </p>
-                          ) : null}
-                        </div>
-                      </div>
-                    ) : null}
-
-                    {user?.userType === "experienced" && user.experience && (
-                      <div className="space-y-2">
-                        <Label className="text-sm font-semibold text-gray-700">
-                          Experience
-                        </Label>
-                        <div className="p-4 bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl border-2 border-blue-100">
-                          <p className="text-gray-900 font-semibold text-base">
-                            {user.experience}{" "}
-                            {user.experience === 1 ? "year" : "years"}
-                          </p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Current Job */}
-                  {user?.currentJob?.company && (
-                    <div className="p-5 bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl border-2 border-green-200">
-                      <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                        <Building2 className="w-5 h-5 text-green-600" />
-                        Current Job
-                      </h4>
-                      <div className="grid md:grid-cols-3 gap-3">
-                        <div>
-                          <p className="text-xs text-gray-600 mb-1">Company</p>
-                          <p className="font-semibold text-gray-900">
-                            {user.currentJob.company}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-gray-600 mb-1">Role</p>
-                          <p className="font-semibold text-gray-900">
-                            {user.currentJob.role}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-gray-600 mb-1">Industry</p>
-                          <p className="font-semibold text-gray-900">
-                            {user.currentJob.industry}
-                          </p>
-                        </div>
+                    <div className="space-y-2">
+                      <Label className="text-sm font-semibold text-gray-700">Experience</Label>
+                      <div className="rounded-md border border-slate-200 bg-slate-50 p-4">
+                        <p className="text-base font-semibold text-gray-900">
+                          {typeof user?.experience === "number" && user.experience > 0
+                            ? `${user.experience} ${user.experience === 1 ? "year" : "years"}`
+                            : "Not set"}
+                        </p>
                       </div>
                     </div>
-                  )}
 
-                  {/* Industries of Interest */}
-                  {user?.industries && user.industries.length > 0 && (
-                    <div>
-                      <Label className="text-sm font-semibold text-gray-700 mb-2 block">
-                        Industries of Interest
+                    <div className="space-y-2 md:col-span-2">
+                      <Label className="text-sm font-semibold text-gray-700">
+                        Institute / organization
                       </Label>
+                      <div className="rounded-md border border-slate-200 bg-slate-50 p-4">
+                        <p className="text-base font-semibold text-gray-900">
+                          {user?.affiliationInstitutionName?.trim() || "Not set"}
+                        </p>
+                        {user?.affiliationInstitutionId ? (
+                          <p className="mt-1 text-xs text-gray-500">Listed in our directory</p>
+                        ) : null}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="rounded-md border border-slate-200 bg-slate-50 p-5">
+                    <h4 className="mb-3 flex items-center gap-2 font-semibold text-gray-900">
+                      <Building2 className="h-5 w-5 text-slate-600" />
+                      Current Job
+                    </h4>
+                    <div className="grid gap-3 md:grid-cols-3">
+                      <div>
+                        <p className="mb-1 text-xs text-gray-600">Company</p>
+                        <p className="font-semibold text-gray-900">
+                          {user?.currentJob?.company?.trim() || "Not set"}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="mb-1 text-xs text-gray-600">Role</p>
+                        <p className="font-semibold text-gray-900">
+                          {user?.currentJob?.role?.trim() || "Not set"}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="mb-1 text-xs text-gray-600">Industry</p>
+                        <p className="font-semibold text-gray-900">
+                          {user?.currentJob?.industry?.trim() || "Not set"}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label className="mb-2 block text-sm font-semibold text-gray-700">
+                      Industries of Interest
+                    </Label>
+                    {user?.industries && user.industries.length > 0 ? (
                       <div className="flex flex-wrap gap-2">
                         {user.industries.map((industry) => (
                           <span
                             key={industry}
-                            className="px-3 py-1.5 bg-gradient-to-r from-purple-100 to-blue-100 text-landing-blue-800 rounded-lg text-sm font-medium border border-landing-blue-300"
+                            className="rounded-lg border border-slate-300 bg-slate-100 px-3 py-1.5 text-sm font-medium text-slate-700"
                           >
                             {industry}
                           </span>
                         ))}
                       </div>
-                    </div>
-                  )}
+                    ) : (
+                      <div className="rounded-md border border-slate-200 bg-slate-50 p-4 text-sm font-medium text-slate-600">
+                        Not set
+                      </div>
+                    )}
+                  </div>
 
                   {user?.userType ? null : (
-                    <div className="p-4 bg-yellow-50 border-2 border-yellow-200 rounded-xl text-sm text-yellow-700">
+                    <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-md text-sm text-yellow-700">
                       <p>
                         Complete your professional details to get personalized
                         interview experiences.
@@ -723,15 +814,27 @@ export default function ProfilePage() {
           </Card>
 
           {/* Resume Management */}
-          <Card className="border-2 shadow-xl bg-white/80 backdrop-blur-sm">
+          <Card className="rounded-md border border-slate-200/80 bg-white shadow-sm">
             <CardHeader className="pb-3">
-              <div className="flex items-center gap-3 mb-2">
-                <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-lg flex items-center justify-center">
-                  <FileText className="w-5 h-5 text-white" />
+              <div className="mb-2 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
+                    <FileText className="w-5 h-5 text-white" />
+                  </div>
+                  <CardTitle className="text-xl lg:text-2xl">
+                    Resume Management
+                  </CardTitle>
                 </div>
-                <CardTitle className="text-xl lg:text-2xl">
-                  Resume Management
-                </CardTitle>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => open()}
+                  className="flex items-center gap-2"
+                >
+                  <Upload className="h-4 w-4" />
+                  Upload New Resume
+                </Button>
               </div>
               <CardDescription className="text-sm">
                 Upload or update your resume. This will be used for new
@@ -741,10 +844,10 @@ export default function ProfilePage() {
             <CardContent className="space-y-4 lg:space-y-6">
               {/* Current Resume */}
               {user?.resume && (
-                <div className="p-5 bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl border-2 border-green-200 shadow-md">
+                <div className="p-5 bg-slate-50 rounded-md border border-green-200 shadow-md">
                   <div className="flex items-center justify-between gap-4">
                     <div className="flex items-center gap-4 flex-1 min-w-0">
-                      <div className="w-14 h-14 bg-gradient-to-br from-green-500 to-emerald-500 rounded-xl flex items-center justify-center shadow-lg flex-shrink-0">
+                      <div className="w-14 h-14 bg-emerald-600 rounded-md flex items-center justify-center shadow-lg flex-shrink-0">
                         <FileText className="w-7 h-7 text-white" />
                       </div>
                       <div className="flex-1 min-w-0">
@@ -770,41 +873,18 @@ export default function ProfilePage() {
                 </div>
               )}
 
-              {/* Upload Area */}
+              <input {...getInputProps()} />
+
               {!uploadedFile ? (
-                <div
-                  {...getRootProps()}
-                  className={`border-2 border-dashed rounded-xl p-8 lg:p-12 text-center cursor-pointer transition-all duration-300 ${
-                    isDragActive
-                      ? "border-purple-500 bg-gradient-to-br from-purple-50 to-blue-50 shadow-lg scale-[1.02]"
-                      : "border-gray-300 bg-gray-50/50 hover:border-purple-400 hover:bg-landing-blue-50/50 hover:shadow-md"
-                  }`}
-                >
-                  <input {...getInputProps()} />
-                  <div className="flex flex-col items-center gap-4">
-                    <div className="w-20 h-20 bg-gradient-to-br from-purple-500 to-blue-500 rounded-2xl flex items-center justify-center shadow-lg">
-                      <Upload className="w-10 h-10 text-white" />
-                    </div>
-                    <div>
-                      <p className="text-base font-semibold text-gray-700 mb-2">
-                        {isDragActive
-                          ? "Drop your resume here"
-                          : "Drag & drop your resume here"}
-                      </p>
-                      <p className="text-sm text-gray-500 mb-3">
-                        or click to browse
-                      </p>
-                      <p className="text-xs text-gray-400 bg-white/60 px-3 py-1.5 rounded-full inline-block">
-                        PDF only • Max 5 MB
-                      </p>
-                    </div>
-                  </div>
+                <div className="rounded-md border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+                  Click <span className="font-semibold text-slate-900">Upload New Resume</span> to
+                  select a PDF (max 5 MB).
                 </div>
               ) : (
-                <div className="border-2 border-green-400 bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-5 shadow-lg">
+                <div className="rounded-md border border-slate-300 bg-slate-50 p-5 shadow-sm">
                   <div className="flex items-center justify-between gap-4">
                     <div className="flex items-center gap-4 flex-1 min-w-0">
-                      <div className="w-14 h-14 bg-gradient-to-br from-green-500 to-emerald-500 rounded-xl flex items-center justify-center shadow-md flex-shrink-0">
+                      <div className="w-14 h-14 bg-emerald-600 rounded-md flex items-center justify-center shadow-md flex-shrink-0">
                         <FileText className="w-7 h-7 text-white" />
                       </div>
                       <div className="flex-1 min-w-0">
@@ -831,14 +911,14 @@ export default function ProfilePage() {
 
               {/* Error/Success Messages */}
               {error && (
-                <div className="p-4 bg-red-50 border-2 border-red-200 rounded-xl text-sm text-red-700 flex items-start gap-2">
+                <div className="p-4 bg-red-50 border border-red-200 rounded-md text-sm text-red-700 flex items-start gap-2">
                   <X className="w-5 h-5 flex-shrink-0 mt-0.5" />
                   <span>{error}</span>
                 </div>
               )}
 
               {success && (
-                <div className="p-4 bg-green-50 border-2 border-green-200 rounded-xl text-sm text-green-700 flex items-start gap-2">
+                <div className="p-4 bg-green-50 border border-green-200 rounded-md text-sm text-green-700 flex items-start gap-2">
                   <CheckCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
                   <span>{success}</span>
                 </div>
@@ -850,7 +930,7 @@ export default function ProfilePage() {
                   onClick={handleUpload}
                   disabled={uploading}
                   size="lg"
-                  className="w-full h-14 text-base font-semibold bg-gradient-to-r from-landing-blue-600 to-landing-blue-700 hover:from-landing-blue-800 hover:to-landing-blue-900 text-white shadow-lg hover:shadow-xl transition-all"
+                  className="w-full h-14 text-base font-semibold !bg-[rgb(37,99,235)] hover:!bg-[rgb(17,24,39)] text-white shadow-lg hover:shadow-xl transition-all"
                 >
                   {uploading ? (
                     <>
@@ -871,10 +951,10 @@ export default function ProfilePage() {
 
         {/* Right Column - Info Card */}
         <div className="lg:col-span-1">
-          <Card className="border-2 border-blue-200 bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 shadow-xl sticky top-8">
+          <Card className="sticky top-8 rounded-md border border-slate-200/80 bg-white shadow-sm">
             <CardHeader className="pb-3">
               <div className="flex items-center gap-3 mb-2">
-                <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-500 rounded-lg flex items-center justify-center">
+                <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
                   <Sparkles className="w-5 h-5 text-white" />
                 </div>
                 <CardTitle className="text-lg lg:text-xl">
@@ -885,7 +965,7 @@ export default function ProfilePage() {
             <CardContent>
               <ul className="space-y-3 lg:space-y-4">
                 <li className="flex items-start gap-3">
-                  <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-blue-500 rounded-lg flex items-center justify-center flex-shrink-0 shadow-md">
+                  <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center flex-shrink-0 shadow-md">
                     <Target className="w-4 h-4 text-white" />
                   </div>
                   <div>
@@ -898,7 +978,7 @@ export default function ProfilePage() {
                   </div>
                 </li>
                 <li className="flex items-start gap-3">
-                  <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-lg flex items-center justify-center flex-shrink-0 shadow-md">
+                  <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center flex-shrink-0 shadow-md">
                     <Shield className="w-4 h-4 text-white" />
                   </div>
                   <div>
@@ -911,7 +991,7 @@ export default function ProfilePage() {
                   </div>
                 </li>
                 <li className="flex items-start gap-3">
-                  <div className="w-8 h-8 bg-gradient-to-br from-green-500 to-emerald-500 rounded-lg flex items-center justify-center flex-shrink-0 shadow-md">
+                  <div className="w-8 h-8 bg-emerald-600 rounded-lg flex items-center justify-center flex-shrink-0 shadow-md">
                     <CheckCircle className="w-4 h-4 text-white" />
                   </div>
                   <div>
@@ -924,7 +1004,7 @@ export default function ProfilePage() {
                   </div>
                 </li>
                 <li className="flex items-start gap-3">
-                  <div className="w-8 h-8 bg-gradient-to-br from-pink-500 to-rose-500 rounded-lg flex items-center justify-center flex-shrink-0 shadow-md">
+                  <div className="w-8 h-8 bg-slate-700 rounded-lg flex items-center justify-center flex-shrink-0 shadow-md">
                     <Award className="w-4 h-4 text-white" />
                   </div>
                   <div>
@@ -943,10 +1023,10 @@ export default function ProfilePage() {
       </div>
 
       {/* Delete Profile Section */}
-      <Card className="border-2 border-red-200 bg-gradient-to-br from-red-50 to-orange-50 shadow-xl">
+      <Card className="rounded-md border border-red-200 bg-red-50 shadow-sm">
         <CardHeader className="pb-3">
           <div className="flex items-center gap-3 mb-2">
-            <div className="w-10 h-10 bg-gradient-to-br from-red-500 to-orange-500 rounded-lg flex items-center justify-center">
+            <div className="w-10 h-10 bg-red-600 rounded-lg flex items-center justify-center">
               <AlertTriangle className="w-5 h-5 text-white" />
             </div>
             <CardTitle className="text-xl lg:text-2xl text-red-900">
@@ -958,7 +1038,7 @@ export default function ProfilePage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="p-4 bg-white/60 rounded-xl border-2 border-red-200">
+          <div className="p-4 bg-white/60 rounded-md border border-red-200">
             <p className="text-sm text-gray-700 mb-3">
               <strong className="text-red-700">Warning:</strong> This action
               cannot be undone. This will permanently delete:
@@ -978,13 +1058,13 @@ export default function ProfilePage() {
               variant="destructive"
               size="lg"
               onClick={() => setShowDeleteConfirm(true)}
-              className="w-full sm:w-auto bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-700 hover:to-orange-700 text-white shadow-lg hover:shadow-xl transition-all"
+              className="w-full sm:w-auto bg-red-600 hover:bg-red-700 text-white shadow-lg hover:shadow-xl transition-all"
             >
               <Trash2 className="w-5 h-5 mr-2" />
               Delete My Account
             </Button>
           ) : (
-            <div className="space-y-3 p-4 bg-white/80 rounded-xl border-2 border-red-300">
+            <div className="space-y-3 p-4 bg-white/80 rounded-md border border-red-300">
               <p className="text-sm font-semibold text-red-700 mb-2">
                 Are you absolutely sure? This action cannot be undone.
               </p>
@@ -995,7 +1075,7 @@ export default function ProfilePage() {
                   size="lg"
                   onClick={handleDeleteProfile}
                   disabled={deleting}
-                  className="flex-1 bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-700 hover:to-orange-700 text-white shadow-lg hover:shadow-xl transition-all"
+                  className="flex-1 bg-red-600 hover:bg-red-700 text-white shadow-lg hover:shadow-xl transition-all"
                 >
                   {deleting ? (
                     <>
@@ -1027,7 +1107,7 @@ export default function ProfilePage() {
           )}
 
           {error && (
-            <div className="p-4 bg-red-50 border-2 border-red-200 rounded-xl text-sm text-red-700 flex items-start gap-2">
+            <div className="p-4 bg-red-50 border border-red-200 rounded-md text-sm text-red-700 flex items-start gap-2">
               <AlertTriangle className="w-5 h-5 flex-shrink-0 mt-0.5" />
               <span>{error}</span>
             </div>

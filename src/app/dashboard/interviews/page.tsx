@@ -5,8 +5,16 @@ import { useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   FileText,
   PlayCircle,
@@ -14,9 +22,8 @@ import {
   CheckCircle,
   Loader2,
   Plus,
-  TrendingUp,
+  Award,
   Building2,
-  Briefcase,
   ChevronLeft,
   ChevronRight,
   ArrowRight,
@@ -26,16 +33,41 @@ import {
   MessageSquare,
   Sparkles,
   CalendarClock,
+  Target,
+  Percent,
+  Coins,
 } from "lucide-react";
 import { Interview, interviewApi, interviewScheduleApi } from "@/lib/api";
 import {
   cn,
   formatDate,
+  getInterviewCreditsUsed,
   getScoreColor,
   scheduledInterviewCanStartNow,
+  sumInterviewCreditsUsed,
 } from "@/lib/utils";
+import {
+  institutePrimaryClass,
+  instituteSecondaryClass,
+} from "@/components/institute/InstituteChrome";
+import { Progress } from "@/components/ui/progress";
 
 const ITEMS_PER_PAGE = 10;
+
+/** session.duration from API is seconds; whole minutes (ceil, min 1 when > 0). */
+function formatInterviewDurationMinutes(
+  durationSeconds: number | undefined,
+): string | null {
+  if (
+    typeof durationSeconds !== "number" ||
+    !Number.isFinite(durationSeconds) ||
+    durationSeconds <= 0
+  ) {
+    return null;
+  }
+  const mins = Math.max(1, Math.ceil(durationSeconds / 60));
+  return mins === 1 ? "1 min" : `${mins} min`;
+}
 
 export default function InterviewsPage() {
   const { user, isLoaded } = useUser();
@@ -46,6 +78,7 @@ export default function InterviewsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [listTab, setListTab] = useState<"history" | "scheduled">("history");
   const [startingScheduleId, setStartingScheduleId] = useState<string | null>(null);
+  const [videoUnavailableOpen, setVideoUnavailableOpen] = useState(false);
 
   useEffect(() => {
     if (isLoaded && user) {
@@ -88,26 +121,13 @@ export default function InterviewsPage() {
 
   const getStatusBadge = (status: string) => {
     const badges = {
-      completed: "bg-blue-100 text-[rgb(37,99,235)] border-blue-200",
-      processing: "bg-blue-100 text-[rgb(37,99,235)] border-blue-200",
+      completed: "bg-green-100 text-green-700 border-green-200",
+      processing: "bg-blue-100 text-blue-700 border-blue-200",
       active: "bg-yellow-100 text-yellow-700 border-yellow-200",
       draft: "bg-gray-100 text-gray-700 border-gray-200",
       failed: "bg-red-100 text-red-700 border-red-200",
     };
     return badges[status as keyof typeof badges] || badges.draft;
-  };
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case "completed":
-        return CheckCircle;
-      case "processing":
-        return Clock;
-      case "active":
-        return PlayCircle;
-      default:
-        return FileText;
-    }
   };
 
   // Pagination logic
@@ -170,6 +190,7 @@ export default function InterviewsPage() {
           0
         ) / scoredInterviews.length
       : 0;
+  const totalCreditsUsed = sumInterviewCreditsUsed(interviews);
 
   return (
     <div className="w-full max-w-7xl mx-auto space-y-4 lg:space-y-6">
@@ -320,57 +341,97 @@ export default function InterviewsPage() {
 
       {/* Quick Stats */}
       {interviews.length > 0 && (
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {/* Total Interviews */}
-          <div className="bg-gradient-to-br from-blue-50 to-blue-100/50 rounded-xl p-5 border border-blue-200/50 shadow-lg shadow-blue-500/10 hover:shadow-xl hover:shadow-blue-500/20 transition-all duration-300 backdrop-blur-sm">
-            <div className="flex items-start justify-between mb-4">
-              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[rgb(37,99,235)] to-blue-600 flex items-center justify-center flex-shrink-0 shadow-lg shadow-blue-500/30 ring-2 ring-blue-200/50">
-                <FileText className="w-6 h-6 text-white" />
-              </div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-2 xl:grid-cols-4">
+          <div className="flex min-h-0 min-w-0 items-start gap-3 rounded-md border border-blue-200/50 bg-gradient-to-br from-blue-50 to-blue-100/50 p-4 shadow-lg shadow-blue-500/10 backdrop-blur-sm transition-all duration-300 hover:shadow-xl hover:shadow-blue-500/20 sm:gap-4 sm:p-5">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[rgb(37,99,235)] to-blue-600 shadow-lg shadow-blue-500/30 ring-2 ring-blue-200/50 sm:h-12 sm:w-12">
+              <FileText className="h-5 w-5 text-white sm:h-6 sm:w-6" />
             </div>
-            <div className="mb-2">
-              <p className="text-xs sm:text-sm font-bold text-[rgb(37,99,235)] mb-1.5">Total Interviews</p>
-              <h3 className="text-3xl lg:text-4xl font-bold text-slate-900">
-                {interviews.length}
-              </h3>
+            <div className="min-w-0 flex-1 space-y-1.5">
+              <div className="flex items-center justify-between gap-2">
+                <p className="min-w-0 truncate text-xs font-bold leading-tight text-[rgb(37,99,235)] sm:text-sm">
+                  Total Interviews
+                </p>
+                <p className="shrink-0 text-right text-lg font-bold tabular-nums leading-none text-slate-900 sm:text-xl lg:text-2xl">
+                  {interviews.length}
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-1.5 text-xs font-medium text-slate-600 sm:text-sm">
+                <Clock className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
+                <span>All time</span>
+              </div>
             </div>
           </div>
 
-          {/* Completed */}
-          <div className="bg-gradient-to-br from-blue-50 to-blue-100/50 rounded-xl p-5 border border-blue-200/50 shadow-lg shadow-blue-500/10 hover:shadow-xl hover:shadow-blue-500/20 transition-all duration-300 backdrop-blur-sm">
-            <div className="flex items-start justify-between mb-4">
-              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[rgb(37,99,235)] to-blue-600 flex items-center justify-center flex-shrink-0 shadow-lg shadow-blue-500/30 ring-2 ring-blue-200/50">
-                <CheckCircle className="w-6 h-6 text-white" />
-              </div>
+          <div className="flex min-h-0 min-w-0 items-start gap-3 rounded-md border border-blue-200/50 bg-gradient-to-br from-blue-50 to-blue-100/50 p-4 shadow-lg shadow-blue-500/10 backdrop-blur-sm transition-all duration-300 hover:shadow-xl hover:shadow-blue-500/20 sm:gap-4 sm:p-5">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[rgb(37,99,235)] to-blue-600 shadow-lg shadow-blue-500/30 ring-2 ring-blue-200/50 sm:h-12 sm:w-12">
+              <Target className="h-5 w-5 text-white sm:h-6 sm:w-6" />
             </div>
-            <div className="mb-2">
-              <p className="text-xs sm:text-sm font-bold text-[rgb(37,99,235)] mb-1.5">Completed</p>
-              <h3 className="text-3xl lg:text-4xl font-bold text-slate-900">
-                {completedCount}
-              </h3>
-            </div>
-          </div>
-
-          {/* Average Score */}
-          {averageScore > 0 && (
-            <div className="bg-gradient-to-br from-blue-50 to-blue-100/50 rounded-xl p-5 border border-blue-200/50 shadow-lg shadow-blue-500/10 hover:shadow-xl hover:shadow-blue-500/20 transition-all duration-300 backdrop-blur-sm">
-              <div className="flex items-start justify-between mb-4">
-                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[rgb(37,99,235)] to-blue-600 flex items-center justify-center flex-shrink-0 shadow-lg shadow-blue-500/30 ring-2 ring-blue-200/50">
-                  <TrendingUp className="w-6 h-6 text-white" />
-                </div>
-              </div>
-              <div className="mb-2">
-                <p className="text-xs sm:text-sm font-bold text-[rgb(37,99,235)] mb-1.5">Average Score</p>
-                <h3
-                  className={`text-3xl lg:text-4xl font-bold ${getScoreColor(
-                    averageScore
-                  )}`}
+            <div className="min-w-0 flex-1 space-y-1.5">
+              <div className="flex items-center justify-between gap-2">
+                <p className="min-w-0 truncate text-xs font-bold leading-tight text-[rgb(37,99,235)] sm:text-sm">
+                  Average Score
+                </p>
+                <p
+                  className={cn(
+                    "shrink-0 text-right text-lg font-bold tabular-nums leading-none sm:text-xl lg:text-2xl",
+                    averageScore > 0
+                      ? getScoreColor(averageScore)
+                      : "text-slate-900",
+                  )}
                 >
-                  {Math.round(averageScore)}%
-                </h3>
+                  {Math.round(averageScore)}/100
+                </p>
+              </div>
+              <Progress
+                value={averageScore}
+                className="h-2 w-full overflow-hidden rounded-full border border-blue-300/90 bg-blue-100/90 shadow-[inset_0_1px_2px_rgba(0,0,0,0.06)] sm:h-2.5"
+              />
+              <div className="flex flex-wrap items-center gap-1.5 text-xs font-medium text-slate-600 sm:text-sm">
+                <Percent className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
+                <span>Out of 100</span>
               </div>
             </div>
-          )}
+          </div>
+
+          <div className="flex min-h-0 min-w-0 items-start gap-3 rounded-md border border-blue-200/50 bg-gradient-to-br from-blue-50 to-blue-100/50 p-4 shadow-lg shadow-blue-500/10 backdrop-blur-sm transition-all duration-300 hover:shadow-xl hover:shadow-blue-500/20 sm:gap-4 sm:p-5">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[rgb(37,99,235)] to-blue-600 shadow-lg shadow-blue-500/30 ring-2 ring-blue-200/50 sm:h-12 sm:w-12">
+              <Award className="h-5 w-5 text-white sm:h-6 sm:w-6" />
+            </div>
+            <div className="min-w-0 flex-1 space-y-1.5">
+              <div className="flex items-center justify-between gap-2">
+                <p className="min-w-0 truncate text-xs font-bold leading-tight text-[rgb(37,99,235)] sm:text-sm">
+                  Completed
+                </p>
+                <p className="shrink-0 text-right text-lg font-bold tabular-nums leading-none text-slate-900 sm:text-xl lg:text-2xl">
+                  {completedCount}
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-1.5 text-xs font-medium text-slate-600 sm:text-sm">
+                <CheckCircle className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
+                <span>Finished interviews</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex min-h-0 min-w-0 items-start gap-3 rounded-md border border-blue-200/50 bg-gradient-to-br from-blue-50 to-blue-100/50 p-4 shadow-lg shadow-blue-500/10 backdrop-blur-sm transition-all duration-300 hover:shadow-xl hover:shadow-blue-500/20 sm:col-span-2 sm:gap-4 sm:p-5 xl:col-span-1">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[rgb(37,99,235)] to-blue-600 shadow-lg shadow-blue-500/30 ring-2 ring-blue-200/50 sm:h-12 sm:w-12">
+              <Coins className="h-5 w-5 text-white sm:h-6 sm:w-6" />
+            </div>
+            <div className="min-w-0 flex-1 space-y-1.5">
+              <div className="flex items-center justify-between gap-2">
+                <p className="min-w-0 truncate text-xs font-bold leading-tight text-[rgb(37,99,235)] sm:text-sm">
+                  Credits used
+                </p>
+                <p className="shrink-0 text-right text-lg font-bold tabular-nums leading-none text-slate-900 sm:text-xl lg:text-2xl">
+                  {totalCreditsUsed}
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-1.5 text-xs font-medium text-slate-600 sm:text-sm">
+                <Coins className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
+                <span>From billed sessions</span>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
@@ -472,255 +533,259 @@ export default function InterviewsPage() {
       </div>
 
       {/* Interviews List — history tab */}
-      {listTab === "history" && interviews.length === 0 ? (
-        <Card className="border-2 border-blue-200/50 shadow-xl bg-white/95 backdrop-blur-sm">
-          <CardContent className="pt-16 pb-16 text-center">
-            <div className="w-24 h-24 bg-gradient-to-br from-blue-100 to-blue-200 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg">
-              <FileText className="w-12 h-12 text-[rgb(37,99,235)]" />
-            </div>
-            <h3 className="text-2xl font-bold text-slate-900 mb-3">
-              No interviews yet
-            </h3>
-            <p className="text-gray-600 mb-8 max-w-md mx-auto text-lg">
-              Start your first mock interview to get personalized feedback and
-              improve your interview skills
-            </p>
-            <Link href="/dashboard/interviews/new">
-              <Button
-                size="lg"
-                className="!bg-[rgb(37,99,235)] hover:!bg-[rgb(17,24,39)] text-white shadow-lg hover:shadow-xl transition-all"
-              >
-                <Plus className="w-5 h-5 mr-2" />
-                Start Your First Interview
-              </Button>
-            </Link>
-          </CardContent>
-        </Card>
-      ) : listTab === "history" ? (
-        <>
-          <div className="space-y-3">
-            {currentInterviews.map((interview) => {
-              const StatusIcon = getStatusIcon(interview.status);
-              return (
-                <div
-                  key={interview._id}
-                  className="bg-gradient-to-br from-blue-50 to-blue-100/50 rounded-xl p-4 border border-blue-200/50 shadow-lg shadow-blue-500/10 hover:shadow-xl hover:shadow-blue-500/20 transition-all duration-300 backdrop-blur-sm cursor-pointer group"
-                  onClick={() => {
-                    if (interview.status === "completed") {
-                      router.push(
-                        `/dashboard/interviews/${interview.interviewId}/report`
-                      );
-                    } else if (interview.status === "processing") {
-                      router.push(
-                        `/dashboard/interviews/${interview.interviewId}/processing`
-                      );
-                    } else {
-                      router.push(
-                        `/interview/${interview.interviewId}/realtime`
-                      );
-                    }
-                  }}
-                >
-                  <div className="flex items-start gap-4">
-                    {/* Interview Icon Avatar */}
-                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[rgb(37,99,235)] to-blue-600 flex items-center justify-center flex-shrink-0 shadow-lg shadow-blue-500/30 ring-2 ring-blue-200/50">
-                      <StatusIcon className="w-6 h-6 text-white" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      {/* Header with Role and Status */}
-                      <div className="flex items-start justify-between gap-3 mb-2 flex-wrap">
-                        <div className="flex-1 min-w-0">
-                          <h4 className="text-base sm:text-lg font-bold text-slate-900 mb-1">
+      {listTab === "history" ? (
+        <Card className="rounded-md border border-slate-200/80 bg-white shadow-sm">
+          <CardContent className="pb-6 pt-6">
+            {interviews.length === 0 ? (
+              <div className="py-16 text-center">
+                <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-md bg-gradient-to-br from-blue-100 to-blue-200 shadow-lg">
+                  <FileText className="h-10 w-10 text-[rgb(37,99,235)]" />
+                </div>
+                <h3 className="mb-2 text-xl font-bold text-slate-900">
+                  No interviews yet
+                </h3>
+                <p className="mx-auto mb-8 max-w-md text-gray-600">
+                  Start your first mock interview to get personalized feedback and
+                  improve your interview skills
+                </p>
+                <Link href="/dashboard/interviews/new">
+                  <Button
+                    size="lg"
+                    className="!bg-[rgb(37,99,235)] hover:!bg-[rgb(17,24,39)] text-white shadow-lg transition-all hover:shadow-xl"
+                  >
+                    <Plus className="mr-2 h-5 w-5" />
+                    Start Your First Interview
+                  </Button>
+                </Link>
+              </div>
+            ) : (
+              <>
+                <div className="divide-y divide-slate-100">
+                  {currentInterviews.map((interview) => {
+                    const durationLabel = formatInterviewDurationMinutes(
+                      interview.session?.duration,
+                    );
+                    const creditsUsed = getInterviewCreditsUsed(interview);
+                    return (
+                      <div
+                        key={interview._id}
+                        className="group flex min-w-0 flex-nowrap items-center justify-between gap-3 py-2.5 transition-colors first:pt-0 last:pb-0 hover:bg-slate-50/80"
+                      >
+                        <div className="min-w-0 flex-1 space-y-1">
+                          <h4 className="truncate text-sm font-semibold leading-tight text-slate-900">
                             {interview.metadata.role || "General Interview"}
                           </h4>
-                          <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm text-gray-600">
-                            <span className="flex items-center gap-1">
-                              <Clock className="w-3 h-3" />
-                              {formatDate(interview.createdAt)}
-                            </span>
-                            {interview.metadata.targetCompany && (
-                              <>
-                                <span>•</span>
-                                <span className="flex items-center gap-1">
-                                  <Building2 className="w-3 h-3" />
-                                  {interview.metadata.targetCompany}
-                                </span>
-                              </>
-                            )}
-                            {interview.metadata.experience > 0 && (
-                              <>
-                                <span>•</span>
-                                <span className="flex items-center gap-1">
-                                  <Briefcase className="w-3 h-3" />
-                                  {interview.metadata.experience} years exp
-                                </span>
-                              </>
-                            )}
-                            <span>•</span>
+                          <p className="flex flex-wrap items-center gap-x-1.5 text-xs leading-normal text-slate-500">
+                            <span>{formatDate(interview.createdAt)}</span>
+                            <span className="text-slate-300">·</span>
                             <span>
                               {interview.metadata.language === "hi"
                                 ? "Hindi"
                                 : "English"}
                             </span>
-                            {interview.report && (
+                            {interview.metadata.targetCompany ? (
                               <>
-                                <span>•</span>
-                                <span
-                                  className={`font-semibold ${getScoreColor(
-                                    interview.report.overallScore
-                                  )}`}
-                                >
-                                  Score: {interview.report.overallScore}/100
+                                <span className="text-slate-300">·</span>
+                                <span>{interview.metadata.targetCompany}</span>
+                              </>
+                            ) : null}
+                            {interview.metadata.experience > 0 ? (
+                              <>
+                                <span className="text-slate-300">·</span>
+                                <span className="tabular-nums">
+                                  {interview.metadata.experience} yrs
                                 </span>
                               </>
-                            )}
-                          </div>
+                            ) : null}
+                            {durationLabel ? (
+                              <>
+                                <span className="text-slate-300">·</span>
+                                <span className="tabular-nums text-slate-600">
+                                  {durationLabel}
+                                </span>
+                              </>
+                            ) : null}
+                            {creditsUsed != null ? (
+                              <>
+                                <span className="text-slate-300">·</span>
+                                <span className="tabular-nums text-slate-600">
+                                  {creditsUsed} credits
+                                </span>
+                              </>
+                            ) : null}
+                            {interview.report ? (
+                              <>
+                                <span className="text-slate-300">·</span>
+                                <span
+                                  className={cn(
+                                    "font-semibold tabular-nums",
+                                    getScoreColor(
+                                      interview.report.overallScore,
+                                    ),
+                                  )}
+                                >
+                                  {interview.report.overallScore}/100
+                                </span>
+                              </>
+                            ) : null}
+                            <span className="text-slate-300">·</span>
+                            <span
+                              className={cn(
+                                "inline-flex rounded-full border px-1.5 py-px text-[10px] font-semibold capitalize leading-none",
+                                getStatusBadge(interview.status),
+                              )}
+                            >
+                              {interview.status}
+                            </span>
+                          </p>
                         </div>
-                        <span
-                          className={`px-3 py-1 rounded-full text-xs font-semibold border flex-shrink-0 ${getStatusBadge(
-                            interview.status
-                          )}`}
-                        >
-                          {interview.status}
-                        </span>
-                      </div>
-
-                      {/* Action Buttons */}
-                      <div className="flex items-center gap-2 mt-3 flex-wrap">
-                        {interview.status === "completed" && (
-                          <>
-                            {(interview.session?.videoUrl ||
-                              interview.session?.s3VideoKey) && (
+                        <div className="flex shrink-0 flex-nowrap items-center justify-end gap-1.5 self-center">
+                          {interview.status === "completed" && (
+                            <>
                               <Button
                                 variant="outline"
-                                size="sm"
-                                className="border-blue-300 text-[rgb(37,99,235)] hover:!bg-[rgb(17,24,39)] hover:!text-white hover:border-[rgb(17,24,39)] transition-all"
-                                onClick={async (e) => {
-                                  e.stopPropagation();
+                                className={cn(
+                                  instituteSecondaryClass,
+                                  "size-8 shrink-0 p-0 [&_svg]:size-3.5",
+                                )}
+                                title="Play video"
+                                aria-label="Play interview video"
+                                onClick={async () => {
                                   try {
                                     const { videoUrl } =
                                       await interviewApi.getRecordingVideoUrl(
-                                        interview.interviewId
+                                        interview.interviewId,
                                       );
+                                    if (!videoUrl?.trim()) {
+                                      setVideoUnavailableOpen(true);
+                                      return;
+                                    }
                                     window.open(videoUrl, "_blank");
                                   } catch (error) {
                                     console.error(
                                       "Error getting video URL:",
-                                      error
+                                      error,
                                     );
-                                    alert(
-                                      "Failed to load video. Please try again."
-                                    );
+                                    setVideoUnavailableOpen(true);
                                   }
                                 }}
                               >
-                                <PlayCircle className="w-3.5 h-3.5 mr-1.5" />
-                                Play Video
+                                <PlayCircle className="size-3.5" />
                               </Button>
-                            )}
-                            <Link
-                              href={`/dashboard/interviews/${interview.interviewId}/report`}
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="border-blue-300 text-[rgb(37,99,235)] hover:!bg-[rgb(17,24,39)] hover:!text-white hover:border-[rgb(17,24,39)] transition-all"
+                              <Link
+                                href={`/dashboard/interviews/${interview.interviewId}/report`}
+                                className={cn(
+                                  buttonVariants({ variant: "outline" }),
+                                  instituteSecondaryClass,
+                                  "h-8 shrink-0 gap-1.5 px-2.5 py-0 text-xs leading-none no-underline",
+                                )}
                               >
-                                <CheckCircle className="w-3.5 h-3.5 mr-1.5" />
+                                <FileText className="size-3.5 shrink-0" />
                                 View Report
-                              </Button>
-                            </Link>
-                          </>
-                        )}
-                        {interview.status === "processing" && (
-                          <Link
-                            href={`/dashboard/interviews/${interview.interviewId}/processing`}
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="border-blue-300 text-[rgb(37,99,235)] hover:!bg-[rgb(17,24,39)] hover:!text-white hover:border-[rgb(17,24,39)] transition-all"
-                            >
-                              <Clock className="w-3.5 h-3.5 mr-1.5" />
-                              Processing
-                            </Button>
-                          </Link>
-                        )}
-                        {interview.status !== "completed" &&
-                          interview.status !== "processing" && (
+                              </Link>
+                            </>
+                          )}
+                          {interview.status === "processing" && (
                             <Link
-                              href={`/interview/${interview.interviewId}/realtime`}
-                              onClick={(e) => e.stopPropagation()}
+                              href={`/dashboard/interviews/${interview.interviewId}/processing`}
+                              className={cn(
+                                buttonVariants({ variant: "outline" }),
+                                instituteSecondaryClass,
+                                "h-8 shrink-0 gap-1.5 px-2.5 py-0 text-xs leading-none no-underline",
+                              )}
                             >
-                              <Button
-                                size="sm"
-                                className="!bg-[rgb(37,99,235)] hover:!bg-[rgb(17,24,39)] text-white shadow-md transition-all"
-                              >
-                                <PlayCircle className="w-3.5 h-3.5 mr-1.5" />
-                                Continue
-                              </Button>
+                              <Clock className="size-3.5 shrink-0" />
+                              Processing
                             </Link>
                           )}
+                          {interview.status === "draft" && (
+                            <Link
+                              href={`/interview/${interview.interviewId}/realtime`}
+                              className={cn(
+                                buttonVariants({ variant: "default" }),
+                                institutePrimaryClass,
+                                "h-8 shrink-0 gap-1 px-3 py-0 text-xs leading-none no-underline",
+                              )}
+                            >
+                              <PlayCircle className="size-3.5 shrink-0" />
+                              Start
+                            </Link>
+                          )}
+                          {interview.status !== "completed" &&
+                            interview.status !== "processing" &&
+                            interview.status !== "draft" && (
+                              <Link
+                                href={`/interview/${interview.interviewId}/realtime`}
+                                className={cn(
+                                  buttonVariants({ variant: "default" }),
+                                  institutePrimaryClass,
+                                  "h-8 shrink-0 gap-1 px-3 py-0 text-xs leading-none no-underline",
+                                )}
+                              >
+                                <PlayCircle className="size-3.5 shrink-0" />
+                                Continue
+                              </Link>
+                            )}
+                        </div>
                       </div>
+                    );
+                  })}
+                </div>
+
+                {totalPages > 1 && (
+                  <div className="mt-6 flex flex-col gap-4 border-t border-slate-200 pt-4 sm:flex-row sm:items-center sm:justify-between">
+                    <p className="text-sm text-gray-600">
+                      Page {currentPage} of {totalPages}
+                    </p>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => goToPage(currentPage - 1)}
+                        disabled={currentPage === 1}
+                        className="border-blue-300 text-[rgb(37,99,235)] transition-all hover:!border-[rgb(17,24,39)] hover:!bg-[rgb(17,24,39)] hover:!text-white disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        <ChevronLeft className="mr-1 h-4 w-4" />
+                        Previous
+                      </Button>
+
+                      <div className="flex flex-wrap items-center gap-1">
+                        {getPageNumbers().map((pageNum) => (
+                          <Button
+                            key={pageNum}
+                            variant={
+                              currentPage === pageNum ? "default" : "outline"
+                            }
+                            size="sm"
+                            onClick={() => goToPage(pageNum)}
+                            className={
+                              currentPage === pageNum
+                                ? "!bg-[rgb(37,99,235)] border-0 text-white hover:!bg-[rgb(17,24,39)]"
+                                : "border-blue-300 text-[rgb(37,99,235)] transition-all hover:!border-[rgb(17,24,39)] hover:!bg-[rgb(17,24,39)] hover:!text-white"
+                            }
+                          >
+                            {pageNum}
+                          </Button>
+                        ))}
+                      </div>
+
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => goToPage(currentPage + 1)}
+                        disabled={currentPage === totalPages}
+                        className="border-blue-300 text-[rgb(37,99,235)] transition-all hover:!border-[rgb(17,24,39)] hover:!bg-[rgb(17,24,39)] hover:!text-white disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        Next
+                        <ChevronRight className="ml-1 h-4 w-4" />
+                      </Button>
                     </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-              <p className="text-sm text-gray-600">
-                Page {currentPage} of {totalPages}
-              </p>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => goToPage(currentPage - 1)}
-                  disabled={currentPage === 1}
-                  className="border-blue-300 text-[rgb(37,99,235)] hover:!bg-[rgb(17,24,39)] hover:!text-white hover:border-[rgb(17,24,39)] disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                >
-                  <ChevronLeft className="w-4 h-4 mr-1" />
-                  Previous
-                </Button>
-
-                <div className="flex items-center gap-1">
-                  {getPageNumbers().map((pageNum) => (
-                    <Button
-                      key={pageNum}
-                      variant={currentPage === pageNum ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => goToPage(pageNum)}
-                      className={
-                        currentPage === pageNum
-                          ? "!bg-[rgb(37,99,235)] hover:!bg-[rgb(17,24,39)] text-white border-0"
-                          : "border-blue-300 text-[rgb(37,99,235)] hover:!bg-[rgb(17,24,39)] hover:!text-white hover:border-[rgb(17,24,39)] transition-all"
-                      }
-                    >
-                      {pageNum}
-                    </Button>
-                  ))}
-                </div>
-
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => goToPage(currentPage + 1)}
-                  disabled={currentPage === totalPages}
-                  className="border-blue-300 text-[rgb(37,99,235)] hover:!bg-[rgb(17,24,39)] hover:!text-white hover:border-[rgb(17,24,39)] disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                >
-                  Next
-                  <ChevronRight className="w-4 h-4 ml-1" />
-                </Button>
-              </div>
-            </div>
-          )}
-        </>
+                )}
+              </>
+            )}
+          </CardContent>
+        </Card>
       ) : (
         /* Scheduled tab */
         <div className="space-y-3">
@@ -823,6 +888,30 @@ export default function InterviewsPage() {
           )}
         </div>
       )}
+
+      <Dialog
+        open={videoUnavailableOpen}
+        onOpenChange={setVideoUnavailableOpen}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>No video available</DialogTitle>
+            <DialogDescription>
+              This interview does not have a recording, or the video could not
+              be loaded. If you just finished the interview, try again in a few
+              minutes.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              type="button"
+              onClick={() => setVideoUnavailableOpen(false)}
+            >
+              OK
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

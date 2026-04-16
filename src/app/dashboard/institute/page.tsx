@@ -3,10 +3,8 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
-import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import { userApi, adminApi } from "@/lib/api";
-import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -14,7 +12,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Building2 } from "lucide-react";
+import { Building2, Loader2 } from "lucide-react";
 
 /**
  * Entry: institution admins redirect to their org dashboard;
@@ -79,18 +77,17 @@ export default function InstituteHubPage() {
             <p className="text-slate-500">No institutions yet.</p>
           ) : (
             institutions.map((inst) => (
-              <div
+              <Link
                 key={inst._id}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 bg-slate-50/80 px-3 py-2"
+                href={`/dashboard/institute/${inst._id}`}
+                className="flex cursor-pointer flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 bg-slate-50/80 px-3 py-2 transition-colors hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40"
               >
                 <div>
                   <p className="font-medium text-slate-900">{inst.name}</p>
                   <p className="text-xs text-slate-500">{inst.slug}</p>
                 </div>
-                <Button asChild size="sm">
-                  <Link href={`/dashboard/institute/${inst._id}`}>Open dashboard</Link>
-                </Button>
-              </div>
+                <span className="text-sm font-semibold text-blue-700">Open dashboard</span>
+              </Link>
             ))
           )}
         </CardContent>

@@ -25,6 +25,7 @@ import {
   Receipt,
   Layers,
   Lock,
+  BarChart2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { userApi, AccessRole } from "@/lib/api";
@@ -40,12 +41,12 @@ const baseMenuItems = [
     icon: LayoutDashboard,
   },
   {
-    title: "Resumes",
+    title: "Build Resumes",
     href: "/dashboard/resumes",
     icon: FileEdit,
   },
   {
-    title: "Interviews",
+    title: "Practice Interview",
     href: "/dashboard/interviews",
     icon: FileText,
   },
@@ -60,12 +61,12 @@ const baseMenuItems = [
     icon: BarChart3,
   },
   {
-    title: "Your Plan",
+    title: "Subscription",
     href: "/dashboard/plan",
     icon: Crown,
   },
   {
-    title: "Your Profile",
+    title: "My Profile",
     href: "/dashboard/profile",
     icon: User,
   },
@@ -87,7 +88,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         .then((profile) => {
           setAccessRole(profile.accessRole || "user");
           setInstitutionId(
-            profile.institutionId ? String(profile.institutionId) : null
+            profile.institutionId ? String(profile.institutionId) : null,
           );
         })
         .catch(() => {
@@ -120,6 +121,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         { title: "Candidates", href: `${base}/candidates`, icon: Users },
         { title: "Batches", href: `${base}/batches`, icon: Layers },
         { title: "Schedules", href: `${base}/schedules`, icon: CalendarClock },
+        { title: "Analytics", href: `${base}/analytics`, icon: BarChart2 },
         { title: "Institution", href: `${base}/settings`, icon: Settings },
         { title: "Plans & payments", href: `${base}/billing`, icon: Receipt },
         { title: "Your Profile", href: "/dashboard/profile", icon: User },
@@ -262,7 +264,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                     : item.href !== "/dashboard" &&
                       (pathname?.startsWith(`${item.href}/`) ?? false));
 
-                const isPeerInterviews = item.href === "/dashboard/peer-interviews";
+                const isPeerInterviews =
+                  item.href === "/dashboard/peer-interviews";
 
                 return (
                   <Link

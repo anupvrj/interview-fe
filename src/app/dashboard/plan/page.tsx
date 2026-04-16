@@ -12,7 +12,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
 import { Input } from "@/components/ui/input";
 import {
   Crown,
@@ -344,40 +343,40 @@ export default function PlanPage() {
   const nextPlan = subscription?.plan ? getNextPlan(subscription.plan) : null;
 
   return (
-    <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6 lg:space-y-8 py-6 lg:py-8">
+    <div className="w-full max-w-7xl mx-auto space-y-4 lg:space-y-6">
       {/* Hero Header Section */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-600 via-blue-700 to-blue-800 p-8 lg:p-10 text-white shadow-2xl">
+      <div className="relative overflow-hidden rounded-md bg-gradient-to-br from-blue-600 via-blue-700 to-blue-800 px-4 py-3 sm:px-5 sm:py-4 text-white shadow-lg">
         <div className="relative z-10">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center shadow-lg">
-              <Crown className="w-6 h-6" />
+          <div className="mb-1.5 flex min-w-0 items-center gap-2.5">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-white/20 shadow-sm backdrop-blur-sm sm:h-9 sm:w-9">
+              <Crown className="h-4 w-4" />
             </div>
-            <h1 className="text-3xl sm:text-4xl font-bold text-white">
+            <h1 className="truncate text-lg font-bold leading-tight text-white sm:text-xl lg:text-2xl">
               Subscription & Credits
             </h1>
           </div>
-          <p className="text-base lg:text-lg text-white/90 max-w-2xl">
+          <p className="max-w-2xl text-[10px] leading-tight text-white/85 sm:text-xs md:text-sm">
             Manage your subscription, purchase credits, and unlock premium
             features
           </p>
         </div>
-        <div className="absolute inset-0 bg-gradient-to-r from-blue-600/50 to-transparent opacity-50"></div>
-        <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl"></div>
-        <div className="absolute bottom-0 left-0 w-48 h-48 bg-blue-500/20 rounded-full blur-2xl"></div>
+        <div className="absolute inset-0 bg-gradient-to-r from-blue-600/40 to-transparent opacity-40"></div>
+        <div className="absolute right-0 top-0 h-44 w-44 rounded-full bg-white/10 blur-3xl"></div>
+        <div className="absolute bottom-0 left-0 h-32 w-32 rounded-full bg-blue-500/20 blur-2xl"></div>
       </div>
 
       {/* Main Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {/* Left Column - Current Plan + Upgrade card */}
-        <div className="space-y-6 lg:space-y-8">
-          <Card className="border-2 border-blue-200/50 shadow-xl bg-white/95 backdrop-blur-sm h-fit">
+        <div className="space-y-4">
+          <Card className="h-fit rounded-md border border-slate-200/80 bg-white shadow-sm">
             <CardHeader className="pb-4">
               <div className="flex items-center gap-3 mb-2">
-                <div className="w-12 h-12 bg-gradient-to-br from-[rgb(37,99,235)] to-blue-600 rounded-xl flex items-center justify-center shadow-md">
-                  <Crown className="w-6 h-6 text-white" />
+                <div className="flex h-10 w-10 items-center justify-center rounded-md bg-gradient-to-br from-[rgb(37,99,235)] to-blue-600 shadow-lg shadow-blue-500/30 ring-2 ring-blue-200/50">
+                  <Crown className="h-5 w-5 text-white" />
                 </div>
                 <div>
-                  <CardTitle className="text-2xl font-bold">
+                  <CardTitle className="text-xl font-bold text-slate-900">
                     {planName}
                   </CardTitle>
                   <CardDescription className="text-sm mt-1">
@@ -386,9 +385,9 @@ export default function PlanPage() {
                 </div>
               </div>
             </CardHeader>
-            <CardContent className="space-y-5">
+            <CardContent className="space-y-4">
               {/* Credit Usage for Interviews */}
-              <div className="p-6 bg-gradient-to-br from-blue-50 to-blue-100/50 rounded-xl border-2 border-blue-200/50">
+              <div className="rounded-md border border-slate-200 bg-slate-50/80 p-4">
                 <div className="flex items-center justify-between mb-4">
                   <div>
                     <span className="text-sm font-semibold text-gray-700 block mb-1">
@@ -405,7 +404,7 @@ export default function PlanPage() {
                     <span className="text-xs text-gray-500">available</span>
                   </div>
                 </div>
-                <div className="space-y-2 pt-3 border-t border-blue-200">
+                <div className="space-y-2 border-t border-slate-200 pt-3">
                   <div className="flex justify-between text-xs text-gray-600">
                     <span>30-min interview</span>
                     <span className="font-semibold">150 credits</span>
@@ -425,9 +424,9 @@ export default function PlanPage() {
 
               {/* Renewal Date */}
               {subscription?.currentPeriodEnd && (
-                <div className="flex items-center gap-4 p-5 bg-gradient-to-br from-blue-50 to-blue-100/50 rounded-xl border-2 border-blue-200/50">
-                  <div className="w-12 h-12 bg-gradient-to-br from-[rgb(37,99,235)] to-blue-600 rounded-xl flex items-center justify-center flex-shrink-0 shadow-md">
-                    <Calendar className="w-6 h-6 text-white" />
+                <div className="flex items-center gap-3 rounded-md border border-slate-200 bg-slate-50/80 p-4">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-gradient-to-br from-[rgb(37,99,235)] to-blue-600 shadow-lg shadow-blue-500/30 ring-2 ring-blue-200/50">
+                    <Calendar className="h-5 w-5 text-white" />
                   </div>
                   <div className="flex-1">
                     <p className="text-sm font-semibold text-gray-900 mb-1">
@@ -448,9 +447,9 @@ export default function PlanPage() {
                 subscription?.status === "active" &&
                 subscription?.autoRenew && (
                   <div className="pt-2">
-                    <div className="h-px bg-gradient-to-r from-transparent via-gray-300 to-transparent mb-5"></div>
+                    <div className="mb-4 h-px bg-slate-200"></div>
                     {!showCancelConfirm ? (
-                      <div className="p-5 bg-gradient-to-br from-red-50 to-red-100/50 rounded-xl border-2 border-red-200/50">
+                      <div className="rounded-md border border-red-200 bg-red-50 p-4">
                         <div className="flex items-start gap-4 mb-4">
                           <AlertTriangle className="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" />
                           <div>
@@ -475,7 +474,7 @@ export default function PlanPage() {
                         </Button>
                       </div>
                     ) : (
-                      <div className="p-5 bg-gradient-to-br from-red-50 to-red-100/50 rounded-xl border-2 border-red-200/50">
+                      <div className="rounded-md border border-red-200 bg-red-50 p-4">
                         <p className="text-sm font-semibold text-gray-900 mb-4">
                           Are you sure you want to cancel?
                         </p>
@@ -519,8 +518,8 @@ export default function PlanPage() {
                 subscription?.currentPeriodEnd &&
                 new Date(subscription.currentPeriodEnd) > new Date() && (
                   <div className="pt-2">
-                    <div className="h-px bg-gradient-to-r from-transparent via-gray-300 to-transparent mb-5"></div>
-                    <div className="p-5 bg-gradient-to-br from-green-50 to-green-100/50 rounded-xl border-2 border-green-200/50">
+                    <div className="mb-4 h-px bg-slate-200"></div>
+                    <div className="rounded-md border border-green-200 bg-green-50 p-4">
                       <div className="flex items-start gap-4 mb-4">
                         <Sparkles className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
                         <div>
@@ -566,15 +565,15 @@ export default function PlanPage() {
 
           {/* Upgrade card - right after current plan */}
           {nextPlan && (
-            <Card className="border-2 border-purple-200/50 shadow-xl bg-gradient-to-br from-purple-50/50 to-white backdrop-blur-sm">
-              <CardContent className="pt-6 pb-6">
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-5 p-6 bg-gradient-to-br from-purple-50 to-purple-100/50 rounded-xl border-2 border-purple-200/50">
+            <Card className="rounded-md border border-slate-200/80 bg-white shadow-sm">
+              <CardContent className="py-5">
+                <div className="flex flex-col items-start justify-between gap-4 rounded-md border border-slate-200 bg-slate-50/80 p-4 sm:flex-row sm:items-center">
                   <div className="flex items-start gap-4">
-                    <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl flex items-center justify-center flex-shrink-0 shadow-md">
-                      <Zap className="w-6 h-6 text-white" />
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-gradient-to-br from-purple-500 to-purple-600 shadow-lg shadow-purple-500/30">
+                      <Zap className="h-5 w-5 text-white" />
                     </div>
                     <div>
-                      <h3 className="font-bold text-xl text-slate-900 mb-1">
+                      <h3 className="mb-1 text-lg font-bold text-slate-900">
                         Upgrade to a higher plan and save more
                       </h3>
                       <p className="text-gray-600 text-sm">
@@ -586,7 +585,7 @@ export default function PlanPage() {
                   <Link href="/pricing" className="w-full sm:w-auto shrink-0">
                     <Button
                       size="lg"
-                      className="w-full sm:w-auto h-12 !bg-purple-600 hover:!bg-purple-700 text-white shadow-lg hover:shadow-xl transition-all"
+                      className="w-full sm:w-auto !bg-purple-600 text-white shadow-lg transition-all hover:!bg-purple-700 hover:shadow-xl"
                     >
                       View all plans
                       <ArrowRight className="w-5 h-5 ml-2" />
@@ -599,29 +598,29 @@ export default function PlanPage() {
         </div>
 
         {/* Right Column - Credit Balance & Purchase */}
-        <Card className="border-2 border-emerald-200/50 shadow-xl bg-white/95 backdrop-blur-sm h-fit">
+        <Card className="h-fit rounded-md border border-slate-200/80 bg-white shadow-sm">
           <CardHeader className="pb-4">
             <div className="flex items-center gap-3 mb-2">
-              <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl flex items-center justify-center shadow-md">
-                <Coins className="w-6 h-6 text-white" />
+              <div className="flex h-10 w-10 items-center justify-center rounded-md bg-gradient-to-br from-emerald-500 to-emerald-600 shadow-lg shadow-emerald-500/30">
+                <Coins className="h-5 w-5 text-white" />
               </div>
               <div>
-                <CardTitle className="text-2xl font-bold">Credits</CardTitle>
+                <CardTitle className="text-xl font-bold text-slate-900">Credits</CardTitle>
                 <CardDescription className="text-sm mt-1">
                   1 credit = ₹1
                 </CardDescription>
               </div>
             </div>
           </CardHeader>
-          <CardContent className="space-y-5">
+          <CardContent className="space-y-4">
             {/* Current Balance */}
-            <div className="p-6 bg-gradient-to-br from-emerald-50 to-emerald-100/50 rounded-xl border-2 border-emerald-200/50">
+            <div className="rounded-md border border-slate-200 bg-slate-50/80 p-4">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-gray-600 mb-2">
                     Available Balance
                   </p>
-                  <p className="text-4xl lg:text-5xl font-bold text-emerald-600">
+                  <p className="text-3xl font-bold text-emerald-600 lg:text-4xl">
                     {creditBalance?.available || 0}
                   </p>
                   <p className="text-xs text-gray-500 mt-2">
@@ -629,19 +628,19 @@ export default function PlanPage() {
                     {creditBalance?.used || 0}
                   </p>
                 </div>
-                <div className="w-16 h-16 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl flex items-center justify-center shadow-lg">
-                  <Coins className="w-9 h-9 text-white" />
+                <div className="flex h-12 w-12 items-center justify-center rounded-md bg-gradient-to-br from-emerald-500 to-emerald-600 shadow-lg shadow-emerald-500/30">
+                  <Coins className="h-7 w-7 text-white" />
                 </div>
               </div>
             </div>
 
             {/* Purchase Credits */}
-            <div className="p-6 bg-gradient-to-br from-emerald-50 to-emerald-100/50 rounded-xl border-2 border-emerald-200/50">
+            <div className="rounded-md border border-slate-200 bg-slate-50/80 p-4">
               <h4 className="font-bold text-lg text-gray-900 mb-4 flex items-center gap-2">
                 <Sparkles className="w-5 h-5 text-emerald-600" />
                 Purchase Credits
               </h4>
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+              <div className="mb-4 rounded-md border border-blue-200 bg-blue-50 p-3">
                 <div className="flex items-start gap-2">
                   <Coins className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
                   <div className="text-xs text-blue-800">
@@ -687,7 +686,7 @@ export default function PlanPage() {
                     !!creditAmountError
                   }
                   size="lg"
-                  className="w-full !bg-emerald-600 hover:!bg-emerald-700 text-white shadow-lg hover:shadow-xl transition-all h-12 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="h-11 w-full !bg-emerald-600 text-white shadow-lg transition-all hover:!bg-emerald-700 hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {purchasingCredits ? (
                     <>
@@ -709,17 +708,17 @@ export default function PlanPage() {
 
       {/* Highest Plan Message */}
       {!nextPlan && subscription?.plan !== "free" && (
-        <Card className="border-2 border-amber-200/50 shadow-xl bg-gradient-to-br from-amber-50/50 to-white backdrop-blur-sm">
-          <CardContent className="pt-6 pb-6">
-            <div className="flex items-start gap-5 p-6 bg-gradient-to-br from-amber-50 to-amber-100/50 rounded-xl border-2 border-amber-200/50">
-              <div className="w-14 h-14 bg-gradient-to-br from-amber-500 to-amber-600 rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg">
-                <Sparkles className="w-7 h-7 text-white" />
+        <Card className="rounded-md border border-slate-200/80 bg-white shadow-sm">
+          <CardContent className="py-5">
+            <div className="flex items-start gap-4 rounded-md border border-slate-200 bg-slate-50/80 p-4">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-gradient-to-br from-amber-500 to-amber-600 shadow-lg shadow-amber-500/30">
+                <Sparkles className="h-5 w-5 text-white" />
               </div>
               <div className="flex-1">
-                <h3 className="font-bold text-xl text-slate-900 mb-2">
+                <h3 className="mb-1 text-lg font-bold text-slate-900">
                   🎉 You're on our highest plan!
                 </h3>
-                <p className="text-base text-gray-700">
+                <p className="text-sm text-gray-700">
                   Enjoy all premium features and unlimited benefits. Thank you
                   for being a valued member!
                 </p>

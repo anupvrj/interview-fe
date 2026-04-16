@@ -4,8 +4,15 @@ import { useEffect, useState } from "react";
 import { useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Button, buttonVariants } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import {
   Dialog,
@@ -32,11 +39,19 @@ import {
   FileCheck,
   Brain,
   GripVertical,
+  Target,
+  Percent,
+  Award,
 } from "lucide-react";
 import Image from "next/image";
 import { API_URL, Resume, resumeApi } from "@/lib/api";
 import { TEMPLATES_CATALOG } from "@/configs/resume-templates/templates-catalog";
-import { formatDate } from "@/lib/utils";
+import {
+  cn,
+  formatDate,
+  getScoreColor,
+} from "@/lib/utils";
+import { instituteSecondaryClass } from "@/components/institute/InstituteChrome";
 
 function resumeCardThumbnailSrc(resume: Resume): string | null {
   if (resume.thumbnailS3Key) {
@@ -287,20 +302,26 @@ export default function ResumesPage() {
     );
   }
 
-  const averageATSScore =
-    resumes.length > 0
-      ? resumes
-          .filter((r) => r.atsScore)
-          .reduce((sum, r) => sum + (r.atsScore || 0), 0) /
-        resumes.filter((r) => r.atsScore).length
+  const resumesWithAts = resumes.filter(
+    (r) => typeof r.atsScore === "number" && Number.isFinite(r.atsScore),
+  );
+  const avgAts =
+    resumesWithAts.length > 0
+      ? Math.round(
+          resumesWithAts.reduce((s, r) => s + (r.atsScore ?? 0), 0) /
+            resumesWithAts.length,
+        )
       : 0;
+  const atsReadyCount = resumes.filter(
+    (r) => typeof r.atsScore === "number" && r.atsScore >= 80,
+  ).length;
 
   return (
     <div className="w-full max-w-7xl mx-auto space-y-4 lg:space-y-6">
       {/* Resume Builder Hero Section */}
-      <section className="pt-4 sm:pt-6 pb-8 sm:pb-12 md:pb-16 px-4 sm:px-6 overflow-hidden bg-blue-50 relative rounded-2xl">
+      <section className="relative overflow-hidden rounded-md bg-blue-50 px-4 pb-8 pt-4 sm:px-6 sm:pb-12 sm:pt-6 md:pb-16">
         {/* Animated Background Elements */}
-        <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-2xl">
+        <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-md">
           {[...Array(8)].map((_, i) => (
             <div
               key={i}
@@ -415,7 +436,7 @@ export default function ResumesPage() {
 
             {/* Right Section - Animated Resume Builder Preview */}
             <div className="relative flex justify-center lg:justify-start">
-              <div className="relative rounded-lg sm:rounded-xl shadow-2xl overflow-hidden bg-white w-full max-w-[600px] sm:max-w-[700px] border-2 sm:border-4 border-blue-100">
+              <div className="relative w-full max-w-[600px] overflow-hidden rounded-md border border-slate-200/80 bg-white shadow-lg sm:max-w-[700px]">
                 {/* Resume Builder Header */}
                 <div className="p-4 sm:p-6 bg-gradient-to-br from-blue-50 to-indigo-50 border-b border-gray-200">
                   <div className="flex items-center justify-between mb-3">
@@ -711,265 +732,304 @@ export default function ResumesPage() {
 
       {/* Quick Stats */}
       {resumes.length > 0 && (
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {/* Total Resumes */}
-          <div className="bg-gradient-to-br from-blue-50 to-blue-100/50 rounded-xl p-5 border border-blue-200/50 shadow-lg shadow-blue-500/10 hover:shadow-xl hover:shadow-blue-500/20 transition-all duration-300 backdrop-blur-sm">
-            <div className="flex items-start justify-between mb-4">
-              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[rgb(37,99,235)] to-blue-600 flex items-center justify-center flex-shrink-0 shadow-lg shadow-blue-500/30 ring-2 ring-blue-200/50">
-                <FileText className="w-6 h-6 text-white" />
-              </div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
+          <div className="flex min-h-0 min-w-0 items-start gap-3 rounded-md border border-blue-200/50 bg-gradient-to-br from-blue-50 to-blue-100/50 p-4 shadow-lg shadow-blue-500/10 backdrop-blur-sm transition-all duration-300 hover:shadow-xl hover:shadow-blue-500/20 sm:gap-4 sm:p-5">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[rgb(37,99,235)] to-blue-600 shadow-lg shadow-blue-500/30 ring-2 ring-blue-200/50 sm:h-12 sm:w-12">
+              <FileEdit className="h-5 w-5 text-white sm:h-6 sm:w-6" />
             </div>
-            <div className="mb-2">
-              <p className="text-xs sm:text-sm font-bold text-[rgb(37,99,235)] mb-1.5">
-                Total Resumes
-              </p>
-              <h3 className="text-3xl lg:text-4xl font-bold text-slate-900">
-                {resumes.length}
-              </h3>
+            <div className="min-w-0 flex-1 space-y-1.5">
+              <div className="flex items-center justify-between gap-2">
+                <p className="min-w-0 truncate text-xs font-bold leading-tight text-[rgb(37,99,235)] sm:text-sm">
+                  Total resumes
+                </p>
+                <p className="shrink-0 text-right text-lg font-bold tabular-nums leading-none text-slate-900 sm:text-xl lg:text-2xl">
+                  {resumes.length}
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-1.5 text-xs font-medium text-slate-600 sm:text-sm">
+                <FileText className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
+                <span>In builder</span>
+              </div>
             </div>
           </div>
 
-          {/* Average ATS Score */}
-          {averageATSScore > 0 && (
-            <div className="bg-gradient-to-br from-blue-50 to-blue-100/50 rounded-xl p-5 border border-blue-200/50 shadow-lg shadow-blue-500/10 hover:shadow-xl hover:shadow-blue-500/20 transition-all duration-300 backdrop-blur-sm">
-              <div className="flex items-start justify-between mb-4">
-                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[rgb(37,99,235)] to-blue-600 flex items-center justify-center flex-shrink-0 shadow-lg shadow-blue-500/30 ring-2 ring-blue-200/50">
-                  <TrendingUp className="w-6 h-6 text-white" />
-                </div>
-              </div>
-              <div className="mb-2">
-                <p className="text-xs sm:text-sm font-bold text-[rgb(37,99,235)] mb-1.5">
-                  Avg ATS Score
+          <div className="flex min-h-0 min-w-0 items-start gap-3 rounded-md border border-blue-200/50 bg-gradient-to-br from-blue-50 to-blue-100/50 p-4 shadow-lg shadow-blue-500/10 backdrop-blur-sm transition-all duration-300 hover:shadow-xl hover:shadow-blue-500/20 sm:gap-4 sm:p-5">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[rgb(37,99,235)] to-blue-600 shadow-lg shadow-blue-500/30 ring-2 ring-blue-200/50 sm:h-12 sm:w-12">
+              <Target className="h-5 w-5 text-white sm:h-6 sm:w-6" />
+            </div>
+            <div className="min-w-0 flex-1 space-y-1.5">
+              <div className="flex items-center justify-between gap-2">
+                <p className="min-w-0 truncate text-xs font-bold leading-tight text-[rgb(37,99,235)] sm:text-sm">
+                  Average ATS
                 </p>
-                <h3
-                  className={`text-3xl lg:text-4xl font-bold ${
-                    averageATSScore >= 80
-                      ? "text-green-600"
-                      : averageATSScore >= 70
-                        ? "text-yellow-600"
-                        : "text-red-600"
-                  }`}
+                <p
+                  className={cn(
+                    "shrink-0 text-right text-lg font-bold tabular-nums leading-none sm:text-xl lg:text-2xl",
+                    resumesWithAts.length > 0
+                      ? getScoreColor(avgAts)
+                      : "text-slate-900",
+                  )}
                 >
-                  {Math.round(averageATSScore)}%
-                </h3>
+                  {resumesWithAts.length > 0 ? `${avgAts}/100` : "—"}
+                </p>
+              </div>
+              <Progress
+                value={avgAts}
+                className="h-2 w-full overflow-hidden rounded-full border border-blue-300/90 bg-blue-100/90 shadow-[inset_0_1px_2px_rgba(0,0,0,0.06)] sm:h-2.5"
+              />
+              <div className="flex flex-wrap items-center gap-1.5 text-xs font-medium text-slate-600 sm:text-sm">
+                <Percent className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
+                <span>
+                  {resumesWithAts.length > 0
+                    ? `${resumesWithAts.length} scored`
+                    : "No ATS run yet"}
+                </span>
               </div>
             </div>
-          )}
+          </div>
 
-          {/* ATS Ready */}
-          <div className="bg-gradient-to-br from-blue-50 to-blue-100/50 rounded-xl p-5 border border-blue-200/50 shadow-lg shadow-blue-500/10 hover:shadow-xl hover:shadow-blue-500/20 transition-all duration-300 backdrop-blur-sm">
-            <div className="flex items-start justify-between mb-4">
-              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[rgb(37,99,235)] to-blue-600 flex items-center justify-center flex-shrink-0 shadow-lg shadow-blue-500/30 ring-2 ring-blue-200/50">
-                <CheckCircle className="w-6 h-6 text-white" />
-              </div>
+          <div className="flex min-h-0 min-w-0 items-start gap-3 rounded-md border border-blue-200/50 bg-gradient-to-br from-blue-50 to-blue-100/50 p-4 shadow-lg shadow-blue-500/10 backdrop-blur-sm transition-all duration-300 hover:shadow-xl hover:shadow-blue-500/20 sm:col-span-2 sm:gap-4 sm:p-5 lg:col-span-1">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[rgb(37,99,235)] to-blue-600 shadow-lg shadow-blue-500/30 ring-2 ring-blue-200/50 sm:h-12 sm:w-12">
+              <Award className="h-5 w-5 text-white sm:h-6 sm:w-6" />
             </div>
-            <div className="mb-2">
-              <p className="text-xs sm:text-sm font-bold text-[rgb(37,99,235)] mb-1.5">
-                ATS Ready
-              </p>
-              <h3 className="text-3xl lg:text-4xl font-bold text-slate-900">
-                {resumes.filter((r) => r.atsScore && r.atsScore >= 80).length}
-              </h3>
+            <div className="min-w-0 flex-1 space-y-1.5">
+              <div className="flex items-center justify-between gap-2">
+                <p className="min-w-0 truncate text-xs font-bold leading-tight text-[rgb(37,99,235)] sm:text-sm">
+                  ATS ready (≥80)
+                </p>
+                <p className="shrink-0 text-right text-lg font-bold tabular-nums leading-none text-slate-900 sm:text-xl lg:text-2xl">
+                  {atsReadyCount}
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-1.5 text-xs font-medium text-slate-600 sm:text-sm">
+                <CheckCircle className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
+                <span>Strong ATS scores</span>
+              </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Action Header */}
-      <div>
-        <h2 className="text-xl lg:text-2xl font-bold text-gray-900">
-          Your Resumes
-        </h2>
-        <p className="text-gray-600 mt-1">
-          {resumes.length === 0
-            ? "Create your first resume to get started"
-            : `Showing ${resumes.length} resume${
-                resumes.length === 1 ? "" : "s"
-              }`}
-        </p>
-      </div>
-
-      {/* Resumes List */}
-      {resumes.length === 0 ? (
-        <Card className="border-2 border-blue-200/50 shadow-xl bg-white/95 backdrop-blur-sm">
-          <CardContent className="pt-16 pb-16 text-center">
-            <div className="w-24 h-24 bg-gradient-to-br from-blue-100 to-blue-200 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg">
-              <FileEdit className="w-12 h-12 text-[rgb(37,99,235)]" />
+      <Card className="rounded-md border border-slate-200/80 bg-white shadow-sm">
+        <CardHeader className="pb-4">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <div className="mb-2 flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-md bg-gradient-to-br from-[rgb(37,99,235)] to-blue-600 shadow-lg shadow-blue-500/30 ring-2 ring-blue-200/50">
+                  <FileText className="h-5 w-5 text-white" />
+                </div>
+                <CardTitle className="text-xl text-slate-900 lg:text-2xl">
+                  Your resumes
+                </CardTitle>
+              </div>
+              <CardDescription className="text-sm text-gray-600">
+                {resumes.length === 0
+                  ? "Create your first resume to get started"
+                  : `Showing ${resumes.length} resume${
+                      resumes.length === 1 ? "" : "s"
+                    }`}
+              </CardDescription>
             </div>
-            <h3 className="text-2xl font-bold text-slate-900 mb-3">
-              No resumes yet
-            </h3>
-            <p className="text-gray-600 mb-8 max-w-md mx-auto text-lg">
-              Create your first ATS-friendly resume with our professional
-              templates
-            </p>
             <Button
               size="lg"
               onClick={handleCreateResumeClick}
               disabled={checkingLimit}
-              className="!bg-[rgb(37,99,235)] hover:!bg-[rgb(17,24,39)] text-white shadow-lg hover:shadow-xl transition-all"
+              className="!bg-[rgb(37,99,235)] text-white shadow-lg transition-all hover:!bg-[rgb(17,24,39)] hover:shadow-xl"
             >
               {checkingLimit ? (
-                <Loader2 className="w-5 h-5 animate-spin mr-2" />
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (
-                <Plus className="w-5 h-5 mr-2" />
+                <Plus className="mr-2 h-4 w-4" />
               )}
-              Create Your First Resume
+              New resume
             </Button>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {resumes.map((resume) => {
-            const cardThumbnailSrc = resumeCardThumbnailSrc(resume);
-            return (
-            <div
-              key={resume._id}
-              className="bg-gradient-to-br from-blue-50 to-blue-100/50 rounded-xl p-4 border border-blue-200/50 shadow-lg shadow-blue-500/10 hover:shadow-xl hover:shadow-blue-500/20 transition-all duration-300 backdrop-blur-sm group"
-            >
-              {/* Resume Thumbnail - Clickable */}
-              <Link href={`/dashboard/resumes/${resume.resumeId}/edit`}>
-                {cardThumbnailSrc ? (
-                  <div className="mb-3 relative aspect-[210/297] bg-gray-100 rounded-lg overflow-hidden border-2 border-blue-200/50 cursor-pointer hover:border-[rgb(37,99,235)] hover:shadow-lg transition-all group">
-                    <img
-                      src={cardThumbnailSrc}
-                      alt={resume.title}
-                      className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-300"
-                      onLoad={() => {
-                        console.log(
-                          "Thumbnail loaded successfully for:",
-                          resume.title,
-                        );
-                      }}
-                      onError={(e) => {
-                        console.error(
-                          "Thumbnail failed to load for:",
-                          resume.title,
-                        );
-                        e.currentTarget.style.display = "none";
-                        const fallback = e.currentTarget.nextElementSibling;
-                        if (fallback) {
-                          (fallback as HTMLElement).style.display = "flex";
-                        }
-                      }}
-                    />
-                    <div className="hidden w-full h-full absolute inset-0 items-center justify-center bg-gradient-to-br from-blue-50 to-blue-100">
-                      <FileText className="w-8 h-8 text-blue-300" />
-                    </div>
-                  </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {resumes.length === 0 ? (
+            <div className="py-16 text-center">
+              <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-md bg-gradient-to-br from-blue-100 to-blue-200 shadow-lg">
+                <FileEdit className="h-10 w-10 text-[rgb(37,99,235)]" />
+              </div>
+              <h3 className="mb-2 text-xl font-bold text-slate-900">
+                No resumes yet
+              </h3>
+              <p className="mx-auto mb-8 max-w-md text-gray-600">
+                Create your first ATS-friendly resume with our professional
+                templates
+              </p>
+              <Button
+                size="lg"
+                onClick={handleCreateResumeClick}
+                disabled={checkingLimit}
+                className="!bg-[rgb(37,99,235)] text-white shadow-lg transition-all hover:!bg-[rgb(17,24,39)] hover:shadow-xl"
+              >
+                {checkingLimit ? (
+                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                 ) : (
-                  <div className="mb-3 aspect-[210/297] bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg flex items-center justify-center border-2 border-blue-200/50 cursor-pointer hover:border-[rgb(37,99,235)] hover:shadow-lg transition-all">
-                    <div className="text-center px-2">
-                      <FileText className="w-8 h-8 text-[rgb(37,99,235)]/50 mx-auto mb-1" />
-                      <p className="text-[10px] text-gray-500 leading-tight">
-                        No preview
-                      </p>
-                      <p className="text-[9px] text-gray-400 leading-tight">
-                        Download PDF
-                      </p>
-                    </div>
-                  </div>
+                  <Plus className="mr-2 h-5 w-5" />
                 )}
-              </Link>
-
-              {/* Resume Info */}
-              <div className="mb-3">
-                <div className="flex items-start justify-between gap-2 mb-2">
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-sm font-bold text-slate-900 mb-1 truncate">
-                      {resume.title}
-                    </h3>
-                    <p className="text-xs text-gray-600 mb-1.5">
-                      {formatDate(resume.updatedAt)}
-                    </p>
-                    {resume.atsScore !== undefined && (
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-[10px] text-gray-500">ATS:</span>
-                        <span
-                          className={`text-xs font-bold ${
-                            resume.atsScore >= 80
-                              ? "text-green-600"
-                              : resume.atsScore >= 70
-                                ? "text-yellow-600"
-                                : "text-red-600"
-                          }`}
-                        >
-                          {resume.atsScore}%
-                        </span>
+                Create your first resume
+              </Button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {resumes.map((resume) => {
+                const cardThumbnailSrc = resumeCardThumbnailSrc(resume);
+                return (
+                  <div
+                    key={resume._id}
+                    className="group rounded-md border border-slate-200/80 bg-white p-4 shadow-sm transition-shadow hover:shadow-md"
+                  >
+                    {/* Resume Thumbnail - Clickable */}
+                    <Link href={`/dashboard/resumes/${resume.resumeId}/edit`}>
+                    {cardThumbnailSrc ? (
+                      <div className="group relative mb-3 aspect-[210/297] cursor-pointer overflow-hidden rounded-md border border-slate-200 bg-gray-100 transition-all hover:border-[rgb(37,99,235)]/50 hover:shadow-md">
+                        <img
+                          src={cardThumbnailSrc}
+                          alt={resume.title}
+                          className="h-full w-full object-cover object-top transition-transform duration-300 group-hover:scale-105"
+                          onLoad={() => {
+                            console.log(
+                              "Thumbnail loaded successfully for:",
+                              resume.title,
+                            );
+                          }}
+                          onError={(e) => {
+                            console.error(
+                              "Thumbnail failed to load for:",
+                              resume.title,
+                            );
+                            e.currentTarget.style.display = "none";
+                            const fallback = e.currentTarget.nextElementSibling;
+                            if (fallback) {
+                              (fallback as HTMLElement).style.display = "flex";
+                            }
+                          }}
+                        />
+                        <div className="absolute inset-0 hidden h-full w-full items-center justify-center bg-slate-50">
+                          <FileText className="h-8 w-8 text-slate-300" />
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="mb-3 flex aspect-[210/297] cursor-pointer items-center justify-center rounded-md border border-slate-200 bg-slate-50 transition-all hover:border-[rgb(37,99,235)]/50 hover:shadow-md">
+                        <div className="px-2 text-center">
+                          <FileText className="mx-auto mb-1 h-8 w-8 text-[rgb(37,99,235)]/50" />
+                          <p className="text-[10px] leading-tight text-gray-500">
+                            No preview
+                          </p>
+                          <p className="text-[9px] leading-tight text-gray-400">
+                            Download PDF
+                          </p>
+                        </div>
                       </div>
                     )}
-                  </div>
-                  {resume.isDefault && (
-                    <span className="px-2 py-0.5 text-[9px] font-semibold bg-blue-100 text-[rgb(37,99,235)] rounded-full flex-shrink-0">
-                      Default
-                    </span>
-                  )}
-                </div>
-              </div>
+                    </Link>
 
-              {/* Action Buttons */}
-              <div className="flex flex-wrap gap-1.5">
-                <Link
-                  href={`/dashboard/resumes/${resume.resumeId}/edit`}
-                  className="flex-1 min-w-0"
-                >
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full h-8 px-2 border-blue-300 text-[rgb(37,99,235)] hover:!bg-[rgb(17,24,39)] hover:!text-white hover:border-[rgb(17,24,39)] text-[11px] transition-all"
-                  >
-                    <Edit className="w-3 h-3 mr-1" />
-                    Edit
-                  </Button>
-                </Link>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleDownload(resume.resumeId)}
-                  disabled={downloadingId === resume.resumeId}
-                  className="flex-1 h-8 px-2 border-blue-300 text-[rgb(37,99,235)] hover:!bg-[rgb(17,24,39)] hover:!text-white hover:border-[rgb(17,24,39)] text-[11px] transition-all disabled:opacity-50"
-                >
-                  {downloadingId === resume.resumeId ? (
-                    <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-                  ) : (
-                    <Download className="w-3 h-3 mr-1" />
-                  )}
-                  PDF
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleDuplicate(resume.resumeId)}
-                  disabled={duplicatingId === resume.resumeId}
-                  className="h-8 px-2 border-blue-300 text-[rgb(37,99,235)] hover:!bg-[rgb(17,24,39)] hover:!text-white hover:border-[rgb(17,24,39)] transition-all disabled:opacity-50"
-                  title="Duplicate"
-                >
-                  {duplicatingId === resume.resumeId ? (
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  ) : (
-                    <Copy className="w-3.5 h-3.5" />
-                  )}
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleDeleteClick(resume.resumeId)}
-                  disabled={deletingId === resume.resumeId}
-                  className="h-8 px-2 border-red-300 text-red-700 hover:bg-red-50 transition-all disabled:opacity-50"
-                  title="Delete"
-                >
-                  {deletingId === resume.resumeId ? (
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  ) : (
-                    <Trash2 className="w-3.5 h-3.5" />
-                  )}
-                </Button>
-              </div>
+                    {/* Resume Info */}
+                    <div className="mb-3">
+                      <div className="mb-2 flex items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <h3 className="mb-1 truncate text-sm font-semibold text-slate-900">
+                            {resume.title}
+                          </h3>
+                          <p className="mb-1.5 text-xs text-gray-600">
+                            {formatDate(resume.updatedAt)}
+                          </p>
+                          {typeof resume.atsScore === "number" &&
+                          Number.isFinite(resume.atsScore) ? (
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[10px] text-gray-500">
+                                ATS
+                              </span>
+                              <span
+                                className={cn(
+                                  "text-xs font-bold tabular-nums",
+                                  getScoreColor(resume.atsScore),
+                                )}
+                              >
+                                {resume.atsScore}/100
+                              </span>
+                            </div>
+                          ) : null}
+                        </div>
+                        {resume.isDefault && (
+                          <span className="inline-flex shrink-0 rounded-full border border-violet-200 bg-violet-100 px-2 py-0.5 text-[9px] font-semibold text-violet-800">
+                            Default
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="flex flex-wrap gap-1.5">
+                      <Link
+                        href={`/dashboard/resumes/${resume.resumeId}/edit`}
+                        className={cn(
+                          buttonVariants({ variant: "outline", size: "sm" }),
+                          instituteSecondaryClass,
+                          "h-8 min-w-0 flex-1 gap-1 px-2 text-[11px]",
+                        )}
+                      >
+                        <Edit className="h-3 w-3 shrink-0" />
+                        Edit
+                      </Link>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDownload(resume.resumeId)}
+                        disabled={downloadingId === resume.resumeId}
+                        className={cn(
+                          instituteSecondaryClass,
+                          "h-8 min-w-0 flex-1 gap-1 px-2 text-[11px] disabled:opacity-50",
+                        )}
+                      >
+                        {downloadingId === resume.resumeId ? (
+                          <Loader2 className="h-3 w-3 shrink-0 animate-spin" />
+                        ) : (
+                          <Download className="h-3 w-3 shrink-0" />
+                        )}
+                        PDF
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDuplicate(resume.resumeId)}
+                        disabled={duplicatingId === resume.resumeId}
+                        className={cn(
+                          instituteSecondaryClass,
+                          "h-8 shrink-0 px-2 disabled:opacity-50",
+                        )}
+                        title="Duplicate"
+                      >
+                        {duplicatingId === resume.resumeId ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Copy className="h-3.5 w-3.5" />
+                        )}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDeleteClick(resume.resumeId)}
+                        disabled={deletingId === resume.resumeId}
+                        className="h-8 shrink-0 border-red-300 px-2 text-red-700 transition-colors hover:bg-red-50 disabled:opacity-50"
+                        title="Delete"
+                      >
+                        {deletingId === resume.resumeId ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Trash2 className="h-3.5 w-3.5" />
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-            );
-          })}
-        </div>
-      )}
+          )}
+        </CardContent>
+      </Card>
 
       {/* Delete Confirmation Dialog */}
       <ConfirmationDialog
