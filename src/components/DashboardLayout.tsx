@@ -24,10 +24,8 @@ import {
   Settings,
   Receipt,
   Layers,
-  Lock,
   BarChart2,
   Lock,
-  BarChart2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { userApi, AccessRole } from "@/lib/api";
