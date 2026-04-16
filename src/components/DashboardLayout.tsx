@@ -10,6 +10,7 @@ import {
   LayoutDashboard,
   FileText,
   BarChart3,
+  BarChart2,
   Crown,
   User,
   Menu,
@@ -24,7 +25,6 @@ import {
   Settings,
   Receipt,
   Layers,
-  BarChart2,
   Lock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
