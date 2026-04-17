@@ -118,9 +118,9 @@ export default function LandingPage() {
   const jobResultsRef = useRef<HTMLDivElement>(null);
   
   // Animated counts
-  const usersCount = useCountUp(50000, 2000, "+");
-  const resumesCount = useCountUp(120000, 2000, "+");
-  const interviewsCount = useCountUp(25000, 2000, "+");
+  const usersCount = useCountUp(1000, 2000, "+");
+  const resumesCount = useCountUp(350, 2000, "+");
+  const interviewsCount = useCountUp(750, 2000, "+");
   
   const resumeTemplates = [
     "/resume-template-images/atlantic-blue-template-design.webp",
@@ -1372,7 +1372,7 @@ export default function LandingPage() {
                   {resumesCount}
                 </div>
                 <div className="text-sm sm:text-base text-blue-600">
-                  Resume Created
+                  Resumes Created
                 </div>
               </div>
             </div>
@@ -1389,7 +1389,7 @@ export default function LandingPage() {
                   {interviewsCount}
                 </div>
                 <div className="text-sm sm:text-base text-blue-600">
-                  Interview Practiced
+                  Interviews Practiced
                 </div>
               </div>
             </div>

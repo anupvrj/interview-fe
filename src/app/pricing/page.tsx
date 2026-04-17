@@ -182,7 +182,7 @@ export default function PricingPage() {
       </section>
 
       {/* Main Content — plans from GET /plans (database) */}
-      <div className="container mx-auto px-4 pt-8 pb-16 max-w-6xl">
+      <div className="container mx-auto px-4 pt-12 sm:pt-16 lg:pt-20 pb-16 max-w-6xl">
         <PricingPlansBlock showHeading={false} />
       </div>
 
