@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { SignedIn, SignedOut, UserButton } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -29,17 +28,14 @@ import {
   MessageSquare,
   Check,
   Trophy,
-  Menu,
-  User,
   Quote,
   Search,
   Briefcase,
 } from "lucide-react";
 import Image from "next/image";
-import { InterviewTrixLogo } from "@/components/InterviewTrixLogo";
 import { PlansSection } from "@/components/PlansSection";
 import { ScrollSection } from "@/components/ScrollSection";
-import { NavigationMenu } from "@/components/NavigationMenu";
+import { SiteHeader } from "@/components/SiteHeader";
 import { MarketingFooter } from "@/components/MarketingFooter";
 import { AiJobSearchNotifyButton } from "@/components/AiJobSearchNotifyButton";
 
@@ -269,110 +265,7 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen bg-white scroll-smooth selection:bg-blue-100">
-      {/* Navigation */}
-      <nav className="fixed top-0 w-full z-50">
-        {/* Top Border - Mobile Only */}
-        <div className="sm:hidden h-1" style={{ backgroundColor: 'rgb(37 99 235 / var(--tw-bg-opacity, 1))' }}></div>
-        
-        {/* Main Header */}
-        <div className="bg-white/95 backdrop-blur-xl border-b border-gray-100">
-          <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex items-center justify-between h-14 sm:h-16 lg:h-20">
-              {/* Mobile Layout */}
-              <div className="flex items-center justify-between w-full sm:w-auto sm:justify-start sm:gap-4">
-                {/* Hamburger Menu - Mobile Only */}
-                <div className="sm:hidden">
-                  <NavigationMenu />
-                </div>
-
-                {/* Logo - Centered on Mobile, Left on Desktop */}
-                <Link
-                  href="/"
-                  className="flex items-center hover:opacity-80 transition-opacity mx-auto sm:mx-0"
-                >
-                  <InterviewTrixLogo
-                    className="h-7 sm:h-8 lg:h-10 w-auto"
-                    priority
-                  />
-                </Link>
-
-                {/* Right Side Icons - Mobile */}
-                <div className="flex items-center gap-3 sm:hidden">
-                  <SignedOut>
-                    <Link href="/sign-in" className="p-1">
-                      <User className="w-5 h-5 text-slate-900" />
-                    </Link>
-                  </SignedOut>
-                  <SignedIn>
-                    <UserButton
-                      appearance={{
-                        elements: {
-                          avatarBox: "w-6 h-6 ring-2 ring-blue-100 hover:ring-blue-300 transition-all",
-                          userButtonPopoverCard: "shadow-2xl border-2 border-blue-100",
-                          userButtonPopoverActionButton: "hover:bg-blue-50 transition-colors text-gray-700 font-medium",
-                          userButtonPopoverActionButtonIcon: "text-blue-600",
-                        },
-                      }}
-                      afterSignOutUrl="/"
-                      userProfileMode="navigation"
-                      userProfileUrl="/dashboard/profile"
-                    />
-                  </SignedIn>
-                </div>
-              </div>
-
-              {/* Desktop Layout */}
-              <div className="hidden sm:flex items-center gap-4 sm:gap-6">
-                {/* Navigation Menu */}
-                <NavigationMenu />
-                <SignedOut>
-                  <Link href="/sign-in">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-xs sm:text-sm px-2 sm:px-4"
-                    >
-                      Sign In
-                    </Button>
-                  </Link>
-                  <Link href="/sign-up">
-                    <Button
-                      size="sm"
-                      className="bg-blue-600 hover:bg-blue-700 text-white font-medium shadow-sm transition-all text-xs sm:text-sm px-4 py-2"
-                    >
-                      Get Started
-                    </Button>
-                  </Link>
-                </SignedOut>
-                <SignedIn>
-                  <Link href="/dashboard" className="hidden md:block">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="text-xs sm:text-sm px-2 sm:px-4"
-                    >
-                      Dashboard
-                    </Button>
-                  </Link>
-                  <UserButton
-                    appearance={{
-                      elements: {
-                        avatarBox: "w-8 h-8 sm:w-9 sm:h-9 lg:w-10 lg:h-10 ring-2 ring-blue-100 hover:ring-blue-300 transition-all",
-                        userButtonPopoverCard: "shadow-2xl border-2 border-blue-100",
-                        userButtonPopoverActionButton: "hover:bg-blue-50 transition-colors text-gray-700 font-medium",
-                        userButtonPopoverActionButtonIcon: "text-blue-600",
-                      },
-                    }}
-                    afterSignOutUrl="/"
-                    userProfileMode="navigation"
-                    userProfileUrl="/dashboard/profile"
-                  />
-                </SignedIn>
-              </div>
-            </div>
-          </div>
-        </div>
-      </nav>
+      <SiteHeader />
 
       {/* Hero Section */}
       <section className="pt-20 sm:pt-24 md:pt-28 lg:pt-32 pb-8 sm:pb-12 md:pb-16 px-4 sm:px-6 overflow-hidden bg-white">
@@ -794,7 +687,7 @@ export default function LandingPage() {
                     <FileText className="w-5 h-5 text-blue-600" />
                   </div>
                   <h3 className="text-sm sm:text-base font-semibold text-gray-900">
-                    25+ ATS-Optimized Templates
+                    ATS-Optimized Templates
                   </h3>
                 </div>
                 <div className="flex items-center gap-3">
@@ -849,30 +742,28 @@ export default function LandingPage() {
             {/* Right Section - Resume Preview */}
             <div className="relative flex justify-center min-w-0 w-full">
               <div className="relative isolate rounded-lg shadow-2xl overflow-hidden bg-white w-full max-w-[280px] sm:max-w-[320px] lg:max-w-[400px]">
-                {/* Carousel Container — basis-full + min-w-0 avoids Safari flex % min-width bugs */}
+                {/* Layered carousel avoids iOS Safari flex+transform sizing glitches */}
                 <div className="relative w-full min-w-0 overflow-hidden aspect-[210/297]">
-                  <div
-                    className="flex h-full w-full min-w-0 transition-transform duration-700 ease-in-out"
-                    style={{
-                      transform: `translate3d(-${currentSlide * 100}%, 0, 0)`,
-                    }}
-                  >
-                    {resumeTemplates.map((template, index) => (
-                      <div
-                        key={index}
-                        className="flex h-full min-w-0 shrink-0 grow-0 basis-full items-center justify-center overflow-hidden"
-                      >
-                        <Image
-                          src={template}
-                          alt={`Resume Template ${index + 1}`}
-                          width={400}
-                          height={500}
-                          className="h-full w-full max-h-full object-contain object-center"
-                          priority={index === 0}
-                        />
-                      </div>
-                    ))}
-                  </div>
+                  {resumeTemplates.map((template, index) => (
+                    <div
+                      key={index}
+                      className={`absolute inset-0 transition-opacity duration-700 ease-in-out ${
+                        currentSlide === index
+                          ? "opacity-100 pointer-events-auto"
+                          : "opacity-0 pointer-events-none"
+                      }`}
+                      aria-hidden={currentSlide !== index}
+                    >
+                      <Image
+                        src={template}
+                        alt={`Resume Template ${index + 1}`}
+                        width={400}
+                        height={500}
+                        className="h-full w-full max-h-full object-contain object-center"
+                        priority={index === 0}
+                      />
+                    </div>
+                  ))}
                 </div>
                 
                 {/* Slide Indicators */}
@@ -903,8 +794,8 @@ export default function LandingPage() {
                 </div>
                 {/* Templates Badge */}
                 <div className="absolute top-1 left-1 sm:top-2 sm:left-2 bg-blue-600 text-white px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-md shadow-lg text-[8px] sm:text-[9px] lg:text-[10px] font-semibold animate-pulse z-10" style={{ animationDuration: '2.5s', animationDelay: '0.5s' }}>
-                  <span className="hidden sm:inline">25+ Templates Available</span>
-                  <span className="sm:hidden">25+ Templates</span>
+                  <span className="hidden sm:inline">Templates Available</span>
+                  <span className="sm:hidden">ATS-Optimized Templates</span>
                 </div>
                 {/* AI-Powered Button */}
                 <div className="absolute bottom-8 right-1 sm:bottom-10 sm:right-2 animate-bounce z-10" style={{ animationDuration: '2.2s', animationDelay: '1s' }}>

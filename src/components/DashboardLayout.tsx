@@ -19,10 +19,12 @@ import {
   Shield,
   Building2,
   Users,
+  UsersRound,
   CalendarClock,
   Settings,
   Receipt,
   Layers,
+  Lock,
   BarChart2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -47,6 +49,11 @@ const baseMenuItems = [
     title: "Practice Interview",
     href: "/dashboard/interviews",
     icon: FileText,
+  },
+  {
+    title: "Peer interviews",
+    href: "/dashboard/peer-interviews",
+    icon: UsersRound,
   },
   {
     title: "Analytics",
@@ -190,6 +197,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               className="flex items-center hover:opacity-80 transition-opacity min-w-0"
             >
               <InterviewTrixLogo
+                variant="onLightBg"
                 className="h-7 w-auto max-w-[min(100%,11rem)] object-contain object-left"
               />
             </Link>
@@ -256,6 +264,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                     : item.href !== "/dashboard" &&
                       (pathname?.startsWith(`${item.href}/`) ?? false));
 
+                const isPeerInterviews = item.href === "/dashboard/peer-interviews";
+
                 return (
                   <Link
                     key={item.href}
@@ -274,10 +284,32 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                         : "text-slate-700 hover:text-[rgb(37,99,235)]",
                     )}
                   >
-                    <Icon className="w-5 h-5 flex-shrink-0 transition-transform duration-200" />
+                    <span className="relative flex-shrink-0">
+                      <Icon className="w-5 h-5 transition-transform duration-200" />
+                      {isPeerInterviews && !sidebarOpen && (
+                        <Lock
+                          className={cn(
+                            "pointer-events-none absolute -bottom-1 -right-1 h-3 w-3 drop-shadow",
+                            isActive ? "text-white" : "text-slate-500",
+                          )}
+                          strokeWidth={2.5}
+                          aria-hidden
+                        />
+                      )}
+                    </span>
                     {sidebarOpen && (
-                      <span className="font-medium transition-colors duration-200">
-                        {item.title}
+                      <span className="flex min-w-0 flex-1 items-center gap-2 font-medium transition-colors duration-200">
+                        <span className="truncate">{item.title}</span>
+                        {isPeerInterviews && (
+                          <Lock
+                            className={cn(
+                              "h-3.5 w-3.5 flex-shrink-0 opacity-70",
+                              isActive && "opacity-90",
+                            )}
+                            strokeWidth={2.25}
+                            aria-hidden
+                          />
+                        )}
                       </span>
                     )}
                   </Link>
