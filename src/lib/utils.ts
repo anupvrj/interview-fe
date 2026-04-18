@@ -33,6 +33,41 @@ export function formatDuration(seconds: number): string {
   return `${mins}:${secs.toString().padStart(2, "0")}`;
 }
 
+/** Matches interview-core billing: ceil(session seconds / 60) × this rate. */
+export const INTERVIEW_CREDITS_PER_MINUTE = 5;
+
+export type InterviewCreditsInput = {
+  creditsCharged?: number;
+  session?: { duration?: number };
+};
+
+/** Credits for one interview: stored charge when present, else estimated from session length. */
+export function getInterviewCreditsUsed(
+  interview: InterviewCreditsInput,
+): number | null {
+  if (
+    typeof interview.creditsCharged === "number" &&
+    Number.isFinite(interview.creditsCharged)
+  ) {
+    return interview.creditsCharged;
+  }
+  const sec = interview.session?.duration;
+  if (typeof sec === "number" && Number.isFinite(sec) && sec > 0) {
+    return Math.ceil(sec / 60) * INTERVIEW_CREDITS_PER_MINUTE;
+  }
+  return null;
+}
+
+/** Sum credits across interviews that have a known or estimable charge. */
+export function sumInterviewCreditsUsed(
+  interviews: InterviewCreditsInput[],
+): number {
+  return interviews.reduce((sum, i) => {
+    const c = getInterviewCreditsUsed(i);
+    return c != null ? sum + c : sum;
+  }, 0);
+}
+
 export function getScoreColor(score: number): string {
   if (score >= 80) return "text-green-600";
   if (score >= 60) return "text-blue-600";
