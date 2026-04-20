@@ -108,7 +108,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         .then((profile) => {
           setAccessRole(profile.accessRole || "user");
           setInstitutionId(
-            profile.institutionId ? String(profile.institutionId) : null
+            profile.institutionId ? String(profile.institutionId) : null,
           );
         })
         .catch(() => {
