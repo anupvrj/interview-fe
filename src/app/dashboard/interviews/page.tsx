@@ -36,7 +36,9 @@ import {
   Target,
   Percent,
   Coins,
+  Trash2,
 } from "lucide-react";
+import { toast } from "sonner";
 import { Interview, interviewApi, interviewScheduleApi } from "@/lib/api";
 import {
   cn,
@@ -79,6 +81,8 @@ export default function InterviewsPage() {
   const [listTab, setListTab] = useState<"history" | "scheduled">("history");
   const [startingScheduleId, setStartingScheduleId] = useState<string | null>(null);
   const [videoUnavailableOpen, setVideoUnavailableOpen] = useState(false);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [deleteBusy, setDeleteBusy] = useState(false);
 
   useEffect(() => {
     if (isLoaded && user) {
@@ -101,6 +105,24 @@ export default function InterviewsPage() {
       console.error("Error loading interviews:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleConfirmDeleteInterview = async () => {
+    if (!deleteConfirmId) return;
+    setDeleteBusy(true);
+    try {
+      await interviewApi.deleteDraftOrActive(deleteConfirmId);
+      toast.success("Interview deleted");
+      setDeleteConfirmId(null);
+      await loadInterviews();
+    } catch (e: unknown) {
+      const msg =
+        (e as { response?: { data?: { message?: string } } })?.response?.data
+          ?.message || "Could not delete interview";
+      toast.error(msg);
+    } finally {
+      setDeleteBusy(false);
     }
   };
 
@@ -253,7 +275,7 @@ export default function InterviewsPage() {
                 <Sparkles className="w-3 h-3" />
                 <span>AI-Powered Interviews</span>
               </div>
-              <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-[43px] font-bold tracking-tight text-slate-900 leading-[1.2] sm:leading-[1.1] lg:leading-[52px] mb-4 sm:mb-6">
+              <h1 className="mb-4 text-2xl font-bold leading-[1.25] tracking-tight text-slate-900 sm:mb-6 sm:text-3xl sm:leading-[1.15] md:text-4xl lg:text-[34px] lg:leading-[42px]">
                 <span className="text-slate-900">Ace Your Next</span>{" "}
                 <span className="text-[rgb(37,99,235)]">Interview</span>{" "}
                 <span className="text-slate-900">Before the Real One</span>{" "}
@@ -264,15 +286,15 @@ export default function InterviewsPage() {
               <div className="space-y-3 pt-4 sm:pt-6 px-2 sm:px-0">
                 <div className="flex items-start gap-3">
                   <CheckCircle className="w-5 h-5 text-[rgb(37,99,235)] flex-shrink-0 mt-0.5" />
-                  <span className="text-gray-700 text-sm sm:text-base">Real-time AI feedback and scoring</span>
+                  <span className="text-xs text-gray-700 sm:text-sm">Real-time AI feedback and scoring</span>
                 </div>
                 <div className="flex items-start gap-3">
                   <CheckCircle className="w-5 h-5 text-[rgb(37,99,235)] flex-shrink-0 mt-0.5" />
-                  <span className="text-gray-700 text-sm sm:text-base">Personalized questions based on your role</span>
+                  <span className="text-xs text-gray-700 sm:text-sm">Personalized questions based on your role</span>
                 </div>
                 <div className="flex items-start gap-3">
                   <CheckCircle className="w-5 h-5 text-[rgb(37,99,235)] flex-shrink-0 mt-0.5" />
-                  <span className="text-gray-700 text-sm sm:text-base">Detailed performance analysis and improvement tips</span>
+                  <span className="text-xs text-gray-700 sm:text-sm">Detailed performance analysis and improvement tips</span>
                 </div>
               </div>
               
@@ -534,7 +556,7 @@ export default function InterviewsPage() {
 
       {/* Interviews List — history tab */}
       {listTab === "history" ? (
-        <Card className="rounded-md border border-slate-200/80 bg-white shadow-sm">
+        <Card className="rounded-md border border-border bg-card shadow-sm">
           <CardContent className="pb-6 pt-6">
             {interviews.length === 0 ? (
               <div className="py-16 text-center">
@@ -672,16 +694,75 @@ export default function InterviewsPage() {
                               >
                                 <PlayCircle className="size-3.5" />
                               </Button>
+                              {interview.report ? (
+                                <Link
+                                  href={`/dashboard/interviews/${interview.interviewId}/report`}
+                                  className={cn(
+                                    buttonVariants({ variant: "outline" }),
+                                    instituteSecondaryClass,
+                                    "h-8 shrink-0 gap-1.5 px-2.5 py-0 text-xs leading-none no-underline",
+                                  )}
+                                >
+                                  <FileText className="size-3.5 shrink-0" />
+                                  View Report
+                                </Link>
+                              ) : (
+                                <Link
+                                  href={`/dashboard/interviews/${interview.interviewId}/report`}
+                                  className={cn(
+                                    buttonVariants({ variant: "default" }),
+                                    institutePrimaryClass,
+                                    "h-8 shrink-0 gap-1.5 px-2.5 py-0 text-xs leading-none no-underline",
+                                  )}
+                                >
+                                  <Sparkles className="size-3.5 shrink-0" />
+                                  Generate report
+                                </Link>
+                              )}
+                            </>
+                          )}
+                          {interview.status === "failed" && (
+                            <>
+                              <Button
+                                variant="outline"
+                                className={cn(
+                                  instituteSecondaryClass,
+                                  "size-8 shrink-0 p-0 [&_svg]:size-3.5",
+                                )}
+                                title="Play video"
+                                aria-label="Play interview video"
+                                onClick={async () => {
+                                  try {
+                                    const { videoUrl } =
+                                      await interviewApi.getRecordingVideoUrl(
+                                        interview.interviewId,
+                                      );
+                                    if (!videoUrl?.trim()) {
+                                      setVideoUnavailableOpen(true);
+                                      return;
+                                    }
+                                    window.open(videoUrl, "_blank");
+                                  } catch (error) {
+                                    console.error(
+                                      "Error getting video URL:",
+                                      error,
+                                    );
+                                    setVideoUnavailableOpen(true);
+                                  }
+                                }}
+                              >
+                                <PlayCircle className="size-3.5" />
+                              </Button>
                               <Link
                                 href={`/dashboard/interviews/${interview.interviewId}/report`}
                                 className={cn(
-                                  buttonVariants({ variant: "outline" }),
-                                  instituteSecondaryClass,
+                                  buttonVariants({ variant: "default" }),
+                                  institutePrimaryClass,
                                   "h-8 shrink-0 gap-1.5 px-2.5 py-0 text-xs leading-none no-underline",
                                 )}
                               >
-                                <FileText className="size-3.5 shrink-0" />
-                                View Report
+                                <Sparkles className="size-3.5 shrink-0" />
+                                Generate report
                               </Link>
                             </>
                           )}
@@ -711,9 +792,24 @@ export default function InterviewsPage() {
                               Start
                             </Link>
                           )}
+                          {interview.status === "active" && (
+                            <Link
+                              href={`/interview/${interview.interviewId}/realtime`}
+                              className={cn(
+                                buttonVariants({ variant: "default" }),
+                                institutePrimaryClass,
+                                "h-8 shrink-0 gap-1 px-3 py-0 text-xs leading-none no-underline",
+                              )}
+                            >
+                              <PlayCircle className="size-3.5 shrink-0" />
+                              Continue
+                            </Link>
+                          )}
                           {interview.status !== "completed" &&
                             interview.status !== "processing" &&
-                            interview.status !== "draft" && (
+                            interview.status !== "draft" &&
+                            interview.status !== "active" &&
+                            interview.status !== "failed" && (
                               <Link
                                 href={`/interview/${interview.interviewId}/realtime`}
                                 className={cn(
@@ -726,6 +822,24 @@ export default function InterviewsPage() {
                                 Continue
                               </Link>
                             )}
+                          {(interview.status === "draft" ||
+                            interview.status === "active") && (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              className={cn(
+                                instituteSecondaryClass,
+                                "size-8 shrink-0 border-red-200 p-0 text-red-600 hover:bg-red-50 hover:text-red-700 [&_svg]:size-3.5",
+                              )}
+                              title="Delete interview"
+                              aria-label="Delete interview"
+                              onClick={() =>
+                                setDeleteConfirmId(interview.interviewId)
+                              }
+                            >
+                              <Trash2 className="size-3.5" />
+                            </Button>
+                          )}
                         </div>
                       </div>
                     );
@@ -888,6 +1002,45 @@ export default function InterviewsPage() {
           )}
         </div>
       )}
+
+      <Dialog
+        open={!!deleteConfirmId}
+        onOpenChange={(open) => {
+          if (!open) setDeleteConfirmId(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Delete this interview?</DialogTitle>
+            <DialogDescription>
+              This removes the session and any recording stored for it from our
+              systems. You cannot undo this.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setDeleteConfirmId(null)}
+              disabled={deleteBusy}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={deleteBusy}
+              onClick={() => void handleConfirmDeleteInterview()}
+            >
+              {deleteBusy ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                "Delete"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog
         open={videoUnavailableOpen}

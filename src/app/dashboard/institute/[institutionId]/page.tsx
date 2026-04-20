@@ -263,7 +263,7 @@ export default function InstituteOverviewPage() {
           </div>
           <div className="p-5">
             <div className="grid grid-cols-3 gap-2 text-center sm:gap-4">
-              <div className="rounded-xl border border-slate-200/80 bg-white p-3 shadow-sm">
+              <div className="rounded-xl border border-border bg-card p-3 shadow-sm">
                 <div className="flex items-center justify-center gap-1 text-slate-500">
                   <Clock className="h-3.5 w-3.5" />
                   <span className="text-[10px] font-bold uppercase tracking-wide">Scheduled</span>
@@ -277,7 +277,7 @@ export default function InstituteOverviewPage() {
                 </div>
                 <p className="mt-2 text-2xl font-bold tabular-nums text-slate-900">{sc.started}</p>
               </div>
-              <div className="rounded-xl border border-slate-200/80 bg-white p-3 shadow-sm">
+              <div className="rounded-xl border border-border bg-card p-3 shadow-sm">
                 <div className="flex items-center justify-center gap-1 text-slate-500">
                   <span className="text-[10px] font-bold uppercase tracking-wide">Cancelled</span>
                 </div>

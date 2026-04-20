@@ -40,9 +40,7 @@ import {
   X,
   FileCheck,
   Download,
-  Coins,
-  Lock,
-  UsersRound,
+  Sparkles,
 } from "lucide-react";
 import {
   Bar,
@@ -71,6 +69,7 @@ import {
   getScoreColor,
   scheduledInterviewCanStartNow,
 } from "@/lib/utils";
+import { getPeerInterviewUnlockStatus } from "@/lib/peer-interviews";
 import {
   institutePrimaryClass,
   instituteSecondaryClass,
@@ -94,9 +93,7 @@ function formatInterviewDurationMinutes(
 }
 
 function resumeTemplateLabel(templateId: string): string {
-  return (
-    TEMPLATES_CATALOG.find((t) => t.id === templateId)?.name ?? templateId
-  );
+  return TEMPLATES_CATALOG.find((t) => t.id === templateId)?.name ?? templateId;
 }
 
 export default function DashboardPage() {
@@ -117,13 +114,17 @@ export default function DashboardPage() {
   const [resumePage, setResumePage] = useState(1);
   const resumeItemsPerPage = 8;
   const [scheduledInterviews, setScheduledInterviews] = useState<any[]>([]);
-  const [startingScheduleId, setStartingScheduleId] = useState<string | null>(null);
+  const [startingScheduleId, setStartingScheduleId] = useState<string | null>(
+    null,
+  );
   /** null = not read yet (avoid flash); false = show banner; true = user dismissed */
   const [onboardingBannerDismissed, setOnboardingBannerDismissed] = useState<
     boolean | null
   >(null);
   const [videoUnavailableOpen, setVideoUnavailableOpen] = useState(false);
-  const [downloadingResumeId, setDownloadingResumeId] = useState<string | null>(null);
+  const [downloadingResumeId, setDownloadingResumeId] = useState<string | null>(
+    null,
+  );
 
   useEffect(() => {
     try {
@@ -166,7 +167,7 @@ export default function DashboardPage() {
           profile.institutionId
         ) {
           router.replace(
-            `/dashboard/institute/${String(profile.institutionId)}`
+            `/dashboard/institute/${String(profile.institutionId)}`,
           );
           return;
         }
@@ -265,7 +266,7 @@ export default function DashboardPage() {
     } catch (e: any) {
       alert(
         e?.response?.data?.message ||
-          "Could not start interview. You may need a saved resume, or the scheduled time is not open yet (starts 24 hours before)."
+          "Could not start interview. You may need a saved resume, or the scheduled time is not open yet (starts 24 hours before).",
       );
     } finally {
       setStartingScheduleId(null);
@@ -279,10 +280,13 @@ export default function DashboardPage() {
       globalThis.open(pdfUrl, "_blank");
     } catch (error: any) {
       const shouldOpenEditor =
-        error?.message?.includes("PDF not found") || error?.response?.status === 404;
+        error?.message?.includes("PDF not found") ||
+        error?.response?.status === 404;
       if (
         shouldOpenEditor &&
-        globalThis.confirm("PDF is not generated yet. Open editor to generate/download it?")
+        globalThis.confirm(
+          "PDF is not generated yet. Open editor to generate/download it?",
+        )
       ) {
         router.push(`/dashboard/resumes/${resumeId}/edit`);
         return;
@@ -294,12 +298,10 @@ export default function DashboardPage() {
   };
 
   const sortedResumes = [...resumes].sort(
-    (a, b) =>
-      new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+    (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
   );
   const resumesWithAts = resumes.filter(
-    (r) =>
-      typeof r.atsScore === "number" && Number.isFinite(r.atsScore),
+    (r) => typeof r.atsScore === "number" && Number.isFinite(r.atsScore),
   );
   const avgAts =
     resumesWithAts.length > 0
@@ -347,7 +349,10 @@ export default function DashboardPage() {
     const dateObj = new Date(`${day}T00:00:00`);
     return {
       ...row,
-      label: dateObj.toLocaleDateString("en-IN", { day: "numeric", month: "short" }),
+      label: dateObj.toLocaleDateString("en-IN", {
+        day: "numeric",
+        month: "short",
+      }),
       avgScore:
         row.scoredCount > 0 ? Math.round(row.scoreTotal / row.scoredCount) : 0,
     };
@@ -368,7 +373,8 @@ export default function DashboardPage() {
             </h1>
           </div>
           <p className="text-[10px] leading-tight text-white/85 sm:text-xs md:text-sm">
-            Track your progress, review your interviews, and continue improving your skills
+            Track your progress, review your interviews, and continue improving
+            your skills
           </p>
         </div>
         <div className="absolute inset-0 bg-gradient-to-r from-blue-600/40 to-transparent opacity-40"></div>
@@ -384,96 +390,102 @@ export default function DashboardPage() {
               Scheduled interviews
             </CardTitle>
             <CardDescription>
-              Your institution scheduled these for you. You can start from 24 hours before the
-              scheduled time until the expire deadline (if set). A saved resume is required.
+              Your institution scheduled these for you. You can start from 24
+              hours before the scheduled time until the expire deadline (if
+              set). A saved resume is required.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             {scheduledInterviews.map((s) => {
               const { canStart, reason } = scheduledInterviewCanStartNow(
                 s.scheduledAt,
-                s.expiresAt
+                s.expiresAt,
               );
               const startDisabled =
                 startingScheduleId === String(s._id) || !canStart;
               return (
-              <div
-                key={s._id}
-                className="flex flex-col gap-2 rounded-md border border-amber-100 bg-white/90 p-4 sm:flex-row sm:items-center sm:justify-between"
-              >
-                <div>
-                  <p className="font-semibold text-slate-900">{s.role}</p>
-                  <p className="text-sm text-slate-600">
-                    {new Date(s.scheduledAt).toLocaleString()}
-                    {s.targetCompany ? ` · ${s.targetCompany}` : ""}
-                  </p>
-                  {s.expiresAt ? (
-                    <p className="mt-1 text-xs text-amber-800">
-                      Start by {new Date(s.expiresAt).toLocaleString()}
-                    </p>
-                  ) : null}
-                  {s.notes ? (
-                    <p className="mt-1 text-xs text-slate-500">{s.notes}</p>
-                  ) : null}
-                  {!canStart && reason === "too_early" ? (
-                    <p className="mt-1 text-xs text-slate-500">
-                      Opens {new Date(new Date(s.scheduledAt).getTime() - 24 * 60 * 60 * 1000).toLocaleString()}
-                    </p>
-                  ) : null}
-                  {!canStart && reason === "expired" ? (
-                    <p className="mt-1 text-xs text-red-600">Past expire deadline</p>
-                  ) : null}
-                </div>
-                <Button
-                  className="shrink-0 gap-2 bg-amber-600 hover:bg-amber-700"
-                  onClick={() => handleStartScheduled(String(s._id))}
-                  disabled={startDisabled}
+                <div
+                  key={s._id}
+                  className="flex flex-col gap-2 rounded-md border border-amber-100 bg-white/90 p-4 sm:flex-row sm:items-center sm:justify-between"
                 >
-                  {startingScheduleId === String(s._id) ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <PlayCircle className="h-4 w-4" />
-                  )}
-                  Start interview
-                </Button>
-              </div>
-            );
+                  <div>
+                    <p className="font-semibold text-slate-900">{s.role}</p>
+                    <p className="text-sm text-slate-600">
+                      {new Date(s.scheduledAt).toLocaleString()}
+                      {s.targetCompany ? ` · ${s.targetCompany}` : ""}
+                    </p>
+                    {s.expiresAt ? (
+                      <p className="mt-1 text-xs text-amber-800">
+                        Start by {new Date(s.expiresAt).toLocaleString()}
+                      </p>
+                    ) : null}
+                    {s.notes ? (
+                      <p className="mt-1 text-xs text-slate-500">{s.notes}</p>
+                    ) : null}
+                    {!canStart && reason === "too_early" ? (
+                      <p className="mt-1 text-xs text-slate-500">
+                        Opens{" "}
+                        {new Date(
+                          new Date(s.scheduledAt).getTime() -
+                            24 * 60 * 60 * 1000,
+                        ).toLocaleString()}
+                      </p>
+                    ) : null}
+                    {!canStart && reason === "expired" ? (
+                      <p className="mt-1 text-xs text-red-600">
+                        Past expire deadline
+                      </p>
+                    ) : null}
+                  </div>
+                  <Button
+                    className="shrink-0 gap-2 bg-amber-600 hover:bg-amber-700"
+                    onClick={() => handleStartScheduled(String(s._id))}
+                    disabled={startDisabled}
+                  >
+                    {startingScheduleId === String(s._id) ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <PlayCircle className="h-4 w-4" />
+                    )}
+                    Start interview
+                  </Button>
+                </div>
+              );
             })}
           </CardContent>
         </Card>
       )}
 
-      {profileCompletion < 100 &&
-        onboardingBannerDismissed === false && (
-          <div className="flex items-center gap-2 rounded-md border border-amber-200/70 bg-amber-50/50 px-3 py-2 text-sm text-slate-800">
-            <p className="min-w-0 flex-1 leading-snug">
-              <span className="text-slate-700">
-                Complete your onboarding ({profileCompletion}% done) —{" "}
-              </span>
-              <Link
-                href="/dashboard/profile"
-                className="font-medium text-[rgb(37,99,235)] underline-offset-2 hover:underline"
-              >
-                Finish your profile
-              </Link>
-            </p>
-            <button
-              type="button"
-              aria-label="Dismiss reminder"
-              className="shrink-0 rounded-md p-1 text-slate-500 transition-colors hover:bg-amber-100/80 hover:text-slate-800"
-              onClick={() => {
-                try {
-                  sessionStorage.setItem(ONBOARDING_BANNER_DISMISSED_KEY, "1");
-                } catch {
-                  /* ignore */
-                }
-                setOnboardingBannerDismissed(true);
-              }}
+      {profileCompletion < 100 && onboardingBannerDismissed === false && (
+        <div className="flex items-center gap-2 rounded-md border border-amber-200/70 bg-amber-50/50 px-3 py-2 text-sm text-slate-800">
+          <p className="min-w-0 flex-1 leading-snug">
+            <span className="text-slate-700">
+              Complete your onboarding ({profileCompletion}% done) —{" "}
+            </span>
+            <Link
+              href="/dashboard/profile"
+              className="font-medium text-[rgb(37,99,235)] underline-offset-2 hover:underline"
             >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-        )}
+              Finish your profile
+            </Link>
+          </p>
+          <button
+            type="button"
+            aria-label="Dismiss reminder"
+            className="shrink-0 rounded-md p-1 text-slate-500 transition-colors hover:bg-amber-100/80 hover:text-slate-800"
+            onClick={() => {
+              try {
+                sessionStorage.setItem(ONBOARDING_BANNER_DISMISSED_KEY, "1");
+              } catch {
+                /* ignore */
+              }
+              setOnboardingBannerDismissed(true);
+            }}
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4">
@@ -555,7 +567,8 @@ export default function DashboardPage() {
                 Improvement
               </p>
               <p className="shrink-0 text-right text-lg font-bold tabular-nums leading-none text-slate-900 sm:text-xl lg:text-2xl">
-                {stats.improvement !== undefined && !isNaN(stats.improvement) ? (
+                {stats.improvement !== undefined &&
+                !isNaN(stats.improvement) ? (
                   <>
                     {stats.improvement > 0 ? "+" : ""}
                     {stats.improvement}%
@@ -574,7 +587,7 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
-        <Card className="rounded-md border border-slate-200/80 bg-white shadow-sm xl:col-span-2">
+        <Card className="rounded-md border border-border bg-card shadow-sm xl:col-span-2">
           <CardHeader className="pb-2">
             <CardTitle className="text-lg text-slate-900">
               Daily interviews and score trend
@@ -588,7 +601,11 @@ export default function DashboardPage() {
               <ComposedChart data={dailyData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                 <XAxis dataKey="label" tick={{ fontSize: 12 }} />
-                <YAxis yAxisId="left" allowDecimals={false} tick={{ fontSize: 12 }} />
+                <YAxis
+                  yAxisId="left"
+                  allowDecimals={false}
+                  tick={{ fontSize: 12 }}
+                />
                 <YAxis
                   yAxisId="right"
                   orientation="right"
@@ -625,14 +642,16 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        <Card className="rounded-md border border-slate-200/80 bg-white shadow-sm">
+        <Card className="rounded-md border border-border bg-card shadow-sm">
           <CardHeader className="pb-2">
             <CardTitle className="text-lg text-slate-900">Insights</CardTitle>
             <CardDescription>Quick performance summary</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
-              <p className="text-xs font-semibold text-slate-500">Total token spend</p>
+              <p className="text-xs font-semibold text-slate-500">
+                Total token spend
+              </p>
               <p className="text-xl font-bold tabular-nums text-slate-900">
                 {totalTokensSpent}
               </p>
@@ -641,28 +660,38 @@ export default function DashboardPage() {
               </p>
             </div>
             <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
-              <p className="text-xs font-semibold text-slate-500">Active days</p>
+              <p className="text-xs font-semibold text-slate-500">
+                Active days
+              </p>
               <p className="text-xl font-bold tabular-nums text-slate-900">
                 {activeDays}/14
               </p>
-              <p className="text-xs text-slate-500">Days with at least one interview</p>
+              <p className="text-xs text-slate-500">
+                Days with at least one interview
+              </p>
             </div>
             <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
-              <p className="text-xs font-semibold text-slate-500">Completed ratio</p>
+              <p className="text-xs font-semibold text-slate-500">
+                Completed ratio
+              </p>
               <p className="text-xl font-bold tabular-nums text-slate-900">
                 {stats.totalInterviews > 0
-                  ? Math.round((stats.completedInterviews / stats.totalInterviews) * 100)
+                  ? Math.round(
+                      (stats.completedInterviews / stats.totalInterviews) * 100,
+                    )
                   : 0}
                 %
               </p>
-              <p className="text-xs text-slate-500">Completed out of all interviews</p>
+              <p className="text-xs text-slate-500">
+                Completed out of all interviews
+              </p>
             </div>
           </CardContent>
         </Card>
       </div>
 
       {/* Recent Interviews */}
-      <Card className="rounded-md border border-slate-200/80 bg-white shadow-sm">
+      <Card className="rounded-md border border-border bg-card shadow-sm">
         <CardHeader className="pb-4">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div>
@@ -736,125 +765,184 @@ export default function DashboardPage() {
                     );
                     const creditsUsed = getInterviewCreditsUsed(interview);
                     return (
-                    <div
-                      key={interview._id}
-                      className="group flex min-w-0 flex-nowrap items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0 transition-colors hover:bg-slate-50/80"
-                    >
-                      <div className="min-w-0 flex-1 space-y-1">
-                        <h4 className="truncate text-sm font-semibold leading-tight text-slate-900">
-                          {interview.metadata.role || "General Interview"}
-                        </h4>
-                        <p className="flex flex-wrap items-center gap-x-1.5 text-xs leading-normal text-slate-500">
-                          <span>{formatDate(interview.createdAt)}</span>
-                          <span className="text-slate-300">·</span>
-                          <span>
-                            {interview.metadata.language === "hi"
-                              ? "Hindi"
-                              : "English"}
-                          </span>
-                          {durationLabel && (
+                      <div
+                        key={interview._id}
+                        className="group flex min-w-0 flex-nowrap items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0 transition-colors hover:bg-slate-50/80"
+                      >
+                        <div className="min-w-0 flex-1 space-y-1">
+                          <h4 className="truncate text-sm font-semibold leading-tight text-slate-900">
+                            {interview.metadata.role || "General Interview"}
+                          </h4>
+                          <p className="flex flex-wrap items-center gap-x-1.5 text-xs leading-normal text-slate-500">
+                            <span>{formatDate(interview.createdAt)}</span>
+                            <span className="text-slate-300">·</span>
+                            <span>
+                              {interview.metadata.language === "hi"
+                                ? "Hindi"
+                                : "English"}
+                            </span>
+                            {durationLabel && (
+                              <>
+                                <span className="text-slate-300">·</span>
+                                <span className="tabular-nums text-slate-600">
+                                  {durationLabel}
+                                </span>
+                              </>
+                            )}
+                            {creditsUsed != null && (
+                              <>
+                                <span className="text-slate-300">·</span>
+                                <span className="tabular-nums text-slate-600">
+                                  {creditsUsed} credits
+                                </span>
+                              </>
+                            )}
+                            {interview.report && (
+                              <>
+                                <span className="text-slate-300">·</span>
+                                <span
+                                  className={cn(
+                                    "font-semibold tabular-nums",
+                                    getScoreColor(
+                                      interview.report.overallScore,
+                                    ),
+                                  )}
+                                >
+                                  {interview.report.overallScore}/100
+                                </span>
+                              </>
+                            )}
+                            <span className="text-slate-300">·</span>
+                            <span
+                              className={cn(
+                                "inline-flex rounded-full border px-1.5 py-px text-[10px] font-semibold capitalize leading-none",
+                                getStatusBadge(interview.status),
+                              )}
+                            >
+                              {interview.status}
+                            </span>
+                          </p>
+                        </div>
+                        <div className="flex shrink-0 flex-nowrap items-center justify-end gap-1.5 self-center">
+                          {interview.status === "completed" && (
                             <>
-                              <span className="text-slate-300">·</span>
-                              <span className="tabular-nums text-slate-600">
-                                {durationLabel}
-                              </span>
-                            </>
-                          )}
-                          {creditsUsed != null && (
-                            <>
-                              <span className="text-slate-300">·</span>
-                              <span className="tabular-nums text-slate-600">
-                                {creditsUsed} credits
-                              </span>
-                            </>
-                          )}
-                          {interview.report && (
-                            <>
-                              <span className="text-slate-300">·</span>
-                              <span
+                              <Button
+                                variant="outline"
                                 className={cn(
-                                  "font-semibold tabular-nums",
-                                  getScoreColor(
-                                    interview.report.overallScore,
-                                  ),
+                                  instituteSecondaryClass,
+                                  "size-8 shrink-0 p-0 [&_svg]:size-3.5",
+                                )}
+                                title="Play video"
+                                aria-label="Play interview video"
+                                onClick={async () => {
+                                  try {
+                                    const { videoUrl } =
+                                      await interviewApi.getRecordingVideoUrl(
+                                        interview.interviewId,
+                                      );
+                                    if (!videoUrl?.trim()) {
+                                      setVideoUnavailableOpen(true);
+                                      return;
+                                    }
+                                    window.open(videoUrl, "_blank");
+                                  } catch (error) {
+                                    console.error(
+                                      "Error getting video URL:",
+                                      error,
+                                    );
+                                    setVideoUnavailableOpen(true);
+                                  }
+                                }}
+                              >
+                                <PlayCircle className="size-3.5" />
+                              </Button>
+                              {interview.report ? (
+                                <Link
+                                  href={`/dashboard/interviews/${interview.interviewId}/report`}
+                                  className={cn(
+                                    buttonVariants({ variant: "outline" }),
+                                    instituteSecondaryClass,
+                                    "h-8 shrink-0 gap-1.5 px-2.5 py-0 text-xs leading-none no-underline",
+                                  )}
+                                >
+                                  <FileText className="size-3.5 shrink-0" />
+                                  View Report
+                                </Link>
+                              ) : (
+                                <Link
+                                  href={`/dashboard/interviews/${interview.interviewId}/report`}
+                                  className={cn(
+                                    buttonVariants({ variant: "default" }),
+                                    institutePrimaryClass,
+                                    "h-8 shrink-0 gap-1.5 px-2.5 py-0 text-xs leading-none no-underline",
+                                  )}
+                                >
+                                  <Sparkles className="size-3.5 shrink-0" />
+                                  Generate report
+                                </Link>
+                              )}
+                            </>
+                          )}
+                          {interview.status === "failed" && (
+                            <>
+                              <Button
+                                variant="outline"
+                                className={cn(
+                                  instituteSecondaryClass,
+                                  "size-8 shrink-0 p-0 [&_svg]:size-3.5",
+                                )}
+                                title="Play video"
+                                aria-label="Play interview video"
+                                onClick={async () => {
+                                  try {
+                                    const { videoUrl } =
+                                      await interviewApi.getRecordingVideoUrl(
+                                        interview.interviewId,
+                                      );
+                                    if (!videoUrl?.trim()) {
+                                      setVideoUnavailableOpen(true);
+                                      return;
+                                    }
+                                    window.open(videoUrl, "_blank");
+                                  } catch (error) {
+                                    console.error(
+                                      "Error getting video URL:",
+                                      error,
+                                    );
+                                    setVideoUnavailableOpen(true);
+                                  }
+                                }}
+                              >
+                                <PlayCircle className="size-3.5" />
+                              </Button>
+                              <Link
+                                href={`/dashboard/interviews/${interview.interviewId}/report`}
+                                className={cn(
+                                  buttonVariants({ variant: "default" }),
+                                  institutePrimaryClass,
+                                  "h-8 shrink-0 gap-1.5 px-2.5 py-0 text-xs leading-none no-underline",
                                 )}
                               >
-                                {interview.report.overallScore}/100
-                              </span>
+                                <Sparkles className="size-3.5 shrink-0" />
+                                Generate report
+                              </Link>
                             </>
                           )}
-                          <span className="text-slate-300">·</span>
-                          <span
-                            className={cn(
-                              "inline-flex rounded-full border px-1.5 py-px text-[10px] font-semibold capitalize leading-none",
-                              getStatusBadge(interview.status),
-                            )}
-                          >
-                            {interview.status}
-                          </span>
-                        </p>
-                      </div>
-                      <div className="flex shrink-0 flex-nowrap items-center justify-end gap-1.5 self-center">
-                        {interview.status === "completed" && (
-                          <>
-                            <Button
-                              variant="outline"
-                              className={cn(
-                                instituteSecondaryClass,
-                                "size-8 shrink-0 p-0 [&_svg]:size-3.5",
-                              )}
-                              title="Play video"
-                              aria-label="Play interview video"
-                              onClick={async () => {
-                                try {
-                                  const { videoUrl } =
-                                    await interviewApi.getRecordingVideoUrl(
-                                      interview.interviewId,
-                                    );
-                                  if (!videoUrl?.trim()) {
-                                    setVideoUnavailableOpen(true);
-                                    return;
-                                  }
-                                  window.open(videoUrl, "_blank");
-                                } catch (error) {
-                                  console.error(
-                                    "Error getting video URL:",
-                                    error,
-                                  );
-                                  setVideoUnavailableOpen(true);
-                                }
-                              }}
-                            >
-                              <PlayCircle className="size-3.5" />
-                            </Button>
+                          {interview.status === "draft" && (
                             <Link
-                              href={`/dashboard/interviews/${interview.interviewId}/report`}
+                              href={`/interview/${interview.interviewId}/realtime`}
                               className={cn(
-                                buttonVariants({ variant: "outline" }),
-                                instituteSecondaryClass,
-                                "h-8 shrink-0 gap-1.5 px-2.5 py-0 text-xs leading-none no-underline",
+                                buttonVariants({ variant: "default" }),
+                                institutePrimaryClass,
+                                "h-8 shrink-0 gap-1 px-3 py-0 text-xs leading-none no-underline",
                               )}
                             >
-                              <FileText className="size-3.5 shrink-0" />
-                              View Report
+                              <PlayCircle className="size-3.5 shrink-0" />
+                              Start
                             </Link>
-                          </>
-                        )}
-                        {interview.status === "draft" && (
-                          <Link
-                            href={`/interview/${interview.interviewId}/realtime`}
-                            className={cn(
-                              buttonVariants({ variant: "default" }),
-                              institutePrimaryClass,
-                              "h-8 shrink-0 gap-1 px-3 py-0 text-xs leading-none no-underline",
-                            )}
-                          >
-                            <PlayCircle className="size-3.5 shrink-0" />
-                            Start
-                          </Link>
-                        )}
+                          )}
+                        </div>
                       </div>
-                    </div>
                     );
                   })}
               </div>
@@ -973,7 +1061,7 @@ export default function DashboardPage() {
       )}
 
       {/* Your resumes */}
-      <Card className="rounded-md border border-slate-200/80 bg-white shadow-sm">
+      <Card className="rounded-md border border-border bg-card shadow-sm">
         <CardHeader className="pb-4">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -1129,9 +1217,7 @@ export default function DashboardPage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() =>
-                        setResumePage((p) => Math.max(1, p - 1))
-                      }
+                      onClick={() => setResumePage((p) => Math.max(1, p - 1))}
                       disabled={resumePage === 1}
                       className="border-blue-300 text-[rgb(37,99,235)] transition-all hover:!border-[rgb(17,24,39)] hover:!bg-[rgb(17,24,39)] hover:!text-white disabled:cursor-not-allowed disabled:opacity-50"
                     >
@@ -1145,9 +1231,7 @@ export default function DashboardPage() {
                       variant="outline"
                       size="sm"
                       onClick={() =>
-                        setResumePage((p) =>
-                          Math.min(resumeTotalPages, p + 1),
-                        )
+                        setResumePage((p) => Math.min(resumeTotalPages, p + 1))
                       }
                       disabled={resumePage >= resumeTotalPages}
                       className="border-blue-300 text-[rgb(37,99,235)] transition-all hover:!border-[rgb(17,24,39)] hover:!bg-[rgb(17,24,39)] hover:!text-white disabled:cursor-not-allowed disabled:opacity-50"

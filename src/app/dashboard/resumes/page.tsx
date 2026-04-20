@@ -377,10 +377,12 @@ export default function ResumesPage() {
                 <Sparkles className="w-3 h-3" />
                 <span>Professional Templates</span>
               </div>
-              <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-[43px] font-bold tracking-tight text-slate-900 leading-[1.2] sm:leading-[1.1] lg:leading-[52px] mb-4 sm:mb-6">
-                Create Professional Resumes in Minutes
+              <h2 className="mb-4 text-2xl font-bold leading-[1.25] tracking-tight sm:mb-6 sm:text-3xl sm:leading-[1.15] md:text-4xl lg:text-[34px] lg:leading-[42px]">
+                <span className="text-slate-900">Create Professional </span>
+                <span className="text-[rgb(37,99,235)]">Resumes</span>
+                <span className="text-slate-900"> in Minutes</span>
               </h2>
-              <p className="text-base sm:text-lg md:text-xl text-gray-600 leading-relaxed max-w-xl mx-auto lg:mx-0 px-2 sm:px-0">
+              <p className="mx-auto max-w-xl px-2 text-sm leading-relaxed text-gray-600 sm:px-0 sm:text-base lg:mx-0">
                 Build ATS-friendly resumes that get you noticed. Choose from
                 professional templates, get AI-powered suggestions, and export
                 in multiple formats.
@@ -390,19 +392,19 @@ export default function ResumesPage() {
               <div className="space-y-3 pt-4 sm:pt-6 px-2 sm:px-0">
                 <div className="flex items-start gap-3">
                   <CheckCircle className="w-5 h-5 text-[rgb(37,99,235)] flex-shrink-0 mt-0.5" />
-                  <span className="text-gray-700 text-sm sm:text-base">
+                  <span className="text-xs text-gray-700 sm:text-sm">
                     ATS-optimized templates for better visibility
                   </span>
                 </div>
                 <div className="flex items-start gap-3">
                   <CheckCircle className="w-5 h-5 text-[rgb(37,99,235)] flex-shrink-0 mt-0.5" />
-                  <span className="text-gray-700 text-sm sm:text-base">
+                  <span className="text-xs text-gray-700 sm:text-sm">
                     AI-powered content suggestions and improvements
                   </span>
                 </div>
                 <div className="flex items-start gap-3">
                   <CheckCircle className="w-5 h-5 text-[rgb(37,99,235)] flex-shrink-0 mt-0.5" />
-                  <span className="text-gray-700 text-sm sm:text-base">
+                  <span className="text-xs text-gray-700 sm:text-sm">
                     Export to PDF, Word, and more formats
                   </span>
                 </div>
@@ -436,7 +438,7 @@ export default function ResumesPage() {
 
             {/* Right Section - Animated Resume Builder Preview */}
             <div className="relative flex justify-center lg:justify-start">
-              <div className="relative w-full max-w-[600px] overflow-hidden rounded-md border border-slate-200/80 bg-white shadow-lg sm:max-w-[700px]">
+              <div className="relative w-full max-w-[600px] overflow-hidden rounded-md border border-border bg-card shadow-lg sm:max-w-[700px]">
                 {/* Resume Builder Header */}
                 <div className="p-4 sm:p-6 bg-gradient-to-br from-blue-50 to-indigo-50 border-b border-gray-200">
                   <div className="flex items-center justify-between mb-3">
@@ -810,7 +812,7 @@ export default function ResumesPage() {
         </div>
       )}
 
-      <Card className="rounded-md border border-slate-200/80 bg-white shadow-sm">
+      <Card className="rounded-md border border-border bg-card shadow-sm">
         <CardHeader className="pb-4">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -879,7 +881,7 @@ export default function ResumesPage() {
                 return (
                   <div
                     key={resume._id}
-                    className="group rounded-md border border-slate-200/80 bg-white p-4 shadow-sm transition-shadow hover:shadow-md"
+                    className="group rounded-md border border-border bg-card p-4 shadow-sm transition-shadow hover:shadow-md"
                   >
                     {/* Resume Thumbnail - Clickable */}
                     <Link href={`/dashboard/resumes/${resume.resumeId}/edit`}>

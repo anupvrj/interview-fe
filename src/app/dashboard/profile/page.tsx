@@ -345,7 +345,7 @@ export default function ProfilePage() {
       <div className="grid gap-4 lg:grid-cols-3 lg:gap-4">
         {/* Left Column - Profile Information */}
         <div className="space-y-4 lg:col-span-2">
-          <Card className="rounded-md border border-slate-200/80 bg-white shadow-sm">
+          <Card className="rounded-md border border-border bg-card shadow-sm">
             <CardHeader className="pb-3">
               <div className="mb-2 flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -475,7 +475,7 @@ export default function ProfilePage() {
           </Card>
 
           {/* Professional Details */}
-          <Card className="rounded-md border border-slate-200/80 bg-white shadow-sm">
+          <Card className="rounded-md border border-border bg-card shadow-sm">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3 mb-2">
@@ -814,7 +814,7 @@ export default function ProfilePage() {
           </Card>
 
           {/* Resume Management */}
-          <Card className="rounded-md border border-slate-200/80 bg-white shadow-sm">
+          <Card className="rounded-md border border-border bg-card shadow-sm">
             <CardHeader className="pb-3">
               <div className="mb-2 flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -951,7 +951,7 @@ export default function ProfilePage() {
 
         {/* Right Column - Info Card */}
         <div className="lg:col-span-1">
-          <Card className="sticky top-8 rounded-md border border-slate-200/80 bg-white shadow-sm">
+          <Card className="sticky top-8 rounded-md border border-border bg-card shadow-sm">
             <CardHeader className="pb-3">
               <div className="flex items-center gap-3 mb-2">
                 <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">

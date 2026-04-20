@@ -15,9 +15,13 @@ import {
   MessageSquare,
   Mic,
   TrendingUp,
+  Code2,
+  Sparkles,
 } from "lucide-react";
 import type { InterviewReport } from "@/lib/api";
-import { getScoreColor, getScoreGradient } from "@/lib/utils";
+import { buildOverallExperienceParagraph } from "@/lib/interview-report-overall-experience";
+import { sessionAverageScore } from "@/lib/interview-report-session-scores";
+import { cn, getScoreColor, getScoreGradient } from "@/lib/utils";
 
 function getQuestionTypeText(type: string) {
   switch (type) {
@@ -65,35 +69,444 @@ function getValidationStyles(match: string | boolean) {
   }
 }
 
-/** Full report: scores, strengths, behavioral, question-by-question (same data as candidate report). */
-export function InterviewReportAnalysis({ report }: { report: InterviewReport }) {
+export function InterviewReportCodingScores({
+  report,
+  className = "overflow-hidden border-2 border-slate-200",
+}: {
+  report: InterviewReport;
+  className?: string;
+}) {
+  const summary = report.codingSummary;
+  if (!summary?.problems.length) return null;
   return (
-    <div className="space-y-8">
-      <Card className="overflow-hidden border-2">
-        <div
-          className={`h-2 bg-gradient-to-r ${getScoreGradient(report.overallScore)}`}
-        />
-        <CardContent className="p-8">
-          <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-            <div>
-              <h2 className="mb-2 text-2xl font-bold">Overall performance</h2>
-              <p className="text-gray-600">
-                Aggregated score across categories (generated at interview completion)
-              </p>
-            </div>
-            <div className="text-center sm:text-right">
-              <div
-                className={`text-5xl font-bold sm:text-6xl ${getScoreColor(
-                  report.overallScore,
-                )}`}
-              >
-                {report.overallScore}
+    <Card className={className}>
+      <CardHeader>
+        <div className="flex items-center gap-3">
+          <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-slate-100">
+            <Code2 className="h-6 w-6 text-slate-700" />
+          </div>
+          <div>
+            <CardTitle>Practice coding round — problem scores</CardTitle>
+            <CardDescription>
+              All problems (automated tests: public + hidden on submit)
+            </CardDescription>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="flex items-baseline justify-between gap-4">
+          <span className="text-sm font-medium text-gray-600">
+            Overall coding score
+          </span>
+          <span
+            className={`text-3xl font-bold ${getScoreColor(
+              summary.overallCodingScore,
+            )}`}
+          >
+            {summary.overallCodingScore}
+            <span className="text-lg font-normal text-gray-500"> / 100</span>
+          </span>
+        </div>
+        <ul className="space-y-2">
+          {summary.problems.map((p) => (
+            <li
+              key={p.problemId}
+              className="flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-slate-50/80 px-3 py-2 text-sm"
+            >
+              <span className="font-medium">{p.title}</span>
+              <span className="text-gray-600">
+                {p.score}% · {p.passed}/{p.total} tests · {p.language}
+              </span>
+            </li>
+          ))}
+        </ul>
+      </CardContent>
+    </Card>
+  );
+}
+
+/** Discussion + coding averages and category breakdown (matches practice interview report fields). */
+export function InterviewReportCodingSessionOverview({
+  report,
+  className,
+}: {
+  report: InterviewReport;
+  className?: string;
+}) {
+  const cs = report.codingSummary;
+  if (!cs?.problems.length) return null;
+  const sessionAvg = sessionAverageScore(report);
+  const c = report.categoryScores;
+
+  return (
+    <Card
+      className={cn("mb-8 border-2 border-slate-200 bg-white", className)}
+    >
+      <CardHeader>
+        <CardTitle>Session scores</CardTitle>
+        <CardDescription>
+          Discussion overall, coding average, overall session average, and category
+          scores (technical, behavioral, and more). Per-problem coding results follow
+          in the next section.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        <div className="grid gap-4 sm:grid-cols-3">
+          <div className="rounded-xl border bg-slate-50/90 p-4 text-center">
+            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+              Discussion overall
+            </p>
+            <p
+              className={cn(
+                "text-3xl font-bold tabular-nums",
+                getScoreColor(report.overallScore),
+              )}
+            >
+              {report.overallScore}
+            </p>
+            <p className="text-xs text-slate-500">Voice &amp; Q&amp;A / 100</p>
+          </div>
+          <div className="rounded-xl border bg-slate-50/90 p-4 text-center">
+            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+              Coding average
+            </p>
+            <p
+              className={cn(
+                "text-3xl font-bold tabular-nums",
+                getScoreColor(cs.overallCodingScore),
+              )}
+            >
+              {cs.overallCodingScore}
+            </p>
+            <p className="text-xs text-slate-500">All problems / 100</p>
+          </div>
+          <div className="rounded-xl border border-indigo-200 bg-indigo-50/70 p-4 text-center">
+            <p className="text-xs font-medium uppercase tracking-wide text-indigo-900">
+              Overall session average
+            </p>
+            <p
+              className={cn(
+                "text-3xl font-bold tabular-nums",
+                getScoreColor(sessionAvg),
+              )}
+            >
+              {sessionAvg}
+            </p>
+            <p className="text-xs text-indigo-800">Discussion + coding mean</p>
+          </div>
+        </div>
+
+        <div>
+          <p className="mb-3 text-sm font-semibold text-slate-800">
+            Category scores (discussion)
+          </p>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="rounded-xl border border-purple-100 bg-gradient-to-br from-purple-50/80 to-white p-4">
+              <div className="mb-2 flex items-center gap-2">
+                <Award className="h-5 w-5 text-purple-600" />
+                <span className="font-medium text-slate-800">Technical</span>
+                <span
+                  className={cn(
+                    "ml-auto text-xl font-bold tabular-nums",
+                    getScoreColor(c.technical),
+                  )}
+                >
+                  {c.technical}
+                </span>
+                <span className="text-sm text-slate-500">/ 100</span>
               </div>
-              <div className="text-sm text-gray-500">out of 100</div>
+              <Progress value={c.technical} className="h-2.5" />
+            </div>
+            <div className="rounded-xl border border-blue-100 bg-gradient-to-br from-blue-50/80 to-white p-4">
+              <div className="mb-2 flex items-center gap-2">
+                <Brain className="h-5 w-5 text-blue-600" />
+                <span className="font-medium text-slate-800">Behavioral</span>
+                <span
+                  className={cn(
+                    "ml-auto text-xl font-bold tabular-nums",
+                    getScoreColor(c.behavioral),
+                  )}
+                >
+                  {c.behavioral}
+                </span>
+                <span className="text-sm text-slate-500">/ 100</span>
+              </div>
+              <Progress value={c.behavioral} className="h-2.5" />
+            </div>
+            <div className="rounded-xl border border-emerald-100 bg-gradient-to-br from-green-50/80 to-white p-4">
+              <div className="mb-2 flex items-center gap-2">
+                <MessageSquare className="h-5 w-5 text-green-600" />
+                <span className="font-medium text-slate-800">Communication</span>
+                <span
+                  className={cn(
+                    "ml-auto text-xl font-bold tabular-nums",
+                    getScoreColor(c.communication),
+                  )}
+                >
+                  {c.communication}
+                </span>
+                <span className="text-sm text-slate-500">/ 100</span>
+              </div>
+              <Progress value={c.communication} className="h-2.5" />
+            </div>
+            <div className="rounded-xl border border-orange-100 bg-gradient-to-br from-orange-50/80 to-white p-4">
+              <div className="mb-2 flex items-center gap-2">
+                <Mic className="h-5 w-5 text-orange-600" />
+                <span className="font-medium text-slate-800">Confidence</span>
+                <span
+                  className={cn(
+                    "ml-auto text-xl font-bold tabular-nums",
+                    getScoreColor(c.confidence),
+                  )}
+                >
+                  {c.confidence}
+                </span>
+                <span className="text-sm text-slate-500">/ 100</span>
+              </div>
+              <Progress value={c.confidence} className="h-2.5" />
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+/** Narrative summary for practice coding round (Pass 2 + fallback). */
+export function InterviewReportOverallExperience({
+  report,
+  className = "mb-8 border-2 border-indigo-100 bg-gradient-to-br from-indigo-50/80 to-white",
+}: {
+  report: InterviewReport;
+  className?: string;
+}) {
+  if (!report.codingSummary?.problems.length) return null;
+  const text = buildOverallExperienceParagraph(report);
+  if (!text) return null;
+  return (
+    <Card className={className}>
+      <CardHeader>
+        <div className="flex items-center gap-3">
+          <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-indigo-100">
+            <Sparkles className="h-6 w-6 text-indigo-700" />
+          </div>
+          <div>
+            <CardTitle>Overall experience</CardTitle>
+            <CardDescription>
+              Coding round plus discussion — coach-style read of how the full session went
+            </CardDescription>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <p className="text-sm leading-relaxed text-slate-800">{text}</p>
+      </CardContent>
+    </Card>
+  );
+}
+
+export function InterviewReportQuestionByQuestion({
+  report,
+  className = "border-2",
+}: {
+  report: InterviewReport;
+  className?: string;
+}) {
+  if (!report.qaAnalysis?.length) return null;
+  return (
+    <Card className={className}>
+      <CardHeader>
+        <CardTitle>Question-by-question analysis</CardTitle>
+        <CardDescription>
+          Voice discussion and interview Q&amp;A — per-question scoring and feedback
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        {report.qaAnalysis.map((qa, index) => (
+          <div
+            key={`${qa.question}-${index}`}
+            className="rounded-2xl border border-slate-100 bg-white shadow-sm"
+          >
+            <div className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-100 px-6 py-4">
+              <div className="min-w-0 flex-1">
+                <p className="text-xs uppercase tracking-wide text-slate-500">
+                  Question #{index + 1}
+                </p>
+                <h3 className="text-base font-semibold text-slate-800">
+                  {qa.question}
+                </h3>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <span
+                  className={`rounded-full px-3 py-1 text-xs font-medium ${getDifficultyStyles(
+                    qa.questionDifficulty,
+                  )}`}
+                >
+                  {qa.questionDifficulty.toUpperCase()}
+                </span>
+                <span className="rounded-full border border-indigo-100 bg-indigo-50 px-3 py-1 text-xs font-medium text-indigo-700">
+                  {getQuestionTypeText(qa.questionType)}
+                </span>
+                <span
+                  className={`rounded-full px-3 py-1 text-xs font-medium ${getValidationStyles(
+                    qa.answerMatchedQuestion,
+                  )}`}
+                >
+                  {qa.answerMatchedQuestion
+                    ? "Aligned with question"
+                    : "Needs better alignment"}
+                </span>
+                <span
+                  className={`rounded-full px-3 py-1 text-xs font-medium ${getValidationStyles(
+                    qa.technicalDepthMatch,
+                  )}`}
+                >
+                  Depth: {qa.technicalDepthMatch}
+                </span>
+              </div>
+            </div>
+
+            <div className="space-y-5 px-6 py-5">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Candidate answer
+                </p>
+                <p className="mt-2 rounded-xl bg-slate-50 p-4 text-sm leading-relaxed text-slate-900">
+                  {qa.candidateAnswer}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Suggested answer
+                </p>
+                <p className="mt-2 rounded-xl bg-violet-50/70 p-4 text-sm leading-relaxed text-slate-900">
+                  {qa.suggestedAnswer}
+                </p>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-3">
+                {(
+                  [
+                    { label: "Correctness", value: qa.correctnessScore },
+                    { label: "Clarity", value: qa.clarityScore },
+                    { label: "Completeness", value: qa.completenessScore },
+                  ] as const
+                ).map((metric) => (
+                  <div
+                    key={metric.label}
+                    className="rounded-xl border border-slate-100 bg-slate-50 p-3 text-center"
+                  >
+                    <p className="text-xs text-slate-500">{metric.label}</p>
+                    <p
+                      className={`text-2xl font-semibold ${getScoreColor(metric.value)}`}
+                    >
+                      {metric.value}
+                    </p>
+                  </div>
+                ))}
+              </div>
+              <div className="rounded-xl border border-slate-100 bg-white p-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-sm font-medium text-slate-700">
+                    Experience alignment
+                  </span>
+                  <span className="text-sm font-semibold text-slate-900">
+                    {qa.experienceAlignmentScore} / 100
+                  </span>
+                </div>
+                <Progress
+                  value={qa.experienceAlignmentScore}
+                  className="mt-2 h-2"
+                />
+                {qa.validationNotes && qa.validationNotes !== "N/A" && (
+                  <p className="mt-2 text-xs text-slate-500">{qa.validationNotes}</p>
+                )}
+              </div>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Feedback
+                </p>
+                <p className="mt-1 text-sm text-slate-700">{qa.feedback}</p>
+              </div>
+            </div>
+
+            <div className="rounded-b-2xl border-t border-slate-100 bg-slate-50 px-6 py-4">
+              <div className="flex flex-col gap-4 md:flex-row">
+                <div className="flex-1">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
+                    Strengths
+                  </p>
+                  <ul className="mt-2 space-y-1 text-sm text-slate-700">
+                    {qa.strengths.map((strength, idx) => (
+                      <li key={`strength-${index}-${idx}`} className="flex gap-2">
+                        <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" />
+                        {strength}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <div className="flex-1">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-rose-700">
+                    Improvements
+                  </p>
+                  <ul className="mt-2 space-y-1 text-sm text-slate-700">
+                    {qa.improvements.map((improvement, idx) => (
+                      <li key={`improvement-${index}-${idx}`} className="flex gap-2">
+                        <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-rose-500" />
+                        {improvement}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </CardContent>
+    </Card>
+  );
+}
+
+/** Full report: scores, strengths, behavioral, question-by-question (same data as candidate report). */
+export function InterviewReportAnalysis({ report }: { report: InterviewReport }) {
+  const isCodingRoundLayout = !!(
+    report.codingSummary && report.codingSummary.problems.length > 0
+  );
+
+  return (
+    <div className="space-y-8">
+      <InterviewReportCodingSessionOverview report={report} />
+      <InterviewReportCodingScores report={report} />
+      <InterviewReportOverallExperience report={report} />
+
+      {isCodingRoundLayout && <InterviewReportQuestionByQuestion report={report} />}
+
+      {!isCodingRoundLayout && (
+        <Card className="overflow-hidden border-2">
+          <div
+            className={`h-2 bg-gradient-to-r ${getScoreGradient(report.overallScore)}`}
+          />
+          <CardContent className="p-8">
+            <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+              <div>
+                <h2 className="mb-2 text-2xl font-bold">Overall performance</h2>
+                <p className="text-gray-600">
+                  Aggregated score across categories (generated at interview completion)
+                </p>
+              </div>
+              <div className="text-center sm:text-right">
+                <div
+                  className={`text-5xl font-bold sm:text-6xl ${getScoreColor(
+                    report.overallScore,
+                  )}`}
+                >
+                  {report.overallScore}
+                </div>
+                <div className="text-sm text-gray-500">out of 100</div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {(report.passStatus === "pass" || report.passStatus === "fail") &&
         report.passingScoreThreshold != null && (
@@ -112,118 +525,120 @@ export function InterviewReportAnalysis({ report }: { report: InterviewReport })
           </div>
         )}
 
-      <div className="grid gap-6 md:grid-cols-2">
-        <Card className="border-2 bg-gradient-to-br from-purple-50 to-white">
-          <CardHeader>
-            <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-purple-100">
-                <Award className="h-6 w-6 text-purple-600" />
+      {!isCodingRoundLayout && (
+        <div className="grid gap-6 md:grid-cols-2">
+          <Card className="border-2 bg-gradient-to-br from-purple-50 to-white">
+            <CardHeader>
+              <div className="flex items-center gap-3">
+                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-purple-100">
+                  <Award className="h-6 w-6 text-purple-600" />
+                </div>
+                <div>
+                  <CardTitle>Technical skills</CardTitle>
+                  <CardDescription>Problem-solving & knowledge</CardDescription>
+                </div>
               </div>
-              <div>
-                <CardTitle>Technical skills</CardTitle>
-                <CardDescription>Problem-solving & knowledge</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="mb-2 flex items-center justify-between">
+                <span
+                  className={`text-3xl font-bold ${getScoreColor(
+                    report.categoryScores.technical,
+                  )}`}
+                >
+                  {report.categoryScores.technical}
+                </span>
+                <span className="text-gray-500">/ 100</span>
               </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="mb-2 flex items-center justify-between">
-              <span
-                className={`text-3xl font-bold ${getScoreColor(
-                  report.categoryScores.technical,
-                )}`}
-              >
-                {report.categoryScores.technical}
-              </span>
-              <span className="text-gray-500">/ 100</span>
-            </div>
-            <Progress value={report.categoryScores.technical} className="h-3" />
-          </CardContent>
-        </Card>
+              <Progress value={report.categoryScores.technical} className="h-3" />
+            </CardContent>
+          </Card>
 
-        <Card className="border-2 bg-gradient-to-br from-blue-50 to-white">
-          <CardHeader>
-            <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-blue-100">
-                <Brain className="h-6 w-6 text-blue-600" />
+          <Card className="border-2 bg-gradient-to-br from-blue-50 to-white">
+            <CardHeader>
+              <div className="flex items-center gap-3">
+                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-blue-100">
+                  <Brain className="h-6 w-6 text-blue-600" />
+                </div>
+                <div>
+                  <CardTitle>Behavioral</CardTitle>
+                  <CardDescription>STAR & storytelling</CardDescription>
+                </div>
               </div>
-              <div>
-                <CardTitle>Behavioral</CardTitle>
-                <CardDescription>STAR & storytelling</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="mb-2 flex items-center justify-between">
+                <span
+                  className={`text-3xl font-bold ${getScoreColor(
+                    report.categoryScores.behavioral,
+                  )}`}
+                >
+                  {report.categoryScores.behavioral}
+                </span>
+                <span className="text-gray-500">/ 100</span>
               </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="mb-2 flex items-center justify-between">
-              <span
-                className={`text-3xl font-bold ${getScoreColor(
-                  report.categoryScores.behavioral,
-                )}`}
-              >
-                {report.categoryScores.behavioral}
-              </span>
-              <span className="text-gray-500">/ 100</span>
-            </div>
-            <Progress value={report.categoryScores.behavioral} className="h-3" />
-          </CardContent>
-        </Card>
+              <Progress value={report.categoryScores.behavioral} className="h-3" />
+            </CardContent>
+          </Card>
 
-        <Card className="border-2 bg-gradient-to-br from-green-50 to-white">
-          <CardHeader>
-            <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-green-100">
-                <MessageSquare className="h-6 w-6 text-green-600" />
+          <Card className="border-2 bg-gradient-to-br from-green-50 to-white">
+            <CardHeader>
+              <div className="flex items-center gap-3">
+                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-green-100">
+                  <MessageSquare className="h-6 w-6 text-green-600" />
+                </div>
+                <div>
+                  <CardTitle>Communication</CardTitle>
+                  <CardDescription>Clarity & structure</CardDescription>
+                </div>
               </div>
-              <div>
-                <CardTitle>Communication</CardTitle>
-                <CardDescription>Clarity & structure</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="mb-2 flex items-center justify-between">
+                <span
+                  className={`text-3xl font-bold ${getScoreColor(
+                    report.categoryScores.communication,
+                  )}`}
+                >
+                  {report.categoryScores.communication}
+                </span>
+                <span className="text-gray-500">/ 100</span>
               </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="mb-2 flex items-center justify-between">
-              <span
-                className={`text-3xl font-bold ${getScoreColor(
-                  report.categoryScores.communication,
-                )}`}
-              >
-                {report.categoryScores.communication}
-              </span>
-              <span className="text-gray-500">/ 100</span>
-            </div>
-            <Progress
-              value={report.categoryScores.communication}
-              className="h-3"
-            />
-          </CardContent>
-        </Card>
+              <Progress
+                value={report.categoryScores.communication}
+                className="h-3"
+              />
+            </CardContent>
+          </Card>
 
-        <Card className="border-2 bg-gradient-to-br from-orange-50 to-white">
-          <CardHeader>
-            <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-orange-100">
-                <Mic className="h-6 w-6 text-orange-600" />
+          <Card className="border-2 bg-gradient-to-br from-orange-50 to-white">
+            <CardHeader>
+              <div className="flex items-center gap-3">
+                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-orange-100">
+                  <Mic className="h-6 w-6 text-orange-600" />
+                </div>
+                <div>
+                  <CardTitle>Confidence</CardTitle>
+                  <CardDescription>Delivery & presence</CardDescription>
+                </div>
               </div>
-              <div>
-                <CardTitle>Confidence</CardTitle>
-                <CardDescription>Delivery & presence</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="mb-2 flex items-center justify-between">
+                <span
+                  className={`text-3xl font-bold ${getScoreColor(
+                    report.categoryScores.confidence,
+                  )}`}
+                >
+                  {report.categoryScores.confidence}
+                </span>
+                <span className="text-gray-500">/ 100</span>
               </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="mb-2 flex items-center justify-between">
-              <span
-                className={`text-3xl font-bold ${getScoreColor(
-                  report.categoryScores.confidence,
-                )}`}
-              >
-                {report.categoryScores.confidence}
-              </span>
-              <span className="text-gray-500">/ 100</span>
-            </div>
-            <Progress value={report.categoryScores.confidence} className="h-3" />
-          </CardContent>
-        </Card>
-      </div>
+              <Progress value={report.categoryScores.confidence} className="h-3" />
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       <div className="grid gap-6 md:grid-cols-2">
         <Card className="border-2 border-green-200 bg-gradient-to-br from-green-50 to-white">
@@ -320,156 +735,8 @@ export function InterviewReportAnalysis({ report }: { report: InterviewReport })
         </CardContent>
       </Card>
 
-      {report.qaAnalysis && report.qaAnalysis.length > 0 && (
-        <Card className="border-2">
-          <CardHeader>
-            <CardTitle>Question-by-question analysis</CardTitle>
-            <CardDescription>
-              Per-question scoring, answers, and feedback (as generated at interview time)
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {report.qaAnalysis.map((qa, index) => (
-              <div
-                key={`${qa.question}-${index}`}
-                className="rounded-2xl border border-slate-100 bg-white shadow-sm"
-              >
-                <div className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-100 px-6 py-4">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs uppercase tracking-wide text-slate-500">
-                      Question #{index + 1}
-                    </p>
-                    <h3 className="text-base font-semibold text-slate-800">
-                      {qa.question}
-                    </h3>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span
-                      className={`rounded-full px-3 py-1 text-xs font-medium ${getDifficultyStyles(
-                        qa.questionDifficulty,
-                      )}`}
-                    >
-                      {qa.questionDifficulty.toUpperCase()}
-                    </span>
-                    <span className="rounded-full border border-indigo-100 bg-indigo-50 px-3 py-1 text-xs font-medium text-indigo-700">
-                      {getQuestionTypeText(qa.questionType)}
-                    </span>
-                    <span
-                      className={`rounded-full px-3 py-1 text-xs font-medium ${getValidationStyles(
-                        qa.answerMatchedQuestion,
-                      )}`}
-                    >
-                      {qa.answerMatchedQuestion
-                        ? "Aligned with question"
-                        : "Needs better alignment"}
-                    </span>
-                    <span
-                      className={`rounded-full px-3 py-1 text-xs font-medium ${getValidationStyles(
-                        qa.technicalDepthMatch,
-                      )}`}
-                    >
-                      Depth: {qa.technicalDepthMatch}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="space-y-5 px-6 py-5">
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                      Candidate answer
-                    </p>
-                    <p className="mt-2 rounded-xl bg-slate-50 p-4 text-sm leading-relaxed text-slate-900">
-                      {qa.candidateAnswer}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                      Suggested answer
-                    </p>
-                    <p className="mt-2 rounded-xl bg-violet-50/70 p-4 text-sm leading-relaxed text-slate-900">
-                      {qa.suggestedAnswer}
-                    </p>
-                  </div>
-                  <div className="grid gap-3 sm:grid-cols-3">
-                    {(
-                      [
-                        { label: "Correctness", value: qa.correctnessScore },
-                        { label: "Clarity", value: qa.clarityScore },
-                        { label: "Completeness", value: qa.completenessScore },
-                      ] as const
-                    ).map((metric) => (
-                      <div
-                        key={metric.label}
-                        className="rounded-xl border border-slate-100 bg-slate-50 p-3 text-center"
-                      >
-                        <p className="text-xs text-slate-500">{metric.label}</p>
-                        <p
-                          className={`text-2xl font-semibold ${getScoreColor(metric.value)}`}
-                        >
-                          {metric.value}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="rounded-xl border border-slate-100 bg-white p-4">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <span className="text-sm font-medium text-slate-700">
-                        Experience alignment
-                      </span>
-                      <span className="text-sm font-semibold text-slate-900">
-                        {qa.experienceAlignmentScore} / 100
-                      </span>
-                    </div>
-                    <Progress
-                      value={qa.experienceAlignmentScore}
-                      className="mt-2 h-2"
-                    />
-                    {qa.validationNotes && qa.validationNotes !== "N/A" && (
-                      <p className="mt-2 text-xs text-slate-500">{qa.validationNotes}</p>
-                    )}
-                  </div>
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                      Feedback
-                    </p>
-                    <p className="mt-1 text-sm text-slate-700">{qa.feedback}</p>
-                  </div>
-                </div>
-
-                <div className="rounded-b-2xl border-t border-slate-100 bg-slate-50 px-6 py-4">
-                  <div className="flex flex-col gap-4 md:flex-row">
-                    <div className="flex-1">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
-                        Strengths
-                      </p>
-                      <ul className="mt-2 space-y-1 text-sm text-slate-700">
-                        {qa.strengths.map((strength, idx) => (
-                          <li key={`strength-${index}-${idx}`} className="flex gap-2">
-                            <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" />
-                            {strength}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-rose-700">
-                        Improvements
-                      </p>
-                      <ul className="mt-2 space-y-1 text-sm text-slate-700">
-                        {qa.improvements.map((improvement, idx) => (
-                          <li key={`improvement-${index}-${idx}`} className="flex gap-2">
-                            <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-rose-500" />
-                            {improvement}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
+      {!isCodingRoundLayout && (
+        <InterviewReportQuestionByQuestion report={report} />
       )}
     </div>
   );

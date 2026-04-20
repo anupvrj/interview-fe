@@ -4,6 +4,8 @@
  */
 
 import { interviewApi, type Interview, type InterviewReport } from "@/lib/api";
+import { buildOverallExperienceParagraph } from "@/lib/interview-report-overall-experience";
+import { sessionAverageScore } from "@/lib/interview-report-session-scores";
 import { formatDate } from "@/lib/utils";
 
 export const INTERVIEW_REPORT_PDF_PADDING_MM = {
@@ -207,6 +209,64 @@ export function buildInterviewReportPdfHtml(
     })
     .join("");
 
+  const isCodingRoundLayout = !!(
+    report.codingSummary && report.codingSummary.problems.length > 0
+  );
+
+  const codingScoresHtml =
+    report.codingSummary && report.codingSummary.problems.length > 0
+      ? `<h2 class="ir-section-title">Practice coding round — problem scores</h2>
+  <div class="ir-card"><div class="ir-card-b">
+    <p style="margin:0 0 10px;font-size:10.5pt;color:#334155;">
+      Overall coding score:
+      <strong style="color:${pdfScoreColor(report.codingSummary.overallCodingScore)}">${report.codingSummary.overallCodingScore}</strong> / 100
+      <span style="color:#64748b;font-size:9pt;"> (automated tests: public + hidden on submit)</span>
+    </p>
+    <ul class="ir-list">
+      ${report.codingSummary.problems
+        .map(
+          (p) =>
+            `<li><strong>${escapeHtml(p.title)}</strong> — ${p.score}% · ${p.passed}/${p.total} tests · ${escapeHtml(p.language)}</li>`,
+        )
+        .join("")}
+    </ul>
+  </div></div>`
+      : "";
+
+  const sessionScoresHtml =
+    report.codingSummary && report.codingSummary.problems.length > 0
+      ? (() => {
+          const avg = sessionAverageScore(report);
+          const c = report.categoryScores;
+          return `<h2 class="ir-section-title">Session scores</h2>
+  <div class="ir-card"><div class="ir-card-b">
+    <p style="margin:0 0 8px;font-size:10pt;color:#334155;">
+      <strong>Discussion overall:</strong> ${report.overallScore}/100 &nbsp;·&nbsp;
+      <strong>Coding average:</strong> ${report.codingSummary.overallCodingScore}/100 &nbsp;·&nbsp;
+      <strong>Overall session average:</strong> <span style="color:${pdfScoreColor(avg)};font-weight:700;">${avg}</span>/100 <span style="color:#64748b;font-size:9pt;">(mean of discussion + coding)</span>
+    </p>
+    <p class="ir-label" style="margin-top:12px;">Category scores (discussion)</p>
+    <div class="ir-grid2" style="margin-top:8px;">
+      ${metricCard("Technical", c.technical, "ir-metric-tint-p", "#6366f1")}
+      ${metricCard("Behavioral", c.behavioral, "ir-metric-tint-b", "#3b82f6")}
+      ${metricCard("Communication", c.communication, "ir-metric-tint-g", "#10b981")}
+      ${metricCard("Confidence", c.confidence, "ir-metric-tint-o", "#f97316")}
+    </div>
+  </div></div>`;
+        })()
+      : "";
+
+  const overallExperienceHtml =
+    report.codingSummary && report.codingSummary.problems.length > 0
+      ? (() => {
+          const body = buildOverallExperienceParagraph(report);
+          return body
+            ? `<h2 class="ir-section-title">Overall experience</h2>
+  <div class="ir-card"><div class="ir-card-b"><p style="margin:0;font-size:10.5pt;color:#334155;line-height:1.55;">${escapeHtml(body)}</p></div></div>`
+            : "";
+        })()
+      : "";
+
   const qaBlocks =
     report.qaAnalysis?.map((qa, index) => {
       const pills = [
@@ -272,6 +332,12 @@ export function buildInterviewReportPdfHtml(
     })
     .join("") || "";
 
+  const qaSectionHtml = qaBlocks
+    ? `<h2 class="ir-section-title">Question-by-question analysis</h2>
+  <p class="ir-sub" style="margin-top:-12px;">Voice discussion and interview Q&amp;A — per-question scoring and feedback</p>
+  ${qaBlocks}`
+    : "";
+
   const domainHtml =
     report.domainSpecificFeedback?.length > 0
       ? `<h2 class="ir-section-title">Domain-specific feedback</h2>
@@ -290,22 +356,13 @@ export function buildInterviewReportPdfHtml(
           .join("")}`
       : "";
 
-  return `<div class="ir-doc">
-  <div class="ir-header">
-    <span class="ir-brand">Interview Trix</span>
-    <span class="ir-date">Generated ${escapeHtml(genDate)}</span>
-  </div>
-  <h1 class="ir-h1">Interview Performance Report</h1>
-  <p class="ir-sub">${escapeHtml(interview.metadata.role)} • ${escapeHtml(intDate)}</p>
+  const reportH1 =
+    interview.metadata.interviewKind === "coding_practice"
+      ? "Practice coding round report"
+      : "Interview Performance Report";
 
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 24px;font-size:9.5pt;margin-bottom:18px;color:#334155;">
-    <div><strong style="color:#64748b;display:block;font-size:8pt;text-transform:uppercase;">Interview ID</strong>${escapeHtml(interview.interviewId)}</div>
-    <div><strong style="color:#64748b;display:block;font-size:8pt;text-transform:uppercase;">Company</strong>${escapeHtml(interview.metadata.targetCompany || "Not specified")}</div>
-    <div><strong style="color:#64748b;display:block;font-size:8pt;text-transform:uppercase;">Candidate</strong>${escapeHtml(candidateName)}</div>
-    <div><strong style="color:#64748b;display:block;font-size:8pt;text-transform:uppercase;">Language</strong>${escapeHtml(lang)}</div>
-  </div>
-
-  <div class="ir-card">
+  const overallPerformanceAndCategoryHtml = !isCodingRoundLayout
+    ? `<div class="ir-card">
     <div class="ir-card-top"></div>
     <div class="ir-card-b">
       <div class="ir-overall">
@@ -327,7 +384,30 @@ export function buildInterviewReportPdfHtml(
     ${metricCard("Behavioral", report.categoryScores.behavioral, "ir-metric-tint-b", "#3b82f6")}
     ${metricCard("Communication", report.categoryScores.communication, "ir-metric-tint-g", "#10b981")}
     ${metricCard("Confidence", report.categoryScores.confidence, "ir-metric-tint-o", "#f97316")}
+  </div>`
+    : "";
+
+  return `<div class="ir-doc">
+  <div class="ir-header">
+    <span class="ir-brand">Interview Trix</span>
+    <span class="ir-date">Generated ${escapeHtml(genDate)}</span>
   </div>
+  <h1 class="ir-h1">${escapeHtml(reportH1)}</h1>
+  <p class="ir-sub">${escapeHtml(interview.metadata.role)} • ${escapeHtml(intDate)}</p>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 24px;font-size:9.5pt;margin-bottom:18px;color:#334155;">
+    <div><strong style="color:#64748b;display:block;font-size:8pt;text-transform:uppercase;">Interview ID</strong>${escapeHtml(interview.interviewId)}</div>
+    <div><strong style="color:#64748b;display:block;font-size:8pt;text-transform:uppercase;">Company</strong>${escapeHtml(interview.metadata.targetCompany || "Not specified")}</div>
+    <div><strong style="color:#64748b;display:block;font-size:8pt;text-transform:uppercase;">Candidate</strong>${escapeHtml(candidateName)}</div>
+    <div><strong style="color:#64748b;display:block;font-size:8pt;text-transform:uppercase;">Language</strong>${escapeHtml(lang)}</div>
+  </div>
+
+  ${sessionScoresHtml}
+  ${codingScoresHtml}
+  ${overallExperienceHtml}
+  ${isCodingRoundLayout ? qaSectionHtml : ""}
+
+  ${overallPerformanceAndCategoryHtml}
 
   <h2 class="ir-section-title">Strengths &amp; improvements</h2>
   <div class="ir-two-col">
@@ -355,7 +435,7 @@ export function buildInterviewReportPdfHtml(
 
   ${domainHtml}
 
-  ${qaBlocks ? `<h2 class="ir-section-title">Question-by-question analysis</h2>${qaBlocks}` : ""}
+  ${!isCodingRoundLayout ? qaSectionHtml : ""}
 
   <div class="ir-foot">
     <h3>Ready for your next interview?</h3>

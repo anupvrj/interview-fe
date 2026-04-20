@@ -92,23 +92,23 @@ export default function InstituteDashboardLayout({
 
   return (
     <div className="flex flex-col gap-6 lg:flex-row lg:gap-8">
-      <aside className="w-full shrink-0 rounded-xl border border-slate-200 bg-white p-4 shadow-sm lg:w-56">
+      <aside className="w-full shrink-0 rounded-xl border border-border bg-card p-4 shadow-sm lg:w-56">
         {accessRole === "super_admin" && (
           <Link
             href="/dashboard/super-admin"
-            className="mb-4 flex items-center gap-2 text-sm text-slate-600 hover:text-slate-900"
+            className="mb-4 flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
           >
             <ArrowLeft className="h-4 w-4" />
             Super Admin
           </Link>
         )}
-        <div className="mb-4 flex items-start gap-2 border-b border-slate-100 pb-4">
-          <Building2 className="mt-0.5 h-5 w-5 shrink-0 text-blue-600" />
+        <div className="mb-4 flex items-start gap-2 border-b border-border pb-4">
+          <Building2 className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
           <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
               Institution
             </p>
-            <p className="font-semibold leading-tight text-slate-900">{title || "…"}</p>
+            <p className="font-semibold leading-tight text-foreground">{title || "…"}</p>
           </div>
         </div>
         <nav className="flex flex-row flex-wrap gap-1 lg:flex-col">
@@ -124,8 +124,8 @@ export default function InstituteDashboardLayout({
                 className={cn(
                   "flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
                   active
-                    ? "bg-blue-50 text-blue-900"
-                    : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                    ? "bg-primary/15 text-primary"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
                 )}
               >
                 <item.icon className="h-4 w-4 shrink-0" />
