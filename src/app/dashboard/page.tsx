@@ -43,6 +43,7 @@ import {
   X,
   FileCheck,
   Download,
+  Sparkles,
 } from "lucide-react";
 import {
   Bar,
@@ -589,7 +590,7 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
-        <Card className="rounded-md border border-slate-200/80 bg-white shadow-sm xl:col-span-2">
+        <Card className="rounded-md border border-border bg-card shadow-sm xl:col-span-2">
           <CardHeader className="pb-2">
             <CardTitle className="text-lg text-slate-900">
               Daily interviews and score trend
@@ -644,7 +645,7 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        <Card className="rounded-md border border-slate-200/80 bg-white shadow-sm">
+        <Card className="rounded-md border border-border bg-card shadow-sm">
           <CardHeader className="pb-2">
             <CardTitle className="text-lg text-slate-900">Insights</CardTitle>
             <CardDescription>Quick performance summary</CardDescription>
@@ -693,7 +694,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Recent Interviews */}
-      <Card className="rounded-md border border-slate-200/80 bg-white shadow-sm">
+      <Card className="rounded-md border border-border bg-card shadow-sm">
         <CardHeader className="pb-4">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div>
@@ -858,16 +859,75 @@ export default function DashboardPage() {
                               >
                                 <PlayCircle className="size-3.5" />
                               </Button>
+                              {interview.report ? (
+                                <Link
+                                  href={`/dashboard/interviews/${interview.interviewId}/report`}
+                                  className={cn(
+                                    buttonVariants({ variant: "outline" }),
+                                    instituteSecondaryClass,
+                                    "h-8 shrink-0 gap-1.5 px-2.5 py-0 text-xs leading-none no-underline",
+                                  )}
+                                >
+                                  <FileText className="size-3.5 shrink-0" />
+                                  View Report
+                                </Link>
+                              ) : (
+                                <Link
+                                  href={`/dashboard/interviews/${interview.interviewId}/report`}
+                                  className={cn(
+                                    buttonVariants({ variant: "default" }),
+                                    institutePrimaryClass,
+                                    "h-8 shrink-0 gap-1.5 px-2.5 py-0 text-xs leading-none no-underline",
+                                  )}
+                                >
+                                  <Sparkles className="size-3.5 shrink-0" />
+                                  Generate report
+                                </Link>
+                              )}
+                            </>
+                          )}
+                          {interview.status === "failed" && (
+                            <>
+                              <Button
+                                variant="outline"
+                                className={cn(
+                                  instituteSecondaryClass,
+                                  "size-8 shrink-0 p-0 [&_svg]:size-3.5",
+                                )}
+                                title="Play video"
+                                aria-label="Play interview video"
+                                onClick={async () => {
+                                  try {
+                                    const { videoUrl } =
+                                      await interviewApi.getRecordingVideoUrl(
+                                        interview.interviewId,
+                                      );
+                                    if (!videoUrl?.trim()) {
+                                      setVideoUnavailableOpen(true);
+                                      return;
+                                    }
+                                    window.open(videoUrl, "_blank");
+                                  } catch (error) {
+                                    console.error(
+                                      "Error getting video URL:",
+                                      error,
+                                    );
+                                    setVideoUnavailableOpen(true);
+                                  }
+                                }}
+                              >
+                                <PlayCircle className="size-3.5" />
+                              </Button>
                               <Link
                                 href={`/dashboard/interviews/${interview.interviewId}/report`}
                                 className={cn(
-                                  buttonVariants({ variant: "outline" }),
-                                  instituteSecondaryClass,
+                                  buttonVariants({ variant: "default" }),
+                                  institutePrimaryClass,
                                   "h-8 shrink-0 gap-1.5 px-2.5 py-0 text-xs leading-none no-underline",
                                 )}
                               >
-                                <FileText className="size-3.5 shrink-0" />
-                                View Report
+                                <Sparkles className="size-3.5 shrink-0" />
+                                Generate report
                               </Link>
                             </>
                           )}
@@ -1004,7 +1064,7 @@ export default function DashboardPage() {
       )}
 
       {/* Your resumes */}
-      <Card className="rounded-md border border-slate-200/80 bg-white shadow-sm">
+      <Card className="rounded-md border border-border bg-card shadow-sm">
         <CardHeader className="pb-4">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>

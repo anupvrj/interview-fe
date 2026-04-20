@@ -170,8 +170,28 @@ export interface Interview {
     createdAt: string;
     /** Interview duration in minutes (15 or 30). */
     interviewDuration?: number;
+    interviewKind?: "general" | "coding_practice";
+    codingPhaseDurationMinutes?: number;
+    discussionDurationMinutes?: number;
     /** When true (e.g. institute admin), denying screen capture may block the session. */
     requireSessionRecording?: boolean;
+  };
+  codingRound?: {
+    status: string;
+    assignedProblemIds: string[];
+    codingPhaseStartedAt?: string;
+    codingPhaseEndedAt?: string;
+    discussionCursor?: number;
+    submissions: Array<{
+      problemId: string;
+      language: string;
+      code: string;
+      lastRunSummary?: string;
+      finalScore: number;
+      testsPassed: number;
+      testsTotal: number;
+      submittedAt: string;
+    }>;
   };
   session?: {
     s3VideoKey?: string;
@@ -226,6 +246,17 @@ export interface InterviewReport {
     communication: number;
     confidence: number;
   };
+  codingSummary?: {
+    overallCodingScore: number;
+    problems: Array<{
+      problemId: string;
+      title: string;
+      score: number;
+      passed: number;
+      total: number;
+      language: string;
+    }>;
+  };
   qaAnalysis: Array<{
     question: string;
     candidateAnswer: string;
@@ -268,6 +299,16 @@ export interface InterviewReport {
     };
     cost: number;
     generatedAt: string;
+  };
+  /** Pass 2 coach narrative (overall summary, STAR, etc.) */
+  pass2Analysis?: {
+    recommendedNextDifficulty?: "easy" | "medium" | "hard";
+    starMethodDetected?: boolean;
+    starExamples?: string[];
+    communicationScore?: number;
+    overallSummary?: string;
+    topStrengths?: string[];
+    topImprovements?: string[];
   };
   /** Set after PDF is uploaded for sharing */
   reportPdfS3Key?: string;
@@ -528,6 +569,11 @@ export const interviewApi = {
     await apiClient.post(`/interviews/${interviewId}/close-failed`);
   },
 
+  /** Delete draft or active interview (owner only). Removes S3 recording and DB records. */
+  deleteDraftOrActive: async (interviewId: string): Promise<void> => {
+    await apiClient.delete(`/interviews/detail/${interviewId}`);
+  },
+
   getInterview: async (interviewId: string): Promise<Interview> => {
     const response = await apiClient.get<{ data: Interview }>(
       `/interviews/detail/${interviewId}`,
@@ -677,6 +723,128 @@ export const interviewApi = {
       {
         params: { userId },
       },
+    );
+    return response.data.data;
+  },
+};
+
+export type CodingProblemPublic = {
+  problemId: string;
+  title: string;
+  statement: string;
+  categories: string[];
+  difficulty: string;
+  skillTags: string[];
+  starterCode: Record<string, string>;
+  publicTests: Array<{
+    input: string;
+    expectedOutput: string;
+    compareMode?: string;
+  }>;
+};
+
+export const codingInterviewApi = {
+  create: async (
+    userId: string,
+    data: CreateInterviewRequest,
+  ): Promise<{ success: boolean; data: Interview }> => {
+    const formData = new FormData();
+    formData.append("role", data.role);
+    formData.append("experience", data.experience.toString());
+    formData.append("language", data.language);
+    if (data.department) formData.append("department", data.department);
+    if (data.discipline) formData.append("discipline", data.discipline);
+    if (data.targetCompany) formData.append("targetCompany", data.targetCompany);
+    if (data.useSavedResume) formData.append("useSavedResume", "true");
+    if (data.resume) {
+      const resumeBlob = await snapshotFileForUpload(data.resume);
+      formData.append("resume", resumeBlob, data.resume.name);
+    }
+    const response = await apiClient.post<{ success: boolean; data: Interview }>(
+      "/coding-interviews",
+      formData,
+      { params: { userId } },
+    );
+    return response.data;
+  },
+
+  listMine: async (): Promise<Interview[]> => {
+    const response = await apiClient.get<{ success: boolean; data: Interview[] }>(
+      "/coding-interviews/mine",
+    );
+    return response.data.data;
+  },
+
+  getSession: async (
+    interviewId: string,
+  ): Promise<{ interview: Interview; problems: CodingProblemPublic[] }> => {
+    const response = await apiClient.get<{
+      success: boolean;
+      data: { interview: Interview; problems: CodingProblemPublic[] };
+    }>(`/coding-interviews/${interviewId}/session`);
+    return response.data.data;
+  },
+
+  startCoding: async (interviewId: string): Promise<Interview> => {
+    const response = await apiClient.post<{ success: boolean; data: Interview }>(
+      `/coding-interviews/${interviewId}/start-coding`,
+    );
+    return response.data.data;
+  },
+
+  run: async (
+    interviewId: string,
+    body: {
+      problemId: string;
+      language: string;
+      code: string;
+      visibility?: "public" | "all";
+    },
+  ): Promise<{
+    results: Array<{
+      index: number;
+      passed: boolean;
+      expected?: string;
+      actual?: string;
+      stderr?: string;
+      compileOutput?: string;
+      status?: string;
+      error?: string;
+    }>;
+    passed: number;
+    total: number;
+  }> => {
+    const response = await apiClient.post<{
+      success: boolean;
+      data: { results: any[]; passed: number; total: number };
+    }>(`/coding-interviews/${interviewId}/run`, body, {
+      headers: { "Content-Type": "application/json" },
+    });
+    return response.data.data;
+  },
+
+  submit: async (
+    interviewId: string,
+    body: { problemId: string; language: string; code: string },
+  ): Promise<Interview> => {
+    const response = await apiClient.post<{ success: boolean; data: Interview }>(
+      `/coding-interviews/${interviewId}/submit`,
+      body,
+      { headers: { "Content-Type": "application/json" } },
+    );
+    return response.data.data;
+  },
+
+  startDiscussion: async (interviewId: string): Promise<Interview> => {
+    const response = await apiClient.post<{ success: boolean; data: Interview }>(
+      `/coding-interviews/${interviewId}/start-discussion`,
+    );
+    return response.data.data;
+  },
+
+  markDone: async (interviewId: string): Promise<Interview> => {
+    const response = await apiClient.post<{ success: boolean; data: Interview }>(
+      `/coding-interviews/${interviewId}/mark-done`,
     );
     return response.data.data;
   },

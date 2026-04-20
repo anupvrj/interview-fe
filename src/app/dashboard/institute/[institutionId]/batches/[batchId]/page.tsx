@@ -1042,7 +1042,7 @@ export default function BatchDetailPage() {
                     <Loader2 className="h-6 w-6 animate-spin text-[rgb(37,99,235)]" />
                   </div>
                 ) : searchResults.length > 0 ? (
-                  <ul className="mt-3 max-h-52 space-y-1 overflow-auto rounded-lg border border-slate-200/80 bg-white p-2 shadow-inner">
+                  <ul className="mt-3 max-h-52 space-y-1 overflow-auto rounded-lg border border-border bg-card p-2 shadow-inner">
                     {searchResults.map((u) => (
                       <li
                         key={u._id}

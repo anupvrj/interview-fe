@@ -2,10 +2,15 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Loader2, CheckCircle, AlertCircle } from "lucide-react";
 import { interviewApi, Interview } from "@/lib/api";
+import {
+  practiceHubHref,
+  practiceHubLabel,
+} from "@/lib/interview-practice-hub";
 
 export default function ProcessingPage() {
   const params = useParams();
@@ -51,6 +56,12 @@ export default function ProcessingPage() {
     } catch (error) {
       console.error("Error checking interview status:", error);
       setStatus("failed");
+      try {
+        const data = await interviewApi.get(interviewId);
+        setInterview(data);
+      } catch {
+        /* link falls back to practice interviews list */
+      }
     }
   };
 
@@ -140,19 +151,18 @@ export default function ProcessingPage() {
               <div className="w-20 h-20 mx-auto mb-6 bg-gradient-to-r from-red-500 to-pink-500 rounded-full flex items-center justify-center">
                 <AlertCircle className="w-10 h-10 text-white" />
               </div>
-              <h2 className="text-3xl font-bold mb-4 text-red-600">
-                Processing Failed
+              <h2 className="text-3xl font-bold mb-4 text-slate-800">
+                Ooops...
               </h2>
-              <p className="text-gray-600 mb-8 text-lg">
+              <p className="mb-8 text-lg text-gray-600">
                 We encountered an error while analyzing your interview. Please
                 try again or contact support if the issue persists.
               </p>
-              <div className="flex gap-4 justify-center">
-                <Button
-                  variant="outline"
-                  onClick={() => router.push("/dashboard")}
-                >
-                  Back to Dashboard
+              <div className="flex flex-wrap gap-4 justify-center">
+                <Button variant="outline" asChild>
+                  <Link href={practiceHubHref(interview)}>
+                    {practiceHubLabel(interview)}
+                  </Link>
                 </Button>
                 <Button
                   variant="gradient"
