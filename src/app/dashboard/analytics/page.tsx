@@ -304,7 +304,7 @@ export default function AnalyticsPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
-        <Card className="rounded-md border border-slate-200/80 bg-white shadow-sm xl:col-span-2">
+        <Card className="rounded-md border border-border bg-card shadow-sm xl:col-span-2">
           <CardHeader className="pb-2">
             <CardTitle className="text-lg text-slate-900">
               Daily interviews and score trend
@@ -355,7 +355,7 @@ export default function AnalyticsPage() {
           </CardContent>
         </Card>
 
-        <Card className="rounded-md border border-slate-200/80 bg-white shadow-sm">
+        <Card className="rounded-md border border-border bg-card shadow-sm">
           <CardHeader className="pb-2">
             <CardTitle className="text-lg text-slate-900">Insights</CardTitle>
             <CardDescription>Quick performance summary</CardDescription>
@@ -392,7 +392,7 @@ export default function AnalyticsPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-        <Card className="rounded-md border border-slate-200/80 bg-white shadow-sm">
+        <Card className="rounded-md border border-border bg-card shadow-sm">
           <CardHeader className="pb-2">
             <CardTitle className="text-lg text-slate-900">
               Daily token spend
@@ -419,7 +419,7 @@ export default function AnalyticsPage() {
           </CardContent>
         </Card>
 
-        <Card className="rounded-md border border-slate-200/80 bg-white shadow-sm">
+        <Card className="rounded-md border border-border bg-card shadow-sm">
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between gap-2">
               <CardTitle className="text-lg text-slate-900">

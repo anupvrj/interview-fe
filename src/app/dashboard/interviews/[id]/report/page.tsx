@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import { UserButton, useUser } from "@clerk/nextjs";
 import Link from "next/link";
 import { jsPDF } from "jspdf";
@@ -40,15 +40,26 @@ import {
 } from "lucide-react";
 import { interviewApi, InterviewReport, Interview } from "@/lib/api";
 import {
+  InterviewReportCodingScores,
+  InterviewReportCodingSessionOverview,
+  InterviewReportOverallExperience,
+  InterviewReportQuestionByQuestion,
+} from "@/components/institution/InterviewReportAnalysis";
+import {
   buildInterviewReportPdfHtml,
   generateInterviewReportPdfViaServer,
 } from "@/lib/interview-report-pdf-export";
+import { buildOverallExperienceParagraph } from "@/lib/interview-report-overall-experience";
+import { sessionAverageScore } from "@/lib/interview-report-session-scores";
 import { uploadPDFToS3 } from "@/lib/pdf-generator";
 import { getScoreColor, getScoreGradient, formatDate } from "@/lib/utils";
+import {
+  practiceHubHref,
+  practiceHubLabel,
+} from "@/lib/interview-practice-hub";
 
 export default function ReportPage() {
   const params = useParams();
-  const router = useRouter();
   const interviewId = params.id as string;
   const { user } = useUser();
 
@@ -75,6 +86,12 @@ export default function ReportPage() {
     } catch (error: any) {
       console.error("Error loading report:", error);
       setError(error.response?.data?.message || "Failed to load report");
+      try {
+        const interviewData = await interviewApi.getInterview(interviewId);
+        setInterview(interviewData);
+      } catch {
+        /* interview stays null; hub link defaults to voice practice list */
+      }
     } finally {
       setLoading(false);
     }
@@ -82,6 +99,10 @@ export default function ReportPage() {
 
   const buildReportPdfBlob = (): Blob | null => {
     if (!report || !interview) return null;
+
+    const isCodingPdfLayout = !!(
+      report.codingSummary && report.codingSummary.problems.length > 0
+    );
 
     const doc = new jsPDF({ unit: "pt", format: "a4" });
     const pageWidth = doc.internal.pageSize.getWidth();
@@ -159,6 +180,103 @@ export default function ReportPage() {
       cursorY += 4;
     };
 
+    const appendQuestionByQuestion = () => {
+      if (!report.qaAnalysis?.length) return;
+      addSectionTitle("Question-by-Question Analysis", [236, 72, 153]);
+      report.qaAnalysis.forEach((qa, index) => {
+        ensureSpace(50);
+
+        doc.setFillColor(236, 72, 153);
+        doc.roundedRect(margin, cursorY - 3, 80, 16, 4, 4, "F");
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(11);
+        doc.setTextColor(255, 255, 255);
+        doc.text(`Question #${index + 1}`, margin + 8, cursorY + 8);
+        cursorY += 20;
+
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(11);
+        doc.setTextColor(40, 40, 40);
+        addParagraph(qa.question, 11);
+
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(9);
+        doc.setTextColor(120, 120, 120);
+        addParagraph(
+          `Type: ${getQuestionTypeText(qa.questionType)} | Difficulty: ${
+            qa.questionDifficulty
+          } | Alignment: ${
+            qa.answerMatchedQuestion ? "Aligned" : "Needs work"
+          } | Depth: ${qa.technicalDepthMatch} | Experience Alignment: ${
+            qa.experienceAlignmentScore
+          } / 100`,
+        );
+
+        cursorY += 6;
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(10);
+        doc.setTextColor(59, 130, 246);
+        doc.text("Candidate Answer", margin, cursorY);
+        cursorY += 12;
+        addParagraph(qa.candidateAnswer);
+
+        cursorY += 4;
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(10);
+        doc.setTextColor(16, 185, 129);
+        doc.text("Suggested Answer", margin, cursorY);
+        cursorY += 12;
+        addParagraph(qa.suggestedAnswer);
+
+        cursorY += 4;
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(10);
+        doc.setTextColor(168, 85, 247);
+        doc.text(
+          `Scores — Correctness: ${qa.correctnessScore}, Clarity: ${qa.clarityScore}, Completeness: ${qa.completenessScore}`,
+          margin,
+          cursorY,
+        );
+        cursorY += 16;
+
+        if (qa.validationNotes && qa.validationNotes !== "N/A") {
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(10);
+          doc.setTextColor(100, 100, 100);
+          addParagraph(`Validation Notes: ${qa.validationNotes}`);
+        }
+
+        if (qa.feedback) {
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(10);
+          doc.setTextColor(100, 100, 100);
+          addParagraph(`Feedback: ${qa.feedback}`);
+        }
+
+        if (qa.strengths.length) {
+          cursorY += 6;
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(10);
+          doc.setTextColor(16, 185, 129);
+          doc.text("\u2713 Strengths", margin, cursorY);
+          cursorY += 12;
+          addBulletList(qa.strengths);
+        }
+
+        if (qa.improvements.length) {
+          cursorY += 6;
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(10);
+          doc.setTextColor(251, 146, 60);
+          doc.text("→ Improvement Ideas", margin, cursorY);
+          cursorY += 12;
+          addBulletList(qa.improvements);
+        }
+
+        cursorY += 12;
+      });
+    };
+
     // Header with brand color
     doc.setFont("helvetica", "bold");
     doc.setFontSize(24);
@@ -184,7 +302,11 @@ export default function ReportPage() {
     doc.setFont("helvetica", "bold");
     doc.setFontSize(26);
     doc.setTextColor(30, 30, 30);
-    doc.text("Interview Performance Report", margin, cursorY);
+    const pdfReportHeading =
+      interview.metadata.interviewKind === "coding_practice"
+        ? "Practice coding round report"
+        : "Interview Performance Report";
+    doc.text(pdfReportHeading, margin, cursorY);
     cursorY += 28;
 
     doc.setFont("helvetica", "normal");
@@ -268,6 +390,39 @@ export default function ReportPage() {
     });
 
     cursorY = Math.max(leftY, rightY) + 20;
+
+    if (isCodingPdfLayout && report.codingSummary) {
+      addSectionTitle("Session scores", [79, 70, 229]);
+      const sessAvg = sessionAverageScore(report);
+      addParagraph(
+        `Discussion overall: ${report.overallScore}/100 · Coding average: ${report.codingSummary.overallCodingScore}/100 · Overall session average: ${sessAvg}/100 (mean of discussion + coding).`,
+      );
+      addParagraph(
+        `Category scores (discussion) — Technical: ${report.categoryScores.technical}/100, Behavioral: ${report.categoryScores.behavioral}/100, Communication: ${report.categoryScores.communication}/100, Confidence: ${report.categoryScores.confidence}/100.`,
+      );
+      cursorY += 8;
+      addSectionTitle("Practice coding round — problem scores", [51, 65, 85]);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(11);
+      doc.setTextColor(60, 60, 60);
+      addParagraph(
+        `Overall coding score: ${report.codingSummary.overallCodingScore} / 100 (automated tests: public + hidden on submit).`,
+      );
+      report.codingSummary.problems.forEach((p) => {
+        ensureSpace(22);
+        addParagraph(
+          `${p.title}: ${p.score}% · ${p.passed}/${p.total} tests · ${p.language}`,
+        );
+      });
+      cursorY += 8;
+      const overallExp = buildOverallExperienceParagraph(report);
+      if (overallExp) {
+        addSectionTitle("Overall experience", [99, 102, 241]);
+        addParagraph(overallExp);
+        cursorY += 8;
+      }
+      appendQuestionByQuestion();
+    }
 
     addSectionTitle("Performance Breakdown", [139, 92, 246]);
 
@@ -409,101 +564,8 @@ export default function ReportPage() {
     });
     cursorY += 8;
 
-    if (report.qaAnalysis?.length) {
-      addSectionTitle("Question-by-Question Analysis", [236, 72, 153]);
-      report.qaAnalysis.forEach((qa, index) => {
-        ensureSpace(50);
-
-        // Question number with colored background
-        doc.setFillColor(236, 72, 153);
-        doc.roundedRect(margin, cursorY - 3, 80, 16, 4, 4, "F");
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(11);
-        doc.setTextColor(255, 255, 255);
-        doc.text(`Question #${index + 1}`, margin + 8, cursorY + 8);
-        cursorY += 20;
-
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(11);
-        doc.setTextColor(40, 40, 40);
-        addParagraph(qa.question, 11);
-
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(9);
-        doc.setTextColor(120, 120, 120);
-        addParagraph(
-          `Type: ${getQuestionTypeText(qa.questionType)} | Difficulty: ${
-            qa.questionDifficulty
-          } | Alignment: ${
-            qa.answerMatchedQuestion ? "Aligned" : "Needs work"
-          } | Depth: ${qa.technicalDepthMatch} | Experience Alignment: ${
-            qa.experienceAlignmentScore
-          } / 100`
-        );
-
-        cursorY += 6;
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(10);
-        doc.setTextColor(59, 130, 246);
-        doc.text("Candidate Answer", margin, cursorY);
-        cursorY += 12;
-        addParagraph(qa.candidateAnswer);
-
-        cursorY += 4;
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(10);
-        doc.setTextColor(16, 185, 129);
-        doc.text("Suggested Answer", margin, cursorY);
-        cursorY += 12;
-        addParagraph(qa.suggestedAnswer);
-
-        cursorY += 4;
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(10);
-        doc.setTextColor(168, 85, 247);
-        doc.text(
-          `Scores — Correctness: ${qa.correctnessScore}, Clarity: ${qa.clarityScore}, Completeness: ${qa.completenessScore}`,
-          margin,
-          cursorY
-        );
-        cursorY += 16;
-
-        if (qa.validationNotes && qa.validationNotes !== "N/A") {
-          doc.setFont("helvetica", "normal");
-          doc.setFontSize(10);
-          doc.setTextColor(100, 100, 100);
-          addParagraph(`Validation Notes: ${qa.validationNotes}`);
-        }
-
-        if (qa.feedback) {
-          doc.setFont("helvetica", "normal");
-          doc.setFontSize(10);
-          doc.setTextColor(100, 100, 100);
-          addParagraph(`Feedback: ${qa.feedback}`);
-        }
-
-        if (qa.strengths.length) {
-          cursorY += 6;
-          doc.setFont("helvetica", "bold");
-          doc.setFontSize(10);
-          doc.setTextColor(16, 185, 129);
-          doc.text("✓ Strengths", margin, cursorY);
-          cursorY += 12;
-          addBulletList(qa.strengths);
-        }
-
-        if (qa.improvements.length) {
-          cursorY += 6;
-          doc.setFont("helvetica", "bold");
-          doc.setFontSize(10);
-          doc.setTextColor(251, 146, 60);
-          doc.text("→ Improvement Ideas", margin, cursorY);
-          cursorY += 12;
-          addBulletList(qa.improvements);
-        }
-
-        cursorY += 12;
-      });
+    if (!isCodingPdfLayout) {
+      appendQuestionByQuestion();
     }
 
     const totalPages = doc.getNumberOfPages();
@@ -693,38 +755,6 @@ export default function ReportPage() {
     }
   };
 
-  const getDifficultyStyles = (difficulty: string) => {
-    switch (difficulty) {
-      case "easy":
-        return "bg-emerald-50 text-emerald-700 border border-emerald-100";
-      case "medium":
-        return "bg-amber-50 text-amber-700 border border-amber-100";
-      case "hard":
-        return "bg-rose-50 text-rose-700 border border-rose-100";
-      default:
-        return "bg-slate-50 text-slate-700 border border-slate-100";
-    }
-  };
-
-  const getValidationStyles = (match: string | boolean) => {
-    if (typeof match === "boolean") {
-      return match
-        ? "bg-emerald-50 text-emerald-700 border border-emerald-100"
-        : "bg-rose-50 text-rose-700 border border-rose-100";
-    }
-
-    switch (match) {
-      case "exceeds":
-        return "bg-violet-50 text-violet-700 border border-violet-100";
-      case "meets":
-        return "bg-blue-50 text-blue-700 border border-blue-100";
-      case "below":
-        return "bg-orange-50 text-orange-700 border border-orange-100";
-      default:
-        return "bg-slate-50 text-slate-700 border border-slate-100";
-    }
-  };
-
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 via-blue-50 to-pink-50">
@@ -744,11 +774,10 @@ export default function ReportPage() {
               {error ||
                 "The interview report is not ready yet or doesn't exist."}
             </p>
-            <Button
-              onClick={() => router.push("/dashboard")}
-              variant="gradient"
-            >
-              Back to Dashboard
+            <Button variant="gradient" asChild>
+              <Link href={practiceHubHref(interview)}>
+                {practiceHubLabel(interview)}
+              </Link>
             </Button>
           </CardContent>
         </Card>
@@ -756,17 +785,25 @@ export default function ReportPage() {
     );
   }
 
+  const isCodingRoundLayout = !!(
+    report.codingSummary && report.codingSummary.problems.length > 0
+  );
+  const reportTitle =
+    interview.metadata.interviewKind === "coding_practice"
+      ? "Practice coding round report"
+      : "Interview Report";
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-pink-50">
       {/* Header */}
-      <header className="bg-white border-b shadow-sm">
+      <header className="border-b border-border bg-card shadow-sm">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <Link
-            href="/dashboard"
+            href={practiceHubHref(interview)}
             className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
-            <span>Back to Dashboard</span>
+            <span>{practiceHubLabel(interview)}</span>
           </Link>
           <UserButton
             afterSignOutUrl="/"
@@ -785,7 +822,7 @@ export default function ReportPage() {
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-4 min-w-0">
             <div className="min-w-0">
               <h1 className="text-3xl sm:text-4xl font-bold mb-2 break-words">
-                Interview Report
+                {reportTitle}
               </h1>
               <p className="text-gray-600 break-words">
                 {interview.metadata.role} • {formatDate(interview.createdAt)}
@@ -865,157 +902,174 @@ export default function ReportPage() {
           </div>
         </div>
 
-        {/* Overall Score */}
-        <Card className="border-2 mb-8 overflow-hidden">
-          <div
-            className={`h-2 bg-gradient-to-r ${getScoreGradient(
-              report.overallScore
-            )}`}
+        <InterviewReportCodingSessionOverview report={report} />
+        <InterviewReportCodingScores
+          report={report}
+          className="mb-8 overflow-hidden border-2 border-border"
+        />
+        <InterviewReportOverallExperience report={report} />
+        {isCodingRoundLayout && (
+          <InterviewReportQuestionByQuestion
+            report={report}
+            className="border-2 mb-8"
           />
-          <CardContent className="p-8">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-2xl font-bold mb-2">Overall Performance</h2>
-                <p className="text-gray-600">
-                  Your interview performance across all categories
-                </p>
-              </div>
-              <div className="text-center">
-                <div
-                  className={`text-6xl font-bold ${getScoreColor(
-                    report.overallScore
-                  )}`}
-                >
-                  {report.overallScore}
+        )}
+
+        {!isCodingRoundLayout && (
+          <>
+            {/* Overall Score */}
+            <Card className="border-2 mb-8 overflow-hidden">
+              <div
+                className={`h-2 bg-gradient-to-r ${getScoreGradient(
+                  report.overallScore
+                )}`}
+              />
+              <CardContent className="p-8">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-2xl font-bold mb-2">Overall Performance</h2>
+                    <p className="text-gray-600">
+                      Your interview performance across all categories
+                    </p>
+                  </div>
+                  <div className="text-center">
+                    <div
+                      className={`text-6xl font-bold ${getScoreColor(
+                        report.overallScore
+                      )}`}
+                    >
+                      {report.overallScore}
+                    </div>
+                    <div className="text-gray-500 text-sm">out of 100</div>
+                  </div>
                 </div>
-                <div className="text-gray-500 text-sm">out of 100</div>
-              </div>
+              </CardContent>
+            </Card>
+
+            {/* Category Scores */}
+            <div className="grid md:grid-cols-2 gap-6 mb-8">
+              <Card className="border-2 bg-gradient-to-br from-purple-50 to-white">
+                <CardHeader>
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
+                      <Award className="w-6 h-6 text-purple-600" />
+                    </div>
+                    <div>
+                      <CardTitle>Technical Skills</CardTitle>
+                      <CardDescription>Problem-solving & knowledge</CardDescription>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center justify-between mb-2">
+                    <span
+                      className={`text-3xl font-bold ${getScoreColor(
+                        report.categoryScores.technical
+                      )}`}
+                    >
+                      {report.categoryScores.technical}
+                    </span>
+                    <span className="text-gray-500">/ 100</span>
+                  </div>
+                  <Progress
+                    value={report.categoryScores.technical}
+                    className="h-3"
+                  />
+                </CardContent>
+              </Card>
+
+              <Card className="border-2 bg-gradient-to-br from-blue-50 to-white dark:border-border dark:from-blue-950/50 dark:to-card">
+                <CardHeader>
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                      <Brain className="w-6 h-6 text-blue-600" />
+                    </div>
+                    <div>
+                      <CardTitle>Behavioral</CardTitle>
+                      <CardDescription>STAR method & storytelling</CardDescription>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center justify-between mb-2">
+                    <span
+                      className={`text-3xl font-bold ${getScoreColor(
+                        report.categoryScores.behavioral
+                      )}`}
+                    >
+                      {report.categoryScores.behavioral}
+                    </span>
+                    <span className="text-gray-500">/ 100</span>
+                  </div>
+                  <Progress
+                    value={report.categoryScores.behavioral}
+                    className="h-3"
+                  />
+                </CardContent>
+              </Card>
+
+              <Card className="border-2 bg-gradient-to-br from-green-50 to-white">
+                <CardHeader>
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                      <MessageSquare className="w-6 h-6 text-green-600" />
+                    </div>
+                    <div>
+                      <CardTitle>Communication</CardTitle>
+                      <CardDescription>Clarity & structure</CardDescription>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center justify-between mb-2">
+                    <span
+                      className={`text-3xl font-bold ${getScoreColor(
+                        report.categoryScores.communication
+                      )}`}
+                    >
+                      {report.categoryScores.communication}
+                    </span>
+                    <span className="text-gray-500">/ 100</span>
+                  </div>
+                  <Progress
+                    value={report.categoryScores.communication}
+                    className="h-3"
+                  />
+                </CardContent>
+              </Card>
+
+              <Card className="border-2 bg-gradient-to-br from-orange-50 to-white">
+                <CardHeader>
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
+                      <Mic className="w-6 h-6 text-orange-600" />
+                    </div>
+                    <div>
+                      <CardTitle>Confidence</CardTitle>
+                      <CardDescription>Delivery & presence</CardDescription>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center justify-between mb-2">
+                    <span
+                      className={`text-3xl font-bold ${getScoreColor(
+                        report.categoryScores.confidence
+                      )}`}
+                    >
+                      {report.categoryScores.confidence}
+                    </span>
+                    <span className="text-gray-500">/ 100</span>
+                  </div>
+                  <Progress
+                    value={report.categoryScores.confidence}
+                    className="h-3"
+                  />
+                </CardContent>
+              </Card>
             </div>
-          </CardContent>
-        </Card>
-
-        {/* Category Scores */}
-        <div className="grid md:grid-cols-2 gap-6 mb-8">
-          <Card className="border-2 bg-gradient-to-br from-purple-50 to-white">
-            <CardHeader>
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-                  <Award className="w-6 h-6 text-purple-600" />
-                </div>
-                <div>
-                  <CardTitle>Technical Skills</CardTitle>
-                  <CardDescription>Problem-solving & knowledge</CardDescription>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between mb-2">
-                <span
-                  className={`text-3xl font-bold ${getScoreColor(
-                    report.categoryScores.technical
-                  )}`}
-                >
-                  {report.categoryScores.technical}
-                </span>
-                <span className="text-gray-500">/ 100</span>
-              </div>
-              <Progress
-                value={report.categoryScores.technical}
-                className="h-3"
-              />
-            </CardContent>
-          </Card>
-
-          <Card className="border-2 bg-gradient-to-br from-blue-50 to-white">
-            <CardHeader>
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                  <Brain className="w-6 h-6 text-blue-600" />
-                </div>
-                <div>
-                  <CardTitle>Behavioral</CardTitle>
-                  <CardDescription>STAR method & storytelling</CardDescription>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between mb-2">
-                <span
-                  className={`text-3xl font-bold ${getScoreColor(
-                    report.categoryScores.behavioral
-                  )}`}
-                >
-                  {report.categoryScores.behavioral}
-                </span>
-                <span className="text-gray-500">/ 100</span>
-              </div>
-              <Progress
-                value={report.categoryScores.behavioral}
-                className="h-3"
-              />
-            </CardContent>
-          </Card>
-
-          <Card className="border-2 bg-gradient-to-br from-green-50 to-white">
-            <CardHeader>
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                  <MessageSquare className="w-6 h-6 text-green-600" />
-                </div>
-                <div>
-                  <CardTitle>Communication</CardTitle>
-                  <CardDescription>Clarity & structure</CardDescription>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between mb-2">
-                <span
-                  className={`text-3xl font-bold ${getScoreColor(
-                    report.categoryScores.communication
-                  )}`}
-                >
-                  {report.categoryScores.communication}
-                </span>
-                <span className="text-gray-500">/ 100</span>
-              </div>
-              <Progress
-                value={report.categoryScores.communication}
-                className="h-3"
-              />
-            </CardContent>
-          </Card>
-
-          <Card className="border-2 bg-gradient-to-br from-orange-50 to-white">
-            <CardHeader>
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
-                  <Mic className="w-6 h-6 text-orange-600" />
-                </div>
-                <div>
-                  <CardTitle>Confidence</CardTitle>
-                  <CardDescription>Delivery & presence</CardDescription>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between mb-2">
-                <span
-                  className={`text-3xl font-bold ${getScoreColor(
-                    report.categoryScores.confidence
-                  )}`}
-                >
-                  {report.categoryScores.confidence}
-                </span>
-                <span className="text-gray-500">/ 100</span>
-              </div>
-              <Progress
-                value={report.categoryScores.confidence}
-                className="h-3"
-              />
-            </CardContent>
-          </Card>
-        </div>
+          </>
+        )}
 
         {/* Strengths & Improvements */}
         <div className="grid md:grid-cols-2 gap-6 mb-8">
@@ -1041,7 +1095,7 @@ export default function ReportPage() {
             </CardContent>
           </Card>
 
-          <Card className="border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-white">
+          <Card className="border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-white dark:border-border dark:from-blue-950/50 dark:to-card">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-blue-700">
                 <TrendingUp className="w-5 h-5" />
@@ -1153,177 +1207,11 @@ export default function ReportPage() {
           </CardContent>
         </Card>
 
-        {/* Q&A Analysis */}
-        {report.qaAnalysis && report.qaAnalysis.length > 0 && (
-          <Card className="border-2 mb-8">
-            <CardHeader>
-              <CardTitle>Question-by-Question Analysis</CardTitle>
-              <CardDescription>
-                Deep dive into how each answer performed, including validation
-                checks and suggested improvements
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {report.qaAnalysis.map((qa, index) => (
-                <div
-                  key={`${qa.question}-${index}`}
-                  className="rounded-2xl border border-slate-100 bg-white shadow-sm"
-                >
-                  <div className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-100 px-6 py-4">
-                    <div className="flex-1">
-                      <p className="text-xs uppercase tracking-wide text-slate-500">
-                        Question #{index + 1}
-                      </p>
-                      <h3 className="text-base font-semibold text-slate-800">
-                        {qa.question}
-                      </h3>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span
-                        className={`rounded-full px-3 py-1 text-xs font-medium ${getDifficultyStyles(
-                          qa.questionDifficulty
-                        )}`}
-                      >
-                        {qa.questionDifficulty.toUpperCase()}
-                      </span>
-                      <span className="rounded-full border border-indigo-100 bg-indigo-50 px-3 py-1 text-xs font-medium text-indigo-700">
-                        {getQuestionTypeText(qa.questionType)}
-                      </span>
-                      <span
-                        className={`rounded-full px-3 py-1 text-xs font-medium ${getValidationStyles(
-                          qa.answerMatchedQuestion
-                        )}`}
-                      >
-                        {qa.answerMatchedQuestion
-                          ? "Aligned with question"
-                          : "Needs better alignment"}
-                      </span>
-                      <span
-                        className={`rounded-full px-3 py-1 text-xs font-medium ${getValidationStyles(
-                          qa.technicalDepthMatch
-                        )}`}
-                      >
-                        Depth: {qa.technicalDepthMatch}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="space-y-5 px-6 py-5">
-                    <div>
-                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                        Candidate Answer
-                      </p>
-                      <p className="mt-2 rounded-xl bg-slate-50 p-4 text-sm leading-relaxed text-slate-900">
-                        {qa.candidateAnswer}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                        Suggested Answer
-                      </p>
-                      <p className="mt-2 rounded-xl bg-violet-50/70 p-4 text-sm leading-relaxed text-slate-900">
-                        {qa.suggestedAnswer}
-                      </p>
-                    </div>
-                    <div className="space-y-4">
-                      <div className="grid gap-3 sm:grid-cols-3">
-                        {[
-                          { label: "Correctness", value: qa.correctnessScore },
-                          { label: "Clarity", value: qa.clarityScore },
-                          {
-                            label: "Completeness",
-                            value: qa.completenessScore,
-                          },
-                        ].map((metric) => (
-                          <div
-                            key={`${qa.question}-${metric.label}`}
-                            className="rounded-xl border border-slate-100 bg-slate-50 p-3 text-center"
-                          >
-                            <p className="text-xs text-slate-500">
-                              {metric.label}
-                            </p>
-                            <p
-                              className={`text-2xl font-semibold ${getScoreColor(
-                                metric.value
-                              )}`}
-                            >
-                              {metric.value}
-                            </p>
-                          </div>
-                        ))}
-                      </div>
-
-                      <div className="rounded-xl border border-slate-100 bg-white p-4">
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <span className="text-sm font-medium text-slate-700">
-                            Experience Alignment
-                          </span>
-                          <span className="text-sm font-semibold text-slate-900">
-                            {qa.experienceAlignmentScore} / 100
-                          </span>
-                        </div>
-                        <Progress
-                          value={qa.experienceAlignmentScore}
-                          className="mt-2 h-2"
-                        />
-                        {qa.validationNotes && qa.validationNotes !== "N/A" && (
-                          <p className="mt-2 text-xs text-slate-500">
-                            {qa.validationNotes}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-
-                    <div>
-                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                        Feedback Summary
-                      </p>
-                      <p className="mt-1 text-sm text-slate-700">
-                        {qa.feedback}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="rounded-b-2xl border-t border-slate-100 bg-slate-50 px-6 py-4">
-                    <div className="flex flex-col gap-4 md:flex-row">
-                      <div>
-                        <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
-                          Strengths Highlighted
-                        </p>
-                        <ul className="mt-2 space-y-1 text-sm text-slate-700">
-                          {qa.strengths.map((strength, idx) => (
-                            <li
-                              key={`strength-${index}-${idx}`}
-                              className="flex items-start gap-2"
-                            >
-                              <span className="mt-1 h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                              {strength}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                      <div>
-                        <p className="text-xs font-semibold uppercase tracking-wide text-rose-700">
-                          Improvement Ideas
-                        </p>
-                        <ul className="mt-2 space-y-1 text-sm text-slate-700">
-                          {qa.improvements.map((improvement, idx) => (
-                            <li
-                              key={`improvement-${index}-${idx}`}
-                              className="flex items-start gap-2"
-                            >
-                              <span className="mt-1 h-1.5 w-1.5 rounded-full bg-rose-500" />
-                              {improvement}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
+        {!isCodingRoundLayout && (
+          <InterviewReportQuestionByQuestion
+            report={report}
+            className="border-2 mb-8"
+          />
         )}
 
         {/* Next Steps */}

@@ -369,7 +369,7 @@ export default function PlanPage() {
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {/* Left Column - Current Plan + Upgrade card */}
         <div className="space-y-4">
-          <Card className="h-fit rounded-md border border-slate-200/80 bg-white shadow-sm">
+          <Card className="h-fit rounded-md border border-border bg-card shadow-sm">
             <CardHeader className="pb-4">
               <div className="flex items-center gap-3 mb-2">
                 <div className="flex h-10 w-10 items-center justify-center rounded-md bg-gradient-to-br from-[rgb(37,99,235)] to-blue-600 shadow-lg shadow-blue-500/30 ring-2 ring-blue-200/50">
@@ -565,7 +565,7 @@ export default function PlanPage() {
 
           {/* Upgrade card - right after current plan */}
           {nextPlan && (
-            <Card className="rounded-md border border-slate-200/80 bg-white shadow-sm">
+            <Card className="rounded-md border border-border bg-card shadow-sm">
               <CardContent className="py-5">
                 <div className="flex flex-col items-start justify-between gap-4 rounded-md border border-slate-200 bg-slate-50/80 p-4 sm:flex-row sm:items-center">
                   <div className="flex items-start gap-4">
@@ -598,7 +598,7 @@ export default function PlanPage() {
         </div>
 
         {/* Right Column - Credit Balance & Purchase */}
-        <Card className="h-fit rounded-md border border-slate-200/80 bg-white shadow-sm">
+        <Card className="h-fit rounded-md border border-border bg-card shadow-sm">
           <CardHeader className="pb-4">
             <div className="flex items-center gap-3 mb-2">
               <div className="flex h-10 w-10 items-center justify-center rounded-md bg-gradient-to-br from-emerald-500 to-emerald-600 shadow-lg shadow-emerald-500/30">
@@ -708,7 +708,7 @@ export default function PlanPage() {
 
       {/* Highest Plan Message */}
       {!nextPlan && subscription?.plan !== "free" && (
-        <Card className="rounded-md border border-slate-200/80 bg-white shadow-sm">
+        <Card className="rounded-md border border-border bg-card shadow-sm">
           <CardContent className="py-5">
             <div className="flex items-start gap-4 rounded-md border border-slate-200 bg-slate-50/80 p-4">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-gradient-to-br from-amber-500 to-amber-600 shadow-lg shadow-amber-500/30">

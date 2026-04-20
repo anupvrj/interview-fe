@@ -26,9 +26,11 @@ import {
   Layers,
   Lock,
   BarChart2,
+  Code2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { userApi, AccessRole } from "@/lib/api";
+import { userApi, interviewApi, AccessRole } from "@/lib/api";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -49,6 +51,11 @@ const baseMenuItems = [
     title: "Practice Interview",
     href: "/dashboard/interviews",
     icon: FileText,
+  },
+  {
+    title: "Practice Coding Round",
+    href: "/dashboard/coding-interviews",
+    icon: Code2,
   },
   {
     title: "Peer interviews",
@@ -80,6 +87,19 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [accessRole, setAccessRole] = useState<AccessRole | null>(null);
   const [institutionId, setInstitutionId] = useState<string | null>(null);
+  /** When viewing /dashboard/interviews/[id]/…, which flow this interview belongs to (for sidebar highlight). */
+  const [interviewsSubpathKind, setInterviewsSubpathKind] = useState<
+    "general" | "coding_practice" | null
+  >(null);
+
+  const interviewsDetailMatch =
+    /^\/dashboard\/interviews\/([^/]+)(?:\/|$)/.exec(pathname ?? "") ?? undefined;
+  const interviewsPathSegment = interviewsDetailMatch?.[1];
+  const isDashboardInterviewsDetailPath = Boolean(
+    interviewsPathSegment &&
+      interviewsPathSegment !== "new" &&
+      pathname !== "/dashboard/interviews",
+  );
 
   useEffect(() => {
     if (isLoaded && user) {
@@ -98,6 +118,30 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     }
   }, [isLoaded, user]);
 
+  useEffect(() => {
+    if (!isDashboardInterviewsDetailPath || !interviewsPathSegment || !user) {
+      setInterviewsSubpathKind(null);
+      return;
+    }
+    let cancelled = false;
+    interviewApi
+      .getInterview(interviewsPathSegment)
+      .then((inv) => {
+        if (cancelled) return;
+        setInterviewsSubpathKind(
+          inv.metadata?.interviewKind === "coding_practice"
+            ? "coding_practice"
+            : "general",
+        );
+      })
+      .catch(() => {
+        if (!cancelled) setInterviewsSubpathKind(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isDashboardInterviewsDetailPath, interviewsPathSegment, user]);
+
   const isInstitutionAdmin = accessRole === "institution_admin";
 
   useEffect(() => {
@@ -107,7 +151,9 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       pathname === base ||
       pathname.startsWith(`${base}/`) ||
       pathname === "/dashboard/profile" ||
-      pathname.startsWith("/dashboard/profile/");
+      pathname.startsWith("/dashboard/profile/") ||
+      pathname === "/dashboard/coding-interviews" ||
+      pathname.startsWith("/dashboard/coding-interviews/");
     if (!allowed && pathname.startsWith("/dashboard")) {
       router.replace(base);
     }
@@ -164,16 +210,16 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   // Don't render until user is loaded to avoid hydration issues
   if (!isLoaded) {
     return (
-      <div className="min-h-screen bg-blue-50/30 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[rgb(37,99,235)]"></div>
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-blue-50/30">
+    <div className="min-h-screen bg-background text-foreground">
       {/* Mobile Header */}
-      <header className="lg:hidden bg-white border-b shadow-sm sticky top-0 z-50">
+      <header className="lg:hidden sticky top-0 z-50 border-b border-border bg-card shadow-sm">
         <div className="flex items-center justify-between gap-2 px-3 py-2.5">
           <div className="flex items-center gap-2 min-w-0 flex-1">
             <Button
@@ -198,10 +244,16 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             >
               <InterviewTrixLogo
                 variant="onLightBg"
-                className="h-7 w-auto max-w-[min(100%,11rem)] object-contain object-left"
+                className="h-7 w-auto max-w-[min(100%,11rem)] object-contain object-left dark:hidden"
+              />
+              <InterviewTrixLogo
+                variant="white"
+                className="hidden h-7 w-auto max-w-[min(100%,11rem)] object-contain object-left dark:block"
               />
             </Link>
           </div>
+          <div className="flex shrink-0 items-center gap-1">
+            <ThemeToggle />
           {!(isInstitutionAdmin && institutionId) && (
             <Link href="/dashboard/interviews/new" className="flex-shrink-0">
               <Button
@@ -214,6 +266,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               </Button>
             </Link>
           )}
+          </div>
         </div>
       </header>
 
@@ -221,7 +274,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         {/* Sidebar */}
         <aside
           className={cn(
-            "bg-white border-r shadow-sm transition-all duration-300 z-40",
+            "border-r border-border bg-card shadow-sm transition-all duration-300 z-40",
             "fixed lg:sticky lg:top-0 lg:h-screen",
             sidebarOpen ? "w-64" : "w-0 lg:w-20",
             "overflow-hidden",
@@ -232,7 +285,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         >
           <div className="h-full flex flex-col">
             {/* Logo */}
-            <div className="p-4 border-b hidden lg:block">
+            <div className="hidden border-b border-border p-4 lg:block">
               <Link
                 href={
                   isInstitutionAdmin && institutionId
@@ -246,7 +299,14 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               >
                 <InterviewTrixLogo
                   className={cn(
-                    "w-auto object-contain object-left",
+                    "w-auto object-contain object-left dark:hidden",
+                    sidebarOpen ? "h-8 max-w-[11rem]" : "h-7 max-w-[4rem]",
+                  )}
+                />
+                <InterviewTrixLogo
+                  variant="white"
+                  className={cn(
+                    "hidden w-auto object-contain object-left dark:block",
                     sidebarOpen ? "h-8 max-w-[11rem]" : "h-7 max-w-[4rem]",
                   )}
                 />
@@ -254,15 +314,39 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             </div>
 
             {/* Navigation */}
-            <nav className="flex-1 p-4 space-y-2">
+            <nav className="flex flex-1 flex-col divide-y divide-border px-2 py-2">
               {menuItems.map((item) => {
                 const Icon = item.icon;
-                const isActive =
+                const baseActive =
                   pathname === item.href ||
                   (institutionBase && item.href === institutionBase
                     ? false
                     : item.href !== "/dashboard" &&
                       (pathname?.startsWith(`${item.href}/`) ?? false));
+
+                const codingRoundSidebar =
+                  isDashboardInterviewsDetailPath &&
+                  interviewsSubpathKind === "coding_practice";
+
+                let isActive = baseActive;
+                if (item.href === "/dashboard/interviews") {
+                  if (codingRoundSidebar) isActive = false;
+                  if (
+                    isDashboardInterviewsDetailPath &&
+                    interviewsSubpathKind === null
+                  ) {
+                    isActive = false;
+                  }
+                }
+                if (item.href === "/dashboard/coding-interviews") {
+                  if (codingRoundSidebar) isActive = true;
+                  if (
+                    isDashboardInterviewsDetailPath &&
+                    interviewsSubpathKind === null
+                  ) {
+                    isActive = false;
+                  }
+                }
 
                 const isPeerInterviews = item.href === "/dashboard/peer-interviews";
 
@@ -277,20 +361,21 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                       }
                     }}
                     className={cn(
-                      "flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200",
-                      "hover:bg-blue-50 hover:scale-105 hover:shadow-md",
+                      "flex items-center gap-2 rounded-md px-2.5 py-2 text-sm transition-all duration-200",
+                      sidebarOpen ? "justify-start" : "justify-center",
+                      "hover:bg-muted hover:shadow-sm",
                       isActive
-                        ? "!bg-[rgb(37,99,235)] !text-white shadow-md hover:!bg-[rgb(17,24,39)] hover:!text-white"
-                        : "text-slate-700 hover:text-[rgb(37,99,235)]",
+                        ? "!bg-primary !text-primary-foreground shadow-sm hover:!bg-primary/90 hover:!text-primary-foreground"
+                        : "text-muted-foreground hover:text-primary",
                     )}
                   >
                     <span className="relative flex-shrink-0">
-                      <Icon className="w-5 h-5 transition-transform duration-200" />
+                      <Icon className="h-4 w-4 transition-transform duration-200" />
                       {isPeerInterviews && !sidebarOpen && (
                         <Lock
                           className={cn(
                             "pointer-events-none absolute -bottom-1 -right-1 h-3 w-3 drop-shadow",
-                            isActive ? "text-white" : "text-slate-500",
+                            isActive ? "text-primary-foreground" : "text-muted-foreground",
                           )}
                           strokeWidth={2.5}
                           aria-hidden
@@ -298,7 +383,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                       )}
                     </span>
                     {sidebarOpen && (
-                      <span className="flex min-w-0 flex-1 items-center gap-2 font-medium transition-colors duration-200">
+                      <span className="flex min-w-0 flex-1 items-center gap-1.5 font-medium transition-colors duration-200">
                         <span className="truncate">{item.title}</span>
                         {isPeerInterviews && (
                           <Lock
@@ -318,20 +403,20 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             </nav>
 
             {/* User Section */}
-            <div className="p-4 border-t hidden lg:block">
+            <div className="hidden border-t border-border p-4 lg:block">
               <div className="flex items-center gap-3 px-4 py-2">
                 <UserButton
                   appearance={{
                     elements: {
                       avatarBox:
-                        "w-10 h-10 ring-2 ring-blue-100 hover:ring-blue-300 transition-all",
+                        "w-10 h-10 ring-2 ring-primary/20 hover:ring-primary/40 transition-all",
                       userButtonPopoverCard:
-                        "shadow-2xl border-2 border-blue-100",
+                        "shadow-2xl border-2 border-border",
                       userButtonPopoverActionButton:
-                        "hover:bg-blue-50 transition-colors text-gray-700 font-medium",
-                      userButtonPopoverActionButtonIcon: "text-blue-600",
-                      userButtonPopoverActionButtonText: "text-gray-700",
-                      userButtonPopoverFooter: "border-t border-gray-200",
+                        "hover:bg-muted transition-colors text-foreground font-medium",
+                      userButtonPopoverActionButtonIcon: "text-primary",
+                      userButtonPopoverActionButtonText: "text-foreground",
+                      userButtonPopoverFooter: "border-t border-border",
                     },
                   }}
                   afterSignOutUrl="/"
@@ -340,10 +425,10 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 />
                 {sidebarOpen && user && (
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">
+                    <p className="truncate text-sm font-medium text-foreground">
                       {user.firstName} {user.lastName}
                     </p>
-                    <p className="text-xs text-gray-500 truncate">
+                    <p className="truncate text-xs text-muted-foreground">
                       {user.primaryEmailAddress?.emailAddress}
                     </p>
                   </div>
@@ -364,7 +449,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         {/* Main Content */}
         <main className="flex-1 min-w-0">
           {/* Desktop Header */}
-          <header className="hidden lg:block bg-white border-b shadow-sm sticky top-0 z-30">
+          <header className="sticky top-0 z-30 hidden border-b border-border bg-card shadow-sm lg:block">
             <div className="flex items-center justify-between px-6 py-4">
               <Button
                 variant="ghost"
@@ -372,10 +457,11 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 onClick={() => setSidebarOpen(!sidebarOpen)}
                 className="lg:flex"
               >
-                <Menu className="w-5 h-5" />
+                <Menu className="h-5 w-5" />
               </Button>
-              <div className="flex items-center gap-4">
-                <span className="text-sm text-gray-600">
+              <div className="flex items-center gap-3">
+                <ThemeToggle />
+                <span className="text-sm text-muted-foreground">
                   Welcome, {user?.firstName || "User"}!
                 </span>
                 {!(isInstitutionAdmin && institutionId) && (
