@@ -1142,7 +1142,32 @@ export default function RealtimeInterviewPage() {
     }
   };
 
-  const startRecording = async () => {
+  const requestScreenCaptureStream = () => {
+    // Keep this call in a direct user-gesture path for Firefox/Safari.
+    return navigator.mediaDevices.getDisplayMedia({
+      video: {
+        displaySurface: "browser", // Prefer browser tab
+        width: { ideal: 1920, max: 3840 },
+        height: { ideal: 1080, max: 2160 },
+        frameRate: { ideal: 30, max: 60 },
+      } as MediaTrackConstraints,
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+        sampleRate: 48000,
+        suppressLocalAudioPlayback: false,
+      } as MediaTrackConstraints,
+      // Allow current tab to appear in the picker (prevents "hall of mirrors" exclusion)
+      selfBrowserSurface: "include" as any,
+      // Prefer current tab to be pre-selected
+      preferCurrentTab: true as any,
+    } as any);
+  };
+
+  const startRecording = async (
+    preRequestedScreenStream?: Promise<MediaStream>,
+  ) => {
     if (isRecording) {
       return;
     }
@@ -1150,25 +1175,9 @@ export default function RealtimeInterviewPage() {
       // Request screen capture (user will select tab/window/screen)
       // Try to get display media with flexible constraints
       // Include the current tab in the picker using selfBrowserSurface (prevents "hall of mirrors")
-      const screenStream = await navigator.mediaDevices.getDisplayMedia({
-        video: {
-          displaySurface: "browser", // Prefer browser tab
-          width: { ideal: 1920, max: 3840 },
-          height: { ideal: 1080, max: 2160 },
-          frameRate: { ideal: 30, max: 60 },
-        } as MediaTrackConstraints,
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
-          sampleRate: 48000,
-          suppressLocalAudioPlayback: false,
-        } as MediaTrackConstraints,
-        // Allow current tab to appear in the picker (prevents "hall of mirrors" exclusion)
-        selfBrowserSurface: "include" as any,
-        // Prefer current tab to be pre-selected
-        preferCurrentTab: true as any,
-      } as any);
+      const screenStream = preRequestedScreenStream
+        ? await preRequestedScreenStream
+        : await requestScreenCaptureStream();
 
       // Log what was selected and check for tab audio
       const selectedVideoTrack = screenStream.getVideoTracks()[0];
@@ -1642,7 +1651,10 @@ export default function RealtimeInterviewPage() {
    * After user chooses in the recording dialog: optional screen capture, then start interview.
    * "Yes" awaits startRecording (toast on deny); both paths then call startInterview().
    */
-  const resolveRecordingOptIn = async (choice: "yes" | "no") => {
+  const resolveRecordingOptIn = async (
+    choice: "yes" | "no",
+    preRequestedScreenStream?: Promise<MediaStream>,
+  ) => {
     if (launchingInterviewRef.current) return;
     launchingInterviewRef.current = true;
     recordingOptInResolvedRef.current = true;
@@ -1657,7 +1669,7 @@ export default function RealtimeInterviewPage() {
       }
 
       if (choice === "yes") {
-        await startRecording();
+        await startRecording(preRequestedScreenStream);
       }
 
       setShowRecordingOptIn(false);
@@ -1917,7 +1929,10 @@ export default function RealtimeInterviewPage() {
             <Button
               type="button"
               className="bg-red-600 text-white hover:bg-red-700"
-              onClick={() => void resolveRecordingOptIn("yes")}
+              onClick={() => {
+                const preRequestedScreenStream = requestScreenCaptureStream();
+                void resolveRecordingOptIn("yes", preRequestedScreenStream);
+              }}
             >
               Yes
             </Button>
