@@ -147,6 +147,15 @@ export default function EditResumePage() {
   // Initialize sections as empty - will be populated from database
   const [sections, setSections] = useState<Section[]>([]);
   const [viewMode, setViewMode] = useState<"edit" | "ats">("edit");
+  const [mobileWorkspaceMode, setMobileWorkspaceMode] = useState<
+    "edit" | "preview"
+  >("preview");
+  const [isNarrowViewport, setIsNarrowViewport] = useState(
+    () =>
+      typeof globalThis !== "undefined" &&
+      "matchMedia" in globalThis &&
+      globalThis.matchMedia("(max-width: 767px)").matches,
+  );
 
   // Delete section dialog state
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -158,6 +167,14 @@ export default function EditResumePage() {
 
   useEffect(() => {
     setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    const mq = globalThis.matchMedia("(max-width: 767px)");
+    const onChange = () => setIsNarrowViewport(mq.matches);
+    onChange();
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
   }, []);
 
   useEffect(() => {
@@ -1308,14 +1325,17 @@ export default function EditResumePage() {
   }
 
   return (
-    <div className="h-screen flex flex-col bg-gray-50" suppressHydrationWarning>
+    <div
+      className="h-screen flex flex-col bg-gray-50 pb-28 md:pb-0"
+      suppressHydrationWarning
+    >
       {/* Top Header Bar */}
       <div className="bg-white border-b shadow-sm z-10">
         <div className="max-w-full mx-auto px-4 py-3">
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between md:gap-4">
-            {/* Left Section: Back Button + Title */}
-            <div className="flex items-center gap-4 min-w-0 md:flex-1">
-              <Link href="/dashboard/resumes">
+            {/* Left Section: Back Button + Title + mobile Save */}
+            <div className="flex min-w-0 items-center gap-2 md:gap-4 md:flex-1">
+              <Link href="/dashboard/resumes" className="shrink-0">
                 <Button variant="ghost" size="icon" className="flex-shrink-0">
                   <ArrowLeft className="w-5 h-5" />
                 </Button>
@@ -1326,15 +1346,33 @@ export default function EditResumePage() {
                   setResume({ ...resume, title: e.target.value });
                   setHasChanges(true);
                 }}
-                className="text-lg font-semibold border-0 p-0 h-auto focus-visible:ring-0 bg-transparent max-w-xs min-w-0 flex-1"
+                className="min-w-0 flex-1 text-lg font-semibold border-0 p-0 h-auto focus-visible:ring-0 bg-transparent max-w-xs"
                 placeholder="Resume Title"
               />
+              <Button
+                onClick={handleSave}
+                disabled={saving || !hasChanges || autoSaving}
+                className="inline-flex shrink-0 whitespace-nowrap bg-gradient-to-r from-purple-600 to-blue-600 px-3 text-white hover:from-purple-700 hover:to-blue-700 md:hidden"
+                size="sm"
+              >
+                {saving ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Save className="mr-2 h-4 w-4" />
+                    {hasChanges ? "Save Now" : "Saved"}
+                  </>
+                )}
+              </Button>
             </div>
 
             {/* Middle Section: ATS Score (Centered) */}
             <div className="flex items-center justify-center min-w-0 shrink-0 md:flex-1">
               {resume.atsScore !== undefined && resume.atsScore !== null && (
-                <div className="flex items-center gap-2 flex-wrap justify-center">
+                <div className="flex items-center justify-center gap-2 overflow-x-auto whitespace-nowrap md:flex-wrap">
                   <div
                     className={`px-3 py-2 sm:px-4 rounded-lg border-2 font-semibold text-sm flex items-center gap-1.5 sm:gap-2 ${resume.atsScore >= 80
                       ? "bg-green-50 text-green-700 border-green-300"
@@ -1384,7 +1422,7 @@ export default function EditResumePage() {
               <Button
                 onClick={handleSave}
                 disabled={saving || !hasChanges || autoSaving}
-                className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white shrink-0 max-md:flex-1"
+                className="hidden shrink-0 bg-gradient-to-r from-purple-600 to-blue-600 text-white hover:from-purple-700 hover:to-blue-700 md:inline-flex"
                 size="sm"
               >
                 {saving ? (
@@ -1404,7 +1442,7 @@ export default function EditResumePage() {
                 disabled={downloading}
                 variant="outline"
                 size="sm"
-                className="shrink-0 max-md:flex-1"
+                className="hidden shrink-0 md:inline-flex"
               >
                 {downloading ? (
                   <>
@@ -1426,7 +1464,9 @@ export default function EditResumePage() {
       {/* Main Content: preview on top on mobile; side-by-side from md */}
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden md:flex-row">
         {/* Left Panel: Edit Form (below preview on mobile) */}
-        <div className="order-2 flex min-h-0 w-full flex-1 flex-col overflow-y-auto bg-white md:order-none md:w-1/2 md:border-r">
+        <div
+          className={`${mobileWorkspaceMode === "preview" ? "hidden md:flex" : "order-2 flex"} min-h-0 w-full flex-1 flex-col overflow-y-auto bg-white md:order-none md:w-1/2 md:border-r`}
+        >
           {/* Toggle between Edit Resume and ATS Report */}
           <div className="border-b bg-gray-50">
             <div className="flex">
@@ -6795,8 +6835,10 @@ export default function EditResumePage() {
         </div>
 
         {/* Right Panel: Preview (on top on mobile) */}
-        <div className="order-1 flex min-h-0 w-full flex-1 flex-col overflow-auto border-b border-gray-200 bg-gray-100 md:order-none md:w-1/2 md:border-b-0">
-          <div className="sticky top-0 bg-white border-b p-4 z-10 flex items-center justify-between">
+        <div
+          className={`${mobileWorkspaceMode === "edit" ? "hidden md:flex" : "order-1 flex"} min-h-0 w-full flex-1 flex-col overflow-auto border-b border-gray-200 bg-gray-100 md:order-none md:w-1/2 md:border-b-0`}
+        >
+          <div className="sticky top-0 z-10 hidden items-center justify-between border-b bg-white p-4 md:flex">
             <h3 className="font-semibold text-sm flex items-center gap-2">
               <Eye className="w-4 h-4" />
               Preview
@@ -6813,6 +6855,9 @@ export default function EditResumePage() {
                 layout={layout || undefined}
                 zoomLevel={zoomLevel}
                 onZoomChange={setZoomLevel}
+                autoFitNarrowView={
+                  isNarrowViewport && mobileWorkspaceMode === "preview"
+                }
               />
             ) : (
               <div className="flex items-center justify-center h-full text-gray-500">
@@ -6821,6 +6866,48 @@ export default function EditResumePage() {
               </div>
             )}
           </div>
+        </div>
+      </div>
+
+      <div className="fixed inset-x-0 bottom-0 z-20 border-t bg-white p-3 md:hidden">
+        {mobileWorkspaceMode === "preview" && (
+          <Button
+            onClick={handleDownload}
+            disabled={downloading}
+            className="mb-3 w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white hover:from-purple-700 hover:to-blue-700"
+          >
+            {downloading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Generating...
+              </>
+            ) : (
+              <>
+                <Download className="mr-2 h-4 w-4" />
+                Download PDF
+              </>
+            )}
+          </Button>
+        )}
+        <div className="grid grid-cols-2 gap-2">
+          <Button
+            type="button"
+            variant={mobileWorkspaceMode === "edit" ? "default" : "outline"}
+            onClick={() => setMobileWorkspaceMode("edit")}
+            className="w-full"
+          >
+            <Edit className="mr-2 h-4 w-4" />
+            Edit Mode
+          </Button>
+          <Button
+            type="button"
+            variant={mobileWorkspaceMode === "preview" ? "default" : "outline"}
+            onClick={() => setMobileWorkspaceMode("preview")}
+            className="w-full"
+          >
+            <Eye className="mr-2 h-4 w-4" />
+            Preview Mode
+          </Button>
         </div>
       </div>
 

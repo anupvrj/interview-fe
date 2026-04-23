@@ -150,9 +150,9 @@ export function InterviewReportCodingSessionOverview({
           in the next section.
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-6">
-        <div className="grid gap-4 sm:grid-cols-3">
-          <div className="rounded-xl border bg-slate-50/90 p-4 text-center">
+      <CardContent className="space-y-5 md:space-y-6">
+        <div className="grid gap-3 md:gap-4 sm:grid-cols-3">
+          <div className="rounded-xl border bg-slate-50/90 p-3 text-center md:p-4">
             <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
               Discussion overall
             </p>
@@ -166,7 +166,7 @@ export function InterviewReportCodingSessionOverview({
             </p>
             <p className="text-xs text-slate-500">Voice &amp; Q&amp;A / 100</p>
           </div>
-          <div className="rounded-xl border bg-slate-50/90 p-4 text-center">
+          <div className="rounded-xl border bg-slate-50/90 p-3 text-center md:p-4">
             <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
               Coding average
             </p>
@@ -180,7 +180,7 @@ export function InterviewReportCodingSessionOverview({
             </p>
             <p className="text-xs text-slate-500">All problems / 100</p>
           </div>
-          <div className="rounded-xl border border-indigo-200 bg-indigo-50/70 p-4 text-center">
+          <div className="rounded-xl border border-indigo-200 bg-indigo-50/70 p-3 text-center md:p-4">
             <p className="text-xs font-medium uppercase tracking-wide text-indigo-900">
               Overall session average
             </p>
@@ -200,8 +200,8 @@ export function InterviewReportCodingSessionOverview({
           <p className="mb-3 text-sm font-semibold text-slate-800">
             Category scores (discussion)
           </p>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="rounded-xl border border-purple-100 bg-gradient-to-br from-purple-50/80 to-white p-4">
+          <div className="grid gap-3 md:gap-4 sm:grid-cols-2">
+            <div className="rounded-xl border border-purple-100 bg-gradient-to-br from-purple-50/80 to-white p-3 md:p-4">
               <div className="mb-2 flex items-center gap-2">
                 <Award className="h-5 w-5 text-purple-600" />
                 <span className="font-medium text-slate-800">Technical</span>
@@ -217,7 +217,7 @@ export function InterviewReportCodingSessionOverview({
               </div>
               <Progress value={c.technical} className="h-2.5" />
             </div>
-            <div className="rounded-xl border border-blue-100 bg-gradient-to-br from-blue-50/80 to-white p-4">
+            <div className="rounded-xl border border-blue-100 bg-gradient-to-br from-blue-50/80 to-white p-3 md:p-4">
               <div className="mb-2 flex items-center gap-2">
                 <Brain className="h-5 w-5 text-blue-600" />
                 <span className="font-medium text-slate-800">Behavioral</span>
@@ -233,7 +233,7 @@ export function InterviewReportCodingSessionOverview({
               </div>
               <Progress value={c.behavioral} className="h-2.5" />
             </div>
-            <div className="rounded-xl border border-emerald-100 bg-gradient-to-br from-green-50/80 to-white p-4">
+            <div className="rounded-xl border border-emerald-100 bg-gradient-to-br from-green-50/80 to-white p-3 md:p-4">
               <div className="mb-2 flex items-center gap-2">
                 <MessageSquare className="h-5 w-5 text-green-600" />
                 <span className="font-medium text-slate-800">Communication</span>
@@ -249,7 +249,7 @@ export function InterviewReportCodingSessionOverview({
               </div>
               <Progress value={c.communication} className="h-2.5" />
             </div>
-            <div className="rounded-xl border border-orange-100 bg-gradient-to-br from-orange-50/80 to-white p-4">
+            <div className="rounded-xl border border-orange-100 bg-gradient-to-br from-orange-50/80 to-white p-3 md:p-4">
               <div className="mb-2 flex items-center gap-2">
                 <Mic className="h-5 w-5 text-orange-600" />
                 <span className="font-medium text-slate-800">Confidence</span>
@@ -321,13 +321,13 @@ export function InterviewReportQuestionByQuestion({
           Voice discussion and interview Q&amp;A — per-question scoring and feedback
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-6">
+      <CardContent className="space-y-5 md:space-y-6">
         {report.qaAnalysis.map((qa, index) => (
           <div
             key={`${qa.question}-${index}`}
             className="rounded-2xl border border-slate-100 bg-white shadow-sm"
           >
-            <div className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-100 px-6 py-4">
+            <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-100 px-4 py-3 md:gap-4 md:px-6 md:py-4">
               <div className="min-w-0 flex-1">
                 <p className="text-xs uppercase tracking-wide text-slate-500">
                   Question #{index + 1}
@@ -366,12 +366,12 @@ export function InterviewReportQuestionByQuestion({
               </div>
             </div>
 
-            <div className="space-y-5 px-6 py-5">
+            <div className="space-y-4 px-4 py-4 md:space-y-5 md:px-6 md:py-5">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                   Candidate answer
                 </p>
-                <p className="mt-2 rounded-xl bg-slate-50 p-4 text-sm leading-relaxed text-slate-900">
+                <p className="mt-2 rounded-xl bg-slate-50 p-3 text-sm leading-relaxed text-slate-900 md:p-4">
                   {qa.candidateAnswer}
                 </p>
               </div>
@@ -379,11 +379,11 @@ export function InterviewReportQuestionByQuestion({
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                   Suggested answer
                 </p>
-                <p className="mt-2 rounded-xl bg-violet-50/70 p-4 text-sm leading-relaxed text-slate-900">
+                <p className="mt-2 rounded-xl bg-violet-50/70 p-3 text-sm leading-relaxed text-slate-900 md:p-4">
                   {qa.suggestedAnswer}
                 </p>
               </div>
-              <div className="grid gap-3 sm:grid-cols-3">
+              <div className="grid gap-2.5 sm:grid-cols-3 md:gap-3">
                 {(
                   [
                     { label: "Correctness", value: qa.correctnessScore },
@@ -393,7 +393,7 @@ export function InterviewReportQuestionByQuestion({
                 ).map((metric) => (
                   <div
                     key={metric.label}
-                    className="rounded-xl border border-slate-100 bg-slate-50 p-3 text-center"
+                    className="rounded-xl border border-slate-100 bg-slate-50 p-2.5 text-center md:p-3"
                   >
                     <p className="text-xs text-slate-500">{metric.label}</p>
                     <p
@@ -404,7 +404,7 @@ export function InterviewReportQuestionByQuestion({
                   </div>
                 ))}
               </div>
-              <div className="rounded-xl border border-slate-100 bg-white p-4">
+              <div className="rounded-xl border border-slate-100 bg-white p-3 md:p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className="text-sm font-medium text-slate-700">
                     Experience alignment
@@ -429,8 +429,8 @@ export function InterviewReportQuestionByQuestion({
               </div>
             </div>
 
-            <div className="rounded-b-2xl border-t border-slate-100 bg-slate-50 px-6 py-4">
-              <div className="flex flex-col gap-4 md:flex-row">
+            <div className="rounded-b-2xl border-t border-slate-100 bg-slate-50 px-4 py-3 md:px-6 md:py-4">
+              <div className="flex flex-col gap-3 md:flex-row md:gap-4">
                 <div className="flex-1">
                   <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
                     Strengths
@@ -473,7 +473,7 @@ export function InterviewReportAnalysis({ report }: { report: InterviewReport })
   );
 
   return (
-    <div className="space-y-8">
+      <div className="space-y-6 md:space-y-8">
       <InterviewReportCodingSessionOverview report={report} />
       <InterviewReportCodingScores report={report} />
       <InterviewReportOverallExperience report={report} />
@@ -485,7 +485,7 @@ export function InterviewReportAnalysis({ report }: { report: InterviewReport })
           <div
             className={`h-2 bg-gradient-to-r ${getScoreGradient(report.overallScore)}`}
           />
-          <CardContent className="p-8">
+          <CardContent className="p-5 md:p-8">
             <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
               <div>
                 <h2 className="mb-2 text-2xl font-bold">Overall performance</h2>
@@ -526,7 +526,7 @@ export function InterviewReportAnalysis({ report }: { report: InterviewReport })
         )}
 
       {!isCodingRoundLayout && (
-        <div className="grid gap-6 md:grid-cols-2">
+        <div className="grid gap-4 md:grid-cols-2 md:gap-6">
           <Card className="border-2 bg-gradient-to-br from-purple-50 to-white">
             <CardHeader>
               <div className="flex items-center gap-3">
@@ -640,7 +640,7 @@ export function InterviewReportAnalysis({ report }: { report: InterviewReport })
         </div>
       )}
 
-      <div className="grid gap-6 md:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-2 md:gap-6">
         <Card className="border-2 border-green-200 bg-gradient-to-br from-green-50 to-white">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-green-700">
@@ -683,13 +683,13 @@ export function InterviewReportAnalysis({ report }: { report: InterviewReport })
         </Card>
       </div>
 
-      <Card className="mb-8 border-2">
+      <Card className="mb-6 border-2 md:mb-8">
         <CardHeader>
           <CardTitle>Behavioral analysis</CardTitle>
           <CardDescription>Communication metrics from the session</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-6 md:grid-cols-2">
+          <div className="grid gap-4 md:grid-cols-2 md:gap-6">
             <div>
               <div className="mb-2 flex justify-between">
                 <span className="text-sm font-medium">Confidence</span>
@@ -725,7 +725,7 @@ export function InterviewReportAnalysis({ report }: { report: InterviewReport })
               </div>
               <Progress value={report.behavioral.fluency} className="h-2" />
             </div>
-            <div className="rounded-lg border border-purple-200 bg-purple-50 p-4">
+            <div className="rounded-lg border border-purple-200 bg-purple-50 p-3 md:p-4">
               <div className="mb-1 font-semibold text-purple-900">Filler words</div>
               <div className="text-2xl font-bold text-purple-600">
                 {report.behavioral.fillersPerMinute.toFixed(1)} / min

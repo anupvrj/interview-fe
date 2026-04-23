@@ -816,9 +816,9 @@ export default function ReportPage() {
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8 max-w-6xl">
+      <main className="container mx-auto max-w-6xl px-4 py-6 md:py-8">
         {/* Header Section */}
-        <div className="mb-8">
+        <div className="mb-6 md:mb-8">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-4 min-w-0">
             <div className="min-w-0">
               <h1 className="text-3xl sm:text-4xl font-bold mb-2 break-words">
@@ -918,16 +918,16 @@ export default function ReportPage() {
         {!isCodingRoundLayout && (
           <>
             {/* Overall Score */}
-            <Card className="border-2 mb-8 overflow-hidden">
+            <Card className="mb-6 overflow-hidden border-2 md:mb-8">
               <div
                 className={`h-2 bg-gradient-to-r ${getScoreGradient(
                   report.overallScore
                 )}`}
               />
-              <CardContent className="p-8">
+              <CardContent className="p-5 md:p-8">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h2 className="text-2xl font-bold mb-2">Overall Performance</h2>
+                    <h2 className="mb-2 text-2xl font-bold">Overall Performance</h2>
                     <p className="text-gray-600">
                       Your interview performance across all categories
                     </p>
@@ -947,7 +947,7 @@ export default function ReportPage() {
             </Card>
 
             {/* Category Scores */}
-            <div className="grid md:grid-cols-2 gap-6 mb-8">
+            <div className="mb-6 grid gap-4 md:mb-8 md:grid-cols-2 md:gap-6">
               <Card className="border-2 bg-gradient-to-br from-purple-50 to-white">
                 <CardHeader>
                   <div className="flex items-center gap-3">
@@ -1072,7 +1072,7 @@ export default function ReportPage() {
         )}
 
         {/* Strengths & Improvements */}
-        <div className="grid md:grid-cols-2 gap-6 mb-8">
+        <div className="mb-6 grid gap-4 md:mb-8 md:grid-cols-2 md:gap-6">
           <Card className="border-2 border-green-200 bg-gradient-to-br from-green-50 to-white">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-green-700">
@@ -1119,7 +1119,7 @@ export default function ReportPage() {
         </div>
 
         {/* Behavioral Analysis */}
-        <Card className="border-2 mb-8">
+        <Card className="mb-6 border-2 md:mb-8">
           <CardHeader>
             <CardTitle>Behavioral Analysis</CardTitle>
             <CardDescription>
@@ -1127,7 +1127,7 @@ export default function ReportPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid md:grid-cols-2 gap-6">
+            <div className="grid gap-4 md:grid-cols-2 md:gap-6">
               <div>
                 <div className="flex justify-between mb-2">
                   <span className="text-sm font-medium">Confidence</span>
@@ -1173,7 +1173,7 @@ export default function ReportPage() {
               </div>
 
               <div className="space-y-4">
-                <div className="p-4 bg-purple-50 rounded-lg border border-purple-200">
+                <div className="rounded-lg border border-purple-200 bg-purple-50 p-3 md:p-4">
                   <div className="font-semibold text-purple-900 mb-1">
                     Filler Words
                   </div>
@@ -1193,7 +1193,7 @@ export default function ReportPage() {
                   </div>
                 </div>
 
-                <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 md:p-4">
                   <div className="font-semibold text-blue-900 mb-1">
                     Speaking Pace
                   </div>
@@ -1216,7 +1216,7 @@ export default function ReportPage() {
 
         {/* Next Steps */}
         <Card className="border-2 border-purple-200 bg-gradient-to-br from-purple-100 via-blue-100 to-pink-100">
-          <CardContent className="p-8 text-center">
+          <CardContent className="p-5 text-center md:p-8">
             <h2 className="text-2xl font-bold mb-4">
               Ready for Your Next Interview?
             </h2>
