@@ -898,18 +898,15 @@ export default function SuperAdminPage() {
                         variant="outline"
                         size="sm"
                         className="ml-2"
-                        disabled={!u.institutionId}
-                        title={
-                          u.institutionId
-                            ? "Open institution dashboard for this user’s org"
-                            : "User has no institution"
-                        }
+                        title="View this user’s resumes, interviews, reports, and recordings"
                         onClick={() => {
-                          if (u.institutionId) {
-                            router.push(
-                              `/dashboard/institute/${String(u.institutionId)}`
-                            );
-                          }
+                          const q = new URLSearchParams();
+                          if (u.name) q.set("name", u.name);
+                          if (u.email) q.set("email", u.email);
+                          const suffix = q.toString() ? `?${q.toString()}` : "";
+                          router.push(
+                            `/dashboard/super-admin/users/${encodeURIComponent(String(u._id))}${suffix}`
+                          );
                         }}
                       >
                         View
