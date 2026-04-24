@@ -1942,4 +1942,146 @@ export const interviewScheduleApi = {
   },
 };
 
+// ── Job Board (dashboard) ───────────────────────────────────────────────────
+
+export type JobBoardWorkMode = "on_site" | "hybrid" | "remote";
+export type JobBoardEmploymentFilter = "full_time" | "part_time" | "any";
+
+export interface JobListing {
+  id: string;
+  title: string;
+  company: string;
+  location: string;
+  workMode: JobBoardWorkMode;
+  salaryRangeLabel: string;
+  ctcMinInr: number;
+  ctcMaxInr: number;
+  employmentType: "full_time" | "part_time";
+  postedAgo: string;
+  isPremium: boolean;
+  earlyApplicant?: boolean;
+  summary: string;
+  qualifications: string[];
+  responsibilities: string[];
+  skills: string[];
+  tools: string[];
+  applyUrl: string;
+}
+
+export interface JobBoardPreferences {
+  _id?: string;
+  clerkId: string;
+  location?: string;
+  workModes: JobBoardWorkMode[];
+  minCtcInr: number;
+  employmentType: JobBoardEmploymentFilter;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export type JobBoardTabParam =
+  | "for_you"
+  | "search"
+  | "bookmarked"
+  | "applied"
+  | "not_interested";
+
+export type JobBoardStateEngagements = Record<
+  string,
+  {
+    bookmarked: boolean;
+    dismissed: boolean;
+    appliedSelfReported: boolean;
+    appliedAt?: string;
+    conflictAcknowledged: boolean;
+  }
+>;
+
+export const jobBoardApi = {
+  listCatalog: async (): Promise<JobListing[]> => {
+    const response = await apiClient.get<{
+      success: boolean;
+      data: { jobs: JobListing[] };
+    }>("/jobs");
+    return response.data.data.jobs;
+  },
+
+  getMyPreferences: async (): Promise<JobBoardPreferences> => {
+    const response = await apiClient.get<{
+      success: boolean;
+      data: { preferences: JobBoardPreferences };
+    }>("/users/me/job-board/preferences");
+    return response.data.data.preferences;
+  },
+
+  putMyPreferences: async (body: {
+    location?: string;
+    workModes?: JobBoardWorkMode[];
+    minCtcInr?: number;
+    employmentType?: JobBoardEmploymentFilter;
+  }): Promise<JobBoardPreferences> => {
+    const response = await apiClient.put<{
+      success: boolean;
+      data: { preferences: JobBoardPreferences };
+    }>("/users/me/job-board/preferences", body);
+    return response.data.data.preferences;
+  },
+
+  getMyState: async (): Promise<{
+    counts: { bookmarked: number; applied: number; notInterested: number };
+    engagements: JobBoardStateEngagements;
+  }> => {
+    const response = await apiClient.get<{
+      success: boolean;
+      data: {
+        counts: {
+          bookmarked: number;
+          applied: number;
+          notInterested: number;
+        };
+        engagements: JobBoardStateEngagements;
+      };
+    }>("/users/me/job-board/state");
+    return response.data.data;
+  },
+
+  getMyJobs: async (
+    tab: JobBoardTabParam
+  ): Promise<{
+    tab: string;
+    jobs: JobListing[];
+    preferences: JobBoardPreferences;
+  }> => {
+    const response = await apiClient.get<{
+      success: boolean;
+      data: {
+        tab: string;
+        jobs: JobListing[];
+        preferences: JobBoardPreferences;
+      };
+    }>(`/users/me/job-board/jobs?tab=${encodeURIComponent(tab)}`);
+    return response.data.data;
+  },
+
+  postEngagement: async (body: {
+    jobId: string;
+    action: "bookmark" | "dismiss" | "mark_applied";
+    conflictAcknowledged?: boolean;
+  }): Promise<{
+    engagement: Record<string, unknown>;
+    counts: { bookmarked: number; applied: number; notInterested: number };
+    engagements: JobBoardStateEngagements;
+  }> => {
+    const response = await apiClient.post<{
+      success: boolean;
+      data: {
+        engagement: Record<string, unknown>;
+        counts: { bookmarked: number; applied: number; notInterested: number };
+        engagements: JobBoardStateEngagements;
+      };
+    }>("/users/me/job-board/engagement", body);
+    return response.data.data;
+  },
+};
+
 export default apiClient;
