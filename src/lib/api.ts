@@ -1577,6 +1577,17 @@ export const adminApi = {
     return response.data.data;
   },
 
+  /** Presigned URL for the user’s uploaded default resume PDF (User.resume on backend). */
+  getUserDefaultResumeUrl: async (
+    userId: string
+  ): Promise<{ url: string; filename: string; expiresIn: number }> => {
+    const response = await apiClient.get<{
+      success: boolean;
+      data: { url: string; filename: string; expiresIn: number };
+    }>(`/admin/users/${userId}/default-resume-url`);
+    return response.data.data;
+  },
+
   getResumeForAdmin: async (resumeId: string): Promise<any> => {
     const response = await apiClient.get<{ success: boolean; data: any }>(
       `/admin/resumes/${resumeId}`
