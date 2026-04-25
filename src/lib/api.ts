@@ -136,6 +136,8 @@ export interface User {
   };
   createdAt: string;
   profileCompletionPercentage?: number;
+  /** Avg. overall report score (practice + completed interviews), when present */
+  averageInterviewScore?: number | null;
 }
 
 /** Matches post-interview UX feedback form / API (session issues dropdown). */

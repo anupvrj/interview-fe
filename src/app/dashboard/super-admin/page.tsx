@@ -45,7 +45,12 @@ import {
   LayoutDashboard,
 } from "lucide-react";
 import { userApi, adminApi, User } from "@/lib/api";
-import { formatDate, parseQuestionLines, toDatetimeLocalValue } from "@/lib/utils";
+import {
+  formatDate,
+  getScoreColor,
+  parseQuestionLines,
+  toDatetimeLocalValue,
+} from "@/lib/utils";
 
 export default function SuperAdminPage() {
   const { user, isLoaded } = useUser();
@@ -693,7 +698,7 @@ export default function SuperAdminPage() {
             </div>
           ) : (
             <div className="overflow-x-auto w-full">
-              <Table className="min-w-[900px]">
+              <Table className="min-w-[1000px]">
                 <TableHeader>
                   <TableRow>
                     <TableHead>Name</TableHead>
@@ -702,6 +707,7 @@ export default function SuperAdminPage() {
                     <TableHead>Institution</TableHead>
                     <TableHead>Plan</TableHead>
                     <TableHead>Credits</TableHead>
+                    <TableHead className="whitespace-nowrap">Avg. interview score</TableHead>
                     <TableHead>Joined</TableHead>
                     <TableHead className="text-right whitespace-nowrap">Actions</TableHead>
                   </TableRow>
@@ -879,6 +885,20 @@ export default function SuperAdminPage() {
                           <Coins className="w-4 h-4" />
                         </Button>
                       </span>
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap">
+                      {u.averageInterviewScore != null &&
+                      !Number.isNaN(Number(u.averageInterviewScore)) ? (
+                        <span
+                          className={`font-semibold tabular-nums ${getScoreColor(
+                            Number(u.averageInterviewScore),
+                          )}`}
+                        >
+                          {u.averageInterviewScore}
+                        </span>
+                      ) : (
+                        <span className="text-slate-400">—</span>
+                      )}
                     </TableCell>
                     <TableCell className="text-slate-600">
                       {formatDate(u.createdAt)}
