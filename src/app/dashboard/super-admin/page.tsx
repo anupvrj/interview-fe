@@ -43,9 +43,16 @@ import {
   Pencil,
   CalendarClock,
   LayoutDashboard,
+  FileText,
 } from "lucide-react";
+import { toast } from "sonner";
 import { userApi, adminApi, User } from "@/lib/api";
-import { formatDate, parseQuestionLines, toDatetimeLocalValue } from "@/lib/utils";
+import {
+  formatDate,
+  getScoreColor,
+  parseQuestionLines,
+  toDatetimeLocalValue,
+} from "@/lib/utils";
 
 export default function SuperAdminPage() {
   const { user, isLoaded } = useUser();
@@ -58,6 +65,9 @@ export default function SuperAdminPage() {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
   const limit = 20;
+  const [defaultResumeLoadingId, setDefaultResumeLoadingId] = useState<
+    string | null
+  >(null);
 
   // Create institution dialog
   const [instOpen, setInstOpen] = useState(false);
@@ -468,6 +478,26 @@ export default function SuperAdminPage() {
     }
   };
 
+  const openDefaultUploadResume = async (u: User) => {
+    if (!u.resume?.s3Key) {
+      toast.error("No default uploaded resume on file for this user");
+      return;
+    }
+    setDefaultResumeLoadingId(String(u._id));
+    try {
+      const { url } = await adminApi.getUserDefaultResumeUrl(String(u._id));
+      window.open(url, "_blank", "noopener,noreferrer");
+    } catch (e: unknown) {
+      const raw = e as { response?: { data?: { message?: string } } };
+      const msg = raw.response?.data?.message;
+      toast.error(
+        typeof msg === "string" && msg.trim() ? msg : "Could not open resume",
+      );
+    } finally {
+      setDefaultResumeLoadingId(null);
+    }
+  };
+
   const handleAddUser = async () => {
     if (!addEmail?.trim()) return;
     const instId = addInstitutionId || undefined;
@@ -693,15 +723,17 @@ export default function SuperAdminPage() {
             </div>
           ) : (
             <div className="overflow-x-auto w-full">
-              <Table className="min-w-[900px]">
+              <Table className="min-w-[1080px]">
                 <TableHeader>
                   <TableRow>
                     <TableHead>Name</TableHead>
                     <TableHead>Email</TableHead>
+                    <TableHead className="whitespace-nowrap">Default upload</TableHead>
                     <TableHead>Role</TableHead>
                     <TableHead>Institution</TableHead>
                     <TableHead>Plan</TableHead>
                     <TableHead>Credits</TableHead>
+                    <TableHead className="whitespace-nowrap">Avg. interview score</TableHead>
                     <TableHead>Joined</TableHead>
                     <TableHead className="text-right whitespace-nowrap">Actions</TableHead>
                   </TableRow>
@@ -711,6 +743,32 @@ export default function SuperAdminPage() {
                   <TableRow key={u._id}>
                     <TableCell className="font-medium">{u.name}</TableCell>
                     <TableCell>{u.email}</TableCell>
+                    <TableCell className="whitespace-nowrap">
+                      {u.resume?.s3Key ? (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-8 gap-1 px-2"
+                          title={
+                            u.resume?.filename
+                              ? `Open uploaded file: ${u.resume.filename}`
+                              : "Open default uploaded resume (PDF)"
+                          }
+                          disabled={defaultResumeLoadingId === String(u._id)}
+                          onClick={() => void openDefaultUploadResume(u)}
+                        >
+                          {defaultResumeLoadingId === String(u._id) ? (
+                            <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" />
+                          ) : (
+                            <FileText className="h-3.5 w-3.5 shrink-0" />
+                          )}
+                          <span className="text-xs">View</span>
+                        </Button>
+                      ) : (
+                        <span className="text-xs text-slate-400">—</span>
+                      )}
+                    </TableCell>
                     <TableCell className="min-w-[140px]">
                       <div
                         className="relative"
@@ -879,6 +937,20 @@ export default function SuperAdminPage() {
                           <Coins className="w-4 h-4" />
                         </Button>
                       </span>
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap">
+                      {u.averageInterviewScore != null &&
+                      !Number.isNaN(Number(u.averageInterviewScore)) ? (
+                        <span
+                          className={`font-semibold tabular-nums ${getScoreColor(
+                            Number(u.averageInterviewScore),
+                          )}`}
+                        >
+                          {u.averageInterviewScore}
+                        </span>
+                      ) : (
+                        <span className="text-slate-400">—</span>
+                      )}
                     </TableCell>
                     <TableCell className="text-slate-600">
                       {formatDate(u.createdAt)}

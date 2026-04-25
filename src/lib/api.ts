@@ -136,6 +136,8 @@ export interface User {
   };
   createdAt: string;
   profileCompletionPercentage?: number;
+  /** Avg. overall report score (practice + completed interviews), when present */
+  averageInterviewScore?: number | null;
 }
 
 /** Matches post-interview UX feedback form / API (session issues dropdown). */
@@ -1572,6 +1574,17 @@ export const adminApi = {
     const response = await apiClient.get<{ success: boolean; data: any[] }>(
       `/admin/users/${userId}/resumes`
     );
+    return response.data.data;
+  },
+
+  /** Presigned URL for the user’s uploaded default resume PDF (User.resume on backend). */
+  getUserDefaultResumeUrl: async (
+    userId: string
+  ): Promise<{ url: string; filename: string; expiresIn: number }> => {
+    const response = await apiClient.get<{
+      success: boolean;
+      data: { url: string; filename: string; expiresIn: number };
+    }>(`/admin/users/${userId}/default-resume-url`);
     return response.data.data;
   },
 
