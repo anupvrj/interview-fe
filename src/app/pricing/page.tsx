@@ -180,7 +180,7 @@ export default function PricingPage() {
               Choose Your Plan
             </h1>
             <p className="text-lg sm:text-xl text-white/90 max-w-2xl mx-auto">
-              Flexible pricing plans designed to help you ace your interviews
+              From ATS-ready resumes to AI Interview Practice and peer interviews to smart job search—pick credits that fit your journey. Interview Trix is your end-to-end career partner.
             </p>
           </div>
         </div>
@@ -250,7 +250,7 @@ export default function PricingPage() {
                 What are credits and how do they work?
               </h3>
               <p className="text-gray-600">
-                1 credit = ₹1. Mock interviews use credits at 5 credits per
+                1 credit = ₹1. AI Interview Practice uses credits at 5 credits per
                 minute. The resume builder is included with your plan and does
                 not deduct credits from your balance.
               </p>

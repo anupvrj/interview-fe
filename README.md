@@ -1,6 +1,6 @@
 # Easy Interview - Frontend
 
-Modern, responsive Next.js frontend for the Easy Interview AI mock interview platform.
+Modern, responsive Next.js frontend for the Easy Interview AI Interview Practice platform.
 
 ## 🎨 Tech Stack
 

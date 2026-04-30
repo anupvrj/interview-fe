@@ -356,8 +356,9 @@ export default function PlanPage() {
             </h1>
           </div>
           <p className="max-w-2xl text-[10px] leading-tight text-white/85 sm:text-xs md:text-sm">
-            Manage your subscription, purchase credits, and unlock premium
-            features
+            Credits fuel the full partner loop—Smart ATS resume passes, AI Interview Practice and
+            coding mocks, peer sessions, and the stretch to offers—top up when
+            you need more runway.
           </p>
         </div>
         <div className="absolute inset-0 bg-gradient-to-r from-blue-600/40 to-transparent opacity-40"></div>

@@ -164,7 +164,7 @@ export function InterviewReportCodingSessionOverview({
             >
               {report.overallScore}
             </p>
-            <p className="text-xs text-slate-500">Voice &amp; Q&amp;A / 100</p>
+            <p className="text-xs text-slate-500">AI Interview Practice &amp; Q&amp;A / 100</p>
           </div>
           <div className="rounded-xl border bg-slate-50/90 p-4 text-center">
             <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
@@ -318,7 +318,7 @@ export function InterviewReportQuestionByQuestion({
       <CardHeader>
         <CardTitle>Question-by-question analysis</CardTitle>
         <CardDescription>
-          Voice discussion and interview Q&amp;A — per-question scoring and feedback
+          AI Interview Practice discussion and interview Q&amp;A — per-question scoring and feedback
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">

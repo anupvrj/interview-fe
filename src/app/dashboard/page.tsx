@@ -376,8 +376,8 @@ export default function DashboardPage() {
             </h1>
           </div>
           <p className="text-[10px] leading-tight text-white/85 sm:text-xs md:text-sm">
-            Track your progress, review your interviews, and continue improving
-            your skills
+            Your hub for resumes, AI Interview Practice and coding practice, peer sessions, and
+            job hunt—Interview Trix as your end-to-end career partner.
           </p>
         </div>
         <div className="absolute inset-0 bg-gradient-to-r from-blue-600/40 to-transparent opacity-40"></div>
@@ -463,7 +463,9 @@ export default function DashboardPage() {
         <div className="flex items-center gap-2 rounded-md border border-amber-200/70 bg-amber-50/50 px-3 py-2 text-sm text-slate-800">
           <p className="min-w-0 flex-1 leading-snug">
             <span className="text-slate-700">
-              Complete your onboarding ({profileCompletion}% done) —{" "}
+              Complete your profile ({profileCompletion}% done) — it unlocks your
+              full loop (resume polish → AI Interview Practice & coding mocks → interviews &
+              offers) —{" "}
             </span>
             <Link
               href="/dashboard/profile"
@@ -596,7 +598,9 @@ export default function DashboardPage() {
               Daily interviews and score trend
             </CardTitle>
             <CardDescription>
-              Last 14 days: bar = interviews, line = average score
+              Volume and weighted score vs time—practice AI Interview Practice and coding
+              sessions more often to see readiness shift (bar = interviews, line
+              = average score).
             </CardDescription>
           </CardHeader>
           <CardContent className="h-[280px]">
@@ -648,7 +652,11 @@ export default function DashboardPage() {
         <Card className="rounded-md border border-border bg-card shadow-sm">
           <CardHeader className="pb-2">
             <CardTitle className="text-lg text-slate-900">Insights</CardTitle>
-            <CardDescription>Quick performance summary</CardDescription>
+            <CardDescription>
+              Lightweight prep telemetry—tie spend and consistency back to AI
+              Interview Practice and coding report scores, not dashboards for
+              their own sake.
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
@@ -659,7 +667,7 @@ export default function DashboardPage() {
                 {totalTokensSpent}
               </p>
               <p className="text-xs text-slate-500">
-                Approximated from billed interview credits
+                Proxy for billed AI Interview Practice & coding credits
               </p>
             </div>
             <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
@@ -670,7 +678,7 @@ export default function DashboardPage() {
                 {activeDays}/14
               </p>
               <p className="text-xs text-slate-500">
-                Days with at least one interview
+                Consistency beats cramming—AI Interview Practice or coding mocks count the same
               </p>
             </div>
             <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
@@ -686,7 +694,7 @@ export default function DashboardPage() {
                 %
               </p>
               <p className="text-xs text-slate-500">
-                Completed out of all interviews
+                Finishing sessions earns full AI discussion feedback & scores
               </p>
             </div>
           </CardContent>
@@ -707,7 +715,8 @@ export default function DashboardPage() {
                 </CardTitle>
               </div>
               <CardDescription className="text-sm text-gray-600">
-                Your interview history and performance
+                Company-aware AI Interview Practice, multilingual sessions, coding
+                rounds, plus AI scoring and discussion-ready reports live here.
               </CardDescription>
             </div>
             <div className="flex flex-wrap items-center gap-2">
@@ -742,8 +751,9 @@ export default function DashboardPage() {
                 No interviews yet
               </h3>
               <p className="text-gray-600 mb-8 max-w-md mx-auto">
-                Start your first mock interview to get personalized feedback and
-                improve your interview skills
+                Launch multilingual AI Interview Practice tailored to role + company,
+                wrap with AI discussion summaries, then stack peer reviews or a
+                coding round from the sidebar when you're ready.
               </p>
               <Link href="/dashboard/interviews/new">
                 <Button
@@ -1077,7 +1087,8 @@ export default function DashboardPage() {
                 </CardTitle>
               </div>
               <CardDescription className="text-sm text-gray-600">
-                Open the builder to edit, run ATS, or export PDF
+                ATS-ready templates + Smart ATS Score so you polish before
+                applying and bring the strongest version to AI Interview Practice.
               </CardDescription>
             </div>
             <div className="flex flex-wrap items-center gap-2">
@@ -1112,7 +1123,9 @@ export default function DashboardPage() {
                 No resumes yet
               </h3>
               <p className="mx-auto mb-8 max-w-md text-gray-600">
-                Create a resume to use in interviews and track ATS feedback
+                Ship an ATS-aligned draft, watch Smart ATS Score surface gaps in
+                real time, pass the bots, then drop the same resume into voice and
+                peer sessions.
               </p>
               <Link href="/dashboard/resumes/new">
                 <Button

@@ -426,11 +426,10 @@ export default function ATSCheckerPage() {
               <FileCheck className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
             </div>
             <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-slate-900 mb-4">
-              ATS Score Checker
+              Escape the ATS Black Hole
             </h1>
             <p className="text-lg sm:text-xl md:text-2xl text-gray-600 max-w-2xl mx-auto">
-              Upload your resume to get an instant ATS score and detailed
-              feedback
+              AI filters resumes before recruiters see yours. Upload for an instant Smart ATS Score and clear fixes—then build and iterate with Interview Trix&apos;s AI Resume Builder until you&apos;re desk-ready.
             </p>
           </div>
 

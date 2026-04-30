@@ -89,7 +89,7 @@ export default function ResumeBuilderPage() {
 
   // Animated Heading Effect
   useEffect(() => {
-    const fullText = "AI powered resume builder";
+    const fullText = "Smart ATS resume builder";
     let currentIndex = 0;
     
     const typeInterval = setInterval(() => {
@@ -364,7 +364,7 @@ export default function ResumeBuilderPage() {
             </div>
             <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight mb-4 sm:mb-6 max-sm:break-words max-sm:min-h-[5.1rem]">
               {(() => {
-                const fullText = "AI powered resume builder";
+                const fullText = "Smart ATS resume builder";
                 const builderStart = fullText.indexOf("builder");
                 const builderEnd = builderStart + "builder".length;
                 const spaceChar = isBelowSm ? " " : "\u00A0";
@@ -393,7 +393,7 @@ export default function ResumeBuilderPage() {
               />
             </h1>
             <p className="text-lg sm:text-xl md:text-2xl text-white/90 max-w-3xl mx-auto leading-relaxed">
-              Create ATS-optimized, professional resumes in minutes with AI-powered templates and smart suggestions.
+              Real-time resume analysis, instant improvements, and a Smart ATS Score—ATS-optimized templates so you pass the bots and reach recruiters.
             </p>
           </div>
         </div>
@@ -456,28 +456,28 @@ export default function ResumeBuilderPage() {
             <div className="space-y-4 sm:space-y-5 md:space-y-6 text-center lg:text-left order-2 lg:order-1">
               <div className="inline-flex items-center gap-2 px-3 py-1 bg-blue-50 rounded-full text-blue-700 font-medium text-sm mb-4">
                 <Sparkles className="w-3 h-3" />
-                <span>Professional Templates</span>
+                <span>ATS-Optimized Templates</span>
               </div>
               <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-[43px] font-bold tracking-tight text-slate-900 leading-[1.2] sm:leading-[1.1] lg:leading-[52px] mb-4 sm:mb-6">
-                Create Professional Resumes in Minutes
+                Pass the Bots With a Stronger Resume
               </h2>
               <p className="text-base sm:text-lg md:text-xl text-gray-600 leading-relaxed max-w-xl mx-auto lg:mx-0 px-2 sm:px-0">
-                Build ATS-friendly resumes that get you noticed. Choose from professional templates, get AI-powered suggestions, and export in multiple formats.
+                Fresher or pro—our model analyzes your resume in real time, suggests instant improvements, and shows your Smart ATS Score so you escape the ATS black hole.
               </p>
               
               {/* Features List */}
               <div className="space-y-3 pt-4 sm:pt-6 px-2 sm:px-0">
                 <div className="flex items-start gap-3">
                   <CheckCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                  <span className="text-gray-700 text-sm sm:text-base">ATS-optimized templates for better visibility</span>
+                  <span className="text-gray-700 text-sm sm:text-base">ATS-optimized templates and parsing-friendly layouts</span>
                 </div>
                 <div className="flex items-start gap-3">
                   <CheckCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                  <span className="text-gray-700 text-sm sm:text-base">AI-powered content suggestions and improvements</span>
+                  <span className="text-gray-700 text-sm sm:text-base">Real-time suggestions and Smart ATS Score</span>
                 </div>
                 <div className="flex items-start gap-3">
                   <CheckCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                  <span className="text-gray-700 text-sm sm:text-base">Export to PDF, Word, and more formats</span>
+                  <span className="text-gray-700 text-sm sm:text-base">Export when you&apos;re ready—PDF, Word, and more</span>
                 </div>
               </div>
               
@@ -588,8 +588,8 @@ export default function ResumeBuilderPage() {
         <div className="container mx-auto max-w-7xl">
           <div className="text-center mb-12 sm:mb-16">
             <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-slate-900 mb-4">
-              Pick a template and build your resume<br />
-              in minutes!
+              ATS-ready templates.<br />
+              Build and improve in real time.
             </h2>
           </div>
 
@@ -704,11 +704,11 @@ export default function ResumeBuilderPage() {
               {/* Headline */}
               <div>
                 <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-slate-900 mb-4 sm:mb-6 leading-tight">
-                  ATS Resume Checker:{" "}
-                  <span className="text-[rgb(37,99,235)]">Scan & Score Your Resume</span>
+                  Smart ATS check:{" "}
+                  <span className="text-[rgb(37,99,235)]">see how bots read you</span>
                 </h2>
                 <p className="text-base sm:text-lg text-gray-600 leading-relaxed">
-                  Our ATS Resume Checker scans your resume and helps you update it step-by-step. It also analyzes and grades your resume so you know how it will fare with applicant tracking systems (ATS) when applying for jobs.
+                  AI filters resumes before humans see them. Upload for an ATS-style score and clear feedback—then iterate in our builder until you&apos;re recruiter-ready.
                 </p>
               </div>
 
@@ -829,7 +829,7 @@ export default function ResumeBuilderPage() {
               How It Works
             </h2>
             <p className="text-lg sm:text-xl text-gray-600 max-w-2xl mx-auto">
-              Create your perfect resume in just 4 simple steps
+              Choose a template, add your story, tune with AI, and verify your Smart ATS Score
             </p>
           </div>
 
@@ -920,10 +920,10 @@ export default function ResumeBuilderPage() {
                     3
                   </div>
                   <h3 className="text-lg sm:text-xl font-bold text-slate-900 mb-2">
-                    AI Enhancement
+                    Real-Time AI Polish
                   </h3>
                   <p className="text-sm sm:text-base text-gray-600">
-                    Get AI-powered suggestions to improve your resume
+                    Instant improvements and wording tuned for clarity and ATS parsing
                   </p>
                 </div>
               </div>
@@ -947,10 +947,10 @@ export default function ResumeBuilderPage() {
                     4
                   </div>
                   <h3 className="text-lg sm:text-xl font-bold text-slate-900 mb-2">
-                    Download & Apply
+                    Smart ATS Score & Export
                   </h3>
                   <p className="text-sm sm:text-base text-gray-600">
-                    Export in PDF or Word format and start applying
+                    Review your score, export PDF or Word—then tailor per job when you use Job Search
                   </p>
                 </div>
               </div>
@@ -964,10 +964,10 @@ export default function ResumeBuilderPage() {
         <div className="container mx-auto max-w-7xl relative z-10">
           <div className="text-center mb-12 sm:mb-16">
             <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-slate-900 mb-4">
-              Why Choose Our Resume Builder?
+              Built for the ATS-first hiring funnel
             </h2>
             <p className="text-lg sm:text-xl text-gray-600 max-w-2xl mx-auto">
-              Everything you need to create a winning resume
+              Don&apos;t just apply harder—optimize for how recruiters and systems actually evaluate you.
             </p>
           </div>
 
@@ -997,11 +997,11 @@ export default function ResumeBuilderPage() {
             {/* Feature 3 */}
             <div className="bg-white rounded-2xl p-6 sm:p-8 border-2 border-blue-100 shadow-lg hover:shadow-xl transition-all hover:border-blue-300">
               <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center mb-4 shadow-md">
-                <Zap className="w-7 h-7 text-white" />
+                <TrendingUp className="w-7 h-7 text-white" />
               </div>
-              <h3 className="text-xl font-bold text-slate-900 mb-2">AI-Powered Suggestions</h3>
+              <h3 className="text-xl font-bold text-slate-900 mb-2">Smart ATS Score</h3>
               <p className="text-gray-600">
-                Get intelligent recommendations to improve your resume content and formatting
+                See how robot readers likely score your resume—and what to fix before a human clicks
               </p>
             </div>
 
@@ -1045,10 +1045,10 @@ export default function ResumeBuilderPage() {
       <section className="py-16 sm:py-20 md:py-24 lg:py-28 px-4 sm:px-6 bg-gray-50 relative overflow-hidden">
         <div className="container mx-auto max-w-4xl text-center relative z-10">
           <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-slate-900 mb-4 sm:mb-6">
-            Create your professional resume now
+            Transform your resume—don&apos;t just apply
           </h2>
           <p className="text-lg sm:text-xl text-gray-600 mb-8 sm:mb-10 max-w-2xl mx-auto">
-            Join thousands of professionals who have created winning resumes with our AI-powered builder
+            Start with ATS-optimized templates, real-time AI improvements, and a Smart ATS Score that helps you reach the recruiter&apos;s desk.
           </p>
           <Link href="/dashboard/resumes/new">
             <Button

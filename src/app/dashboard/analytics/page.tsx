@@ -38,6 +38,26 @@ import {
   YAxis,
 } from "recharts";
 
+/** Report.overallScore can be absent or non-numeric at runtime despite types. */
+function getFiniteOverallScore(
+  report: Interview["report"] | null | undefined,
+): number | null {
+  if (!report || report.overallScore === undefined || report.overallScore === null) {
+    return null;
+  }
+  const raw = report.overallScore as unknown;
+  if (typeof raw === "number" && Number.isFinite(raw)) {
+    return raw;
+  }
+  if (typeof raw === "string" && raw.trim() !== "") {
+    const n = Number(raw);
+    if (Number.isFinite(n)) {
+      return n;
+    }
+  }
+  return null;
+}
+
 export default function AnalyticsPage() {
   const { user, isLoaded } = useUser();
   const [loading, setLoading] = useState(true);
@@ -66,7 +86,9 @@ export default function AnalyticsPage() {
       const completed = interviews.filter(
         (i) => i.status === "completed" && i.report
       );
-      const scores = completed.map((i) => i.report!.overallScore);
+      const scores = completed
+        .map((i) => getFiniteOverallScore(i.report))
+        .filter((s): s is number => s != null);
       const avgScore =
         scores.length > 0
           ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length)
@@ -74,11 +96,10 @@ export default function AnalyticsPage() {
 
       let improvement = 0;
       if (completed.length >= 2) {
-        const firstScore = completed.at(-1)?.report?.overallScore;
-        const lastScore = completed.at(0)?.report?.overallScore;
-        if (firstScore !== undefined && lastScore !== undefined) {
+        const firstScore = getFiniteOverallScore(completed.at(-1)?.report);
+        const lastScore = getFiniteOverallScore(completed.at(0)?.report);
+        if (firstScore != null && lastScore != null) {
           improvement = lastScore - firstScore;
-          // Check for NaN and set to 0 if invalid
           if (Number.isNaN(improvement) || !Number.isFinite(improvement)) {
             improvement = 0;
           }
@@ -138,8 +159,8 @@ export default function AnalyticsPage() {
     if (interview.status === "completed") row.completed += 1;
     const credits = getInterviewCreditsUsed(interview);
     if (credits != null) row.credits += credits;
-    const score = interview.report?.overallScore;
-    if (typeof score === "number" && Number.isFinite(score)) {
+    const score = getFiniteOverallScore(interview.report);
+    if (score != null) {
       row.scoredCount += 1;
       row.scoreTotal += score;
     }
@@ -159,16 +180,16 @@ export default function AnalyticsPage() {
   const completedSorted = interviews
     .filter(
       (i) =>
-        i.status === "completed" &&
-        typeof i.report?.overallScore === "number" &&
-        Number.isFinite(i.report.overallScore),
+        i.status === "completed" && getFiniteOverallScore(i.report) != null,
     )
     .sort(
       (a, b) =>
         new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
     );
-  const firstCompletedScore = completedSorted[0]?.report?.overallScore ?? 0;
-  const lastCompletedScore = completedSorted.at(-1)?.report?.overallScore ?? 0;
+  const firstCompletedScore =
+    getFiniteOverallScore(completedSorted[0]?.report) ?? 0;
+  const lastCompletedScore =
+    getFiniteOverallScore(completedSorted.at(-1)?.report) ?? 0;
   const scoreDelta = lastCompletedScore - firstCompletedScore;
   const totalCreditsSpent = dailyData.reduce((sum, d) => sum + d.credits, 0);
   const totalTokensSpent = totalCreditsSpent;
@@ -188,8 +209,8 @@ export default function AnalyticsPage() {
             </h1>
           </div>
           <p className="max-w-2xl text-[10px] leading-tight text-white/85 sm:text-xs md:text-sm">
-            Track your interview performance, identify trends, and measure your
-            progress over time
+            See how AI Interview Practice and coding mocks trend between sessions so you can
+            double down on weak dimensions before peer reviews and final rounds.
           </p>
         </div>
         <div className="absolute inset-0 bg-gradient-to-r from-blue-600/40 to-transparent opacity-40"></div>

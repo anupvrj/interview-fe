@@ -334,7 +334,7 @@ export function buildInterviewReportPdfHtml(
 
   const qaSectionHtml = qaBlocks
     ? `<h2 class="ir-section-title">Question-by-question analysis</h2>
-  <p class="ir-sub" style="margin-top:-12px;">Voice discussion and interview Q&amp;A — per-question scoring and feedback</p>
+  <p class="ir-sub" style="margin-top:-12px;">AI Interview Practice discussion and interview Q&amp;A — per-question scoring and feedback</p>
   ${qaBlocks}`
     : "";
 

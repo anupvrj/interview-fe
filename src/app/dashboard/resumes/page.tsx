@@ -375,17 +375,16 @@ export default function ResumesPage() {
             <div className="space-y-4 sm:space-y-5 md:space-y-6 text-center lg:text-left">
               <div className="inline-flex items-center gap-2 px-3 py-1 bg-blue-50 rounded-full text-blue-700 font-medium text-sm mb-4">
                 <Sparkles className="w-3 h-3" />
-                <span>Professional Templates</span>
+                <span>ATS-optimized templates</span>
               </div>
               <h2 className="mb-4 text-2xl font-bold leading-[1.25] tracking-tight sm:mb-6 sm:text-3xl sm:leading-[1.15] md:text-4xl lg:text-[34px] lg:leading-[42px]">
-                <span className="text-slate-900">Create Professional </span>
-                <span className="text-[rgb(37,99,235)]">Resumes</span>
-                <span className="text-slate-900"> in Minutes</span>
+                <span className="text-slate-900">Pass the bots with a </span>
+                <span className="text-[rgb(37,99,235)]">stronger resume</span>
               </h2>
               <p className="mx-auto max-w-xl px-2 text-sm leading-relaxed text-gray-600 sm:px-0 sm:text-base lg:mx-0">
-                Build ATS-friendly resumes that get you noticed. Choose from
-                professional templates, get AI-powered suggestions, and export
-                in multiple formats.
+                Fresher or pro—our model analyzes your resume in real time,
+                suggests instant improvements, and surfaces a Smart ATS Score so
+                you escape the ATS black hole.
               </p>
 
               {/* Features List */}
@@ -393,19 +392,19 @@ export default function ResumesPage() {
                 <div className="flex items-start gap-3">
                   <CheckCircle className="w-5 h-5 text-[rgb(37,99,235)] flex-shrink-0 mt-0.5" />
                   <span className="text-xs text-gray-700 sm:text-sm">
-                    ATS-optimized templates for better visibility
+                    ATS-optimized templates and parsing-friendly layouts
                   </span>
                 </div>
                 <div className="flex items-start gap-3">
                   <CheckCircle className="w-5 h-5 text-[rgb(37,99,235)] flex-shrink-0 mt-0.5" />
                   <span className="text-xs text-gray-700 sm:text-sm">
-                    AI-powered content suggestions and improvements
+                    Real-time suggestions and Smart ATS Score
                   </span>
                 </div>
                 <div className="flex items-start gap-3">
                   <CheckCircle className="w-5 h-5 text-[rgb(37,99,235)] flex-shrink-0 mt-0.5" />
                   <span className="text-xs text-gray-700 sm:text-sm">
-                    Export to PDF, Word, and more formats
+                    Export when you&apos;re ready—PDF, Word, and more
                   </span>
                 </div>
               </div>
@@ -826,10 +825,10 @@ export default function ResumesPage() {
               </div>
               <CardDescription className="text-sm text-gray-600">
                 {resumes.length === 0
-                  ? "Create your first resume to get started"
+                  ? "Smart ATS Score + recruiter-ready phrasing begins with your first file."
                   : `Showing ${resumes.length} resume${
                       resumes.length === 1 ? "" : "s"
-                    }`}
+                    }—keep iterating until Smart ATS clears the bots and reads strong on the desk review.`}
               </CardDescription>
             </div>
             <Button
@@ -857,8 +856,9 @@ export default function ResumesPage() {
                 No resumes yet
               </h3>
               <p className="mx-auto mb-8 max-w-md text-gray-600">
-                Create your first ATS-friendly resume with our professional
-                templates
+                Choose an ATS-friendly template, let Smart ATS Score spotlight
+                formatting gaps live, graduate past the ATS black hole, then pair
+                the same file with AI Interview Practice from the sidebar.
               </p>
               <Button
                 size="lg"

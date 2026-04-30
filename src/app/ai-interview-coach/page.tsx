@@ -7,20 +7,16 @@ import {
   Mic,
   Sparkles,
   ArrowRight,
-  CheckCircle,
-  Zap,
   Target,
-  Award,
   Brain,
-  Clock,
   MessageSquare,
-  TrendingUp,
   BarChart3,
-  FileText,
   PlayCircle,
   Star,
   Bot,
   UserCircle,
+  Code,
+  Video,
 } from "lucide-react";
 import { SiteHeader } from "@/components/SiteHeader";
 import { MarketingFooter } from "@/components/MarketingFooter";
@@ -48,7 +44,7 @@ export default function InterviewCoachPage() {
 
   // Animated Heading Effect
   useEffect(() => {
-    const fullText = "AI powered interview coach";
+    const fullText = "AI Interview Practice coach";
     let currentIndex = 0;
     
     const typeInterval = setInterval(() => {
@@ -388,7 +384,7 @@ export default function InterviewCoachPage() {
             </div>
             <h1 className="text-3xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight mb-4 sm:mb-6 leading-tight">
               {(() => {
-                const fullText = "AI powered interview coach";
+                const fullText = "AI Interview Practice coach";
                 const coachStart = fullText.indexOf("coach");
                 const coachEnd = coachStart + 5;
                 const beforeCoach = headingText.substring(0, Math.min(coachStart, headingText.length));
@@ -432,7 +428,7 @@ export default function InterviewCoachPage() {
               })()}
             </h1>
             <p className="text-lg sm:text-xl md:text-2xl text-white/90 max-w-3xl mx-auto leading-relaxed">
-              Practice real interviews with AI-powered mock interviews. Get instant feedback on your communication, confidence, and answers — before the real interview happens.
+              Shortlisted? Use AI Interview Practice in multiple languages, with company-specific prep—and for tech roles, tackle coding rounds plus AI discussion on your exact solution, reports, and scores.
             </p>
           </div>
         </div>
@@ -494,11 +490,11 @@ export default function InterviewCoachPage() {
             {/* Left Section - Marketing Content */}
             <div className="text-center lg:text-left space-y-6 relative z-10">
               <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight text-slate-900 leading-tight mb-4 sm:mb-6">
-                Master Your Interview Skills
+                Perform Like It&apos;s Already Your Dream Company
               </h2>
 
               <p className="text-base sm:text-lg md:text-xl text-gray-600 leading-relaxed max-w-xl mx-auto lg:mx-0 px-2 sm:px-0">
-                Practice real interviews with AI-powered mock interviews. Get instant feedback on your communication, confidence, and answers — before the real interview happens.
+                Tell us who you&apos;re targeting—we mirror their style. Multilingual AI Interview Practice, coding plus &quot;why this complexity?&quot; follow-ups, and full performance reports so nothing surprises you on the day.
               </p>
               
               {/* Company Logos */}
@@ -540,7 +536,7 @@ export default function InterviewCoachPage() {
               <div className="relative rounded-lg sm:rounded-xl shadow-2xl overflow-hidden bg-white w-full max-w-[600px] sm:max-w-[700px] border-2 sm:border-4 border-blue-100">
                 <Image
                   src="/mock-interview-previewiew.png"
-                  alt="Mock Interview Interface - AI-Powered Interview Platform"
+                  alt="AI Interview Practice interface"
                   width={700}
                   height={560}
                   className="w-full h-auto object-contain"
@@ -587,7 +583,7 @@ export default function InterviewCoachPage() {
               How It Works
             </h2>
             <p className="text-lg sm:text-xl text-gray-600 max-w-2xl mx-auto">
-              Ace your interview in just 4 simple steps
+              Configure → answer → get scored → iterate with clear next steps
             </p>
           </div>
 
@@ -624,10 +620,10 @@ export default function InterviewCoachPage() {
                     1
                   </div>
                   <h3 className="text-lg sm:text-xl font-bold text-slate-900 mb-2">
-                    Start Interview
+                    Set Up Your Session
                   </h3>
                   <p className="text-sm sm:text-base text-gray-600">
-                    Choose your role, company, and interview type
+                    Role, dream company, round, and language—for company-specific simulation
                   </p>
                 </div>
               </div>
@@ -651,10 +647,10 @@ export default function InterviewCoachPage() {
                     2
                   </div>
                   <h3 className="text-lg sm:text-xl font-bold text-slate-900 mb-2">
-                    Answer Questions
+                    AI Interview Practice or coding
                   </h3>
                   <p className="text-sm sm:text-base text-gray-600">
-                    Respond to AI-generated questions naturally
+                    Speak through behavioral and technical prompts—or code and defend your approach
                   </p>
                 </div>
               </div>
@@ -678,10 +674,10 @@ export default function InterviewCoachPage() {
                     3
                   </div>
                   <h3 className="text-lg sm:text-xl font-bold text-slate-900 mb-2">
-                    Get Feedback
+                    AI Feedback &amp; Report
                   </h3>
                   <p className="text-sm sm:text-base text-gray-600">
-                    Receive instant AI analysis and improvement tips
+                    Instant analysis, discussion score, and what to fix next
                   </p>
                 </div>
               </div>
@@ -705,10 +701,10 @@ export default function InterviewCoachPage() {
                     4
                   </div>
                   <h3 className="text-lg sm:text-xl font-bold text-slate-900 mb-2">
-                    Track Progress
+                    Optional: Peer Interviews
                   </h3>
                   <p className="text-sm sm:text-base text-gray-600">
-                    Monitor improvement over time with detailed reports
+                    Level up with real engineers when you want human eyes on your delivery
                   </p>
                 </div>
               </div>
@@ -769,7 +765,7 @@ export default function InterviewCoachPage() {
               See It In Action
             </h2>
             <p className="text-base sm:text-lg text-gray-600 leading-relaxed max-w-3xl mx-auto">
-              Watch how our AI-powered interview coach guides you through real interview scenarios with instant feedback and detailed analysis.
+              From first question to scorecard—AI Interview Practice and AI feedback the way shortlists are really decided.
             </p>
           </div>
 
@@ -926,10 +922,10 @@ export default function InterviewCoachPage() {
         <div className="container mx-auto max-w-7xl relative z-10">
           <div className="text-center mb-12 sm:mb-16">
             <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-slate-900 mb-4">
-              Why Choose Our AI Interview Coach?
+              AI Interview Practice, coding, and company realism
             </h2>
             <p className="text-lg sm:text-xl text-gray-600 max-w-2xl mx-auto">
-              Everything you need to ace your next interview
+              Don&apos;t just practice generic Q&amp;A—simulate the interview you&apos;ll actually face.
             </p>
           </div>
 
@@ -939,20 +935,20 @@ export default function InterviewCoachPage() {
               <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center mb-4 shadow-md">
                 <Mic className="w-7 h-7 text-white" />
               </div>
-              <h3 className="text-xl font-bold text-slate-900 mb-2">Realistic Interviews</h3>
+              <h3 className="text-xl font-bold text-slate-900 mb-2">AI Interview Practice</h3>
               <p className="text-gray-600">
-                Practice with AI-powered interviews that feel like real conversations with adaptive follow-ups
+                Multilingual AI sessions that adapt—tell us your target company for a closer match to their style
               </p>
             </div>
 
             {/* Feature 2 */}
             <div className="bg-white rounded-2xl p-6 sm:p-8 border-2 border-blue-100 shadow-lg hover:shadow-xl transition-all hover:border-blue-300">
               <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center mb-4 shadow-md">
-                <Brain className="w-7 h-7 text-white" />
+                <Code className="w-7 h-7 text-white" />
               </div>
-              <h3 className="text-xl font-bold text-slate-900 mb-2">Instant Analysis</h3>
+              <h3 className="text-xl font-bold text-slate-900 mb-2">Practice Coding Round</h3>
               <p className="text-gray-600">
-                Get detailed feedback on confidence, clarity, filler words, and answer structure in real-time
+                Solve structured problems—then defend your complexity choices with AI prompts tied to your code
               </p>
             </div>
 
@@ -963,7 +959,7 @@ export default function InterviewCoachPage() {
               </div>
               <h3 className="text-xl font-bold text-slate-900 mb-2">Company-Specific Prep</h3>
               <p className="text-gray-600">
-                Practice with questions from TCS, Infosys, Wipro, Amazon, and 50+ top companies
+                Role- and employer-aware drills so practice maps to how that team hires
               </p>
             </div>
 
@@ -972,33 +968,39 @@ export default function InterviewCoachPage() {
               <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center mb-4 shadow-md">
                 <BarChart3 className="w-7 h-7 text-white" />
               </div>
-              <h3 className="text-xl font-bold text-slate-900 mb-2">Progress Tracking</h3>
+              <h3 className="text-xl font-bold text-slate-900 mb-2">Reports &amp; Discussion Scores</h3>
               <p className="text-gray-600">
-                Monitor your improvement over time with visual dashboards and performance metrics
+                Full write-ups with transcripts, strengths, weaknesses, and what to rehearse next
               </p>
             </div>
 
             {/* Feature 5 */}
             <div className="bg-white rounded-2xl p-6 sm:p-8 border-2 border-blue-100 shadow-lg hover:shadow-xl transition-all hover:border-blue-300">
               <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center mb-4 shadow-md">
-                <Clock className="w-7 h-7 text-white" />
+                <MessageSquare className="w-7 h-7 text-white" />
               </div>
-              <h3 className="text-xl font-bold text-slate-900 mb-2">Instant Reports</h3>
+              <h3 className="text-xl font-bold text-slate-900 mb-2">Multilingual Support</h3>
               <p className="text-gray-600">
-                Receive detailed interview reports with transcripts, scores, and action items within minutes
+                Practice in the languages you interview in—smooth handoffs across English, Hindi, and more
               </p>
             </div>
 
             {/* Feature 6 */}
-            <div className="bg-white rounded-2xl p-6 sm:p-8 border-2 border-blue-100 shadow-lg hover:shadow-xl transition-all hover:border-blue-300">
+            <Link
+              href="/sign-up"
+              className="bg-white rounded-2xl p-6 sm:p-8 border-2 border-blue-100 shadow-lg hover:shadow-xl transition-all hover:border-blue-300 block text-left"
+            >
               <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center mb-4 shadow-md">
-                <MessageSquare className="w-7 h-7 text-white" />
+                <Video className="w-7 h-7 text-white" />
               </div>
-              <h3 className="text-xl font-bold text-slate-900 mb-2">Multi-Language Support</h3>
+              <h3 className="text-xl font-bold text-slate-900 mb-2">Peer Interviews</h3>
               <p className="text-gray-600">
-                Practice in English, Hindi, or mixed language scenarios for real-world interviews
+                Still nervous? Book real engineers for live feedback and a performance score—from people who&apos;ve cleared the bar
               </p>
-            </div>
+              <p className="text-sm font-medium text-blue-600 mt-3 flex items-center gap-1">
+                Sign up to schedule <ArrowRight className="w-4 h-4" />
+              </p>
+            </Link>
           </div>
         </div>
       </section>
@@ -1007,10 +1009,10 @@ export default function InterviewCoachPage() {
       <section className="py-16 sm:py-20 md:py-24 lg:py-28 px-4 sm:px-6 bg-gray-50 relative overflow-hidden">
         <div className="container mx-auto max-w-4xl text-center relative z-10">
           <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-slate-900 mb-4 sm:mb-6">
-            Ready to Ace Your Next Interview?
+            Don&apos;t just apply—rehearse to win
           </h2>
           <p className="text-lg sm:text-xl text-gray-600 mb-8 sm:mb-10 max-w-2xl mx-auto">
-            Join thousands of professionals who have improved their interview skills with our AI-powered coach
+            Transform how you sound, code, and show up—with reports that tell you exactly what to improve before offer week.
           </p>
           <Link href="/dashboard/interviews/new">
             <Button

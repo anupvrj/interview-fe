@@ -23,11 +23,11 @@ export const metadata: Metadata = {
   ),
   title: {
     default:
-      "Interview Trix - World Fastest AI Resume Builder | Mock Interview | Job Search",
+      "Interview Trix - World Fastest AI Resume Builder | AI Interview Practice | Job Search",
     template: "%s | Interview Trix",
   },
   description:
-    "From ATS-optimized resumes to live AI mock interviews and detailed performance reports — everything you need to get shortlisted and hired.",
+    "From ATS-optimized resumes to AI Interview Practice and detailed performance reports — everything you need to get shortlisted and hired.",
   keywords: [
     "resume builder",
     "ATS checker",
@@ -53,17 +53,17 @@ export const metadata: Metadata = {
     locale: "en_US",
     url: process.env.NEXT_PUBLIC_APP_URL || "https://interviewtrix.com",
     title:
-      "Interview Trix - World Fastest AI Resume Builder | Mock Interview | Job Search",
+      "Interview Trix - World Fastest AI Resume Builder | AI Interview Practice | Job Search",
     description:
-      "From ATS-optimized resumes to live AI mock interviews and detailed performance reports — everything you need to get shortlisted and hired.",
+      "From ATS-optimized resumes to AI Interview Practice and detailed performance reports — everything you need to get shortlisted and hired.",
     siteName: "Interview Trix",
   },
   twitter: {
     card: "summary_large_image",
     title:
-      "Interview Trix - World Fastest AI Resume Builder | Mock Interview | Job Search",
+      "Interview Trix - World Fastest AI Resume Builder | AI Interview Practice | Job Search",
     description:
-      "From ATS-optimized resumes to live AI mock interviews and detailed performance reports — everything you need to get shortlisted and hired.",
+      "From ATS-optimized resumes to AI Interview Practice and detailed performance reports — everything you need to get shortlisted and hired.",
     creator: "@interviewtrix",
   },
   robots: {

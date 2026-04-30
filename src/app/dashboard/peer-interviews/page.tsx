@@ -116,14 +116,15 @@ export default function PeerInterviewsPage() {
               <CheckCircle className="h-7 w-7 text-white sm:h-8 sm:w-8" />
             </div>
             <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl">
-              Peer-to-peer unlocked
+              Peer interviews unlocked
             </h1>
             <p className="mt-3 text-base leading-relaxed text-slate-600 sm:text-lg">
-              Your last {PEER_INTERVIEW_UNLOCK_MIN_COUNT} interviews average{" "}
+              You beat the warmup wall—your last{" "}
+              {PEER_INTERVIEW_UNLOCK_MIN_COUNT} scored sessions average{" "}
               <span className="font-semibold text-emerald-700">
                 {unlock.averageLast10}%
               </span>
-              . Matching will appear here when live.
+              {". Matching with practicing engineers plus structured feedback rolls out here soon."}
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <Link href="/dashboard" className="flex-1">
@@ -183,12 +184,14 @@ export default function PeerInterviewsPage() {
             </div>
             <div className="min-w-0">
               <h1 className="text-lg font-bold text-slate-900 sm:text-xl lg:text-2xl">
-                Your progress toward unlock
+                Your progress toward Peer interviews
               </h1>
               <p className="mt-1.5 text-sm leading-relaxed text-slate-600 sm:text-base">
-                Unlock peer-to-peer interviews by scoring{" "}
-                {PEER_INTERVIEW_UNLOCK_MIN_AVG_SCORE}% on average in your last{" "}
-                {PEER_INTERVIEW_UNLOCK_MIN_COUNT} completed interviews.
+                Graduate from solo AI rehearsals to timed sessions with real
+                engineers who comment like hiring panels—earn it by averaging{" "}
+                {PEER_INTERVIEW_UNLOCK_MIN_AVG_SCORE}% across your last{" "}
+                {PEER_INTERVIEW_UNLOCK_MIN_COUNT} completed AI Interview Practice
+                sessions.
               </p>
             </div>
           </header>
@@ -272,9 +275,10 @@ export default function PeerInterviewsPage() {
                 <strong className="font-semibold text-slate-800">
                   {unlock.scoredCompletedCount}
                 </strong>{" "}
-                completed interview
-                {unlock.scoredCompletedCount === 1 ? "" : "s"} with scores.
-                Finish more mock interviews to fill the window.
+                scored wrap-up
+                {unlock.scoredCompletedCount === 1 ? "" : "s"} on the books.
+                Keep closing AI Interview Practice sessions so reviewers can judge consistent
+                pacing, STAR depth, and how you synthesize AI feedback mid-loop.
               </p>
             ) : (
               <p className="mt-3 text-sm leading-relaxed text-slate-600 sm:text-base">
@@ -287,11 +291,12 @@ export default function PeerInterviewsPage() {
                 >
                   {unlock.averageLast10}%
                 </strong>
-                . Reach{" "}
+                . Hit{" "}
                 <strong className="font-semibold text-slate-800">
                   {PEER_INTERVIEW_UNLOCK_MIN_AVG_SCORE}%
                 </strong>{" "}
-                average to unlock.
+                and we unlock live peer mocks—same scoring rigor with human
+                nuance layered on top.
               </p>
             )}
           </section>
@@ -304,7 +309,7 @@ export default function PeerInterviewsPage() {
                 className="h-12 min-h-[3rem] w-full rounded-xl !bg-[rgb(37,99,235)] px-5 text-sm font-semibold text-white shadow-md shadow-blue-600/25 transition-all hover:!bg-[rgb(17,24,39)] hover:shadow-lg sm:text-base"
               >
                 <PlayCircle className="mr-2 h-5 w-5 shrink-0" />
-                Start a mock interview
+                Start AI Interview Practice
                 <ArrowRight className="ml-2 h-4 w-4 shrink-0 opacity-90" />
               </Button>
             </Link>
@@ -340,7 +345,8 @@ export default function PeerInterviewsPage() {
               Peer-to-peer interviews
             </p>
             <p className="mt-3 max-w-xs text-sm leading-relaxed text-slate-600 sm:text-base">
-              Meet the score requirements in the panel to unlock this feature.
+              Beat the jitters solo first—once those rolling scores clear the bar,
+              real engineers step in with candid debriefs you can trust.
             </p>
           </div>
         </aside>

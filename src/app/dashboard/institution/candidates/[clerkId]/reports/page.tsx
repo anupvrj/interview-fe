@@ -183,7 +183,7 @@ export default function InstitutionCandidateReportsPage() {
           Candidate reports — {displayName}
         </h1>
         <p className="mt-1 text-slate-600">
-          {emailQ || "—"} · Resumes and mock interviews
+          {emailQ || "—"} · Resumes and AI Interview Practice
         </p>
       </div>
 

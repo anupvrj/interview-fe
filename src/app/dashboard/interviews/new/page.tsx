@@ -237,12 +237,13 @@ export default function NewInterviewPage() {
               <Sparkles className="w-5 h-5" />
             </div>
             <h1 className="text-2xl sm:text-3xl font-bold">
-              Start Your AI Interview
+              Configure your AI Interview Practice
             </h1>
           </div>
           <p className="text-base lg:text-lg text-white/90 max-w-2xl">
-            Get personalized feedback and ace your next interview with our
-            AI-powered mock interview platform
+            Shortlist-ready answers come from rehearsals that mirror the company,
+            round, and language you will face—wrapped with transcripts, scores,
+            and discussion coaching you can review before the real panel.
           </p>
         </div>
         <div className="absolute inset-0 bg-gradient-to-r from-blue-600/50 to-transparent opacity-50"></div>
@@ -298,7 +299,8 @@ export default function NewInterviewPage() {
                         credits (30-min interview)
                       </p>
                       <p className="text-xs text-gray-600 mt-2">
-                        💡 5 credits per minute • Purchase credits to continue
+                        Billing runs at 5 credits per minute—grab more credits to
+                        keep interviewing and unlock full scoring reports.
                       </p>
                     </div>
                   )}
@@ -341,7 +343,8 @@ export default function NewInterviewPage() {
                   credits available
                 </p>
                 <p className="text-sm text-gray-600 mt-1">
-                  Ready to start your mock interview! (5 credits/min)
+                  Enough runway for a full rehearsal at 5 credits/min—reports and
+                  discussion feedback unlock when you wrap the session cleanly.
                 </p>
               </div>
             </div>
@@ -365,7 +368,8 @@ export default function NewInterviewPage() {
                   </CardTitle>
                 </div>
                 <CardDescription className="text-xs sm:text-sm">
-                  Fill in the details to personalize your interview experience
+                  Personalization is company + interview round + spoken
+                  language—those three inputs steer every follow-up.
                 </CardDescription>
               </CardHeader>
               <CardContent className="px-3 sm:px-6">

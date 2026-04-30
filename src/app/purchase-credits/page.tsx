@@ -176,7 +176,7 @@ export default function PurchaseCreditsPage() {
                   <li>• 1 credit = ₹1</li>
                   <li>• Interview cost: 5 credits per minute</li>
                   <li>• Purchased credits are added to your balance until used</li>
-                  <li>• Use credits for mock interviews anytime</li>
+                  <li>• Use credits for AI Interview Practice anytime</li>
                 </ul>
               </div>
             </div>

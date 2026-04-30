@@ -141,8 +141,8 @@ export default function ContactPage() {
               Get in <span className="text-blue-600">Touch</span>
             </h1>
             <p className="text-base sm:text-lg lg:text-xl text-gray-600 max-w-2xl mx-auto">
-              Have questions? We're here to help. Reach out to our team and
-              we'll get back to you as soon as possible.
+              From resumes and ATS checks to AI Interview Practice, peers, or job search—reach
+              out anytime. Our team replies within 48–72 hours.
             </p>
           </div>
 

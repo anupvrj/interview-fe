@@ -235,11 +235,11 @@ export default function AboutPage() {
               <span>About Us</span>
             </div>
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white mb-6 tracking-tight">
-              Empowering Careers Through
-              <span className="block text-white/95">AI-Powered Interview Prep</span>
+              Your ally in an
+              <span className="block text-white/95">AI-filtered hiring world</span>
             </h1>
             <p className="text-lg sm:text-xl text-white/90 max-w-2xl mx-auto leading-relaxed">
-              We're on a mission to help millions of job seekers in India ace their interviews and land their dream jobs. Our AI-powered platform combines cutting-edge technology with personalized feedback to transform interview preparation.
+              Recruiters lean on ATS and AI long before they read your story. Interview Trix is built to get you visible—ATS-ready resumes, AI Interview Practice and coding practice, peer sessions, and smart job matching—your end-to-end career partner so you don&apos;t just apply, you win.
             </p>
           </div>
         </div>
@@ -256,7 +256,7 @@ export default function AboutPage() {
               What We Do
             </h2>
             <p className="text-lg text-gray-600 max-w-2xl mx-auto leading-relaxed">
-              We provide comprehensive interview preparation tools to help you succeed
+              Resume, rehearsals, peers, and job search aligned to how hiring actually works now
             </p>
           </div>
 
@@ -266,10 +266,10 @@ export default function AboutPage() {
                 <Mic className="w-7 h-7 text-white" />
               </div>
               <h3 className="text-xl font-bold text-slate-900 mb-2">
-                AI Mock Interviews
+                AI Interview Practice
               </h3>
               <p className="text-sm text-gray-600 leading-relaxed">
-                Practice with AI-powered interviews that adapt to your responses, providing realistic interview scenarios and personalized feedback.
+                AI Interview Practice in multiple languages, company-specific prep, coding rounds plus AI discussion on your solutions—and actionable scorecards afterward.
               </p>
             </div>
 
@@ -278,22 +278,22 @@ export default function AboutPage() {
                 <FileText className="w-7 h-7 text-white" />
               </div>
               <h3 className="text-xl font-bold text-slate-900 mb-2">
-                Resume Builder
+                AI Resume Builder
               </h3>
               <p className="text-sm text-gray-600 leading-relaxed">
-                Create ATS-optimized resumes with professional templates designed to pass applicant tracking systems and impress recruiters.
+                ATS-optimized templates, real-time suggestions, and a Smart ATS Score engineered to get you past the bots and onto a recruiter&apos;s desk.
               </p>
             </div>
 
             <div className="bg-white rounded-2xl p-6 border border-gray-200 hover:border-blue-300 hover:shadow-lg transition-all">
               <div className="w-14 h-14 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-2xl flex items-center justify-center mb-4 shadow-lg">
-                <Brain className="w-7 h-7 text-white" />
+                <Users className="w-7 h-7 text-white" />
               </div>
               <h3 className="text-xl font-bold text-slate-900 mb-2">
-                Performance Analytics
+                Peers &amp; Smart Job Search
               </h3>
               <p className="text-sm text-gray-600 leading-relaxed">
-                Track your progress with detailed analytics, identify weak areas, and measure improvement over time with actionable insights.
+                Practice with real engineers when you want human reassurance—then discover roles, gauge fit, refine your resume per JD, and apply with confidence.
               </p>
             </div>
           </div>
@@ -316,13 +316,13 @@ export default function AboutPage() {
               <span className="block text-blue-600">One Complete Platform.</span>
             </h2>
             <p className="text-xl sm:text-2xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
-              Everything you need to land your dream job, all in one place
+              Match · Refine · Apply—backed by the practice loop that seals the interview
             </p>
           </div>
 
           {/* Product Cards */}
           <div className="grid md:grid-cols-3 gap-6 sm:gap-8">
-            {/* Mock Interview Product */}
+            {/* AI Interview Practice product */}
             <div 
               className="group relative bg-white rounded-3xl p-8 sm:p-10 border-2 border-gray-200 hover:border-blue-300 shadow-lg hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 overflow-hidden"
               style={{
@@ -340,25 +340,25 @@ export default function AboutPage() {
 
                 {/* Content */}
                 <h3 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-4">
-                  Mock Interview
+                  AI Interview Practice
                 </h3>
                 <p className="text-gray-600 leading-relaxed mb-6 text-base">
-                  Practice with AI-powered interviews that adapt to your responses. Get real-time feedback on your communication skills, confidence levels, and technical answers.
+                  Shortlisted? Rehearse with AI Interview Practice in multiple languages, dial in company-specific style, and tackle coding challenges with follow-up questions on your exact solution.
                 </p>
 
                 {/* Features List */}
                 <ul className="space-y-3 mb-8">
                   <li className="flex items-start gap-3">
                     <CheckCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                    <span className="text-sm text-gray-700">Real-time AI feedback</span>
+                    <span className="text-sm text-gray-700">AI Interview Practice + instant feedback</span>
                   </li>
                   <li className="flex items-start gap-3">
                     <CheckCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                    <span className="text-sm text-gray-700">Company-specific questions</span>
+                    <span className="text-sm text-gray-700">Company-specific prep paths</span>
                   </li>
                   <li className="flex items-start gap-3">
                     <CheckCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                    <span className="text-sm text-gray-700">Multi-language support</span>
+                    <span className="text-sm text-gray-700">Coding rounds + AI discussion scores</span>
                   </li>
                 </ul>
 
@@ -368,7 +368,7 @@ export default function AboutPage() {
                     size="lg"
                     className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium shadow-lg hover:shadow-xl transition-all h-12"
                   >
-                    Try Mock Interview
+                    Try AI Interview Practice
                     <ArrowRight className="w-5 h-5 ml-2" />
                   </Button>
                 </Link>
@@ -396,7 +396,7 @@ export default function AboutPage() {
                   Resume Builder
                 </h3>
                 <p className="text-gray-600 leading-relaxed mb-6 text-base">
-                  Create ATS-optimized resumes with professional templates. Designed to pass applicant tracking systems and impress recruiters at top companies.
+                  Start where most hiring gates close first: ATS parsing. Fresher or pro—real-time tweaks, templates built for parsers, and a Smart ATS Score proving you cleared the bots.
                 </p>
 
                 {/* Features List */}
@@ -407,11 +407,11 @@ export default function AboutPage() {
                   </li>
                   <li className="flex items-start gap-3">
                     <CheckCircle className="w-5 h-5 text-indigo-600 flex-shrink-0 mt-0.5" />
-                    <span className="text-sm text-gray-700">Multiple design options</span>
+                    <span className="text-sm text-gray-700">Instant AI improvements</span>
                   </li>
                   <li className="flex items-start gap-3">
                     <CheckCircle className="w-5 h-5 text-indigo-600 flex-shrink-0 mt-0.5" />
-                    <span className="text-sm text-gray-700">Real-time preview</span>
+                    <span className="text-sm text-gray-700">Live preview + scoring</span>
                   </li>
                 </ul>
 
@@ -449,22 +449,22 @@ export default function AboutPage() {
                   AI Job Search
                 </h3>
                 <p className="text-gray-600 leading-relaxed mb-6 text-base">
-                  Find the perfect job matches using AI-powered search. Get personalized job recommendations based on your skills, experience, and career goals.
+                  The finish line: explore matches with hiring context, see where you shine, tighten your resume to that JD, and apply knowing you staged the strongest version of your story (plus peers when you crave human critique).
                 </p>
 
                 {/* Features List */}
                 <ul className="space-y-3 mb-8">
                   <li className="flex items-start gap-3">
                     <CheckCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-                    <span className="text-sm text-gray-700">AI-powered matching</span>
+                    <span className="text-sm text-gray-700">Match insights beyond a single feed</span>
                   </li>
                   <li className="flex items-start gap-3">
                     <CheckCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-                    <span className="text-sm text-gray-700">Personalized recommendations</span>
+                    <span className="text-sm text-gray-700">Resume refinement per posting</span>
                   </li>
                   <li className="flex items-start gap-3">
                     <CheckCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-                    <span className="text-sm text-gray-700">Real-time job alerts</span>
+                    <span className="text-sm text-gray-700">Optional peer interviews for live feedback</span>
                   </li>
                 </ul>
 
@@ -517,7 +517,7 @@ export default function AboutPage() {
               </div>
               <h3 className="text-2xl font-bold text-white mb-4">The Problem</h3>
               <p className="text-white/90 leading-relaxed">
-                After witnessing countless talented candidates struggle in interviews, we realized that the gap wasn't in their skills or knowledge—it was in their preparation. Traditional interview prep methods were expensive, time-consuming, and often didn't reflect real interview scenarios.
+                Candidates were drowning in ATS black holes long before nerves ever showed up—AI tossed résumés aside, recruiters never saw the brilliance. Legacy prep skipped that reality entirely, priced out too many seekers, and still didn&apos;t mirror how companies hired.
               </p>
             </div>
 
@@ -533,7 +533,7 @@ export default function AboutPage() {
               </div>
               <h3 className="text-2xl font-bold text-white mb-4">Our Solution</h3>
               <p className="text-white/90 leading-relaxed">
-                We set out to build an AI-powered platform that would democratize interview preparation. By combining advanced AI technology with insights from real interviews at top companies, we created a solution that's accessible, affordable, and effective for everyone.
+                Interview Trix fights filters with your own AI ally—starting with ATS-smart resumes, layering AI Interview Practice and coding drills, pairing you with seasoned engineers when you need humans, then bringing search + JD-level tuning so applying isn&apos;t a spray-and-pray loop.
               </p>
             </div>
 
@@ -549,7 +549,7 @@ export default function AboutPage() {
               </div>
               <h3 className="text-2xl font-bold text-white mb-4">Our Mission</h3>
               <p className="text-white/90 leading-relaxed">
-                Today, Interview Trix has helped thousands of candidates prepare for their dream jobs. We're committed to making interview preparation accessible to everyone, regardless of their background or financial situation.
+                Today we stand beside scholars, seekers, and teams across India—determined that anyone can learn to surf AI-driven hiring rather than disappear inside it.
               </p>
             </div>
           </div>
@@ -821,10 +821,10 @@ export default function AboutPage() {
           {/* Header */}
           <div className="text-center mb-8 sm:mb-12">
             <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-slate-900 mb-3 sm:mb-4">
-              Trusted by over a thousand users
+              Transform careers—together
             </h2>
             <p className="text-lg sm:text-xl text-blue-600 mb-4 sm:mb-6">
-              Our users love us and so will you. Here's what they are saying.
+              Learners rely on Interview Trix as their end-to-end hiring partner—and share the wins publicly.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-3">
               <div className="flex items-center gap-1">
@@ -1012,7 +1012,7 @@ export default function AboutPage() {
                         </div>
                       </div>
                       <p className="text-sm sm:text-base text-gray-700 leading-relaxed mb-4">
-                        The AI mock interviews are incredibly realistic. I practiced for my Infosys interview and felt so much more confident. The behavioral analysis helped me identify areas I didn't even know needed improvement.
+                        AI Interview Practice feels incredibly realistic. I practiced for my Infosys interview and felt so much more confident. The behavioral analysis helped me identify areas I didn't even know needed improvement.
                       </p>
                       <div className="flex items-center gap-1">
                         {[...Array(5)].map((_, i) => (
@@ -1061,7 +1061,7 @@ export default function AboutPage() {
                         </div>
                       </div>
                       <p className="text-sm sm:text-base text-gray-700 leading-relaxed mb-4">
-                        The AI mock interviews are incredibly realistic. I practiced for my Infosys interview and felt so much more confident. The behavioral analysis helped me identify areas I didn't even know needed improvement.
+                        AI Interview Practice feels incredibly realistic. I practiced for my Infosys interview and felt so much more confident. The behavioral analysis helped me identify areas I didn't even know needed improvement.
                       </p>
                       <div className="flex items-center gap-1">
                         {[...Array(5)].map((_, i) => (

@@ -43,17 +43,17 @@ const baseMenuItems = [
     icon: LayoutDashboard,
   },
   {
-    title: "Build Resumes",
+    title: "AI resume builder",
     href: "/dashboard/resumes",
     icon: FileEdit,
   },
   {
-    title: "Practice Interview",
+    title: "AI Interview Practice",
     href: "/dashboard/interviews",
     icon: FileText,
   },
   {
-    title: "Practice Coding Round",
+    title: "Practice coding round",
     href: "/dashboard/coding-interviews",
     icon: Code2,
   },

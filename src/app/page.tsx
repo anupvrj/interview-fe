@@ -15,8 +15,6 @@ import {
   TrendingUp,
   Award,
   Brain,
-  Clock,
-  Globe,
   CheckCircle,
   ArrowRight,
   Sparkles,
@@ -27,10 +25,10 @@ import {
   Video,
   MessageSquare,
   Check,
-  Trophy,
   Quote,
   Search,
   Briefcase,
+  Code,
 } from "lucide-react";
 import Image from "next/image";
 import { PlansSection } from "@/components/PlansSection";
@@ -125,14 +123,15 @@ export default function LandingPage() {
     "/resume-template-images/clean-slate-preview.webp",
   ];
 
-  const firstLine = "Ace Your Next Interview";
-  const secondLine = "Before the Real One Happens";
+  const firstLine = "Beat the ATS Black Hole";
+  const secondLine = "With Your AI Career Ally";
   const fullText = firstLine + " " + secondLine;
-  const highlightStart = 14; // "Interview" starts at position 14 (after "Ace Your Next ")
-  const highlightEnd = highlightStart + 9; // "Interview" is 9 characters
-  // "Happens" starts after "Ace Your Next Interview — Before the Real One " (27 + 20 = 47)
-  const happensStart = firstLine.length + 1 + (secondLine.length - 7); // Position of "Happens"
-  const happensEnd = happensStart + 7; // "Happens" is 7 characters
+  const highlightStart = 9; // "ATS" in first line (after "Beat the ")
+  const highlightEnd = highlightStart + 3;
+  // Highlight "Ally" at end of second line (local index 20 in secondLine)
+  const allyLocalStart = 20;
+  const happensStart = firstLine.length + 1 + allyLocalStart;
+  const happensEnd = happensStart + 4;
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -400,7 +399,7 @@ export default function LandingPage() {
                 </div>
               </h1>
               <p className="text-sm sm:text-base lg:text-xl text-gray-600 leading-relaxed max-w-xl mx-auto lg:mx-0 px-2 sm:px-0">
-                From ATS-optimized resumes to live AI mock interviews and detailed performance reports — everything you need to get shortlisted and hired.
+                AI filters your resume before a human ever sees it. Interview Trix is your end-to-end career partner—ATS-ready resumes, AI Interview Practice and coding practice, peer sessions, and smart job matching—so you work smarter and get noticed.
               </p>
               
               {/* Company Logos */}
@@ -442,7 +441,7 @@ export default function LandingPage() {
               <div className="relative rounded-lg sm:rounded-xl shadow-2xl overflow-hidden bg-white w-full max-w-[600px] sm:max-w-[700px] border-2 sm:border-4 border-blue-100">
                 <Image
                   src="/mock-interview-previewiew.png"
-                  alt="Mock Interview Interface - AI-Powered Interview Platform"
+                  alt="AI Interview Practice interface"
                   width={700}
                   height={560}
                   className="w-full h-auto object-contain"
@@ -530,14 +529,14 @@ export default function LandingPage() {
           <div className="text-center mb-12">
             <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/20 backdrop-blur-sm rounded-full text-white font-medium text-sm mb-4">
               <Sparkles className="w-3 h-3" />
-              <span>Why Choose Us</span>
+              <span>Why Interview Trix</span>
             </div>
             <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-4 tracking-tight">
-              Everything you need to{" "}
-              <span className="text-blue-100">ace your interview</span>
+              Don&apos;t just apply.{" "}
+              <span className="text-blue-100">Win.</span>
             </h2>
             <p className="text-lg text-white/90 max-w-2xl mx-auto leading-relaxed">
-              A complete interview-readiness platform built for the Indian job market — resumes, mock interviews, and real performance insights in one place.
+              From an ATS-ready resume to AI Interview Practice, peer interviews, and the perfect job match—one platform built for how hiring works today.
             </p>
           </div>
 
@@ -546,16 +545,16 @@ export default function LandingPage() {
               <div className="absolute inset-0 bg-gradient-to-br from-blue-50/30 to-transparent rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
               <div className="relative">
                 <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center mb-4 shadow-lg group-hover:scale-110 transition-transform">
-                  <Mic className="w-7 h-7 text-white" />
+                  <FileText className="w-7 h-7 text-white" />
                 </div>
                 <h3 className="text-xl font-bold text-slate-900 mb-2">
-                  Voice Mock Interviews
+                  AI Resume Builder
                 </h3>
                 <p className="text-sm font-semibold text-gray-800 mb-2">
-                  Real interviews. Real pressure. Zero risk.
+                  Pass the bots. Reach the desk.
                 </p>
                 <p className="text-sm text-gray-600 leading-relaxed">
-                  Practice AI-led interviews with adaptive follow-ups that feel like a real interviewer.
+                  Real-time analysis, instant improvements, Smart ATS Score, and ATS-optimized templates—whether you&apos;re a fresher or a seasoned pro.
                 </p>
               </div>
             </div>
@@ -564,16 +563,16 @@ export default function LandingPage() {
               <div className="absolute inset-0 bg-gradient-to-br from-blue-50/30 to-transparent rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
               <div className="relative">
                 <div className="w-14 h-14 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-2xl flex items-center justify-center mb-4 shadow-lg group-hover:scale-110 transition-transform">
-                  <Brain className="w-7 h-7 text-white" />
+                  <Mic className="w-7 h-7 text-white" />
                 </div>
                 <h3 className="text-xl font-bold text-slate-900 mb-2">
-                  Behavioral Analysis
+                  AI Interview Practice
                 </h3>
                 <p className="text-sm font-semibold text-gray-800 mb-2">
-                  Know exactly how you sound.
+                  Company-specific. Multilingual.
                 </p>
                 <p className="text-sm text-gray-600 leading-relaxed">
-                  AI measures confidence, clarity, and answer structure — so you fix what matters.
+                  Tell us your dream company—we simulate their style. Practice in multiple languages with adaptive follow-ups that feel like the real thing.
                 </p>
               </div>
             </div>
@@ -582,73 +581,87 @@ export default function LandingPage() {
               <div className="absolute inset-0 bg-gradient-to-br from-blue-50/30 to-transparent rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
               <div className="relative">
                 <div className="w-14 h-14 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-2xl flex items-center justify-center mb-4 shadow-lg group-hover:scale-110 transition-transform">
-                  <TrendingUp className="w-7 h-7 text-white" />
+                  <Code className="w-7 h-7 text-white" />
                 </div>
                 <h3 className="text-xl font-bold text-slate-900 mb-2">
-                  Progress Tracking
+                  Practice Coding Round
                 </h3>
                 <p className="text-sm font-semibold text-gray-800 mb-2">
-                  See improvement, not just scores.
+                  Solve. Defend. Get scored.
                 </p>
                 <p className="text-sm text-gray-600 leading-relaxed">
-                  Track strengths, weak areas, and progress across interviews in clear dashboards.
+                  Work through problems, then discuss your solution with AI—full report and discussion score so you&apos;re never caught off guard.
                 </p>
               </div>
             </div>
 
-            <div className="group relative bg-white/95 backdrop-blur-sm rounded-2xl p-6 border border-white/20 hover:border-white/40 hover:shadow-2xl transition-all duration-300 hover:scale-105">
+            <Link
+              href="/sign-up"
+              className="group relative bg-white/95 backdrop-blur-sm rounded-2xl p-6 border border-white/20 hover:border-white/40 hover:shadow-2xl transition-all duration-300 hover:scale-105 block text-left"
+            >
               <div className="absolute inset-0 bg-gradient-to-br from-blue-50/30 to-transparent rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
               <div className="relative">
                 <div className="w-14 h-14 bg-gradient-to-br from-amber-500 to-amber-600 rounded-2xl flex items-center justify-center mb-4 shadow-lg group-hover:scale-110 transition-transform">
+                  <Video className="w-7 h-7 text-white" />
+                </div>
+                <h3 className="text-xl font-bold text-slate-900 mb-2">
+                  Peer Interviews
+                </h3>
+                <p className="text-sm font-semibold text-gray-800 mb-2">
+                  Beat the fear. Real engineers.
+                </p>
+                <p className="text-sm text-gray-600 leading-relaxed">
+                  Schedule with engineers from top companies—real-time feedback and an overall performance score from people who&apos;ve been there.
+                </p>
+                <p className="text-sm font-medium text-blue-600 mt-3 flex items-center gap-1">
+                  Sign up to book
+                  <ArrowRight className="w-4 h-4" />
+                </p>
+              </div>
+            </Link>
+
+            <div className="group relative bg-white/95 backdrop-blur-sm rounded-2xl p-6 border border-white/20 hover:border-white/40 hover:shadow-2xl transition-all duration-300 hover:scale-105">
+              <div className="absolute inset-0 bg-gradient-to-br from-blue-50/30 to-transparent rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
+              <div className="relative">
+                <div className="w-14 h-14 bg-gradient-to-br from-cyan-500 to-cyan-600 rounded-2xl flex items-center justify-center mb-4 shadow-lg group-hover:scale-110 transition-transform">
                   <Award className="w-7 h-7 text-white" />
                 </div>
                 <h3 className="text-xl font-bold text-slate-900 mb-2">
                   Company-Specific Prep
                 </h3>
                 <p className="text-sm font-semibold text-gray-800 mb-2">
-                  Prepare for the company you're targeting.
+                  Target your next employer.
                 </p>
                 <p className="text-sm text-gray-600 leading-relaxed">
-                  Practice questions from TCS, Infosys, Wipro, and 50+ companies — by role and round.
+                  Role- and round-aware practice so you walk in aligned with how that team actually interviews.
                 </p>
               </div>
             </div>
 
-            <div className="group relative bg-white/95 backdrop-blur-sm rounded-2xl p-6 border border-white/20 hover:border-white/40 hover:shadow-2xl transition-all duration-300 hover:scale-105">
-              <div className="absolute inset-0 bg-gradient-to-br from-blue-50/30 to-transparent rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
-              <div className="relative">
-                <div className="w-14 h-14 bg-gradient-to-br from-cyan-500 to-cyan-600 rounded-2xl flex items-center justify-center mb-4 shadow-lg group-hover:scale-110 transition-transform">
-                  <Globe className="w-7 h-7 text-white" />
-                </div>
-                <h3 className="text-xl font-bold text-slate-900 mb-2">
-                  Multi-Language Support
-                </h3>
-                <p className="text-sm font-semibold text-gray-800 mb-2">
-                  Interview in your comfort language.
-                </p>
-                <p className="text-sm text-gray-600 leading-relaxed">
-                  Practice in English, Hindi, or mixed language — just like real interviews in India.
-                </p>
-              </div>
-            </div>
-
-            <div className="group relative bg-white/95 backdrop-blur-sm rounded-2xl p-6 border border-white/20 hover:border-white/40 hover:shadow-2xl transition-all duration-300 hover:scale-105">
+            <Link
+              href="/ai-job-search"
+              className="group relative bg-white/95 backdrop-blur-sm rounded-2xl p-6 border border-white/20 hover:border-white/40 hover:shadow-2xl transition-all duration-300 hover:scale-105 block text-left"
+            >
               <div className="absolute inset-0 bg-gradient-to-br from-blue-50/30 to-transparent rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
               <div className="relative">
                 <div className="w-14 h-14 bg-gradient-to-br from-violet-500 to-violet-600 rounded-2xl flex items-center justify-center mb-4 shadow-lg group-hover:scale-110 transition-transform">
-                  <Clock className="w-7 h-7 text-white" />
+                  <Search className="w-7 h-7 text-white" />
                 </div>
                 <h3 className="text-xl font-bold text-slate-900 mb-2">
-                  Instant Feedback
+                  Smart Job Search
                 </h3>
                 <p className="text-sm font-semibold text-gray-800 mb-2">
-                  Don't wait days to know what went wrong.
+                  Match · Refine · Apply
                 </p>
                 <p className="text-sm text-gray-600 leading-relaxed">
-                  Receive instant interview reports with transcripts, scores, strengths, and action items.
+                  Surface strong fits, see your odds of getting hired, then refine your resume for that exact job description before you apply.
+                </p>
+                <p className="text-sm font-medium text-blue-600 mt-3 flex items-center gap-1">
+                  Learn more
+                  <ArrowRight className="w-4 h-4" />
                 </p>
               </div>
-            </div>
+            </Link>
           </div>
         </div>
       </ScrollSection>
@@ -664,20 +677,17 @@ export default function LandingPage() {
             <div className="space-y-6">
               {/* Badge */}
               <div className="inline-flex items-center gap-2 px-3 py-1 bg-blue-50 rounded-full text-blue-700 font-medium text-sm">
-                <span>ATS-Optimized Resume Builder</span>
+                <span>ATS-Optimized Templates · Real-Time Suggestions</span>
               </div>
 
               {/* Headline */}
               <h2 className="text-3xl sm:text-4xl md:text-5xl font-semibold tracking-tight text-slate-900 leading-tight">
-                Create <span className="text-blue-600">Professional</span> Resumes in Minutes
+                Start With a Resume That <span className="text-blue-600">Passes the Bots</span>
               </h2>
 
               {/* Sub-headline */}
               <p className="text-base sm:text-lg text-gray-600 leading-relaxed">
-                Build ATS-optimized resumes that pass applicant tracking systems. 
-                Our AI analyzes your resume in real-time, suggests improvements, and 
-                helps you create professional resumes that get noticed by recruiters 
-                at top companies.
+                Our model analyzes your resume in real time—instant improvements and a Smart ATS Score—so you land on the recruiter&apos;s desk, not in the black hole.
               </p>
 
               {/* AI-Powered Features */}
@@ -700,18 +710,18 @@ export default function LandingPage() {
                 </div>
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
-                    <Trophy className="w-5 h-5 text-blue-600" />
+                    <Sparkles className="w-5 h-5 text-blue-600" />
                   </div>
                   <h3 className="text-sm sm:text-base font-semibold text-gray-900">
-                    Ready in 2 Minutes
+                    Real-Time Improvements
                   </h3>
                 </div>
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
-                    <Sparkles className="w-5 h-5 text-blue-600" />
+                    <Zap className="w-5 h-5 text-blue-600" />
                   </div>
                   <h3 className="text-sm sm:text-base font-semibold text-gray-900">
-                    AI Content Suggestions
+                    Instant Suggestions
                   </h3>
                 </div>
               </div>
@@ -814,7 +824,7 @@ export default function LandingPage() {
         </div>
       </ScrollSection>
 
-      {/* Mock Interview Hero Section */}
+      {/* AI Interview Practice hero */}
       <ScrollSection
         id="start-interview"
         className="py-12 sm:py-16 px-4 sm:px-6 bg-slate-50 scroll-mt-20 border-t border-slate-100"
@@ -825,32 +835,31 @@ export default function LandingPage() {
             <div className="space-y-6">
               {/* Badge */}
               <div className="inline-flex items-center gap-2 px-3 py-1 bg-blue-50 rounded-full text-blue-700 font-medium text-sm">
-                <span>AI-Powered Interview Practice</span>
+                <span>AI Interview Practice · Company-Specific Prep</span>
               </div>
 
               {/* Headline */}
               <h2 className="text-3xl sm:text-4xl md:text-5xl font-semibold tracking-tight text-slate-900 leading-tight">
-                Ace Your Next <span className="text-blue-600">Interview</span> with AI Coach
+                Shortlisted? <span className="text-blue-600">Perform</span> Under Pressure
               </h2>
 
               {/* Sub-headline */}
               <p className="text-base sm:text-lg text-gray-600 leading-relaxed">
-                Practice with AI interviewers that adapt to your skill level. Get instant 
-                feedback on communication, confidence, and technical accuracy.
+                AI Interview Practice in multiple languages, tailored to your dream company&apos;s style—plus coding rounds where you defend your solution and receive a full report and discussion score.
               </p>
 
               {/* AI-Powered Features */}
               <div className="space-y-6 pt-4">
                 <div className="flex items-start gap-4">
                   <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
-                    <Sparkles className="w-5 h-5 text-blue-600" />
+                    <Mic className="w-5 h-5 text-blue-600" />
                   </div>
                   <div>
                     <h3 className="text-base font-semibold text-gray-900 mb-1">
-                      AI-Powered Interviews
+                      AI Interview Practice
                     </h3>
                     <p className="text-sm text-gray-600 leading-relaxed">
-                      Realistic conversations with adaptive difficulty that adjust based on your responses
+                      Tell us the company—we simulate their interview style with realistic, adaptive spoken sessions.
                     </p>
                   </div>
                 </div>
@@ -860,10 +869,23 @@ export default function LandingPage() {
                   </div>
                   <div>
                     <h3 className="text-base font-semibold text-gray-900 mb-1">
-                      Instant Analysis
+                      Multilingual Support
                     </h3>
                     <p className="text-sm text-gray-600 leading-relaxed">
-                      Speech patterns, confidence metrics, and improvement areas identified in real-time
+                      Practice across the languages you need so you&apos;re fluent when it counts.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-4">
+                  <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
+                    <Code className="w-5 h-5 text-blue-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-semibold text-gray-900 mb-1">
+                      Practice Coding + AI Discussion
+                    </h3>
+                    <p className="text-sm text-gray-600 leading-relaxed">
+                      Solve challenging problems, then discuss your approach—questions targeted to your actual code and solution.
                     </p>
                   </div>
                 </div>
@@ -873,10 +895,10 @@ export default function LandingPage() {
                   </div>
                   <div>
                     <h3 className="text-base font-semibold text-gray-900 mb-1">
-                      English + Hindi Support
+                      Reports &amp; Scores
                     </h3>
                     <p className="text-sm text-gray-600 leading-relaxed">
-                      Practice in English, Hindi, or code-switch naturally in your preferred language
+                      Full feedback and discussion scores so you know exactly what to improve before the real round.
                     </p>
                   </div>
                 </div>
@@ -948,7 +970,7 @@ export default function LandingPage() {
                       </div>
                     ))}
                   </div>
-                  {/* Mock Interview Interface */}
+                  {/* AI Interview Practice interface */}
                   <div className="p-6 relative z-10">
                     {/* Top Bar */}
                     <div className="flex items-center justify-between mb-6 pb-4 border-b border-blue-200">
@@ -1070,26 +1092,26 @@ export default function LandingPage() {
                 <span>Coming Soon</span>
               </div>
               <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-[43px] font-bold tracking-tight text-slate-900 leading-[1.2] sm:leading-[1.1] lg:leading-[52px] mb-4 sm:mb-6">
-                Find Your Dream Job with
-                <span className="block text-blue-600">AI-Powered Matching</span>
+                Smart Job Search:
+                <span className="block text-blue-600">Match · Refine · Apply</span>
               </h1>
               <p className="text-base sm:text-lg md:text-xl text-gray-600 leading-relaxed max-w-xl mx-auto lg:mx-0 px-2 sm:px-0">
-                Get personalized job recommendations based on your skills, experience, and career goals. Our AI matches you with the best opportunities from top companies.
+                The finish line: find roles that fit, see your hiring odds, then refine your resume for that exact job description—right before you apply.
               </p>
               
               {/* Features List */}
               <div className="space-y-3 pt-4 sm:pt-6 px-2 sm:px-0">
                 <div className="flex items-start gap-3">
                   <CheckCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                  <span className="text-gray-700 text-sm sm:text-base">AI-powered job matching with 95%+ accuracy</span>
+                  <span className="text-gray-700 text-sm sm:text-base">Surface strong matches across the wider job landscape—not just one job board.</span>
                 </div>
                 <div className="flex items-start gap-3">
                   <CheckCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                  <span className="text-gray-700 text-sm sm:text-base">Real-time job alerts from top companies</span>
+                  <span className="text-gray-700 text-sm sm:text-base">Highlights where you&apos;re competitive so you prioritize the right opportunities.</span>
                 </div>
                 <div className="flex items-start gap-3">
                   <CheckCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                  <span className="text-gray-700 text-sm sm:text-base">Smart filters by role, location, and salary</span>
+                  <span className="text-gray-700 text-sm sm:text-base">Tailor your resume to a specific JD, then apply with confidence.</span>
                 </div>
               </div>
               
@@ -1328,10 +1350,10 @@ export default function LandingPage() {
           {/* Header */}
           <div className="text-center mb-8 sm:mb-12">
             <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-slate-900 mb-3 sm:mb-4">
-              Trusted by over a thousand users
+              Transform your career—together
             </h2>
             <p className="text-lg sm:text-xl text-blue-600 mb-4 sm:mb-6">
-              Our users love us and so will you. Here's what they are saying.
+              Job seekers and teams use Interview Trix as an end-to-end career partner. Here&apos;s what they say.
             </p>
             <div className="flex items-center justify-center gap-2 sm:gap-3">
               <div className="flex items-center gap-1">
@@ -1458,17 +1480,17 @@ export default function LandingPage() {
             {/* Limited Time Offer Badge */}
             <div className="flex items-center justify-center gap-2 mb-4">
               <Sparkles className="w-4 h-4 text-white" />
-              <span className="text-sm text-white">Limited Time Offer</span>
+              <span className="text-sm text-white">Start today</span>
             </div>
 
             {/* Main Heading */}
             <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white text-center mb-4 sm:mb-6">
-              Ready to Transform Your Career?
+              Transform your career now
             </h2>
 
             {/* Subtitle */}
             <p className="text-base sm:text-lg lg:text-xl text-white text-center mb-8 sm:mb-10 max-w-2xl mx-auto leading-relaxed">
-              Join thousands of professionals who have already accelerated their career journey with our AI-powered platform.
+              Don&apos;t just apply. Win. Interview Trix goes from ATS-ready resume to final interview and job match—your AI ally all the way.
             </p>
 
             {/* CTA Buttons */}

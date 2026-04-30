@@ -137,7 +137,7 @@ export default function SignInPage() {
                   <Check className="w-5 h-5 text-blue-600" />
                 </div>
                 <span className="text-gray-700 font-medium">
-                  AI-powered mock interviews
+                  AI Interview Practice
                 </span>
               </div>
               <div className="flex items-center gap-3">

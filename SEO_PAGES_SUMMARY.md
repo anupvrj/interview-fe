@@ -7,8 +7,8 @@
 ## Pages with SEO Metadata (In Priority Order)
 
 ### 1. Home Page - `/`
-**Title:** Interview Trix - World Fastest AI Resume Builder | Mock Interview | Job Search
-**Description:** From ATS-optimized resumes to live AI mock interviews and detailed performance reports — everything you need to get shortlisted and hired.
+**Title:** Interview Trix - World Fastest AI Resume Builder | AI Interview Practice | Job Search
+**Description:** From ATS-optimized resumes to AI Interview Practice and detailed performance reports — everything you need to get shortlisted and hired.
 **Priority:** 1.0
 **Status:** ✅ Configured in root layout.tsx
 
@@ -19,8 +19,8 @@
 **Status:** ✅ Layout with metadata created
 
 ### 3. AI Interview Coach - `/ai-interview-coach`
-**Title:** AI Interview Coach - Practice Mock Interviews with AI | Interview Trix
-**Description:** Master your interview skills with AI-powered mock interviews. Get real-time feedback, detailed performance reports, and personalized coaching to ace your next interview.
+**Title:** AI Interview Coach - AI Interview Practice | Interview Trix
+**Description:** Master your interview skills with AI Interview Practice. Get real-time feedback, detailed performance reports, and personalized coaching to ace your next interview.
 **Priority:** 0.9
 **Status:** ✅ Layout with metadata created
 
@@ -32,7 +32,7 @@
 
 ### 5. Pricing - `/pricing`
 **Title:** Pricing Plans - Choose Your Perfect Plan | Interview Trix
-**Description:** Flexible pricing plans for every career stage. Get access to AI resume builder, mock interviews, job search, and more. Start free or choose a plan that fits your needs.
+**Description:** Flexible pricing plans for every career stage. Get access to AI resume builder, AI Interview Practice, job search, and more. Start free or choose a plan that fits your needs.
 **Priority:** 0.8
 **Status:** ✅ Layout with metadata created
 

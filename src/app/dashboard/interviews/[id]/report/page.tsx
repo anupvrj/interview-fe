@@ -90,7 +90,7 @@ export default function ReportPage() {
         const interviewData = await interviewApi.getInterview(interviewId);
         setInterview(interviewData);
       } catch {
-        /* interview stays null; hub link defaults to voice practice list */
+        /* interview stays null; hub link defaults to AI Interview Practice list */
       }
     } finally {
       setLoading(false);

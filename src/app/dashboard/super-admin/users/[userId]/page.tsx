@@ -288,7 +288,7 @@ export default function SuperAdminUserViewPage() {
             <CardHeader>
               <CardTitle className="text-lg">Practice interviews</CardTitle>
               <CardDescription>
-                Mock / voice interviews (non-coding). Open report or recording when available.
+                AI Interview Practice (non-coding). Open report or recording when available.
               </CardDescription>
             </CardHeader>
             <CardContent>

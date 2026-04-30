@@ -1284,7 +1284,7 @@ export default function CodingInterviewSessionPage() {
               </p>
               <p className="text-xs text-gray-400">
                 You won&apos;t be able to return to this session to keep coding,
-                run tests, or open the voice discussion from here.
+                run tests, or open the AI Interview Practice discussion from here.
               </p>
             </div>
           </AlertDialogDescription>
@@ -1461,7 +1461,7 @@ export default function CodingInterviewSessionPage() {
                   />
                 </div>
                 <p className="mt-2 text-[11px] leading-snug text-gray-400 sm:text-xs">
-                  Voice debrief with the AI interviewer about your solutions.
+                  AI Interview Practice debrief with the AI interviewer about your solutions.
                 </p>
               </div>
             ) : null}
@@ -1680,7 +1680,7 @@ export default function CodingInterviewSessionPage() {
               </AlertDialogTitle>
               <AlertDialogDescription className="space-y-3 text-left text-sm text-gray-300">
                 <span className="block">
-                  You&apos;ve submitted all problems. Start a voice session with
+                  You&apos;ve submitted all problems. Start AI Interview Practice with
                   the AI interviewer to reflect on your approach, tradeoffs, and
                   solutions — without leaving this page.
                 </span>

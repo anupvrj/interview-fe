@@ -31,7 +31,7 @@ export const organizationSchema = {
   url: process.env.NEXT_PUBLIC_APP_URL || "https://interviewtrix.com",
   logo: `${process.env.NEXT_PUBLIC_APP_URL || "https://interviewtrix.com"}/logo.png`,
   description:
-    "From ATS-optimized resumes to live AI mock interviews and detailed performance reports — everything you need to get shortlisted and hired.",
+    "From ATS-optimized resumes to AI Interview Practice and detailed performance reports — everything you need to get shortlisted and hired.",
   sameAs: [...ORGANIZATION_SAME_AS],
 };
 
@@ -39,7 +39,7 @@ export const organizationSchema = {
 export const webApplicationSchema = {
   "@context": "https://schema.org",
   "@type": "WebApplication",
-  name: "Interview Trix - AI Resume Builder & Mock Interview Platform",
+  name: "Interview Trix - AI Resume Builder & AI Interview Practice",
   url: process.env.NEXT_PUBLIC_APP_URL || "https://interviewtrix.com",
   applicationCategory: "BusinessApplication",
   operatingSystem: "Web Browser",
@@ -49,11 +49,11 @@ export const webApplicationSchema = {
     priceCurrency: "INR",
   },
   description:
-    "From ATS-optimized resumes to live AI mock interviews and detailed performance reports — everything you need to get shortlisted and hired.",
+    "From ATS-optimized resumes to AI Interview Practice and detailed performance reports — everything you need to get shortlisted and hired.",
   featureList: [
     "AI Resume Builder",
     "ATS Compatibility Checker",
-    "Live AI Mock Interviews",
+    "AI Interview Practice",
     "Detailed Performance Reports",
     "Multiple Professional Templates",
     "Job Search & Recommendations",

@@ -227,7 +227,7 @@ export default function CodingInterviewsPage() {
                 <div className="flex items-start gap-3">
                   <CheckCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-[rgb(37,99,235)]" />
                   <span className="text-xs text-gray-700 sm:text-sm">
-                    Monaco editor, run tests, then voice discussion
+                    Monaco editor, run tests, then AI Interview Practice discussion
                   </span>
                 </div>
                 <div className="flex items-start gap-3">

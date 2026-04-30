@@ -82,7 +82,7 @@ export default function JobSearchComingSoonPage() {
 
   // Animated Heading Effect
   useEffect(() => {
-    const fullText = "AI powered job search";
+    const fullText = "Smart match refine search";
     let currentIndex = 0;
     
     const typeInterval = setInterval(() => {
@@ -203,7 +203,7 @@ export default function JobSearchComingSoonPage() {
           <div className="text-center">
             <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight mb-4 sm:mb-6">
               {(() => {
-                const fullText = "AI powered job search";
+                const fullText = "Smart match refine search";
                 const searchStart = fullText.indexOf("search");
                 const searchEnd = searchStart + "search".length;
                 
@@ -230,7 +230,7 @@ export default function JobSearchComingSoonPage() {
               />
             </h1>
             <p className="text-lg sm:text-xl md:text-2xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
-              Find your perfect job match with intelligent AI-powered recommendations tailored to your skills and career goals.
+              The finish line: surface strong fits across the broader job landscape, understand your odds, refine your resume for each job description, then apply—all in one flow.
             </p>
           </div>
         </div>
@@ -292,26 +292,26 @@ export default function JobSearchComingSoonPage() {
                 <span>Coming Soon</span>
               </div>
               <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-[43px] font-bold tracking-tight text-slate-900 leading-[1.2] sm:leading-[1.1] lg:leading-[52px] mb-4 sm:mb-6">
-                Find Your Dream Job with
-                <span className="block text-blue-600">AI-Powered Matching</span>
+                Match. Refine.
+                <span className="block text-blue-600">Then Apply.</span>
               </h1>
               <p className="text-base sm:text-lg md:text-xl text-gray-600 leading-relaxed max-w-xl mx-auto lg:mx-0 px-2 sm:px-0">
-                Get personalized job recommendations based on your skills, experience, and career goals. Our AI matches you with the best opportunities from top companies.
+                We help you prioritize roles where you&apos;re strongest, tighten your resume to the JD, and walk into every application with Interview Trix as your partner—not another black-hole submission.
               </p>
               
               {/* Features List */}
               <div className="space-y-3 pt-4 sm:pt-6 px-2 sm:px-0">
                 <div className="flex items-start gap-3">
                   <CheckCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                  <span className="text-gray-700 text-sm sm:text-base">AI-powered job matching with 95%+ accuracy</span>
+                  <span className="text-gray-700 text-sm sm:text-base">Broad discovery so you&apos;re not limited to one job board or feed.</span>
                 </div>
                 <div className="flex items-start gap-3">
                   <CheckCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                  <span className="text-gray-700 text-sm sm:text-base">Real-time job alerts from top companies</span>
+                  <span className="text-gray-700 text-sm sm:text-base">Signals where you&apos;re a strong contender before you sink time into each application.</span>
                 </div>
                 <div className="flex items-start gap-3">
                   <CheckCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                  <span className="text-gray-700 text-sm sm:text-base">Smart filters by role, location, and salary</span>
+                  <span className="text-gray-700 text-sm sm:text-base">JD-specific resume tuning right before apply—exactly when it matters.</span>
                 </div>
               </div>
               
@@ -452,7 +452,7 @@ export default function JobSearchComingSoonPage() {
               How It Works
             </h2>
             <p className="text-lg sm:text-xl text-gray-600 max-w-2xl mx-auto">
-              Get matched with your dream job in just 4 simple steps
+              Match roles, sharpen your resume to the JD, rehearse—and close the loop
             </p>
           </div>
 
@@ -516,10 +516,10 @@ export default function JobSearchComingSoonPage() {
                     2
                   </div>
                   <h3 className="text-lg sm:text-xl font-bold text-slate-900 mb-2">
-                    Find Matching Jobs
+                    Discover Matches
                   </h3>
                   <p className="text-sm sm:text-base text-gray-600">
-                    AI matches you with jobs that fit your profile and preferences
+                    Explore opportunities with context on fit and competitiveness—not generic keyword spam
                   </p>
                 </div>
               </div>
@@ -543,10 +543,10 @@ export default function JobSearchComingSoonPage() {
                     3
                   </div>
                   <h3 className="text-lg sm:text-xl font-bold text-slate-900 mb-2">
-                    Practice and Apply
+                    Refine &amp; Rehearse
                   </h3>
                   <p className="text-sm sm:text-base text-gray-600">
-                    Practice interviews and apply directly to your best matches
+                    Tweak your resume for that JD, rehearse AI Interview Practice, then hit submit with conviction
                   </p>
                 </div>
               </div>
@@ -570,10 +570,10 @@ export default function JobSearchComingSoonPage() {
                     4
                   </div>
                   <h3 className="text-lg sm:text-xl font-bold text-slate-900 mb-2">
-                    Ohoo... Get Hired
+                    Win The Offer Stage
                   </h3>
                   <p className="text-sm sm:text-base text-gray-600">
-                    Land your dream job and start your new career journey
+                    Turn interviews into offers—Interview Trix stays with you end to end
                   </p>
                 </div>
               </div>
@@ -586,10 +586,10 @@ export default function JobSearchComingSoonPage() {
       <section className="py-16 sm:py-20 md:py-24 lg:py-28 px-4 sm:px-6 bg-blue-50 relative overflow-hidden">
         <div className="container mx-auto max-w-4xl text-center relative z-10">
           <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-slate-900 mb-4 sm:mb-6">
-            Find your dream job now
+            Don&apos;t just apply. Transform the search.
           </h2>
           <p className="text-lg sm:text-xl text-gray-600 mb-8 sm:mb-10 max-w-2xl mx-auto">
-            Join thousands of candidates who are already using AI-powered job matching to land their dream roles
+            Be first in line when we launch Job Search fully—signals, JD-level resume tweaks, and a partner that cares about hires—not inbox noise.
           </p>
           <Link href="/pricing">
             <Button

@@ -273,28 +273,50 @@ export default function InterviewsPage() {
             <div className="space-y-4 sm:space-y-5 md:space-y-6 text-center lg:text-left">
               <div className="inline-flex items-center gap-2 px-3 py-1 bg-blue-50 rounded-full text-blue-700 font-medium text-sm mb-4">
                 <Sparkles className="w-3 h-3" />
-                <span>AI-Powered Interviews</span>
+                <span>AI Interview Practice</span>
               </div>
               <h1 className="mb-4 text-2xl font-bold leading-[1.25] tracking-tight text-slate-900 sm:mb-6 sm:text-3xl sm:leading-[1.15] md:text-4xl lg:text-[34px] lg:leading-[42px]">
-                <span className="text-slate-900">Ace Your Next</span>{" "}
-                <span className="text-[rgb(37,99,235)]">Interview</span>{" "}
-                <span className="text-slate-900">Before the Real One</span>{" "}
-                <span className="text-[rgb(37,99,235)]">Happens</span>
+                <span className="text-slate-900">Company-aware prep,</span>{" "}
+                <span className="text-[rgb(37,99,235)]">
+                  multilingual AI Interview Practice,
+                </span>{" "}
+                <span className="text-slate-900">and interview-ready</span>{" "}
+                <span className="text-[rgb(37,99,235)]">reports</span>
               </h1>
               
               {/* Features List */}
               <div className="space-y-3 pt-4 sm:pt-6 px-2 sm:px-0">
                 <div className="flex items-start gap-3">
                   <CheckCircle className="w-5 h-5 text-[rgb(37,99,235)] flex-shrink-0 mt-0.5" />
-                  <span className="text-xs text-gray-700 sm:text-sm">Real-time AI feedback and scoring</span>
+                  <span className="text-xs text-gray-700 sm:text-sm">
+                    Stack rank stories for the hiring company & round—prompts tighten like a real recruiter screen.
+                  </span>
                 </div>
                 <div className="flex items-start gap-3">
                   <CheckCircle className="w-5 h-5 text-[rgb(37,99,235)] flex-shrink-0 mt-0.5" />
-                  <span className="text-xs text-gray-700 sm:text-sm">Personalized questions based on your role</span>
+                  <span className="text-xs text-gray-700 sm:text-sm">
+                    Rehearse out loud in the language you need; finish with structured scores plus discussion notes you can act on immediately.
+                  </span>
                 </div>
                 <div className="flex items-start gap-3">
                   <CheckCircle className="w-5 h-5 text-[rgb(37,99,235)] flex-shrink-0 mt-0.5" />
-                  <span className="text-xs text-gray-700 sm:text-sm">Detailed performance analysis and improvement tips</span>
+                  <span className="text-xs text-gray-700 sm:text-sm">
+                    Want engineer signal or a timed build? Continue in{" "}
+                    <Link
+                      href="/dashboard/peer-interviews"
+                      className="font-semibold text-[rgb(37,99,235)] underline-offset-2 hover:underline"
+                    >
+                      Peer interviews
+                    </Link>{" "}
+                    or the{" "}
+                    <Link
+                      href="/dashboard/coding-interviews"
+                      className="font-semibold text-[rgb(37,99,235)] underline-offset-2 hover:underline"
+                    >
+                      coding round
+                    </Link>{" "}
+                    Practice area.
+                  </span>
                 </div>
               </div>
               
@@ -324,7 +346,7 @@ export default function InterviewsPage() {
               <div className="relative rounded-lg sm:rounded-xl shadow-2xl overflow-hidden bg-white w-full max-w-[600px] sm:max-w-[700px] border-2 sm:border-4 border-blue-100">
                 <Image
                   src="/mock-interview-previewiew.png"
-                  alt="Mock Interview Interface - AI-Powered Interview Platform"
+                  alt="AI Interview Practice interface"
                   width={700}
                   height={560}
                   className="w-full h-auto object-contain"
@@ -467,7 +489,7 @@ export default function InterviewsPage() {
             <p className="text-gray-600 mt-1">
               {listTab === "history"
                 ? interviews.length === 0
-                  ? "Start your first interview to see it here"
+                  ? "Spin up AI Interview Practice tailored to role + company to populate this history tab."
                   : (() => {
                       const plural = interviews.length === 1 ? "" : "s";
                       return `Showing ${startIndex + 1}-${Math.min(
@@ -567,8 +589,22 @@ export default function InterviewsPage() {
                   No interviews yet
                 </h3>
                 <p className="mx-auto mb-8 max-w-md text-gray-600">
-                  Start your first mock interview to get personalized feedback and
-                  improve your interview skills
+                  Run multilingual AI Interview Practice, lock in company context, and
+                  review the AI discussion report—then layer{" "}
+                  <Link
+                    href="/dashboard/peer-interviews"
+                    className="font-medium text-[rgb(37,99,235)] underline-offset-2 hover:underline"
+                  >
+                    peer feedback
+                  </Link>{" "}
+                  or a{" "}
+                  <Link
+                    href="/dashboard/coding-interviews"
+                    className="font-medium text-[rgb(37,99,235)] underline-offset-2 hover:underline"
+                  >
+                    coding mock
+                  </Link>{" "}
+                  when you need the full loop.
                 </p>
                 <Link href="/dashboard/interviews/new">
                   <Button
@@ -913,8 +949,9 @@ export default function InterviewsPage() {
                   No scheduled interviews
                 </h3>
                 <p className="mx-auto max-w-md text-gray-600">
-                  Your institution can schedule a session for you. You will see the role, time,
-                  and a button to start here when one is assigned.
+                  When your school schedules AI Interview Practice, the role, window, and
+                  start button land here—same AI scoring flow you use for
+                  self-serve practice.
                 </p>
               </CardContent>
             </Card>

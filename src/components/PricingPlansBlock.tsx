@@ -164,7 +164,7 @@ export function PricingPlansBlock({
             Choose Your Plan
           </h2>
           <p className="text-sm sm:text-base lg:text-lg text-gray-600 max-w-2xl mx-auto">
-            Flexible pricing plans designed to help you ace your interviews
+            Don&apos;t just apply—win. Plans for resumes, interviews, peers, and job search—your end-to-end career partner.
           </p>
         </div>
       ) : null}

@@ -273,7 +273,7 @@ export default function NewCodingInterviewPage() {
           </div>
           <p className="max-w-2xl text-base text-white/90 lg:text-lg">
             Solve interview-style problems, run tests, then discuss your
-            approach with AI — same credit rules as voice practice interviews.
+            approach with AI — same credit rules as AI Interview Practice.
           </p>
         </div>
         <div className="absolute inset-0 bg-gradient-to-r from-blue-600/50 to-transparent opacity-50" />
@@ -370,8 +370,8 @@ export default function NewCodingInterviewPage() {
                   credits available
                 </p>
                 <p className="mt-1 text-sm text-gray-600">
-                  Ready to start your coding round (same credits as voice
-                  interviews)
+                  Ready to start your coding round (same credits as AI Interview
+                  Practice)
                 </p>
               </div>
             </div>
@@ -842,7 +842,7 @@ export default function NewCodingInterviewPage() {
                     </div>
                     <div>
                       <p className="mb-1 text-sm font-semibold text-gray-900">
-                        Voice discussion
+                        AI Interview Practice discussion
                       </p>
                       <p className="text-xs text-gray-600">
                         Discuss your approach with AI (microphone required)

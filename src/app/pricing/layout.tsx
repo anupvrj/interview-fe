@@ -2,7 +2,7 @@ import { Metadata } from 'next';
 
 export const metadata: Metadata = {
   title: 'Pricing Plans - Choose Your Perfect Plan | Interview Trix',
-  description: 'Flexible pricing plans for every career stage. Get access to AI resume builder, mock interviews, job search, and more. Start free or choose a plan that fits your needs.',
+  description: 'Flexible pricing plans for every career stage. Get access to AI resume builder, AI Interview Practice, job search, and more. Start free or choose a plan that fits your needs.',
   keywords: 'pricing, plans, subscription, career tools pricing, interview preparation cost, resume builder pricing',
   openGraph: {
     title: 'Pricing Plans - Choose Your Perfect Plan | Interview Trix',
