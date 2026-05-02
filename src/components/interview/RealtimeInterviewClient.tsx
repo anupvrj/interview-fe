@@ -63,9 +63,58 @@ const SHOW_RECONNECT_ATTEMPT_DEBUG =
   process.env.NEXT_PUBLIC_VERCEL_ENV === "preview" ||
   process.env.NEXT_PUBLIC_APP_ENV === "staging";
 
-/** Voice provider for realtime: "gemini" (default) or "chatgpt". Set via NEXT_PUBLIC_VOICE_PROVIDER. */
-const VOICE_PROVIDER: "chatgpt" | "gemini" =
-  (process.env.NEXT_PUBLIC_VOICE_PROVIDER as "chatgpt" | "gemini") || "gemini";
+/** Voice realtime backend: Gemini Live default, ChatGPT realtime, or modular pipeline ( `/api/voice-interview`). */
+export type VoiceBackendKind = "gemini" | "chatgpt" | "voice_pipeline";
+
+const RAW_VOICE_PROVIDER = process.env.NEXT_PUBLIC_VOICE_PROVIDER?.trim();
+const VOICE_BACKEND: VoiceBackendKind =
+  RAW_VOICE_PROVIDER === "chatgpt"
+    ? "chatgpt"
+    : RAW_VOICE_PROVIDER === "voice_pipeline"
+      ? "voice_pipeline"
+      : "gemini";
+
+function isGeminiLiveStyle(v: VoiceBackendKind): boolean {
+  return v === "gemini" || v === "voice_pipeline";
+}
+
+/** Normalize server WS `error` payloads (legacy `String(err)` ⇒ `"[object Object]"`). */
+function wsServerErrorDisplayText(message: unknown, diagnostic?: unknown): string {
+  if (typeof message === "string") {
+    const t = message.trim();
+    if (t && t !== "[object Object]") return message;
+    if (diagnostic != null) {
+      try {
+        return typeof diagnostic === "string"
+          ? diagnostic
+          : JSON.stringify(diagnostic);
+      } catch {
+        return "Server error (see diagnostic in console).";
+      }
+    }
+    return t === "" ? "Unknown server error" : message;
+  }
+  if (message !== null && typeof message === "object") {
+    try {
+      return JSON.stringify(message);
+    } catch {
+      return "Server error (could not stringify message object).";
+    }
+  }
+  if (message === undefined || message === null) {
+    if (diagnostic != null) {
+      try {
+        return typeof diagnostic === "string"
+          ? diagnostic
+          : JSON.stringify(diagnostic);
+      } catch {
+        /* fall through */
+      }
+    }
+    return "Unknown server error";
+  }
+  return String(message);
+}
 
 const RECORDING_OPT_IN_STORAGE_PREFIX = "interviewRecordingOptIn_";
 
@@ -170,6 +219,9 @@ export function RealtimeInterviewClient({
   const audioBufferRef = useRef<Int16Array[]>([]);
   const audioBufferTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isPlayingAudioRef = useRef(false);
+  const compressedAudioQueueRef = useRef<string[]>([]);
+  const compressedAudioElementRef = useRef<HTMLAudioElement | null>(null);
+  const isPlayingCompressedAudioRef = useRef(false);
   const isInterviewActiveRef = useRef(false);
   const connectionInitiatedRef = useRef(false);
   const isResumingRef = useRef(false);
@@ -184,7 +236,16 @@ export function RealtimeInterviewClient({
   const aiAudioDestinationRef = useRef<MediaStreamAudioDestinationNode | null>(
     null,
   );
-  const voiceProviderRef = useRef<"chatgpt" | "gemini">(VOICE_PROVIDER);
+  const voiceInterviewContextRef = useRef<{
+    resumeText: string;
+    jdText: string;
+  } | null>(null);
+
+  /** PCM sample rate from server ElevenLabs `output_format` (voice_pipeline playback). */
+  const voicePipelineTtsPcmHzRef = useRef(24_000);
+  const feAudioFramesRef = useRef(0);
+  const feCompressedAudioFramesRef = useRef(0);
+  const voiceProviderRef = useRef<VoiceBackendKind>(VOICE_BACKEND);
   // Ref mirror for isMicOn — avoids stale closure in sendAudioChunk / onaudioprocess
   const isMicOnRef = useRef(true);
   /** Application-level WS keepalive for Gemini path (reduces proxy idle closes). */
@@ -215,10 +276,14 @@ export function RealtimeInterviewClient({
       // without traffic; do not gate on isInterviewActive for Gemini.
       if (
         ws?.readyState === WebSocket.OPEN &&
-        voiceProviderRef.current === "gemini"
+        isGeminiLiveStyle(voiceProviderRef.current)
       ) {
         try {
-          ws.send(JSON.stringify({ type: "client_ping", t: Date.now() }));
+          if (voiceProviderRef.current === "voice_pipeline") {
+            ws.send("ping");
+          } else {
+            ws.send(JSON.stringify({ type: "client_ping", t: Date.now() }));
+          }
         } catch {
           /* ignore */
         }
@@ -590,12 +655,18 @@ export function RealtimeInterviewClient({
     mediaStreamOwnedRef.current = true;
     audioQueueRef.current = [];
     audioBufferRef.current = [];
+    compressedAudioQueueRef.current = [];
+    if (compressedAudioElementRef.current) {
+      compressedAudioElementRef.current.pause();
+      compressedAudioElementRef.current = null;
+    }
     if (audioBufferTimerRef.current) {
       clearTimeout(audioBufferTimerRef.current);
       audioBufferTimerRef.current = null;
     }
     recordedChunksRef.current = [];
     isPlayingAudioRef.current = false;
+    isPlayingCompressedAudioRef.current = false;
     isInterviewActiveRef.current = false;
     connectionInitiatedRef.current = false; // Reset for next connection
   };
@@ -618,6 +689,18 @@ export function RealtimeInterviewClient({
         throw new Error("User not authenticated");
       }
 
+      const iv = interviewForWs ?? interview;
+      if (VOICE_BACKEND === "voice_pipeline") {
+        if (!iv?.interviewId) {
+          throw new Error("Interview not loaded");
+        }
+        const ctxData = await interviewApi.getVoiceSessionContext(iv.interviewId);
+        voiceInterviewContextRef.current = {
+          resumeText: ctxData.resumeText ?? "",
+          jdText: ctxData.jobDescription ?? "",
+        };
+      }
+
       // Get API URL from environment (e.g., https://interview-core-production.up.railway.app/api)
       // Remove /api suffix and protocol to build WebSocket URL
       const apiUrl =
@@ -627,44 +710,88 @@ export function RealtimeInterviewClient({
       // Use wss:// for HTTPS sites, ws:// for HTTP (localhost)
       const wsProtocol =
         globalThis.location.protocol === "https:" ? "wss:" : "ws:";
-      // Set NEXT_PUBLIC_GEMINI_SIMPLE_ROUTE=true to use the lightweight
-      // no-RAG / no-embedding route (better for long interviews).
       const useSimpleRoute =
         process.env.NEXT_PUBLIC_GEMINI_SIMPLE_ROUTE === "true";
-      const realtimePath =
-        VOICE_PROVIDER === "gemini"
-          ? useSimpleRoute
-            ? `interviews/${interviewId}/realtime/gemini-simple`
-            : `interviews/${interviewId}/realtime/gemini`
-          : `interviews/${interviewId}/realtime`;
-      const iv = interviewForWs ?? interview;
-      const durationParam = isCodingDiscussion
-        ? (iv?.metadata?.discussionDurationMinutes ?? 60)
-        : normalizeInterviewDurationMinutes(iv?.metadata?.interviewDuration);
-      const sessionPhaseQs = isCodingDiscussion
-        ? "&sessionPhase=coding_discussion"
-        : "";
-      const p = interviewerPersonaRef.current!;
-      const voiceQuery =
-        VOICE_PROVIDER === "gemini"
-          ? `&geminiVoice=${encodeURIComponent(p.geminiVoice)}`
-          : `&openaiVoice=${encodeURIComponent(p.openaiVoice)}`;
-      const personaQuery = `&interviewerName=${encodeURIComponent(p.displayName)}&interviewerTitle=${encodeURIComponent(p.title)}`;
-      const wsUrl = `${wsProtocol}//${baseUrl}/api/${realtimePath}?userId=${encodeURIComponent(userId)}&interviewDurationMinutes=${durationParam}${sessionPhaseQs}${voiceQuery}${personaQuery}`;
+
+      let wsUrl: string;
+      if (VOICE_BACKEND === "voice_pipeline") {
+        const secret = process.env.NEXT_PUBLIC_VOICE_PIPELINE_SECRET?.trim();
+        const qs = new URLSearchParams();
+        if (secret) qs.set("voice_pipeline_secret", secret);
+        const qstr = qs.toString();
+        const orchBase = process.env.NEXT_PUBLIC_VOICE_ORCHESTRATOR_WS?.trim();
+        if (orchBase) {
+          const trimmed = orchBase.replace(/\/$/, "");
+          wsUrl = `${trimmed}/api/voice-interview${qstr ? `?${qstr}` : ""}`;
+        } else {
+          wsUrl = `${wsProtocol}//${baseUrl}/api/voice-interview${qstr ? `?${qstr}` : ""}`;
+        }
+      } else {
+        const realtimePath =
+          VOICE_BACKEND === "gemini"
+            ? useSimpleRoute
+              ? `interviews/${interviewId}/realtime/gemini-simple`
+              : `interviews/${interviewId}/realtime/gemini`
+            : `interviews/${interviewId}/realtime`;
+        const durationParam = isCodingDiscussion
+          ? (iv?.metadata?.discussionDurationMinutes ?? 60)
+          : normalizeInterviewDurationMinutes(iv?.metadata?.interviewDuration);
+        const sessionPhaseQs = isCodingDiscussion
+          ? "&sessionPhase=coding_discussion"
+          : "";
+        const p = interviewerPersonaRef.current!;
+        const voiceQuery =
+          VOICE_BACKEND === "gemini"
+            ? `&geminiVoice=${encodeURIComponent(p.geminiVoice)}`
+            : `&openaiVoice=${encodeURIComponent(p.openaiVoice)}`;
+        const personaQuery = `&interviewerName=${encodeURIComponent(p.displayName)}&interviewerTitle=${encodeURIComponent(p.title)}`;
+        wsUrl = `${wsProtocol}//${baseUrl}/api/${realtimePath}?userId=${encodeURIComponent(userId)}&interviewDurationMinutes=${durationParam}${sessionPhaseQs}${voiceQuery}${personaQuery}`;
+      }
 
       console.log("🔌 Connecting to WebSocket:", wsUrl);
       const ws = new WebSocket(wsUrl);
       websocketRef.current = ws;
 
       ws.onopen = () => {
-        // For Gemini, wait for the backend "connected" message (Gemini session ready)
-        // before enabling the Start button. For ChatGPT, enable immediately on WS open.
-        if (voiceProviderRef.current !== "gemini") {
+        // ChatGPT connects immediately on open; Gemini and modular voice wait for `{ type:"connected" }`.
+        if (voiceProviderRef.current === "chatgpt") {
           setConnected(true);
-        } else {
-          // App-level keepalive from first byte of session (covers long AI prep on Railway).
+        } else if (isGeminiLiveStyle(voiceProviderRef.current)) {
           startClientWsHeartbeat();
         }
+
+        if (voiceProviderRef.current === "voice_pipeline") {
+          const ctx = voiceInterviewContextRef.current;
+          if (!ctx) {
+            setError(
+              "Could not prepare voice session context. Please refresh.",
+            );
+            connectionInitiatedRef.current = false;
+            try {
+              ws.close();
+            } catch {
+              /* noop */
+            }
+            return;
+          }
+          const voiceIdEnv = process.env.NEXT_PUBLIC_ELEVENLABS_VOICE_ID?.trim();
+          ws.send(
+            JSON.stringify({
+              type: "session_init",
+              sessionId: interviewId,
+              resumeText: ctx.resumeText,
+              jdText: ctx.jdText,
+              phase: "intro",
+              encoding: "linear16",
+              ...(voiceIdEnv ? { voiceId: voiceIdEnv } : {}),
+            }),
+          );
+          if (isResumingRef.current && isInterviewActiveRef.current) {
+            isResumingRef.current = false;
+          }
+          return;
+        }
+
         if (isResumingRef.current && isInterviewActiveRef.current) {
           if (voiceProviderRef.current === "gemini") {
             const resumeExtra = geminiResumePayloadRef.current;
@@ -716,13 +843,36 @@ export function RealtimeInterviewClient({
             setError("");
             setReconnectAttemptCount(0);
             setConnected(true);
+          } else if (data.type === "session_resumed") {
+            setIsAIProcessing(false);
+            setIsReconnecting(false);
+            setConnectionFailed(false);
+            setError("");
+            setConnected(true);
+            setLastAIMessage("Voice services resumed.");
           } else if (data.type === "connected") {
-            if (data.provider) voiceProviderRef.current = data.provider;
+            if (
+              data.provider === "gemini" ||
+              data.provider === "voice_pipeline" ||
+              data.provider === "chatgpt"
+            ) {
+              voiceProviderRef.current = data.provider;
+            }
+            const hz = (data as { ttsPcmSampleRateHz?: unknown }).ttsPcmSampleRateHz;
+            if (typeof hz === "number" && Number.isFinite(hz) && hz > 0) {
+              voicePipelineTtsPcmHzRef.current = hz;
+            }
             // Gemini session is ready — enable the Start Interview button
             setConnected(true);
           } else if (data.type === "openai_event") {
             handleOpenAIEvent(data.event);
           } else if (data.type === "audio_response") {
+            feAudioFramesRef.current += 1;
+            if (feAudioFramesRef.current <= 3 || feAudioFramesRef.current % 20 === 0) {
+              console.log(
+                `[voice_pipeline][fe] received audio_response #${feAudioFramesRef.current} chars=${String(data.audioData ?? "").length}`,
+              );
+            }
             handleGeminiAudioResponse(data.audioData);
             setIsAISpeaking(true); // AI is sending audio, so it's speaking
             setIsAIProcessing(false);
@@ -734,6 +884,20 @@ export function RealtimeInterviewClient({
                 setElapsedTime((prev) => prev + 1);
               }, 1000);
             }
+          } else if (data.type === "tts_audio_chunk" && typeof data.base64 === "string") {
+            feCompressedAudioFramesRef.current += 1;
+            if (
+              feCompressedAudioFramesRef.current <= 3 ||
+              feCompressedAudioFramesRef.current % 20 === 0
+            ) {
+              console.log(
+                `[voice_pipeline][fe] received tts_audio_chunk #${feCompressedAudioFramesRef.current} chars=${data.base64.length}`,
+              );
+            }
+            handleCompressedTtsAudioChunk(data.base64);
+            setIsAISpeaking(true);
+            setIsAIProcessing(false);
+            setIsPreparing(false);
           } else if (data.type === "text_response") {
             // AI transcript - show partials in real-time, add complete to history
             if (data.text) {
@@ -804,11 +968,17 @@ export function RealtimeInterviewClient({
             // Flush any stale AI audio so it doesn't play after the session is over.
             audioQueueRef.current = [];
             audioBufferRef.current = [];
+            compressedAudioQueueRef.current = [];
+            if (compressedAudioElementRef.current) {
+              compressedAudioElementRef.current.pause();
+              compressedAudioElementRef.current = null;
+            }
             if (audioBufferTimerRef.current) {
               clearTimeout(audioBufferTimerRef.current);
               audioBufferTimerRef.current = null;
             }
             isPlayingAudioRef.current = false;
+            isPlayingCompressedAudioRef.current = false;
             setIsAISpeaking(false);
             setIsAIProcessing(false);
             setIsReconnecting(false);
@@ -824,14 +994,20 @@ export function RealtimeInterviewClient({
           } else if (data.type === "user_transcript") {
             // Intentionally not shown live; transcript is processed asynchronously
             // and persisted server-side for analysis/dashboard.
-          } else if (data.type === "interrupted") {
+          } else if (data.type === "interrupted" || data.type === "INTERRUPT") {
             audioQueueRef.current = [];
             audioBufferRef.current = [];
+            compressedAudioQueueRef.current = [];
+            if (compressedAudioElementRef.current) {
+              compressedAudioElementRef.current.pause();
+              compressedAudioElementRef.current = null;
+            }
             if (audioBufferTimerRef.current) {
               clearTimeout(audioBufferTimerRef.current);
               audioBufferTimerRef.current = null;
             }
             isPlayingAudioRef.current = false;
+            isPlayingCompressedAudioRef.current = false;
             setIsAISpeaking(false); // Clear AI speaking state
             setIsAIProcessing(false);
             setCurrentAssistantTranscript("");
@@ -841,8 +1017,8 @@ export function RealtimeInterviewClient({
             setIsAISpeaking(false);
             setLastAIMessage("AI is understanding your answer...");
           } else if (data.type === "error") {
-            const errMsg = typeof data.message === "string" ? data.message : JSON.stringify(data.message);
             const diag = (data as { diagnostic?: unknown }).diagnostic;
+            const errMsg = wsServerErrorDisplayText(data.message, diag);
             console.error("[WS] Server error message:", errMsg, "diagnostic:", diag);
             if (diag != null) {
               console.info("[WS] Server error diagnostic (for Railway/debug):", JSON.stringify(diag));
@@ -932,6 +1108,9 @@ export function RealtimeInterviewClient({
 
     isPlayingAudioRef.current = true;
     const pcm16Chunk = audioQueueRef.current.shift()!;
+    console.log(
+      `[voice_pipeline][fe] play PCM chunk samples=${pcm16Chunk.length} queueRemaining=${audioQueueRef.current.length}`,
+    );
 
     // Convert PCM16 to Float32
     const float32 = new Float32Array(pcm16Chunk.length);
@@ -939,11 +1118,16 @@ export function RealtimeInterviewClient({
       float32[i] = pcm16Chunk[i] / 32768;
     }
 
+    const pcmPlaybackHz =
+      voiceProviderRef.current === "voice_pipeline"
+        ? voicePipelineTtsPcmHzRef.current
+        : 24_000;
+
     // Create and play audio buffer
     const audioBuffer = audioContextRef.current.createBuffer(
       1,
       float32.length,
-      24000, // 24kHz sample rate for OpenAI audio
+      pcmPlaybackHz,
     );
     audioBuffer.copyToChannel(float32, 0);
 
@@ -964,24 +1148,66 @@ export function RealtimeInterviewClient({
         playAudioQueue();
       } else {
         isPlayingAudioRef.current = false;
+        console.log("[voice_pipeline][fe] PCM playback idle");
       }
     };
 
     source.start();
   };
 
-  /** Decode Gemini audio_response (base64 PCM 24kHz) and batch for smooth playback. */
+  const playCompressedAudioQueue = () => {
+    if (isPlayingCompressedAudioRef.current) return;
+    if (compressedAudioQueueRef.current.length === 0) return;
+
+    const base64 = compressedAudioQueueRef.current.shift()!;
+    const audio = new Audio(`data:audio/mpeg;base64,${base64}`);
+    console.log(
+      `[voice_pipeline][fe] play compressed chunk chars=${base64.length} queueRemaining=${compressedAudioQueueRef.current.length}`,
+    );
+    compressedAudioElementRef.current = audio;
+    isPlayingCompressedAudioRef.current = true;
+
+    const onDone = () => {
+      isPlayingCompressedAudioRef.current = false;
+      compressedAudioElementRef.current = null;
+      if (compressedAudioQueueRef.current.length > 0) {
+        playCompressedAudioQueue();
+      }
+    };
+
+    audio.onended = onDone;
+    audio.onerror = (ev) => {
+      console.error("[voice_pipeline][fe] compressed audio play error", ev);
+      onDone();
+    };
+    void audio.play().catch((err) => {
+      console.error("[voice_pipeline][fe] compressed audio play() rejected", err);
+      onDone();
+    });
+  };
+
+  const handleCompressedTtsAudioChunk = (base64Audio: string) => {
+    if (!base64Audio) return;
+    compressedAudioQueueRef.current.push(base64Audio);
+    playCompressedAudioQueue();
+  };
+
+  /** Decode `audio_response` (base64 PCM16 LE from Gemini Live or ElevenLabs stream-input). */
   const handleGeminiAudioResponse = (base64Audio: string) => {
     if (!base64Audio) return;
     try {
       const binaryString = atob(base64Audio);
-      const bytes = new Uint8Array(binaryString.length);
-      for (let i = 0; i < binaryString.length; i++) {
+      const byteLen = binaryString.length - (binaryString.length % 2);
+      const bytes = new Uint8Array(byteLen);
+      for (let i = 0; i < byteLen; i++) {
         bytes[i] = binaryString.codePointAt(i) ?? 0;
       }
 
       // Skip empty audio chunks (0 bytes) to prevent stuttering
-      if (bytes.length === 0) return;
+      if (bytes.length === 0) {
+        console.warn("[voice_pipeline][fe] empty PCM chunk received");
+        return;
+      }
 
       const pcm16 = new Int16Array(bytes.buffer);
 
@@ -1034,11 +1260,17 @@ export function RealtimeInterviewClient({
         // User started speaking - stop AI audio immediately
         audioQueueRef.current = [];
         audioBufferRef.current = [];
+        compressedAudioQueueRef.current = [];
+        if (compressedAudioElementRef.current) {
+          compressedAudioElementRef.current.pause();
+          compressedAudioElementRef.current = null;
+        }
         if (audioBufferTimerRef.current) {
           clearTimeout(audioBufferTimerRef.current);
           audioBufferTimerRef.current = null;
         }
         isPlayingAudioRef.current = false;
+        isPlayingCompressedAudioRef.current = false;
         // Stop any currently playing audio
         if (audioContextRef.current) {
           audioContextRef.current.suspend();
@@ -1059,22 +1291,34 @@ export function RealtimeInterviewClient({
         setCurrentAssistantTranscript(""); // Clear to start fresh
         audioQueueRef.current = [];
         audioBufferRef.current = [];
+        compressedAudioQueueRef.current = [];
+        if (compressedAudioElementRef.current) {
+          compressedAudioElementRef.current.pause();
+          compressedAudioElementRef.current = null;
+        }
         if (audioBufferTimerRef.current) {
           clearTimeout(audioBufferTimerRef.current);
           audioBufferTimerRef.current = null;
         }
         isPlayingAudioRef.current = false;
+        isPlayingCompressedAudioRef.current = false;
         break;
 
       case "response.cancelled":
         // Response was cancelled (due to interruption)
         audioQueueRef.current = [];
         audioBufferRef.current = [];
+        compressedAudioQueueRef.current = [];
+        if (compressedAudioElementRef.current) {
+          compressedAudioElementRef.current.pause();
+          compressedAudioElementRef.current = null;
+        }
         if (audioBufferTimerRef.current) {
           clearTimeout(audioBufferTimerRef.current);
           audioBufferTimerRef.current = null;
         }
         isPlayingAudioRef.current = false;
+        isPlayingCompressedAudioRef.current = false;
         setCurrentAssistantTranscript("");
         break;
 
@@ -1158,13 +1402,13 @@ export function RealtimeInterviewClient({
       return;
     }
 
-    const TARGET_SAMPLE_RATE = 24000;
+    const TARGET_SAMPLE_RATE =
+      voiceProviderRef.current === "voice_pipeline" ? 16000 : 24000;
     /**
-     * Google Live API: stream mic PCM in ~20–40ms frames (not per–render-quantum);
-     * tiny chunks (~3ms) overload sendRealtimeInput and correlate with unstable WSS.
-     * @see https://ai.google.dev/gemini-api/docs/live-api/best-practices#streaming
+     * Mic chunking: Gemini Live ~30 ms @ 24 kHz; modular voice (Deepgram) ~30 ms @ 16 kHz linear16.
      */
     const GEMINI_MIC_FRAME_SAMPLES_24K = 720; // ~30ms at 24 kHz
+    const VOICE_PIPELINE_MIC_FRAME_SAMPLES = 480; // ~30ms at 16 kHz
 
     const pcm16ToBase64 = (pcm16: Int16Array) => {
       const bytes = new Uint8Array(pcm16.buffer, pcm16.byteOffset, pcm16.byteLength);
@@ -1186,12 +1430,14 @@ export function RealtimeInterviewClient({
       ) {
         return;
       }
-      const isGemini = voiceProviderRef.current === "gemini";
+      const v = voiceProviderRef.current;
       websocketRef.current.send(
         JSON.stringify(
-          isGemini
-            ? { type: "audio", audioData: base64Audio }
-            : { type: "audio_chunk", audio: base64Audio },
+          v === "voice_pipeline"
+            ? { type: "audio_pcm", base64: base64Audio }
+            : v === "gemini"
+              ? { type: "audio", audioData: base64Audio }
+              : { type: "audio_chunk", audio: base64Audio },
         ),
       );
     };
@@ -1266,6 +1512,11 @@ export function RealtimeInterviewClient({
               processorOptions: { targetSampleRate: TARGET_SAMPLE_RATE },
             });
 
+            const micFrameSamples =
+              voiceProviderRef.current === "voice_pipeline"
+                ? VOICE_PIPELINE_MIC_FRAME_SAMPLES
+                : GEMINI_MIC_FRAME_SAMPLES_24K;
+
             let chunkCount = 0;
             const pendingMicSamples: number[] = [];
             workletNode.port.onmessage = (event) => {
@@ -1276,14 +1527,14 @@ export function RealtimeInterviewClient({
                 }
                 const chunk = new Int16Array(event.data.pcm16 as ArrayBuffer);
                 for (let i = 0; i < chunk.length; i++) {
-                  pendingMicSamples.push(chunk[i]);
+                  pendingMicSamples.push(chunk[i]!);
                 }
-                while (pendingMicSamples.length >= GEMINI_MIC_FRAME_SAMPLES_24K) {
-                  const frame = new Int16Array(GEMINI_MIC_FRAME_SAMPLES_24K);
-                  for (let i = 0; i < GEMINI_MIC_FRAME_SAMPLES_24K; i++) {
+                while (pendingMicSamples.length >= micFrameSamples) {
+                  const frame = new Int16Array(micFrameSamples);
+                  for (let i = 0; i < micFrameSamples; i++) {
                     frame[i] = pendingMicSamples[i]!;
                   }
-                  pendingMicSamples.splice(0, GEMINI_MIC_FRAME_SAMPLES_24K);
+                  pendingMicSamples.splice(0, micFrameSamples);
                   sendAudioChunk(pcm16ToBase64(frame));
                 }
               }
@@ -1339,8 +1590,11 @@ export function RealtimeInterviewClient({
         setElapsedTime((prev) => prev + 1);
       }, 1000);
 
-      // Explicitly start Gemini interview only after user click
-      if (voiceProviderRef.current === "gemini" && websocketRef.current) {
+      // Explicitly start Gemini / modular voice after user click
+      if (
+        isGeminiLiveStyle(voiceProviderRef.current) &&
+        websocketRef.current
+      ) {
         websocketRef.current.send(
           JSON.stringify({
             type: "start_interview",
@@ -1360,12 +1614,13 @@ export function RealtimeInterviewClient({
 
       // Request first response only for ChatGPT path
       setTimeout(() => {
-        if (websocketRef.current?.readyState === WebSocket.OPEN) {
-          if (voiceProviderRef.current !== "gemini") {
-            websocketRef.current.send(
-              JSON.stringify({ type: "response.create" }),
-            );
-          }
+        if (
+          websocketRef.current?.readyState === WebSocket.OPEN &&
+          voiceProviderRef.current === "chatgpt"
+        ) {
+          websocketRef.current.send(
+            JSON.stringify({ type: "response.create" }),
+          );
         }
       }, 1000);
     } catch (error: any) {
@@ -1477,9 +1732,12 @@ export function RealtimeInterviewClient({
       timerRef.current = null;
       timerStartedRef.current = false;
 
-      // Close WebSocket (Gemini expects end_session first)
+      // Close WebSocket (Gemini / modular voice expect end_session first)
       if (websocketRef.current) {
-        if (voiceProviderRef.current === "gemini") {
+        if (
+          voiceProviderRef.current === "gemini" ||
+          voiceProviderRef.current === "voice_pipeline"
+        ) {
           websocketRef.current.send(JSON.stringify({ type: "end_session" }));
         } else {
           websocketRef.current.send(JSON.stringify({ type: "close" }));

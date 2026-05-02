@@ -532,6 +532,25 @@ export const interviewApi = {
     return response.data.data;
   },
 
+  /**
+   * Resume + JD blobs for modular voice orchestrator (`/api/voice-interview`).
+   * Same backing data as Gemini Live context preparation.
+   */
+  getVoiceSessionContext: async (
+    interviewId: string,
+  ): Promise<{ resumeText?: string; jobDescription?: string }> => {
+    const response = await apiClient.get<{
+      success: boolean;
+      data: {
+        context: {
+          resumeText?: string;
+          jobDescription?: string;
+        };
+      };
+    }>(`/interviews/${interviewId}/context`);
+    return response.data.data.context;
+  },
+
   start: async (interviewId: string): Promise<void> => {
     await apiClient.post(`/interviews/${interviewId}/start`);
   },
