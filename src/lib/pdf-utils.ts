@@ -23,7 +23,6 @@ export async function extractTextFromPDF(file: File): Promise<string> {
       pdf = await pdfjsLib.getDocument({
         data: arrayBuffer,
         useWorkerFetch: false,
-        isEvalSupported: false,
         verbosity: 0, // Reduce console warnings
       }).promise;
     } catch (error: any) {
