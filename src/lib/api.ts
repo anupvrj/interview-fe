@@ -1947,6 +1947,28 @@ export const interviewScheduleApi = {
 export type JobBoardWorkMode = "on_site" | "hybrid" | "remote";
 export type JobBoardEmploymentFilter = "full_time" | "part_time" | "any";
 
+/** Matches JSearch `date_posted` mapping on the server. */
+export type JobBoardPostedWithin =
+  | "any"
+  | "today"
+  | "2d"
+  | "week"
+  | "10d"
+  | "30d";
+
+/** JSearch `job_requirements` experience buckets (RapidAPI). */
+export type JobBoardJSearchJobRequirement =
+  | "no_experience"
+  | "under_3_years_experience"
+  | "more_than_3_years_experience";
+
+export interface JobBoardListMeta {
+  page: number;
+  numPagesRequested: number;
+  hasMore: boolean;
+  requestId?: string;
+}
+
 export interface JobListing {
   id: string;
   title: string;
@@ -1966,6 +1988,11 @@ export interface JobListing {
   skills: string[];
   tools: string[];
   applyUrl: string;
+  source?: "sample" | "jsearch";
+  jobSite?: string;
+  /** Raw JSearch job_description when present. */
+  fullDescription?: string;
+  jsearchHighlightSections?: { heading: string; items: string[] }[];
 }
 
 export interface JobBoardPreferences {
@@ -2046,20 +2073,47 @@ export const jobBoardApi = {
   },
 
   getMyJobs: async (
-    tab: JobBoardTabParam
+    tab: JobBoardTabParam,
+    opts?: {
+      searchTerm?: string;
+      postedWithin?: JobBoardPostedWithin;
+      jobRequirements?: JobBoardJSearchJobRequirement;
+      /** JSearch page 1–50; default 1. */
+      page?: number;
+      /** Hint for server `num_pages` (capped); default 10 jobs ≈ resultsWanted 10. */
+      resultsWanted?: number;
+    }
   ): Promise<{
     tab: string;
     jobs: JobListing[];
     preferences: JobBoardPreferences;
+    listMeta?: JobBoardListMeta;
   }> => {
+    const p = new URLSearchParams({ tab });
+    if (opts?.searchTerm?.trim()) {
+      p.set("search_term", opts.searchTerm.trim());
+    }
+    if (opts?.postedWithin) {
+      p.set("posted_within", opts.postedWithin);
+    }
+    if (opts?.jobRequirements) {
+      p.set("job_requirements", opts.jobRequirements);
+    }
+    if (typeof opts?.page === "number" && opts.page >= 1) {
+      p.set("page", String(Math.min(50, Math.floor(opts.page))));
+    }
+    if (typeof opts?.resultsWanted === "number" && opts.resultsWanted > 0) {
+      p.set("results_wanted", String(opts.resultsWanted));
+    }
     const response = await apiClient.get<{
       success: boolean;
       data: {
         tab: string;
         jobs: JobListing[];
         preferences: JobBoardPreferences;
+        listMeta?: JobBoardListMeta;
       };
-    }>(`/users/me/job-board/jobs?tab=${encodeURIComponent(tab)}`);
+    }>(`/users/me/job-board/jobs?${p.toString()}`);
     return response.data.data;
   },
 
@@ -2067,6 +2121,8 @@ export const jobBoardApi = {
     jobId: string;
     action: "bookmark" | "dismiss" | "mark_applied";
     conflictAcknowledged?: boolean;
+    /** Required for live API / off-catalog jobs so bookmark & dismissed tabs can render. */
+    jobSnapshot?: Record<string, unknown>;
   }): Promise<{
     engagement: Record<string, unknown>;
     counts: { bookmarked: number; applied: number; notInterested: number };

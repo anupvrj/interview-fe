@@ -23,6 +23,13 @@ const isPublicRoute = createRouteMatcher([
 
 export default clerkMiddleware(
   async (auth, request) => {
+    // Clerk appends __clerk_handshake while syncing session cookies across domains /
+    // instances. auth.protect() on that request runs before the session exists and can
+    // throw in Edge → Vercel MIDDLEWARE_INVOCATION_FAILED. Let the handshake finish first.
+    if (request.nextUrl.searchParams.has("__clerk_handshake")) {
+      return NextResponse.next();
+    }
+
     // Protect private routes
     if (!isPublicRoute(request)) {
       await auth.protect();
