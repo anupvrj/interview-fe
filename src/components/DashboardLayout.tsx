@@ -16,6 +16,7 @@ import {
   X,
   PlayCircle,
   FileEdit,
+  Briefcase,
   Shield,
   Building2,
   Users,
@@ -61,6 +62,11 @@ const baseMenuItems = [
     title: "Peer interviews",
     href: "/dashboard/peer-interviews",
     icon: UsersRound,
+  },
+  {
+    title: "Job Board",
+    href: "/dashboard/job-board",
+    icon: Briefcase,
   },
   {
     title: "Analytics",
