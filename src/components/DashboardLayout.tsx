@@ -28,6 +28,7 @@ import {
   Lock,
   BarChart2,
   Code2,
+  Network,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { userApi, interviewApi, AccessRole } from "@/lib/api";
@@ -57,6 +58,11 @@ const baseMenuItems = [
     title: "Practice coding round",
     href: "/dashboard/coding-interviews",
     icon: Code2,
+  },
+  {
+    title: "System Design Practice",
+    href: "/dashboard/system-design",
+    icon: Network,
   },
   {
     title: "Peer interviews",

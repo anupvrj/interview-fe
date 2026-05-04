@@ -2153,4 +2153,161 @@ export const jobBoardApi = {
   },
 };
 
+// ── System Design Practice ──────────────────────────────────────────────────
+
+export type SystemDesignDifficulty = "easy" | "medium" | "hard";
+
+export interface SystemDesignProblemSummary {
+  id: string;
+  title: string;
+  difficulty: SystemDesignDifficulty;
+  category: string;
+}
+
+export interface SystemDesignChatMessage {
+  role: "user" | "assistant";
+  content: string;
+  timestamp: string;
+}
+
+export interface SystemDesignFeedbackEntry {
+  feedback: string;
+  timestamp: string;
+}
+
+export interface SystemDesignScoreReport {
+  overallScore: number;
+  architectureScore: number;
+  scalabilityScore: number;
+  tradeoffsScore: number;
+  strengths: string[];
+  improvements: string[];
+  summary: string;
+}
+
+export interface SystemDesignSession {
+  sessionId: string;
+  userId: string;
+  problemId: string;
+  status: "active" | "completed";
+  chatHistory: SystemDesignChatMessage[];
+  feedbackHistory: SystemDesignFeedbackEntry[];
+  score?: number;
+  scoreReport?: SystemDesignScoreReport;
+  createdAt: string;
+  updatedAt: string;
+  completedAt?: string;
+  whiteboardSnapshot?: string | null;
+  recordingPhaseStartedAt?: string | null;
+  recordingS3Key?: string | null;
+  recordingVideoUrl?: string | null;
+}
+
+export const systemDesignApi = {
+  listProblems: async (): Promise<SystemDesignProblemSummary[]> => {
+    const r = await apiClient.get<{
+      success: boolean;
+      data: { problems: SystemDesignProblemSummary[] };
+    }>("/system-design/problems");
+    return r.data.data.problems;
+  },
+
+  createSession: async (problemId?: string): Promise<SystemDesignSession> => {
+    const r = await apiClient.post<{
+      success: boolean;
+      data: { session: SystemDesignSession };
+    }>("/system-design/sessions", { problemId });
+    return r.data.data.session;
+  },
+
+  listMySessions: async (): Promise<SystemDesignSession[]> => {
+    const r = await apiClient.get<{
+      success: boolean;
+      data: { sessions: SystemDesignSession[] };
+    }>("/system-design/sessions/mine");
+    return r.data.data.sessions;
+  },
+
+  getSession: async (sessionId: string): Promise<SystemDesignSession> => {
+    const r = await apiClient.get<{
+      success: boolean;
+      data: { session: SystemDesignSession };
+    }>(`/system-design/sessions/${sessionId}`);
+    return r.data.data.session;
+  },
+
+  evaluate: async (
+    sessionId: string,
+    image: string,
+    mimeType?: string,
+  ): Promise<string> => {
+    const r = await apiClient.post<{
+      success: boolean;
+      data: { feedback: string };
+    }>(`/system-design/sessions/${sessionId}/evaluate`, {
+      image,
+      mimeType: mimeType ?? "image/png",
+    });
+    return r.data.data.feedback;
+  },
+
+  chat: async (sessionId: string, message: string): Promise<string> => {
+    const r = await apiClient.post<{
+      success: boolean;
+      data: { reply: string };
+    }>(`/system-design/sessions/${sessionId}/chat`, { message });
+    return r.data.data.reply;
+  },
+
+  saveWhiteboardSnapshot: async (
+    sessionId: string,
+    snapshot: string,
+  ): Promise<SystemDesignSession> => {
+    const r = await apiClient.put<{
+      success: boolean;
+      data: { session: SystemDesignSession };
+    }>(`/system-design/sessions/${sessionId}/whiteboard`, { snapshot });
+    return r.data.data.session;
+  },
+
+  startRecordingPhase: async (
+    sessionId: string,
+  ): Promise<SystemDesignSession> => {
+    const r = await apiClient.post<{
+      success: boolean;
+      data: { session: SystemDesignSession };
+    }>(`/system-design/sessions/${sessionId}/recording/start`);
+    return r.data.data.session;
+  },
+
+  getRecordingUploadUrl: async (
+    sessionId: string,
+  ): Promise<{ uploadUrl: string; s3Key: string; expiresIn: number }> => {
+    const r = await apiClient.get<{
+      success: boolean;
+      data: { uploadUrl: string; s3Key: string; expiresIn: number };
+    }>(`/system-design/sessions/${sessionId}/recording/upload-url`);
+    return r.data.data;
+  },
+
+  saveRecordingKey: async (
+    sessionId: string,
+    s3Key: string,
+  ): Promise<{ s3Key: string; videoUrl: string; sessionId: string }> => {
+    const r = await apiClient.post<{
+      success: boolean;
+      data: { s3Key: string; videoUrl: string; sessionId: string };
+    }>(`/system-design/sessions/${sessionId}/recording/save-key`, { s3Key });
+    return r.data.data;
+  },
+
+  finalize: async (sessionId: string): Promise<SystemDesignSession> => {
+    const r = await apiClient.post<{
+      success: boolean;
+      data: { session: SystemDesignSession };
+    }>(`/system-design/sessions/${sessionId}/finalize`);
+    return r.data.data.session;
+  },
+};
+
 export default apiClient;
