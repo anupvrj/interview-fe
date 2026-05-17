@@ -1,6 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type MutableRefObject } from "react";
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+  type MutableRefObject,
+} from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { AiPersonaAvatar } from "@/components/interview/AiPersonaAvatar";
@@ -17,6 +25,11 @@ export type SystemDesignVoiceDiagramBridge = {
   sendDiagramSnapshot(imageBase64: string, mimeType?: string): boolean;
 };
 
+/** Imperative API — e.g. flush transcript to Mongo before POST finalize. */
+export type SystemDesignVoiceSessionHandle = {
+  flushAndDisconnect: () => Promise<void>;
+};
+
 type Props = {
   sessionId: string;
   disabled?: boolean;
@@ -26,19 +39,31 @@ type Props = {
   diagramBridgeRef?: MutableRefObject<SystemDesignVoiceDiagramBridge | null>;
   /** When set, Gemini mic uses this stream's audio tracks (avoid second getUserMedia) — pair with coding-style camera+acquire. */
   reuseMicStreamRef?: MutableRefObject<MediaStream | null>;
-  /** True after Start interview succeeds (socket + mic + greeting; canvas uses same Live session only). */
+  /** True after Start New Session succeeds (socket + mic + greeting; canvas uses same Live session only). */
   onDiagramChannelReady?: (ready: boolean) => void;
+  /** Begin voice automatically once enabled (e.g. right after screen recording + backend phase starts). */
+  autoStartVoice?: boolean;
+  /** Subtitle while disabled before interview ends (otherwise shows “Interview ended”). */
+  disabledHint?: string;
 };
 
-export function SystemDesignVoiceClient({
-  sessionId,
-  disabled = false,
-  className,
-  compact = false,
-  diagramBridgeRef,
-  onDiagramChannelReady,
-  reuseMicStreamRef,
-}: Props) {
+export const SystemDesignVoiceClient = forwardRef<
+  SystemDesignVoiceSessionHandle,
+  Props
+>(function SystemDesignVoiceClient(
+  {
+    sessionId,
+    disabled = false,
+    className,
+    compact = false,
+    diagramBridgeRef,
+    onDiagramChannelReady,
+    reuseMicStreamRef,
+    autoStartVoice = false,
+    disabledHint,
+  }: Props,
+  ref,
+) {
   const personaRef = useRef<AIInterviewerPersona | null>(null);
   if (!personaRef.current) personaRef.current = pickRandomPersona();
   const persona = personaRef.current!;
@@ -50,13 +75,15 @@ export function SystemDesignVoiceClient({
   const [error, setError] = useState<string | null>(null);
   const [aiSpeaking, setAiSpeaking] = useState(false);
   const [statusLine, setStatusLine] = useState<string | null>(null);
-  /** Spinner on Start interview until mic + greeting are live */
+  /** Spinner on Start New Session until mic + greeting are live */
   const [startupInFlight, setStartupInFlight] = useState(false);
 
   const wsRef = useRef<WebSocket | null>(null);
+  /** Resolves pending `flushAndDisconnect` when server sends session_ended or socket closes. */
+  const flushWaitSettleRef = useRef<(() => void) | null>(null);
   const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const connectionInitiated = useRef(false);
-  /** After user clicks Start interview: connect then auto-run mic + greeting. */
+  /** After user clicks Start New Session: connect then auto-run mic + greeting. */
   const pendingConnectThenStartRef = useRef(false);
   const voiceActiveRef = useRef(false);
 
@@ -163,7 +190,30 @@ export function SystemDesignVoiceClient({
     mediaStreamRef.current = null;
   };
 
-  const cleanupAll = () => {
+  /** Ends WS + voice pipeline without stopping mic tracks (shared with screen recording). */
+  const releaseVoiceCodecResourcesFlushPreserveMic = () => {
+    stopHeartbeat();
+    if (audioProcessorRef.current && "disconnect" in audioProcessorRef.current) {
+      try {
+        (audioProcessorRef.current as AudioNode).disconnect();
+      } catch {
+        /* ignore */
+      }
+    }
+    audioProcessorRef.current = null;
+
+    if (audioBufferTimerRef.current) {
+      clearTimeout(audioBufferTimerRef.current);
+      audioBufferTimerRef.current = null;
+    }
+    audioQueueRef.current = [];
+    audioBufferRef.current = [];
+    playingRef.current = false;
+    void audioContextRef.current?.close().catch(() => {});
+    audioContextRef.current = null;
+  };
+
+  const releaseVoiceCodecResources = () => {
     stopHeartbeat();
     cleanupAudioCapture();
     if (audioBufferTimerRef.current) {
@@ -173,6 +223,12 @@ export function SystemDesignVoiceClient({
     audioQueueRef.current = [];
     audioBufferRef.current = [];
     playingRef.current = false;
+    void audioContextRef.current?.close().catch(() => {});
+    audioContextRef.current = null;
+  };
+
+  const cleanupAll = () => {
+    releaseVoiceCodecResources();
     const ws = wsRef.current;
     if (ws) {
       try {
@@ -180,14 +236,70 @@ export function SystemDesignVoiceClient({
       } catch {
         /* ignore */
       }
-      ws.close();
+      try {
+        ws.close();
+      } catch {
+        /* ignore */
+      }
     }
     wsRef.current = null;
     connectionInitiated.current = false;
     voiceActiveRef.current = false;
-    void audioContextRef.current?.close().catch(() => {});
-    audioContextRef.current = null;
   };
+
+  useImperativeHandle(ref, () => ({
+    flushAndDisconnect: async () => {
+      voiceActiveRef.current = false;
+
+      await new Promise<void>((resolve) => {
+        let settled = false;
+        let timerId: number | undefined;
+        const settle = () => {
+          if (settled) return;
+          settled = true;
+          if (timerId !== undefined) window.clearTimeout(timerId);
+          flushWaitSettleRef.current = null;
+          resolve();
+        };
+
+        const ws = wsRef.current;
+        if (!ws || ws.readyState !== WebSocket.OPEN) {
+          settle();
+          return;
+        }
+
+        flushWaitSettleRef.current = settle;
+        timerId = window.setTimeout(settle, 10_000);
+        try {
+          ws.send(JSON.stringify({ type: "end_session" }));
+        } catch {
+          settle();
+        }
+      });
+
+      releaseVoiceCodecResourcesFlushPreserveMic();
+      const ws = wsRef.current;
+      if (
+        ws &&
+        ws.readyState !== WebSocket.CLOSING &&
+        ws.readyState !== WebSocket.CLOSED
+      ) {
+        try {
+          ws.close();
+        } catch {
+          /* ignore */
+        }
+      }
+      wsRef.current = null;
+      connectionInitiated.current = false;
+      voiceActiveRef.current = false;
+      setVoiceActive(false);
+      setConnected(false);
+      setPreparing(false);
+      setAiSpeaking(false);
+      setStartupInFlight(false);
+    },
+  }));
 
   useEffect(() => {
     voiceActiveRef.current = voiceActive;
@@ -454,11 +566,18 @@ export function SystemDesignVoiceClient({
           } else if (data.type === "audio_response" && data.audioData) {
             setAiSpeaking(true);
             setPreparing(false);
+            setStatusLine(null);
             handleGeminiAudio(data.audioData);
           } else if (data.type === "text_response" && typeof data.text === "string") {
-            if (data.finished) setAiSpeaking(false);
+            if (data.finished) {
+              setAiSpeaking(false);
+              setPreparing(false);
+              setStatusLine(null);
+            }
           } else if (data.type === "turn_complete") {
             setAiSpeaking(false);
+            setPreparing(false);
+            setStatusLine(null);
           } else if (data.type === "interrupted") {
             audioQueueRef.current = [];
             audioBufferRef.current = [];
@@ -468,12 +587,15 @@ export function SystemDesignVoiceClient({
             }
             playingRef.current = false;
             setAiSpeaking(false);
+            setPreparing(false);
+            setStatusLine(null);
           } else if (data.type === "error") {
             pendingConnectThenStartRef.current = false;
             setStartupInFlight(false);
             setError(typeof data.message === "string" ? data.message : "Voice error");
             setConnecting(false);
           } else if (data.type === "session_ended") {
+            flushWaitSettleRef.current?.();
             setStatusLine("Voice session ended");
             setVoiceActive(false);
             voiceActiveRef.current = false;
@@ -494,6 +616,7 @@ export function SystemDesignVoiceClient({
       };
 
       ws.onclose = () => {
+        flushWaitSettleRef.current?.();
         stopHeartbeat();
         setConnected(false);
         connectionInitiated.current = false;
@@ -510,9 +633,11 @@ export function SystemDesignVoiceClient({
     }
   };
 
+  const beginVoiceSessionRef = useRef<() => void>(() => {});
+
   /** One action: establish realtime socket (if needed) + mic + greeting. */
   const beginVoiceSession = () => {
-    if (disabled || voiceActive) return;
+    if (disabled || voiceActive || startupInFlight) return;
     setError(null);
     setStartupInFlight(true);
 
@@ -525,6 +650,19 @@ export function SystemDesignVoiceClient({
     pendingConnectThenStartRef.current = true;
     connectWebSocket();
   };
+  beginVoiceSessionRef.current = beginVoiceSession;
+
+  const autoVoiceKickoffRef = useRef(false);
+  useEffect(() => {
+    if (!autoStartVoice || disabled) {
+      autoVoiceKickoffRef.current = false;
+      return;
+    }
+    if (voiceActive || startupInFlight || connecting) return;
+    if (autoVoiceKickoffRef.current) return;
+    autoVoiceKickoffRef.current = true;
+    queueMicrotask(() => beginVoiceSessionRef.current());
+  }, [autoStartVoice, disabled, voiceActive, startupInFlight, connecting]);
   useEffect(() => {
     onDiagramChannelReady?.(connected && voiceActive && !disabled);
   }, [connected, voiceActive, disabled, onDiagramChannelReady]);
@@ -549,7 +687,7 @@ export function SystemDesignVoiceClient({
   }, [voiceActive]);
 
   const statusSubtitle = disabled
-    ? "Interview ended"
+    ? (disabledHint ?? "Interview ended")
     : (error ??
       (!connected
         ? connecting || startupInFlight
@@ -632,7 +770,10 @@ export function SystemDesignVoiceClient({
 
         <div
           className={cn(
-            (!voiceActive && !disabled) || (voiceActive && preparing && !disabled)
+            (!voiceActive &&
+              !disabled &&
+              (!autoStartVoice || Boolean(error))) ||
+              (voiceActive && preparing && !disabled)
               ? "border-t border-white/5"
               : null,
             compact ? "mt-auto shrink-0 pt-1" : "mt-1 pt-1.5",
@@ -644,7 +785,9 @@ export function SystemDesignVoiceClient({
               compact ? "gap-1.5" : "gap-2",
             )}
           >
-            {!voiceActive && !disabled ? (
+            {!voiceActive &&
+            !disabled &&
+            (!autoStartVoice || Boolean(error)) ? (
               <Button
                 type="button"
                 size="sm"
@@ -658,7 +801,7 @@ export function SystemDesignVoiceClient({
                 {startupInFlight ? (
                   <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
                 ) : null}
-                Start interview
+                Start New Session
               </Button>
             ) : null}
 
@@ -678,4 +821,5 @@ export function SystemDesignVoiceClient({
       </CardContent>
     </Card>
   );
-}
+});
+SystemDesignVoiceClient.displayName = "SystemDesignVoiceClient";

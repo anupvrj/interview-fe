@@ -14,6 +14,7 @@ import {
   serializeAsJSON,
 } from "@excalidraw/excalidraw";
 import { systemDesignApi } from "@/lib/api";
+import { cn } from "@/lib/utils";
 
 interface ExcalidrawBoardProps {
   sessionId: string;
@@ -21,6 +22,8 @@ interface ExcalidrawBoardProps {
   initialSnapshotJson?: string | null;
   onExportRef?: (fn: () => Promise<string | null>) => void;
   readOnly?: boolean;
+  /** Hide the top-left main menu (hamburger); uses scoped CSS on the wrapper. */
+  hideMainMenu?: boolean;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -52,6 +55,7 @@ export default function ExcalidrawBoard({
   initialSnapshotJson = null,
   onExportRef,
   readOnly = false,
+  hideMainMenu = false,
 }: ExcalidrawBoardProps) {
   const [excalidrawApi, setExcalidrawApi] = useState<AnyExcalidrawApi>(null);
   const apiRef = useRef<AnyExcalidrawApi>(null);
@@ -236,7 +240,10 @@ export default function ExcalidrawBoard({
 
   return (
     <div
-      className="excalidraw-container h-full min-h-0 w-full min-w-0"
+      className={cn(
+        "excalidraw-container h-full min-h-0 w-full min-w-0",
+        hideMainMenu && "excalidraw-hide-main-menu",
+      )}
       style={{ background: "#ffffff" }}
     >
       <Excalidraw

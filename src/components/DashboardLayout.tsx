@@ -14,7 +14,6 @@ import {
   User,
   Menu,
   X,
-  PlayCircle,
   FileEdit,
   Briefcase,
   Shield,
@@ -266,18 +265,6 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           </div>
           <div className="flex shrink-0 items-center gap-1">
             <ThemeToggle />
-          {!(isInstitutionAdmin && institutionId) && (
-            <Link href="/dashboard/interviews/new" className="flex-shrink-0">
-              <Button
-                size="sm"
-                className="!bg-[rgb(37,99,235)] hover:!bg-[rgb(17,24,39)] text-white h-9 px-3 gap-1.5 text-xs sm:text-sm shadow-md transition-all"
-              >
-                <PlayCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                <span className="hidden xs:inline">Start</span>
-                <span className="hidden sm:inline">Interview</span>
-              </Button>
-            </Link>
-          )}
           </div>
         </div>
       </header>
@@ -476,17 +463,6 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 <span className="text-sm text-muted-foreground">
                   Welcome, {user?.firstName || "User"}!
                 </span>
-                {!(isInstitutionAdmin && institutionId) && (
-                  <Link href="/dashboard/interviews/new">
-                    <Button
-                      size="default"
-                      className="!bg-[rgb(37,99,235)] hover:!bg-[rgb(17,24,39)] text-white shadow-md hover:shadow-lg transition-all"
-                    >
-                      <PlayCircle className="w-4 h-4 mr-2" />
-                      Start Interview
-                    </Button>
-                  </Link>
-                )}
               </div>
             </div>
           </header>

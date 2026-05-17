@@ -47,6 +47,7 @@ import { getProblemById } from "@/lib/systemDesignProblems";
 import {
   SystemDesignVoiceClient,
   type SystemDesignVoiceDiagramBridge,
+  type SystemDesignVoiceSessionHandle,
 } from "@/components/system-design/SystemDesignVoiceClient";
 import { useSystemDesignSessionRecording } from "@/hooks/useSystemDesignSessionRecording";
 
@@ -168,6 +169,11 @@ export default function SystemDesignSessionPage() {
       ? params.sessionId
       : (params.sessionId?.[0] ?? "");
 
+  const reportHref = useMemo(
+    () => `/dashboard/system-design/${encodeURIComponent(sessionId)}/report`,
+    [sessionId],
+  );
+
   const {
     videoRef,
     mediaStreamRef,
@@ -200,7 +206,6 @@ export default function SystemDesignSessionPage() {
   const [endInterviewConfirmOpen, setEndInterviewConfirmOpen] = useState(false);
   const [leavePageConfirmOpen, setLeavePageConfirmOpen] = useState(false);
   const [recordingStarting, setRecordingStarting] = useState(false);
-  const [startSessionOpen, setStartSessionOpen] = useState(false);
   const [preStartLeaveOpen, setPreStartLeaveOpen] = useState(false);
   const [textChatPanelOpen, setTextChatPanelOpen] = useState(false);
 
@@ -209,6 +214,7 @@ export default function SystemDesignSessionPage() {
   const voiceDiagramBridgeRef = useRef<SystemDesignVoiceDiagramBridge | null>(
     null,
   );
+  const voiceSessionRef = useRef<SystemDesignVoiceSessionHandle>(null);
 
   const timer = useInterviewElapsed(voiceDiagramReady, loading, finalized);
 
@@ -303,7 +309,7 @@ export default function SystemDesignSessionPage() {
     if (evaluating || finalized) return;
     if (!voiceDiagramReady) {
       toast.error(
-        "Tap “Start interview” first — your canvas snapshot must attach to that same live voice session.",
+        "Tap “Start New Session” in the AI Interviewer panel first — your canvas snapshot must attach to that same live voice session.",
       );
       return;
     }
@@ -349,11 +355,9 @@ export default function SystemDesignSessionPage() {
     el.muted = true;
     el.playsInline = true;
     void el.play().catch(() => {});
-    if (recordingStarted) {
-      setCameraReady(true);
-      setCameraError(null);
-    }
-  }, [recordingStarted, finalized, setCameraReady, setCameraError]);
+    setCameraReady(true);
+    setCameraError(null);
+  }, [finalized, setCameraReady, setCameraError]);
 
   useEffect(() => {
     if (!recordingStarted || loading || finalized || isRecording) return;
@@ -450,7 +454,6 @@ export default function SystemDesignSessionPage() {
         await attachScreenAndBeginRecording(screen);
         const refreshed = await systemDesignApi.getSession(sessionId);
         setSession(refreshed);
-        setStartSessionOpen(false);
         toast.success(
           "Session started. Your screen and camera are being recorded.",
         );
@@ -476,6 +479,9 @@ export default function SystemDesignSessionPage() {
     if (finalizing || finalized) return;
     setFinalizing(true);
     try {
+      await voiceSessionRef.current?.flushAndDisconnect().catch(() => {
+        /* still finalize — transcript best-effort */
+      });
       await stopMediaRecorderAndUpload().catch((e) =>
         console.warn("Recording stop on finalize:", e),
       );
@@ -483,12 +489,21 @@ export default function SystemDesignSessionPage() {
       setSession(updated);
       setFinalized(true);
       setEndInterviewConfirmOpen(false);
+      setFinalizing(false);
       toast.success("Session completed! Your score is ready.");
+      router.push(reportHref);
     } catch {
       toast.error("Could not finalize session. Please try again.");
       setFinalizing(false);
     }
-  }, [sessionId, finalizing, finalized, stopMediaRecorderAndUpload]);
+  }, [
+    sessionId,
+    finalizing,
+    finalized,
+    stopMediaRecorderAndUpload,
+    router,
+    reportHref,
+  ]);
 
   const openLeaveSessionDialog = useCallback(() => {
     setEndInterviewConfirmOpen(false);
@@ -550,229 +565,6 @@ export default function SystemDesignSessionPage() {
     );
   }
 
-  if (!finalized && !recordingStarted) {
-    return (
-      <div
-        className="fixed inset-0 z-[100] flex flex-col overflow-hidden text-white antialiased"
-        style={{
-          background:
-            "radial-gradient(circle at 60% 40%, #1f2937 0%, #0b1220 55%, #060913 100%)",
-        }}
-      >
-        <div className="pointer-events-none absolute inset-0 overflow-hidden">
-          <div
-            className="absolute -left-24 -top-28 h-72 w-72 rounded-full bg-purple-500/15 blur-3xl"
-            aria-hidden
-          />
-          <div
-            className="absolute right-0 top-24 h-80 w-80 rounded-full bg-blue-500/10 blur-3xl"
-            aria-hidden
-          />
-        </div>
-
-        <header className="relative z-20 shrink-0 border-b border-white/10 bg-[#0b1220]/95">
-          <div className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
-            <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 sm:flex-1">
-              <button
-                type="button"
-                className="shrink-0 text-left text-xs font-medium text-white/80 transition-colors hover:text-white sm:text-sm"
-                onClick={() => setPreStartLeaveOpen(true)}
-              >
-                ← Exit
-              </button>
-              <button
-                type="button"
-                className="shrink-0 text-left text-[11px] font-medium text-gray-500 underline-offset-2 transition-colors hover:text-gray-300 hover:underline sm:text-xs"
-                onClick={() => setPreStartLeaveOpen(true)}
-              >
-                All sessions
-              </button>
-              <span
-                className="hidden h-4 w-px shrink-0 bg-white/15 sm:block"
-                aria-hidden
-              />
-              <span className="min-w-0 truncate text-sm font-semibold tracking-tight text-white sm:text-sm">
-                InterviewTrix · System Design
-              </span>
-              <span
-                className="hidden h-4 w-px shrink-0 bg-white/15 lg:block"
-                aria-hidden
-              />
-              <span className="hidden min-w-0 max-w-[200px] truncate text-xs text-gray-400 lg:inline">
-                {problem?.title ?? session.problemId}
-              </span>
-            </div>
-            <Button
-              type="button"
-              className="h-11 w-full shrink-0 rounded-xl bg-gradient-to-r from-violet-600 to-blue-600 px-5 text-sm font-semibold text-white shadow-lg shadow-black/25 transition-none hover:from-violet-700 hover:to-blue-700 sm:h-10 sm:w-auto sm:px-4 sm:text-xs"
-              onClick={() => setStartSessionOpen(true)}
-              disabled={recordingStarting}
-            >
-              {recordingStarting ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : null}
-              Start interview
-            </Button>
-          </div>
-        </header>
-
-        {cameraError ? (
-          <div className="relative z-20 shrink-0 border-b border-amber-500/30 bg-amber-500/10 px-4 py-2 text-sm text-amber-100">
-            {cameraError}
-          </div>
-        ) : null}
-
-        <div className="relative z-10 flex min-h-0 flex-1 flex-col overflow-y-auto px-4 py-8 sm:justify-center sm:py-10">
-          <div className="mx-auto w-full max-w-md space-y-5 rounded-2xl border border-gray-200 bg-white px-6 py-8 pb-8 text-center text-slate-900 shadow-xl shadow-black/10">
-            <div className="space-y-2 text-left">
-              <h3 className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-slate-700">
-                <Video className="h-4 w-4 shrink-0 text-blue-600" aria-hidden />
-                Camera &amp; microphone
-              </h3>
-              <div className="flex justify-center py-1">
-                <div className="aspect-square w-1/2 min-w-[112px] max-w-[220px] overflow-hidden rounded-2xl border border-gray-200 bg-black shadow-md">
-                  <video
-                    ref={videoRef}
-                    className="h-full w-full object-cover object-top"
-                    playsInline
-                    muted
-                  />
-                </div>
-              </div>
-              <p className="text-xs leading-relaxed text-slate-600">
-                {cameraReady
-                  ? "Preview is live. This microphone is reused for the AI interviewer and your recording."
-                  : "Allow camera and microphone when the browser asks. If you still see black, check site permissions (lock icon beside the URL)."}
-              </p>
-            </div>
-            <Button
-              type="button"
-              size="lg"
-              className="h-12 w-full rounded-xl bg-gradient-to-r from-violet-600 to-blue-600 text-base font-semibold text-white shadow-lg shadow-black/25 hover:from-violet-700 hover:to-blue-700 disabled:opacity-60"
-              onClick={() => setStartSessionOpen(true)}
-              disabled={recordingStarting}
-            >
-              {recordingStarting ? (
-                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-              ) : null}
-              Start interview
-            </Button>
-            <p className="text-xs leading-relaxed text-slate-600">
-              Opens a short checklist, then Continue requests{" "}
-              <span className="font-semibold text-slate-900">
-                screen capture
-              </span>{" "}
-              (after camera/mic).
-            </p>
-            {recordingStarting ? (
-              <div className="flex flex-col items-center gap-2">
-                <Loader2 className="h-9 w-9 animate-spin text-violet-600" />
-                <p className="text-sm text-slate-700">
-                  Allow camera, microphone, and screen share when prompted.
-                </p>
-              </div>
-            ) : (
-              <p className="text-sm leading-relaxed text-slate-700">
-                You can start from here or use the matching button at the top of
-                this page—both open the same flow.
-              </p>
-            )}
-          </div>
-        </div>
-
-        <AlertDialog
-          open={startSessionOpen}
-          onOpenChange={(open) => {
-            if (!recordingStarting) setStartSessionOpen(open);
-          }}
-        >
-          <AlertDialogContent className="z-[220] border-white/10 bg-[#0f172a] text-white sm:max-w-lg">
-            <AlertDialogHeader>
-              <AlertDialogTitle className="text-base text-white">
-                Start your session
-              </AlertDialogTitle>
-              <AlertDialogDescription className="space-y-2 text-left text-sm text-gray-300">
-                <span className="block">
-                  You&apos;ll confirm screen recording next. Camera and mic
-                  should already be allowed from your preview above; the same
-                  mic is used for the AI interviewer and recording.
-                </span>
-                <span className="block text-sm text-gray-400">
-                  Your browser may ask again for camera/mic briefly, then asks
-                  what to share for screen capture—choose this tab/window when
-                  it appears.
-                </span>
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter className="flex-col gap-2 sm:flex-row sm:justify-end">
-              <AlertDialogCancel
-                disabled={recordingStarting}
-                className="w-full border-white/20 bg-white/5 text-white hover:bg-white/10 hover:text-white sm:w-auto"
-              >
-                Cancel
-              </AlertDialogCancel>
-              <Button
-                type="button"
-                disabled={recordingStarting}
-                className="w-full rounded-xl bg-gradient-to-r from-violet-600 to-blue-600 text-white hover:from-violet-700 hover:to-blue-700 sm:w-auto"
-                onClick={() => void handleStartPracticeSession()}
-              >
-                {recordingStarting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Starting…
-                  </>
-                ) : (
-                  "Continue to screen recording"
-                )}
-              </Button>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-
-        <AlertDialog
-          open={preStartLeaveOpen}
-          onOpenChange={setPreStartLeaveOpen}
-        >
-          <AlertDialogContent className="z-[220] border-white/10 bg-[#0f172a] text-white sm:max-w-md">
-            <AlertDialogHeader>
-              <AlertDialogTitle className="text-base text-white">
-                Leave before starting?
-              </AlertDialogTitle>
-              <AlertDialogDescription asChild>
-                <div className="space-y-2 text-left text-sm text-gray-300">
-                  <p>
-                    You haven&apos;t started recording yet. This session stays
-                    in{" "}
-                    <span className="font-medium text-gray-200">
-                      System Design · My sessions
-                    </span>{" "}
-                    so you can return later.
-                  </p>
-                </div>
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter className="gap-2 sm:justify-end">
-              <AlertDialogCancel className="border-white/20 bg-white/5 text-white hover:bg-white/10 hover:text-white">
-                Stay
-              </AlertDialogCancel>
-              <Button
-                type="button"
-                variant="outline"
-                className="rounded-xl border-white/20 bg-transparent text-white hover:bg-white/10 hover:text-white"
-                onClick={() => {
-                  setPreStartLeaveOpen(false);
-                  router.push("/dashboard/system-design");
-                }}
-              >
-                Back to sessions
-              </Button>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      </div>
-    );
-  }
 
   return (
     <div
@@ -799,7 +591,8 @@ export default function SystemDesignSessionPage() {
             type="button"
             className="shrink-0 text-left text-xs font-medium text-white/80 transition-colors hover:text-white sm:text-sm"
             onClick={() => {
-              if (finalized) router.push("/dashboard/system-design");
+              if (finalized) router.push(reportHref);
+              else if (!recordingStarted) setPreStartLeaveOpen(true);
               else setEndInterviewConfirmOpen(true);
             }}
           >
@@ -809,7 +602,11 @@ export default function SystemDesignSessionPage() {
             <button
               type="button"
               className="shrink-0 text-left text-[11px] font-medium text-gray-500 underline-offset-2 transition-colors hover:text-gray-300 hover:underline sm:text-xs"
-              onClick={() => openLeaveSessionDialog()}
+              onClick={() =>
+                !recordingStarted
+                  ? setPreStartLeaveOpen(true)
+                  : openLeaveSessionDialog()
+              }
             >
               All sessions
             </button>
@@ -847,11 +644,17 @@ export default function SystemDesignSessionPage() {
                 size="sm"
                 className="h-8 gap-1.5 bg-violet-600/80 px-3.5 text-xs font-semibold text-white hover:bg-violet-600 disabled:opacity-40"
                 onClick={() => void handleGetFeedback()}
-                disabled={evaluating || !voiceDiagramReady}
+                disabled={
+                  evaluating ||
+                  !recordingStarted ||
+                  !voiceDiagramReady
+                }
                 title={
-                  voiceDiagramReady
-                    ? undefined
-                    : "Start interview in the AI Interviewer panel first"
+                  !recordingStarted
+                    ? "Start interview from the sidebar (camera + screen) first"
+                    : voiceDiagramReady
+                      ? undefined
+                      : "Start New Session in the AI Interviewer panel first"
                 }
               >
                 {evaluating ? (
@@ -861,19 +664,21 @@ export default function SystemDesignSessionPage() {
                 )}
                 Submit diagram
               </Button>
-              <Button
-                size="sm"
-                className="h-8 gap-1.5 bg-red-600/80 px-3 text-xs font-semibold hover:bg-red-600"
-                onClick={() => setEndInterviewConfirmOpen(true)}
-                disabled={finalizing}
-              >
-                {finalizing ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <X className="h-3.5 w-3.5" />
-                )}
-                End Interview
-              </Button>
+              {recordingStarted ? (
+                <Button
+                  size="sm"
+                  className="h-8 gap-1.5 bg-red-600/80 px-3 text-xs font-semibold hover:bg-red-600"
+                  onClick={() => setEndInterviewConfirmOpen(true)}
+                  disabled={finalizing}
+                >
+                  {finalizing ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <X className="h-3.5 w-3.5" />
+                  )}
+                  End Interview
+                </Button>
+              ) : null}
             </>
           )}
         </div>
@@ -890,6 +695,30 @@ export default function SystemDesignSessionPage() {
         {/* ── Left panel: camera + problem fill height; score when finalized ── */}
         <aside className="flex min-h-0 w-[clamp(300px,min(420px,40vw),440px)] shrink-0 flex-col overflow-hidden border-r border-white/10 bg-white/[0.03]">
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+            {!finalized && !recordingStarted ? (
+              <div className="shrink-0 space-y-2 border-b border-violet-500/35 bg-violet-950/35 px-3 py-3">
+                <p className="text-[11px] leading-snug text-gray-300">
+                  Allow camera, mic, and screen when prompted — then tap Start
+                  interview.
+                </p>
+                <Button
+                  type="button"
+                  size="sm"
+                  className="h-10 w-full rounded-xl bg-gradient-to-r from-violet-600 to-blue-600 text-sm font-semibold text-white shadow-md hover:from-violet-700 hover:to-blue-700 disabled:opacity-60"
+                  disabled={recordingStarting}
+                  onClick={() => void handleStartPracticeSession()}
+                >
+                  {recordingStarting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Starting…
+                    </>
+                  ) : (
+                    "Start interview"
+                  )}
+                </Button>
+              </div>
+            ) : null}
             <div className="shrink-0 border-b border-white/10 px-2.5 py-1.5 sm:px-3">
               {/* Camera + AI Interviewer side by side */}
               <div className="flex flex-row items-stretch gap-2.5 sm:gap-3">
@@ -985,9 +814,11 @@ export default function SystemDesignSessionPage() {
                     </div>
                   </div>
                   <p className="mt-1 shrink-0 text-center text-[10px] leading-snug text-gray-400 sm:text-[11px]">
-                    {cameraReady
-                      ? "Ensure your camera and mic are enabled for the interview."
-                      : "Allow camera permissions if blocked."}
+                    {!cameraReady
+                      ? "Allow camera and microphone when your browser asks."
+                      : !recordingStarted
+                        ? "Preview ready — start interview above when you’re ready to record."
+                        : "Ensure your camera and mic stay enabled for the interview."}
                   </p>
                 </section>
 
@@ -1001,8 +832,15 @@ export default function SystemDesignSessionPage() {
                   </h3>
                   <div className="mt-0.5 flex min-h-0 min-w-0 flex-1 flex-col">
                     <SystemDesignVoiceClient
+                      ref={voiceSessionRef}
                       sessionId={sessionId}
-                      disabled={Boolean(finalized)}
+                      disabled={Boolean(finalized || !recordingStarted)}
+                      autoStartVoice={recordingStarted && !finalized}
+                      disabledHint={
+                        !finalized && !recordingStarted
+                          ? "Voice starts automatically after you start recording."
+                          : undefined
+                      }
                       diagramBridgeRef={voiceDiagramBridgeRef}
                       onDiagramChannelReady={setVoiceDiagramReady}
                       reuseMicStreamRef={mediaStreamRef}
@@ -1084,20 +922,51 @@ export default function SystemDesignSessionPage() {
                   </span>
                   <span className="text-sm text-gray-400">/ 100</span>
                 </div>
-                <div className="space-y-1.5 text-xs">
-                  {[
-                    ["Architecture", session.scoreReport.architectureScore],
-                    ["Scalability", session.scoreReport.scalabilityScore],
-                    ["Trade-offs", session.scoreReport.tradeoffsScore],
-                  ].map(([label, score]) => (
-                    <div
-                      key={String(label)}
-                      className="flex items-center justify-between text-gray-300"
-                    >
-                      <span>{label}</span>
-                      <span className="font-semibold">{score}/100</span>
-                    </div>
-                  ))}
+                <div className="space-y-2 text-xs">
+                  {session.scoreReport.dimensionScores ? (
+                    <>
+                      <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">
+                        Rubric dimensions
+                      </p>
+                      {(
+                        [
+                          ["Scope & reqs", "~15%", session.scoreReport.dimensionScores.scopeRequirements],
+                          ["Components", "~25%", session.scoreReport.dimensionScores.componentArchitecture],
+                          ["Scaling / deep dive", "~40%", session.scoreReport.dimensionScores.scalingDeepDive],
+                          ["Trade-offs & comms", "~20%", session.scoreReport.dimensionScores.tradeoffsCommunication],
+                        ] as const
+                      ).map(([label, weight, score]) => (
+                        <div
+                          key={String(label)}
+                          className="flex items-center justify-between gap-2 text-gray-300"
+                        >
+                          <span>
+                            {label}{" "}
+                            <span className="text-gray-500">({weight})</span>
+                          </span>
+                          <span className="font-semibold tabular-nums">{score}/100</span>
+                        </div>
+                      ))}
+                    </>
+                  ) : (
+                    <>
+                      {[
+                        ["Architecture", session.scoreReport.architectureScore],
+                        ["Scalability", session.scoreReport.scalabilityScore],
+                        ["Trade-offs", session.scoreReport.tradeoffsScore],
+                      ]
+                        .filter((row) => typeof row[1] === "number")
+                        .map(([label, score]) => (
+                          <div
+                            key={String(label)}
+                            className="flex items-center justify-between text-gray-300"
+                          >
+                            <span>{label}</span>
+                            <span className="font-semibold">{score as number}/100</span>
+                          </div>
+                        ))}
+                    </>
+                  )}
                 </div>
                 <p className="text-xs leading-relaxed text-gray-400">
                   {session.scoreReport.summary}
@@ -1116,7 +985,10 @@ export default function SystemDesignSessionPage() {
               onExportRef={(fn) => {
                 exportFnRef.current = fn;
               }}
-              readOnly={finalized || !voiceDiagramReady}
+              readOnly={
+                finalized ||
+                (recordingStarted && !voiceDiagramReady)
+              }
             />
           </div>
 
@@ -1125,9 +997,11 @@ export default function SystemDesignSessionPage() {
             <div className="flex shrink-0 justify-center border-t border-white/10 bg-[#0b1220]/90 px-4 py-2.5">
               <div className="flex items-center gap-1.5 text-xs text-gray-400">
                 <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-green-400" />
-                {voiceDiagramReady
-                  ? "Canvas auto-saved · resume anytime"
-                  : "Tap Start interview in the AI Interviewer panel to unlock the whiteboard"}
+                {!recordingStarted
+                  ? "Sketch on the canvas — start interview in the sidebar when you’re ready."
+                  : voiceDiagramReady
+                    ? "Canvas auto-saved · resume anytime"
+                    : "Tap Start New Session in the AI Interviewer panel to unlock voice-linked edits"}
               </div>
             </div>
           )}
@@ -1235,15 +1109,15 @@ export default function SystemDesignSessionPage() {
           {finalized && (
             <div className="flex shrink-0 items-center justify-center gap-3 border-t border-white/10 bg-[#0b1220]/90 px-5 py-3">
               <p className="text-sm text-gray-300">
-                Session completed. Review your score on the left.
+                Session completed. Open your report for scores and recording.
               </p>
               <Button
                 size="sm"
                 variant="outline"
                 className="border-white/15 bg-white/[0.05] text-gray-200 hover:bg-white/10"
-                onClick={() => router.push("/dashboard/system-design")}
+                onClick={() => router.push(reportHref)}
               >
-                Back to sessions
+                View report
               </Button>
             </div>
           )}
@@ -1345,6 +1219,43 @@ export default function SystemDesignSessionPage() {
               }}
             >
               Leave anyway
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={preStartLeaveOpen} onOpenChange={setPreStartLeaveOpen}>
+        <AlertDialogContent className="z-[220] border-white/10 bg-[#0f172a] text-white sm:max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-base text-white">
+              Leave before starting?
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2 text-left text-sm text-gray-300">
+                <p>
+                  You haven&apos;t started recording yet. This session stays in{" "}
+                  <span className="font-medium text-gray-200">
+                    System Design · My sessions
+                  </span>{" "}
+                  so you can return later.
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-2 sm:justify-end">
+            <AlertDialogCancel className="border-white/20 bg-white/5 text-white hover:bg-white/10 hover:text-white">
+              Stay
+            </AlertDialogCancel>
+            <Button
+              type="button"
+              variant="outline"
+              className="rounded-xl border-white/20 bg-transparent text-white hover:bg-white/10 hover:text-white"
+              onClick={() => {
+                setPreStartLeaveOpen(false);
+                router.push("/dashboard/system-design");
+              }}
+            >
+              Back to sessions
             </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
