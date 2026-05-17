@@ -2153,4 +2153,322 @@ export const jobBoardApi = {
   },
 };
 
+// ── System Design Practice ──────────────────────────────────────────────────
+
+export type SystemDesignDifficulty = "easy" | "medium" | "hard";
+
+export interface SystemDesignProblemSummary {
+  id: string;
+  title: string;
+  difficulty: SystemDesignDifficulty;
+  category: string;
+}
+
+export interface SystemDesignChatMessage {
+  role: "user" | "assistant";
+  content: string;
+  timestamp: string;
+}
+
+export interface SystemDesignFeedbackEntry {
+  feedback: string;
+  timestamp: string;
+}
+
+/** Session snapshot from Gemini at finalize (aligned to SYSTEM_DESIGN_SCORING_PLAN rubric). */
+export interface SystemDesignDimensionScores {
+  scopeRequirements: number;
+  componentArchitecture: number;
+  scalingDeepDive: number;
+  tradeoffsCommunication: number;
+}
+
+export interface SystemDesignDimensionVerdicts {
+  scopeRequirements?: string;
+  componentArchitecture?: string;
+  scalingDeepDive?: string;
+  tradeoffsCommunication?: string;
+}
+
+export interface SystemDesignScoreReport {
+  overallScore: number;
+  dimensionScores?: SystemDesignDimensionScores;
+  dimensionVerdicts?: SystemDesignDimensionVerdicts;
+  /** @deprecated Legacy finalize shape */
+  architectureScore?: number;
+  scalabilityScore?: number;
+  tradeoffsScore?: number;
+  strengths: string[];
+  improvements: string[];
+  summary: string;
+}
+
+export interface SystemDesignSession {
+  sessionId: string;
+  userId: string;
+  problemId: string;
+  status: "active" | "completed";
+  chatHistory: SystemDesignChatMessage[];
+  feedbackHistory: SystemDesignFeedbackEntry[];
+  score?: number;
+  scoreReport?: SystemDesignScoreReport;
+  createdAt: string;
+  updatedAt: string;
+  completedAt?: string;
+  whiteboardSnapshot?: string | null;
+  recordingPhaseStartedAt?: string | null;
+  recordingS3Key?: string | null;
+  recordingVideoUrl?: string | null;
+  reportPdfS3Key?: string | null;
+}
+
+export interface SystemDesignPracticeReport {
+  reportId: string;
+  sessionId: string;
+  userId: string;
+  generatedAt: string;
+  llmMetadata: {
+    model: string;
+    promptVersion?: string;
+    tokens: { input: number; output: number };
+    cost: number;
+    generatedAt?: string;
+  };
+  overallScore: number;
+  dimensionScores: SystemDesignDimensionScores;
+  dimensionVerdicts: SystemDesignDimensionVerdicts;
+  whatYouDidWell: string[];
+  gapsInDesign: string[];
+  approachesCovered: string[];
+  approachesMissedOrWeak: string[];
+  concreteRecommendations: string[];
+  overallSummary: string;
+  fullReportMarkdown: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+/** Session summary bundled with lazy-generated practice report payload. */
+export interface SystemDesignReportSessionLite {
+  sessionId: string;
+  problemId: string;
+  status: "completed";
+  completedAt?: string;
+  score?: number;
+  scoreReport?: SystemDesignScoreReport;
+  whiteboardSnapshot?: string | null;
+  recordingS3Key?: string | null;
+  recordingVideoUrl?: string | null;
+  reportPdfS3Key?: string | null;
+}
+
+export const systemDesignApi = {
+  listProblems: async (): Promise<SystemDesignProblemSummary[]> => {
+    const r = await apiClient.get<{
+      success: boolean;
+      data: { problems: SystemDesignProblemSummary[] };
+    }>("/system-design/problems");
+    return r.data.data.problems;
+  },
+
+  createSession: async (problemId?: string): Promise<SystemDesignSession> => {
+    const r = await apiClient.post<{
+      success: boolean;
+      data: { session: SystemDesignSession };
+    }>("/system-design/sessions", { problemId });
+    return r.data.data.session;
+  },
+
+  listMySessions: async (): Promise<SystemDesignSession[]> => {
+    const r = await apiClient.get<{
+      success: boolean;
+      data: { sessions: SystemDesignSession[] };
+    }>("/system-design/sessions/mine");
+    return r.data.data.sessions;
+  },
+
+  getSession: async (sessionId: string): Promise<SystemDesignSession> => {
+    const r = await apiClient.get<{
+      success: boolean;
+      data: { session: SystemDesignSession };
+    }>(`/system-design/sessions/${sessionId}`);
+    return r.data.data.session;
+  },
+
+  evaluate: async (
+    sessionId: string,
+    image: string,
+    mimeType?: string,
+  ): Promise<string> => {
+    const r = await apiClient.post<{
+      success: boolean;
+      data: { feedback: string };
+    }>(`/system-design/sessions/${sessionId}/evaluate`, {
+      image,
+      mimeType: mimeType ?? "image/png",
+    });
+    return r.data.data.feedback;
+  },
+
+  chat: async (sessionId: string, message: string): Promise<string> => {
+    const r = await apiClient.post<{
+      success: boolean;
+      data: { reply: string };
+    }>(`/system-design/sessions/${sessionId}/chat`, { message });
+    return r.data.data.reply;
+  },
+
+  saveWhiteboardSnapshot: async (
+    sessionId: string,
+    snapshot: string,
+  ): Promise<SystemDesignSession> => {
+    const r = await apiClient.put<{
+      success: boolean;
+      data: { session: SystemDesignSession };
+    }>(`/system-design/sessions/${sessionId}/whiteboard`, { snapshot });
+    return r.data.data.session;
+  },
+
+  startRecordingPhase: async (
+    sessionId: string,
+  ): Promise<SystemDesignSession> => {
+    const r = await apiClient.post<{
+      success: boolean;
+      data: { session: SystemDesignSession };
+    }>(`/system-design/sessions/${sessionId}/recording/start`);
+    return r.data.data.session;
+  },
+
+  getRecordingUploadUrl: async (
+    sessionId: string,
+  ): Promise<{ uploadUrl: string; s3Key: string; expiresIn: number }> => {
+    const r = await apiClient.get<{
+      success: boolean;
+      data: { uploadUrl: string; s3Key: string; expiresIn: number };
+    }>(`/system-design/sessions/${sessionId}/recording/upload-url`);
+    return r.data.data;
+  },
+
+  /** Temporary presigned HTTPS URL (~1h) for browsers; plain recordingVideoUrl is not publicly readable on private buckets. */
+  getRecordingPlaybackUrl: async (
+    sessionId: string,
+  ): Promise<{ videoUrl: string; expiresIn: number }> => {
+    const r = await apiClient.get<{
+      success: boolean;
+      data: { videoUrl: string; expiresIn: number };
+    }>(`/system-design/sessions/${sessionId}/recording/playback-url`);
+    return r.data.data;
+  },
+
+  saveRecordingKey: async (
+    sessionId: string,
+    s3Key: string,
+  ): Promise<{ s3Key: string; videoUrl: string; sessionId: string }> => {
+    const r = await apiClient.post<{
+      success: boolean;
+      data: { s3Key: string; videoUrl: string; sessionId: string };
+    }>(`/system-design/sessions/${sessionId}/recording/save-key`, { s3Key });
+    return r.data.data;
+  },
+
+  finalize: async (sessionId: string): Promise<SystemDesignSession> => {
+    const r = await apiClient.post<{
+      success: boolean;
+      data: { session: SystemDesignSession };
+    }>(`/system-design/sessions/${sessionId}/finalize`);
+    return r.data.data.session;
+  },
+
+  getPracticeReport: async (
+    sessionId: string,
+  ): Promise<{ report: SystemDesignPracticeReport; session: SystemDesignReportSessionLite }> => {
+    const r = await apiClient.get<{
+      success: boolean;
+      data: {
+        report: SystemDesignPracticeReport;
+        session: SystemDesignReportSessionLite;
+      };
+    }>(`/system-design/sessions/${sessionId}/report`);
+    return r.data.data;
+  },
+
+  getPracticeReportPdfShareUrl: async (
+    sessionId: string,
+  ): Promise<
+    | {
+        stored: true;
+        shareUrl: string;
+        expiresIn: number;
+      }
+    | { stored: false; expiresIn: number }
+  > => {
+    const userId = localStorage.getItem("clerk-user-id");
+    if (!userId) throw new Error("User not authenticated");
+    const response = await apiClient.get<{
+      data:
+        | { stored: true; shareUrl: string; expiresIn: number }
+        | { stored: false; expiresIn: number };
+    }>(`/system-design/sessions/${sessionId}/report/pdf-share-url`, {
+      params: { userId },
+    });
+    return response.data.data;
+  },
+
+  getPracticeReportPdfUploadUrl: async (
+    sessionId: string,
+  ): Promise<{ uploadUrl: string; s3Key: string; expiresIn: number }> => {
+    const userId = localStorage.getItem("clerk-user-id");
+    if (!userId) throw new Error("User not authenticated");
+    const response = await apiClient.get<{
+      data: { uploadUrl: string; s3Key: string; expiresIn: number };
+    }>(`/system-design/sessions/${sessionId}/report/pdf-upload-url`, {
+      params: { userId },
+    });
+    return response.data.data;
+  },
+
+  confirmPracticeReportPdfUpload: async (
+    sessionId: string,
+    s3Key: string,
+  ): Promise<{ downloadUrl: string; s3Key: string; expiresIn: number }> => {
+    const userId = localStorage.getItem("clerk-user-id");
+    if (!userId) throw new Error("User not authenticated");
+    const response = await apiClient.post<{
+      data: { downloadUrl: string; s3Key: string; expiresIn: number };
+    }>(
+      `/system-design/sessions/${sessionId}/report/confirm-pdf-upload`,
+      { s3Key },
+      { params: { userId } },
+    );
+    return response.data.data;
+  },
+
+  generatePracticeReportPdf: async (
+    sessionId: string,
+    htmlContent: string,
+    padding?: {
+      top: number;
+      bottom: number;
+      left: number;
+      right: number;
+    },
+    templateCSS?: string,
+  ): Promise<{ downloadUrl: string; s3Key: string }> => {
+    const response = await apiClient.post<{
+      data: { downloadUrl: string; s3Key: string };
+    }>(
+      `/system-design/sessions/${sessionId}/report/generate-pdf`,
+      {
+        htmlContent,
+        padding,
+        templateCSS,
+      },
+      {
+        headers: { "Content-Type": "application/json" },
+        timeout: 120000,
+      },
+    );
+    return response.data.data;
+  },
+};
+
 export default apiClient;

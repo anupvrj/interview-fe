@@ -546,3 +546,8 @@
     color: #1e3a8a !important;
   }
 }
+
+/* System design report: hide Excalidraw main menu trigger (hamburger) on embedded previews */
+.excalidraw-hide-main-menu button.main-menu-trigger {
+  display: none !important;
+}
