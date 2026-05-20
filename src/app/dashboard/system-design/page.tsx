@@ -351,8 +351,9 @@ export default function SystemDesignDashboardPage() {
 
             <h1 className="mt-4 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl lg:text-4xl">
               Design{" "}
-              <span className="text-[rgb(37,99,235)]">systems</span> like
-              it&apos;s{" "}
+              <span className="text-[rgb(37,99,235)]">systems</span>
+              {" "}
+              like it&apos;s{" "}
               <span className="text-[rgb(37,99,235)]">interview</span> day
             </h1>
             <p className="mt-3 max-w-2xl text-sm leading-relaxed text-slate-600 sm:text-base">

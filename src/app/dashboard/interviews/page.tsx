@@ -277,9 +277,7 @@ export default function InterviewsPage() {
               </div>
               <h1 className="mb-4 text-2xl font-bold leading-[1.25] tracking-tight text-slate-900 sm:mb-6 sm:text-3xl sm:leading-[1.15] md:text-4xl lg:text-[34px] lg:leading-[42px]">
                 <span className="text-slate-900">Company-aware prep,</span>{" "}
-                <span className="text-[rgb(37,99,235)]">
-                  multilingual AI Interview Practice,
-                </span>{" "}
+                <span className="text-[rgb(37,99,235)]">multilingual AI practice,</span>{" "}
                 <span className="text-slate-900">and interview-ready</span>{" "}
                 <span className="text-[rgb(37,99,235)]">reports</span>
               </h1>
