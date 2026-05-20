@@ -483,19 +483,101 @@ export default function SystemDesignPracticeReportPage() {
       <ResumeBuilderBlueBackdrop />
       <div className="relative z-10">
       <header className="border-b border-blue-100 bg-white/95 shadow-sm backdrop-blur-sm">
-        <div className="container mx-auto flex items-center px-4 py-4">
+        <div className="container mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:py-4">
           <Link
             href="/dashboard/system-design"
-            className="inline-flex items-center gap-2 text-sm font-medium text-slate-600 transition-colors hover:text-slate-900"
+            className="inline-flex min-w-0 shrink items-center gap-2 text-sm font-medium text-slate-600 transition-colors hover:text-slate-900"
           >
-            <ArrowLeft className="h-4 w-4" aria-hidden />
+            <ArrowLeft className="h-4 w-4 shrink-0" aria-hidden />
             <span>System design practice</span>
           </Link>
+          <div className="flex shrink-0 flex-wrap items-center gap-2 sm:justify-end">
+            {sessionLite.recordingS3Key || sessionLite.recordingVideoUrl ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className={cn("gap-2", outlineCtaBtn)}
+                onClick={openRecording}
+              >
+                <Play className="h-4 w-4 shrink-0" aria-hidden />
+                Recording
+              </Button>
+            ) : null}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className={cn("gap-2", outlineCtaBtn)}
+              disabled={pdfDownloading}
+              onClick={() => void downloadPDF()}
+            >
+              {pdfDownloading ? (
+                <Loader2 className="h-4 w-4 shrink-0 animate-spin" aria-hidden />
+              ) : (
+                <Download className="h-4 w-4 shrink-0" aria-hidden />
+              )}
+              {pdfDownloading ? "Generating…" : "Download PDF"}
+            </Button>
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className={cn("gap-2", outlineCtaBtn)}
+                >
+                  <Share2 className="h-4 w-4 shrink-0" aria-hidden />
+                  Share
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Share system design report</DialogTitle>
+                  <DialogDescription>
+                    Shares a PDF download link from cloud storage. If a PDF has not
+                    been generated yet, it is built once and stored; later shares reuse
+                    the same file. Links expire after 7 days. On desktop, Email opens
+                    Gmail in your browser; on phones, your mail app.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full gap-2 sm:flex-1"
+                    disabled={shareBusy}
+                    onClick={() => void copyReportLink()}
+                  >
+                    {shareBusy ? (
+                      <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                    ) : (
+                      <Copy className="h-4 w-4" aria-hidden />
+                    )}
+                    Copy link
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full gap-2 sm:flex-1"
+                    disabled={shareBusy}
+                    onClick={() => void openEmailShare()}
+                  >
+                    {shareBusy ? (
+                      <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                    ) : (
+                      <Mail className="h-4 w-4" aria-hidden />
+                    )}
+                    Email
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
       </header>
 
       <main className="container mx-auto max-w-6xl px-4 py-8">
-        <div className="mb-8 flex flex-col gap-4 min-[520px]:flex-row min-[520px]:items-start min-[520px]:justify-between">
+        <div className="mb-8">
           <div className="min-w-0">
             <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-blue-200/80 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-800 shadow-sm">
               <Sparkles className="h-3.5 w-3.5 shrink-0" aria-hidden />
@@ -511,73 +593,6 @@ export default function SystemDesignPracticeReportPage() {
               {sessionLite.completedAt ? formatDate(sessionLite.completedAt) : "recently"}
             </p>
           </div>
-          <div className="flex shrink-0 flex-col gap-2 min-[520px]:items-end sm:max-w-xl sm:justify-self-end">
-            <div className="grid w-full grid-cols-2 gap-2 md:w-auto md:min-w-[280px]">
-              <Dialog>
-                <DialogTrigger asChild>
-                  <Button variant="outline" className={cn("w-full justify-center gap-2", outlineCtaBtn)}>
-                    <Share2 className="h-4 w-4 shrink-0" aria-hidden />
-                    Share
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Share system design report</DialogTitle>
-                    <DialogDescription>
-                      Shares a PDF download link from cloud storage. If a PDF has not
-                      been generated yet, it is built once and stored; later shares reuse
-                      the same file. Links expire after 7 days. On desktop, Email opens
-                      Gmail in your browser; on phones, your mail app.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="flex flex-col gap-2 sm:flex-row">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="w-full gap-2 sm:flex-1"
-                      disabled={shareBusy}
-                      onClick={() => void copyReportLink()}
-                    >
-                      {shareBusy ? (
-                        <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-                      ) : (
-                        <Copy className="h-4 w-4" aria-hidden />
-                      )}
-                      Copy link
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="w-full gap-2 sm:flex-1"
-                      disabled={shareBusy}
-                      onClick={() => void openEmailShare()}
-                    >
-                      {shareBusy ? (
-                        <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-                      ) : (
-                        <Mail className="h-4 w-4" aria-hidden />
-                      )}
-                      Email
-                    </Button>
-                  </div>
-                </DialogContent>
-              </Dialog>
-              <Button
-                type="button"
-                variant="outline"
-                className={cn("w-full justify-center gap-2", outlineCtaBtn)}
-                disabled={pdfDownloading}
-                onClick={() => void downloadPDF()}
-              >
-                {pdfDownloading ? (
-                  <Loader2 className="h-4 w-4 shrink-0 animate-spin" aria-hidden />
-                ) : (
-                  <Download className="h-4 w-4 shrink-0" aria-hidden />
-                )}
-                {pdfDownloading ? "Generating…" : "Download PDF"}
-              </Button>
-            </div>
-          </div>
         </div>
 
         {/* Final whiteboard */}
@@ -590,19 +605,7 @@ export default function SystemDesignPracticeReportPage() {
                 </div>
                 <span className="font-semibold text-slate-900">Final whiteboard</span>
               </div>
-              <div className="flex flex-wrap items-center justify-end gap-2">
-                {(sessionLite.recordingS3Key || sessionLite.recordingVideoUrl) ? (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className={cn("shrink-0 gap-2", outlineCtaBtn, "shadow-sm")}
-                    onClick={openRecording}
-                  >
-                    <Play className="h-4 w-4" aria-hidden />
-                    Recording
-                  </Button>
-                ) : null}
+              <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
                 <DialogTrigger asChild>
                   <Button
                     type="button"
