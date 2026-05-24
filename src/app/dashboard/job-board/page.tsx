@@ -699,7 +699,7 @@ export default function JobBoardPage() {
   if (!isLoaded) {
     return (
       <div className="flex min-h-[40vh] items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-[rgb(37,99,235)]" />
+        <Loader2 className="h-8 w-8 animate-spin text-[#7367F0]" />
       </div>
     );
   }
@@ -715,7 +715,7 @@ export default function JobBoardPage() {
   if (loading) {
     return (
       <div className="flex min-h-[40vh] items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-[rgb(37,99,235)]" />
+        <Loader2 className="h-8 w-8 animate-spin text-[#7367F0]" />
       </div>
     );
   }
@@ -724,17 +724,17 @@ export default function JobBoardPage() {
     <div className="mx-auto w-full max-w-7xl space-y-4 pb-4 pt-1 lg:space-y-5 lg:pt-0">
       <section
         className={cn(
-          "relative min-w-0 overflow-hidden rounded-2xl border border-blue-200/70 bg-gradient-to-br from-blue-50/95 via-white to-slate-50/90 px-4 py-4 shadow-sm sm:px-5 sm:py-4",
-          "dark:border-blue-900/45 dark:from-blue-950/35 dark:via-card dark:to-slate-950/25",
+          "relative min-w-0 overflow-hidden rounded-xl border border-[#7367F0]/15 bg-[#7367F0]/[0.04] px-4 py-4 shadow-sm sm:px-5 sm:py-4",
+          "dark:border-[#7367F0]/25 dark:bg-[#7367F0]/[0.06]",
         )}
         aria-labelledby="job-board-heading"
       >
         <div
-          className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full bg-[rgb(37,99,235)]/10 blur-2xl dark:bg-blue-500/15"
+          className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full bg-[#7367F0]/10 blur-2xl"
           aria-hidden
         />
         <div className="relative min-w-0 space-y-1.5">
-          <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-blue-100/90 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-[rgb(37,99,235)] dark:bg-blue-500/20 dark:text-blue-200">
+          <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-[#7367F0]/10 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-[#7367F0]">
             <Sparkles className="h-3 w-3" aria-hidden />
             Job matches
           </span>
@@ -763,14 +763,14 @@ export default function JobBoardPage() {
               className={cn(
                 "relative -mb-px border-b-2 px-3 py-2.5 text-sm font-medium transition-colors",
                 active
-                  ? "border-[rgb(37,99,235)] text-[rgb(37,99,235)]"
+                  ? "border-[#7367F0] text-[#7367F0]"
                   : "border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-foreground/90",
               )}
             >
               <span className="inline-flex items-center gap-1.5">
                 {t.showSparkle && (
                   <Sparkles
-                    className="h-3.5 w-3.5 text-[rgb(37,99,235)]"
+                    className="h-3.5 w-3.5 text-[#7367F0]"
                     aria-hidden
                   />
                 )}
@@ -903,7 +903,7 @@ export default function JobBoardPage() {
                   >
                     <SlidersHorizontal className="h-4 w-4" aria-hidden />
                     {activeFilterCount > 0 ? (
-                      <span className="absolute -right-0.5 -top-0.5 z-10 flex h-4 min-w-[1rem] items-center justify-center rounded-full border-2 border-white bg-[rgb(37,99,235)] px-1 text-[10px] font-semibold leading-none text-white dark:border-card">
+                      <span className="absolute -right-0.5 -top-0.5 z-10 flex h-4 min-w-[1rem] items-center justify-center rounded-full border-2 border-white bg-[#7367F0] px-1 text-[10px] font-semibold leading-none text-white dark:border-card">
                         {activeFilterCount > 9 ? "9+" : activeFilterCount}
                       </span>
                     ) : null}
@@ -947,7 +947,7 @@ export default function JobBoardPage() {
                       >
                         <input
                           type="checkbox"
-                          className="h-4 w-4 rounded border-zinc-300 text-[rgb(37,99,235)]"
+                          className="h-4 w-4 rounded border-zinc-300 text-[#7367F0]"
                           checked={workModes.includes(m)}
                           onChange={() => toggleWorkMode(m)}
                         />
@@ -1047,7 +1047,7 @@ export default function JobBoardPage() {
       )}
 
       <div className="mb-2 flex items-center gap-1.5 text-sm text-slate-600">
-        <Clock className="h-4 w-4 text-[rgb(37,99,235)]" />
+        <Clock className="h-4 w-4 text-[#7367F0]" />
         {tab === "for_you" && <span>Top jobs for you</span>}
         {tab === "search" && <span>Search results</span>}
         {tab === "bookmarked" && <span>Your bookmarked roles</span>}
@@ -1066,7 +1066,7 @@ export default function JobBoardPage() {
           >
             {listLoading && !isAppendingJobs && (
               <div className="flex items-center justify-center gap-2 py-6 text-sm text-slate-600">
-                <Loader2 className="h-6 w-6 shrink-0 animate-spin text-[rgb(37,99,235)]" />
+                <Loader2 className="h-6 w-6 shrink-0 animate-spin text-[#7367F0]" />
                 <span>Loading…</span>
               </div>
             )}
@@ -1088,8 +1088,8 @@ export default function JobBoardPage() {
                     className={cn(
                       "w-full rounded-lg border bg-white p-4 text-left text-sm shadow-sm transition-shadow dark:bg-card",
                       isSel
-                        ? "border-2 border-[rgb(37,99,235)] shadow-md ring-1 ring-blue-200/50 dark:border-blue-500"
-                        : "border border-slate-200/90 shadow-sm shadow-blue-500/5 hover:border-blue-200/80 hover:bg-slate-50/80 dark:border-border",
+                        ? "border-2 border-[#7367F0] shadow-md ring-1 ring-[#7367F0]/20 dark:border-[#7367F0]"
+                        : "border border-slate-200/90 shadow-sm hover:border-[#7367F0]/30 hover:bg-muted/30 dark:border-border",
                     )}
                   >
                     <div className="flex items-start justify-between gap-2">
@@ -1129,7 +1129,7 @@ export default function JobBoardPage() {
                             className={cn(
                               "h-4 w-4",
                               e?.bookmarked
-                                ? "fill-[rgb(37,99,235)] text-[rgb(37,99,235)]"
+                                ? "fill-[#7367F0] text-[#7367F0]"
                                 : "text-slate-500",
                             )}
                           />
@@ -1299,7 +1299,7 @@ export default function JobBoardPage() {
                         className={cn(
                           "h-3.5 w-3.5",
                           eng?.bookmarked
-                            ? "fill-[rgb(37,99,235)] text-[rgb(37,99,235)]"
+                            ? "fill-[#7367F0] text-[#7367F0]"
                             : "text-slate-500",
                         )}
                       />
@@ -1368,7 +1368,7 @@ export default function JobBoardPage() {
                   </div>
                 </div>
 
-                <div className="mt-4 flex flex-col gap-2 rounded-md border border-blue-200/50 bg-gradient-to-r from-blue-50/90 to-slate-50/80 px-4 py-3 sm:flex-row sm:items-center sm:justify-between dark:border-blue-500/20 dark:from-blue-950/30 dark:to-slate-900/30">
+                <div className="mt-4 flex flex-col gap-2 rounded-xl border border-[#7367F0]/15 bg-[#7367F0]/[0.04] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                   <p className="text-sm text-slate-700 dark:text-slate-200">
                     Need a strong resume? Generate one tailored to this job in
                     minutes.

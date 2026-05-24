@@ -145,20 +145,20 @@ export default function InstituteOverviewPage() {
       <section
         className={cn(
           institutePanelClass,
-          "relative overflow-hidden border-blue-200/50 bg-gradient-to-br from-blue-50/70 via-white to-slate-50/90"
+          "relative overflow-hidden border-border bg-gradient-to-br from-card via-card to-muted/30"
         )}
       >
-        <div className="pointer-events-none absolute -right-16 -top-12 h-40 w-40 rounded-full bg-blue-400/10 blur-3xl" />
+        <div className="pointer-events-none absolute -right-16 -top-12 h-40 w-40 rounded-full bg-primary/80/10 blur-3xl" />
         <div className="pointer-events-none absolute -bottom-8 -left-8 h-32 w-32 rounded-full bg-indigo-400/10 blur-2xl" />
         <div className="relative flex flex-col gap-6 p-5 sm:flex-row sm:items-center sm:gap-8 sm:p-6">
           <div className="flex shrink-0 justify-center sm:justify-start">
-            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-[rgb(37,99,235)] to-blue-600 shadow-lg shadow-blue-500/30 ring-2 ring-blue-200/60 sm:h-[4.5rem] sm:w-[4.5rem]">
+            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary shadow-lg shadow-primary/30 ring-2 ring-border/60 sm:h-[4.5rem] sm:w-[4.5rem]">
               <Building2 className="h-8 w-8 text-white sm:h-9 sm:w-9" strokeWidth={1.75} />
             </div>
           </div>
           <div className="min-w-0 flex-1 space-y-4 text-center sm:text-left">
             <div>
-              <p className="text-xs font-bold uppercase tracking-wide text-[rgb(37,99,235)]">
+              <p className="text-xs font-bold uppercase tracking-wide text-primary">
                 Admin overview
               </p>
               <p className="mt-2 text-base leading-relaxed text-slate-600 sm:text-lg">
@@ -247,12 +247,12 @@ export default function InstituteOverviewPage() {
         <section
           className={cn(
             institutePanelClass,
-            "overflow-hidden border-blue-200/40 bg-gradient-to-br from-white to-slate-50/80"
+            "overflow-hidden border-border bg-gradient-to-br from-white to-slate-50/80"
           )}
         >
-          <div className="flex gap-4 border-b border-blue-100/60 bg-gradient-to-r from-blue-50/40 to-transparent p-5">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[rgb(37,99,235)] to-blue-600 shadow-md ring-2 ring-blue-200/40">
-              <BarChart2 className="h-5 w-5 text-white" strokeWidth={1.75} />
+          <div className="flex gap-4 border-b border-border/60 bg-gradient-to-r from-muted/40 to-transparent p-5">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary shadow-md ring-2 ring-border/40">
+              <BarChart2 className="h-5 w-5" strokeWidth={1.75} />
             </div>
             <div className="min-w-0 space-y-1">
               <h2 className="text-base font-bold text-slate-900">Schedule activity</h2>
@@ -270,8 +270,8 @@ export default function InstituteOverviewPage() {
                 </div>
                 <p className="mt-2 text-2xl font-bold tabular-nums text-slate-900">{sc.scheduled}</p>
               </div>
-              <div className="rounded-xl border border-blue-200/60 bg-blue-50/50 p-3 shadow-sm">
-                <div className="flex items-center justify-center gap-1 text-[rgb(37,99,235)]">
+              <div className="rounded-xl border border-border/60 bg-muted/30 p-3 shadow-sm">
+                <div className="flex items-center justify-center gap-1 text-primary">
                   <PlayCircle className="h-3.5 w-3.5" />
                   <span className="text-[10px] font-bold uppercase tracking-wide">Started</span>
                 </div>
@@ -293,7 +293,7 @@ export default function InstituteOverviewPage() {
                     title="Scheduled"
                   />
                   <div
-                    className="bg-[rgb(37,99,235)] transition-all"
+                    className="bg-primary transition-all"
                     style={{ width: `${(sc.started / scheduleTotal) * 100}%` }}
                     title="Started"
                   />
@@ -309,7 +309,7 @@ export default function InstituteOverviewPage() {
             )}
             <Button
               variant="link"
-              className="mt-3 h-auto w-full justify-center p-0 text-sm font-semibold text-[rgb(37,99,235)]"
+              className="mt-3 h-auto w-full justify-center p-0 text-sm font-semibold text-primary"
               asChild
             >
               <Link href={`/dashboard/institute/${institutionId}/schedules`}>
@@ -322,12 +322,12 @@ export default function InstituteOverviewPage() {
         <section
           className={cn(
             institutePanelClass,
-            "overflow-hidden border-blue-200/40 bg-gradient-to-br from-white to-slate-50/80"
+            "overflow-hidden border-border bg-gradient-to-br from-white to-slate-50/80"
           )}
         >
-          <div className="flex gap-4 border-b border-blue-100/60 bg-gradient-to-r from-blue-50/40 to-transparent p-5">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[rgb(37,99,235)] to-blue-600 shadow-md ring-2 ring-blue-200/40">
-              <Sparkles className="h-5 w-5 text-white" strokeWidth={1.75} />
+          <div className="flex gap-4 border-b border-border/60 bg-gradient-to-r from-muted/40 to-transparent p-5">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary shadow-md ring-2 ring-border/40">
+              <Sparkles className="h-5 w-5" strokeWidth={1.75} />
             </div>
             <div className="min-w-0 space-y-1">
               <h2 className="text-base font-bold text-slate-900">Plans (candidates)</h2>
@@ -350,7 +350,7 @@ export default function InstituteOverviewPage() {
                   </div>
                   <div className="h-2 overflow-hidden rounded-full bg-slate-100">
                     <div
-                      className="h-full rounded-full bg-gradient-to-r from-[rgb(37,99,235)] to-blue-500 transition-all"
+                      className="h-full rounded-full bg-gradient-to-r from-primary to-primary transition-all"
                       style={{ width: `${planTotal > 0 ? (n / planTotal) * 100 : 0}%` }}
                     />
                   </div>
@@ -391,7 +391,7 @@ export default function InstituteOverviewPage() {
                       yAxisId="left"
                       dataKey="interviews"
                       name="Interviews"
-                      fill="rgb(37,99,235)"
+                      fill="hsl(var(--primary))"
                       radius={[4, 4, 0, 0]}
                     />
                     <Line

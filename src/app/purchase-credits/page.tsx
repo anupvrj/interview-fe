@@ -98,7 +98,7 @@ export default function PurchaseCreditsPage() {
           email: user.primaryEmailAddress?.emailAddress || "",
         },
         theme: {
-          color: "rgb(37,99,235)",
+          color: "#2563EB",
         },
         handler: async function (response: any) {
           try {
@@ -136,13 +136,13 @@ export default function PurchaseCreditsPage() {
   if (!isLoaded || !user) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 py-12 px-4">
+    <div className="min-h-screen bg-background py-12 px-4">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="flex items-center gap-4 mb-8">
@@ -162,10 +162,10 @@ export default function PurchaseCreditsPage() {
         </div>
 
         {/* Info Card */}
-        <Card className="mb-8 border-blue-200 bg-blue-50/50">
+        <Card className="mb-8 border-border bg-muted/50">
           <CardContent className="p-6">
             <div className="flex items-start gap-4">
-              <div className="w-12 h-12 bg-blue-500 rounded-lg flex items-center justify-center flex-shrink-0">
+              <div className="w-12 h-12 bg-primary rounded-lg flex items-center justify-center flex-shrink-0">
                 <Coins className="w-6 h-6 text-white" />
               </div>
               <div>
@@ -190,13 +190,13 @@ export default function PurchaseCreditsPage() {
               key={pkg.amount}
               className={`relative border-2 transition-all hover:shadow-xl ${
                 pkg.popular
-                  ? "border-blue-500 shadow-lg ring-2 ring-blue-200"
-                  : "border-gray-200 hover:border-blue-300"
+                  ? "border-primary shadow-lg ring-2 ring-border"
+                  : "border-gray-200 hover:border-border"
               }`}
             >
               {pkg.popular && (
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                  <span className="bg-gradient-to-r from-blue-600 to-purple-600 text-white text-xs font-bold px-3 py-1 rounded-full">
+                  <span className="bg-gradient-to-r from-primary to-purple-600 text-white text-xs font-bold px-3 py-1 rounded-full">
                     POPULAR
                   </span>
                 </div>
@@ -204,7 +204,7 @@ export default function PurchaseCreditsPage() {
 
               <CardContent className="p-6">
                 <div className="text-center mb-6">
-                  <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full mb-4">
+                  <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-primary to-purple-500 rounded-full mb-4">
                     <Zap className="w-8 h-8 text-white" />
                   </div>
                   <h3 className="text-2xl font-bold text-gray-900 mb-1">
@@ -213,7 +213,7 @@ export default function PurchaseCreditsPage() {
                   <p className="text-sm text-gray-600 mb-4">
                     {pkg.description}
                   </p>
-                  <div className="text-3xl font-bold text-blue-600 mb-2">
+                  <div className="text-3xl font-bold text-primary mb-2">
                     ₹{pkg.price.toLocaleString()}
                   </div>
                 </div>
@@ -232,7 +232,7 @@ export default function PurchaseCreditsPage() {
                   disabled={loading}
                   className={`w-full ${
                     pkg.popular
-                      ? "bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                      ? "bg-gradient-to-r from-primary to-purple-600 hover:bg-slate-900 hover:to-purple-700"
                       : ""
                   }`}
                 >

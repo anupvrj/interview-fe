@@ -97,7 +97,7 @@ export function CodingRoundHeroPreview() {
   })();
 
   return (
-    <div className="w-full max-w-[600px] overflow-hidden rounded-xl border-2 border-blue-100 bg-slate-900 shadow-2xl sm:max-w-[700px] sm:rounded-xl sm:border-4">
+    <div className="w-full max-w-[600px] overflow-hidden rounded-xl border-2 border-border bg-slate-900 shadow-2xl sm:max-w-[700px] sm:rounded-xl sm:border-4">
       <div className="flex items-center gap-2 border-b border-slate-700 bg-slate-800 px-3 py-2">
         <div className="flex gap-1.5">
           <span className="h-3 w-3 rounded-full bg-red-500/90" />
@@ -121,7 +121,7 @@ export function CodingRoundHeroPreview() {
           <div className="space-y-2 opacity-100 transition-opacity duration-300">
             <p className="m-0">
               <span className="text-purple-400">function</span>{" "}
-              <span className="text-blue-400">twoSum</span>(
+              <span className="text-primary/70">twoSum</span>(
               <span className="text-amber-200">nums</span>,{" "}
               <span className="text-amber-200">target</span>) {"{"}
             </p>

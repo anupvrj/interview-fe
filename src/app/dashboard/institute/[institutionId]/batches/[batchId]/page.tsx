@@ -508,7 +508,7 @@ export default function BatchDetailPage() {
           asChild
           className={cn(
             instituteSecondaryClass,
-            "-ml-1 h-9 gap-2 rounded-full border-slate-200 px-4 shadow-sm transition-all hover:border-blue-200/80"
+            "-ml-1 h-9 gap-2 rounded-full border-slate-200 px-4 shadow-sm transition-all hover:border-border/80"
           )}
         >
           <Link href={`/dashboard/institute/${institutionId}/batches`}>
@@ -527,7 +527,7 @@ export default function BatchDetailPage() {
         </div>
         <Card className={cn(institutePanelClass, "overflow-hidden")}>
           <CardContent className="flex min-h-[200px] items-center justify-center py-16">
-            <Loader2 className="h-10 w-10 animate-spin text-[rgb(37,99,235)]" />
+            <Loader2 className="h-10 w-10 animate-spin text-primary" />
           </CardContent>
         </Card>
       </div>
@@ -545,7 +545,7 @@ export default function BatchDetailPage() {
         asChild
         className={cn(
           instituteSecondaryClass,
-          "-ml-1 h-9 gap-2 rounded-full border-slate-200 px-4 shadow-sm transition-all hover:border-blue-200/80"
+          "-ml-1 h-9 gap-2 rounded-full border-slate-200 px-4 shadow-sm transition-all hover:border-border/80"
         )}
       >
         <Link href={`/dashboard/institute/${institutionId}/batches`}>
@@ -633,11 +633,11 @@ export default function BatchDetailPage() {
       </div>
 
       <Card className={cn(institutePanelClass, "overflow-hidden shadow-xl")}>
-        <CardHeader className="border-b border-blue-100/60 bg-gradient-to-r from-blue-50/50 via-white to-indigo-50/30">
+        <CardHeader className="border-b border-border/60 bg-gradient-to-r from-muted/50 via-white to-indigo-50/30">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <CardTitle className="flex items-center gap-2 text-lg">
-                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-[rgb(37,99,235)] to-blue-600 shadow-md shadow-blue-500/20">
+                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary shadow-md shadow-primary/20">
                   <CalendarClock className="h-4 w-4 text-white" />
                 </span>
                 Scheduled interview rounds
@@ -648,7 +648,7 @@ export default function BatchDetailPage() {
               </CardDescription>
             </div>
             {!runsLoading && scheduleRuns.length > 0 ? (
-              <span className="inline-flex w-fit items-center gap-1.5 rounded-full border border-blue-200/80 bg-white/90 px-3 py-1 text-xs font-medium text-[rgb(37,99,235)] shadow-sm">
+              <span className="inline-flex w-fit items-center gap-1.5 rounded-full border border-border/80 bg-white/90 px-3 py-1 text-xs font-medium text-primary shadow-sm">
                 <Sparkles className="h-3.5 w-3.5" />
                 {scheduleRuns.length} round{scheduleRuns.length === 1 ? "" : "s"}
               </span>
@@ -658,7 +658,7 @@ export default function BatchDetailPage() {
         <CardContent className="p-0 sm:p-0">
           {runsLoading ? (
             <div className="flex justify-center py-16">
-              <Loader2 className="h-9 w-9 animate-spin text-[rgb(37,99,235)]" />
+              <Loader2 className="h-9 w-9 animate-spin text-primary" />
             </div>
           ) : scheduleRuns.length === 0 ? (
             <div className="px-4 py-6 sm:px-6">
@@ -710,7 +710,7 @@ export default function BatchDetailPage() {
                   {scheduleRuns.map((run) => (
                     <TableRow
                       key={run.runId}
-                      className="group cursor-pointer border-slate-100 align-middle transition-colors hover:bg-gradient-to-r hover:from-blue-50/50 hover:to-transparent"
+                      className="group cursor-pointer border-slate-100 align-middle transition-colors hover:bg-gradient-to-r hover:bg-muted/50 hover:to-transparent"
                       onClick={() => router.push(runDetailHref(run.runId))}
                     >
                       <TableCell className="pl-6 align-middle">
@@ -757,11 +757,11 @@ export default function BatchDetailPage() {
       </Card>
 
       <Card className={cn(institutePanelClass, "overflow-hidden shadow-xl")}>
-        <CardHeader className="border-b border-blue-100/60 bg-gradient-to-r from-blue-50/50 via-white to-indigo-50/30">
+        <CardHeader className="border-b border-border/60 bg-gradient-to-r from-muted/50 via-white to-indigo-50/30">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <CardTitle className="flex items-center gap-2 text-lg">
-                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-[rgb(37,99,235)] to-blue-600 shadow-md shadow-blue-500/20">
+                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary shadow-md shadow-primary/20">
                   <BarChart2 className="h-4 w-4 text-white" />
                 </span>
                 Performance &amp; leaderboard
@@ -785,7 +785,7 @@ export default function BatchDetailPage() {
         <CardContent className="p-0 sm:p-0">
           {perfLoading ? (
             <div className="flex justify-center py-16">
-              <Loader2 className="h-9 w-9 animate-spin text-[rgb(37,99,235)]" />
+              <Loader2 className="h-9 w-9 animate-spin text-primary" />
             </div>
           ) : performance ? (
             <div className="space-y-6 p-4 sm:p-6">
@@ -797,8 +797,8 @@ export default function BatchDetailPage() {
                 </p>
               ) : null}
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                <div className="rounded-xl border border-blue-200/40 bg-gradient-to-br from-blue-50/80 to-white p-4 shadow-sm transition hover:border-blue-300/50 hover:shadow-md">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-[rgb(37,99,235)]">
+                <div className="rounded-xl border border-border bg-gradient-to-br from-card to-card p-4 shadow-sm transition hover:border-border/50 hover:shadow-md">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-primary">
                     Average score
                   </p>
                   <p className="mt-1 text-2xl font-bold tabular-nums text-slate-900">
@@ -810,8 +810,8 @@ export default function BatchDetailPage() {
                     ) : null}
                   </p>
                 </div>
-                <div className="rounded-xl border border-blue-200/40 bg-gradient-to-br from-blue-50/80 to-white p-4 shadow-sm transition hover:border-blue-300/50 hover:shadow-md">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-[rgb(37,99,235)]">
+                <div className="rounded-xl border border-border bg-gradient-to-br from-card to-card p-4 shadow-sm transition hover:border-border/50 hover:shadow-md">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-primary">
                     Highest score
                   </p>
                   <p className="mt-1 text-2xl font-bold tabular-nums text-slate-900">
@@ -893,7 +893,7 @@ export default function BatchDetailPage() {
                         {performance.topPerformers.map((row) => (
                           <TableRow
                             key={`${row.interviewId}-${row.rank}`}
-                            className="group border-slate-100 transition-colors hover:bg-gradient-to-r hover:from-blue-50/40 hover:to-transparent"
+                            className="group border-slate-100 transition-colors hover:bg-gradient-to-r hover:from-muted/40 hover:to-transparent"
                           >
                             <TableCell className="pl-4 align-middle">
                               <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-sm font-bold text-slate-600">
@@ -903,7 +903,7 @@ export default function BatchDetailPage() {
                             <TableCell className="align-middle">
                               <div className="flex items-center gap-3">
                                 <div
-                                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-blue-100 to-indigo-100 text-xs font-bold text-[rgb(37,99,235)] shadow-inner ring-2 ring-white"
+                                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-muted to-indigo-100 text-xs font-bold text-primary shadow-inner ring-2 ring-white"
                                   aria-hidden
                                 >
                                   {memberInitials(
@@ -922,7 +922,7 @@ export default function BatchDetailPage() {
                               </div>
                             </TableCell>
                             <TableCell className="text-right align-middle">
-                              <span className="inline-flex min-w-[3rem] justify-end rounded-full bg-blue-50 px-2.5 py-0.5 text-sm font-bold tabular-nums text-[rgb(37,99,235)] ring-1 ring-blue-100">
+                              <span className="inline-flex min-w-[3rem] justify-end rounded-full bg-muted/30 px-2.5 py-0.5 text-sm font-bold tabular-nums text-primary ring-1 ring-border">
                                 {row.overallScore}
                               </span>
                             </TableCell>
@@ -972,7 +972,7 @@ export default function BatchDetailPage() {
       </Card>
 
       <Dialog open={addUsersOpen} onOpenChange={setAddUsersOpen}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto border-blue-100/80 sm:max-w-2xl lg:max-w-3xl">
+        <DialogContent className="max-h-[90vh] overflow-y-auto border-border/80 sm:max-w-2xl lg:max-w-3xl">
           <DialogHeader>
             <DialogTitle className="text-xl">Add users</DialogTitle>
             <DialogDescription>
@@ -987,7 +987,7 @@ export default function BatchDetailPage() {
                 institution are added.
               </p>
               <textarea
-                className="mt-2 min-h-[88px] w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/30"
+                className="mt-2 min-h-[88px] w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
                 placeholder="a@x.com, b@y.com"
                 value={emailInput}
                 onChange={(e) => setEmailInput(e.target.value)}
@@ -1010,8 +1010,8 @@ export default function BatchDetailPage() {
               <p className="mt-1 text-xs text-slate-500">
                 Any column with email addresses works — we extract all addresses from the file.
               </p>
-              <label className="mt-2 flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-blue-200/60 bg-white px-4 py-8 transition hover:border-blue-300 hover:bg-blue-50/30">
-                <Upload className="mb-2 h-8 w-8 text-[rgb(37,99,235)]/70" />
+              <label className="mt-2 flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-border/60 bg-white px-4 py-8 transition hover:border-border hover:bg-muted/30">
+                <Upload className="mb-2 h-8 w-8 text-primary/70" />
                 <span className="text-sm font-semibold text-slate-800">Choose CSV file</span>
                 <span className="mt-1 text-xs text-slate-500">Drop or click to upload</span>
                 <input
@@ -1023,9 +1023,9 @@ export default function BatchDetailPage() {
               </label>
             </div>
             <div className="sm:col-span-2">
-              <div className="rounded-xl border border-blue-200/40 bg-gradient-to-br from-blue-50/50 to-white p-4">
+              <div className="rounded-xl border border-border bg-gradient-to-br from-muted/50 to-white p-4">
                 <h4 className="flex items-center gap-2 text-sm font-bold text-slate-900">
-                  <Search className="h-4 w-4 text-[rgb(37,99,235)]" />
+                  <Search className="h-4 w-4 text-primary" />
                   Search candidates
                 </h4>
                 <p className="mt-1 text-xs text-slate-500">
@@ -1039,14 +1039,14 @@ export default function BatchDetailPage() {
                 />
                 {searching ? (
                   <div className="mt-4 flex justify-center py-2">
-                    <Loader2 className="h-6 w-6 animate-spin text-[rgb(37,99,235)]" />
+                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
                   </div>
                 ) : searchResults.length > 0 ? (
                   <ul className="mt-3 max-h-52 space-y-1 overflow-auto rounded-lg border border-border bg-card p-2 shadow-inner">
                     {searchResults.map((u) => (
                       <li
                         key={u._id}
-                        className="flex items-center justify-between gap-2 rounded-lg px-2 py-2 text-sm transition hover:bg-blue-50/60"
+                        className="flex items-center justify-between gap-2 rounded-lg px-2 py-2 text-sm transition hover:bg-muted/60"
                       >
                         <span className="min-w-0">
                           <span className="font-semibold text-slate-900">{u.name}</span>
@@ -1087,7 +1087,7 @@ export default function BatchDetailPage() {
           if (open && batch) setEditName(batch.name || "");
         }}
       >
-        <DialogContent className="border-blue-100/80 sm:max-w-lg">
+        <DialogContent className="border-border/80 sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="text-xl">Edit batch</DialogTitle>
             <DialogDescription>
@@ -1133,11 +1133,11 @@ export default function BatchDetailPage() {
       </Dialog>
 
       <Card className={cn(institutePanelClass, "overflow-hidden shadow-xl")}>
-        <CardHeader className="border-b border-blue-100/60 bg-gradient-to-r from-blue-50/50 via-white to-indigo-50/30">
+        <CardHeader className="border-b border-border/60 bg-gradient-to-r from-muted/50 via-white to-indigo-50/30">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <CardTitle className="flex items-center gap-2 text-lg">
-                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-[rgb(37,99,235)] to-blue-600 shadow-md shadow-blue-500/20">
+                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary shadow-md shadow-primary/20">
                   <Layers className="h-4 w-4 text-white" />
                 </span>
                 Members
@@ -1200,12 +1200,12 @@ export default function BatchDetailPage() {
                   {members.map((m) => (
                     <TableRow
                       key={m.clerkId}
-                      className="group border-slate-100 align-middle transition-colors hover:bg-gradient-to-r hover:from-blue-50/50 hover:to-transparent"
+                      className="group border-slate-100 align-middle transition-colors hover:bg-gradient-to-r hover:bg-muted/50 hover:to-transparent"
                     >
                       <TableCell className="pl-6 align-middle">
                         <div className="flex items-center gap-3 py-0.5">
                           <div
-                            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-slate-100 to-slate-200/80 text-xs font-bold text-[rgb(37,99,235)] shadow-inner ring-2 ring-white"
+                            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-slate-100 to-slate-200/80 text-xs font-bold text-primary shadow-inner ring-2 ring-white"
                             aria-hidden
                           >
                             {memberInitials(m.name, m.email)}
@@ -1252,7 +1252,7 @@ export default function BatchDetailPage() {
       </Card>
 
       <Dialog open={bulkOpen} onOpenChange={setBulkOpen}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto border-blue-100/80 sm:max-w-2xl lg:max-w-3xl">
+        <DialogContent className="max-h-[90vh] overflow-y-auto border-border/80 sm:max-w-2xl lg:max-w-3xl">
           <DialogHeader>
             <DialogTitle className="text-xl">Bulk schedule interviews</DialogTitle>
             <DialogDescription>

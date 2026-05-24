@@ -2,7 +2,6 @@
 
 import React from "react";
 import Link from "next/link";
-import { SignedIn, SignedOut, UserButton } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -21,107 +20,23 @@ import {
   Scale,
   Mail,
 } from "lucide-react";
-import { InterviewTrixLogo } from "@/components/InterviewTrixLogo";
-import { NavigationMenu } from "@/components/NavigationMenu";
+import { SiteHeader } from "@/components/SiteHeader";
 import { MarketingFooter } from "@/components/MarketingFooter";
 
 export default function TermsOfServicePage() {
   return (
-    <div className="min-h-screen bg-white scroll-smooth selection:bg-blue-100">
-      {/* Navigation */}
-      <nav className="fixed top-0 w-full z-50">
-        <div
-          className="sm:hidden h-1"
-          style={{
-            backgroundColor: "rgb(37 99 235 / var(--tw-bg-opacity, 1))",
-          }}
-        ></div>
-
-        <div className="bg-white/95 backdrop-blur-xl border-b border-gray-100">
-          <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex items-center justify-between h-14 sm:h-16 lg:h-20">
-              <div className="flex items-center justify-between w-full sm:w-auto sm:justify-start sm:gap-4">
-                <div className="sm:hidden">
-                  <NavigationMenu />
-                </div>
-
-                <Link
-                  href="/"
-                  className="flex items-center hover:opacity-80 transition-opacity mx-auto sm:mx-0"
-                >
-                  <InterviewTrixLogo
-                    variant="onLightBg"
-                    className="h-7 w-auto sm:hidden"
-                    priority
-                  />
-                  <InterviewTrixLogo
-                    className="hidden sm:block h-8 lg:h-10 w-auto"
-                    priority
-                  />
-                </Link>
-
-                <div className="sm:hidden w-8"></div>
-              </div>
-
-              <div className="hidden sm:flex items-center gap-6 lg:gap-8">
-                <Link
-                  href="/ai-resume-builder"
-                  className="text-sm lg:text-base text-gray-700 hover:text-blue-600 transition-colors font-medium"
-                >
-                  Resume Builder
-                </Link>
-                <Link
-                  href="/ai-interview-coach"
-                  className="text-sm lg:text-base text-gray-700 hover:text-blue-600 transition-colors font-medium"
-                >
-                  AI Interview Coach
-                </Link>
-                <Link
-                  href="/about-us"
-                  className="text-sm lg:text-base text-gray-700 hover:text-blue-600 transition-colors font-medium"
-                >
-                  About us
-                </Link>
-
-                <SignedOut>
-                  <Link href="/sign-in">
-                    <Button
-                      variant="ghost"
-                      className="text-sm lg:text-base font-medium"
-                    >
-                      Sign In
-                    </Button>
-                  </Link>
-                  <Link href="/sign-up">
-                    <Button className="bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 shadow-md hover:shadow-lg transition-all text-sm lg:text-base">
-                      Start Interview
-                      <ArrowRight className="w-4 h-4 ml-2" />
-                    </Button>
-                  </Link>
-                </SignedOut>
-                <SignedIn>
-                  <Link href="/dashboard">
-                    <Button className="bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 shadow-md hover:shadow-lg transition-all text-sm lg:text-base">
-                      Dashboard
-                    </Button>
-                  </Link>
-                  <UserButton afterSignOutUrl="/" />
-                </SignedIn>
-              </div>
-            </div>
-          </div>
-        </div>
-      </nav>
+    <div className="min-h-screen bg-background scroll-smooth selection:bg-info-muted">
+      <SiteHeader />
 
       {/* Hero Section */}
-      <section className="pt-24 sm:pt-28 lg:pt-32 pb-12 sm:pb-16 lg:pb-20 px-4 sm:px-6 bg-gradient-to-br from-blue-50 via-white to-purple-50">
+      <section className="pt-24 sm:pt-28 lg:pt-32 pb-12 sm:pb-16 lg:pb-20 px-4 sm:px-6 bg-background">
         <div className="container mx-auto max-w-5xl">
           <div className="text-center mb-12 sm:mb-16">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-600 to-blue-700 rounded-2xl mb-6 shadow-lg">
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-primary to-primary rounded-2xl mb-6 shadow-lg">
               <FileText className="w-8 h-8 text-white" />
             </div>
             <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-slate-900 mb-4 sm:mb-6">
-              Terms of <span className="text-blue-600">Service</span>
+              Terms of <span className="text-primary">Service</span>
             </h1>
             <p className="text-base sm:text-lg text-gray-600 max-w-2xl mx-auto">
               Last updated: February 3, 2026
@@ -131,10 +46,10 @@ export default function TermsOfServicePage() {
           {/* Terms Content */}
           <div className="space-y-6">
             {/* Introduction */}
-            <Card className="border-2 border-blue-100 shadow-lg">
+            <Card className="border-2 border-border shadow-lg">
               <CardHeader>
                 <CardTitle className="text-2xl font-bold text-slate-900 flex items-center gap-3">
-                  <AlertCircle className="w-6 h-6 text-blue-600" />
+                  <AlertCircle className="w-6 h-6 text-primary" />
                   Introduction
                 </CardTitle>
               </CardHeader>
@@ -158,7 +73,7 @@ export default function TermsOfServicePage() {
             <Card className="border border-gray-200 shadow-md">
               <CardHeader>
                 <CardTitle className="text-xl font-bold text-slate-900 flex items-center gap-3">
-                  <Users className="w-6 h-6 text-blue-600" />
+                  <Users className="w-6 h-6 text-primary" />
                   Account Terms
                 </CardTitle>
               </CardHeader>
@@ -240,7 +155,7 @@ export default function TermsOfServicePage() {
             <Card className="border border-gray-200 shadow-md">
               <CardHeader>
                 <CardTitle className="text-xl font-bold text-slate-900 flex items-center gap-3">
-                  <Scale className="w-6 h-6 text-blue-600" />
+                  <Scale className="w-6 h-6 text-primary" />
                   Payment Terms
                 </CardTitle>
               </CardHeader>
@@ -374,10 +289,10 @@ export default function TermsOfServicePage() {
             </Card>
 
             {/* Contact Information */}
-            <Card className="border-2 border-blue-100 bg-gradient-to-br from-blue-50 to-white shadow-lg">
+            <Card className="border-2 border-border bg-gradient-to-br from-card to-card shadow-lg">
               <CardHeader>
                 <CardTitle className="text-xl font-bold text-slate-900 flex items-center gap-3">
-                  <Mail className="w-6 h-6 text-blue-600" />
+                  <Mail className="w-6 h-6 text-primary" />
                   Questions About Terms?
                 </CardTitle>
               </CardHeader>
@@ -386,11 +301,11 @@ export default function TermsOfServicePage() {
                   If you have any questions about these Terms of Service, please
                   contact us:
                 </p>
-                <div className="bg-white rounded-lg p-4 border border-blue-200">
+                <div className="bg-white rounded-lg p-4 border border-border">
                   <p className="font-semibold text-slate-900 mb-2">Email:</p>
                   <a
                     href="mailto:info@interviewtrix.com"
-                    className="text-blue-600 hover:text-blue-700 font-medium text-lg"
+                    className="text-primary hover:text-primary font-medium text-lg"
                   >
                     info@interviewtrix.com
                   </a>

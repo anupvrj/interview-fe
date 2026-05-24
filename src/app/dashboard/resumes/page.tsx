@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -12,7 +12,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import {
   Dialog,
@@ -26,9 +25,6 @@ import {
   FileEdit,
   Plus,
   Download,
-  Edit,
-  Trash2,
-  Copy,
   Loader2,
   TrendingUp,
   FileText,
@@ -44,23 +40,16 @@ import {
   Award,
 } from "lucide-react";
 import Image from "next/image";
-import { API_URL, Resume, resumeApi } from "@/lib/api";
-import { TEMPLATES_CATALOG } from "@/configs/resume-templates/templates-catalog";
+import { Resume, resumeApi } from "@/lib/api";
+import { cn } from "@/lib/utils";
 import {
-  cn,
-  formatDate,
-  getScoreColor,
-} from "@/lib/utils";
-import { instituteSecondaryClass } from "@/components/institute/InstituteChrome";
+  institutePrimaryClass,
+  instituteSecondaryClass,
+} from "@/components/institute/InstituteChrome";
+import { DashboardStatCard } from "@/components/dashboard/DashboardStatCard";
+import { DashboardResumesList } from "@/components/dashboard/DashboardResumesList";
 
-function resumeCardThumbnailSrc(resume: Resume): string | null {
-  if (resume.thumbnailS3Key) {
-    const base = API_URL.replace(/\/+$/, "");
-    return `${base}/resumes/${resume.resumeId}/thumbnail-url`;
-  }
-  const item = TEMPLATES_CATALOG.find((t) => t.id === resume.templateId);
-  return item?.thumbnail ?? null;
-}
+const RESUME_ITEMS_PER_PAGE = 10;
 
 export default function ResumesPage() {
   const { user, isLoaded } = useUser();
@@ -74,6 +63,7 @@ export default function ResumesPage() {
   const [resumeToDelete, setResumeToDelete] = useState<string | null>(null);
   const [showLimitModal, setShowLimitModal] = useState(false);
   const [checkingLimit, setCheckingLimit] = useState(false);
+  const [resumePage, setResumePage] = useState(1);
 
   // Resume Builder Animation States
   const [resumeText, setResumeText] = useState("");
@@ -293,10 +283,10 @@ export default function ResumesPage() {
 
   if (!isLoaded || loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
+      <div className="flex min-h-[400px] items-center justify-center">
         <div className="text-center">
-          <Loader2 className="w-12 h-12 animate-spin text-[rgb(37,99,235)] mx-auto mb-4" />
-          <p className="text-gray-600">Loading your resumes...</p>
+          <Loader2 className="mx-auto mb-4 h-12 w-12 animate-spin text-[#7367F0]" />
+          <p className="text-muted-foreground">Loading your resumes...</p>
         </div>
       </div>
     );
@@ -319,9 +309,9 @@ export default function ResumesPage() {
   return (
     <div className="w-full max-w-7xl mx-auto space-y-4 lg:space-y-6">
       {/* Resume Builder Hero Section */}
-      <section className="relative overflow-hidden rounded-md bg-blue-50 px-4 pb-8 pt-4 sm:px-6 sm:pb-12 sm:pt-6 md:pb-16">
+      <section className="relative overflow-hidden rounded-xl bg-[#7367F0]/[0.04] px-4 pb-8 pt-4 sm:px-6 sm:pb-12 sm:pt-6 md:pb-16">
         {/* Animated Background Elements */}
-        <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-md">
+        <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-xl">
           {[...Array(8)].map((_, i) => (
             <div
               key={i}
@@ -334,7 +324,7 @@ export default function ResumesPage() {
                 animationDelay: `${i * 0.5}s`,
               }}
             >
-              <FileText className="w-12 h-12 sm:w-16 sm:h-16 text-blue-400" />
+              <FileText className="h-12 w-12 text-[#7367F0]/40 sm:h-16 sm:w-16" />
             </div>
           ))}
           {[...Array(8)].map((_, i) => (
@@ -349,7 +339,7 @@ export default function ResumesPage() {
                 animationDelay: `${i * 0.5}s`,
               }}
             >
-              <Palette className="w-10 h-10 sm:w-14 sm:h-14 text-blue-300" />
+              <Palette className="h-10 w-10 text-[#7367F0]/30 sm:h-14 sm:w-14" />
             </div>
           ))}
           {[...Array(6)].map((_, i) => (
@@ -364,7 +354,7 @@ export default function ResumesPage() {
                 animationDelay: `${i * 0.7}s`,
               }}
             >
-              <FileCheck className="w-8 h-8 sm:w-12 sm:h-12 text-indigo-300" />
+              <FileCheck className="h-8 w-8 text-violet-300/60 sm:h-12 sm:w-12" />
             </div>
           ))}
         </div>
@@ -373,13 +363,13 @@ export default function ResumesPage() {
           <div className="grid lg:grid-cols-2 gap-8 sm:gap-12 lg:gap-16 items-center">
             {/* Left Side - Marketing Content */}
             <div className="space-y-4 sm:space-y-5 md:space-y-6 text-center lg:text-left">
-              <div className="inline-flex items-center gap-2 px-3 py-1 bg-blue-50 rounded-full text-blue-700 font-medium text-sm mb-4">
-                <Sparkles className="w-3 h-3" />
+              <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-[#7367F0]/10 px-3 py-1 text-sm font-medium text-[#7367F0]">
+                <Sparkles className="h-3 w-3" />
                 <span>ATS-optimized templates</span>
               </div>
               <h2 className="mb-4 text-2xl font-bold leading-[1.25] tracking-tight sm:mb-6 sm:text-3xl sm:leading-[1.15] md:text-4xl lg:text-[34px] lg:leading-[42px]">
                 <span className="text-slate-900">Pass the bots with a </span>
-                <span className="text-[rgb(37,99,235)]">stronger resume</span>
+                <span className="text-[#7367F0]">stronger resume</span>
               </h2>
               <p className="mx-auto max-w-xl px-2 text-sm leading-relaxed text-gray-600 sm:px-0 sm:text-base lg:mx-0">
                 Fresher or pro—our model analyzes your resume in real time,
@@ -390,19 +380,19 @@ export default function ResumesPage() {
               {/* Features List */}
               <div className="space-y-3 pt-4 sm:pt-6 px-2 sm:px-0">
                 <div className="flex items-start gap-3">
-                  <CheckCircle className="w-5 h-5 text-[rgb(37,99,235)] flex-shrink-0 mt-0.5" />
+                  <CheckCircle className="mt-0.5 h-5 w-5 shrink-0 text-[#7367F0]" />
                   <span className="text-xs text-gray-700 sm:text-sm">
                     ATS-optimized templates and parsing-friendly layouts
                   </span>
                 </div>
                 <div className="flex items-start gap-3">
-                  <CheckCircle className="w-5 h-5 text-[rgb(37,99,235)] flex-shrink-0 mt-0.5" />
+                  <CheckCircle className="mt-0.5 h-5 w-5 shrink-0 text-[#7367F0]" />
                   <span className="text-xs text-gray-700 sm:text-sm">
                     Real-time suggestions and Smart ATS Score
                   </span>
                 </div>
                 <div className="flex items-start gap-3">
-                  <CheckCircle className="w-5 h-5 text-[rgb(37,99,235)] flex-shrink-0 mt-0.5" />
+                  <CheckCircle className="mt-0.5 h-5 w-5 shrink-0 text-[#7367F0]" />
                   <span className="text-xs text-gray-700 sm:text-sm">
                     Export when you&apos;re ready—PDF, Word, and more
                   </span>
@@ -414,9 +404,12 @@ export default function ResumesPage() {
                   <Button
                     size="lg"
                     variant="outline"
-                    className="w-full sm:w-auto border-2 border-[rgb(37,99,235)] text-[rgb(37,99,235)] hover:!bg-[rgb(37,99,235)] hover:!text-white font-semibold text-sm sm:text-base px-5 sm:px-6 py-4 sm:py-5 h-auto shadow-lg hover:shadow-xl transition-all"
+                    className={cn(
+                      instituteSecondaryClass,
+                      "h-auto w-full px-5 py-4 text-sm font-semibold shadow-lg transition-all hover:shadow-xl sm:w-auto sm:px-6 sm:py-5 sm:text-base",
+                    )}
                   >
-                    <TrendingUp className="w-4 h-4 mr-2" />
+                    <TrendingUp className="mr-2 h-4 w-4" />
                     Check ATS Score
                   </Button>
                 </Link>
@@ -424,13 +417,16 @@ export default function ResumesPage() {
                   size="lg"
                   onClick={handleCreateResumeClick}
                   disabled={checkingLimit}
-                  className="w-full sm:w-auto !bg-[rgb(37,99,235)] hover:!bg-[rgb(17,24,39)] text-white font-semibold text-sm sm:text-base px-5 sm:px-6 py-4 sm:py-5 h-auto shadow-lg hover:shadow-xl transition-all"
+                  className={cn(
+                    institutePrimaryClass,
+                    "h-auto w-full px-5 py-4 text-sm font-semibold shadow-lg transition-all hover:shadow-xl sm:w-auto sm:px-6 sm:py-5 sm:text-base",
+                  )}
                 >
                   {checkingLimit && (
-                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   )}
                   Create New Resume
-                  {!checkingLimit && <ArrowRight className="w-4 h-4 ml-2" />}
+                  {!checkingLimit && <ArrowRight className="ml-2 h-4 w-4" />}
                 </Button>
               </div>
             </div>
@@ -439,7 +435,7 @@ export default function ResumesPage() {
             <div className="relative flex justify-center lg:justify-start">
               <div className="relative w-full max-w-[600px] overflow-hidden rounded-md border border-border bg-card shadow-lg sm:max-w-[700px]">
                 {/* Resume Builder Header */}
-                <div className="p-4 sm:p-6 bg-gradient-to-br from-blue-50 to-indigo-50 border-b border-gray-200">
+                <div className="border-b border-gray-200 bg-gradient-to-br from-[#7367F0]/5 to-violet-50/80 p-4 sm:p-6">
                   <div className="flex items-center justify-between mb-3">
                     <h3 className="text-sm sm:text-base font-bold text-slate-900">
                       Resume Builder
@@ -491,15 +487,15 @@ export default function ResumesPage() {
                         className="animate-fadeInUp w-full"
                         style={{ animation: "fadeInUp 0.6s ease-out" }}
                       >
-                        <div className="flex items-center gap-3 p-4 bg-blue-50 rounded-lg border border-blue-100">
-                          <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center animate-pulse">
-                            <Brain className="w-4 h-4 text-white" />
+                        <div className="flex items-center gap-3 rounded-lg border border-[#7367F0]/10 bg-[#7367F0]/5 p-4">
+                          <div className="flex h-8 w-8 animate-pulse items-center justify-center rounded-full bg-[#7367F0]">
+                            <Brain className="h-4 w-4 text-white" />
                           </div>
                           <div className="flex-1">
-                            <div className="h-2 bg-blue-200 rounded-full w-3/4 mb-2 animate-pulse"></div>
-                            <div className="h-2 bg-blue-100 rounded-full w-1/2 animate-pulse"></div>
+                            <div className="mb-2 h-2 w-3/4 animate-pulse rounded-full bg-[#7367F0]/20"></div>
+                            <div className="h-2 w-1/2 animate-pulse rounded-full bg-[#7367F0]/10"></div>
                           </div>
-                          <span className="text-xs sm:text-sm text-blue-600 font-medium">
+                          <span className="text-xs font-medium text-[#7367F0] sm:text-sm">
                             Enhancing...
                           </span>
                         </div>
@@ -513,7 +509,7 @@ export default function ResumesPage() {
                         style={{ animation: "fadeInUp 0.6s ease-out" }}
                       >
                         <h4 className="text-xs sm:text-sm font-bold text-slate-900 mb-2 flex items-center gap-2">
-                          <GripVertical className="w-3 h-3 text-[rgb(37,99,235)]" />
+                          <GripVertical className="h-3 w-3 text-[#7367F0]" />
                           SKILLS
                         </h4>
                         <div className="flex flex-wrap gap-2">
@@ -529,7 +525,7 @@ export default function ResumesPage() {
                           ].map((skill, index) => (
                             <span
                               key={skill}
-                              className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-medium"
+                              className="rounded bg-[#7367F0]/10 px-2 py-1 text-xs font-medium text-[#7367F0]"
                               style={{
                                 animation: `fadeInUp 0.5s ease-out ${index * 0.08}s both`,
                               }}
@@ -548,7 +544,7 @@ export default function ResumesPage() {
                         style={{ animation: "fadeInUp 0.6s ease-out" }}
                       >
                         <h4 className="text-xs sm:text-sm font-bold text-slate-900 mb-2 flex items-center gap-2">
-                          <GripVertical className="w-3 h-3 text-[rgb(37,99,235)]" />
+                          <GripVertical className="h-3 w-3 text-[#7367F0]" />
                           PROJECTS
                         </h4>
                         <div className="space-y-2 max-h-[200px] overflow-y-auto">
@@ -572,7 +568,7 @@ export default function ResumesPage() {
                           ].map((project, index) => (
                             <div
                               key={index}
-                              className="bg-blue-50 rounded p-2 border border-blue-100 transition-all duration-300 hover:shadow-md"
+                              className="rounded border border-[#7367F0]/10 bg-[#7367F0]/5 p-2 transition-all duration-300 hover:shadow-md"
                               style={{
                                 animation: `fadeInUp 0.6s ease-out ${index * 0.12}s both`,
                               }}
@@ -596,7 +592,7 @@ export default function ResumesPage() {
                         style={{ animation: "fadeInUp 0.6s ease-out" }}
                       >
                         <h4 className="text-xs sm:text-sm font-bold text-slate-900 mb-2 flex items-center gap-2">
-                          <GripVertical className="w-3 h-3 text-[rgb(37,99,235)]" />
+                          <GripVertical className="h-3 w-3 text-[#7367F0]" />
                           EDUCATION
                         </h4>
                         <div className="space-y-2">
@@ -617,7 +613,7 @@ export default function ResumesPage() {
                           ].map((edu, index) => (
                             <div
                               key={index}
-                              className="bg-blue-50 rounded p-2 border border-blue-100 transition-all duration-300 hover:shadow-md"
+                              className="rounded border border-[#7367F0]/10 bg-[#7367F0]/5 p-2 transition-all duration-300 hover:shadow-md"
                               style={{
                                 animation: `fadeInUp 0.6s ease-out ${index * 0.12}s both`,
                               }}
@@ -640,7 +636,7 @@ export default function ResumesPage() {
                         className="w-full h-full flex items-center justify-center animate-fadeInUp"
                         style={{ animation: "fadeInUp 0.6s ease-out" }}
                       >
-                        <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg p-4 border-2 border-blue-200 w-full max-w-md">
+                        <div className="w-full max-w-md rounded-lg border-2 border-[#7367F0]/20 bg-gradient-to-br from-[#7367F0]/5 to-violet-50/80 p-4">
                           <div className="flex items-center justify-center mb-3">
                             <div className="relative w-full max-w-[180px] aspect-[210/297] bg-white rounded shadow-lg overflow-hidden">
                               <Image
@@ -701,19 +697,19 @@ export default function ResumesPage() {
                         className="w-full animate-fadeInUp"
                         style={{ animation: "fadeInUp 0.6s ease-out" }}
                       >
-                        <div className="w-full max-w-md mx-auto p-6 bg-blue-50 border border-blue-200 rounded-lg">
-                          <div className="text-center space-y-4">
+                        <div className="mx-auto w-full max-w-md rounded-lg border border-[#7367F0]/20 bg-[#7367F0]/5 p-6">
+                          <div className="space-y-4 text-center">
                             <div>
-                              <p className="text-base sm:text-lg font-semibold text-blue-900 mb-1">
+                              <p className="mb-1 text-base font-semibold text-[#5E50EE] sm:text-lg">
                                 Resume Ready!
                               </p>
-                              <p className="text-sm text-blue-700">
+                              <p className="text-sm text-[#7367F0]/80">
                                 Download in PDF or Word format
                               </p>
                             </div>
                             <div className="flex justify-center">
-                              <div className="px-6 py-3 bg-[rgb(37,99,235)] text-white rounded-md flex items-center gap-2 cursor-default animate-pulse">
-                                <Download className="w-5 h-5" />
+                              <div className="flex animate-pulse cursor-default items-center gap-2 rounded-md bg-[#7367F0] px-6 py-3 text-white">
+                                <Download className="h-5 w-5" />
                                 <span className="text-sm font-medium">
                                   Download
                                 </span>
@@ -734,108 +730,69 @@ export default function ResumesPage() {
       {/* Quick Stats */}
       {resumes.length > 0 && (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
-          <div className="flex min-h-0 min-w-0 items-start gap-3 rounded-md border border-blue-200/50 bg-gradient-to-br from-blue-50 to-blue-100/50 p-4 shadow-lg shadow-blue-500/10 backdrop-blur-sm transition-all duration-300 hover:shadow-xl hover:shadow-blue-500/20 sm:gap-4 sm:p-5">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[rgb(37,99,235)] to-blue-600 shadow-lg shadow-blue-500/30 ring-2 ring-blue-200/50 sm:h-12 sm:w-12">
-              <FileEdit className="h-5 w-5 text-white sm:h-6 sm:w-6" />
-            </div>
-            <div className="min-w-0 flex-1 space-y-1.5">
-              <div className="flex items-center justify-between gap-2">
-                <p className="min-w-0 truncate text-xs font-bold leading-tight text-[rgb(37,99,235)] sm:text-sm">
-                  Total resumes
-                </p>
-                <p className="shrink-0 text-right text-lg font-bold tabular-nums leading-none text-slate-900 sm:text-xl lg:text-2xl">
-                  {resumes.length}
-                </p>
-              </div>
-              <div className="flex flex-wrap items-center gap-1.5 text-xs font-medium text-slate-600 sm:text-sm">
+          <DashboardStatCard
+            theme="emerald"
+            label="Total resumes"
+            value={resumes.length}
+            icon={FileEdit}
+            hint={
+              <>
                 <FileText className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
                 <span>In builder</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex min-h-0 min-w-0 items-start gap-3 rounded-md border border-blue-200/50 bg-gradient-to-br from-blue-50 to-blue-100/50 p-4 shadow-lg shadow-blue-500/10 backdrop-blur-sm transition-all duration-300 hover:shadow-xl hover:shadow-blue-500/20 sm:gap-4 sm:p-5">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[rgb(37,99,235)] to-blue-600 shadow-lg shadow-blue-500/30 ring-2 ring-blue-200/50 sm:h-12 sm:w-12">
-              <Target className="h-5 w-5 text-white sm:h-6 sm:w-6" />
-            </div>
-            <div className="min-w-0 flex-1 space-y-1.5">
-              <div className="flex items-center justify-between gap-2">
-                <p className="min-w-0 truncate text-xs font-bold leading-tight text-[rgb(37,99,235)] sm:text-sm">
-                  Average ATS
-                </p>
-                <p
-                  className={cn(
-                    "shrink-0 text-right text-lg font-bold tabular-nums leading-none sm:text-xl lg:text-2xl",
-                    resumesWithAts.length > 0
-                      ? getScoreColor(avgAts)
-                      : "text-slate-900",
-                  )}
-                >
-                  {resumesWithAts.length > 0 ? `${avgAts}/100` : "—"}
-                </p>
-              </div>
-              <Progress
-                value={avgAts}
-                className="h-2 w-full overflow-hidden rounded-full border border-blue-300/90 bg-blue-100/90 shadow-[inset_0_1px_2px_rgba(0,0,0,0.06)] sm:h-2.5"
-              />
-              <div className="flex flex-wrap items-center gap-1.5 text-xs font-medium text-slate-600 sm:text-sm">
+              </>
+            }
+          />
+          <DashboardStatCard
+            theme="violet"
+            label="Average ATS"
+            value={resumesWithAts.length > 0 ? `${avgAts}/100` : "—"}
+            icon={Target}
+            progress={resumesWithAts.length > 0 ? avgAts : undefined}
+            hint={
+              <>
                 <Percent className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
                 <span>
                   {resumesWithAts.length > 0
                     ? `${resumesWithAts.length} scored`
                     : "No ATS run yet"}
                 </span>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex min-h-0 min-w-0 items-start gap-3 rounded-md border border-blue-200/50 bg-gradient-to-br from-blue-50 to-blue-100/50 p-4 shadow-lg shadow-blue-500/10 backdrop-blur-sm transition-all duration-300 hover:shadow-xl hover:shadow-blue-500/20 sm:col-span-2 sm:gap-4 sm:p-5 lg:col-span-1">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[rgb(37,99,235)] to-blue-600 shadow-lg shadow-blue-500/30 ring-2 ring-blue-200/50 sm:h-12 sm:w-12">
-              <Award className="h-5 w-5 text-white sm:h-6 sm:w-6" />
-            </div>
-            <div className="min-w-0 flex-1 space-y-1.5">
-              <div className="flex items-center justify-between gap-2">
-                <p className="min-w-0 truncate text-xs font-bold leading-tight text-[rgb(37,99,235)] sm:text-sm">
-                  ATS ready (≥80)
-                </p>
-                <p className="shrink-0 text-right text-lg font-bold tabular-nums leading-none text-slate-900 sm:text-xl lg:text-2xl">
-                  {atsReadyCount}
-                </p>
-              </div>
-              <div className="flex flex-wrap items-center gap-1.5 text-xs font-medium text-slate-600 sm:text-sm">
+              </>
+            }
+          />
+          <DashboardStatCard
+            theme="amber"
+            label="ATS ready (≥80)"
+            value={atsReadyCount}
+            icon={Award}
+            hint={
+              <>
                 <CheckCircle className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
                 <span>Strong ATS scores</span>
-              </div>
-            </div>
-          </div>
+              </>
+            }
+          />
         </div>
       )}
 
-      <Card className="rounded-md border border-border bg-card shadow-sm">
-        <CardHeader className="pb-4">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <Card className="overflow-hidden rounded-xl border border-border/60 bg-card shadow-card">
+        <CardHeader className="border-b border-border/60 px-5 py-4">
+          <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
             <div>
-              <div className="mb-2 flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-md bg-gradient-to-br from-[rgb(37,99,235)] to-blue-600 shadow-lg shadow-blue-500/30 ring-2 ring-blue-200/50">
-                  <FileText className="h-5 w-5 text-white" />
-                </div>
-                <CardTitle className="text-xl text-slate-900 lg:text-2xl">
-                  Your resumes
-                </CardTitle>
-              </div>
-              <CardDescription className="text-sm text-gray-600">
+              <CardTitle className="text-lg font-semibold text-foreground">
+                Your resumes
+              </CardTitle>
+              <CardDescription className="mt-1 text-sm">
                 {resumes.length === 0
                   ? "Smart ATS Score + recruiter-ready phrasing begins with your first file."
                   : `Showing ${resumes.length} resume${
                       resumes.length === 1 ? "" : "s"
-                    }—keep iterating until Smart ATS clears the bots and reads strong on the desk review.`}
+                    }—keep iterating until Smart ATS clears the bots.`}
               </CardDescription>
             </div>
             <Button
-              size="lg"
               onClick={handleCreateResumeClick}
               disabled={checkingLimit}
-              className="!bg-[rgb(37,99,235)] text-white shadow-lg transition-all hover:!bg-[rgb(17,24,39)] hover:shadow-xl"
+              className={institutePrimaryClass}
             >
               {checkingLimit ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -846,190 +803,21 @@ export default function ResumesPage() {
             </Button>
           </div>
         </CardHeader>
-        <CardContent>
-          {resumes.length === 0 ? (
-            <div className="py-16 text-center">
-              <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-md bg-gradient-to-br from-blue-100 to-blue-200 shadow-lg">
-                <FileEdit className="h-10 w-10 text-[rgb(37,99,235)]" />
-              </div>
-              <h3 className="mb-2 text-xl font-bold text-slate-900">
-                No resumes yet
-              </h3>
-              <p className="mx-auto mb-8 max-w-md text-gray-600">
-                Choose an ATS-friendly template, let Smart ATS Score spotlight
-                formatting gaps live, graduate past the ATS black hole, then pair
-                the same file with AI Interview Practice from the sidebar.
-              </p>
-              <Button
-                size="lg"
-                onClick={handleCreateResumeClick}
-                disabled={checkingLimit}
-                className="!bg-[rgb(37,99,235)] text-white shadow-lg transition-all hover:!bg-[rgb(17,24,39)] hover:shadow-xl"
-              >
-                {checkingLimit ? (
-                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                ) : (
-                  <Plus className="mr-2 h-5 w-5" />
-                )}
-                Create your first resume
-              </Button>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {resumes.map((resume) => {
-                const cardThumbnailSrc = resumeCardThumbnailSrc(resume);
-                return (
-                  <div
-                    key={resume._id}
-                    className="group rounded-md border border-border bg-card p-4 shadow-sm transition-shadow hover:shadow-md"
-                  >
-                    {/* Resume Thumbnail - Clickable */}
-                    <Link href={`/dashboard/resumes/${resume.resumeId}/edit`}>
-                    {cardThumbnailSrc ? (
-                      <div className="group relative mb-3 aspect-[210/297] cursor-pointer overflow-hidden rounded-md border border-slate-200 bg-gray-100 transition-all hover:border-[rgb(37,99,235)]/50 hover:shadow-md">
-                        <img
-                          src={cardThumbnailSrc}
-                          alt={resume.title}
-                          className="h-full w-full object-cover object-top transition-transform duration-300 group-hover:scale-105"
-                          onLoad={() => {
-                            console.log(
-                              "Thumbnail loaded successfully for:",
-                              resume.title,
-                            );
-                          }}
-                          onError={(e) => {
-                            console.error(
-                              "Thumbnail failed to load for:",
-                              resume.title,
-                            );
-                            e.currentTarget.style.display = "none";
-                            const fallback = e.currentTarget.nextElementSibling;
-                            if (fallback) {
-                              (fallback as HTMLElement).style.display = "flex";
-                            }
-                          }}
-                        />
-                        <div className="absolute inset-0 hidden h-full w-full items-center justify-center bg-slate-50">
-                          <FileText className="h-8 w-8 text-slate-300" />
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="mb-3 flex aspect-[210/297] cursor-pointer items-center justify-center rounded-md border border-slate-200 bg-slate-50 transition-all hover:border-[rgb(37,99,235)]/50 hover:shadow-md">
-                        <div className="px-2 text-center">
-                          <FileText className="mx-auto mb-1 h-8 w-8 text-[rgb(37,99,235)]/50" />
-                          <p className="text-[10px] leading-tight text-gray-500">
-                            No preview
-                          </p>
-                          <p className="text-[9px] leading-tight text-gray-400">
-                            Download PDF
-                          </p>
-                        </div>
-                      </div>
-                    )}
-                    </Link>
-
-                    {/* Resume Info */}
-                    <div className="mb-3">
-                      <div className="mb-2 flex items-start justify-between gap-2">
-                        <div className="min-w-0 flex-1">
-                          <h3 className="mb-1 truncate text-sm font-semibold text-slate-900">
-                            {resume.title}
-                          </h3>
-                          <p className="mb-1.5 text-xs text-gray-600">
-                            {formatDate(resume.updatedAt)}
-                          </p>
-                          {typeof resume.atsScore === "number" &&
-                          Number.isFinite(resume.atsScore) ? (
-                            <div className="flex items-center gap-1.5">
-                              <span className="text-[10px] text-gray-500">
-                                ATS
-                              </span>
-                              <span
-                                className={cn(
-                                  "text-xs font-bold tabular-nums",
-                                  getScoreColor(resume.atsScore),
-                                )}
-                              >
-                                {resume.atsScore}/100
-                              </span>
-                            </div>
-                          ) : null}
-                        </div>
-                        {resume.isDefault && (
-                          <span className="inline-flex shrink-0 rounded-full border border-violet-200 bg-violet-100 px-2 py-0.5 text-[9px] font-semibold text-violet-800">
-                            Default
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Action Buttons */}
-                    <div className="flex flex-wrap gap-1.5">
-                      <Link
-                        href={`/dashboard/resumes/${resume.resumeId}/edit`}
-                        className={cn(
-                          buttonVariants({ variant: "outline", size: "sm" }),
-                          instituteSecondaryClass,
-                          "h-8 min-w-0 flex-1 gap-1 px-2 text-[11px]",
-                        )}
-                      >
-                        <Edit className="h-3 w-3 shrink-0" />
-                        Edit
-                      </Link>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleDownload(resume.resumeId)}
-                        disabled={downloadingId === resume.resumeId}
-                        className={cn(
-                          instituteSecondaryClass,
-                          "h-8 min-w-0 flex-1 gap-1 px-2 text-[11px] disabled:opacity-50",
-                        )}
-                      >
-                        {downloadingId === resume.resumeId ? (
-                          <Loader2 className="h-3 w-3 shrink-0 animate-spin" />
-                        ) : (
-                          <Download className="h-3 w-3 shrink-0" />
-                        )}
-                        PDF
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleDuplicate(resume.resumeId)}
-                        disabled={duplicatingId === resume.resumeId}
-                        className={cn(
-                          instituteSecondaryClass,
-                          "h-8 shrink-0 px-2 disabled:opacity-50",
-                        )}
-                        title="Duplicate"
-                      >
-                        {duplicatingId === resume.resumeId ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        ) : (
-                          <Copy className="h-3.5 w-3.5" />
-                        )}
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleDeleteClick(resume.resumeId)}
-                        disabled={deletingId === resume.resumeId}
-                        className="h-8 shrink-0 border-red-300 px-2 text-red-700 transition-colors hover:bg-red-50 disabled:opacity-50"
-                        title="Delete"
-                      >
-                        {deletingId === resume.resumeId ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        ) : (
-                          <Trash2 className="h-3.5 w-3.5" />
-                        )}
-                      </Button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+        <CardContent className="p-0">
+          <DashboardResumesList
+            resumes={resumes}
+            currentPage={resumePage}
+            itemsPerPage={RESUME_ITEMS_PER_PAGE}
+            onPageChange={setResumePage}
+            onDownload={handleDownload}
+            downloadingResumeId={downloadingId}
+            onDuplicate={handleDuplicate}
+            onDelete={handleDeleteClick}
+            duplicatingResumeId={duplicatingId}
+            deletingResumeId={deletingId}
+            onCreateClick={handleCreateResumeClick}
+            createLoading={checkingLimit}
+          />
         </CardContent>
       </Card>
 
@@ -1048,7 +836,7 @@ export default function ResumesPage() {
 
       {/* Resume limit reached – upgrade plan modal */}
       <Dialog open={showLimitModal} onOpenChange={setShowLimitModal}>
-        <DialogContent className="sm:max-w-md border-2 border-blue-200 bg-white shadow-xl">
+        <DialogContent className="border border-[#7367F0]/20 bg-white shadow-xl sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="text-xl font-bold text-gray-900">
               Resume limit reached
@@ -1071,7 +859,7 @@ export default function ResumesPage() {
                 setShowLimitModal(false);
                 router.push("/dashboard/plan");
               }}
-              className="!bg-[rgb(37,99,235)] hover:!bg-[rgb(17,24,39)] text-white"
+              className={institutePrimaryClass}
             >
               Upgrade plan
               <ArrowRight className="w-4 h-4 ml-2" />

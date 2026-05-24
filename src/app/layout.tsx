@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Public_Sans } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 import { AppGoogleAnalytics } from "@/components/AppGoogleAnalytics";
 import { UserProvider } from "@/components/UserProvider";
@@ -15,7 +15,7 @@ import {
 } from "@/components/StructuredData";
 import "./globals.css";
 
-const inter = Inter({ subsets: ["latin"] });
+const publicSans = Public_Sans({ subsets: ["latin"], variable: "--font-sans" });
 
 export const metadata: Metadata = {
   metadataBase: new URL(
@@ -97,7 +97,7 @@ export default function RootLayout({
           <StructuredData data={organizationSchema} />
           <StructuredData data={webApplicationSchema} />
         </head>
-        <body className={inter.className} suppressHydrationWarning>
+        <body className={publicSans.className} suppressHydrationWarning>
           <AppGoogleAnalytics gaId={gaMeasurementId} />
           <AppMicrosoftClarity projectId={clarityProjectId} />
           <TemplateRegistryInitializer />

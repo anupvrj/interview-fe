@@ -378,7 +378,7 @@ function CodingRunResultsPanel({
                   className={cn(
                     "whitespace-pre-wrap break-words rounded border px-2 py-1.5 font-mono text-xs max-h-24 overflow-y-auto",
                     dark
-                      ? "border-blue-400/35 bg-blue-500/10 text-blue-200/90"
+                      ? "border-primary/35 bg-primary/10 text-primary-foreground/90"
                       : "border-amber-200 bg-amber-50/80 text-amber-950",
                   )}
                 >
@@ -422,7 +422,7 @@ function ProblemDescriptionDark({
     <div className="space-y-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2">
-          <FileText className="h-4 w-4 shrink-0 text-blue-400/80" aria-hidden />
+          <FileText className="h-4 w-4 shrink-0 text-primary/70/80" aria-hidden />
           <h2 className="truncate text-base font-semibold tracking-tight text-white">
             {problem.title}
           </h2>
@@ -495,12 +495,12 @@ function CodingPhaseStepper({
         className={cn(
           "flex items-center gap-1.5 rounded-full border px-2.5 py-1",
           codingActive
-            ? "border-blue-400/40 bg-blue-500/15 text-blue-300"
+            ? "border-primary/40 bg-primary/15 text-primary/50"
             : "border-white/10 text-gray-500",
         )}
       >
         {codingActive ? (
-          <Check className="h-3 w-3 shrink-0 text-blue-400" aria-hidden />
+          <Check className="h-3 w-3 shrink-0 text-primary/70" aria-hidden />
         ) : (
           <span
             className="h-3 w-3 shrink-0 rounded-full border border-white/20"
@@ -534,7 +534,7 @@ function CodingPhaseStepper({
         )}
       >
         {allSubmitted ? (
-          <Check className="h-3 w-3 shrink-0 text-blue-400" aria-hidden />
+          <Check className="h-3 w-3 shrink-0 text-primary/70" aria-hidden />
         ) : null}
         All submitted
       </li>
@@ -1343,7 +1343,7 @@ export default function CodingInterviewSessionPage() {
             aria-hidden
           />
           <div
-            className="absolute right-0 top-24 h-80 w-80 rounded-full bg-blue-500/10 blur-3xl"
+            className="absolute right-0 top-24 h-80 w-80 rounded-full bg-primary/10 blur-3xl"
             aria-hidden
           />
         </div>
@@ -1384,7 +1384,7 @@ export default function CodingInterviewSessionPage() {
               {allSubmitted ? (
                 <Button
                   type="button"
-                  className="rounded-xl bg-gradient-to-r from-violet-600 to-blue-600 px-4 text-xs text-white shadow-lg shadow-black/25 transition-none hover:from-violet-700 hover:to-blue-700 sm:h-10 sm:text-sm"
+                  className="rounded-xl bg-gradient-to-r from-violet-600 to-primary px-4 text-xs text-white shadow-lg shadow-black/25 transition-none hover:from-violet-700 hover:bg-slate-900 sm:h-10 sm:text-sm"
                   onClick={() => setDiscussionPromptOpen(true)}
                   disabled={voiceEmbedOpen}
                 >
@@ -1417,7 +1417,7 @@ export default function CodingInterviewSessionPage() {
           >
             <div className="shrink-0 border-b border-white/10 p-3">
               <h3 className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-gray-300/90">
-                <Video className="h-4 w-4 text-blue-400/90" aria-hidden />
+                <Video className="h-4 w-4 text-primary/70/90" aria-hidden />
                 Your camera
               </h3>
               <video
@@ -1494,7 +1494,7 @@ export default function CodingInterviewSessionPage() {
                           {p.difficulty}
                         </span>
                         {sub ? (
-                          <span className="mt-1 text-[11px] text-blue-400/95 sm:text-xs">
+                          <span className="mt-1 text-[11px] text-primary/70/95 sm:text-xs">
                             Done · {sub.finalScore}% ({sub.testsPassed}/
                             {sub.testsTotal})
                           </span>
@@ -1559,7 +1559,7 @@ export default function CodingInterviewSessionPage() {
           <button
             type="button"
             aria-label="Drag to resize problem and editor panels"
-            className="hidden min-h-0 w-2 shrink-0 cursor-col-resize touch-none flex-col items-center justify-center border-x border-white/10 bg-white/[0.06] hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400/60 xl:flex"
+            className="hidden min-h-0 w-2 shrink-0 cursor-col-resize touch-none flex-col items-center justify-center border-x border-white/10 bg-white/[0.06] hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 xl:flex"
             onPointerDown={onColSplitPointerDown}
             onPointerMove={onColSplitPointerMove}
             onPointerUp={onColSplitPointerUp}
@@ -1575,7 +1575,7 @@ export default function CodingInterviewSessionPage() {
             <div className="flex min-h-0 flex-1 flex-col p-3 sm:p-4">
               <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                 <h3 className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-gray-300/90">
-                  <Braces className="h-4 w-4 text-blue-400/90" aria-hidden />
+                  <Braces className="h-4 w-4 text-primary/70/90" aria-hidden />
                   Code editor
                 </h3>
                 <Select
@@ -1588,7 +1588,7 @@ export default function CodingInterviewSessionPage() {
                     setLanguage(v);
                   }}
                 >
-                  <SelectTrigger className="h-9 w-[150px] rounded-xl border-white/15 bg-white/[0.06] text-xs text-white shadow-md shadow-black/20 focus:ring-blue-400/40 sm:text-sm">
+                  <SelectTrigger className="h-9 w-[150px] rounded-xl border-white/15 bg-white/[0.06] text-xs text-white shadow-md shadow-black/20 focus:ring-primary/40 sm:text-sm">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="z-[200] rounded-xl border-white/10 bg-[#0b1220] text-white shadow-xl">
@@ -1632,7 +1632,7 @@ export default function CodingInterviewSessionPage() {
                 <Button
                   type="button"
                   onClick={handleSubmitProblem}
-                  className="rounded-xl bg-gradient-to-r from-violet-600 to-blue-600 px-4 text-xs text-white shadow-lg shadow-black/25 transition-none hover:from-violet-700 hover:to-blue-700 sm:h-10 sm:text-sm"
+                  className="rounded-xl bg-gradient-to-r from-violet-600 to-primary px-4 text-xs text-white shadow-lg shadow-black/25 transition-none hover:from-violet-700 hover:bg-slate-900 sm:h-10 sm:text-sm"
                 >
                   <Send className="mr-1 h-4 w-4" />
                   Submit all
@@ -1700,7 +1700,7 @@ export default function CodingInterviewSessionPage() {
               <Button
                 type="button"
                 disabled={discussBusy}
-                className="rounded-xl bg-gradient-to-r from-violet-600 to-blue-600 text-white hover:from-violet-700 hover:to-blue-700"
+                className="rounded-xl bg-gradient-to-r from-violet-600 to-primary text-white hover:from-violet-700 hover:bg-slate-900"
                 onClick={() => void launchDiscussionVoice()}
               >
                 {discussBusy ? (
@@ -1725,7 +1725,7 @@ export default function CodingInterviewSessionPage() {
           aria-hidden
         />
         <div
-          className="absolute right-0 top-24 h-80 w-80 rounded-full bg-blue-500/10 blur-3xl"
+          className="absolute right-0 top-24 h-80 w-80 rounded-full bg-primary/10 blur-3xl"
           aria-hidden
         />
       </div>
@@ -1752,7 +1752,7 @@ export default function CodingInterviewSessionPage() {
           <div className="flex flex-wrap items-center justify-end gap-2">
             <Button
               type="button"
-              className="rounded-xl bg-gradient-to-r from-violet-600 to-blue-600 px-4 text-xs text-white shadow-lg shadow-black/25 transition-none hover:from-violet-700 hover:to-blue-700 sm:h-10 sm:text-sm"
+              className="rounded-xl bg-gradient-to-r from-violet-600 to-primary px-4 text-xs text-white shadow-lg shadow-black/25 transition-none hover:from-violet-700 hover:bg-slate-900 sm:h-10 sm:text-sm"
               onClick={() => setStartSessionOpen(true)}
               disabled={starting}
             >
@@ -1794,7 +1794,7 @@ export default function CodingInterviewSessionPage() {
                   <Button
                     type="button"
                     disabled={starting}
-                    className="rounded-xl bg-gradient-to-r from-violet-600 to-blue-600 text-white hover:from-violet-700 hover:to-blue-700"
+                    className="rounded-xl bg-gradient-to-r from-violet-600 to-primary text-white hover:from-violet-700 hover:bg-slate-900"
                     onClick={() => void handleStartCoding()}
                   >
                     {starting ? (
@@ -1823,7 +1823,7 @@ export default function CodingInterviewSessionPage() {
         <div className="w-full max-w-md space-y-5 text-center">
           <div className="space-y-2 text-left">
             <h3 className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-gray-300/90">
-              <Video className="h-4 w-4 text-blue-400/90" aria-hidden />
+              <Video className="h-4 w-4 text-primary/70/90" aria-hidden />
               Camera &amp; mic
             </h3>
             <video

@@ -188,7 +188,7 @@ export const PLAN_CONFIG: Record<string, PlanConfig> = {
       behavioralAnalysis: true,
       progressTracking: true,
     },
-    color: "from-blue-600 to-blue-700",
+    color: "from-primary to-primary",
     icon: "Trophy",
     isPopular: true,
     order: 2,

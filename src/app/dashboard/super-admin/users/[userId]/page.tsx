@@ -165,7 +165,7 @@ export default function SuperAdminUserViewPage() {
   if (!profile) {
     return (
       <div className="flex min-h-[400px] items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
@@ -183,7 +183,7 @@ export default function SuperAdminUserViewPage() {
 
       <div>
         <h1 className="flex flex-wrap items-center gap-2 text-2xl font-bold text-slate-900">
-          <BarChart3 className="h-7 w-7 text-blue-600" />
+          <BarChart3 className="h-7 w-7 text-primary" />
           User — {displayName}
         </h1>
         <p className="mt-1 text-slate-600">
@@ -193,7 +193,7 @@ export default function SuperAdminUserViewPage() {
 
       {loading ? (
         <div className="flex justify-center py-16">
-          <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
       ) : (
         <div className="space-y-6">
@@ -546,7 +546,7 @@ export default function SuperAdminUserViewPage() {
           </DialogHeader>
           {resumePreviewLoading && (
             <div className="flex justify-center py-8">
-              <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
           )}
           {resumePreview && !resumePreviewLoading && (

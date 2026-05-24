@@ -740,7 +740,7 @@ export default function NewResumePage() {
                 variant={activeFilter === filter.id ? "default" : "outline"}
                 className={
                   activeFilter === filter.id
-                    ? "bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white"
+                    ? "bg-gradient-to-r from-purple-600 to-primary hover:bg-slate-900 text-white"
                     : "border-gray-300 hover:border-purple-400"
                 }
               >
@@ -819,7 +819,7 @@ export default function NewResumePage() {
                         >
                           <Button
                             type="button"
-                            className="shadow-lg bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white"
+                            className="shadow-lg bg-gradient-to-r from-purple-600 to-primary hover:bg-slate-900 text-white"
                             onClick={(e) => {
                               e.stopPropagation();
                               useTemplateAndGoToUpload(template.id);
@@ -849,10 +849,10 @@ export default function NewResumePage() {
       {/* Step 2: Resume Upload */}
       {step === "upload" && (
         <div className="space-y-6">
-          <Card className="border-2 border-blue-200 bg-blue-50/50">
+          <Card className="border-2 border-border bg-muted/30">
             <CardContent className="p-6">
               <div className="flex items-start gap-4">
-                <div className="w-12 h-12 bg-blue-500 rounded-lg flex items-center justify-center flex-shrink-0">
+                <div className="w-12 h-12 bg-primary rounded-lg flex items-center justify-center flex-shrink-0">
                   <FileText className="w-6 h-6 text-white" />
                 </div>
                 <div className="flex-1">
@@ -950,7 +950,7 @@ export default function NewResumePage() {
                   handleCreateResume();
                 }}
                 disabled={creating || extracting}
-                className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white"
+                className="bg-gradient-to-r from-purple-600 to-primary hover:bg-slate-900 text-white"
               >
                 {creating ? (
                   <>
@@ -986,10 +986,10 @@ export default function NewResumePage() {
 
       {/* Info Card */}
       {step === "template" && (
-        <Card className="border-2 border-blue-200 bg-blue-50/50">
+        <Card className="border-2 border-border bg-muted/30">
           <CardContent className="p-4 lg:p-6">
             <div className="flex items-start gap-3">
-              <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center flex-shrink-0">
+              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center flex-shrink-0">
                 <Sparkles className="w-4 h-4 text-white" />
               </div>
               <div>
@@ -1032,7 +1032,7 @@ export default function NewResumePage() {
                 setShowLimitModal(false);
                 router.push("/dashboard/plan");
               }}
-              className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white"
+              className="bg-gradient-to-r from-purple-600 to-primary hover:bg-slate-900 text-white"
             >
               Upgrade plan
               <ArrowRight className="w-4 h-4 ml-2" />

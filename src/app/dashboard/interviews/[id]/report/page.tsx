@@ -2,18 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { UserButton, useUser } from "@clerk/nextjs";
+import { useUser } from "@clerk/nextjs";
 import Link from "next/link";
 import { jsPDF } from "jspdf";
 import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
 import {
   Dialog,
   DialogContent,
@@ -29,22 +25,11 @@ import {
   Download,
   Mail,
   Share2,
-  TrendingUp,
   AlertCircle,
-  CheckCircle,
   Loader2,
-  Award,
-  Brain,
-  MessageSquare,
-  Mic,
 } from "lucide-react";
 import { interviewApi, InterviewReport, Interview } from "@/lib/api";
-import {
-  InterviewReportCodingScores,
-  InterviewReportCodingSessionOverview,
-  InterviewReportOverallExperience,
-  InterviewReportQuestionByQuestion,
-} from "@/components/institution/InterviewReportAnalysis";
+import { InterviewReportAnalysis } from "@/components/institution/InterviewReportAnalysis";
 import {
   buildInterviewReportPdfHtml,
   generateInterviewReportPdfViaServer,
@@ -52,11 +37,15 @@ import {
 import { buildOverallExperienceParagraph } from "@/lib/interview-report-overall-experience";
 import { sessionAverageScore } from "@/lib/interview-report-session-scores";
 import { uploadPDFToS3 } from "@/lib/pdf-generator";
-import { getScoreColor, getScoreGradient, formatDate } from "@/lib/utils";
+import { formatDate, cn } from "@/lib/utils";
 import {
   practiceHubHref,
   practiceHubLabel,
 } from "@/lib/interview-practice-hub";
+import {
+  institutePrimaryClass,
+  instituteSecondaryClass,
+} from "@/components/institute/InstituteChrome";
 
 export default function ReportPage() {
   const params = useParams();
@@ -757,24 +746,24 @@ export default function ReportPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 via-blue-50 to-pink-50">
-        <Loader2 className="w-12 h-12 animate-spin text-purple-600" />
+      <div className="flex min-h-[50vh] items-center justify-center">
+        <Loader2 className="h-10 w-10 animate-spin text-[#7367F0]" />
       </div>
     );
   }
 
   if (error || !report || !interview) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 via-blue-50 to-pink-50 p-4">
-        <Card className="max-w-md">
+      <div className="flex min-h-[50vh] items-center justify-center p-4">
+        <Card className="max-w-md overflow-hidden rounded-xl border border-border/60 shadow-card">
           <CardContent className="pt-6 text-center">
-            <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold mb-2">Report Not Available</h3>
-            <p className="text-gray-600 mb-4">
+            <AlertCircle className="mx-auto mb-4 h-12 w-12 text-destructive" />
+            <h3 className="mb-2 text-lg font-semibold">Report not available</h3>
+            <p className="mb-4 text-muted-foreground">
               {error ||
                 "The interview report is not ready yet or doesn't exist."}
             </p>
-            <Button variant="gradient" asChild>
+            <Button className={institutePrimaryClass} asChild>
               <Link href={practiceHubHref(interview)}>
                 {practiceHubLabel(interview)}
               </Link>
@@ -785,452 +774,118 @@ export default function ReportPage() {
     );
   }
 
-  const isCodingRoundLayout = !!(
-    report.codingSummary && report.codingSummary.problems.length > 0
-  );
   const reportTitle =
     interview.metadata.interviewKind === "coding_practice"
       ? "Practice coding round report"
-      : "Interview Report";
+      : "Interview report";
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-pink-50">
-      {/* Header */}
-      <header className="border-b border-border bg-card shadow-sm">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <Link
-            href={practiceHubHref(interview)}
-            className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            <span>{practiceHubLabel(interview)}</span>
-          </Link>
-          <UserButton
-            afterSignOutUrl="/"
-            appearance={{
-              elements: {
-                avatarBox: "w-10 h-10",
-              },
-            }}
-          />
-        </div>
-      </header>
+    <div className="mx-auto w-full max-w-7xl space-y-4 lg:space-y-6">
+      <div className="flex flex-col gap-4">
+        <Link
+          href={practiceHubHref(interview)}
+          className="inline-flex w-fit items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          <span>{practiceHubLabel(interview)}</span>
+        </Link>
 
-      <main className="container mx-auto px-4 py-8 max-w-6xl">
-        {/* Header Section */}
-        <div className="mb-8">
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-4 min-w-0">
-            <div className="min-w-0">
-              <h1 className="text-3xl sm:text-4xl font-bold mb-2 break-words">
-                {reportTitle}
-              </h1>
-              <p className="text-gray-600 break-words">
-                {interview.metadata.role} • {formatDate(interview.createdAt)}
-              </p>
-            </div>
-            <div className="grid grid-cols-2 gap-2 w-full min-w-0 shrink-0 md:w-[min(100%,24rem)] md:ml-auto">
-              <div className="min-w-0">
-                <Dialog>
-                  <DialogTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className="gap-2 w-full justify-center min-w-0"
-                    >
-                      <Share2 className="w-4 h-4 shrink-0" /> Share
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Share interview report</DialogTitle>
-                    <DialogDescription>
-                      Shares a PDF download link from cloud storage. If this
-                      interview has not been uploaded yet, the PDF is generated
-                      and stored once; later shares reuse the same file. Links
-                      expire after 7 days. On desktop, Email opens Gmail in your
-                      browser; on phones, it opens your mail app.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="flex flex-col gap-2 sm:flex-row">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="gap-2 w-full sm:flex-1"
-                      disabled={shareBusy}
-                      onClick={() => void copyReportLink()}
-                    >
-                      {shareBusy ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <Copy className="w-4 h-4" />
-                      )}
-                      Copy link
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="gap-2 w-full sm:flex-1"
-                      disabled={shareBusy}
-                      onClick={() => void openEmailShare()}
-                    >
-                      {shareBusy ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <Mail className="w-4 h-4" />
-                      )}
-                      Email
-                    </Button>
-                  </div>
-                  </DialogContent>
-                </Dialog>
-              </div>
-              <Button
-                variant="outline"
-                className="gap-2 w-full min-w-0 justify-center"
-                disabled={pdfDownloading}
-                onClick={() => void downloadPDF()}
-              >
-                {pdfDownloading ? (
-                  <Loader2 className="w-4 h-4 animate-spin shrink-0" />
-                ) : (
-                  <Download className="w-4 h-4 shrink-0" />
-                )}
-                <span className="truncate">
-                  {pdfDownloading ? "Generating…" : "Download PDF"}
-                </span>
-              </Button>
-            </div>
+        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+          <div className="min-w-0">
+            <h1 className="mb-1 break-words text-2xl font-bold text-foreground sm:text-3xl">
+              {reportTitle}
+            </h1>
+            <p className="break-words text-sm text-muted-foreground">
+              {interview.metadata.role} · {formatDate(interview.createdAt)}
+            </p>
+          </div>
+          <div className="grid w-full min-w-0 shrink-0 grid-cols-2 gap-2 md:w-[min(100%,24rem)]">
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(instituteSecondaryClass, "w-full justify-center gap-2")}
+                >
+                  <Share2 className="h-4 w-4 shrink-0" /> Share
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Share interview report</DialogTitle>
+                  <DialogDescription>
+                    Shares a PDF download link from cloud storage. If this
+                    interview has not been uploaded yet, the PDF is generated
+                    and stored once; later shares reuse the same file. Links
+                    expire after 7 days. On desktop, Email opens Gmail in your
+                    browser; on phones, it opens your mail app.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className={cn(instituteSecondaryClass, "w-full gap-2 sm:flex-1")}
+                    disabled={shareBusy}
+                    onClick={() => void copyReportLink()}
+                  >
+                    {shareBusy ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Copy className="h-4 w-4" />
+                    )}
+                    Copy link
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className={cn(instituteSecondaryClass, "w-full gap-2 sm:flex-1")}
+                    disabled={shareBusy}
+                    onClick={() => void openEmailShare()}
+                  >
+                    {shareBusy ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Mail className="h-4 w-4" />
+                    )}
+                    Email
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+            <Button
+              variant="outline"
+              className={cn(instituteSecondaryClass, "w-full justify-center gap-2")}
+              disabled={pdfDownloading}
+              onClick={() => void downloadPDF()}
+            >
+              {pdfDownloading ? (
+                <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
+              ) : (
+                <Download className="h-4 w-4 shrink-0" />
+              )}
+              <span className="truncate">
+                {pdfDownloading ? "Generating…" : "Download PDF"}
+              </span>
+            </Button>
           </div>
         </div>
+      </div>
 
-        <InterviewReportCodingSessionOverview report={report} />
-        <InterviewReportCodingScores
-          report={report}
-          className="mb-8 overflow-hidden border-2 border-border"
-        />
-        <InterviewReportOverallExperience report={report} />
-        {isCodingRoundLayout && (
-          <InterviewReportQuestionByQuestion
-            report={report}
-            className="border-2 mb-8"
-          />
-        )}
+      <InterviewReportAnalysis report={report} />
 
-        {!isCodingRoundLayout && (
-          <>
-            {/* Overall Score */}
-            <Card className="border-2 mb-8 overflow-hidden">
-              <div
-                className={`h-2 bg-gradient-to-r ${getScoreGradient(
-                  report.overallScore
-                )}`}
-              />
-              <CardContent className="p-8">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h2 className="text-2xl font-bold mb-2">Overall Performance</h2>
-                    <p className="text-gray-600">
-                      Your interview performance across all categories
-                    </p>
-                  </div>
-                  <div className="text-center">
-                    <div
-                      className={`text-6xl font-bold ${getScoreColor(
-                        report.overallScore
-                      )}`}
-                    >
-                      {report.overallScore}
-                    </div>
-                    <div className="text-gray-500 text-sm">out of 100</div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Category Scores */}
-            <div className="grid md:grid-cols-2 gap-6 mb-8">
-              <Card className="border-2 bg-gradient-to-br from-purple-50 to-white">
-                <CardHeader>
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-                      <Award className="w-6 h-6 text-purple-600" />
-                    </div>
-                    <div>
-                      <CardTitle>Technical Skills</CardTitle>
-                      <CardDescription>Problem-solving & knowledge</CardDescription>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-center justify-between mb-2">
-                    <span
-                      className={`text-3xl font-bold ${getScoreColor(
-                        report.categoryScores.technical
-                      )}`}
-                    >
-                      {report.categoryScores.technical}
-                    </span>
-                    <span className="text-gray-500">/ 100</span>
-                  </div>
-                  <Progress
-                    value={report.categoryScores.technical}
-                    className="h-3"
-                  />
-                </CardContent>
-              </Card>
-
-              <Card className="border-2 bg-gradient-to-br from-blue-50 to-white dark:border-border dark:from-blue-950/50 dark:to-card">
-                <CardHeader>
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                      <Brain className="w-6 h-6 text-blue-600" />
-                    </div>
-                    <div>
-                      <CardTitle>Behavioral</CardTitle>
-                      <CardDescription>STAR method & storytelling</CardDescription>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-center justify-between mb-2">
-                    <span
-                      className={`text-3xl font-bold ${getScoreColor(
-                        report.categoryScores.behavioral
-                      )}`}
-                    >
-                      {report.categoryScores.behavioral}
-                    </span>
-                    <span className="text-gray-500">/ 100</span>
-                  </div>
-                  <Progress
-                    value={report.categoryScores.behavioral}
-                    className="h-3"
-                  />
-                </CardContent>
-              </Card>
-
-              <Card className="border-2 bg-gradient-to-br from-green-50 to-white">
-                <CardHeader>
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                      <MessageSquare className="w-6 h-6 text-green-600" />
-                    </div>
-                    <div>
-                      <CardTitle>Communication</CardTitle>
-                      <CardDescription>Clarity & structure</CardDescription>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-center justify-between mb-2">
-                    <span
-                      className={`text-3xl font-bold ${getScoreColor(
-                        report.categoryScores.communication
-                      )}`}
-                    >
-                      {report.categoryScores.communication}
-                    </span>
-                    <span className="text-gray-500">/ 100</span>
-                  </div>
-                  <Progress
-                    value={report.categoryScores.communication}
-                    className="h-3"
-                  />
-                </CardContent>
-              </Card>
-
-              <Card className="border-2 bg-gradient-to-br from-orange-50 to-white">
-                <CardHeader>
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
-                      <Mic className="w-6 h-6 text-orange-600" />
-                    </div>
-                    <div>
-                      <CardTitle>Confidence</CardTitle>
-                      <CardDescription>Delivery & presence</CardDescription>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-center justify-between mb-2">
-                    <span
-                      className={`text-3xl font-bold ${getScoreColor(
-                        report.categoryScores.confidence
-                      )}`}
-                    >
-                      {report.categoryScores.confidence}
-                    </span>
-                    <span className="text-gray-500">/ 100</span>
-                  </div>
-                  <Progress
-                    value={report.categoryScores.confidence}
-                    className="h-3"
-                  />
-                </CardContent>
-              </Card>
-            </div>
-          </>
-        )}
-
-        {/* Strengths & Improvements */}
-        <div className="grid md:grid-cols-2 gap-6 mb-8">
-          <Card className="border-2 border-green-200 bg-gradient-to-br from-green-50 to-white">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-green-700">
-                <CheckCircle className="w-5 h-5" />
-                Strengths
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ul className="space-y-3">
-                {report.strengths.map((strength, index) => (
-                  <li
-                    key={`strength-${index}-${strength.slice(0, 10)}`}
-                    className="flex items-start gap-2"
-                  >
-                    <CheckCircle className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
-                    <span className="text-gray-700">{strength}</span>
-                  </li>
-                ))}
-              </ul>
-            </CardContent>
-          </Card>
-
-          <Card className="border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-white dark:border-border dark:from-blue-950/50 dark:to-card">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-blue-700">
-                <TrendingUp className="w-5 h-5" />
-                Areas for Improvement
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ul className="space-y-3">
-                {report.improvements.map((improvement, index) => (
-                  <li
-                    key={`improvement-${index}-${improvement.slice(0, 10)}`}
-                    className="flex items-start gap-2"
-                  >
-                    <TrendingUp className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
-                    <span className="text-gray-700">{improvement}</span>
-                  </li>
-                ))}
-              </ul>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Behavioral Analysis */}
-        <Card className="border-2 mb-8">
-          <CardHeader>
-            <CardTitle>Behavioral Analysis</CardTitle>
-            <CardDescription>
-              Insights into your communication style and delivery
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid md:grid-cols-2 gap-6">
-              <div>
-                <div className="flex justify-between mb-2">
-                  <span className="text-sm font-medium">Confidence</span>
-                  <span
-                    className={`text-sm font-semibold ${getScoreColor(
-                      report.behavioral.confidence
-                    )}`}
-                  >
-                    {report.behavioral.confidence}%
-                  </span>
-                </div>
-                <Progress
-                  value={report.behavioral.confidence}
-                  className="h-2 mb-4"
-                />
-
-                <div className="flex justify-between mb-2">
-                  <span className="text-sm font-medium">Clarity</span>
-                  <span
-                    className={`text-sm font-semibold ${getScoreColor(
-                      report.behavioral.clarity
-                    )}`}
-                  >
-                    {report.behavioral.clarity}%
-                  </span>
-                </div>
-                <Progress
-                  value={report.behavioral.clarity}
-                  className="h-2 mb-4"
-                />
-
-                <div className="flex justify-between mb-2">
-                  <span className="text-sm font-medium">Fluency</span>
-                  <span
-                    className={`text-sm font-semibold ${getScoreColor(
-                      report.behavioral.fluency
-                    )}`}
-                  >
-                    {report.behavioral.fluency}%
-                  </span>
-                </div>
-                <Progress value={report.behavioral.fluency} className="h-2" />
-              </div>
-
-              <div className="space-y-4">
-                <div className="p-4 bg-purple-50 rounded-lg border border-purple-200">
-                  <div className="font-semibold text-purple-900 mb-1">
-                    Filler Words
-                  </div>
-                  <div className="text-2xl font-bold text-purple-600">
-                    {report.behavioral.fillersPerMinute.toFixed(1)} / min
-                  </div>
-                  <div className="text-xs text-purple-700 mt-1">
-                    {(() => {
-                      if (report.behavioral.fillersPerMinute < 2) {
-                        return "Excellent! Very few fillers";
-                      }
-                      if (report.behavioral.fillersPerMinute < 4) {
-                        return "Good, but room for improvement";
-                      }
-                      return "Try to reduce 'um', 'ah', 'like'";
-                    })()}
-                  </div>
-                </div>
-
-                <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-                  <div className="font-semibold text-blue-900 mb-1">
-                    Speaking Pace
-                  </div>
-                  <div className="text-sm text-blue-700">
-                    Your pace was well-balanced. Keep maintaining a steady
-                    rhythm while speaking.
-                  </div>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {!isCodingRoundLayout && (
-          <InterviewReportQuestionByQuestion
-            report={report}
-            className="border-2 mb-8"
-          />
-        )}
-
-        {/* Next Steps */}
-        <Card className="border-2 border-purple-200 bg-gradient-to-br from-purple-100 via-blue-100 to-pink-100">
-          <CardContent className="p-8 text-center">
-            <h2 className="text-2xl font-bold mb-4">
-              Ready for Your Next Interview?
-            </h2>
-            <p className="text-gray-700 mb-6">
-              Keep practicing to improve your scores and build confidence!
-            </p>
-            <Link href="/dashboard/interviews/new">
-              <Button variant="gradient" size="lg" className="gap-2">
-                Start New Interview
-              </Button>
-            </Link>
-          </CardContent>
-        </Card>
-      </main>
+      <Card className="overflow-hidden rounded-xl border border-[#7367F0]/15 bg-gradient-to-br from-[#7367F0]/[0.06] via-card to-[#7367F0]/[0.04] shadow-card">
+        <CardContent className="p-6 text-center sm:p-8">
+          <h2 className="mb-3 text-xl font-bold text-foreground sm:text-2xl">
+            Ready for your next interview?
+          </h2>
+          <p className="mb-6 text-muted-foreground">
+            Keep practicing to improve your scores and build confidence.
+          </p>
+          <Button className={institutePrimaryClass} size="lg" asChild>
+            <Link href="/dashboard/interviews/new">Start new interview</Link>
+          </Button>
+        </CardContent>
+      </Card>
     </div>
   );
 }

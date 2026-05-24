@@ -52,6 +52,9 @@ import {
   pdfResumeDropzoneAccept,
   pdfResumeFileValidator,
 } from "@/lib/pdf-dropzone";
+import { PageHeader } from "@/components/app/PageHeader";
+import { appCard } from "@/lib/app-theme";
+import { cn } from "@/lib/utils";
 
 const disciplineOptionsByDepartment: Record<
   string,
@@ -260,32 +263,17 @@ export default function NewCodingInterviewPage() {
         </Button>
       </div>
 
-      {/* Hero — aligned with Practice Interview */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-600 via-blue-700 to-blue-800 p-4 text-white sm:p-6 lg:p-8">
-        <div className="relative z-10">
-          <div className="mb-3 flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/20 backdrop-blur-sm">
-              <Code2 className="h-5 w-5" />
-            </div>
-            <h1 className="text-2xl font-bold sm:text-3xl">
-              Start Your Practice Coding Round
-            </h1>
-          </div>
-          <p className="max-w-2xl text-base text-white/90 lg:text-lg">
-            Solve interview-style problems, run tests, then discuss your
-            approach with AI — same credit rules as AI Interview Practice.
-          </p>
-        </div>
-        <div className="absolute inset-0 bg-gradient-to-r from-blue-600/50 to-transparent opacity-50" />
-        <div className="absolute right-0 top-0 h-64 w-64 rounded-full bg-white/10 blur-3xl" />
-        <div className="absolute bottom-0 left-0 h-48 w-48 rounded-full bg-blue-500/20 blur-2xl" />
-      </div>
+      <PageHeader
+        badge="Practice coding round"
+        title="Start your practice coding round"
+        description="Solve interview-style problems, run tests, then discuss your approach with AI — same credit rules as AI Interview Practice."
+      />
 
       {checkingLimit ? (
-        <Card className="border-2 border-blue-200/50 bg-gradient-to-br from-blue-50 to-blue-100/50 shadow-lg">
+        <Card className={cn(appCard)}>
           <CardContent className="pt-6">
             <div className="flex items-center justify-center gap-3 py-4">
-              <Loader2 className="h-6 w-6 animate-spin text-[rgb(37,99,235)]" />
+              <Loader2 className="h-6 w-6 animate-spin text-primary" />
               <p className="font-medium text-gray-700">
                 Checking your interview limit...
               </p>
@@ -344,7 +332,7 @@ export default function NewCodingInterviewPage() {
                     onClick={() => router.push("/pricing")}
                     size="lg"
                     variant="outline"
-                    className="border-2 border-[rgb(37,99,235)] text-[rgb(37,99,235)] hover:bg-blue-50"
+                    className="border-2 border-primary text-primary hover:bg-muted"
                   >
                     <Crown className="mr-2 h-5 w-5" />
                     View Plans
@@ -358,7 +346,7 @@ export default function NewCodingInterviewPage() {
         <Card className="border-2 border-green-400 bg-gradient-to-br from-green-50 to-emerald-50 shadow-lg">
           <CardContent className="pt-6">
             <div className="flex items-center gap-4">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-[rgb(37,99,235)] to-blue-600 shadow-md">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary shadow-md">
                 <CheckCircle className="h-6 w-6 text-white" />
               </div>
               <div>
@@ -382,10 +370,10 @@ export default function NewCodingInterviewPage() {
       {limitCheck && limitCheck.allowed && (
         <div className="grid gap-4 sm:gap-6 lg:grid-cols-3 lg:gap-8">
           <div className="space-y-4 sm:space-y-6 lg:col-span-2">
-            <Card className="overflow-hidden border-2 border-blue-200/50 bg-white/95 shadow-xl backdrop-blur-sm">
+            <Card className={cn(appCard, "overflow-hidden shadow-header")}>
               <CardHeader className="px-3 pb-3 sm:px-6 sm:pb-4">
                 <div className="mb-2 flex items-center gap-2 sm:gap-3">
-                  <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-[rgb(37,99,235)] to-blue-600 sm:h-10 sm:w-10">
+                  <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-primary sm:h-10 sm:w-10">
                     <Briefcase className="h-4 w-4 text-white sm:h-5 sm:w-5" />
                   </div>
                   <CardTitle className="text-base sm:text-xl lg:text-2xl">
@@ -407,7 +395,7 @@ export default function NewCodingInterviewPage() {
                       htmlFor="role"
                       className="flex items-center gap-2 text-sm font-semibold text-gray-700"
                     >
-                      <Target className="h-4 w-4 flex-shrink-0 text-[rgb(37,99,235)]" />
+                      <Target className="h-4 w-4 flex-shrink-0 text-primary" />
                       Role You&apos;re Preparing For
                       <span className="text-red-500">*</span>
                     </Label>
@@ -421,7 +409,7 @@ export default function NewCodingInterviewPage() {
                       className={`h-11 w-full text-sm sm:h-12 sm:text-base ${
                         errors.role
                           ? "border-red-500 focus:ring-red-500"
-                          : "border-gray-300 focus:border-[rgb(37,99,235)] focus:ring-[rgb(37,99,235)]"
+                          : "border-gray-300 focus:border-primary focus:ring-primary"
                       } transition-all`}
                     />
                     {errors.role && (
@@ -438,7 +426,7 @@ export default function NewCodingInterviewPage() {
                         htmlFor="experience"
                         className="flex items-center gap-2 text-sm font-semibold text-gray-700"
                       >
-                        <Clock className="h-4 w-4 text-blue-600" />
+                        <Clock className="h-4 w-4 text-primary" />
                         Years of Experience
                       </Label>
                       <Select
@@ -580,7 +568,7 @@ export default function NewCodingInterviewPage() {
                           targetCompany: e.target.value,
                         })
                       }
-                      className="h-11 w-full border-gray-300 text-sm transition-all focus:border-[rgb(37,99,235)] focus:ring-[rgb(37,99,235)] sm:h-12 sm:text-base"
+                      className="h-11 w-full border-gray-300 text-sm transition-all focus:border-primary focus:ring-primary sm:h-12 sm:text-base"
                     />
                     <p className="flex items-center gap-1 text-xs text-gray-500">
                       <Zap className="h-3 w-3" />
@@ -590,7 +578,7 @@ export default function NewCodingInterviewPage() {
 
                   <div className="space-y-2 sm:space-y-3">
                     <Label className="flex items-center gap-1.5 text-xs font-semibold text-gray-700 sm:text-sm">
-                      <FileText className="h-3.5 w-3.5 flex-shrink-0 text-[rgb(37,99,235)] sm:h-4 sm:w-4" />
+                      <FileText className="h-3.5 w-3.5 flex-shrink-0 text-primary sm:h-4 sm:w-4" />
                       Resume
                       <span className="text-red-500">*</span>
                     </Label>
@@ -600,8 +588,8 @@ export default function NewCodingInterviewPage() {
                         <div
                           className={`relative cursor-pointer rounded-lg border-2 p-2.5 transition-all sm:p-3 ${
                             useSavedResume
-                              ? "border-[rgb(37,99,235)] bg-gradient-to-br from-blue-50 to-blue-100/50"
-                              : "border-gray-200 bg-white"
+                              ? "border-primary bg-primary-muted/30"
+                              : "border-border bg-card hover:border-primary/40"
                           }`}
                           onClick={() => {
                             setUseSavedResume(true);
@@ -622,7 +610,7 @@ export default function NewCodingInterviewPage() {
                             <div
                               className={`flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full border-2 sm:h-5 sm:w-5 ${
                                 useSavedResume
-                                  ? "border-[rgb(37,99,235)] bg-[rgb(37,99,235)]"
+                                  ? "border-primary bg-primary"
                                   : "border-gray-300"
                               }`}
                             >
@@ -630,7 +618,7 @@ export default function NewCodingInterviewPage() {
                                 <div className="h-1.5 w-1.5 rounded-full bg-white sm:h-2 sm:w-2" />
                               )}
                             </div>
-                            <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-[rgb(37,99,235)] to-blue-600 sm:h-10 sm:w-10">
+                            <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-primary sm:h-10 sm:w-10">
                               <FileText className="h-4 w-4 text-white sm:h-5 sm:w-5" />
                             </div>
                             <div className="min-w-0 flex-1">
@@ -661,8 +649,8 @@ export default function NewCodingInterviewPage() {
                     <div
                       className={`relative cursor-pointer rounded-lg border-2 p-2.5 transition-all sm:p-3 ${
                         !useSavedResume
-                          ? "border-[rgb(37,99,235)] bg-gradient-to-br from-blue-50 to-blue-100/50"
-                          : "border-gray-200 bg-white"
+                          ? "border-primary bg-primary-muted/30"
+                          : "border-border bg-card hover:border-primary/40"
                       }`}
                       onClick={() => {
                         setUseSavedResume(false);
@@ -679,7 +667,7 @@ export default function NewCodingInterviewPage() {
                         <div
                           className={`flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full border-2 sm:h-5 sm:w-5 ${
                             !useSavedResume
-                              ? "border-[rgb(37,99,235)] bg-[rgb(37,99,235)]"
+                              ? "border-primary bg-primary"
                               : "border-gray-300"
                           }`}
                         >
@@ -687,7 +675,7 @@ export default function NewCodingInterviewPage() {
                             <div className="h-1.5 w-1.5 rounded-full bg-white sm:h-2 sm:w-2" />
                           )}
                         </div>
-                        <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-[rgb(37,99,235)] to-blue-600 sm:h-10 sm:w-10">
+                        <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-primary sm:h-10 sm:w-10">
                           <Upload className="h-4 w-4 text-white sm:h-5 sm:w-5" />
                         </div>
                         <span className="flex-1 text-xs font-semibold text-gray-900 sm:text-sm">
@@ -706,7 +694,7 @@ export default function NewCodingInterviewPage() {
                             {...getRootProps()}
                             className={`cursor-pointer rounded-lg border-2 border-dashed p-4 text-center transition-all sm:p-6 ${
                               isDragActive
-                                ? "border-[rgb(37,99,235)] bg-gradient-to-br from-blue-50 to-blue-100/50"
+                                ? "border-primary bg-primary-muted/30"
                                 : errors.resume
                                   ? "border-red-400 bg-red-50"
                                   : "border-gray-300 bg-gray-50/50"
@@ -714,7 +702,7 @@ export default function NewCodingInterviewPage() {
                           >
                             <input {...getInputProps()} />
                             <div className="flex flex-col items-center gap-2 sm:gap-3">
-                              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-[rgb(37,99,235)] to-blue-600 sm:h-14 sm:w-14">
+                              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary sm:h-14 sm:w-14">
                                 <Upload className="h-6 w-6 text-white sm:h-7 sm:w-7" />
                               </div>
                               <div>
@@ -730,8 +718,8 @@ export default function NewCodingInterviewPage() {
                         ) : (
                           <div className="rounded-lg border-2 border-green-400 bg-gradient-to-br from-green-50 to-emerald-50 p-2.5 sm:p-3">
                             <div className="flex items-center gap-2 sm:gap-3">
-                              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-[rgb(37,99,235)] to-blue-600 sm:h-12 sm:w-12">
-                                <FileText className="h-5 w-5 text-white sm:h-6 sm:w-6" />
+                              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-primary sm:h-12 sm:w-12">
+                                <FileText className="h-5 w-5 sm:h-6 sm:w-6" />
                               </div>
                               <div className="min-w-0 flex-1">
                                 <p className="truncate text-xs font-semibold text-gray-900 sm:text-sm">
@@ -775,7 +763,7 @@ export default function NewCodingInterviewPage() {
                     <Button
                       type="submit"
                       size="lg"
-                      className="h-11 w-full text-sm font-semibold !bg-[rgb(37,99,235)] text-white shadow-lg transition-all hover:!bg-[rgb(17,24,39)] hover:shadow-xl sm:h-12 sm:text-base"
+                      className="h-11 w-full text-sm font-semibold !bg-primary text-white shadow-lg transition-all hover:!bg-slate-900 hover:shadow-xl sm:h-12 sm:text-base"
                       disabled={loading || (limitCheck && !limitCheck.allowed)}
                     >
                       {loading ? (
@@ -797,11 +785,11 @@ export default function NewCodingInterviewPage() {
           </div>
 
           <div className="lg:col-span-1">
-            <Card className="sticky top-8 border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-blue-100/50 shadow-xl">
+            <Card className={cn(appCard, "sticky top-8 shadow-header")}>
               <CardHeader className="pb-4">
                 <div className="mb-2 flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-[rgb(37,99,235)] to-blue-600">
-                    <Sparkles className="h-5 w-5 text-white" />
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">
+                    <Sparkles className="h-5 w-5" />
                   </div>
                   <CardTitle className="text-xl">What happens next?</CardTitle>
                 </div>
@@ -809,7 +797,7 @@ export default function NewCodingInterviewPage() {
               <CardContent>
                 <ul className="space-y-4">
                   <li className="flex items-start gap-3">
-                    <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-[rgb(37,99,235)] to-blue-600 shadow-md">
+                    <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-primary shadow-md">
                       <FileText className="h-4 w-4 text-white" />
                     </div>
                     <div>
@@ -823,7 +811,7 @@ export default function NewCodingInterviewPage() {
                     </div>
                   </li>
                   <li className="flex items-start gap-3">
-                    <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-[rgb(37,99,235)] to-blue-600 shadow-md">
+                    <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-primary shadow-md">
                       <Code2 className="h-4 w-4 text-white" />
                     </div>
                     <div>
@@ -837,7 +825,7 @@ export default function NewCodingInterviewPage() {
                     </div>
                   </li>
                   <li className="flex items-start gap-3">
-                    <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-[rgb(37,99,235)] to-blue-600 shadow-md">
+                    <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-primary shadow-md">
                       <Mic className="h-4 w-4 text-white" />
                     </div>
                     <div>
@@ -850,7 +838,7 @@ export default function NewCodingInterviewPage() {
                     </div>
                   </li>
                   <li className="flex items-start gap-3">
-                    <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-[rgb(37,99,235)] to-blue-600 shadow-md">
+                    <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-primary shadow-md">
                       <BarChart3 className="h-4 w-4 text-white" />
                     </div>
                     <div>

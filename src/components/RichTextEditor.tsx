@@ -357,7 +357,7 @@ export function RichTextEditor({
           type="button"
           variant="outline"
           size="sm"
-          className="absolute bottom-3 right-3 h-8 w-8 p-0 bg-gradient-to-r from-purple-500 to-blue-500 text-white border-0 hover:from-purple-600 hover:to-blue-600 shadow-lg hover:shadow-xl transition-all duration-200"
+          className="absolute bottom-3 right-3 h-8 w-8 p-0 bg-gradient-to-r from-purple-500 to-primary text-white border-0 hover:from-purple-600 hover:to-primary shadow-lg hover:shadow-xl transition-all duration-200"
           onClick={handleAIRefine}
           disabled={isRefining || !value?.trim()}
           title="AI Refine - Make content more professional and resume-friendly"

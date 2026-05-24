@@ -1384,7 +1384,7 @@ export default function EditResumePage() {
               <Button
                 onClick={handleSave}
                 disabled={saving || !hasChanges || autoSaving}
-                className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white shrink-0 max-md:flex-1"
+                className="bg-gradient-to-r from-purple-600 to-primary hover:bg-slate-900 text-white shrink-0 max-md:flex-1"
                 size="sm"
               >
                 {saving ? (

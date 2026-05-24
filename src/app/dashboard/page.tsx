@@ -20,7 +20,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Progress } from "@/components/ui/progress";
 import {
   Plus,
   TrendingUp,
@@ -31,18 +30,14 @@ import {
   FileText,
   FileEdit,
   Loader2,
-  BarChart3,
   Target,
   CheckCircle,
-  ChevronLeft,
-  ChevronRight,
   Coins,
   Lock,
   UsersRound,
   Percent,
   X,
   FileCheck,
-  Download,
   Sparkles,
 } from "lucide-react";
 import {
@@ -64,40 +59,25 @@ import {
   resumeApi,
   userApi,
 } from "@/lib/api";
-import { TEMPLATES_CATALOG } from "@/configs/resume-templates/templates-catalog";
+import { getPeerInterviewUnlockStatus } from "@/lib/peer-interviews";
 import {
   cn,
-  formatDate,
   getInterviewCreditsUsed,
-  getScoreColor,
   scheduledInterviewCanStartNow,
 } from "@/lib/utils";
-import { getPeerInterviewUnlockStatus } from "@/lib/peer-interviews";
 import {
   institutePrimaryClass,
   instituteSecondaryClass,
 } from "@/components/institute/InstituteChrome";
+import {
+  DashboardInsightTile,
+  DashboardStatCard,
+} from "@/components/dashboard/DashboardStatCard";
+import { DashboardWelcomeHero } from "@/components/dashboard/DashboardWelcomeHero";
+import { RecentInterviewsList } from "@/components/dashboard/RecentInterviewsList";
+import { DashboardResumesList } from "@/components/dashboard/DashboardResumesList";
 
 const ONBOARDING_BANNER_DISMISSED_KEY = "dashboard-onboarding-banner-dismissed";
-
-/** session.duration from API is seconds; show whole minutes (ceil, min 1 when > 0). */
-function formatInterviewDurationMinutes(
-  durationSeconds: number | undefined,
-): string | null {
-  if (
-    typeof durationSeconds !== "number" ||
-    !Number.isFinite(durationSeconds) ||
-    durationSeconds <= 0
-  ) {
-    return null;
-  }
-  const mins = Math.max(1, Math.ceil(durationSeconds / 60));
-  return mins === 1 ? "1 min" : `${mins} min`;
-}
-
-function resumeTemplateLabel(templateId: string): string {
-  return TEMPLATES_CATALOG.find((t) => t.id === templateId)?.name ?? templateId;
-}
 
 export default function DashboardPage() {
   const { user, isLoaded } = useUser();
@@ -239,22 +219,11 @@ export default function DashboardPage() {
     }
   };
 
-  const getStatusBadge = (status: string) => {
-    const badges = {
-      completed: "bg-green-100 text-green-700 border-green-200",
-      processing: "bg-blue-100 text-blue-700 border-blue-200",
-      active: "bg-yellow-100 text-yellow-700 border-yellow-200",
-      draft: "bg-gray-100 text-gray-700 border-gray-200",
-      failed: "bg-red-100 text-red-700 border-red-200",
-    };
-    return badges[status as keyof typeof badges] || badges.draft;
-  };
-
   if (!isLoaded || loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
-          <Loader2 className="w-12 h-12 animate-spin text-landing-blue-700 mx-auto mb-4" />
+          <Loader2 className="mx-auto mb-4 h-12 w-12 animate-spin text-primary" />
           <p className="text-gray-600">Loading your dashboard...</p>
         </div>
       </div>
@@ -300,9 +269,6 @@ export default function DashboardPage() {
     }
   };
 
-  const sortedResumes = [...resumes].sort(
-    (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
-  );
   const resumesWithAts = resumes.filter(
     (r) => typeof r.atsScore === "number" && Number.isFinite(r.atsScore),
   );
@@ -313,14 +279,6 @@ export default function DashboardPage() {
             resumesWithAts.length,
         )
       : 0;
-  const resumeTotalPages = Math.max(
-    1,
-    Math.ceil(sortedResumes.length / resumeItemsPerPage),
-  );
-  const resumeSlice = sortedResumes.slice(
-    (resumePage - 1) * resumeItemsPerPage,
-    resumePage * resumeItemsPerPage,
-  );
   const lastNDays = 14;
   const now = new Date();
   const dayKeys = Array.from({ length: lastNDays }, (_, idx) => {
@@ -364,26 +322,7 @@ export default function DashboardPage() {
   const activeDays = dailyData.filter((d) => d.interviews > 0).length;
   return (
     <div className="w-full max-w-7xl mx-auto space-y-4 lg:space-y-6">
-      {/* Hero Header Section */}
-      <div className="relative overflow-hidden rounded-md bg-gradient-to-br from-blue-600 via-blue-700 to-blue-800 px-4 py-3 sm:px-5 sm:py-4 text-white shadow-lg">
-        <div className="relative z-10">
-          <div className="mb-1.5 flex min-w-0 items-center gap-2.5">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-white/20 shadow-sm backdrop-blur-sm sm:h-9 sm:w-9">
-              <BarChart3 className="h-4 w-4 sm:h-4.5 sm:w-4.5" />
-            </div>
-            <h1 className="truncate text-lg font-bold leading-tight text-white sm:text-xl lg:text-2xl">
-              Welcome back, {user?.firstName || "User"}!
-            </h1>
-          </div>
-          <p className="text-[10px] leading-tight text-white/85 sm:text-xs md:text-sm">
-            Your hub for resumes, AI Interview Practice and coding practice, peer sessions, and
-            job hunt—Interview Trix as your end-to-end career partner.
-          </p>
-        </div>
-        <div className="absolute inset-0 bg-gradient-to-r from-blue-600/40 to-transparent opacity-40"></div>
-        <div className="absolute right-0 top-0 h-44 w-44 rounded-full bg-white/10 blur-3xl"></div>
-        <div className="absolute bottom-0 left-0 h-32 w-32 rounded-full bg-blue-500/20 blur-2xl"></div>
-      </div>
+      <DashboardWelcomeHero firstName={user?.firstName || "User"} />
 
       {scheduledInterviews.length > 0 && (
         <Card className="rounded-md border-2 border-amber-200 bg-gradient-to-br from-amber-50/80 to-white shadow-lg">
@@ -469,7 +408,7 @@ export default function DashboardPage() {
             </span>
             <Link
               href="/dashboard/profile"
-              className="font-medium text-[rgb(37,99,235)] underline-offset-2 hover:underline"
+              className="font-medium text-primary underline-offset-2 hover:underline"
             >
               Finish your profile
             </Link>
@@ -494,113 +433,74 @@ export default function DashboardPage() {
 
       {/* Stats */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4">
-        {/* Total Interviews */}
-        <div className="flex min-h-0 min-w-0 items-start gap-3 rounded-md border border-blue-200/50 bg-gradient-to-br from-blue-50 to-blue-100/50 p-4 shadow-lg shadow-blue-500/10 backdrop-blur-sm transition-all duration-300 hover:shadow-xl hover:shadow-blue-500/20 sm:gap-4 sm:p-5">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[rgb(37,99,235)] to-blue-600 shadow-lg shadow-blue-500/30 ring-2 ring-blue-200/50 sm:h-12 sm:w-12">
-            <FileText className="h-5 w-5 text-white sm:h-6 sm:w-6" />
-          </div>
-          <div className="min-w-0 flex-1 space-y-1.5">
-            <div className="flex items-center justify-between gap-2">
-              <p className="min-w-0 truncate text-xs font-bold leading-tight text-[rgb(37,99,235)] sm:text-sm">
-                Total Interviews
-              </p>
-              <p className="shrink-0 text-right text-lg font-bold tabular-nums leading-none text-slate-900 sm:text-xl lg:text-2xl">
-                {stats.totalInterviews}
-              </p>
-            </div>
-            <div className="flex flex-wrap items-center gap-1.5 text-xs font-medium text-slate-600 sm:text-sm">
+        <DashboardStatCard
+          theme="purple"
+          label="Total Interviews"
+          value={stats.totalInterviews}
+          icon={FileText}
+          hint={
+            <>
               <Clock className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
               <span>All time</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Average Score */}
-        <div className="flex min-h-0 min-w-0 items-start gap-3 rounded-md border border-blue-200/50 bg-gradient-to-br from-blue-50 to-blue-100/50 p-4 shadow-lg shadow-blue-500/10 backdrop-blur-sm transition-all duration-300 hover:shadow-xl hover:shadow-blue-500/20 sm:gap-4 sm:p-5">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[rgb(37,99,235)] to-blue-600 shadow-lg shadow-blue-500/30 ring-2 ring-blue-200/50 sm:h-12 sm:w-12">
-            <Target className="h-5 w-5 text-white sm:h-6 sm:w-6" />
-          </div>
-          <div className="min-w-0 flex-1 space-y-1.5">
-            <div className="flex items-center justify-between gap-2">
-              <p className="min-w-0 truncate text-xs font-bold leading-tight text-[rgb(37,99,235)] sm:text-sm">
-                Average Score
-              </p>
-              <p className="shrink-0 text-right text-lg font-bold tabular-nums leading-none text-slate-900 sm:text-xl lg:text-2xl">
-                {stats.averageScore}
-              </p>
-            </div>
-            <Progress
-              value={stats.averageScore}
-              className="h-2 w-full overflow-hidden rounded-full border border-blue-300/90 bg-blue-100/90 shadow-[inset_0_1px_2px_rgba(0,0,0,0.06)] sm:h-2.5"
-            />
-            <div className="flex flex-wrap items-center gap-1.5 text-xs font-medium text-slate-600 sm:text-sm">
+            </>
+          }
+        />
+        <DashboardStatCard
+          theme="emerald"
+          label="Average Score"
+          value={stats.averageScore}
+          icon={Target}
+          progress={stats.averageScore}
+          hint={
+            <>
               <Percent className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
               <span>Out of 100</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Completed */}
-        <div className="flex min-h-0 min-w-0 items-start gap-3 rounded-md border border-blue-200/50 bg-gradient-to-br from-blue-50 to-blue-100/50 p-4 shadow-lg shadow-blue-500/10 backdrop-blur-sm transition-all duration-300 hover:shadow-xl hover:shadow-blue-500/20 sm:gap-4 sm:p-5">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[rgb(37,99,235)] to-blue-600 shadow-lg shadow-blue-500/30 ring-2 ring-blue-200/50 sm:h-12 sm:w-12">
-            <Award className="h-5 w-5 text-white sm:h-6 sm:w-6" />
-          </div>
-          <div className="min-w-0 flex-1 space-y-1.5">
-            <div className="flex items-center justify-between gap-2">
-              <p className="min-w-0 truncate text-xs font-bold leading-tight text-[rgb(37,99,235)] sm:text-sm">
-                Completed
-              </p>
-              <p className="shrink-0 text-right text-lg font-bold tabular-nums leading-none text-slate-900 sm:text-xl lg:text-2xl">
-                {stats.completedInterviews}
-              </p>
-            </div>
-            <div className="flex flex-wrap items-center gap-1.5 text-xs font-medium text-slate-600 sm:text-sm">
+            </>
+          }
+        />
+        <DashboardStatCard
+          theme="cyan"
+          label="Completed"
+          value={stats.completedInterviews}
+          icon={Award}
+          hint={
+            <>
               <CheckCircle className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
               <span>Finished interviews</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Improvement */}
-        <div className="flex min-h-0 min-w-0 items-start gap-3 rounded-md border border-blue-200/50 bg-gradient-to-br from-blue-50 to-blue-100/50 p-4 shadow-lg shadow-blue-500/10 backdrop-blur-sm transition-all duration-300 hover:shadow-xl hover:shadow-blue-500/20 sm:gap-4 sm:p-5">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[rgb(37,99,235)] to-blue-600 shadow-lg shadow-blue-500/30 ring-2 ring-blue-200/50 sm:h-12 sm:w-12">
-            <TrendingUp className="h-5 w-5 text-white sm:h-6 sm:w-6" />
-          </div>
-          <div className="min-w-0 flex-1 space-y-1.5">
-            <div className="flex items-center justify-between gap-2">
-              <p className="min-w-0 truncate text-xs font-bold leading-tight text-[rgb(37,99,235)] sm:text-sm">
-                Improvement
-              </p>
-              <p className="shrink-0 text-right text-lg font-bold tabular-nums leading-none text-slate-900 sm:text-xl lg:text-2xl">
-                {stats.improvement !== undefined &&
-                !isNaN(stats.improvement) ? (
-                  <>
-                    {stats.improvement > 0 ? "+" : ""}
-                    {stats.improvement}%
-                  </>
-                ) : (
-                  "0%"
-                )}
-              </p>
-            </div>
-            <div className="flex flex-wrap items-center gap-1.5 text-xs font-medium text-slate-600 sm:text-sm">
+            </>
+          }
+        />
+        <DashboardStatCard
+          theme="amber"
+          label="Improvement"
+          value={
+            stats.improvement !== undefined && !isNaN(stats.improvement) ? (
+              <>
+                {stats.improvement > 0 ? "+" : ""}
+                {stats.improvement}%
+              </>
+            ) : (
+              "0%"
+            )
+          }
+          icon={TrendingUp}
+          hint={
+            <>
               <TrendingUp className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
               <span>Last 3 sessions</span>
-            </div>
-          </div>
-        </div>
+            </>
+          }
+        />
       </div>
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
-        <Card className="rounded-md border border-border bg-card shadow-sm xl:col-span-2">
+        <Card className="rounded-xl border border-border/80 bg-card shadow-card xl:col-span-2">
           <CardHeader className="pb-2">
             <CardTitle className="text-lg text-slate-900">
               Daily interviews and score trend
             </CardTitle>
             <CardDescription>
-              Volume and weighted score vs time—practice AI Interview Practice and coding
-              sessions more often to see readiness shift (bar = interviews, line
-              = average score).
+              Bars = daily sessions, line = average score.
             </CardDescription>
           </CardHeader>
           <CardContent className="h-[280px]">
@@ -631,7 +531,7 @@ export default function DashboardPage() {
                   yAxisId="left"
                   dataKey="interviews"
                   name="Interviews"
-                  fill="rgb(37,99,235)"
+                  fill="#7367F0"
                   radius={[4, 4, 0, 0]}
                 />
                 <Line
@@ -639,7 +539,7 @@ export default function DashboardPage() {
                   type="monotone"
                   dataKey="avgScore"
                   name="Average score"
-                  stroke="#16a34a"
+                  stroke="#28c76f"
                   strokeWidth={2}
                   dot={{ r: 2 }}
                   activeDot={{ r: 4 }}
@@ -649,74 +549,49 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        <Card className="rounded-md border border-border bg-card shadow-sm">
+        <Card className="rounded-xl border border-border/80 bg-card shadow-card">
           <CardHeader className="pb-2">
-            <CardTitle className="text-lg text-slate-900">Insights</CardTitle>
-            <CardDescription>
-              Lightweight prep telemetry—tie spend and consistency back to AI
-              Interview Practice and coding report scores, not dashboards for
-              their own sake.
-            </CardDescription>
+            <CardTitle className="text-lg text-foreground">Insights</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
-              <p className="text-xs font-semibold text-slate-500">
-                Total token spend
-              </p>
-              <p className="text-xl font-bold tabular-nums text-slate-900">
-                {totalTokensSpent}
-              </p>
-              <p className="text-xs text-slate-500">
-                Proxy for billed AI Interview Practice & coding credits
-              </p>
-            </div>
-            <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
-              <p className="text-xs font-semibold text-slate-500">
-                Active days
-              </p>
-              <p className="text-xl font-bold tabular-nums text-slate-900">
-                {activeDays}/14
-              </p>
-              <p className="text-xs text-slate-500">
-                Consistency beats cramming—AI Interview Practice or coding mocks count the same
-              </p>
-            </div>
-            <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
-              <p className="text-xs font-semibold text-slate-500">
-                Completed ratio
-              </p>
-              <p className="text-xl font-bold tabular-nums text-slate-900">
-                {stats.totalInterviews > 0
-                  ? Math.round(
+            <DashboardInsightTile
+              theme="purple"
+              label="Total token spend"
+              value={totalTokensSpent}
+              description="Proxy for billed AI Interview Practice & coding credits"
+            />
+            <DashboardInsightTile
+              theme="emerald"
+              label="Active days"
+              value={`${activeDays}/14`}
+              description="Consistency beats cramming—practice counts the same"
+            />
+            <DashboardInsightTile
+              theme="amber"
+              label="Completed ratio"
+              value={
+                stats.totalInterviews > 0
+                  ? `${Math.round(
                       (stats.completedInterviews / stats.totalInterviews) * 100,
-                    )
-                  : 0}
-                %
-              </p>
-              <p className="text-xs text-slate-500">
-                Finishing sessions earns full AI discussion feedback & scores
-              </p>
-            </div>
+                    )}%`
+                  : "0%"
+              }
+              description="Finishing sessions earns full AI discussion feedback & scores"
+            />
           </CardContent>
         </Card>
       </div>
 
       {/* Recent Interviews */}
-      <Card className="rounded-md border border-border bg-card shadow-sm">
-        <CardHeader className="pb-4">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <Card className="overflow-hidden rounded-xl border border-border/60 bg-card shadow-card">
+        <CardHeader className="border-b border-border/60 px-5 py-4">
+          <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
             <div>
-              <div className="flex items-center gap-3 mb-2">
-                <div className="w-10 h-10 bg-gradient-to-br from-[rgb(37,99,235)] to-blue-600 rounded-md flex items-center justify-center shadow-lg shadow-blue-500/30 ring-2 ring-blue-200/50">
-                  <FileText className="w-5 h-5 text-white" />
-                </div>
-                <CardTitle className="text-xl lg:text-2xl text-slate-900">
-                  Recent Interviews
-                </CardTitle>
-              </div>
-              <CardDescription className="text-sm text-gray-600">
-                Company-aware AI Interview Practice, multilingual sessions, coding
-                rounds, plus AI scoring and discussion-ready reports live here.
+              <CardTitle className="text-lg font-semibold text-foreground">
+                Recent Interviews
+              </CardTitle>
+              <CardDescription className="mt-1 text-sm">
+                Your latest practice sessions with scores and reports.
               </CardDescription>
             </div>
             <div className="flex flex-wrap items-center gap-2">
@@ -731,364 +606,69 @@ export default function DashboardPage() {
                 View all
               </Link>
               <Link href="/dashboard/interviews/new">
-                <Button
-                  size="lg"
-                  className="!bg-[rgb(37,99,235)] hover:!bg-[rgb(17,24,39)] text-white shadow-lg hover:shadow-xl transition-all"
-                >
-                  <Plus className="w-4 h-4 mr-2" /> Start Interview
+                <Button className={institutePrimaryClass}>
+                  <Plus className="mr-2 h-4 w-4" /> Start Interview
                 </Button>
               </Link>
             </div>
           </div>
         </CardHeader>
-        <CardContent>
-          {interviews.length === 0 ? (
-            <div className="text-center py-16">
-              <div className="w-20 h-20 bg-gradient-to-br from-blue-100 to-blue-200 rounded-md flex items-center justify-center mx-auto mb-6 shadow-lg">
-                <FileText className="w-10 h-10 text-[rgb(37,99,235)]" />
-              </div>
-              <h3 className="text-xl font-bold text-slate-900 mb-2">
-                No interviews yet
-              </h3>
-              <p className="text-gray-600 mb-8 max-w-md mx-auto">
-                Launch multilingual AI Interview Practice tailored to role + company,
-                wrap with AI discussion summaries, then stack peer reviews or a
-                coding round from the sidebar when you're ready.
-              </p>
-              <Link href="/dashboard/interviews/new">
-                <Button
-                  size="lg"
-                  className="!bg-[rgb(37,99,235)] hover:!bg-[rgb(17,24,39)] text-white shadow-lg hover:shadow-xl transition-all"
-                >
-                  <Plus className="w-5 h-5 mr-2" /> Create Your First Interview
-                </Button>
-              </Link>
-            </div>
-          ) : (
-            <>
-              <div className="divide-y divide-slate-100">
-                {interviews
-                  .slice(
-                    (currentPage - 1) * itemsPerPage,
-                    currentPage * itemsPerPage,
-                  )
-                  .map((interview) => {
-                    const durationLabel = formatInterviewDurationMinutes(
-                      interview.session?.duration,
-                    );
-                    const creditsUsed = getInterviewCreditsUsed(interview);
-                    return (
-                      <div
-                        key={interview._id}
-                        className="group flex min-w-0 flex-nowrap items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0 transition-colors hover:bg-slate-50/80"
-                      >
-                        <div className="min-w-0 flex-1 space-y-1">
-                          <h4 className="truncate text-sm font-semibold leading-tight text-slate-900">
-                            {interview.metadata.role || "General Interview"}
-                          </h4>
-                          <p className="flex flex-wrap items-center gap-x-1.5 text-xs leading-normal text-slate-500">
-                            <span>{formatDate(interview.createdAt)}</span>
-                            <span className="text-slate-300">·</span>
-                            <span>
-                              {interview.metadata.language === "hi"
-                                ? "Hindi"
-                                : "English"}
-                            </span>
-                            {durationLabel && (
-                              <>
-                                <span className="text-slate-300">·</span>
-                                <span className="tabular-nums text-slate-600">
-                                  {durationLabel}
-                                </span>
-                              </>
-                            )}
-                            {creditsUsed != null && (
-                              <>
-                                <span className="text-slate-300">·</span>
-                                <span className="tabular-nums text-slate-600">
-                                  {creditsUsed} credits
-                                </span>
-                              </>
-                            )}
-                            {interview.report && (
-                              <>
-                                <span className="text-slate-300">·</span>
-                                <span
-                                  className={cn(
-                                    "font-semibold tabular-nums",
-                                    getScoreColor(
-                                      interview.report.overallScore,
-                                    ),
-                                  )}
-                                >
-                                  {interview.report.overallScore}/100
-                                </span>
-                              </>
-                            )}
-                            <span className="text-slate-300">·</span>
-                            <span
-                              className={cn(
-                                "inline-flex rounded-full border px-1.5 py-px text-[10px] font-semibold capitalize leading-none",
-                                getStatusBadge(interview.status),
-                              )}
-                            >
-                              {interview.status}
-                            </span>
-                          </p>
-                        </div>
-                        <div className="flex shrink-0 flex-nowrap items-center justify-end gap-1.5 self-center">
-                          {interview.status === "completed" && (
-                            <>
-                              <Button
-                                variant="outline"
-                                className={cn(
-                                  instituteSecondaryClass,
-                                  "size-8 shrink-0 p-0 [&_svg]:size-3.5",
-                                )}
-                                title="Play video"
-                                aria-label="Play interview video"
-                                onClick={async () => {
-                                  try {
-                                    const { videoUrl } =
-                                      await interviewApi.getRecordingVideoUrl(
-                                        interview.interviewId,
-                                      );
-                                    if (!videoUrl?.trim()) {
-                                      setVideoUnavailableOpen(true);
-                                      return;
-                                    }
-                                    window.open(videoUrl, "_blank");
-                                  } catch (error) {
-                                    console.error(
-                                      "Error getting video URL:",
-                                      error,
-                                    );
-                                    setVideoUnavailableOpen(true);
-                                  }
-                                }}
-                              >
-                                <PlayCircle className="size-3.5" />
-                              </Button>
-                              {interview.report ? (
-                                <Link
-                                  href={`/dashboard/interviews/${interview.interviewId}/report`}
-                                  className={cn(
-                                    buttonVariants({ variant: "outline" }),
-                                    instituteSecondaryClass,
-                                    "h-8 shrink-0 gap-1.5 px-2.5 py-0 text-xs leading-none no-underline",
-                                  )}
-                                >
-                                  <FileText className="size-3.5 shrink-0" />
-                                  View Report
-                                </Link>
-                              ) : (
-                                <Link
-                                  href={`/dashboard/interviews/${interview.interviewId}/report`}
-                                  className={cn(
-                                    buttonVariants({ variant: "default" }),
-                                    institutePrimaryClass,
-                                    "h-8 shrink-0 gap-1.5 px-2.5 py-0 text-xs leading-none no-underline",
-                                  )}
-                                >
-                                  <Sparkles className="size-3.5 shrink-0" />
-                                  Generate report
-                                </Link>
-                              )}
-                            </>
-                          )}
-                          {interview.status === "failed" && (
-                            <>
-                              <Button
-                                variant="outline"
-                                className={cn(
-                                  instituteSecondaryClass,
-                                  "size-8 shrink-0 p-0 [&_svg]:size-3.5",
-                                )}
-                                title="Play video"
-                                aria-label="Play interview video"
-                                onClick={async () => {
-                                  try {
-                                    const { videoUrl } =
-                                      await interviewApi.getRecordingVideoUrl(
-                                        interview.interviewId,
-                                      );
-                                    if (!videoUrl?.trim()) {
-                                      setVideoUnavailableOpen(true);
-                                      return;
-                                    }
-                                    window.open(videoUrl, "_blank");
-                                  } catch (error) {
-                                    console.error(
-                                      "Error getting video URL:",
-                                      error,
-                                    );
-                                    setVideoUnavailableOpen(true);
-                                  }
-                                }}
-                              >
-                                <PlayCircle className="size-3.5" />
-                              </Button>
-                              <Link
-                                href={`/dashboard/interviews/${interview.interviewId}/report`}
-                                className={cn(
-                                  buttonVariants({ variant: "default" }),
-                                  institutePrimaryClass,
-                                  "h-8 shrink-0 gap-1.5 px-2.5 py-0 text-xs leading-none no-underline",
-                                )}
-                              >
-                                <Sparkles className="size-3.5 shrink-0" />
-                                Generate report
-                              </Link>
-                            </>
-                          )}
-                          {interview.status === "draft" && (
-                            <Link
-                              href={`/interview/${interview.interviewId}/realtime`}
-                              className={cn(
-                                buttonVariants({ variant: "default" }),
-                                institutePrimaryClass,
-                                "h-8 shrink-0 gap-1 px-3 py-0 text-xs leading-none no-underline",
-                              )}
-                            >
-                              <PlayCircle className="size-3.5 shrink-0" />
-                              Start
-                            </Link>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-              </div>
-
-              {/* Pagination */}
-              {interviews.length > itemsPerPage && (
-                <div className="flex items-center justify-between mt-6 pt-4 border-t border-blue-200">
-                  <div className="text-sm text-gray-600">
-                    Showing {(currentPage - 1) * itemsPerPage + 1} to{" "}
-                    {Math.min(currentPage * itemsPerPage, interviews.length)} of{" "}
-                    {interviews.length} interviews
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() =>
-                        setCurrentPage((prev) => Math.max(1, prev - 1))
-                      }
-                      disabled={currentPage === 1}
-                      className="border-blue-300 text-[rgb(37,99,235)] hover:!bg-[rgb(17,24,39)] hover:!text-white hover:border-[rgb(17,24,39)] disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                    >
-                      <ChevronLeft className="w-4 h-4 mr-1" />
-                      Previous
-                    </Button>
-                    <span className="text-sm text-gray-600 px-3">
-                      Page {currentPage} of{" "}
-                      {Math.ceil(interviews.length / itemsPerPage)}
-                    </span>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() =>
-                        setCurrentPage((prev) =>
-                          Math.min(
-                            Math.ceil(interviews.length / itemsPerPage),
-                            prev + 1,
-                          ),
-                        )
-                      }
-                      disabled={
-                        currentPage >=
-                        Math.ceil(interviews.length / itemsPerPage)
-                      }
-                      className="border-blue-300 text-[rgb(37,99,235)] hover:!bg-[rgb(17,24,39)] hover:!text-white hover:border-[rgb(17,24,39)] disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                    >
-                      Next
-                      <ChevronRight className="w-4 h-4 ml-1" />
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </>
-          )}
+        <CardContent className="p-0">
+          <RecentInterviewsList
+            interviews={interviews}
+            currentPage={currentPage}
+            itemsPerPage={itemsPerPage}
+            onPageChange={setCurrentPage}
+            onVideoUnavailable={() => setVideoUnavailableOpen(true)}
+          />
         </CardContent>
       </Card>
 
       {/* Resume quick stats */}
       {resumes.length > 0 && (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-2">
-          <div className="flex min-h-0 min-w-0 items-start gap-3 rounded-md border border-blue-200/50 bg-gradient-to-br from-blue-50 to-blue-100/50 p-4 shadow-lg shadow-blue-500/10 backdrop-blur-sm transition-all duration-300 hover:shadow-xl hover:shadow-blue-500/20 sm:gap-4 sm:p-5">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[rgb(37,99,235)] to-blue-600 shadow-lg shadow-blue-500/30 ring-2 ring-blue-200/50 sm:h-12 sm:w-12">
-              <FileEdit className="h-5 w-5 text-white sm:h-6 sm:w-6" />
-            </div>
-            <div className="min-w-0 flex-1 space-y-1.5">
-              <div className="flex items-center justify-between gap-2">
-                <p className="min-w-0 truncate text-xs font-bold leading-tight text-[rgb(37,99,235)] sm:text-sm">
-                  Total resumes
-                </p>
-                <p className="shrink-0 text-right text-lg font-bold tabular-nums leading-none text-slate-900 sm:text-xl lg:text-2xl">
-                  {resumes.length}
-                </p>
-              </div>
-              <div className="flex flex-wrap items-center gap-1.5 text-xs font-medium text-slate-600 sm:text-sm">
+          <DashboardStatCard
+            theme="emerald"
+            label="Total resumes"
+            value={resumes.length}
+            icon={FileEdit}
+            hint={
+              <>
                 <FileText className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
                 <span>In builder</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex min-h-0 min-w-0 items-start gap-3 rounded-md border border-blue-200/50 bg-gradient-to-br from-blue-50 to-blue-100/50 p-4 shadow-lg shadow-blue-500/10 backdrop-blur-sm transition-all duration-300 hover:shadow-xl hover:shadow-blue-500/20 sm:gap-4 sm:p-5">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[rgb(37,99,235)] to-blue-600 shadow-lg shadow-blue-500/30 ring-2 ring-blue-200/50 sm:h-12 sm:w-12">
-              <FileCheck className="h-5 w-5 text-white sm:h-6 sm:w-6" />
-            </div>
-            <div className="min-w-0 flex-1 space-y-1.5">
-              <div className="flex items-center justify-between gap-2">
-                <p className="min-w-0 truncate text-xs font-bold leading-tight text-[rgb(37,99,235)] sm:text-sm">
-                  Average ATS
-                </p>
-                <p
-                  className={cn(
-                    "shrink-0 text-right text-lg font-bold tabular-nums leading-none sm:text-xl lg:text-2xl",
-                    resumesWithAts.length > 0
-                      ? getScoreColor(avgAts)
-                      : "text-slate-900",
-                  )}
-                >
-                  {resumesWithAts.length > 0 ? `${avgAts}/100` : "—"}
-                </p>
-              </div>
-              <Progress
-                value={avgAts}
-                className="h-2 w-full overflow-hidden rounded-full border border-blue-300/90 bg-blue-100/90 shadow-[inset_0_1px_2px_rgba(0,0,0,0.06)] sm:h-2.5"
-              />
-              <div className="flex flex-wrap items-center gap-1.5 text-xs font-medium text-slate-600 sm:text-sm">
+              </>
+            }
+          />
+          <DashboardStatCard
+            theme="violet"
+            label="Average ATS"
+            value={resumesWithAts.length > 0 ? `${avgAts}/100` : "—"}
+            icon={FileCheck}
+            progress={resumesWithAts.length > 0 ? avgAts : undefined}
+            hint={
+              <>
                 <Percent className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
                 <span>
                   {resumesWithAts.length > 0
                     ? `${resumesWithAts.length} scored`
                     : "No ATS run yet"}
                 </span>
-              </div>
-            </div>
-          </div>
+              </>
+            }
+          />
         </div>
       )}
 
       {/* Your resumes */}
-      <Card className="rounded-md border border-border bg-card shadow-sm">
-        <CardHeader className="pb-4">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <Card className="overflow-hidden rounded-xl border border-border/60 bg-card shadow-card">
+        <CardHeader className="border-b border-border/60 px-5 py-4">
+          <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
             <div>
-              <div className="mb-2 flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-md bg-gradient-to-br from-[rgb(37,99,235)] to-blue-600 shadow-lg shadow-blue-500/30 ring-2 ring-blue-200/50">
-                  <FileEdit className="h-5 w-5 text-white" />
-                </div>
-                <CardTitle className="text-xl text-slate-900 lg:text-2xl">
-                  Your resumes
-                </CardTitle>
-              </div>
-              <CardDescription className="text-sm text-gray-600">
-                ATS-ready templates + Smart ATS Score so you polish before
-                applying and bring the strongest version to AI Interview Practice.
+              <CardTitle className="text-lg font-semibold text-foreground">
+                Your resumes
+              </CardTitle>
+              <CardDescription className="mt-1 text-sm">
+                Build and refine resumes with ATS scoring before you apply.
               </CardDescription>
             </div>
             <div className="flex flex-wrap items-center gap-2">
@@ -1103,163 +683,22 @@ export default function DashboardPage() {
                 View all
               </Link>
               <Link href="/dashboard/resumes/new">
-                <Button
-                  size="lg"
-                  className="!bg-[rgb(37,99,235)] text-white shadow-lg transition-all hover:!bg-[rgb(17,24,39)] hover:shadow-xl"
-                >
+                <Button className={institutePrimaryClass}>
                   <Plus className="mr-2 h-4 w-4" /> New resume
                 </Button>
               </Link>
             </div>
           </div>
         </CardHeader>
-        <CardContent>
-          {resumes.length === 0 ? (
-            <div className="py-16 text-center">
-              <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-md bg-gradient-to-br from-blue-100 to-blue-200 shadow-lg">
-                <FileEdit className="h-10 w-10 text-[rgb(37,99,235)]" />
-              </div>
-              <h3 className="mb-2 text-xl font-bold text-slate-900">
-                No resumes yet
-              </h3>
-              <p className="mx-auto mb-8 max-w-md text-gray-600">
-                Ship an ATS-aligned draft, watch Smart ATS Score surface gaps in
-                real time, pass the bots, then drop the same resume into voice and
-                peer sessions.
-              </p>
-              <Link href="/dashboard/resumes/new">
-                <Button
-                  size="lg"
-                  className="!bg-[rgb(37,99,235)] text-white shadow-lg transition-all hover:!bg-[rgb(17,24,39)] hover:shadow-xl"
-                >
-                  <Plus className="mr-2 h-5 w-5" /> Create your first resume
-                </Button>
-              </Link>
-            </div>
-          ) : (
-            <>
-              <div className="divide-y divide-slate-100">
-                {resumeSlice.map((resume) => (
-                  <div
-                    key={resume.resumeId}
-                    className="group flex min-w-0 flex-nowrap items-center justify-between gap-3 py-2.5 transition-colors first:pt-0 last:pb-0 hover:bg-slate-50/80"
-                  >
-                    <div className="min-w-0 flex-1 space-y-1">
-                      <Link
-                        href={`/dashboard/resumes/${resume.resumeId}/edit`}
-                        className="block truncate text-sm font-semibold leading-tight text-slate-900 hover:text-[rgb(37,99,235)]"
-                      >
-                        {resume.title?.trim() || "Untitled resume"}
-                      </Link>
-                      <p className="flex flex-wrap items-center gap-x-1.5 text-xs leading-normal text-slate-500">
-                        <span>Updated {formatDate(resume.updatedAt)}</span>
-                        <span className="text-slate-300">·</span>
-                        <span>{resumeTemplateLabel(resume.templateId)}</span>
-                        {typeof resume.atsScore === "number" &&
-                        Number.isFinite(resume.atsScore) ? (
-                          <>
-                            <span className="text-slate-300">·</span>
-                            <span
-                              className={cn(
-                                "font-semibold tabular-nums",
-                                getScoreColor(resume.atsScore),
-                              )}
-                            >
-                              ATS {resume.atsScore}/100
-                            </span>
-                          </>
-                        ) : null}
-                        {resume.pdfS3Key ? (
-                          <>
-                            <span className="text-slate-300">·</span>
-                            <span className="text-slate-600">PDF</span>
-                          </>
-                        ) : null}
-                        {resume.isDefault ? (
-                          <>
-                            <span className="text-slate-300">·</span>
-                            <span className="inline-flex rounded-full border border-violet-200 bg-violet-100 px-1.5 py-px text-[10px] font-semibold leading-none text-violet-800">
-                              Default
-                            </span>
-                          </>
-                        ) : null}
-                      </p>
-                    </div>
-                    <div className="flex shrink-0 flex-nowrap items-center justify-end gap-1.5 self-center">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => handleResumeDownload(resume.resumeId)}
-                        disabled={downloadingResumeId === resume.resumeId}
-                        className={cn(
-                          instituteSecondaryClass,
-                          "h-8 shrink-0 gap-1.5 px-2.5 py-0 text-xs leading-none",
-                        )}
-                      >
-                        {downloadingResumeId === resume.resumeId ? (
-                          <Loader2 className="size-3.5 shrink-0 animate-spin" />
-                        ) : (
-                          <Download className="size-3.5 shrink-0" />
-                        )}
-                        Download
-                      </Button>
-                      <Link
-                        href={`/dashboard/resumes/${resume.resumeId}/edit`}
-                        className={cn(
-                          buttonVariants({ variant: "outline" }),
-                          instituteSecondaryClass,
-                          "h-8 shrink-0 gap-1.5 px-2.5 py-0 text-xs leading-none no-underline",
-                        )}
-                      >
-                        <FileEdit className="size-3.5 shrink-0" />
-                        Edit
-                      </Link>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {sortedResumes.length > resumeItemsPerPage && (
-                <div className="mt-6 flex flex-col gap-4 border-t border-blue-200 pt-4 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="text-sm text-gray-600">
-                    Showing {(resumePage - 1) * resumeItemsPerPage + 1} to{" "}
-                    {Math.min(
-                      resumePage * resumeItemsPerPage,
-                      sortedResumes.length,
-                    )}{" "}
-                    of {sortedResumes.length} resumes
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setResumePage((p) => Math.max(1, p - 1))}
-                      disabled={resumePage === 1}
-                      className="border-blue-300 text-[rgb(37,99,235)] transition-all hover:!border-[rgb(17,24,39)] hover:!bg-[rgb(17,24,39)] hover:!text-white disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      <ChevronLeft className="mr-1 h-4 w-4" />
-                      Previous
-                    </Button>
-                    <span className="px-3 text-sm text-gray-600">
-                      Page {resumePage} of {resumeTotalPages}
-                    </span>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() =>
-                        setResumePage((p) => Math.min(resumeTotalPages, p + 1))
-                      }
-                      disabled={resumePage >= resumeTotalPages}
-                      className="border-blue-300 text-[rgb(37,99,235)] transition-all hover:!border-[rgb(17,24,39)] hover:!bg-[rgb(17,24,39)] hover:!text-white disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      Next
-                      <ChevronRight className="ml-1 h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </>
-          )}
+        <CardContent className="p-0">
+          <DashboardResumesList
+            resumes={resumes}
+            currentPage={resumePage}
+            itemsPerPage={resumeItemsPerPage}
+            onPageChange={setResumePage}
+            onDownload={handleResumeDownload}
+            downloadingResumeId={downloadingResumeId}
+          />
         </CardContent>
       </Card>
 

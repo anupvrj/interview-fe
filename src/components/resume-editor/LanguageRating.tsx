@@ -100,7 +100,7 @@ export function LanguageRating({ languages, onChange }: LanguageRatingProps) {
                   <div
                     key={i}
                     className={`w-2 h-2 rounded-full ${
-                      i < lang.level ? "bg-landing-blue-700" : "bg-gray-300"
+                      i < lang.level ? "bg-primary" : "bg-gray-300"
                     }`}
                   />
                 ))}
@@ -114,7 +114,7 @@ export function LanguageRating({ languages, onChange }: LanguageRatingProps) {
                 variant="ghost"
                 size="sm"
                 onClick={() => toggleExpanded(lang.id)}
-                className="h-8 px-2 text-gray-600 hover:text-landing-blue-700"
+                className="h-8 px-2 text-gray-600 hover:text-primary"
               >
                 {expandedLanguages.has(lang.id) ? "▼" : "▶"}
               </Button>
@@ -167,7 +167,7 @@ export function LanguageRating({ languages, onChange }: LanguageRatingProps) {
                         onClick={() => updateLanguage(lang.id, "level", i + 1)}
                         className={`w-8 h-8 rounded-full border-2 transition-all ${
                           i < lang.level
-                            ? "bg-landing-blue-700 border-purple-600"
+                            ? "bg-primary border-purple-600"
                             : "bg-white border-gray-300 hover:border-purple-400"
                         }`}
                         title={`Level ${i + 1}: ${getProficiencyLabel(i + 1)}`}

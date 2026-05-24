@@ -22,6 +22,8 @@ import {
 import { SiteHeader } from "@/components/SiteHeader";
 import { MarketingFooter } from "@/components/MarketingFooter";
 import { AiJobSearchNotifyButton } from "@/components/AiJobSearchNotifyButton";
+import { appMarketingSection, appMarketingSectionAlt } from "@/lib/app-theme";
+import { cn } from "@/lib/utils";
 
 export default function JobSearchComingSoonPage() {
   // Animated Heading States
@@ -193,11 +195,16 @@ export default function JobSearchComingSoonPage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-white scroll-smooth selection:bg-blue-100">
+    <div className="min-h-screen bg-background scroll-smooth selection:bg-info-muted">
       <SiteHeader />
 
       {/* AI Job Search Hero Section */}
-      <section className="pt-32 sm:pt-40 lg:pt-48 pb-16 sm:pb-20 md:pb-24 lg:pb-28 px-4 sm:px-6 overflow-hidden bg-blue-50 relative">
+      <section
+        className={cn(
+          appMarketingSectionAlt,
+          "relative overflow-hidden px-4 pb-16 pt-32 sm:px-6 sm:pb-20 sm:pt-40 md:pb-24 lg:pb-28 lg:pt-48",
+        )}
+      >
         {/* Animated Heading */}
         <div className="container mx-auto max-w-7xl relative z-10 mb-12 sm:mb-16">
           <div className="text-center">
@@ -212,7 +219,7 @@ export default function JobSearchComingSoonPage() {
                   return (
                     <span
                       key={index}
-                      className={isSearchChar ? 'text-blue-600' : 'text-slate-900'}
+                      className={isSearchChar ? 'text-primary' : 'text-slate-900'}
                     >
                       {char === ' ' ? '\u00A0' : char}
                     </span>
@@ -220,7 +227,7 @@ export default function JobSearchComingSoonPage() {
                 });
               })()}
               <span 
-                className={`inline-block w-0.5 h-[1em] bg-blue-600 ml-1 align-middle ${
+                className={`inline-block w-0.5 h-[1em] bg-primary ml-1 align-middle ${
                   showCursor ? 'opacity-100' : 'opacity-0'
                 }`}
                 style={{
@@ -249,7 +256,7 @@ export default function JobSearchComingSoonPage() {
                 animationDelay: `${i * 0.5}s`,
               }}
             >
-              <Search className="w-12 h-12 sm:w-16 sm:h-16 text-blue-400" />
+              <Search className="w-12 h-12 sm:w-16 sm:h-16 text-primary/70" />
             </div>
           ))}
           {[...Array(8)].map((_, i) => (
@@ -264,7 +271,7 @@ export default function JobSearchComingSoonPage() {
                 animationDelay: `${i * 0.5}s`,
               }}
             >
-              <Briefcase className="w-10 h-10 sm:w-14 sm:h-14 text-blue-300" />
+              <Briefcase className="w-10 h-10 sm:w-14 sm:h-14 text-primary/50" />
             </div>
           ))}
           {[...Array(6)].map((_, i) => (
@@ -287,13 +294,13 @@ export default function JobSearchComingSoonPage() {
           <div className="grid lg:grid-cols-2 gap-8 sm:gap-12 lg:gap-16 items-center">
             {/* Left Side - Marketing Content */}
             <div className="space-y-4 sm:space-y-5 md:space-y-6 text-center lg:text-left order-2 lg:order-1">
-              <div className="inline-flex items-center gap-2 px-3 py-1 bg-blue-50 rounded-full text-blue-700 font-medium text-sm mb-4">
+              <div className="inline-flex items-center gap-2 px-3 py-1 bg-muted rounded-full text-primary font-medium text-sm mb-4">
                 <Sparkles className="w-3 h-3" />
                 <span>Coming Soon</span>
               </div>
               <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-[43px] font-bold tracking-tight text-slate-900 leading-[1.2] sm:leading-[1.1] lg:leading-[52px] mb-4 sm:mb-6">
                 Match. Refine.
-                <span className="block text-blue-600">Then Apply.</span>
+                <span className="block text-primary">Then Apply.</span>
               </h1>
               <p className="text-base sm:text-lg md:text-xl text-gray-600 leading-relaxed max-w-xl mx-auto lg:mx-0 px-2 sm:px-0">
                 We help you prioritize roles where you&apos;re strongest, tighten your resume to the JD, and walk into every application with Interview Trix as your partner—not another black-hole submission.
@@ -302,15 +309,15 @@ export default function JobSearchComingSoonPage() {
               {/* Features List */}
               <div className="space-y-3 pt-4 sm:pt-6 px-2 sm:px-0">
                 <div className="flex items-start gap-3">
-                  <CheckCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                  <CheckCircle className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
                   <span className="text-gray-700 text-sm sm:text-base">Broad discovery so you&apos;re not limited to one job board or feed.</span>
                 </div>
                 <div className="flex items-start gap-3">
-                  <CheckCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                  <CheckCircle className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
                   <span className="text-gray-700 text-sm sm:text-base">Signals where you&apos;re a strong contender before you sink time into each application.</span>
                 </div>
                 <div className="flex items-start gap-3">
-                  <CheckCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                  <CheckCircle className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
                   <span className="text-gray-700 text-sm sm:text-base">JD-specific resume tuning right before apply—exactly when it matters.</span>
                 </div>
               </div>
@@ -322,9 +329,9 @@ export default function JobSearchComingSoonPage() {
 
             {/* Right Section - Animated Job Search Preview */}
             <div className="relative flex justify-center lg:justify-start order-1 lg:order-2">
-              <div className="relative rounded-lg sm:rounded-xl shadow-2xl overflow-hidden bg-white w-full max-w-[600px] sm:max-w-[700px] border-2 sm:border-4 border-blue-100">
+              <div className="relative rounded-lg sm:rounded-xl shadow-2xl overflow-hidden bg-white w-full max-w-[600px] sm:max-w-[700px] border-2 sm:border-4 border-border">
                 {/* Search Box */}
-                <div className="p-4 sm:p-6 bg-gradient-to-br from-blue-50 to-indigo-50 border-b border-gray-200">
+                <div className="p-4 sm:p-6 bg-muted/40 border-b border-gray-200">
                   <div className="flex items-center gap-3 bg-white rounded-lg px-4 py-3 shadow-sm border border-gray-200">
                     <Search className="w-5 h-5 text-gray-400 flex-shrink-0" />
                     <input
@@ -335,7 +342,7 @@ export default function JobSearchComingSoonPage() {
                       className="flex-1 outline-none text-sm sm:text-base text-gray-700 bg-transparent"
                     />
                     {jobSearchText && (
-                      <span className="text-blue-600 text-xs sm:text-sm font-medium">
+                      <span className="text-primary text-xs sm:text-sm font-medium">
                         {jobSearchText.length}/{jobRoles[currentJobIndex % jobRoles.length].length}
                       </span>
                     )}
@@ -346,14 +353,14 @@ export default function JobSearchComingSoonPage() {
                 {isSearching && (
                   <div className="p-4 sm:p-6 bg-white border-b border-gray-200">
                     <div className="flex items-center gap-3 animate-pulse">
-                      <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
+                      <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
                         <Brain className="w-4 h-4 text-white" />
                       </div>
                       <div className="flex-1">
-                        <div className="h-2 bg-blue-200 rounded-full w-3/4 mb-2"></div>
-                        <div className="h-2 bg-blue-100 rounded-full w-1/2"></div>
+                        <div className="h-2 bg-muted rounded-full w-3/4 mb-2"></div>
+                        <div className="h-2 bg-muted rounded-full w-1/2"></div>
                       </div>
-                      <span className="text-xs sm:text-sm text-blue-600 font-medium">Matching...</span>
+                      <span className="text-xs sm:text-sm text-primary font-medium">Matching...</span>
                     </div>
                   </div>
                 )}
@@ -363,7 +370,7 @@ export default function JobSearchComingSoonPage() {
                   <div className="p-4 sm:p-6 bg-white max-h-[400px] overflow-hidden relative">
                     <div className="flex items-center justify-between mb-4">
                       <h3 className="text-sm sm:text-base font-bold text-slate-900">Best Matches</h3>
-                      <span className="text-xs sm:text-sm text-blue-600 font-medium">{currentJobResults.length} results</span>
+                      <span className="text-xs sm:text-sm text-primary font-medium">{currentJobResults.length} results</span>
                     </div>
                     <div 
                       ref={jobResultsRef}
@@ -375,7 +382,7 @@ export default function JobSearchComingSoonPage() {
                       {currentJobResults.map((job, index) => (
                         <div
                           key={index}
-                          className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 border border-blue-100 hover:border-blue-300 transition-all"
+                          className="bg-muted/40 rounded-lg p-4 border border-border hover:border-border transition-all"
                           style={{
                             animation: `fadeInUp 0.5s ease-out ${index * 0.1}s both`
                           }}
@@ -383,7 +390,7 @@ export default function JobSearchComingSoonPage() {
                           <div className="flex items-start justify-between mb-3">
                             <div className="flex-1">
                               <div className="flex items-center gap-2 mb-1">
-                                <Briefcase className="w-4 h-4 text-blue-600" />
+                                <Briefcase className="w-4 h-4 text-primary" />
                                 <h4 className="font-bold text-slate-900 text-sm sm:text-base">{job.role}</h4>
                               </div>
                               <p className="text-xs sm:text-sm text-gray-600">{job.company}</p>
@@ -403,21 +410,21 @@ export default function JobSearchComingSoonPage() {
                           </div>
                           
                           {/* Action Buttons */}
-                          <div className="flex flex-wrap gap-2 pt-3 border-t border-blue-200">
+                          <div className="flex flex-wrap gap-2 pt-3 border-t border-border">
                             <div className="flex-1 min-w-[100px]">
-                              <div className="w-full text-xs h-8 border border-blue-300 text-blue-600 bg-white rounded-md flex items-center justify-center cursor-default">
+                              <div className="w-full text-xs h-8 border border-border text-primary bg-white rounded-md flex items-center justify-center cursor-default">
                                 <FileText className="w-3 h-3 mr-1" />
                                 Update Resume
                               </div>
                             </div>
                             <div className="flex-1 min-w-[100px]">
-                              <div className="w-full text-xs h-8 border border-blue-300 text-blue-600 bg-white rounded-md flex items-center justify-center cursor-default">
+                              <div className="w-full text-xs h-8 border border-border text-primary bg-white rounded-md flex items-center justify-center cursor-default">
                                 <Mic className="w-3 h-3 mr-1" />
                                 Practice Interview
                               </div>
                             </div>
                             <div className="flex-1 min-w-[80px]">
-                              <div className="w-full text-xs h-8 bg-blue-600 text-white rounded-md flex items-center justify-center cursor-default">
+                              <div className="w-full text-xs h-8 bg-primary text-primary-foreground rounded-md flex items-center justify-center cursor-default">
                                 Apply Now
                                 <ArrowRight className="w-3 h-3 ml-1" />
                               </div>
@@ -443,7 +450,13 @@ export default function JobSearchComingSoonPage() {
       </section>
 
       {/* How It Works Section */}
-      <section ref={howItWorksRef} className="py-16 sm:py-20 md:py-24 lg:py-28 px-4 sm:px-6 bg-white">
+      <section
+        ref={howItWorksRef}
+        className={cn(
+          appMarketingSection,
+          "px-4 py-16 sm:px-6 sm:py-20 md:py-24 lg:py-28",
+        )}
+      >
         <div className="container mx-auto max-w-7xl">
           <div className={`text-center mb-12 sm:mb-16 transition-all duration-700 ${
             howItWorksVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
@@ -458,9 +471,9 @@ export default function JobSearchComingSoonPage() {
 
           <div className="relative">
             {/* Connection Line - Desktop Only */}
-            <div className="hidden lg:block absolute top-1/2 left-0 right-0 h-2 bg-blue-200 transform -translate-y-1/2 overflow-hidden rounded-full" style={{ top: '50%' }}>
+            <div className="hidden lg:block absolute top-1/2 left-0 right-0 h-2 bg-muted transform -translate-y-1/2 overflow-hidden rounded-full" style={{ top: '50%' }}>
               <div 
-                className="h-full bg-gradient-to-r from-blue-400 via-blue-500 to-blue-600 rounded-full absolute"
+                className="absolute h-full rounded-full bg-gradient-to-r from-primary/80 via-muted to-primary"
                 style={{
                   animation: howItWorksVisible ? 'lineProgress 6s ease-in-out 0.5s infinite' : 'none',
                   boxShadow: howItWorksVisible ? '0 0 12px rgba(59, 130, 246, 0.6)' : 'none'
@@ -471,7 +484,7 @@ export default function JobSearchComingSoonPage() {
             {/* Steps */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8 relative z-10">
               {/* Step 1 & 2 Combined */}
-              <div className={`bg-white rounded-2xl p-4 sm:p-5 border-2 border-blue-100 shadow-lg hover:shadow-xl transition-all hover:border-blue-300 ${
+              <div className={`bg-white rounded-2xl p-4 sm:p-5 border-2 border-border shadow-lg hover:shadow-xl transition-all hover:border-border ${
                 howItWorksVisible 
                   ? 'opacity-100 translate-y-0' 
                   : 'opacity-0 translate-y-8'
@@ -482,10 +495,10 @@ export default function JobSearchComingSoonPage() {
                 transitionTimingFunction: 'ease-out'
               }}>
                 <div className="flex flex-col items-center text-center">
-                  <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center mb-4 shadow-md">
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 bg-primary rounded-2xl flex items-center justify-center mb-4 shadow-md">
                     <FileText className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
                   </div>
-                  <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold text-sm sm:text-base mb-3">
+                  <div className="w-8 h-8 bg-primary text-primary-foreground rounded-full flex items-center justify-center font-bold text-sm sm:text-base mb-3">
                     1
                   </div>
                   <h3 className="text-lg sm:text-xl font-bold text-slate-900 mb-2">
@@ -498,7 +511,7 @@ export default function JobSearchComingSoonPage() {
               </div>
 
               {/* Step 2 (formerly Step 3) */}
-              <div className={`bg-white rounded-2xl p-4 sm:p-5 border-2 border-blue-100 shadow-lg hover:shadow-xl transition-all hover:border-blue-300 ${
+              <div className={`bg-white rounded-2xl p-4 sm:p-5 border-2 border-border shadow-lg hover:shadow-xl transition-all hover:border-border ${
                 howItWorksVisible 
                   ? 'opacity-100 translate-y-0' 
                   : 'opacity-0 translate-y-8'
@@ -509,10 +522,10 @@ export default function JobSearchComingSoonPage() {
                 transitionTimingFunction: 'ease-out'
               }}>
                 <div className="flex flex-col items-center text-center">
-                  <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center mb-4 shadow-md">
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 bg-primary rounded-2xl flex items-center justify-center mb-4 shadow-md">
                     <Search className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
                   </div>
-                  <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold text-sm sm:text-base mb-3">
+                  <div className="w-8 h-8 bg-primary text-primary-foreground rounded-full flex items-center justify-center font-bold text-sm sm:text-base mb-3">
                     2
                   </div>
                   <h3 className="text-lg sm:text-xl font-bold text-slate-900 mb-2">
@@ -525,7 +538,7 @@ export default function JobSearchComingSoonPage() {
               </div>
 
               {/* Step 3 (formerly Step 4) */}
-              <div className={`bg-white rounded-2xl p-4 sm:p-5 border-2 border-blue-100 shadow-lg hover:shadow-xl transition-all hover:border-blue-300 ${
+              <div className={`bg-white rounded-2xl p-4 sm:p-5 border-2 border-border shadow-lg hover:shadow-xl transition-all hover:border-border ${
                 howItWorksVisible 
                   ? 'opacity-100 translate-y-0' 
                   : 'opacity-0 translate-y-8'
@@ -536,10 +549,10 @@ export default function JobSearchComingSoonPage() {
                 transitionTimingFunction: 'ease-out'
               }}>
                 <div className="flex flex-col items-center text-center">
-                  <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center mb-4 shadow-md">
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 bg-primary rounded-2xl flex items-center justify-center mb-4 shadow-md">
                     <Target className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
                   </div>
-                  <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold text-sm sm:text-base mb-3">
+                  <div className="w-8 h-8 bg-primary text-primary-foreground rounded-full flex items-center justify-center font-bold text-sm sm:text-base mb-3">
                     3
                   </div>
                   <h3 className="text-lg sm:text-xl font-bold text-slate-900 mb-2">
@@ -552,7 +565,7 @@ export default function JobSearchComingSoonPage() {
               </div>
 
               {/* Step 4 (formerly Step 5) */}
-              <div className={`bg-white rounded-2xl p-4 sm:p-5 border-2 border-blue-100 shadow-lg hover:shadow-xl transition-all hover:border-blue-300 ${
+              <div className={`bg-white rounded-2xl p-4 sm:p-5 border-2 border-border shadow-lg hover:shadow-xl transition-all hover:border-border ${
                 howItWorksVisible 
                   ? 'opacity-100 translate-y-0' 
                   : 'opacity-0 translate-y-8'
@@ -563,10 +576,10 @@ export default function JobSearchComingSoonPage() {
                 transitionTimingFunction: 'ease-out'
               }}>
                 <div className="flex flex-col items-center text-center">
-                  <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center mb-4 shadow-md">
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 bg-primary rounded-2xl flex items-center justify-center mb-4 shadow-md">
                     <Trophy className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
                   </div>
-                  <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold text-sm sm:text-base mb-3">
+                  <div className="w-8 h-8 bg-primary text-primary-foreground rounded-full flex items-center justify-center font-bold text-sm sm:text-base mb-3">
                     4
                   </div>
                   <h3 className="text-lg sm:text-xl font-bold text-slate-900 mb-2">
@@ -583,7 +596,12 @@ export default function JobSearchComingSoonPage() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-16 sm:py-20 md:py-24 lg:py-28 px-4 sm:px-6 bg-blue-50 relative overflow-hidden">
+      <section
+        className={cn(
+          appMarketingSectionAlt,
+          "relative overflow-hidden px-4 py-16 sm:px-6 sm:py-20 md:py-24 lg:py-28",
+        )}
+      >
         <div className="container mx-auto max-w-4xl text-center relative z-10">
           <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-slate-900 mb-4 sm:mb-6">
             Don&apos;t just apply. Transform the search.
@@ -594,7 +612,7 @@ export default function JobSearchComingSoonPage() {
           <Link href="/pricing">
             <Button
               size="lg"
-              className="text-white font-medium shadow-sm transition-all h-12 px-8 hover:opacity-90 !bg-[rgb(37,99,235)] text-base sm:text-lg"
+              className="text-white font-medium shadow-sm transition-all h-12 px-8 hover:opacity-90 !bg-primary text-base sm:text-lg"
             >
               Signup Now
               <ArrowRight className="w-5 h-5 ml-2" />

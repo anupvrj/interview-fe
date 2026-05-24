@@ -31,6 +31,8 @@ import { SiteHeader } from "@/components/SiteHeader";
 import { MarketingFooter } from "@/components/MarketingFooter";
 import Image from "next/image";
 import { TEMPLATES_CATALOG } from "@/configs/resume-templates/templates-catalog";
+import { appMarketingSection, appMarketingSectionAlt } from "@/lib/app-theme";
+import { cn } from "@/lib/utils";
 
 export default function ResumeBuilderPage() {
   // Animated Heading States
@@ -264,105 +266,17 @@ export default function ResumeBuilderPage() {
       : 0;
 
   return (
-    <div className="min-h-screen bg-white scroll-smooth selection:bg-blue-100">
+    <div className="min-h-screen bg-background scroll-smooth selection:bg-info-muted">
       <SiteHeader />
 
-      {/* Resume Builder Hero Section - Top */}
-      <section className="pt-32 sm:pt-40 lg:pt-48 pb-12 sm:pb-16 px-4 sm:px-6 overflow-hidden relative">
-        <div 
-          className="absolute inset-0"
-          style={{
-            background: 'linear-gradient(135deg, #60A5FA 0%, #3B82F6 50%, #2563EB 100%)'
-          }}
-        ></div>
-        {/* Animated Background Icons */}
-        <div className="absolute inset-0 pointer-events-none z-10">
-          {[...Array(8)].map((_, i) => {
-            const positions = [
-              { left: '5%', top: '10%' },
-              { left: '25%', top: '5%' },
-              { left: '45%', top: '15%' },
-              { left: '65%', top: '8%' },
-              { left: '85%', top: '12%' },
-              { left: '15%', top: '25%' },
-              { left: '55%', top: '30%' },
-              { left: '75%', top: '22%' },
-            ];
-            return (
-              <div
-                key={`filetext-${i}`}
-                className="absolute opacity-20"
-                style={{
-                  left: positions[i].left,
-                  top: positions[i].top,
-                  animation: `float-${i % 3} ${5 + (i % 3) * 2}s ease-in-out infinite`,
-                  animationDelay: `${i * 0.3}s`,
-                }}
-              >
-                <FileText className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
-              </div>
-            );
-          })}
-          {[...Array(8)].map((_, i) => {
-            const positions = [
-              { left: '10%', top: '50%' },
-              { left: '30%', top: '45%' },
-              { left: '50%', top: '55%' },
-              { left: '70%', top: '48%' },
-              { left: '90%', top: '52%' },
-              { left: '20%', top: '65%' },
-              { left: '60%', top: '70%' },
-              { left: '80%', top: '62%' },
-            ];
-            return (
-              <div
-                key={`palette-${i}`}
-                className="absolute opacity-20"
-                style={{
-                  left: positions[i].left,
-                  top: positions[i].top,
-                  animation: `float-${i % 3} ${6 + (i % 2) * 2}s ease-in-out infinite`,
-                  animationDelay: `${i * 0.4}s`,
-                }}
-              >
-                <Palette className="w-7 h-7 sm:w-9 sm:h-9 text-white" />
-              </div>
-            );
-          })}
-          {[...Array(6)].map((_, i) => {
-            const positions = [
-              { left: '8%', top: '35%' },
-              { left: '35%', top: '28%' },
-              { left: '62%', top: '38%' },
-              { left: '88%', top: '32%' },
-              { left: '18%', top: '80%' },
-              { left: '72%', top: '85%' },
-            ];
-            return (
-              <div
-                key={`filecheck-${i}`}
-                className="absolute opacity-20"
-                style={{
-                  left: positions[i].left,
-                  top: positions[i].top,
-                  animation: `float-${i % 3} ${7 + (i % 2) * 2}s ease-in-out infinite`,
-                  animationDelay: `${i * 0.5}s`,
-                }}
-              >
-                <FileCheck className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Animated Heading */}
-        <div className="container mx-auto max-w-7xl relative z-10">
+      <section className={cn(appMarketingSection, "relative overflow-hidden px-4 pb-12 pt-32 sm:px-6 sm:pb-16 sm:pt-40 lg:pt-48")}>
+        <div className="container relative z-10 mx-auto max-w-7xl">
           <div className="text-center">
-            <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/20 backdrop-blur-sm rounded-full text-white font-medium text-sm mb-6 border border-white/30">
-              <Sparkles className="w-3 h-3" />
+            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-primary/15 bg-primary-muted px-3 py-1 text-sm font-medium text-primary">
+              <Sparkles className="h-3 w-3" />
               <span>AI Resume Builder</span>
             </div>
-            <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight mb-4 sm:mb-6 max-sm:break-words max-sm:min-h-[5.1rem]">
+            <h1 className="max-sm:break-words max-sm:min-h-[5.1rem] mb-4 text-4xl font-bold tracking-tight text-foreground sm:mb-6 sm:text-5xl md:text-6xl lg:text-7xl">
               {(() => {
                 const fullText = "Smart ATS resume builder";
                 const builderStart = fullText.indexOf("builder");
@@ -375,7 +289,9 @@ export default function ResumeBuilderPage() {
                   return (
                     <span
                       key={index}
-                      className={isBuilderChar ? "text-white/95" : "text-white"}
+                      className={
+                        isBuilderChar ? "text-primary" : "text-foreground"
+                      }
                     >
                       {char === " " ? spaceChar : char}
                     </span>
@@ -383,7 +299,7 @@ export default function ResumeBuilderPage() {
                 });
               })()}
               <span 
-                className={`inline-block w-0.5 h-[1em] bg-white ml-1 align-middle ${
+                className={`bg-primary ml-1 inline-block h-[1em] w-0.5 align-middle ${
                   showCursor ? 'opacity-100' : 'opacity-0'
                 }`}
                 style={{
@@ -392,7 +308,7 @@ export default function ResumeBuilderPage() {
                 }}
               />
             </h1>
-            <p className="text-lg sm:text-xl md:text-2xl text-white/90 max-w-3xl mx-auto leading-relaxed">
+            <p className="mx-auto max-w-3xl text-lg leading-relaxed text-muted-foreground sm:text-xl md:text-2xl">
               Real-time resume analysis, instant improvements, and a Smart ATS Score—ATS-optimized templates so you pass the bots and reach recruiters.
             </p>
           </div>
@@ -400,7 +316,7 @@ export default function ResumeBuilderPage() {
       </section>
 
       {/* Two Column Section */}
-      <section className="py-16 sm:py-20 md:pb-24 lg:pb-28 px-4 sm:px-6 overflow-hidden bg-blue-50 relative">
+      <section className="py-16 sm:py-20 md:pb-24 lg:pb-28 px-4 sm:px-6 overflow-hidden bg-muted relative">
         {/* Animated Background Elements */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden">
           {[...Array(8)].map((_, i) => (
@@ -415,7 +331,7 @@ export default function ResumeBuilderPage() {
                 animationDelay: `${i * 0.5}s`,
               }}
             >
-              <FileText className="w-12 h-12 sm:w-16 sm:h-16 text-blue-400" />
+              <FileText className="w-12 h-12 sm:w-16 sm:h-16 text-primary/70" />
             </div>
           ))}
           {[...Array(8)].map((_, i) => (
@@ -430,7 +346,7 @@ export default function ResumeBuilderPage() {
                 animationDelay: `${i * 0.5}s`,
               }}
             >
-              <Palette className="w-10 h-10 sm:w-14 sm:h-14 text-blue-300" />
+              <Palette className="w-10 h-10 sm:w-14 sm:h-14 text-primary/50" />
             </div>
           ))}
           {[...Array(6)].map((_, i) => (
@@ -454,7 +370,7 @@ export default function ResumeBuilderPage() {
           <div className="grid lg:grid-cols-2 gap-8 sm:gap-12 lg:gap-16 items-center">
             {/* Left Side - Marketing Content */}
             <div className="space-y-4 sm:space-y-5 md:space-y-6 text-center lg:text-left order-2 lg:order-1">
-              <div className="inline-flex items-center gap-2 px-3 py-1 bg-blue-50 rounded-full text-blue-700 font-medium text-sm mb-4">
+              <div className="inline-flex items-center gap-2 px-3 py-1 bg-muted rounded-full text-primary font-medium text-sm mb-4">
                 <Sparkles className="w-3 h-3" />
                 <span>ATS-Optimized Templates</span>
               </div>
@@ -468,15 +384,15 @@ export default function ResumeBuilderPage() {
               {/* Features List */}
               <div className="space-y-3 pt-4 sm:pt-6 px-2 sm:px-0">
                 <div className="flex items-start gap-3">
-                  <CheckCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                  <CheckCircle className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
                   <span className="text-gray-700 text-sm sm:text-base">ATS-optimized templates and parsing-friendly layouts</span>
                 </div>
                 <div className="flex items-start gap-3">
-                  <CheckCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                  <CheckCircle className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
                   <span className="text-gray-700 text-sm sm:text-base">Real-time suggestions and Smart ATS Score</span>
                 </div>
                 <div className="flex items-start gap-3">
-                  <CheckCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                  <CheckCircle className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
                   <span className="text-gray-700 text-sm sm:text-base">Export when you&apos;re ready—PDF, Word, and more</span>
                 </div>
               </div>
@@ -485,7 +401,7 @@ export default function ResumeBuilderPage() {
                 <Link href="/dashboard/resumes/new" className="w-full sm:w-auto">
                   <Button
                     size="lg"
-                    className="w-full sm:w-auto text-white font-medium shadow-sm transition-all h-12 px-6 hover:opacity-90 !bg-[rgb(37,99,235)]"
+                    className="w-full sm:w-auto text-white font-medium shadow-sm transition-all h-12 px-6 hover:opacity-90 !bg-primary"
                   >
                     Try Builder Free
                     <ArrowRight className="w-4 h-4 ml-2" />
@@ -495,7 +411,7 @@ export default function ResumeBuilderPage() {
                   <Button
                     variant="outline"
                     size="lg"
-                    className="w-full sm:w-auto border-gray-200 text-gray-700 font-medium h-12 px-6 hover:!bg-[rgb(17,24,39)] hover:!text-white transition-all"
+                    className="w-full sm:w-auto border-gray-200 text-gray-700 font-medium h-12 px-6 hover:!bg-slate-900 hover:!text-white transition-all"
                   >
                     Browse Templates
                   </Button>
@@ -505,9 +421,9 @@ export default function ResumeBuilderPage() {
 
             {/* Right Section - Resume Builder Widget */}
             <div className="relative flex justify-center lg:justify-start order-1 lg:order-2">
-              <div className="relative rounded-lg sm:rounded-xl shadow-2xl overflow-hidden bg-white w-full max-w-[600px] sm:max-w-[700px] border-2 sm:border-4 border-blue-100">
+              <div className="relative rounded-lg sm:rounded-xl shadow-2xl overflow-hidden bg-white w-full max-w-[600px] sm:max-w-[700px] border-2 sm:border-4 border-border">
                 {/* Resume Builder Header */}
-                <div className="p-4 sm:p-6 bg-gradient-to-br from-blue-50 to-indigo-50 border-b border-gray-200">
+                <div className="p-4 sm:p-6 bg-muted/40 border-b border-gray-200">
                   <div className="flex items-center justify-between mb-3">
                     <h3 className="text-sm sm:text-base font-bold text-slate-900">Resume Builder</h3>
                     {showDownload && (
@@ -609,7 +525,7 @@ export default function ResumeBuilderPage() {
                     className="flex-shrink-0 max-sm:min-w-0 max-sm:flex-[0_0_calc((100%-1rem)/3)] sm:min-w-[calc(20%-0.8rem)]"
                   >
                     <div className="relative group">
-                      <div className="bg-white rounded-lg shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-200 hover:border-blue-300">
+                      <div className="bg-white rounded-lg shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-200 hover:border-border">
                         {/* Template Preview Image */}
                         <div className="relative aspect-[210/297] bg-white overflow-hidden">
                           <Image
@@ -623,7 +539,7 @@ export default function ResumeBuilderPage() {
                           {/* Hover Overlay with Button */}
                           <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
                             <Link href={`/dashboard/resumes/new?template=${template.id}&skipTemplate=true`}>
-                              <Button className="!bg-[rgb(37,99,235)] hover:!bg-[rgb(17,24,39)] text-white font-medium shadow-lg">
+                              <Button className="!bg-primary hover:!bg-slate-900 text-white font-medium shadow-lg">
                                 Use This Template
                                 <ArrowRight className="w-4 h-4 ml-2" />
                               </Button>
@@ -638,7 +554,7 @@ export default function ResumeBuilderPage() {
                               {template.name}
                             </h3>
                             {template.popular && (
-                              <span className="px-1 py-0.5 bg-blue-100 text-blue-700 rounded text-[10px] font-medium flex-shrink-0 ml-1">
+                              <span className="px-1 py-0.5 bg-muted text-primary rounded text-[10px] font-medium flex-shrink-0 ml-1">
                                 Popular
                               </span>
                             )}
@@ -665,7 +581,7 @@ export default function ResumeBuilderPage() {
                     onClick={() => setCurrentTemplateSlide(index * templateCarouselTemplatesPerPage)}
                     className={`h-2 rounded-full transition-all duration-300 ${
                       currentPage === index
-                        ? "w-8 bg-blue-600"
+                        ? "w-8 bg-primary"
                         : "w-2 bg-gray-300"
                     }`}
                     aria-label={`Go to page ${index + 1}`}
@@ -678,7 +594,7 @@ export default function ResumeBuilderPage() {
       </section>
 
       {/* ATS Score Checker Section */}
-      <section className="py-16 sm:py-20 md:py-24 lg:py-28 px-4 sm:px-6 bg-blue-50/30 relative overflow-hidden">
+      <section className="py-16 sm:py-20 md:py-24 lg:py-28 px-4 sm:px-6 bg-muted/30 relative overflow-hidden">
         {/* Animated Background Icons */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden">
           {[...Array(4)].map((_, i) => (
@@ -693,7 +609,7 @@ export default function ResumeBuilderPage() {
                 animationDelay: `${i * 0.5}s`,
               }}
             >
-              <FileCheck className="w-8 h-8 sm:w-10 sm:h-10 text-blue-400" />
+              <FileCheck className="w-8 h-8 sm:w-10 sm:h-10 text-primary/70" />
             </div>
           ))}
         </div>
@@ -705,7 +621,7 @@ export default function ResumeBuilderPage() {
               <div>
                 <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-slate-900 mb-4 sm:mb-6 leading-tight">
                   Smart ATS check:{" "}
-                  <span className="text-[rgb(37,99,235)]">see how bots read you</span>
+                  <span className="text-primary">see how bots read you</span>
                 </h2>
                 <p className="text-base sm:text-lg text-gray-600 leading-relaxed">
                   AI filters resumes before humans see them. Upload for an ATS-style score and clear feedback—then iterate in our builder until you&apos;re recruiter-ready.
@@ -714,7 +630,7 @@ export default function ResumeBuilderPage() {
 
               {/* Upload Box */}
               <Link href="/ats-checker">
-                <div className="border-2 border-[rgb(37,99,235)] rounded-lg p-6 sm:p-8 bg-white hover:bg-blue-50/30 transition-colors cursor-pointer">
+                <div className="border-2 border-primary rounded-lg p-6 sm:p-8 bg-white hover:bg-muted/30 transition-colors cursor-pointer">
                   <div className="text-center mb-4">
                     <p className="text-base sm:text-lg font-medium text-slate-900 mb-2">
                       Drop your resume here or choose a file.
@@ -731,7 +647,7 @@ export default function ResumeBuilderPage() {
                   </div>
                   <Button
                     size="lg"
-                    className="w-full text-white font-medium shadow-lg transition-all h-12 !bg-[rgb(37,99,235)] hover:!bg-[rgb(17,24,39)] text-base sm:text-lg"
+                    className="w-full text-white font-medium shadow-lg transition-all h-12 !bg-primary hover:!bg-slate-900 text-base sm:text-lg"
                   >
                     Check My Resume Now
                     <ArrowRight className="w-5 h-5 ml-2" />
@@ -777,7 +693,7 @@ export default function ResumeBuilderPage() {
               </div>
 
               {/* Circular Score Gauge */}
-              <div className="absolute -bottom-8 -right-8 bg-white rounded-full shadow-2xl p-4 sm:p-6 border-4 border-[rgb(37,99,235)] animate-scale-in">
+              <div className="absolute -bottom-8 -right-8 bg-white rounded-full shadow-2xl p-4 sm:p-6 border-4 border-primary animate-scale-in">
                 <div className="relative w-32 h-32 sm:w-40 sm:h-40">
                   {/* Circular Progress */}
                   <svg className="transform -rotate-90 w-full h-full" viewBox="0 0 100 100">
@@ -794,7 +710,7 @@ export default function ResumeBuilderPage() {
                       cy="50"
                       r="45"
                       fill="none"
-                      stroke="rgb(37,99,235)"
+                      stroke="hsl(var(--primary))"
                       strokeWidth="8"
                       strokeDasharray="282.74"
                       strokeDashoffset="282.74"
@@ -805,7 +721,7 @@ export default function ResumeBuilderPage() {
                   {/* Score Text */}
                   <div className="absolute inset-0 flex flex-col items-center justify-center px-1">
                     <span className="text-4xl sm:text-5xl font-bold text-slate-900 animate-count-up leading-none">95</span>
-                    <span className="text-[8px] sm:text-[9px] font-semibold text-[rgb(37,99,235)] mt-0.5 text-center leading-tight max-w-[90%]">
+                    <span className="text-[8px] sm:text-[9px] font-semibold text-primary mt-0.5 text-center leading-tight max-w-[90%]">
                       RESUME STRENGTH
                     </span>
                   </div>
@@ -813,7 +729,7 @@ export default function ResumeBuilderPage() {
               </div>
 
               {/* Background Decorative Element */}
-              <div className="absolute -z-10 top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-blue-100/30 rounded-full blur-3xl animate-pulse-slow"></div>
+              <div className="absolute -z-10 top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-muted/30 rounded-full blur-3xl animate-pulse-slow"></div>
             </div>
           </div>
         </div>
@@ -835,9 +751,9 @@ export default function ResumeBuilderPage() {
 
           <div className="relative">
             {/* Connection Line - Desktop Only */}
-            <div className="hidden lg:block absolute top-1/2 left-0 right-0 h-2 bg-blue-200 transform -translate-y-1/2 overflow-hidden rounded-full" style={{ top: '50%' }}>
+            <div className="hidden lg:block absolute top-1/2 left-0 right-0 h-2 bg-muted transform -translate-y-1/2 overflow-hidden rounded-full" style={{ top: '50%' }}>
               <div 
-                className="h-full bg-gradient-to-r from-blue-400 via-blue-500 to-blue-600 rounded-full absolute"
+                className="h-full bg-gradient-to-r from-primary/80 via-muted0 to-primary rounded-full absolute"
                 style={{
                   animation: howItWorksVisible ? 'lineProgress 6s ease-in-out 0.5s infinite' : 'none',
                   boxShadow: howItWorksVisible ? '0 0 12px rgba(59, 130, 246, 0.6)' : 'none'
@@ -848,7 +764,7 @@ export default function ResumeBuilderPage() {
             {/* Steps */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8 relative z-10">
               {/* Step 1 */}
-              <div className={`bg-white rounded-2xl p-4 sm:p-5 border-2 border-blue-100 shadow-lg hover:shadow-xl transition-all hover:border-blue-300 ${
+              <div className={`bg-white rounded-2xl p-4 sm:p-5 border-2 border-border shadow-lg hover:shadow-xl transition-all hover:border-border ${
                 howItWorksVisible 
                   ? 'opacity-100 translate-y-0' 
                   : 'opacity-0 translate-y-8'
@@ -859,10 +775,10 @@ export default function ResumeBuilderPage() {
                 transitionTimingFunction: 'ease-out'
               }}>
                 <div className="flex flex-col items-center text-center">
-                  <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center mb-4 shadow-md">
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 bg-primary rounded-2xl flex items-center justify-center mb-4 shadow-md">
                     <FileText className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
                   </div>
-                  <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold text-sm sm:text-base mb-3">
+                  <div className="w-8 h-8 bg-primary text-primary-foreground rounded-full flex items-center justify-center font-bold text-sm sm:text-base mb-3">
                     1
                   </div>
                   <h3 className="text-lg sm:text-xl font-bold text-slate-900 mb-2">
@@ -875,7 +791,7 @@ export default function ResumeBuilderPage() {
               </div>
 
               {/* Step 2 */}
-              <div className={`bg-white rounded-2xl p-4 sm:p-5 border-2 border-blue-100 shadow-lg hover:shadow-xl transition-all hover:border-blue-300 ${
+              <div className={`bg-white rounded-2xl p-4 sm:p-5 border-2 border-border shadow-lg hover:shadow-xl transition-all hover:border-border ${
                 howItWorksVisible 
                   ? 'opacity-100 translate-y-0' 
                   : 'opacity-0 translate-y-8'
@@ -886,10 +802,10 @@ export default function ResumeBuilderPage() {
                 transitionTimingFunction: 'ease-out'
               }}>
                 <div className="flex flex-col items-center text-center">
-                  <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center mb-4 shadow-md">
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 bg-primary rounded-2xl flex items-center justify-center mb-4 shadow-md">
                     <Settings className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
                   </div>
-                  <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold text-sm sm:text-base mb-3">
+                  <div className="w-8 h-8 bg-primary text-primary-foreground rounded-full flex items-center justify-center font-bold text-sm sm:text-base mb-3">
                     2
                   </div>
                   <h3 className="text-lg sm:text-xl font-bold text-slate-900 mb-2">
@@ -902,7 +818,7 @@ export default function ResumeBuilderPage() {
               </div>
 
               {/* Step 3 */}
-              <div className={`bg-white rounded-2xl p-4 sm:p-5 border-2 border-blue-100 shadow-lg hover:shadow-xl transition-all hover:border-blue-300 ${
+              <div className={`bg-white rounded-2xl p-4 sm:p-5 border-2 border-border shadow-lg hover:shadow-xl transition-all hover:border-border ${
                 howItWorksVisible 
                   ? 'opacity-100 translate-y-0' 
                   : 'opacity-0 translate-y-8'
@@ -913,10 +829,10 @@ export default function ResumeBuilderPage() {
                 transitionTimingFunction: 'ease-out'
               }}>
                 <div className="flex flex-col items-center text-center">
-                  <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center mb-4 shadow-md">
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 bg-primary rounded-2xl flex items-center justify-center mb-4 shadow-md">
                     <Zap className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
                   </div>
-                  <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold text-sm sm:text-base mb-3">
+                  <div className="w-8 h-8 bg-primary text-primary-foreground rounded-full flex items-center justify-center font-bold text-sm sm:text-base mb-3">
                     3
                   </div>
                   <h3 className="text-lg sm:text-xl font-bold text-slate-900 mb-2">
@@ -929,7 +845,7 @@ export default function ResumeBuilderPage() {
               </div>
 
               {/* Step 4 */}
-              <div className={`bg-white rounded-2xl p-4 sm:p-5 border-2 border-blue-100 shadow-lg hover:shadow-xl transition-all hover:border-blue-300 ${
+              <div className={`bg-white rounded-2xl p-4 sm:p-5 border-2 border-border shadow-lg hover:shadow-xl transition-all hover:border-border ${
                 howItWorksVisible 
                   ? 'opacity-100 translate-y-0' 
                   : 'opacity-0 translate-y-8'
@@ -940,10 +856,10 @@ export default function ResumeBuilderPage() {
                 transitionTimingFunction: 'ease-out'
               }}>
                 <div className="flex flex-col items-center text-center">
-                  <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center mb-4 shadow-md">
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 bg-primary rounded-2xl flex items-center justify-center mb-4 shadow-md">
                     <Download className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
                   </div>
-                  <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold text-sm sm:text-base mb-3">
+                  <div className="w-8 h-8 bg-primary text-primary-foreground rounded-full flex items-center justify-center font-bold text-sm sm:text-base mb-3">
                     4
                   </div>
                   <h3 className="text-lg sm:text-xl font-bold text-slate-900 mb-2">
@@ -960,7 +876,7 @@ export default function ResumeBuilderPage() {
       </section>
 
       {/* Features Section */}
-      <section className="py-16 sm:py-20 md:py-24 lg:py-28 px-4 sm:px-6 bg-blue-50 relative overflow-hidden">
+      <section className="py-16 sm:py-20 md:py-24 lg:py-28 px-4 sm:px-6 bg-muted relative overflow-hidden">
         <div className="container mx-auto max-w-7xl relative z-10">
           <div className="text-center mb-12 sm:mb-16">
             <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-slate-900 mb-4">
@@ -973,8 +889,8 @@ export default function ResumeBuilderPage() {
 
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
             {/* Feature 1 */}
-            <div className="bg-white rounded-2xl p-6 sm:p-8 border-2 border-blue-100 shadow-lg hover:shadow-xl transition-all hover:border-blue-300">
-              <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center mb-4 shadow-md">
+            <div className="bg-white rounded-2xl p-6 sm:p-8 border-2 border-border shadow-lg hover:shadow-xl transition-all hover:border-border">
+              <div className="w-14 h-14 bg-primary rounded-xl flex items-center justify-center mb-4 shadow-md">
                 <FileCheck className="w-7 h-7 text-white" />
               </div>
               <h3 className="text-xl font-bold text-slate-900 mb-2">ATS-Optimized</h3>
@@ -984,8 +900,8 @@ export default function ResumeBuilderPage() {
             </div>
 
             {/* Feature 2 */}
-            <div className="bg-white rounded-2xl p-6 sm:p-8 border-2 border-blue-100 shadow-lg hover:shadow-xl transition-all hover:border-blue-300">
-              <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center mb-4 shadow-md">
+            <div className="bg-white rounded-2xl p-6 sm:p-8 border-2 border-border shadow-lg hover:shadow-xl transition-all hover:border-border">
+              <div className="w-14 h-14 bg-primary rounded-xl flex items-center justify-center mb-4 shadow-md">
                 <Palette className="w-7 h-7 text-white" />
               </div>
               <h3 className="text-xl font-bold text-slate-900 mb-2">Professional Templates</h3>
@@ -995,8 +911,8 @@ export default function ResumeBuilderPage() {
             </div>
 
             {/* Feature 3 */}
-            <div className="bg-white rounded-2xl p-6 sm:p-8 border-2 border-blue-100 shadow-lg hover:shadow-xl transition-all hover:border-blue-300">
-              <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center mb-4 shadow-md">
+            <div className="bg-white rounded-2xl p-6 sm:p-8 border-2 border-border shadow-lg hover:shadow-xl transition-all hover:border-border">
+              <div className="w-14 h-14 bg-primary rounded-xl flex items-center justify-center mb-4 shadow-md">
                 <TrendingUp className="w-7 h-7 text-white" />
               </div>
               <h3 className="text-xl font-bold text-slate-900 mb-2">Smart ATS Score</h3>
@@ -1006,8 +922,8 @@ export default function ResumeBuilderPage() {
             </div>
 
             {/* Feature 4 */}
-            <div className="bg-white rounded-2xl p-6 sm:p-8 border-2 border-blue-100 shadow-lg hover:shadow-xl transition-all hover:border-blue-300">
-              <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center mb-4 shadow-md">
+            <div className="bg-white rounded-2xl p-6 sm:p-8 border-2 border-border shadow-lg hover:shadow-xl transition-all hover:border-border">
+              <div className="w-14 h-14 bg-primary rounded-xl flex items-center justify-center mb-4 shadow-md">
                 <Eye className="w-7 h-7 text-white" />
               </div>
               <h3 className="text-xl font-bold text-slate-900 mb-2">Live Preview</h3>
@@ -1017,8 +933,8 @@ export default function ResumeBuilderPage() {
             </div>
 
             {/* Feature 5 */}
-            <div className="bg-white rounded-2xl p-6 sm:p-8 border-2 border-blue-100 shadow-lg hover:shadow-xl transition-all hover:border-blue-300">
-              <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center mb-4 shadow-md">
+            <div className="bg-white rounded-2xl p-6 sm:p-8 border-2 border-border shadow-lg hover:shadow-xl transition-all hover:border-border">
+              <div className="w-14 h-14 bg-primary rounded-xl flex items-center justify-center mb-4 shadow-md">
                 <Download className="w-7 h-7 text-white" />
               </div>
               <h3 className="text-xl font-bold text-slate-900 mb-2">Multiple Formats</h3>
@@ -1028,8 +944,8 @@ export default function ResumeBuilderPage() {
             </div>
 
             {/* Feature 6 */}
-            <div className="bg-white rounded-2xl p-6 sm:p-8 border-2 border-blue-100 shadow-lg hover:shadow-xl transition-all hover:border-blue-300">
-              <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center mb-4 shadow-md">
+            <div className="bg-white rounded-2xl p-6 sm:p-8 border-2 border-border shadow-lg hover:shadow-xl transition-all hover:border-border">
+              <div className="w-14 h-14 bg-primary rounded-xl flex items-center justify-center mb-4 shadow-md">
                 <Award className="w-7 h-7 text-white" />
               </div>
               <h3 className="text-xl font-bold text-slate-900 mb-2">Industry-Specific</h3>
@@ -1053,7 +969,7 @@ export default function ResumeBuilderPage() {
           <Link href="/dashboard/resumes/new">
             <Button
               size="lg"
-              className="text-white font-medium shadow-sm transition-all h-12 px-8 hover:opacity-90 !bg-[rgb(37,99,235)] text-base sm:text-lg"
+              className="text-white font-medium shadow-sm transition-all h-12 px-8 hover:opacity-90 !bg-primary text-base sm:text-lg"
             >
               Start Building Now
               <ArrowRight className="w-5 h-5 ml-2" />

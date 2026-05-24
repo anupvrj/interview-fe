@@ -78,7 +78,7 @@ export default function SuperAdminUserInterviewReportPage() {
   if (!profile) {
     return (
       <div className="flex min-h-[400px] items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
@@ -107,7 +107,7 @@ export default function SuperAdminUserInterviewReportPage() {
 
       {loading && (
         <div className="flex justify-center py-16">
-          <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
       )}
 

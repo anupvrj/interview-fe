@@ -171,7 +171,7 @@ export function PricingPlansBlock({
 
       {loading ? (
         <div className="flex flex-col items-center justify-center py-16 gap-3">
-          <Loader2 className="h-10 w-10 animate-spin text-blue-600" />
+          <Loader2 className="h-10 w-10 animate-spin text-primary" />
           <p className="text-sm text-gray-600">Loading plans…</p>
         </div>
       ) : loadError ? (
@@ -200,13 +200,13 @@ export function PricingPlansBlock({
                 key={row.id}
                 className={`relative border-2 hover:shadow-xl transition-all bg-white ${
                   row.popular
-                    ? "border-blue-600 shadow-lg scale-105 sm:scale-110 glow-border"
-                    : "border-gray-200 hover:border-blue-300"
+                    ? "border-primary shadow-lg scale-105 sm:scale-110 glow-border"
+                    : "border-gray-200 hover:border-border"
                 }`}
               >
                 {row.popular && (
                   <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
-                    <span className="bg-blue-600 text-white px-4 py-1 rounded-full text-xs sm:text-sm font-semibold shadow-md">
+                    <span className="bg-primary text-primary-foreground px-4 py-1 rounded-full text-xs sm:text-sm font-semibold shadow-md">
                       Most Popular
                     </span>
                   </div>
@@ -257,7 +257,7 @@ export function PricingPlansBlock({
                   <Button
                     onClick={() => handleChoosePlan(row.id)}
                     disabled={loadingPlanId !== null || !isLoaded}
-                    className="w-full bg-blue-600 hover:bg-blue-700 text-white shadow-md hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full bg-primary hover:bg-slate-900 text-white shadow-md hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {isThisLoading ? (
                       <>

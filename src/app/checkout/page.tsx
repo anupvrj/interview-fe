@@ -7,12 +7,7 @@ import {
   Loader2,
   Check,
   X,
-  ArrowLeft,
-  Sparkles,
   ArrowUp,
-  Mic,
-  Brain,
-  MessageSquare,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -23,6 +18,9 @@ import Script from "next/script";
 import Link from "next/link";
 import { SiteHeader } from "@/components/SiteHeader";
 import { MarketingFooter } from "@/components/MarketingFooter";
+import { PageHeader } from "@/components/app/PageHeader";
+import { appCard } from "@/lib/app-theme";
+import { cn } from "@/lib/utils";
 
 declare global {
   interface Window {
@@ -224,7 +222,7 @@ function CheckoutPageContent() {
             email: user.primaryEmailAddress?.emailAddress || "",
           },
           theme: {
-            color: "rgb(37,99,235)",
+            color: "#2563EB",
           },
           handler: async function (response: any) {
             try {
@@ -307,7 +305,7 @@ function CheckoutPageContent() {
             email: user.primaryEmailAddress?.emailAddress || "",
           },
           theme: {
-            color: "rgb(37,99,235)",
+            color: "#2563EB",
           },
           modal: {
             ondismiss: function () {
@@ -329,18 +327,15 @@ function CheckoutPageContent() {
 
   if (!isLoaded || !user || !planId || checkingSubscription) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-blue-50">
-        <Loader2
-          className="h-8 w-8 animate-spin"
-          style={{ color: "rgb(37,99,235)" }}
-        />
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
 
   if (catalogError || !premiumPlan) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-blue-50 px-4">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-background px-4">
         <p className="text-gray-700 mb-4 text-center max-w-md">
           {catalogError ?? "Unable to load plan."}
         </p>
@@ -379,64 +374,16 @@ function CheckoutPageContent() {
         }}
       />
 
-      <div className="min-h-screen bg-blue-50 scroll-smooth selection:bg-blue-100 relative overflow-hidden">
+      <div className="relative min-h-screen scroll-smooth bg-background selection:bg-info-muted">
         <SiteHeader />
 
-        {/* Animated Background Icons */}
-        <div className="absolute inset-0 pointer-events-none overflow-hidden">
-          {[...Array(8)].map((_, i) => (
-            <div
-              key={`mic-${i}`}
-              className="absolute opacity-10"
-              style={{
-                left: `${(i * 15) % 100}%`,
-                top: `${(i * 20) % 100}%`,
-                animation: `float-${i % 3} ${6 + (i % 3) * 2}s ease-in-out infinite`,
-                animationDelay: `${i * 0.5}s`,
-              }}
-            >
-              <Mic className="w-8 h-8 sm:w-12 sm:h-12 text-blue-400" />
-            </div>
-          ))}
-          {[...Array(8)].map((_, i) => (
-            <div
-              key={`brain-${i}`}
-              className="absolute opacity-10"
-              style={{
-                left: `${(i * 18) % 100}%`,
-                top: `${(i * 25) % 100}%`,
-                animation: `float-${i % 3} ${7 + (i % 2) * 2}s ease-in-out infinite`,
-                animationDelay: `${i * 0.6}s`,
-              }}
-            >
-              <Brain className="w-10 h-10 sm:w-14 sm:h-14 text-blue-400" />
-            </div>
-          ))}
-          {[...Array(6)].map((_, i) => (
-            <div
-              key={`message-${i}`}
-              className="absolute opacity-10"
-              style={{
-                left: `${(i * 20) % 100}%`,
-                top: `${(i * 15) % 100}%`,
-                animation: `float-${i % 3} ${8 + (i % 2) * 2}s ease-in-out infinite`,
-                animationDelay: `${i * 0.7}s`,
-              }}
-            >
-              <MessageSquare className="w-8 h-8 sm:w-12 sm:h-12 text-blue-300" />
-            </div>
-          ))}
-        </div>
-
-        {/* Main Content */}
-        <div className="container mx-auto px-4 pt-24 sm:pt-28 lg:pt-32 pb-16 max-w-2xl relative z-10">
-          <Card className="p-8 bg-white shadow-xl border-blue-200/50">
-            <h1 className="text-3xl font-bold mb-6 text-slate-900">
-              Complete Your Purchase
-            </h1>
-
-            {/* Order Summary */}
-            <div className="mb-8 p-6 bg-gradient-to-r from-blue-50 to-blue-100/50 rounded-lg border border-blue-200/50">
+        <div className="container relative z-10 mx-auto max-w-2xl px-4 pb-16 pt-24 sm:pt-28 lg:pt-32">
+          <PageHeader
+            title="Complete your purchase"
+            description="Review your plan and pay securely with Razorpay. Credits apply to your account after successful payment."
+          />
+          <Card className={cn(appCard, "mt-8 p-8 shadow-header")}>
+            <div className="mb-8 p-6 bg-card rounded-lg border border-border">
               <h2 className="text-lg font-semibold mb-4 text-gray-900">
                 Order Summary
               </h2>
@@ -468,10 +415,7 @@ function CheckoutPageContent() {
                     <span className="text-lg font-semibold text-gray-900">
                       Total
                     </span>
-                    <span
-                      className="text-2xl font-bold"
-                      style={{ color: "rgb(37,99,235)" }}
-                    >
+                    <span className="text-2xl font-bold text-primary">
                       ₹{planPrice.toLocaleString()}
                     </span>
                   </div>
@@ -496,18 +440,7 @@ function CheckoutPageContent() {
                     <Link
                       href={`/checkout?plan=${getNextPlan(currentSubscription.plan)}`}
                     >
-                      <Button
-                        className="w-full mt-3 text-white"
-                        style={{ backgroundColor: "rgb(37,99,235)" }}
-                        onMouseEnter={(e) =>
-                          (e.currentTarget.style.backgroundColor =
-                            "rgb(17,24,39)")
-                        }
-                        onMouseLeave={(e) =>
-                          (e.currentTarget.style.backgroundColor =
-                            "rgb(37,99,235)")
-                        }
-                      >
+                      <Button className="w-full mt-3">
                         <ArrowUp className="h-4 w-4 mr-2" />
                         Upgrade to{" "}
                         {planCatalog.find(
@@ -536,8 +469,8 @@ function CheckoutPageContent() {
 
             {/* Payment Button */}
             {!razorpayLoaded && (
-              <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                <div className="flex items-center gap-2 text-blue-700">
+              <div className="mb-4 p-3 bg-muted border border-border rounded-lg">
+                <div className="flex items-center gap-2 text-primary">
                   <Loader2 className="h-4 w-4 animate-spin" />
                   <p className="text-sm">Loading payment gateway...</p>
                 </div>
@@ -546,16 +479,8 @@ function CheckoutPageContent() {
             <Button
               onClick={handlePayment}
               disabled={loading || !razorpayLoaded || !!samePlanError}
-              className="w-full text-white py-6 text-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
-              style={{ backgroundColor: "rgb(37,99,235)" }}
-              onMouseEnter={(e) =>
-                !e.currentTarget.disabled &&
-                (e.currentTarget.style.backgroundColor = "rgb(17,24,39)")
-              }
-              onMouseLeave={(e) =>
-                !e.currentTarget.disabled &&
-                (e.currentTarget.style.backgroundColor = "rgb(37,99,235)")
-              }
+              size="lg"
+              className="w-full py-6 text-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? (
                 <>
@@ -578,7 +503,7 @@ function CheckoutPageContent() {
           </Card>
 
           {/* Features Reminder */}
-          <Card className="mt-6 p-6 bg-white">
+          <Card className={cn(appCard, "mt-6 p-6 shadow-header")}>
             <h3 className="font-semibold text-lg mb-4 text-gray-900">
               What you'll get:
             </h3>
@@ -588,10 +513,7 @@ function CheckoutPageContent() {
                   key={index}
                   className="flex items-center gap-2 text-gray-700"
                 >
-                  <Check
-                    className="h-5 w-5"
-                    style={{ color: "rgb(37,99,235)" }}
-                  />
+                  <Check className="h-5 w-5 shrink-0 text-primary" />
                   {highlight}
                 </li>
               ))}
@@ -609,11 +531,8 @@ export default function CheckoutPage() {
   return (
     <Suspense
       fallback={
-        <div className="flex items-center justify-center min-h-screen bg-blue-50">
-          <Loader2
-            className="w-8 h-8 animate-spin"
-            style={{ color: "rgb(37,99,235)" }}
-          />
+        <div className="flex items-center justify-center min-h-screen bg-background">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
       }
     >

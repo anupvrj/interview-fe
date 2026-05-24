@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useUser, useClerk } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { useDropzone } from "react-dropzone";
@@ -19,8 +19,6 @@ import {
   CheckCircle,
   Loader2,
   User as UserIcon,
-  Mail,
-  Calendar,
   Sparkles,
   Shield,
   Award,
@@ -33,6 +31,7 @@ import {
   Trash2,
   AlertTriangle,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -43,18 +42,83 @@ import {
 } from "@/components/ui/select";
 import { userApi, User } from "@/lib/api";
 import { InstitutionAffiliationFields } from "@/components/profile/InstitutionAffiliationFields";
+import { ProfileWelcomeHero } from "@/components/profile/ProfileWelcomeHero";
 import {
   affiliationFromUser,
   toProfileAffiliationPayload,
   type AffiliationValue,
 } from "@/lib/affiliation-payload";
 import { getApiErrorMessage } from "@/lib/api-error-message";
-import { formatDate } from "@/lib/utils";
+import { formatDate, cn } from "@/lib/utils";
 import {
   PDF_RESUME_MAX_BYTES,
   pdfResumeDropzoneAccept,
   pdfResumeFileValidator,
 } from "@/lib/pdf-dropzone";
+import {
+  appCard,
+  appOutlineButton,
+  appPrimaryButton,
+  appBadgeInfo,
+} from "@/lib/app-theme";
+
+const INDUSTRIES = [
+  "IT/Software",
+  "Finance",
+  "Healthcare",
+  "Education",
+  "Manufacturing",
+  "Retail",
+  "Consulting",
+  "E-commerce",
+  "Telecommunications",
+  "Automotive",
+  "Real Estate",
+  "Media & Entertainment",
+  "Other",
+];
+
+function ProfileField({
+  label,
+  value,
+  children,
+  className,
+}: {
+  label: string;
+  value?: ReactNode;
+  children?: ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={className}>
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+        {label}
+      </p>
+      {children ?? (
+        <p className="mt-1 text-sm font-medium text-foreground">{value ?? "—"}</p>
+      )}
+    </div>
+  );
+}
+
+function SectionIcon({
+  icon: Icon,
+  className,
+}: {
+  icon: LucideIcon;
+  className: string;
+}) {
+  return (
+    <div
+      className={cn(
+        "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg",
+        className,
+      )}
+    >
+      <Icon className="h-4 w-4" />
+    </div>
+  );
+}
 
 export default function ProfilePage() {
   const { user: clerkUser, isLoaded } = useUser();
@@ -87,22 +151,6 @@ export default function ProfilePage() {
       affiliationInstitutionName: "",
     } as AffiliationValue,
   });
-
-  const INDUSTRIES = [
-    "IT/Software",
-    "Finance",
-    "Healthcare",
-    "Education",
-    "Manufacturing",
-    "Retail",
-    "Consulting",
-    "E-commerce",
-    "Telecommunications",
-    "Automotive",
-    "Real Estate",
-    "Media & Entertainment",
-    "Other",
-  ];
 
   useEffect(() => {
     if (isLoaded && clerkUser) {
@@ -310,99 +358,96 @@ export default function ProfilePage() {
     return (bytes / (1024 * 1024)).toFixed(2) + " MB";
   };
 
+  const displayName =
+    user?.name ||
+    `${clerkUser?.firstName || ""} ${clerkUser?.lastName || ""}`.trim() ||
+    "—";
+  const displayEmail =
+    clerkUser?.primaryEmailAddress?.emailAddress || "—";
+  const jobParts = [
+    user?.currentJob?.company?.trim(),
+    user?.currentJob?.role?.trim(),
+    user?.currentJob?.industry?.trim(),
+  ].filter(Boolean);
+  const jobSummary = jobParts.length > 0 ? jobParts.join(" · ") : null;
+
   if (!isLoaded || loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
+      <div className="flex min-h-[400px] items-center justify-center">
         <div className="text-center">
-          <Loader2 className="w-12 h-12 animate-spin text-[rgb(37,99,235)] mx-auto mb-4" />
-          <p className="text-gray-600">Loading your profile...</p>
+          <Loader2 className="mx-auto mb-3 h-10 w-10 animate-spin text-primary" />
+          <p className="text-sm text-muted-foreground">Loading your profile...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="w-full max-w-7xl mx-auto space-y-4 lg:space-y-6">
-      {/* Hero Header Section */}
-      <div className="relative overflow-hidden rounded-md bg-blue-700 px-4 py-3 sm:px-5 sm:py-4 text-white shadow-lg">
-        <div className="relative z-10">
-          <div className="mb-1.5 flex min-w-0 items-center gap-2.5">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-white/20 shadow-sm sm:h-9 sm:w-9">
-              <UserIcon className="h-4 w-4" />
-            </div>
-            <h1 className="truncate text-lg font-bold leading-tight sm:text-xl lg:text-2xl">Your Profile</h1>
-          </div>
-          <p className="max-w-2xl text-[10px] leading-tight text-white/85 sm:text-xs md:text-sm">
-            Manage your profile information and keep your resume up to date for
-            better interview experiences
-          </p>
-        </div>
-        <div className="absolute inset-0 bg-blue-700/30"></div>
-        <div className="absolute right-0 top-0 h-44 w-44 rounded-full bg-white/10 blur-3xl"></div>
-        <div className="absolute bottom-0 left-0 h-32 w-32 rounded-full bg-blue-500/20 blur-2xl"></div>
-      </div>
+    <div className="mx-auto w-full max-w-7xl space-y-4">
+      <ProfileWelcomeHero
+        firstName={clerkUser?.firstName || user?.name?.split(/\s+/)[0] || ""}
+      />
 
-      <div className="grid gap-4 lg:grid-cols-3 lg:gap-4">
-        {/* Left Column - Profile Information */}
+      {(error || success) && (
+        <div className="space-y-2">
+          {error && (
+            <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-700">
+              <X className="mt-0.5 h-4 w-4 shrink-0" />
+              <span>{error}</span>
+            </div>
+          )}
+          {success && (
+            <div className="flex items-start gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-sm text-emerald-700">
+              <CheckCircle className="mt-0.5 h-4 w-4 shrink-0" />
+              <span>{success}</span>
+            </div>
+          )}
+        </div>
+      )}
+
+      <div className="grid gap-4 lg:grid-cols-3">
         <div className="space-y-4 lg:col-span-2">
-          <Card className="rounded-md border border-border bg-card shadow-sm">
-            <CardHeader className="pb-3">
-              <div className="mb-2 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
-                    <UserIcon className="w-5 h-5 text-white" />
-                  </div>
-                  <CardTitle className="text-xl lg:text-2xl">
-                    Profile Information
-                  </CardTitle>
-                </div>
-                {!editingName && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setEditingName(true)}
-                    className="flex items-center gap-2"
-                  >
-                    <Edit2 className="w-4 h-4" />
-                    Edit name
-                  </Button>
-                )}
-              </div>
-              <CardDescription className="text-sm">
-                Your account details and membership information
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid md:grid-cols-2 gap-4 lg:gap-6">
-                {/* Name */}
-                <div className="space-y-2">
-                  <Label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                    <UserIcon className="w-4 h-4 text-[rgb(37,99,235)]" />
-                    Full Name
-                  </Label>
-                  <div className="p-4 bg-slate-50 rounded-md border border-slate-200">
+          {/* Profile summary */}
+          <Card className={appCard}>
+            <CardContent className="p-4 sm:p-5">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <div className="flex min-w-0 items-start gap-3">
+                  {clerkUser?.imageUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={clerkUser.imageUrl}
+                      alt=""
+                      className="h-14 w-14 shrink-0 rounded-xl border border-border/80 object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-[#7367F0]/10 text-[#7367F0]">
+                      <UserIcon className="h-6 w-6" />
+                    </div>
+                  )}
+                  <div className="min-w-0 flex-1">
                     {editingName ? (
-                      <div className="space-y-3">
+                      <div className="space-y-2">
                         <Input
                           value={fullNameInput}
                           onChange={(e) => setFullNameInput(e.target.value)}
                           placeholder="Enter full name"
+                          className="h-9"
                         />
                         <div className="flex items-center gap-2">
                           <Button
                             size="sm"
                             onClick={handleSaveName}
                             disabled={savingName}
-                            className="flex items-center gap-2 !bg-[rgb(37,99,235)] hover:!bg-[rgb(17,24,39)]"
+                            className={cn("gap-1.5", appPrimaryButton)}
                           >
                             {savingName ? (
                               <>
-                                <Loader2 className="w-4 h-4 animate-spin" />
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
                                 Saving...
                               </>
                             ) : (
                               <>
-                                <Save className="w-4 h-4" />
+                                <Save className="h-3.5 w-3.5" />
                                 Save
                               </>
                             )}
@@ -410,12 +455,10 @@ export default function ProfilePage() {
                           <Button
                             size="sm"
                             variant="outline"
+                            className={appOutlineButton}
                             onClick={() => {
                               setEditingName(false);
-                              setFullNameInput(
-                                user?.name ||
-                                  `${clerkUser?.firstName || ""} ${clerkUser?.lastName || ""}`.trim(),
-                              );
+                              setFullNameInput(user?.name || displayName);
                             }}
                           >
                             Cancel
@@ -423,151 +466,155 @@ export default function ProfilePage() {
                         </div>
                       </div>
                     ) : (
-                      <p className="text-gray-900 font-semibold text-base">
-                        {user?.name ||
-                          `${clerkUser?.firstName || ""} ${clerkUser?.lastName || ""}`.trim() ||
-                          "N/A"}
-                      </p>
+                      <>
+                        <h2 className="truncate text-base font-semibold text-foreground">
+                          {displayName}
+                        </h2>
+                        <p className="mt-0.5 truncate text-sm text-muted-foreground">
+                          {displayEmail}
+                        </p>
+                        <div className="mt-2 flex flex-wrap items-center gap-2">
+                          <span className={appBadgeInfo}>
+                            {user?.role || "Student"}
+                          </span>
+                          {user?.createdAt && (
+                            <span className="text-xs text-muted-foreground">
+                              Member since {formatDate(user.createdAt)}
+                            </span>
+                          )}
+                        </div>
+                      </>
                     )}
                   </div>
                 </div>
+                {!editingName && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className={cn("shrink-0 gap-1.5", appOutlineButton)}
+                    onClick={() => setEditingName(true)}
+                  >
+                    <Edit2 className="h-3.5 w-3.5" />
+                    Edit name
+                  </Button>
+                )}
+              </div>
 
-                {/* Email */}
-                <div className="space-y-2">
-                  <Label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                    <Mail className="w-4 h-4 text-blue-600" />
-                    Email Address
-                  </Label>
-                  <div className="p-4 bg-slate-50 rounded-md border border-slate-200">
-                    <p className="text-gray-900 font-semibold text-base break-all">
-                      {clerkUser?.primaryEmailAddress?.emailAddress}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Member Since */}
-                <div className="space-y-2">
-                  <Label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                    <Calendar className="w-4 h-4 text-slate-600" />
-                    Member Since
-                  </Label>
-                  <div className="p-4 bg-slate-50 rounded-md border border-slate-200">
-                    <p className="text-gray-900 font-semibold text-base">
-                      {user?.createdAt ? formatDate(user.createdAt) : "N/A"}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Role */}
-                <div className="space-y-2">
-                  <Label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                    <Award className="w-4 h-4 text-slate-600" />
-                    Account Type
-                  </Label>
-                  <div className="p-4 bg-slate-50 rounded-md border border-slate-200">
-                    <p className="text-gray-900 font-semibold text-base capitalize">
-                      {user?.role || "Student"}
-                    </p>
-                  </div>
-                </div>
+              <div className="mt-4 grid gap-x-6 gap-y-3 border-t border-border/60 pt-4 sm:grid-cols-2">
+                <ProfileField label="Full name" value={displayName} />
+                <ProfileField label="Email" value={displayEmail} />
+                <ProfileField
+                  label="Member since"
+                  value={
+                    user?.createdAt ? formatDate(user.createdAt) : "—"
+                  }
+                />
+                <ProfileField
+                  label="Account type"
+                  value={
+                    <span className="capitalize">{user?.role || "Student"}</span>
+                  }
+                />
               </div>
             </CardContent>
           </Card>
 
-          {/* Professional Details */}
-          <Card className="rounded-md border border-border bg-card shadow-sm">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
-                    <Briefcase className="w-5 h-5 text-white" />
-                  </div>
-                  <CardTitle className="text-xl lg:text-2xl">
+          {/* Professional details */}
+          <Card className={appCard}>
+            <CardHeader className="flex flex-row items-start justify-between space-y-0 px-4 pb-0 pt-4 sm:px-5">
+              <div className="flex items-center gap-2.5">
+                <SectionIcon
+                  icon={Briefcase}
+                  className="bg-cyan-500/10 text-cyan-600"
+                />
+                <div>
+                  <CardTitle className="text-base font-semibold">
                     Professional Details
                   </CardTitle>
+                  <CardDescription className="text-xs">
+                    Background and interests
+                  </CardDescription>
                 </div>
-                {!editingProfile && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setEditingProfile(true)}
-                    className="flex items-center gap-2"
-                  >
-                    <Edit2 className="w-4 h-4" />
-                    Edit
-                  </Button>
-                )}
               </div>
-              <CardDescription className="text-sm">
-                Your professional background and interests
-              </CardDescription>
+              {!editingProfile && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className={cn("gap-1.5", appOutlineButton)}
+                  onClick={() => setEditingProfile(true)}
+                >
+                  <Edit2 className="h-3.5 w-3.5" />
+                  Edit
+                </Button>
+              )}
             </CardHeader>
-            <CardContent className="space-y-4 lg:space-y-6">
+            <CardContent className="space-y-4 px-4 pb-4 pt-3 sm:px-5 sm:pb-5">
               {editingProfile ? (
                 <>
-                  {/* User Type */}
-                  <div className="space-y-2">
-                    <Label className="text-sm font-semibold text-gray-700">
-                      User Type
-                    </Label>
-                    <Select
-                      value={profileData.userType}
-                      onValueChange={(value) =>
-                        setProfileData((prev) => ({
-                          ...prev,
-                          userType: value as
-                            | "student"
-                            | "fresher"
-                            | "experienced",
-                        }))
-                      }
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select user type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="student">Student</SelectItem>
-                        <SelectItem value="fresher">Fresher</SelectItem>
-                        <SelectItem value="experienced">Experienced</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {/* Experience (for experienced users) */}
-                  {profileData.userType === "experienced" && (
-                    <div className="space-y-2">
-                      <Label className="text-sm font-semibold text-gray-700">
-                        Years of Experience
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-medium text-muted-foreground">
+                        User type
                       </Label>
-                      <Input
-                        type="number"
-                        min="0"
-                        max="50"
-                        value={profileData.experience || ""}
-                        onChange={(e) =>
+                      <Select
+                        value={profileData.userType}
+                        onValueChange={(value) =>
                           setProfileData((prev) => ({
                             ...prev,
-                            experience:
-                              Number.parseInt(e.target.value, 10) || 0,
+                            userType: value as
+                              | "student"
+                              | "fresher"
+                              | "experienced",
                           }))
                         }
-                        placeholder="Enter years of experience"
-                      />
+                      >
+                        <SelectTrigger className="h-9 w-full">
+                          <SelectValue placeholder="Select user type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="student">Student</SelectItem>
+                          <SelectItem value="fresher">Fresher</SelectItem>
+                          <SelectItem value="experienced">Experienced</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
-                  )}
 
-                  {/* Current Job (for experienced users) */}
+                    {profileData.userType === "experienced" && (
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-medium text-muted-foreground">
+                          Years of experience
+                        </Label>
+                        <Input
+                          type="number"
+                          min="0"
+                          max="50"
+                          className="h-9"
+                          value={profileData.experience || ""}
+                          onChange={(e) =>
+                            setProfileData((prev) => ({
+                              ...prev,
+                              experience:
+                                Number.parseInt(e.target.value, 10) || 0,
+                            }))
+                          }
+                          placeholder="e.g. 3"
+                        />
+                      </div>
+                    )}
+                  </div>
+
                   {profileData.userType === "experienced" && (
-                    <div className="space-y-4 rounded-md border border-slate-200 bg-slate-50 p-4">
-                      <h4 className="font-semibold text-gray-900 mb-3">
-                        Current Job Details
-                      </h4>
-                      <div className="space-y-3">
-                        <div>
-                          <Label className="text-sm font-semibold text-gray-700">
+                    <div className="space-y-2 rounded-lg border border-border/60 bg-muted/20 p-3">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        Current job
+                      </p>
+                      <div className="grid gap-3 sm:grid-cols-3">
+                        <div className="space-y-1.5">
+                          <Label className="text-xs font-medium text-muted-foreground">
                             Company
                           </Label>
                           <Input
+                            className="h-9"
                             value={profileData.currentJob.company}
                             onChange={(e) =>
                               setProfileData((prev) => ({
@@ -578,14 +625,15 @@ export default function ProfilePage() {
                                 },
                               }))
                             }
-                            placeholder="e.g., Google, TCS"
+                            placeholder="Google, TCS..."
                           />
                         </div>
-                        <div>
-                          <Label className="text-sm font-semibold text-gray-700">
+                        <div className="space-y-1.5">
+                          <Label className="text-xs font-medium text-muted-foreground">
                             Role
                           </Label>
                           <Input
+                            className="h-9"
                             value={profileData.currentJob.role}
                             onChange={(e) =>
                               setProfileData((prev) => ({
@@ -596,11 +644,11 @@ export default function ProfilePage() {
                                 },
                               }))
                             }
-                            placeholder="e.g., Software Engineer"
+                            placeholder="Software Engineer"
                           />
                         </div>
-                        <div>
-                          <Label className="text-sm font-semibold text-gray-700">
+                        <div className="space-y-1.5">
+                          <Label className="text-xs font-medium text-muted-foreground">
                             Industry
                           </Label>
                           <Select
@@ -615,8 +663,8 @@ export default function ProfilePage() {
                               }))
                             }
                           >
-                            <SelectTrigger className="w-full">
-                              <SelectValue placeholder="Select industry" />
+                            <SelectTrigger className="h-9 w-full">
+                              <SelectValue placeholder="Select" />
                             </SelectTrigger>
                             <SelectContent>
                               {INDUSTRIES.map((industry) => (
@@ -639,60 +687,58 @@ export default function ProfilePage() {
                     disabled={savingProfile}
                   />
 
-                  {/* Industries of Interest */}
                   <div className="space-y-2">
-                    <Label className="text-sm font-semibold text-gray-700">
-                      Industries of Interest (Optional)
+                    <Label className="text-xs font-medium text-muted-foreground">
+                      Industries of interest (optional)
                     </Label>
-                    <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                      {INDUSTRIES.map((industry) => (
-                        <button
-                          key={industry}
-                          type="button"
-                          onClick={() => toggleIndustry(industry)}
-                          className={`p-3 rounded-lg border transition-all text-left text-sm ${
-                            profileData.industries.includes(industry)
-                              ? "border-[rgb(37,99,235)] bg-slate-50"
-                              : "border-gray-200 bg-white hover:border-blue-300"
-                          }`}
-                        >
-                          <div className="flex items-center justify-between">
-                            <span className="font-medium text-gray-900">
-                              {industry}
-                            </span>
-                            {profileData.industries.includes(industry) && (
-                              <CheckCircle className="w-4 h-4 text-[rgb(37,99,235)]" />
+                    <div className="flex flex-wrap gap-1.5">
+                      {INDUSTRIES.map((industry) => {
+                        const selected = profileData.industries.includes(industry);
+                        return (
+                          <button
+                            key={industry}
+                            type="button"
+                            onClick={() => toggleIndustry(industry)}
+                            className={cn(
+                              "inline-flex items-center gap-1 rounded-md border px-2.5 py-1 text-xs font-medium transition-colors",
+                              selected
+                                ? "border-[#7367F0] bg-[#7367F0]/10 text-[#7367F0]"
+                                : "border-border bg-card text-muted-foreground hover:border-[#7367F0]/40 hover:text-foreground",
                             )}
-                          </div>
-                        </button>
-                      ))}
+                          >
+                            {industry}
+                            {selected && <CheckCircle className="h-3 w-3" />}
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
 
-                  {/* Save/Cancel Buttons */}
-                  <div className="flex items-center gap-3 pt-4 border-t">
+                  <div className="flex items-center gap-2 border-t border-border/60 pt-3">
                     <Button
+                      size="sm"
                       onClick={handleSaveProfile}
                       disabled={savingProfile}
-                      className="flex items-center gap-2 !bg-[rgb(37,99,235)] hover:!bg-[rgb(17,24,39)]"
+                      className={cn("gap-1.5", appPrimaryButton)}
                     >
                       {savingProfile ? (
                         <>
-                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
                           Saving...
                         </>
                       ) : (
                         <>
-                          <Save className="w-4 h-4" />
-                          Save Changes
+                          <Save className="h-3.5 w-3.5" />
+                          Save changes
                         </>
                       )}
                     </Button>
                     <Button
+                      size="sm"
                       variant="outline"
+                      className={appOutlineButton}
                       onClick={() => {
                         setEditingProfile(false);
-                        // Reset to original data
                         if (user) {
                           setProfileData({
                             userType: user.userType || "",
@@ -715,97 +761,72 @@ export default function ProfilePage() {
                 </>
               ) : (
                 <div className="space-y-4">
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label className="text-sm font-semibold text-gray-700">User Type</Label>
-                      <div className="rounded-md border border-slate-200 bg-slate-50 p-4">
-                        <p className="text-base font-semibold capitalize text-gray-900">
+                  <div className="grid gap-x-6 gap-y-3 sm:grid-cols-3">
+                    <ProfileField
+                      label="User type"
+                      value={
+                        <span className="capitalize">
                           {user?.userType || "Not set"}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label className="text-sm font-semibold text-gray-700">Experience</Label>
-                      <div className="rounded-md border border-slate-200 bg-slate-50 p-4">
-                        <p className="text-base font-semibold text-gray-900">
-                          {typeof user?.experience === "number" && user.experience > 0
-                            ? `${user.experience} ${user.experience === 1 ? "year" : "years"}`
-                            : "Not set"}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="space-y-2 md:col-span-2">
-                      <Label className="text-sm font-semibold text-gray-700">
-                        Institute / organization
-                      </Label>
-                      <div className="rounded-md border border-slate-200 bg-slate-50 p-4">
-                        <p className="text-base font-semibold text-gray-900">
+                        </span>
+                      }
+                    />
+                    <ProfileField
+                      label="Experience"
+                      value={
+                        typeof user?.experience === "number" &&
+                        user.experience > 0
+                          ? `${user.experience} ${user.experience === 1 ? "year" : "years"}`
+                          : "Not set"
+                      }
+                    />
+                    <ProfileField
+                      label="Institute / organization"
+                      value={
+                        <>
                           {user?.affiliationInstitutionName?.trim() || "Not set"}
-                        </p>
-                        {user?.affiliationInstitutionId ? (
-                          <p className="mt-1 text-xs text-gray-500">Listed in our directory</p>
-                        ) : null}
-                      </div>
-                    </div>
+                          {user?.affiliationInstitutionId ? (
+                            <span className="mt-1 block text-xs font-normal text-muted-foreground">
+                              Listed in our directory
+                            </span>
+                          ) : null}
+                        </>
+                      }
+                    />
                   </div>
 
-                  <div className="rounded-md border border-slate-200 bg-slate-50 p-5">
-                    <h4 className="mb-3 flex items-center gap-2 font-semibold text-gray-900">
-                      <Building2 className="h-5 w-5 text-slate-600" />
-                      Current Job
-                    </h4>
-                    <div className="grid gap-3 md:grid-cols-3">
-                      <div>
-                        <p className="mb-1 text-xs text-gray-600">Company</p>
-                        <p className="font-semibold text-gray-900">
-                          {user?.currentJob?.company?.trim() || "Not set"}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="mb-1 text-xs text-gray-600">Role</p>
-                        <p className="font-semibold text-gray-900">
-                          {user?.currentJob?.role?.trim() || "Not set"}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="mb-1 text-xs text-gray-600">Industry</p>
-                        <p className="font-semibold text-gray-900">
-                          {user?.currentJob?.industry?.trim() || "Not set"}
-                        </p>
-                      </div>
+                  {(jobSummary || user?.userType === "experienced") && (
+                    <div className="rounded-lg border border-border/60 bg-muted/20 px-3 py-2.5">
+                      <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                        Current job
+                      </p>
+                      <p className="mt-1 flex items-center gap-1.5 text-sm font-medium text-foreground">
+                        <Building2 className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                        {jobSummary || "Not set"}
+                      </p>
                     </div>
-                  </div>
+                  )}
 
                   <div>
-                    <Label className="mb-2 block text-sm font-semibold text-gray-700">
-                      Industries of Interest
-                    </Label>
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      Industries of interest
+                    </p>
                     {user?.industries && user.industries.length > 0 ? (
-                      <div className="flex flex-wrap gap-2">
+                      <div className="mt-2 flex flex-wrap gap-1.5">
                         {user.industries.map((industry) => (
-                          <span
-                            key={industry}
-                            className="rounded-lg border border-slate-300 bg-slate-100 px-3 py-1.5 text-sm font-medium text-slate-700"
-                          >
+                          <span key={industry} className={appBadgeInfo}>
                             {industry}
                           </span>
                         ))}
                       </div>
                     ) : (
-                      <div className="rounded-md border border-slate-200 bg-slate-50 p-4 text-sm font-medium text-slate-600">
-                        Not set
-                      </div>
+                      <p className="mt-1 text-sm text-muted-foreground">Not set</p>
                     )}
                   </div>
 
-                  {user?.userType ? null : (
-                    <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-md text-sm text-yellow-700">
-                      <p>
-                        Complete your professional details to get personalized
-                        interview experiences.
-                      </p>
+                  {!user?.userType && (
+                    <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs text-amber-800">
+                      Complete your professional details for personalized
+                      interview experiences.
                     </div>
                   )}
                 </div>
@@ -813,134 +834,101 @@ export default function ProfilePage() {
             </CardContent>
           </Card>
 
-          {/* Resume Management */}
-          <Card className="rounded-md border border-border bg-card shadow-sm">
-            <CardHeader className="pb-3">
-              <div className="mb-2 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
-                    <FileText className="w-5 h-5 text-white" />
-                  </div>
-                  <CardTitle className="text-xl lg:text-2xl">
-                    Resume Management
+          {/* Resume */}
+          <Card className={appCard}>
+            <CardHeader className="flex flex-row items-start justify-between space-y-0 px-4 pb-0 pt-4 sm:px-5">
+              <div className="flex items-center gap-2.5">
+                <SectionIcon
+                  icon={FileText}
+                  className="bg-emerald-500/10 text-emerald-600"
+                />
+                <div>
+                  <CardTitle className="text-base font-semibold">
+                    Resume
                   </CardTitle>
+                  <CardDescription className="text-xs">
+                    Used automatically for new interviews
+                  </CardDescription>
                 </div>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={() => open()}
-                  className="flex items-center gap-2"
-                >
-                  <Upload className="h-4 w-4" />
-                  Upload New Resume
-                </Button>
               </div>
-              <CardDescription className="text-sm">
-                Upload or update your resume. This will be used for new
-                interviews automatically.
-              </CardDescription>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className={cn("gap-1.5", appOutlineButton)}
+                onClick={() => open()}
+              >
+                <Upload className="h-3.5 w-3.5" />
+                Upload
+              </Button>
             </CardHeader>
-            <CardContent className="space-y-4 lg:space-y-6">
-              {/* Current Resume */}
+            <CardContent className="space-y-3 px-4 pb-4 pt-3 sm:px-5 sm:pb-5">
               {user?.resume && (
-                <div className="p-5 bg-slate-50 rounded-md border border-green-200 shadow-md">
-                  <div className="flex items-center justify-between gap-4">
-                    <div className="flex items-center gap-4 flex-1 min-w-0">
-                      <div className="w-14 h-14 bg-emerald-600 rounded-md flex items-center justify-center shadow-lg flex-shrink-0">
-                        <FileText className="w-7 h-7 text-white" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-gray-900 text-base mb-1 truncate">
-                          {user.resume.filename}
-                        </p>
-                        <div className="flex flex-wrap items-center gap-3 text-sm text-gray-600">
-                          <span className="flex items-center gap-1">
-                            <Calendar className="w-3 h-3" />
-                            {formatDate(user.resume.uploadedAt)}
-                          </span>
-                          <span>•</span>
-                          <span>{formatFileSize(user.resume.size)}</span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex-shrink-0">
-                      <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center shadow-md">
-                        <CheckCircle className="w-6 h-6 text-white" />
-                      </div>
-                    </div>
+                <div className="flex items-center gap-3 rounded-lg border border-emerald-200/80 bg-emerald-50/50 p-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-600 text-white">
+                    <FileText className="h-5 w-5" />
                   </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold text-foreground">
+                      {user.resume.filename}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {formatDate(user.resume.uploadedAt)} ·{" "}
+                      {formatFileSize(user.resume.size)}
+                    </p>
+                  </div>
+                  <CheckCircle className="h-5 w-5 shrink-0 text-emerald-600" />
                 </div>
               )}
 
               <input {...getInputProps()} />
 
               {!uploadedFile ? (
-                <div className="rounded-md border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
-                  Click <span className="font-semibold text-slate-900">Upload New Resume</span> to
-                  select a PDF (max 5 MB).
-                </div>
+                <p className="text-xs text-muted-foreground">
+                  Click <span className="font-medium text-foreground">Upload</span>{" "}
+                  to select a PDF (max 5 MB).
+                </p>
               ) : (
-                <div className="rounded-md border border-slate-300 bg-slate-50 p-5 shadow-sm">
-                  <div className="flex items-center justify-between gap-4">
-                    <div className="flex items-center gap-4 flex-1 min-w-0">
-                      <div className="w-14 h-14 bg-emerald-600 rounded-md flex items-center justify-center shadow-md flex-shrink-0">
-                        <FileText className="w-7 h-7 text-white" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-base font-semibold text-gray-900 truncate">
-                          {uploadedFile.name}
-                        </p>
-                        <p className="text-sm text-gray-600">
-                          {formatFileSize(uploadedFile.size)}
-                        </p>
-                      </div>
-                    </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => setUploadedFile(null)}
-                      className="h-10 w-10 rounded-lg hover:bg-red-100 hover:text-red-600 transition-colors"
-                    >
-                      <X className="w-5 h-5" />
-                    </Button>
+                <div className="flex items-center gap-3 rounded-lg border border-border/80 bg-muted/20 p-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-600 text-white">
+                    <FileText className="h-5 w-5" />
                   </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold text-foreground">
+                      {uploadedFile.name}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {formatFileSize(uploadedFile.size)}
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setUploadedFile(null)}
+                    className="h-8 w-8 shrink-0 text-muted-foreground hover:text-red-600"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
                 </div>
               )}
 
-              {/* Error/Success Messages */}
-              {error && (
-                <div className="p-4 bg-red-50 border border-red-200 rounded-md text-sm text-red-700 flex items-start gap-2">
-                  <X className="w-5 h-5 flex-shrink-0 mt-0.5" />
-                  <span>{error}</span>
-                </div>
-              )}
-
-              {success && (
-                <div className="p-4 bg-green-50 border border-green-200 rounded-md text-sm text-green-700 flex items-start gap-2">
-                  <CheckCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
-                  <span>{success}</span>
-                </div>
-              )}
-
-              {/* Upload Button */}
               {uploadedFile && (
                 <Button
                   onClick={handleUpload}
                   disabled={uploading}
-                  size="lg"
-                  className="w-full h-14 text-base font-semibold !bg-[rgb(37,99,235)] hover:!bg-[rgb(17,24,39)] text-white shadow-lg hover:shadow-xl transition-all"
+                  size="sm"
+                  className={cn("gap-1.5", appPrimaryButton)}
                 >
                   {uploading ? (
                     <>
-                      <Loader2 className="w-5 h-5 animate-spin mr-2" />
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
                       Uploading...
                     </>
                   ) : (
                     <>
-                      <Upload className="w-5 h-5 mr-2" />
-                      {user?.resume ? "Update Resume" : "Upload Resume"}
+                      <Upload className="h-3.5 w-3.5" />
+                      {user?.resume ? "Update resume" : "Upload resume"}
                     </>
                   )}
                 </Button>
@@ -949,167 +937,133 @@ export default function ProfilePage() {
           </Card>
         </div>
 
-        {/* Right Column - Info Card */}
+        {/* Sidebar tips */}
         <div className="lg:col-span-1">
-          <Card className="sticky top-8 rounded-md border border-border bg-card shadow-sm">
-            <CardHeader className="pb-3">
-              <div className="flex items-center gap-3 mb-2">
-                <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
-                  <Sparkles className="w-5 h-5 text-white" />
-                </div>
-                <CardTitle className="text-lg lg:text-xl">
-                  Why Update Resume?
+          <Card className={cn(appCard, "sticky top-6")}>
+            <CardHeader className="px-4 pb-2 pt-4 sm:px-5">
+              <div className="flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-[#7367F0]" />
+                <CardTitle className="text-sm font-semibold">
+                  Why keep your resume updated?
                 </CardTitle>
               </div>
             </CardHeader>
-            <CardContent>
-              <ul className="space-y-3 lg:space-y-4">
-                <li className="flex items-start gap-3">
-                  <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center flex-shrink-0 shadow-md">
-                    <Target className="w-4 h-4 text-white" />
-                  </div>
+            <CardContent className="space-y-3 px-4 pb-4 sm:px-5 sm:pb-5">
+              {[
+                {
+                  icon: Target,
+                  title: "Personalized questions",
+                  desc: "AI asks questions based on your resume",
+                  color: "text-[#7367F0]",
+                },
+                {
+                  icon: Shield,
+                  title: "Better matching",
+                  desc: "Tailored to your skills and experience",
+                  color: "text-cyan-600",
+                },
+                {
+                  icon: CheckCircle,
+                  title: "Auto-selected",
+                  desc: "Latest resume used for interviews",
+                  color: "text-emerald-600",
+                },
+                {
+                  icon: Award,
+                  title: "Improved feedback",
+                  desc: "More accurate performance analysis",
+                  color: "text-amber-600",
+                },
+              ].map((item) => (
+                <div key={item.title} className="flex gap-2.5">
+                  <item.icon className={cn("mt-0.5 h-4 w-4 shrink-0", item.color)} />
                   <div>
-                    <p className="font-semibold text-gray-900 text-sm mb-1">
-                      Personalized Questions
+                    <p className="text-sm font-medium text-foreground">
+                      {item.title}
                     </p>
-                    <p className="text-xs text-gray-600">
-                      AI analyzes your resume to ask relevant questions
-                    </p>
+                    <p className="text-xs text-muted-foreground">{item.desc}</p>
                   </div>
-                </li>
-                <li className="flex items-start gap-3">
-                  <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center flex-shrink-0 shadow-md">
-                    <Shield className="w-4 h-4 text-white" />
-                  </div>
-                  <div>
-                    <p className="font-semibold text-gray-900 text-sm mb-1">
-                      Better Matching
-                    </p>
-                    <p className="text-xs text-gray-600">
-                      Questions tailored to your skills and experience
-                    </p>
-                  </div>
-                </li>
-                <li className="flex items-start gap-3">
-                  <div className="w-8 h-8 bg-emerald-600 rounded-lg flex items-center justify-center flex-shrink-0 shadow-md">
-                    <CheckCircle className="w-4 h-4 text-white" />
-                  </div>
-                  <div>
-                    <p className="font-semibold text-gray-900 text-sm mb-1">
-                      Auto-Selected
-                    </p>
-                    <p className="text-xs text-gray-600">
-                      Your latest resume is automatically used for interviews
-                    </p>
-                  </div>
-                </li>
-                <li className="flex items-start gap-3">
-                  <div className="w-8 h-8 bg-slate-700 rounded-lg flex items-center justify-center flex-shrink-0 shadow-md">
-                    <Award className="w-4 h-4 text-white" />
-                  </div>
-                  <div>
-                    <p className="font-semibold text-gray-900 text-sm mb-1">
-                      Improved Feedback
-                    </p>
-                    <p className="text-xs text-gray-600">
-                      Get more accurate analysis based on your resume
-                    </p>
-                  </div>
-                </li>
-              </ul>
+                </div>
+              ))}
             </CardContent>
           </Card>
         </div>
       </div>
 
-      {/* Delete Profile Section */}
-      <Card className="rounded-md border border-red-200 bg-red-50 shadow-sm">
-        <CardHeader className="pb-3">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-10 h-10 bg-red-600 rounded-lg flex items-center justify-center">
-              <AlertTriangle className="w-5 h-5 text-white" />
+      {/* Danger zone */}
+      <Card className="rounded-xl border border-red-200 bg-red-50/80 shadow-sm">
+        <CardHeader className="px-4 pb-2 pt-4 sm:px-5">
+          <div className="flex items-center gap-2.5">
+            <SectionIcon
+              icon={AlertTriangle}
+              className="bg-red-600 text-white"
+            />
+            <div>
+              <CardTitle className="text-base font-semibold text-red-900">
+                Danger zone
+              </CardTitle>
+              <CardDescription className="text-xs text-red-800/80">
+                Permanently delete your account and all data
+              </CardDescription>
             </div>
-            <CardTitle className="text-xl lg:text-2xl text-red-900">
-              Danger Zone
-            </CardTitle>
           </div>
-          <CardDescription className="text-sm">
-            Permanently delete your account and all associated data
-          </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="p-4 bg-white/60 rounded-md border border-red-200">
-            <p className="text-sm text-gray-700 mb-3">
-              <strong className="text-red-700">Warning:</strong> This action
-              cannot be undone. This will permanently delete:
-            </p>
-            <ul className="list-disc list-inside space-y-1 text-sm text-gray-600 mb-4">
-              <li>Your profile and account information</li>
-              <li>All your interview history and reports</li>
-              <li>All payment records</li>
-              <li>Your uploaded resume and interview videos</li>
-              <li>Your Clerk authentication account</li>
-            </ul>
-          </div>
+        <CardContent className="space-y-3 px-4 pb-4 sm:px-5 sm:pb-5">
+          <p className="text-xs text-red-900/90">
+            <strong>Warning:</strong> This cannot be undone. Deletes your profile,
+            interviews, payments, resume, videos, and Clerk account.
+          </p>
 
           {!showDeleteConfirm ? (
             <Button
               type="button"
               variant="destructive"
-              size="lg"
+              size="sm"
               onClick={() => setShowDeleteConfirm(true)}
-              className="w-full sm:w-auto bg-red-600 hover:bg-red-700 text-white shadow-lg hover:shadow-xl transition-all"
+              className="gap-1.5 bg-red-600 hover:bg-red-700"
             >
-              <Trash2 className="w-5 h-5 mr-2" />
-              Delete My Account
+              <Trash2 className="h-3.5 w-3.5" />
+              Delete my account
             </Button>
           ) : (
-            <div className="space-y-3 p-4 bg-white/80 rounded-md border border-red-300">
-              <p className="text-sm font-semibold text-red-700 mb-2">
-                Are you absolutely sure? This action cannot be undone.
+            <div className="space-y-2 rounded-lg border border-red-300 bg-white/80 p-3">
+              <p className="text-xs font-semibold text-red-700">
+                Are you absolutely sure?
               </p>
-              <div className="flex flex-col sm:flex-row gap-3">
+              <div className="flex flex-wrap gap-2">
                 <Button
                   type="button"
                   variant="destructive"
-                  size="lg"
+                  size="sm"
                   onClick={handleDeleteProfile}
                   disabled={deleting}
-                  className="flex-1 bg-red-600 hover:bg-red-700 text-white shadow-lg hover:shadow-xl transition-all"
+                  className="gap-1.5 bg-red-600 hover:bg-red-700"
                 >
                   {deleting ? (
                     <>
-                      <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
                       Deleting...
                     </>
                   ) : (
                     <>
-                      <Trash2 className="w-5 h-5 mr-2" />
-                      Yes, Delete My Account
+                      <Trash2 className="h-3.5 w-3.5" />
+                      Yes, delete
                     </>
                   )}
                 </Button>
                 <Button
                   type="button"
                   variant="outline"
-                  size="lg"
+                  size="sm"
                   onClick={() => {
                     setShowDeleteConfirm(false);
                     setError("");
                   }}
                   disabled={deleting}
-                  className="flex-1"
                 >
                   Cancel
                 </Button>
               </div>
-            </div>
-          )}
-
-          {error && (
-            <div className="p-4 bg-red-50 border border-red-200 rounded-md text-sm text-red-700 flex items-start gap-2">
-              <AlertTriangle className="w-5 h-5 flex-shrink-0 mt-0.5" />
-              <span>{error}</span>
             </div>
           )}
         </CardContent>

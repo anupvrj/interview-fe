@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { paymentApi, planApi, Subscription, CreditBalance } from "@/lib/api";
 import { formatDate } from "@/lib/utils";
+import { institutePrimaryClass } from "@/components/institute/InstituteChrome";
 
 interface Plan {
   _id: string;
@@ -193,7 +194,7 @@ export default function PlanPage() {
           type: "credit_purchase",
         },
         theme: {
-          color: "#2563eb",
+          color: "#7367F0",
         },
         modal: {
           ondismiss: function () {
@@ -326,8 +327,8 @@ export default function PlanPage() {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
-          <Loader2 className="w-12 h-12 animate-spin text-[rgb(37,99,235)] mx-auto mb-4" />
-          <p className="text-gray-600">Loading your plan details...</p>
+          <Loader2 className="w-12 h-12 animate-spin text-[#7367F0] mx-auto mb-4" />
+          <p className="text-muted-foreground">Loading your plan details...</p>
         </div>
       </div>
     );
@@ -344,36 +345,32 @@ export default function PlanPage() {
 
   return (
     <div className="w-full max-w-7xl mx-auto space-y-4 lg:space-y-6">
-      {/* Hero Header Section */}
-      <div className="relative overflow-hidden rounded-md bg-gradient-to-br from-blue-600 via-blue-700 to-blue-800 px-4 py-3 sm:px-5 sm:py-4 text-white shadow-lg">
-        <div className="relative z-10">
-          <div className="mb-1.5 flex min-w-0 items-center gap-2.5">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-white/20 shadow-sm backdrop-blur-sm sm:h-9 sm:w-9">
-              <Crown className="h-4 w-4" />
-            </div>
-            <h1 className="truncate text-lg font-bold leading-tight text-white sm:text-xl lg:text-2xl">
+      <section className="relative overflow-hidden rounded-xl bg-[#7367F0]/[0.04] px-4 py-4 sm:px-5 sm:py-5">
+        <div className="relative z-10 flex min-w-0 items-start gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#7367F0]/10 text-[#7367F0] sm:h-11 sm:w-11">
+            <Crown className="h-5 w-5" />
+          </div>
+          <div className="min-w-0">
+            <h1 className="text-lg font-bold text-foreground sm:text-xl lg:text-2xl">
               Subscription & Credits
             </h1>
+            <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+              Credits fuel the full partner loop—Smart ATS resume passes, AI Interview Practice and
+              coding mocks, peer sessions, and the stretch to offers—top up when
+              you need more runway.
+            </p>
           </div>
-          <p className="max-w-2xl text-[10px] leading-tight text-white/85 sm:text-xs md:text-sm">
-            Credits fuel the full partner loop—Smart ATS resume passes, AI Interview Practice and
-            coding mocks, peer sessions, and the stretch to offers—top up when
-            you need more runway.
-          </p>
         </div>
-        <div className="absolute inset-0 bg-gradient-to-r from-blue-600/40 to-transparent opacity-40"></div>
-        <div className="absolute right-0 top-0 h-44 w-44 rounded-full bg-white/10 blur-3xl"></div>
-        <div className="absolute bottom-0 left-0 h-32 w-32 rounded-full bg-blue-500/20 blur-2xl"></div>
-      </div>
+      </section>
 
       {/* Main Content Grid */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {/* Left Column - Current Plan + Upgrade card */}
         <div className="space-y-4">
-          <Card className="h-fit rounded-md border border-border bg-card shadow-sm">
+          <Card className="h-fit overflow-hidden rounded-xl border border-border/60 bg-card shadow-card">
             <CardHeader className="pb-4">
               <div className="flex items-center gap-3 mb-2">
-                <div className="flex h-10 w-10 items-center justify-center rounded-md bg-gradient-to-br from-[rgb(37,99,235)] to-blue-600 shadow-lg shadow-blue-500/30 ring-2 ring-blue-200/50">
+                <div className="flex h-10 w-10 items-center justify-center rounded-md bg-[#7367F0] shadow-lg shadow-blue-500/30 ring-2 ring-blue-200/50">
                   <Crown className="h-5 w-5 text-white" />
                 </div>
                 <div>
@@ -399,7 +396,7 @@ export default function PlanPage() {
                     </span>
                   </div>
                   <div className="text-right">
-                    <span className="text-2xl font-bold text-[rgb(37,99,235)] block">
+                    <span className="text-2xl font-bold text-[#7367F0] block">
                       {subscription?.creditsAvailable || 0}
                     </span>
                     <span className="text-xs text-gray-500">available</span>
@@ -426,7 +423,7 @@ export default function PlanPage() {
               {/* Renewal Date */}
               {subscription?.currentPeriodEnd && (
                 <div className="flex items-center gap-3 rounded-md border border-slate-200 bg-slate-50/80 p-4">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-gradient-to-br from-[rgb(37,99,235)] to-blue-600 shadow-lg shadow-blue-500/30 ring-2 ring-blue-200/50">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-[#7367F0] shadow-lg shadow-blue-500/30 ring-2 ring-blue-200/50">
                     <Calendar className="h-5 w-5 text-white" />
                   </div>
                   <div className="flex-1">
@@ -566,7 +563,7 @@ export default function PlanPage() {
 
           {/* Upgrade card - right after current plan */}
           {nextPlan && (
-            <Card className="rounded-md border border-border bg-card shadow-sm">
+            <Card className="overflow-hidden rounded-xl border border-border/60 bg-card shadow-card">
               <CardContent className="py-5">
                 <div className="flex flex-col items-start justify-between gap-4 rounded-md border border-slate-200 bg-slate-50/80 p-4 sm:flex-row sm:items-center">
                   <div className="flex items-start gap-4">
@@ -599,7 +596,7 @@ export default function PlanPage() {
         </div>
 
         {/* Right Column - Credit Balance & Purchase */}
-        <Card className="h-fit rounded-md border border-border bg-card shadow-sm">
+        <Card className="h-fit overflow-hidden rounded-xl border border-border/60 bg-card shadow-card">
           <CardHeader className="pb-4">
             <div className="flex items-center gap-3 mb-2">
               <div className="flex h-10 w-10 items-center justify-center rounded-md bg-gradient-to-br from-emerald-500 to-emerald-600 shadow-lg shadow-emerald-500/30">
@@ -709,7 +706,7 @@ export default function PlanPage() {
 
       {/* Highest Plan Message */}
       {!nextPlan && subscription?.plan !== "free" && (
-        <Card className="rounded-md border border-border bg-card shadow-sm">
+        <Card className="overflow-hidden rounded-xl border border-border/60 bg-card shadow-card">
           <CardContent className="py-5">
             <div className="flex items-start gap-4 rounded-md border border-slate-200 bg-slate-50/80 p-4">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-gradient-to-br from-amber-500 to-amber-600 shadow-lg shadow-amber-500/30">

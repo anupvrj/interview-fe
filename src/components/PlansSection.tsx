@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { PricingPlansBlock } from "@/components/PricingPlansBlock";
+import { appMarketingSection } from "@/lib/app-theme";
+import { cn } from "@/lib/utils";
 
 export function PlansSection() {
   const [isVisible, setIsVisible] = useState(false);
@@ -74,9 +76,11 @@ export function PlansSection() {
     <section
       ref={sectionRef}
       id="pricing"
-      className={`py-12 sm:py-16 lg:py-20 px-4 sm:px-6 scroll-mt-20 transition-all duration-1000 ease-out ${
-        isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
-      }`}
+      className={cn(
+        appMarketingSection,
+        "scroll-mt-20 py-12 transition-all duration-1000 ease-out sm:py-16 lg:py-20 px-4 sm:px-6",
+        isVisible ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0",
+      )}
     >
       <div className="container mx-auto max-w-6xl">
         <PricingPlansBlock

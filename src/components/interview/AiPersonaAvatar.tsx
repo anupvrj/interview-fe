@@ -54,7 +54,7 @@ export function AiPersonaAvatar({
                 "origin-center box-border rounded-full border-2 shadow-[0_0_14px_rgba(139,92,246,0.35)] will-change-transform",
                 isSpeaking
                   ? "animate-ai-avatar-ring border-violet-400/90"
-                  : "animate-pulse border-blue-400/75",
+                  : "animate-pulse border-primary/75",
               )}
               style={{ width: dim + 14, height: dim + 14 }}
             />

@@ -11,6 +11,8 @@ const isPublicRoute = createRouteMatcher([
   "/ai-job-search(.*)",
   "/ai-job-search",
   "/ai-interview-coach(.*)",
+  "/ai-coding-practice(.*)",
+  "/ai-system-design(.*)",
   "/about-us(.*)",
   "/pricing(.*)",
   "/ats-checker(.*)",

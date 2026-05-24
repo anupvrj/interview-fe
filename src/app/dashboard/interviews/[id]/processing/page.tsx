@@ -66,15 +66,15 @@ export default function ProcessingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-pink-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <Card className="w-full max-w-2xl border-2">
         <CardContent className="p-12">
           {status === "processing" && (
             <div className="text-center">
-              <div className="w-20 h-20 mx-auto mb-6 bg-gradient-to-r from-purple-600 to-blue-600 rounded-full flex items-center justify-center">
-                <Loader2 className="w-10 h-10 text-white animate-spin" />
+              <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-primary">
+                <Loader2 className="h-10 w-10 animate-spin text-primary-foreground" />
               </div>
-              <h2 className="text-3xl font-bold mb-4" style={{ color: 'rgb(37 99 235 / var(--tw-text-opacity, 1))' }}>
+              <h2 className="mb-4 text-3xl font-bold text-primary">
                 Processing Your Interview{dots}
               </h2>
               <p className="text-gray-600 mb-8 text-lg">
@@ -95,8 +95,8 @@ export default function ProcessingPage() {
                   </div>
                 </div>
 
-                <div className="flex items-start gap-3 p-4 bg-blue-50 rounded-lg">
-                  <CheckCircle className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                <div className="flex items-start gap-3 p-4 bg-muted/30 rounded-lg">
+                  <CheckCircle className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
                   <div>
                     <div className="font-semibold text-gray-900">
                       Evaluating Content
@@ -120,8 +120,8 @@ export default function ProcessingPage() {
                 </div>
               </div>
 
-              <div className="mt-8 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                <p className="text-sm text-blue-800">
+              <div className="mt-8 p-4 bg-muted/30 rounded-lg border border-border">
+                <p className="text-sm text-primary">
                   💡 <strong>Tip:</strong> While you wait, consider what went
                   well and what you'd like to improve for your next interview!
                 </p>

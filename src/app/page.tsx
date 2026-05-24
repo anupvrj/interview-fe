@@ -36,6 +36,8 @@ import { ScrollSection } from "@/components/ScrollSection";
 import { SiteHeader } from "@/components/SiteHeader";
 import { MarketingFooter } from "@/components/MarketingFooter";
 import { AiJobSearchNotifyButton } from "@/components/AiJobSearchNotifyButton";
+import { appMarketingSection, appMarketingSectionAlt, appMarketingSectionPurple, appMarketingSectionLight } from "@/lib/app-theme";
+import { cn } from "@/lib/utils";
 
 // Custom hook for counting animation
 function useCountUp(end: number, duration: number = 2000, suffix: string = "", prefix: string = "") {
@@ -263,11 +265,16 @@ export default function LandingPage() {
   }, [currentJobIndex]);
 
   return (
-    <div className="min-h-screen bg-white scroll-smooth selection:bg-blue-100">
+    <div className="min-h-screen bg-background scroll-smooth selection:bg-info-muted">
       <SiteHeader />
 
       {/* Hero Section */}
-      <section className="pt-20 sm:pt-24 md:pt-28 lg:pt-32 pb-8 sm:pb-12 md:pb-16 px-4 sm:px-6 overflow-hidden bg-white">
+      <section
+        className={cn(
+          appMarketingSection,
+          "overflow-hidden px-4 pb-8 pt-20 sm:px-6 sm:pb-12 sm:pt-24 md:pt-28 lg:pb-16 lg:pt-32",
+        )}
+      >
         <div className="container mx-auto max-w-7xl">
           <div className="grid lg:grid-cols-2 gap-8 sm:gap-12 lg:gap-16 items-center">
             {/* Left Side - Marketing Content */}
@@ -284,7 +291,7 @@ export default function LandingPage() {
                             key={index}
                             className={`inline-block ${
                               isHighlight 
-                                ? 'text-[rgb(37,99,235)]' 
+                                ? 'text-primary' 
                                 : 'text-slate-900'
                             }`}
                             style={{
@@ -297,7 +304,7 @@ export default function LandingPage() {
                       })}
                       {displayedText.length <= firstLine.length && (
                         <span 
-                          className={`inline-block w-0.5 h-[1em] bg-blue-600 ml-1 align-middle ${
+                          className={`inline-block w-0.5 h-[1em] bg-primary ml-1 align-middle ${
                             showCursor ? 'opacity-100' : 'opacity-0'
                           }`}
                           style={{
@@ -316,7 +323,7 @@ export default function LandingPage() {
                             key={index}
                             className={`inline-block ${
                               isHighlight 
-                                ? 'text-[rgb(37,99,235)]' 
+                                ? 'text-primary' 
                                 : 'text-slate-900'
                             }`}
                           >
@@ -356,7 +363,7 @@ export default function LandingPage() {
                             })}
                             {happensText && (
                               <span
-                                className="inline-block text-[rgb(37,99,235)] whitespace-nowrap"
+                                className="inline-block text-primary whitespace-nowrap"
                                 style={{
                                   animation: `fadeInUp 0.4s ease-out ${beforeHappens.length * 0.05}s both`
                                 }}
@@ -383,7 +390,7 @@ export default function LandingPage() {
                       })()}
                       {displayedText.length === fullText.length && (
                         <span 
-                          className={`inline-block w-0.5 h-[1em] bg-blue-600 ml-1 align-middle ${
+                          className={`inline-block w-0.5 h-[1em] bg-primary ml-1 align-middle ${
                             showCursor ? 'opacity-100' : 'opacity-0'
                           }`}
                           style={{
@@ -419,7 +426,7 @@ export default function LandingPage() {
                 <Link href="/sign-up" className="w-full sm:w-auto">
                   <Button
                     size="lg"
-                    className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm sm:text-base px-5 sm:px-6 py-4 sm:py-5 h-auto shadow-lg hover:shadow-xl transition-all"
+                    className="w-full sm:w-auto bg-primary hover:bg-slate-900 text-white font-semibold text-sm sm:text-base px-5 sm:px-6 py-4 sm:py-5 h-auto shadow-lg hover:shadow-xl transition-all"
                   >
                     Get Started for Free
                     <ArrowRight className="w-4 h-4 ml-2" />
@@ -438,7 +445,7 @@ export default function LandingPage() {
 
             {/* Right Section - Interview Preview */}
             <div className="relative flex justify-center lg:justify-start order-1 lg:order-2">
-              <div className="relative rounded-lg sm:rounded-xl shadow-2xl overflow-hidden bg-white w-full max-w-[600px] sm:max-w-[700px] border-2 sm:border-4 border-blue-100">
+              <div className="relative rounded-lg sm:rounded-xl shadow-2xl overflow-hidden bg-white w-full max-w-[600px] sm:max-w-[700px] border-2 sm:border-4 border-border">
                 <Image
                   src="/mock-interview-previewiew.png"
                   alt="AI Interview Practice interface"
@@ -457,14 +464,14 @@ export default function LandingPage() {
                     <div className="text-green-100 text-[8px] sm:text-[9px]">Interview</div>
                   </div>
                 </div>
-                <div className="absolute top-1.5 left-1.5 sm:top-2 sm:left-2 bg-blue-700 text-white px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-md shadow-lg text-[9px] sm:text-[10px] font-semibold animate-pulse" style={{ animationDuration: '2.5s', animationDelay: '0.5s' }}>
+                <div className="absolute top-1.5 left-1.5 sm:top-2 sm:left-2 bg-primary text-white px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-md shadow-lg text-[9px] sm:text-[10px] font-semibold animate-pulse" style={{ animationDuration: '2.5s', animationDelay: '0.5s' }}>
                   <span className="hidden sm:inline">Real-time Feedback</span>
                   <span className="sm:hidden">Feedback</span>
                 </div>
                 <div className="absolute bottom-1.5 right-1.5 sm:bottom-2 sm:right-2">
                   <Button
                     size="sm"
-                    className="bg-blue-700 hover:bg-blue-800 text-white shadow-lg h-6 sm:h-7 px-1.5 sm:px-2 text-[9px] sm:text-[10px] animate-bounce" 
+                    className="bg-primary hover:bg-slate-900 text-white shadow-lg h-6 sm:h-7 px-1.5 sm:px-2 text-[9px] sm:text-[10px] animate-bounce" 
                     style={{ animationDuration: '2.2s', animationDelay: '1s' }}
                   >
                     <Mic className="w-2.5 h-2.5 sm:w-3 sm:h-3 mr-0.5 sm:mr-1" />
@@ -481,70 +488,96 @@ export default function LandingPage() {
       {/* Features Section */}
       <ScrollSection
         id="why-us"
-        className="py-12 sm:py-16 px-4 sm:px-6 scroll-mt-20 relative overflow-hidden"
+        className={cn(
+          appMarketingSectionPurple,
+          "scroll-mt-20 px-4 py-12 sm:px-6 sm:py-16 lg:py-20",
+        )}
       >
-        <div 
-          className="absolute inset-0"
-          style={{
-            background: 'linear-gradient(135deg, #60A5FA 0%, #3B82F6 50%, #2563EB 100%)'
-          }}
-        ></div>
-        {/* Decorative Sparkle Icons */}
-        <div className="absolute inset-0 pointer-events-none">
-          {[...Array(12)].map((_, i) => {
-            const positions = [
-              { left: '5%', top: '10%' },
-              { left: '25%', top: '5%' },
-              { left: '45%', top: '15%' },
-              { left: '65%', top: '8%' },
-              { left: '85%', top: '12%' },
-              { left: '15%', top: '25%' },
-              { left: '55%', top: '30%' },
-              { left: '75%', top: '22%' },
-              { left: '10%', top: '50%' },
-              { left: '30%', top: '45%' },
-              { left: '70%', top: '48%' },
-              { left: '90%', top: '52%' },
-            ];
-            return (
-              <div
-                key={i}
-                className="absolute opacity-20"
-                style={{
-                  left: positions[i]?.left || `${(i * 15) % 100}%`,
-                  top: positions[i]?.top || `${(i * 20) % 100}%`,
-                  animation: `float-${i % 3} ${5 + (i % 3) * 2}s ease-in-out infinite`,
-                  animationDelay: `${i * 0.3}s`,
-                }}
-              >
-                <div className="w-8 h-8 bg-white/30 rounded-lg flex items-center justify-center backdrop-blur-sm">
-                  <Sparkles className="w-4 h-4 text-white" />
-                </div>
-              </div>
-            );
-          })}
+        <div className="pointer-events-none absolute inset-0 overflow-hidden">
+          {[...Array(10)].map((_, i) => (
+            <div
+              key={`why-float-a-${i}`}
+              className="absolute"
+              style={{
+                left: `${(i * 11) % 92}%`,
+                top: `${(i * 17) % 88}%`,
+                opacity: 0.14,
+                animation: `float-${i % 3} ${6 + (i % 3) * 2}s ease-in-out infinite`,
+                animationDelay: `${i * 0.45}s`,
+              }}
+            >
+              {i % 4 === 0 ? (
+                <FileText className="h-10 w-10 text-white sm:h-14 sm:w-14" />
+              ) : i % 4 === 1 ? (
+                <Mic className="h-10 w-10 text-white sm:h-14 sm:w-14" />
+              ) : i % 4 === 2 ? (
+                <Code className="h-10 w-10 text-white sm:h-14 sm:w-14" />
+              ) : (
+                <Video className="h-10 w-10 text-white sm:h-14 sm:w-14" />
+              )}
+            </div>
+          ))}
+          {[...Array(8)].map((_, i) => (
+            <div
+              key={`why-float-b-${i}`}
+              className="absolute"
+              style={{
+                left: `${(i * 14 + 6) % 90}%`,
+                top: `${(i * 19 + 8) % 85}%`,
+                opacity: 0.11,
+                animation: `float-${(i + 1) % 3} ${7 + (i % 2) * 2}s ease-in-out infinite`,
+                animationDelay: `${i * 0.6}s`,
+              }}
+            >
+              {i % 3 === 0 ? (
+                <Search className="h-8 w-8 text-white sm:h-11 sm:w-11" />
+              ) : i % 3 === 1 ? (
+                <Award className="h-8 w-8 text-white sm:h-11 sm:w-11" />
+              ) : (
+                <MessageSquare className="h-8 w-8 text-white sm:h-11 sm:w-11" />
+              )}
+            </div>
+          ))}
+          {[...Array(6)].map((_, i) => (
+            <div
+              key={`why-float-c-${i}`}
+              className="absolute"
+              style={{
+                left: `${(i * 18 + 3) % 88}%`,
+                top: `${(i * 23 + 5) % 90}%`,
+                opacity: 0.09,
+                animation: `float-${i % 3} ${8 + (i % 2) * 2}s ease-in-out infinite`,
+                animationDelay: `${i * 0.75}s`,
+              }}
+            >
+              {i % 2 === 0 ? (
+                <Sparkles className="h-7 w-7 text-white sm:h-10 sm:w-10" />
+              ) : (
+                <Brain className="h-7 w-7 text-white sm:h-10 sm:w-10" />
+              )}
+            </div>
+          ))}
         </div>
-
-        <div className="container mx-auto max-w-6xl relative z-10">
-          <div className="text-center mb-12">
-            <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/20 backdrop-blur-sm rounded-full text-white font-medium text-sm mb-4">
-              <Sparkles className="w-3 h-3" />
+        <div className="relative z-10 container mx-auto max-w-6xl">
+          <div className="mb-12 text-center">
+            <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/15 px-3 py-1 text-sm font-medium text-white/95">
+              <Sparkles className="h-3 w-3" />
               <span>Why Interview Trix</span>
             </div>
-            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-4 tracking-tight">
+            <h2 className="mb-4 text-3xl font-bold tracking-tight text-white/95 sm:text-4xl lg:text-5xl">
               Don&apos;t just apply.{" "}
-              <span className="text-blue-100">Win.</span>
+              <span className="text-white/95">Win.</span>
             </h2>
-            <p className="text-lg text-white/90 max-w-2xl mx-auto leading-relaxed">
+            <p className="mx-auto max-w-2xl text-lg leading-relaxed text-white/75">
               From an ATS-ready resume to AI Interview Practice, peer interviews, and the perfect job match—one platform built for how hiring works today.
             </p>
           </div>
 
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            <div className="group relative bg-white/95 backdrop-blur-sm rounded-2xl p-6 border border-white/20 hover:border-white/40 hover:shadow-2xl transition-all duration-300 hover:scale-105">
-              <div className="absolute inset-0 bg-gradient-to-br from-blue-50/30 to-transparent rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="group bg-card shadow-card hover:shadow-header relative rounded-2xl border border-border p-6 transition-all duration-300 hover:-translate-y-0.5 hover:border-primary/40">
+              <div className="absolute inset-0 bg-card/30 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
               <div className="relative">
-                <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center mb-4 shadow-lg group-hover:scale-110 transition-transform">
+                <div className="w-14 h-14 bg-primary rounded-2xl flex items-center justify-center mb-4 shadow-lg group-hover:scale-110 transition-transform">
                   <FileText className="w-7 h-7 text-white" />
                 </div>
                 <h3 className="text-xl font-bold text-slate-900 mb-2">
@@ -559,8 +592,8 @@ export default function LandingPage() {
               </div>
             </div>
 
-            <div className="group relative bg-white/95 backdrop-blur-sm rounded-2xl p-6 border border-white/20 hover:border-white/40 hover:shadow-2xl transition-all duration-300 hover:scale-105">
-              <div className="absolute inset-0 bg-gradient-to-br from-blue-50/30 to-transparent rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
+            <div className="group bg-card shadow-card hover:shadow-header relative rounded-2xl border border-border p-6 transition-all duration-300 hover:-translate-y-0.5 hover:border-primary/40">
+              <div className="absolute inset-0 bg-card/30 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
               <div className="relative">
                 <div className="w-14 h-14 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-2xl flex items-center justify-center mb-4 shadow-lg group-hover:scale-110 transition-transform">
                   <Mic className="w-7 h-7 text-white" />
@@ -577,8 +610,8 @@ export default function LandingPage() {
               </div>
             </div>
 
-            <div className="group relative bg-white/95 backdrop-blur-sm rounded-2xl p-6 border border-white/20 hover:border-white/40 hover:shadow-2xl transition-all duration-300 hover:scale-105">
-              <div className="absolute inset-0 bg-gradient-to-br from-blue-50/30 to-transparent rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
+            <div className="group bg-card shadow-card hover:shadow-header relative rounded-2xl border border-border p-6 transition-all duration-300 hover:-translate-y-0.5 hover:border-primary/40">
+              <div className="absolute inset-0 bg-card/30 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
               <div className="relative">
                 <div className="w-14 h-14 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-2xl flex items-center justify-center mb-4 shadow-lg group-hover:scale-110 transition-transform">
                   <Code className="w-7 h-7 text-white" />
@@ -597,9 +630,9 @@ export default function LandingPage() {
 
             <Link
               href="/sign-up"
-              className="group relative bg-white/95 backdrop-blur-sm rounded-2xl p-6 border border-white/20 hover:border-white/40 hover:shadow-2xl transition-all duration-300 hover:scale-105 block text-left"
+              className="group bg-card hover:shadow-header relative block rounded-2xl border border-border p-6 text-left shadow-card transition-all duration-300 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-xl"
             >
-              <div className="absolute inset-0 bg-gradient-to-br from-blue-50/30 to-transparent rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
+              <div className="absolute inset-0 bg-card/30 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
               <div className="relative">
                 <div className="w-14 h-14 bg-gradient-to-br from-amber-500 to-amber-600 rounded-2xl flex items-center justify-center mb-4 shadow-lg group-hover:scale-110 transition-transform">
                   <Video className="w-7 h-7 text-white" />
@@ -613,15 +646,15 @@ export default function LandingPage() {
                 <p className="text-sm text-gray-600 leading-relaxed">
                   Schedule with engineers from top companies—real-time feedback and an overall performance score from people who&apos;ve been there.
                 </p>
-                <p className="text-sm font-medium text-blue-600 mt-3 flex items-center gap-1">
+                <p className="text-sm font-medium text-primary mt-3 flex items-center gap-1">
                   Sign up to book
                   <ArrowRight className="w-4 h-4" />
                 </p>
               </div>
             </Link>
 
-            <div className="group relative bg-white/95 backdrop-blur-sm rounded-2xl p-6 border border-white/20 hover:border-white/40 hover:shadow-2xl transition-all duration-300 hover:scale-105">
-              <div className="absolute inset-0 bg-gradient-to-br from-blue-50/30 to-transparent rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
+            <div className="group bg-card shadow-card hover:shadow-header relative rounded-2xl border border-border p-6 transition-all duration-300 hover:-translate-y-0.5 hover:border-primary/40">
+              <div className="absolute inset-0 bg-card/30 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
               <div className="relative">
                 <div className="w-14 h-14 bg-gradient-to-br from-cyan-500 to-cyan-600 rounded-2xl flex items-center justify-center mb-4 shadow-lg group-hover:scale-110 transition-transform">
                   <Award className="w-7 h-7 text-white" />
@@ -640,9 +673,9 @@ export default function LandingPage() {
 
             <Link
               href="/ai-job-search"
-              className="group relative bg-white/95 backdrop-blur-sm rounded-2xl p-6 border border-white/20 hover:border-white/40 hover:shadow-2xl transition-all duration-300 hover:scale-105 block text-left"
+              className="group bg-card hover:shadow-header relative block rounded-2xl border border-border p-6 text-left shadow-card transition-all duration-300 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-xl"
             >
-              <div className="absolute inset-0 bg-gradient-to-br from-blue-50/30 to-transparent rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
+              <div className="absolute inset-0 bg-card/30 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
               <div className="relative">
                 <div className="w-14 h-14 bg-gradient-to-br from-violet-500 to-violet-600 rounded-2xl flex items-center justify-center mb-4 shadow-lg group-hover:scale-110 transition-transform">
                   <Search className="w-7 h-7 text-white" />
@@ -656,7 +689,7 @@ export default function LandingPage() {
                 <p className="text-sm text-gray-600 leading-relaxed">
                   Surface strong fits, see your odds of getting hired, then refine your resume for that exact job description before you apply.
                 </p>
-                <p className="text-sm font-medium text-blue-600 mt-3 flex items-center gap-1">
+                <p className="text-sm font-medium text-primary mt-3 flex items-center gap-1">
                   Learn more
                   <ArrowRight className="w-4 h-4" />
                 </p>
@@ -669,20 +702,23 @@ export default function LandingPage() {
       {/* Resume Builder Section */}
       <ScrollSection
         id="build-resume"
-        className="py-12 sm:py-16 px-4 sm:px-6 bg-white scroll-mt-20 border-t border-gray-100"
+        className={cn(
+          appMarketingSection,
+          "scroll-mt-20 border-t border-border px-4 py-12 sm:px-6 sm:py-16",
+        )}
       >
         <div className="container mx-auto max-w-7xl">
           <div className="grid lg:grid-cols-2 gap-16 items-center">
             {/* Left Section - Marketing Content */}
             <div className="space-y-6">
               {/* Badge */}
-              <div className="inline-flex items-center gap-2 px-3 py-1 bg-blue-50 rounded-full text-blue-700 font-medium text-sm">
+              <div className="inline-flex items-center gap-2 px-3 py-1 bg-muted rounded-full text-primary font-medium text-sm">
                 <span>ATS-Optimized Templates · Real-Time Suggestions</span>
               </div>
 
               {/* Headline */}
               <h2 className="text-3xl sm:text-4xl md:text-5xl font-semibold tracking-tight text-slate-900 leading-tight">
-                Start With a Resume That <span className="text-blue-600">Passes the Bots</span>
+                Start With a Resume That <span className="text-primary">Passes the Bots</span>
               </h2>
 
               {/* Sub-headline */}
@@ -693,32 +729,32 @@ export default function LandingPage() {
               {/* AI-Powered Features */}
               <div className="flex flex-col sm:grid sm:grid-cols-2 gap-4 sm:gap-6 pt-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
-                    <FileText className="w-5 h-5 text-blue-600" />
+                  <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
+                    <FileText className="w-5 h-5 text-primary" />
                   </div>
                   <h3 className="text-sm sm:text-base font-semibold text-gray-900">
                     ATS-Optimized Templates
                   </h3>
                 </div>
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
-                    <Check className="w-5 h-5 text-blue-600" />
+                  <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
+                    <Check className="w-5 h-5 text-primary" />
                   </div>
                   <h3 className="text-sm sm:text-base font-semibold text-gray-900">
                     Smart ATS Scoring
                   </h3>
                 </div>
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
-                    <Sparkles className="w-5 h-5 text-blue-600" />
+                  <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
+                    <Sparkles className="w-5 h-5 text-primary" />
                   </div>
                   <h3 className="text-sm sm:text-base font-semibold text-gray-900">
                     Real-Time Improvements
                   </h3>
                 </div>
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
-                    <Zap className="w-5 h-5 text-blue-600" />
+                  <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
+                    <Zap className="w-5 h-5 text-primary" />
                   </div>
                   <h3 className="text-sm sm:text-base font-semibold text-gray-900">
                     Instant Suggestions
@@ -731,7 +767,7 @@ export default function LandingPage() {
                 <Link href="/dashboard/resumes/new" className="w-full sm:w-auto">
                   <Button
                     size="lg"
-                    className="w-full sm:w-auto text-white font-medium shadow-sm transition-all h-12 px-6 hover:opacity-90 !bg-[rgb(37,99,235)]"
+                    className="w-full sm:w-auto text-white font-medium shadow-sm transition-all h-12 px-6 hover:opacity-90 !bg-primary"
                   >
                     Try Builder Free
                     <ArrowRight className="w-4 h-4 ml-2" />
@@ -741,7 +777,7 @@ export default function LandingPage() {
                   <Button
                     variant="outline"
                     size="lg"
-                    className="w-full sm:w-auto border-gray-200 text-gray-700 font-medium h-12 px-6 hover:!bg-[rgb(17,24,39)] hover:!text-white transition-all"
+                    className="w-full sm:w-auto border-gray-200 text-gray-700 font-medium h-12 px-6 hover:!bg-slate-900 hover:!text-white transition-all"
                   >
                     Browse Templates
                   </Button>
@@ -803,7 +839,7 @@ export default function LandingPage() {
                   </div>
                 </div>
                 {/* Templates Badge */}
-                <div className="absolute top-1 left-1 sm:top-2 sm:left-2 bg-blue-600 text-white px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-md shadow-lg text-[8px] sm:text-[9px] lg:text-[10px] font-semibold animate-pulse z-10" style={{ animationDuration: '2.5s', animationDelay: '0.5s' }}>
+                <div className="absolute top-1 left-1 sm:top-2 sm:left-2 bg-primary text-primary-foreground px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-md shadow-lg text-[8px] sm:text-[9px] lg:text-[10px] font-semibold animate-pulse z-10" style={{ animationDuration: '2.5s', animationDelay: '0.5s' }}>
                   <span className="hidden sm:inline">Templates Available</span>
                   <span className="sm:hidden">ATS-Optimized Templates</span>
                 </div>
@@ -811,7 +847,7 @@ export default function LandingPage() {
                 <div className="absolute bottom-8 right-1 sm:bottom-10 sm:right-2 animate-bounce z-10" style={{ animationDuration: '2.2s', animationDelay: '1s' }}>
                   <Button
                     size="sm"
-                    className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg h-6 px-1.5 sm:h-7 sm:px-2 text-[8px] sm:text-[9px] lg:text-[10px] hover:scale-105 transition-transform"
+                    className="bg-primary hover:bg-slate-900 text-white shadow-lg h-6 px-1.5 sm:h-7 sm:px-2 text-[8px] sm:text-[9px] lg:text-[10px] hover:scale-105 transition-transform"
                   >
                     <Sparkles className="w-2.5 h-2.5 sm:w-3 sm:h-3 mr-0.5 sm:mr-1 animate-spin" style={{ animationDuration: '3s' }} />
                     <span className="hidden sm:inline">AI-Powered</span>
@@ -827,20 +863,23 @@ export default function LandingPage() {
       {/* AI Interview Practice hero */}
       <ScrollSection
         id="start-interview"
-        className="py-12 sm:py-16 px-4 sm:px-6 bg-slate-50 scroll-mt-20 border-t border-slate-100"
+        className={cn(
+          appMarketingSectionAlt,
+          "scroll-mt-20 border-t border-border px-4 py-12 sm:px-6 sm:py-16",
+        )}
       >
         <div className="container mx-auto max-w-7xl">
           <div className="grid lg:grid-cols-2 gap-16 items-center">
             {/* Left Section - Marketing Content */}
             <div className="space-y-6">
               {/* Badge */}
-              <div className="inline-flex items-center gap-2 px-3 py-1 bg-blue-50 rounded-full text-blue-700 font-medium text-sm">
+              <div className="inline-flex items-center gap-2 px-3 py-1 bg-muted rounded-full text-primary font-medium text-sm">
                 <span>AI Interview Practice · Company-Specific Prep</span>
               </div>
 
               {/* Headline */}
               <h2 className="text-3xl sm:text-4xl md:text-5xl font-semibold tracking-tight text-slate-900 leading-tight">
-                Shortlisted? <span className="text-blue-600">Perform</span> Under Pressure
+                Shortlisted? <span className="text-primary">Perform</span> Under Pressure
               </h2>
 
               {/* Sub-headline */}
@@ -851,8 +890,8 @@ export default function LandingPage() {
               {/* AI-Powered Features */}
               <div className="space-y-6 pt-4">
                 <div className="flex items-start gap-4">
-                  <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
-                    <Mic className="w-5 h-5 text-blue-600" />
+                  <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
+                    <Mic className="w-5 h-5 text-primary" />
                   </div>
                   <div>
                     <h3 className="text-base font-semibold text-gray-900 mb-1">
@@ -864,8 +903,8 @@ export default function LandingPage() {
                   </div>
                 </div>
                 <div className="flex items-start gap-4">
-                  <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
-                    <Brain className="w-5 h-5 text-blue-600" />
+                  <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
+                    <Brain className="w-5 h-5 text-primary" />
                   </div>
                   <div>
                     <h3 className="text-base font-semibold text-gray-900 mb-1">
@@ -877,8 +916,8 @@ export default function LandingPage() {
                   </div>
                 </div>
                 <div className="flex items-start gap-4">
-                  <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
-                    <Code className="w-5 h-5 text-blue-600" />
+                  <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
+                    <Code className="w-5 h-5 text-primary" />
                   </div>
                   <div>
                     <h3 className="text-base font-semibold text-gray-900 mb-1">
@@ -890,8 +929,8 @@ export default function LandingPage() {
                   </div>
                 </div>
                 <div className="flex items-start gap-4">
-                  <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
-                    <MessageSquare className="w-5 h-5 text-blue-600" />
+                  <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
+                    <MessageSquare className="w-5 h-5 text-primary" />
                   </div>
                   <div>
                     <h3 className="text-base font-semibold text-gray-900 mb-1">
@@ -909,7 +948,7 @@ export default function LandingPage() {
                 <Link href="/sign-up" className="w-full sm:w-auto">
                   <Button
                     size="lg"
-                    className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white font-medium shadow-sm transition-all h-12 px-6"
+                    className="w-full sm:w-auto bg-primary hover:bg-slate-900 text-white font-medium shadow-sm transition-all h-12 px-6"
                   >
                     Start Free Interview
                     <ArrowRight className="w-4 h-4 ml-2" />
@@ -919,7 +958,7 @@ export default function LandingPage() {
                   <Button
                     variant="outline"
                     size="lg"
-                    className="w-full sm:w-auto border-gray-200 text-gray-700 font-medium h-12 px-6 hover:!bg-[rgb(17,24,39)] hover:!text-white transition-all"
+                    className="w-full sm:w-auto border-gray-200 text-gray-700 font-medium h-12 px-6 hover:!bg-slate-900 hover:!text-white transition-all"
                   >
                     Learn More
                   </Button>
@@ -929,11 +968,11 @@ export default function LandingPage() {
               {/* Quick Stats */}
               <div className="flex flex-wrap items-center gap-6 pt-4 text-sm text-gray-500 font-medium">
                 <div className="flex items-center gap-2">
-                  <Check className="w-4 h-4 text-blue-600" />
+                  <Check className="w-4 h-4 text-primary" />
                   <span>No credit card required</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Check className="w-4 h-4 text-blue-600" />
+                  <Check className="w-4 h-4 text-primary" />
                   <span>5,000+ students trained</span>
                 </div>
               </div>
@@ -943,10 +982,10 @@ export default function LandingPage() {
             <div className="relative lg:pl-8 shake-vertical">
               <div className="relative">
                 {/* Background Shape */}
-                <div className="absolute inset-0 bg-blue-600 rounded-3xl transform rotate-3 opacity-10"></div>
+                <div className="absolute inset-0 bg-primary rounded-3xl transform rotate-3 opacity-10"></div>
                 
                 {/* Floating UI Card */}
-                <div className="relative bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl shadow-2xl border-2 border-blue-200 overflow-hidden">
+                <div className="relative bg-card rounded-2xl shadow-2xl border-2 border-border overflow-hidden">
                   {/* Animated Background Icons */}
                   <div className="absolute inset-0 pointer-events-none overflow-hidden">
                     {[...Array(6)].map((_, i) => (
@@ -961,11 +1000,11 @@ export default function LandingPage() {
                         }}
                       >
                         {i % 3 === 0 ? (
-                          <Mic className="w-8 h-8 text-blue-400" />
+                          <Mic className="w-8 h-8 text-primary/70" />
                         ) : i % 3 === 1 ? (
-                          <Brain className="w-8 h-8 text-blue-400" />
+                          <Brain className="w-8 h-8 text-primary/70" />
                         ) : (
-                          <MessageSquare className="w-8 h-8 text-blue-400" />
+                          <MessageSquare className="w-8 h-8 text-primary/70" />
                         )}
                       </div>
                     ))}
@@ -973,36 +1012,36 @@ export default function LandingPage() {
                   {/* AI Interview Practice interface */}
                   <div className="p-6 relative z-10">
                     {/* Top Bar */}
-                    <div className="flex items-center justify-between mb-6 pb-4 border-b border-blue-200">
+                    <div className="flex items-center justify-between mb-6 pb-4 border-b border-border">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-[rgb(37,99,235)] flex items-center justify-center mic-animated shadow-lg">
+                        <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center mic-animated shadow-lg">
                           <Mic className="w-4 h-4 text-white" />
                         </div>
                         <div>
                           <div className="font-semibold text-sm text-slate-900">AI Interview Session</div>
-                          <div className="text-xs text-blue-700">Live • Technical Round</div>
+                          <div className="text-xs text-primary">Live • Technical Round</div>
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
                         <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-                        <span className="text-xs text-blue-700 font-medium">Recording</span>
+                        <span className="text-xs text-primary font-medium">Recording</span>
                       </div>
                     </div>
 
                     {/* Question Section */}
                     <div className="mb-6">
-                      <div className="bg-white/80 backdrop-blur-sm rounded-lg p-4 mb-4 border border-blue-200">
-                        <p className="text-sm text-blue-700 font-medium mb-2">Question 3 of 10</p>
+                      <div className="bg-white/80 backdrop-blur-sm rounded-lg p-4 mb-4 border border-border">
+                        <p className="text-sm text-primary font-medium mb-2">Question 3 of 10</p>
                         <p className="text-base text-slate-900">
                           "Explain the difference between REST and GraphQL APIs. When would you choose one over the other?"
                         </p>
                       </div>
                       
                       {/* Answer Section */}
-                      <div className="bg-white/60 backdrop-blur-sm rounded-lg p-4 border border-blue-200">
+                      <div className="bg-white/60 backdrop-blur-sm rounded-lg p-4 border border-border">
                         <div className="flex items-center gap-2 mb-2">
-                          <div className="w-2 h-2 rounded-full bg-[rgb(37,99,235)] animate-pulse"></div>
-                          <span className="text-xs text-blue-700 font-medium">Your Response</span>
+                          <div className="w-2 h-2 rounded-full bg-primary animate-pulse"></div>
+                          <span className="text-xs text-primary font-medium">Your Response</span>
                         </div>
                         <p className="text-sm text-slate-700 italic">
                           "REST is a stateless architectural style that uses standard HTTP methods..."
@@ -1011,18 +1050,18 @@ export default function LandingPage() {
                     </div>
 
                     {/* Metrics */}
-                    <div className="grid grid-cols-3 gap-4 pt-4 border-t border-blue-200">
+                    <div className="grid grid-cols-3 gap-4 pt-4 border-t border-border">
                       <div className="text-center">
-                        <div className="text-2xl font-bold text-[rgb(37,99,235)]">8.5</div>
-                        <div className="text-xs text-blue-700">Confidence</div>
+                        <div className="text-2xl font-bold text-primary">8.5</div>
+                        <div className="text-xs text-primary">Confidence</div>
                       </div>
                       <div className="text-center">
                         <div className="text-2xl font-bold text-green-600">92%</div>
-                        <div className="text-xs text-blue-700">Accuracy</div>
+                        <div className="text-xs text-primary">Accuracy</div>
                       </div>
                       <div className="text-center">
-                        <div className="text-2xl font-bold text-[rgb(37,99,235)]">2:34</div>
-                        <div className="text-xs text-blue-700">Time</div>
+                        <div className="text-2xl font-bold text-primary">2:34</div>
+                        <div className="text-xs text-primary">Time</div>
                       </div>
                     </div>
                   </div>
@@ -1034,66 +1073,70 @@ export default function LandingPage() {
       </ScrollSection>
 
       {/* AI Job Search Hero Section */}
-      <section className="py-16 sm:py-20 md:py-24 lg:py-28 px-4 sm:px-6 overflow-hidden bg-blue-50 relative">
-        {/* Animated Background Elements */}
-        <div className="absolute inset-0 pointer-events-none overflow-hidden">
-          {[...Array(8)].map((_, i) => (
+      <section
+        className={cn(
+          appMarketingSectionLight,
+          "px-4 py-16 sm:px-6 sm:py-20 md:py-24 lg:py-28",
+        )}
+      >
+        <div className="pointer-events-none absolute inset-0 overflow-hidden">
+          {[...Array(5)].map((_, i) => (
             <div
-              key={i}
+              key={`job-float-${i}`}
               className="absolute"
               style={{
-                left: `${(i * 15) % 100}%`,
-                top: `${(i * 20) % 100}%`,
-                opacity: 0.09,
+                left: `${(i * 20 + 5) % 85}%`,
+                top: `${(i * 22 + 10) % 80}%`,
+                opacity: 0.16,
                 animation: `float-${i % 3} ${6 + (i % 3) * 2}s ease-in-out infinite`,
                 animationDelay: `${i * 0.5}s`,
               }}
             >
-              <Search className="w-12 h-12 sm:w-16 sm:h-16 text-blue-400" />
+              {i % 3 === 0 ? (
+                <Search className="h-10 w-10 text-[#7367F0] sm:h-12 sm:w-12" />
+              ) : i % 3 === 1 ? (
+                <Briefcase className="h-10 w-10 text-[#7367F0] sm:h-12 sm:w-12" />
+              ) : (
+                <TrendingUp className="h-10 w-10 text-[#7367F0] sm:h-12 sm:w-12" />
+              )}
             </div>
           ))}
-          {[...Array(8)].map((_, i) => (
-            <div
-              key={`briefcase-${i}`}
-              className="absolute"
-              style={{
-                left: `${(i * 16) % 100}%`,
-                top: `${(i * 22) % 100}%`,
-                opacity: 0.07,
-                animation: `float-${i % 3} ${7 + (i % 2) * 2}s ease-in-out infinite`,
-                animationDelay: `${i * 0.5}s`,
-              }}
-            >
-              <Briefcase className="w-10 h-10 sm:w-14 sm:h-14 text-blue-300" />
-            </div>
-          ))}
-          {[...Array(6)].map((_, i) => (
-            <div
-              key={`trending-${i}`}
-              className="absolute"
-              style={{
-                left: `${(i * 20) % 100}%`,
-                top: `${(i * 15) % 100}%`,
-                opacity: 0.06,
-                animation: `float-${i % 3} ${8 + (i % 2) * 2}s ease-in-out infinite`,
-                animationDelay: `${i * 0.7}s`,
-              }}
-            >
-              <TrendingUp className="w-8 h-8 sm:w-12 sm:h-12 text-indigo-300" />
-            </div>
-          ))}
+          {[
+            { left: "72%", top: "6%", icon: Search },
+            { left: "84%", top: "14%", icon: Briefcase },
+            { left: "78%", top: "22%", icon: TrendingUp },
+            { left: "90%", top: "8%", icon: FileText },
+            { left: "68%", top: "16%", icon: Sparkles },
+          ].map((item, i) => {
+            const Icon = item.icon;
+            return (
+              <div
+                key={`job-float-tr-${i}`}
+                className="absolute"
+                style={{
+                  left: item.left,
+                  top: item.top,
+                  opacity: 0.14,
+                  animation: `float-${(i + 1) % 3} ${7 + (i % 2) * 2}s ease-in-out infinite`,
+                  animationDelay: `${i * 0.65}s`,
+                }}
+              >
+                <Icon className="h-8 w-8 text-[#7367F0] sm:h-10 sm:w-10" />
+              </div>
+            );
+          })}
         </div>
         <div className="container mx-auto max-w-7xl relative z-10">
           <div className="grid lg:grid-cols-2 gap-8 sm:gap-12 lg:gap-16 items-center">
             {/* Left Side - Marketing Content */}
             <div className="space-y-4 sm:space-y-5 md:space-y-6 text-center lg:text-left order-2 lg:order-1">
-              <div className="inline-flex items-center gap-2 px-3 py-1 bg-blue-50 rounded-full text-blue-700 font-medium text-sm mb-4">
+              <div className="inline-flex items-center gap-2 rounded-full border border-[#7367F0]/15 bg-[#7367F0]/10 px-3 py-1 text-sm font-medium text-[#7367F0] mb-4">
                 <Sparkles className="w-3 h-3" />
                 <span>Coming Soon</span>
               </div>
               <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-[43px] font-bold tracking-tight text-slate-900 leading-[1.2] sm:leading-[1.1] lg:leading-[52px] mb-4 sm:mb-6">
                 Smart Job Search:
-                <span className="block text-blue-600">Match · Refine · Apply</span>
+                <span className="block text-primary">Match · Refine · Apply</span>
               </h1>
               <p className="text-base sm:text-lg md:text-xl text-gray-600 leading-relaxed max-w-xl mx-auto lg:mx-0 px-2 sm:px-0">
                 The finish line: find roles that fit, see your hiring odds, then refine your resume for that exact job description—right before you apply.
@@ -1102,15 +1145,15 @@ export default function LandingPage() {
               {/* Features List */}
               <div className="space-y-3 pt-4 sm:pt-6 px-2 sm:px-0">
                 <div className="flex items-start gap-3">
-                  <CheckCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                  <CheckCircle className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
                   <span className="text-gray-700 text-sm sm:text-base">Surface strong matches across the wider job landscape—not just one job board.</span>
                 </div>
                 <div className="flex items-start gap-3">
-                  <CheckCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                  <CheckCircle className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
                   <span className="text-gray-700 text-sm sm:text-base">Highlights where you&apos;re competitive so you prioritize the right opportunities.</span>
                 </div>
                 <div className="flex items-start gap-3">
-                  <CheckCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                  <CheckCircle className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
                   <span className="text-gray-700 text-sm sm:text-base">Tailor your resume to a specific JD, then apply with confidence.</span>
                 </div>
               </div>
@@ -1121,7 +1164,7 @@ export default function LandingPage() {
                   <Button
                     variant="outline"
                     size="lg"
-                    className="w-full sm:w-auto border-gray-200 text-gray-700 font-medium h-12 px-6 hover:!bg-[rgb(17,24,39)] hover:!text-white transition-all"
+                    className="w-full sm:w-auto border-gray-200 text-gray-700 font-medium h-12 px-6 hover:!bg-slate-900 hover:!text-white transition-all"
                   >
                     Learn More
                     <ArrowRight className="w-4 h-4 ml-2" />
@@ -1132,9 +1175,9 @@ export default function LandingPage() {
 
             {/* Right Section - Animated Job Search Preview */}
             <div className="relative flex justify-center lg:justify-start order-1 lg:order-2">
-              <div className="relative rounded-lg sm:rounded-xl shadow-2xl overflow-hidden bg-white w-full max-w-[600px] sm:max-w-[700px] border-2 sm:border-4 border-blue-100">
+              <div className="relative rounded-lg sm:rounded-xl shadow-2xl overflow-hidden bg-white w-full max-w-[600px] sm:max-w-[700px] border-2 sm:border-4 border-border">
                 {/* Search Box */}
-                <div className="p-4 sm:p-6 bg-gradient-to-br from-blue-50 to-indigo-50 border-b border-gray-200">
+                <div className="p-4 sm:p-6 bg-muted/40 border-b border-gray-200">
                   <div className="flex items-center gap-3 bg-white rounded-lg px-4 py-3 shadow-sm border border-gray-200">
                     <Search className="w-5 h-5 text-gray-400 flex-shrink-0" />
                     <input
@@ -1145,7 +1188,7 @@ export default function LandingPage() {
                       className="flex-1 outline-none text-sm sm:text-base text-gray-700 bg-transparent"
                     />
                     {jobSearchText && (
-                      <span className="text-blue-600 text-xs sm:text-sm font-medium">
+                      <span className="text-primary text-xs sm:text-sm font-medium">
                         {jobSearchText.length}/{jobRoles[currentJobIndex % jobRoles.length].length}
                       </span>
                     )}
@@ -1156,14 +1199,14 @@ export default function LandingPage() {
                 {isSearching && (
                   <div className="p-4 sm:p-6 bg-white border-b border-gray-200">
                     <div className="flex items-center gap-3 animate-pulse">
-                      <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
+                      <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
                         <Brain className="w-4 h-4 text-white" />
                       </div>
                       <div className="flex-1">
-                        <div className="h-2 bg-blue-200 rounded-full w-3/4 mb-2"></div>
-                        <div className="h-2 bg-blue-100 rounded-full w-1/2"></div>
+                        <div className="h-2 bg-muted rounded-full w-3/4 mb-2"></div>
+                        <div className="h-2 bg-muted rounded-full w-1/2"></div>
                       </div>
-                      <span className="text-xs sm:text-sm text-blue-600 font-medium">Matching...</span>
+                      <span className="text-xs sm:text-sm text-primary font-medium">Matching...</span>
                     </div>
                   </div>
                 )}
@@ -1173,7 +1216,7 @@ export default function LandingPage() {
                   <div className="p-4 sm:p-6 bg-white max-h-[400px] overflow-hidden relative">
                     <div className="flex items-center justify-between mb-4">
                       <h3 className="text-sm sm:text-base font-bold text-slate-900">Best Matches</h3>
-                      <span className="text-xs sm:text-sm text-blue-600 font-medium">{currentJobResults.length} results</span>
+                      <span className="text-xs sm:text-sm text-primary font-medium">{currentJobResults.length} results</span>
                     </div>
                     <div 
                       ref={jobResultsRef}
@@ -1185,7 +1228,7 @@ export default function LandingPage() {
                       {currentJobResults.map((job, index) => (
                         <div
                           key={index}
-                          className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 border border-blue-100 hover:border-blue-300 transition-all"
+                          className="bg-muted/40 rounded-lg p-4 border border-border hover:border-border transition-all"
                           style={{
                             animation: `fadeInUp 0.5s ease-out ${index * 0.1}s both`
                           }}
@@ -1193,7 +1236,7 @@ export default function LandingPage() {
                           <div className="flex items-start justify-between mb-3">
                             <div className="flex-1">
                               <div className="flex items-center gap-2 mb-1">
-                                <Briefcase className="w-4 h-4 text-blue-600" />
+                                <Briefcase className="w-4 h-4 text-primary" />
                                 <h4 className="font-bold text-slate-900 text-sm sm:text-base">{job.role}</h4>
                               </div>
                               <p className="text-xs sm:text-sm text-gray-600">{job.company}</p>
@@ -1213,21 +1256,21 @@ export default function LandingPage() {
                           </div>
                           
                           {/* Action Buttons */}
-                          <div className="flex flex-wrap gap-2 pt-3 border-t border-blue-200">
+                          <div className="flex flex-wrap gap-2 pt-3 border-t border-border">
                             <div className="flex-1 min-w-[100px]">
-                              <div className="w-full text-xs h-8 border border-blue-300 text-blue-600 bg-white rounded-md flex items-center justify-center cursor-default">
+                              <div className="w-full text-xs h-8 border border-border text-primary bg-white rounded-md flex items-center justify-center cursor-default">
                                 <FileText className="w-3 h-3 mr-1" />
                                 Update Resume
                               </div>
                             </div>
                             <div className="flex-1 min-w-[100px]">
-                              <div className="w-full text-xs h-8 border border-blue-300 text-blue-600 bg-white rounded-md flex items-center justify-center cursor-default">
+                              <div className="w-full text-xs h-8 border border-border text-primary bg-white rounded-md flex items-center justify-center cursor-default">
                                 <Mic className="w-3 h-3 mr-1" />
                                 Practice Interview
                               </div>
                             </div>
                             <div className="flex-1 min-w-[80px]">
-                              <div className="w-full text-xs h-8 bg-blue-600 text-white rounded-md flex items-center justify-center cursor-default">
+                              <div className="w-full text-xs h-8 bg-primary text-primary-foreground rounded-md flex items-center justify-center cursor-default">
                                 Apply Now
                                 <ArrowRight className="w-3 h-3 ml-1" />
                               </div>
@@ -1253,21 +1296,27 @@ export default function LandingPage() {
       </section>
 
       {/* Stats Section */}
-      <section id="stats-section" className="py-8 sm:py-12 md:py-16 lg:py-20 px-4 sm:px-6 bg-white">
+      <section
+        id="stats-section"
+        className={cn(
+          appMarketingSectionAlt,
+          "px-4 py-8 sm:px-6 sm:py-12 md:py-16 lg:py-20",
+        )}
+      >
         <div className="container mx-auto max-w-6xl">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
             {/* Card 1: Users */}
             <div className="bg-white rounded-xl shadow-md border border-gray-100 p-6 sm:p-8 flex items-center gap-4 sm:gap-6 hover:shadow-lg transition-all">
               <div className="flex-shrink-0">
-                <div className="w-12 h-12 sm:w-14 sm:h-14 lg:w-16 lg:h-16 bg-blue-600 rounded-lg flex items-center justify-center">
+                <div className="w-12 h-12 sm:w-14 sm:h-14 lg:w-16 lg:h-16 bg-primary rounded-lg flex items-center justify-center">
                   <Users className="w-7 h-7 sm:w-8 sm:w-9 lg:w-10 lg:h-10 text-white" />
                 </div>
               </div>
               <div className="flex-1">
-                <div className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-1" style={{ color: 'rgb(37 99 235 / var(--tw-text-opacity, 1))' }}>
+                <div className="mb-1 text-2xl font-bold text-primary sm:text-3xl lg:text-4xl">
                   {usersCount}
                 </div>
-                <div className="text-sm sm:text-base text-blue-600">
+                <div className="text-sm sm:text-base text-primary">
                   Users Trust Interview Trix
                 </div>
               </div>
@@ -1276,15 +1325,15 @@ export default function LandingPage() {
             {/* Card 2: Resumes */}
             <div className="bg-white rounded-xl shadow-md border border-gray-100 p-6 sm:p-8 flex items-center gap-4 sm:gap-6 hover:shadow-lg transition-all">
               <div className="flex-shrink-0">
-                <div className="w-12 h-12 sm:w-14 sm:h-14 lg:w-16 lg:h-16 bg-blue-600 rounded-lg flex items-center justify-center">
+                <div className="w-12 h-12 sm:w-14 sm:h-14 lg:w-16 lg:h-16 bg-primary rounded-lg flex items-center justify-center">
                   <FileText className="w-7 h-7 sm:w-8 sm:w-9 lg:w-10 lg:h-10 text-white" />
                 </div>
               </div>
               <div className="flex-1">
-                <div className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-1" style={{ color: 'rgb(37 99 235 / var(--tw-text-opacity, 1))' }}>
+                <div className="mb-1 text-2xl font-bold text-primary sm:text-3xl lg:text-4xl">
                   {resumesCount}
                 </div>
-                <div className="text-sm sm:text-base text-blue-600">
+                <div className="text-sm sm:text-base text-primary">
                   Resume Created
                 </div>
               </div>
@@ -1293,15 +1342,15 @@ export default function LandingPage() {
             {/* Card 3: Interviews */}
             <div className="bg-white rounded-xl shadow-md border border-gray-100 p-6 sm:p-8 flex items-center gap-4 sm:gap-6 hover:shadow-lg transition-all">
               <div className="flex-shrink-0">
-                <div className="w-12 h-12 sm:w-14 sm:h-14 lg:w-16 lg:h-16 bg-blue-600 rounded-lg flex items-center justify-center">
+                <div className="w-12 h-12 sm:w-14 sm:h-14 lg:w-16 lg:h-16 bg-primary rounded-lg flex items-center justify-center">
                   <MessageSquare className="w-7 h-7 sm:w-8 sm:w-9 lg:w-10 lg:h-10 text-white" />
                 </div>
               </div>
               <div className="flex-1">
-                <div className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-1" style={{ color: 'rgb(37 99 235 / var(--tw-text-opacity, 1))' }}>
+                <div className="mb-1 text-2xl font-bold text-primary sm:text-3xl lg:text-4xl">
                   {interviewsCount}
                 </div>
-                <div className="text-sm sm:text-base text-blue-600">
+                <div className="text-sm sm:text-base text-primary">
                   Interview Practiced
                 </div>
               </div>
@@ -1314,7 +1363,12 @@ export default function LandingPage() {
       <PlansSection />
 
       {/* Reviews/Testimonials Section */}
-      <section className="py-12 sm:py-16 lg:py-20 px-4 sm:px-6 bg-blue-50/30 relative overflow-hidden">
+      <section
+        className={cn(
+          appMarketingSectionAlt,
+          "relative overflow-hidden px-4 py-12 sm:px-6 sm:py-16 lg:py-20",
+        )}
+      >
         {/* Animated Background Icons */}
         <div className="absolute inset-0 pointer-events-none">
           {[...Array(15)].map((_, i) => (
@@ -1328,7 +1382,7 @@ export default function LandingPage() {
                 animationDelay: `${i * 0.3}s`,
               }}
             >
-              <Sparkles className="w-6 h-6 sm:w-8 sm:h-8 text-blue-400" />
+              <Sparkles className="w-6 h-6 sm:w-8 sm:h-8 text-primary/70" />
             </div>
           ))}
           {[...Array(10)].map((_, i) => (
@@ -1342,7 +1396,7 @@ export default function LandingPage() {
                 animationDelay: `${i * 0.4}s`,
               }}
             >
-              <Star className="w-5 h-5 sm:w-6 sm:h-6 text-blue-300 fill-blue-300" />
+              <Star className="w-5 h-5 sm:w-6 sm:h-6 text-primary/50 fill-primary/50" />
             </div>
           ))}
         </div>
@@ -1352,7 +1406,7 @@ export default function LandingPage() {
             <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-slate-900 mb-3 sm:mb-4">
               Transform your career—together
             </h2>
-            <p className="text-lg sm:text-xl text-blue-600 mb-4 sm:mb-6">
+            <p className="text-lg sm:text-xl text-primary mb-4 sm:mb-6">
               Job seekers and teams use Interview Trix as an end-to-end career partner. Here&apos;s what they say.
             </p>
             <div className="flex items-center justify-center gap-2 sm:gap-3">
@@ -1361,7 +1415,7 @@ export default function LandingPage() {
                   <Star key={i} className="w-5 h-5 sm:w-6 sm:h-6 fill-yellow-400 text-yellow-400" />
                 ))}
               </div>
-              <span className="text-base sm:text-lg text-blue-600 font-medium">
+              <span className="text-base sm:text-lg text-primary font-medium">
                 4.9/5 based on our user reviews
               </span>
             </div>
@@ -1382,14 +1436,14 @@ export default function LandingPage() {
                   </p>
                   <div>
                     <p className="text-lg sm:text-xl font-bold text-slate-900">Rajesh Kumar</p>
-                    <p className="text-base sm:text-lg text-blue-600">Software Engineer at TCS</p>
+                    <p className="text-base sm:text-lg text-primary">Software Engineer at TCS</p>
                   </div>
                 </div>
                 
                 {/* Right Side - Profile Picture */}
                 <div className="flex justify-center lg:justify-end">
                   <div className="relative">
-                    <div className="w-32 h-32 sm:w-40 sm:h-40 lg:w-48 lg:h-48 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 p-1">
+                    <div className="w-32 h-32 sm:w-40 sm:h-40 lg:w-48 lg:h-48 rounded-full bg-gradient-to-br from-primary/80 to-primary p-1">
                       <div className="w-full h-full rounded-full bg-gray-200 flex items-center justify-center text-4xl sm:text-5xl lg:text-6xl font-bold text-white">
                         RK
                       </div>
@@ -1410,7 +1464,7 @@ export default function LandingPage() {
                 </div>
                 <div>
                   <p className="font-bold text-slate-900 text-sm sm:text-base">Blake Beus</p>
-                  <p className="text-xs sm:text-sm text-blue-600">App Security at JPMorgan Chase</p>
+                  <p className="text-xs sm:text-sm text-primary">App Security at JPMorgan Chase</p>
                 </div>
               </div>
               <p className="text-sm sm:text-base text-gray-700 leading-relaxed mb-4">
@@ -1431,7 +1485,7 @@ export default function LandingPage() {
                 </div>
                 <div>
                   <p className="font-bold text-slate-900 text-sm sm:text-base">Priya Sharma</p>
-                  <p className="text-xs sm:text-sm text-blue-600">Online Business Manager</p>
+                  <p className="text-xs sm:text-sm text-primary">Online Business Manager</p>
                 </div>
               </div>
               <p className="text-sm sm:text-base text-gray-700 leading-relaxed mb-4">
@@ -1452,7 +1506,7 @@ export default function LandingPage() {
                 </div>
                 <div>
                   <p className="font-bold text-slate-900 text-sm sm:text-base">Dave Baxter</p>
-                  <p className="text-xs sm:text-sm text-blue-600">Estate Agent at DBRealty</p>
+                  <p className="text-xs sm:text-sm text-primary">Estate Agent at DBRealty</p>
                 </div>
               </div>
               <p className="text-sm sm:text-base text-gray-700 leading-relaxed mb-4">
@@ -1469,27 +1523,24 @@ export default function LandingPage() {
       </section>
 
       {/* New CTA Card Section */}
-      <section className="py-12 sm:py-16 lg:py-20 px-4 sm:px-6 bg-gray-50">
+      <section
+        className={cn(appMarketingSectionAlt, "px-4 py-12 sm:px-6 sm:py-16 lg:py-20")}
+      >
         <div className="container mx-auto max-w-4xl">
-          <div 
-            className="rounded-3xl p-8 sm:p-12 lg:p-16 relative overflow-hidden shadow-xl"
-            style={{
-              background: 'linear-gradient(135deg, #60A5FA 0%, #3B82F6 50%, #2563EB 100%)'
-            }}
-          >
+          <div className="relative overflow-hidden rounded-3xl border border-primary/40 bg-primary p-8 shadow-header sm:p-12 lg:p-16 text-primary-foreground">
             {/* Limited Time Offer Badge */}
-            <div className="flex items-center justify-center gap-2 mb-4">
-              <Sparkles className="w-4 h-4 text-white" />
-              <span className="text-sm text-white">Start today</span>
+            <div className="mb-4 flex items-center justify-center gap-2">
+              <Sparkles className="h-4 w-4 text-primary-foreground/90" />
+              <span className="text-sm text-primary-foreground/90">Start today</span>
             </div>
 
             {/* Main Heading */}
-            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white text-center mb-4 sm:mb-6">
+            <h2 className="mb-4 text-center text-3xl font-bold text-primary-foreground sm:mb-6 sm:text-4xl lg:text-5xl">
               Transform your career now
             </h2>
 
             {/* Subtitle */}
-            <p className="text-base sm:text-lg lg:text-xl text-white text-center mb-8 sm:mb-10 max-w-2xl mx-auto leading-relaxed">
+            <p className="mx-auto mb-8 max-w-2xl text-center text-base leading-relaxed text-primary-foreground/90 sm:mb-10 sm:text-lg lg:text-xl">
               Don&apos;t just apply. Win. Interview Trix goes from ATS-ready resume to final interview and job match—your AI ally all the way.
             </p>
 
@@ -1498,7 +1549,7 @@ export default function LandingPage() {
               <Link href="/sign-up" className="w-full sm:w-auto">
                 <Button
                   size="lg"
-                  className="w-full sm:w-auto bg-gradient-to-r from-blue-400 to-blue-500 hover:from-blue-500 hover:to-blue-600 text-white font-medium shadow-lg hover:shadow-xl transition-all h-12 sm:h-14 px-6 sm:px-8 text-base sm:text-lg rounded-lg"
+                  className="h-12 w-full bg-primary-foreground px-6 text-base font-medium text-primary shadow-lg transition-all hover:bg-primary-foreground/90 hover:shadow-xl sm:h-14 sm:w-auto sm:px-8 sm:text-lg"
                 >
                   Start Your Free Trial
                   <ArrowRight className="w-5 h-5 ml-2" />
@@ -1507,8 +1558,8 @@ export default function LandingPage() {
               <Link href="/contact" className="w-full sm:w-auto">
                 <Button
                   size="lg"
-                  variant="outline"
-                  className="w-full sm:w-auto bg-white text-blue-600 border-white font-medium shadow-lg hover:shadow-xl transition-all h-12 sm:h-14 px-6 sm:px-8 text-base sm:text-lg rounded-lg hover:!bg-[rgb(17,24,39)] hover:!text-white"
+                  variant="secondary"
+                  className="h-12 w-full px-6 text-base font-medium shadow-lg transition-all hover:shadow-xl sm:h-14 sm:w-auto sm:px-8 sm:text-lg"
                 >
                   Schedule a Demo
                 </Button>
@@ -1521,11 +1572,11 @@ export default function LandingPage() {
                 {[...Array(5)].map((_, i) => (
                   <div
                     key={i}
-                    className="w-8 h-8 rounded-full bg-white/20 border-2 border-white/30"
+                    className="h-8 w-8 rounded-full border-2 border-primary-foreground/30 bg-primary-foreground/15"
                   ></div>
                 ))}
               </div>
-              <span className="text-sm sm:text-base text-white text-center">
+              <span className="text-center text-sm text-primary-foreground/90 sm:text-base">
                 500+ candidates started this month
               </span>
             </div>

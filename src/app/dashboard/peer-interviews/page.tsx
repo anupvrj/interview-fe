@@ -70,7 +70,7 @@ export default function PeerInterviewsPage() {
     return (
       <div className="flex min-h-[400px] items-center justify-center">
         <div className="text-center">
-          <Loader2 className="mx-auto mb-4 h-12 w-12 animate-spin text-[rgb(37,99,235)]" />
+          <Loader2 className="mx-auto mb-4 h-12 w-12 animate-spin text-primary" />
           <p className="text-gray-600">Loading peer interviews…</p>
         </div>
       </div>
@@ -91,11 +91,11 @@ export default function PeerInterviewsPage() {
         className={`relative flex ${dashboardRouteMinH} flex-col overflow-hidden ${dashboardContentBleed}`}
       >
         <div
-          className="pointer-events-none absolute inset-0 bg-gradient-to-br from-sky-200/50 via-blue-100/40 to-indigo-200/45"
+          className="pointer-events-none absolute inset-0 bg-gradient-to-br from-sky-200/50 via-muted/40 to-indigo-200/45"
           aria-hidden
         />
         <div
-          className="pointer-events-none absolute -left-24 top-1/4 h-72 w-72 rounded-full bg-blue-400/25 blur-3xl"
+          className="pointer-events-none absolute -left-24 top-1/4 h-72 w-72 rounded-full bg-primary/80/25 blur-3xl"
           aria-hidden
         />
         <div
@@ -112,7 +112,7 @@ export default function PeerInterviewsPage() {
               className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/90 to-transparent"
               aria-hidden
             />
-            <div className="relative mb-5 flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-br from-[rgb(37,99,235)] to-blue-600 shadow-lg shadow-blue-500/30 sm:h-16 sm:w-16">
+            <div className="relative mb-5 flex h-14 w-14 items-center justify-center rounded-xl bg-primary shadow-lg shadow-primary/30 sm:h-16 sm:w-16">
               <CheckCircle className="h-7 w-7 text-white sm:h-8 sm:w-8" />
             </div>
             <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl">
@@ -130,7 +130,7 @@ export default function PeerInterviewsPage() {
               <Link href="/dashboard" className="flex-1">
                 <Button
                   variant="outline"
-                  className="h-14 min-h-[3.5rem] w-full border border-white/50 bg-white/20 text-base font-semibold text-[rgb(37,99,235)] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.55)] hover:bg-white/35 sm:text-lg"
+                  className="h-14 min-h-[3.5rem] w-full border border-white/50 bg-white/20 text-base font-semibold text-primary shadow-[inset_0_1px_0_0_rgba(255,255,255,0.55)] hover:bg-white/35 sm:text-lg"
                   style={glassBackdrop}
                 >
                   Back to dashboard
@@ -149,11 +149,11 @@ export default function PeerInterviewsPage() {
     >
       {/* Backdrop so glass reads clearly */}
       <div
-        className="pointer-events-none absolute inset-0 bg-gradient-to-br from-sky-300/65 via-violet-200/50 to-blue-200/55"
+        className="pointer-events-none absolute inset-0 bg-gradient-to-br from-sky-300/65 via-violet-200/50 to-muted/55"
         aria-hidden
       />
       <div
-        className="pointer-events-none absolute -left-32 top-16 h-[28rem] w-[28rem] rounded-full bg-blue-500/35 blur-3xl"
+        className="pointer-events-none absolute -left-32 top-16 h-[28rem] w-[28rem] rounded-full bg-primary/35 blur-3xl"
         aria-hidden
       />
       <div
@@ -176,9 +176,9 @@ export default function PeerInterviewsPage() {
             aria-hidden
           />
           <header className="relative flex items-start gap-3 sm:gap-4">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[rgb(37,99,235)] to-blue-600 shadow-md shadow-blue-500/25 ring-1 ring-white/50 sm:h-12 sm:w-12">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary shadow-md shadow-primary/25 ring-1 ring-white/50 sm:h-12 sm:w-12">
               <Sparkles
-                className="h-5 w-5 text-white sm:h-6 sm:w-6"
+                className="h-5 w-5 sm:h-6 sm:w-6"
                 strokeWidth={2}
               />
             </div>
@@ -265,7 +265,7 @@ export default function PeerInterviewsPage() {
             </div>
             <div className="h-3 w-full overflow-hidden rounded-full bg-white/35 ring-1 ring-white/40 sm:h-3.5">
               <div
-                className="h-full rounded-full bg-[rgb(37,99,235)] shadow-sm transition-[width] duration-500 ease-out"
+                className="h-full rounded-full bg-primary shadow-sm transition-[width] duration-500 ease-out"
                 style={{ width: `${slotFillPercent}%` }}
               />
             </div>
@@ -306,7 +306,7 @@ export default function PeerInterviewsPage() {
             <Link href="/dashboard/interviews/new" className="flex-1">
               <Button
                 size="lg"
-                className="h-12 min-h-[3rem] w-full rounded-xl !bg-[rgb(37,99,235)] px-5 text-sm font-semibold text-white shadow-md shadow-blue-600/25 transition-all hover:!bg-[rgb(17,24,39)] hover:shadow-lg sm:text-base"
+                className="h-12 min-h-[3rem] w-full rounded-xl !bg-primary px-5 text-sm font-semibold text-white shadow-md shadow-primary/25 transition-all hover:!bg-slate-900 hover:shadow-lg sm:text-base"
               >
                 <PlayCircle className="mr-2 h-5 w-5 shrink-0" />
                 Start AI Interview Practice
@@ -317,7 +317,7 @@ export default function PeerInterviewsPage() {
               <Button
                 size="lg"
                 variant="outline"
-                className="h-12 min-h-[3rem] w-full rounded-xl border border-white/60 bg-white/15 px-5 text-sm font-semibold text-[rgb(37,99,235)] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.55)] hover:bg-white/28 sm:text-base"
+                className="h-12 min-h-[3rem] w-full rounded-xl border border-white/60 bg-white/15 px-5 text-sm font-semibold text-primary shadow-[inset_0_1px_0_0_rgba(255,255,255,0.55)] hover:bg-white/28 sm:text-base"
                 style={glassBackdrop}
               >
                 View interview history
@@ -329,7 +329,7 @@ export default function PeerInterviewsPage() {
         {/* Right: large lock — full side, no square frame */}
         <aside className="relative flex min-h-[280px] flex-1 flex-col items-center justify-center px-4 py-6 lg:min-h-0 lg:max-w-[36%] lg:items-center lg:justify-center lg:px-5 xl:px-6">
           <div
-            className="pointer-events-none absolute left-1/2 top-1/2 h-[min(100%,28rem)] w-[min(100%,28rem)] -translate-x-1/2 -translate-y-1/2 rounded-full bg-gradient-to-br from-blue-400/25 via-indigo-400/20 to-violet-400/25 blur-3xl"
+            className="pointer-events-none absolute left-1/2 top-1/2 h-[min(100%,28rem)] w-[min(100%,28rem)] -translate-x-1/2 -translate-y-1/2 rounded-full bg-gradient-to-br from-primary/80/25 via-indigo-400/20 to-violet-400/25 blur-3xl"
             aria-hidden
           />
           <div className="relative flex flex-col items-center text-center lg:items-center">

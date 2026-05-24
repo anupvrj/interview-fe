@@ -10,13 +10,10 @@ import {
   CheckCircle,
   CheckCircle2,
   CircleDot,
-  FileCheck,
-  FileText,
   ImageIcon,
   LayoutGrid,
   Loader2,
   MessageSquare,
-  Palette,
   Play,
   Scale,
   Sparkles,
@@ -36,6 +33,11 @@ import {
 } from "@/lib/api";
 import { getProblemById } from "@/lib/systemDesignProblems";
 import { formatDate, getScoreColor, getScoreGradient, cn } from "@/lib/utils";
+import { dashboardHeroStatPalette } from "@/lib/dashboard-stat-themes";
+import {
+  institutePrimaryClass,
+  instituteSecondaryClass,
+} from "@/components/institute/InstituteChrome";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -66,162 +68,89 @@ const ExcalidrawBoard = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="flex h-[min(320px,36vh)] w-full items-center justify-center rounded-lg border border-border bg-blue-50/60">
-        <Loader2 className="h-8 w-8 animate-spin text-[rgb(37,99,235)]" />
+      <div className="flex h-[min(320px,36vh)] w-full items-center justify-center rounded-lg border border-border bg-muted/40">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     ),
   },
+);
+
+const reportCardClass =
+  "overflow-hidden rounded-xl border border-border/60 bg-card shadow-card";
+const reportCardHeaderClass = "border-b border-border/60 px-5 py-4";
+const iconShellClass = cn(
+  "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg",
+  dashboardHeroStatPalette.iconShell,
 );
 
 const DIMENSION_BLOCKS: Array<{
   key: keyof SystemDesignPracticeReport["dimensionScores"];
   label: string;
   weightLabel: string;
-  gradient: string;
-  iconWrap: string;
-  iconColor: string;
   Icon: LucideIcon;
 }> = [
   {
     key: "scopeRequirements",
     label: "Scope & requirements",
     weightLabel: "~15%",
-    gradient: "from-sky-50 to-white dark:from-sky-950/35 dark:to-card",
-    iconWrap: "bg-sky-100 dark:bg-sky-900/40",
-    iconColor: "text-sky-600 dark:text-sky-300",
     Icon: CircleDot,
   },
   {
     key: "componentArchitecture",
     label: "Component architecture",
     weightLabel: "~25%",
-    gradient: "from-blue-50 to-white dark:from-blue-950/50 dark:to-card",
-    iconWrap: "bg-blue-100 dark:bg-blue-900/40",
-    iconColor: "text-[rgb(37,99,235)] dark:text-blue-300",
     Icon: LayoutGrid,
   },
   {
     key: "scalingDeepDive",
     label: "Scaling & deep dive",
     weightLabel: "~40%",
-    gradient: "from-cyan-50 to-white dark:from-cyan-950/35 dark:to-card",
-    iconWrap: "bg-cyan-100 dark:bg-cyan-900/40",
-    iconColor: "text-cyan-700 dark:text-cyan-300",
     Icon: Zap,
   },
   {
     key: "tradeoffsCommunication",
     label: "Trade-offs & communication",
     weightLabel: "~20%",
-    gradient: "from-indigo-50 to-white dark:from-indigo-950/45 dark:to-card",
-    iconWrap: "bg-indigo-100 dark:bg-indigo-900/40",
-    iconColor: "text-indigo-600 dark:text-indigo-300",
     Icon: Scale,
   },
 ];
-
-/** Floating motifs aligned with dashboard AI resume builder / resumes hub (`bg-blue-50` + pale blue icons). */
-function ResumeBuilderBlueBackdrop() {
-  return (
-    <div
-      aria-hidden
-      className="pointer-events-none absolute inset-0 overflow-hidden rounded-[inherit]"
-    >
-      {[...Array(8)].map((_, i) => (
-        <div
-          key={`rp-bg-a-${i}`}
-          className="absolute"
-          style={{
-            left: `${(i * 15) % 100}%`,
-            top: `${(i * 20) % 100}%`,
-            opacity: 0.09,
-            animation: `float-${i % 3} ${6 + (i % 3) * 2}s ease-in-out infinite`,
-            animationDelay: `${i * 0.5}s`,
-          }}
-        >
-          <FileText className="h-12 w-12 text-blue-400 sm:h-16 sm:w-16" />
-        </div>
-      ))}
-      {[...Array(8)].map((_, i) => (
-        <div
-          key={`rp-bg-b-${i}`}
-          className="absolute"
-          style={{
-            left: `${(i * 16) % 100}%`,
-            top: `${(i * 22) % 100}%`,
-            opacity: 0.07,
-            animation: `float-${i % 3} ${7 + (i % 2) * 2}s ease-in-out infinite`,
-            animationDelay: `${i * 0.5}s`,
-          }}
-        >
-          <Palette className="h-10 w-10 text-blue-300 sm:h-14 sm:w-14" />
-        </div>
-      ))}
-      {[...Array(6)].map((_, i) => (
-        <div
-          key={`rp-bg-c-${i}`}
-          className="absolute"
-          style={{
-            left: `${(i * 20) % 100}%`,
-            top: `${(i * 15) % 100}%`,
-            opacity: 0.06,
-            animation: `float-${i % 3} ${8 + (i % 2) * 2}s ease-in-out infinite`,
-            animationDelay: `${i * 0.7}s`,
-          }}
-        >
-          <FileCheck className="h-8 w-8 text-indigo-300 sm:h-12 sm:w-12" />
-        </div>
-      ))}
-    </div>
-  );
-}
 
 function DimensionScoreCard({
   label,
   weightLabel,
   value,
   verdict,
-  gradient,
-  iconWrap,
-  iconColor,
   Icon,
 }: {
   label: string;
   weightLabel: string;
   value: number;
   verdict?: string;
-  gradient: string;
-  iconWrap: string;
-  iconColor: string;
   Icon: LucideIcon;
 }) {
   return (
-    <Card className={`border-2 bg-gradient-to-br ${gradient}`}>
-      <CardHeader>
+    <Card className={reportCardClass}>
+      <CardHeader className={reportCardHeaderClass}>
         <div className="flex items-center gap-3">
-          <div
-            className={`flex h-12 w-12 items-center justify-center rounded-lg ${iconWrap}`}
-          >
-            <Icon className={`h-6 w-6 ${iconColor}`} aria-hidden />
+          <div className={iconShellClass}>
+            <Icon className="h-5 w-5" aria-hidden />
           </div>
           <div className="min-w-0">
-            <CardTitle className="text-base leading-snug">{label}</CardTitle>
+            <CardTitle className="text-base font-semibold leading-snug">{label}</CardTitle>
             <CardDescription>{weightLabel} weight</CardDescription>
           </div>
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="px-5 pb-5">
         <div className="mb-2 flex items-center justify-between">
-          <span className={`text-3xl font-bold tabular-nums ${getScoreColor(value)}`}>
+          <span className={cn("text-3xl font-bold tabular-nums", getScoreColor(value))}>
             {value}
           </span>
-          <span className="text-gray-500">/ 100</span>
+          <span className="text-muted-foreground">/ 100</span>
         </div>
-        <Progress value={value} className="h-3" />
+        <Progress value={value} className="h-2.5" />
         {verdict ? (
-          <p className="mt-3 text-sm leading-snug text-gray-700 dark:text-gray-300">
-            {verdict}
-          </p>
+          <p className="mt-3 text-sm leading-snug text-muted-foreground">{verdict}</p>
         ) : null}
       </CardContent>
     </Card>
@@ -292,15 +221,12 @@ export default function SystemDesignPracticeReportPage() {
 
   if (loading && !report) {
     return (
-      <div className="relative min-h-screen overflow-hidden rounded-md bg-blue-50">
-        <ResumeBuilderBlueBackdrop />
-        <div className="relative z-10 flex min-h-screen items-center justify-center">
-          <div className="flex flex-col items-center gap-3">
-            <Loader2 className="h-12 w-12 animate-spin text-[rgb(37,99,235)]" />
-            <p className="text-sm font-medium text-gray-700">
-              Building your detailed report…
-            </p>
-          </div>
+      <div className="flex min-h-[50vh] items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="h-10 w-10 animate-spin text-[#7367F0]" />
+          <p className="text-sm font-medium text-muted-foreground">
+            Building your detailed report…
+          </p>
         </div>
       </div>
     );
@@ -308,23 +234,22 @@ export default function SystemDesignPracticeReportPage() {
 
   if (error && !report) {
     return (
-      <div className="relative min-h-screen overflow-hidden rounded-md bg-blue-50 p-4">
-        <ResumeBuilderBlueBackdrop />
-        <div className="relative z-10 flex min-h-screen items-center justify-center">
-          <Card className="max-w-md border-2 shadow-lg shadow-blue-500/10">
+      <div className="flex min-h-[50vh] items-center justify-center p-4">
+        <Card className={cn(reportCardClass, "max-w-md")}>
           <CardContent className="pt-8 text-center">
             <AlertTriangle className="mx-auto mb-4 h-12 w-12 text-amber-500" />
-            <h3 className="mb-2 text-lg font-semibold text-gray-900">Report unavailable</h3>
-            <p className="mb-6 text-gray-600">{error}</p>
+            <h3 className="mb-2 text-lg font-semibold text-foreground">Report unavailable</h3>
+            <p className="mb-6 text-muted-foreground">{error}</p>
             <div className="flex flex-wrap justify-center gap-2">
-              <Button type="button" variant="outline" onClick={() => void load()}>
-                Retry
-              </Button>
               <Button
                 type="button"
-                asChild
-                className="!bg-[rgb(37,99,235)] hover:!bg-[rgb(17,24,39)] font-semibold text-white shadow-lg transition-all hover:shadow-xl"
+                variant="outline"
+                className={instituteSecondaryClass}
+                onClick={() => void load()}
               >
+                Retry
+              </Button>
+              <Button type="button" asChild className={institutePrimaryClass}>
                 <Link href="/dashboard/system-design">
                   <ArrowLeft className="mr-2 h-4 w-4" aria-hidden />
                   Back to hub
@@ -333,7 +258,6 @@ export default function SystemDesignPracticeReportPage() {
             </div>
           </CardContent>
         </Card>
-        </div>
       </div>
     );
   }
@@ -475,29 +399,38 @@ export default function SystemDesignPracticeReportPage() {
     }
   };
 
-  const outlineCtaBtn =
-    "border-2 border-[rgb(37,99,235)] font-semibold text-[rgb(37,99,235)] shadow-md transition-all hover:!border-[rgb(17,24,39)] hover:!bg-[rgb(17,24,39)] hover:!text-white hover:shadow-lg";
-
   return (
-    <div className="relative min-h-screen overflow-hidden rounded-md bg-blue-50">
-      <ResumeBuilderBlueBackdrop />
-      <div className="relative z-10">
-      <header className="border-b border-blue-100 bg-white/95 shadow-sm backdrop-blur-sm">
-        <div className="container mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:py-4">
-          <Link
-            href="/dashboard/system-design"
-            className="inline-flex min-w-0 shrink items-center gap-2 text-sm font-medium text-slate-600 transition-colors hover:text-slate-900"
-          >
-            <ArrowLeft className="h-4 w-4 shrink-0" aria-hidden />
-            <span>System design practice</span>
-          </Link>
+    <div className="mx-auto w-full max-w-7xl space-y-4 lg:space-y-6">
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
+            <Link
+              href="/dashboard/system-design"
+              className="mb-3 inline-flex w-fit items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <ArrowLeft className="h-4 w-4 shrink-0" aria-hidden />
+              <span>System design practice</span>
+            </Link>
+            <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-[#7367F0]/15 bg-[#7367F0]/10 px-3 py-1 text-xs font-semibold text-[#7367F0]">
+              <Sparkles className="h-3.5 w-3.5 shrink-0" aria-hidden />
+              Practice session report
+            </div>
+            <h1 className="mb-1 text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+              System design session report
+            </h1>
+            <p className="break-words font-medium text-foreground">{problemTitle}</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Completed{" "}
+              {sessionLite.completedAt ? formatDate(sessionLite.completedAt) : "recently"}
+            </p>
+          </div>
           <div className="flex shrink-0 flex-wrap items-center gap-2 sm:justify-end">
             {sessionLite.recordingS3Key || sessionLite.recordingVideoUrl ? (
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
-                className={cn("gap-2", outlineCtaBtn)}
+                className={cn("gap-2", instituteSecondaryClass)}
                 onClick={openRecording}
               >
                 <Play className="h-4 w-4 shrink-0" aria-hidden />
@@ -508,7 +441,7 @@ export default function SystemDesignPracticeReportPage() {
               type="button"
               variant="outline"
               size="sm"
-              className={cn("gap-2", outlineCtaBtn)}
+              className={cn("gap-2", instituteSecondaryClass)}
               disabled={pdfDownloading}
               onClick={() => void downloadPDF()}
             >
@@ -524,7 +457,7 @@ export default function SystemDesignPracticeReportPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  className={cn("gap-2", outlineCtaBtn)}
+                  className={cn("gap-2", instituteSecondaryClass)}
                 >
                   <Share2 className="h-4 w-4 shrink-0" aria-hidden />
                   Share
@@ -544,7 +477,7 @@ export default function SystemDesignPracticeReportPage() {
                   <Button
                     type="button"
                     variant="outline"
-                    className="w-full gap-2 sm:flex-1"
+                    className={cn("w-full gap-2 sm:flex-1", instituteSecondaryClass)}
                     disabled={shareBusy}
                     onClick={() => void copyReportLink()}
                   >
@@ -558,7 +491,7 @@ export default function SystemDesignPracticeReportPage() {
                   <Button
                     type="button"
                     variant="outline"
-                    className="w-full gap-2 sm:flex-1"
+                    className={cn("w-full gap-2 sm:flex-1", instituteSecondaryClass)}
                     disabled={shareBusy}
                     onClick={() => void openEmailShare()}
                   >
@@ -574,36 +507,17 @@ export default function SystemDesignPracticeReportPage() {
             </Dialog>
           </div>
         </div>
-      </header>
-
-      <main className="container mx-auto max-w-6xl px-4 py-8">
-        <div className="mb-8">
-          <div className="min-w-0">
-            <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-blue-200/80 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-800 shadow-sm">
-              <Sparkles className="h-3.5 w-3.5 shrink-0" aria-hidden />
-              Practice session report
-            </div>
-            <h1 className="mb-2 text-3xl font-bold tracking-tight sm:text-4xl">
-              <span className="text-[rgb(37,99,235)]">System design</span>{" "}
-              <span className="text-slate-900">session report</span>
-            </h1>
-            <p className="break-words text-lg font-medium text-slate-700">{problemTitle}</p>
-            <p className="mt-2 text-gray-600">
-              Completed{" "}
-              {sessionLite.completedAt ? formatDate(sessionLite.completedAt) : "recently"}
-            </p>
-          </div>
-        </div>
+      </div>
 
         {/* Final whiteboard */}
-        <Card className="mb-8 overflow-hidden border-2 bg-card shadow-lg shadow-blue-500/10">
+        <Card className={reportCardClass}>
           <Dialog>
-            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-200 bg-gradient-to-br from-blue-50 to-indigo-50 px-4 py-3 dark:border-blue-900/40 dark:from-blue-950/30 dark:to-indigo-950/25">
+            <div className={cn("flex flex-wrap items-center justify-between gap-2", reportCardHeaderClass)}>
               <div className="flex items-center gap-2">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/40">
-                  <LayoutGrid className="h-5 w-5 text-[rgb(37,99,235)] dark:text-blue-300" aria-hidden />
+                <div className={iconShellClass}>
+                  <LayoutGrid className="h-5 w-5" aria-hidden />
                 </div>
-                <span className="font-semibold text-slate-900">Final whiteboard</span>
+                <span className="font-semibold text-foreground">Final whiteboard</span>
               </div>
               <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
                 <DialogTrigger asChild>
@@ -611,7 +525,7 @@ export default function SystemDesignPracticeReportPage() {
                     type="button"
                     variant="outline"
                     size="sm"
-                    className={cn("shrink-0 gap-2", outlineCtaBtn, "shadow-sm")}
+                    className={cn("shrink-0 gap-2", instituteSecondaryClass)}
                     disabled={!wbJson}
                   >
                     <ImageIcon className="h-4 w-4 shrink-0" aria-hidden />
@@ -649,7 +563,7 @@ export default function SystemDesignPracticeReportPage() {
                 />
               </div>
             ) : (
-              <div className="flex h-[min(240px,28vh)] items-center justify-center rounded-lg border border-dashed border-blue-200 bg-blue-50/40 text-center text-sm text-gray-600 dark:border-blue-900/40 dark:bg-blue-950/20 dark:text-gray-400">
+              <div className="flex h-[min(240px,28vh)] items-center justify-center rounded-lg border border-dashed border-border bg-muted/30 text-center text-sm text-gray-600 dark:border-border dark:bg-muted/20 dark:text-gray-400">
                 No whiteboard snapshot was saved for this session.
               </div>
             )}
@@ -657,80 +571,76 @@ export default function SystemDesignPracticeReportPage() {
         </Card>
 
         {/* Overall score */}
-        <Card className="mb-8 overflow-hidden border-2 shadow-lg shadow-blue-500/10">
+        <Card className={reportCardClass}>
           <div
-            className={`h-2 bg-gradient-to-r ${getScoreGradient(report.overallScore)}`}
+            className={`h-1 bg-gradient-to-r ${getScoreGradient(report.overallScore)}`}
           />
-          <CardContent className="bg-gradient-to-br from-blue-50/60 to-card p-8 dark:from-blue-950/20">
+          <CardContent className="p-6 sm:p-8">
             <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <h2 className="mb-2 text-2xl font-bold text-gray-900">Overall performance</h2>
-                <p className="text-gray-600">
+                <h2 className="mb-2 text-2xl font-bold text-foreground">Overall performance</h2>
+                <p className="text-muted-foreground">
                   Holistic rubric score using your transcript and diagram (async evaluator).
                 </p>
               </div>
               <div className="text-center sm:text-right">
                 <div
-                  className={`text-6xl font-bold tabular-nums ${getScoreColor(
-                    report.overallScore,
-                  )}`}
+                  className={cn(
+                    "text-5xl font-bold tabular-nums sm:text-6xl",
+                    getScoreColor(report.overallScore),
+                  )}
                 >
                   {report.overallScore}
                 </div>
-                <div className="text-sm text-gray-500">out of 100</div>
+                <div className="text-sm text-muted-foreground">out of 100</div>
               </div>
             </div>
           </CardContent>
         </Card>
 
         {/* Dimension scores */}
-        <div className="mb-8 grid gap-6 md:grid-cols-2">
-          {DIMENSION_BLOCKS.map(
-            ({ key, label, weightLabel, gradient, iconWrap, iconColor, Icon }) => (
-              <DimensionScoreCard
-                key={key}
-                label={label}
-                weightLabel={weightLabel}
-                value={report.dimensionScores[key]}
-                verdict={verdicts[key]?.trim() || undefined}
-                gradient={gradient}
-                iconWrap={iconWrap}
-                iconColor={iconColor}
-                Icon={Icon}
-              />
-            ),
-          )}
+        <div className="grid gap-4 md:grid-cols-2 lg:gap-6">
+          {DIMENSION_BLOCKS.map(({ key, label, weightLabel, Icon }) => (
+            <DimensionScoreCard
+              key={key}
+              label={label}
+              weightLabel={weightLabel}
+              value={report.dimensionScores[key]}
+              verdict={verdicts[key]?.trim() || undefined}
+              Icon={Icon}
+            />
+          ))}
         </div>
 
         {/* Strengths-style rows */}
-        <div className="mb-8 grid gap-6 md:grid-cols-2">
-          <Card className="border-2 border-green-200 bg-gradient-to-br from-green-50 to-white dark:border-green-900/40 dark:from-green-950/30 dark:to-card">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-green-700 dark:text-green-400">
+        <div className="grid gap-4 md:grid-cols-2 lg:gap-6">
+          <Card className={cn(reportCardClass, "border-emerald-200/40")}>
+            <CardHeader className={reportCardHeaderClass}>
+              <CardTitle className="flex items-center gap-2 text-base font-semibold text-emerald-700">
                 <CheckCircle className="h-5 w-5" aria-hidden />
                 What you did well
               </CardTitle>
               <CardDescription>Evidence-backed strengths from your session.</CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="px-5 pb-5">
               {report.whatYouDidWell.length ? (
                 <ul className="space-y-3">
                   {report.whatYouDidWell.map((s) => (
                     <li key={s} className="flex items-start gap-2">
-                      <CheckCircle className="mt-0.5 h-5 w-5 shrink-0 text-green-600" aria-hidden />
-                      <span className="text-gray-700 dark:text-gray-200">{s}</span>
+                      <CheckCircle className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" aria-hidden />
+                      <span className="text-foreground">{s}</span>
                     </li>
                   ))}
                 </ul>
               ) : (
-                <p className="text-sm text-gray-600">No items listed for this report.</p>
+                <p className="text-sm text-muted-foreground">No items listed for this report.</p>
               )}
             </CardContent>
           </Card>
 
-          <Card className="border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-white dark:border-blue-900/40 dark:from-blue-950/30 dark:to-card">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-blue-700 dark:text-blue-400">
+          <Card className={reportCardClass}>
+            <CardHeader className={reportCardHeaderClass}>
+              <CardTitle className="flex items-center gap-2 text-base font-semibold text-[#7367F0]">
                 <TrendingUp className="h-5 w-5" aria-hidden />
                 Gaps in your design
               </CardTitle>
@@ -738,98 +648,98 @@ export default function SystemDesignPracticeReportPage() {
                 Missing pieces or weak justifications for this problem.
               </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="px-5 pb-5">
               {report.gapsInDesign.length ? (
                 <ul className="space-y-3">
                   {report.gapsInDesign.map((s) => (
                     <li key={s} className="flex items-start gap-2">
-                      <TrendingUp className="mt-0.5 h-5 w-5 shrink-0 text-blue-600" aria-hidden />
-                      <span className="text-gray-700 dark:text-gray-200">{s}</span>
+                      <TrendingUp className="mt-0.5 h-5 w-5 shrink-0 text-[#7367F0]" aria-hidden />
+                      <span className="text-foreground">{s}</span>
                     </li>
                   ))}
                 </ul>
               ) : (
-                <p className="text-sm text-gray-600">No gaps listed for this report.</p>
+                <p className="text-sm text-muted-foreground">No gaps listed for this report.</p>
               )}
             </CardContent>
           </Card>
         </div>
 
-        <div className="mb-8 grid gap-6 md:grid-cols-2">
-          <Card className="border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-white shadow-md shadow-blue-500/10 dark:border-blue-900/40 dark:from-blue-950/25 dark:to-card">
-            <CardHeader>
+        <div className="grid gap-4 md:grid-cols-2 lg:gap-6">
+          <Card className={reportCardClass}>
+            <CardHeader className={reportCardHeaderClass}>
               <div className="flex items-center gap-3">
-                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/40">
-                  <CheckCircle2 className="h-6 w-6 text-[rgb(37,99,235)] dark:text-blue-300" aria-hidden />
+                <div className={iconShellClass}>
+                  <CheckCircle2 className="h-5 w-5" aria-hidden />
                 </div>
                 <div>
-                  <CardTitle>Technical approaches covered</CardTitle>
+                  <CardTitle className="text-base font-semibold">Technical approaches covered</CardTitle>
                   <CardDescription>Themes and techniques you demonstrated.</CardDescription>
                 </div>
               </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="px-5 pb-5">
               {report.approachesCovered.length ? (
                 <ul className="space-y-3">
                   {report.approachesCovered.map((s) => (
-                    <li key={s} className="flex items-start gap-2 text-gray-700 dark:text-gray-200">
-                      <CheckCircle className="mt-0.5 h-5 w-5 shrink-0 text-[rgb(37,99,235)]" aria-hidden />
+                    <li key={s} className="flex items-start gap-2 text-foreground">
+                      <CheckCircle className="mt-0.5 h-5 w-5 shrink-0 text-[#7367F0]" aria-hidden />
                       <span>{s}</span>
                     </li>
                   ))}
                 </ul>
               ) : (
-                <p className="text-sm text-gray-600">None listed.</p>
+                <p className="text-sm text-muted-foreground">None listed.</p>
               )}
             </CardContent>
           </Card>
 
-          <Card className="border-2 bg-gradient-to-br from-rose-50/80 to-white dark:from-rose-950/20 dark:to-card">
-            <CardHeader>
+          <Card className={reportCardClass}>
+            <CardHeader className={reportCardHeaderClass}>
               <div className="flex items-center gap-3">
-                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-rose-100 dark:bg-rose-900/40">
-                  <AlertTriangle className="h-6 w-6 text-rose-600 dark:text-rose-300" aria-hidden />
+                <div className={cn(iconShellClass, "text-amber-600")}>
+                  <AlertTriangle className="h-5 w-5" aria-hidden />
                 </div>
                 <div>
-                  <CardTitle>Missed or weak areas</CardTitle>
+                  <CardTitle className="text-base font-semibold">Missed or weak areas</CardTitle>
                   <CardDescription>
                     Important angles that needed more depth for this task.
                   </CardDescription>
                 </div>
               </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="px-5 pb-5">
               {report.approachesMissedOrWeak.length ? (
                 <ul className="space-y-3">
                   {report.approachesMissedOrWeak.map((s) => (
-                    <li key={s} className="flex items-start gap-2 text-gray-700 dark:text-gray-200">
-                      <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-rose-500" aria-hidden />
+                    <li key={s} className="flex items-start gap-2 text-foreground">
+                      <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" aria-hidden />
                       <span>{s}</span>
                     </li>
                   ))}
                 </ul>
               ) : (
-                <p className="text-sm text-gray-600">None listed.</p>
+                <p className="text-sm text-muted-foreground">None listed.</p>
               )}
             </CardContent>
           </Card>
         </div>
 
-        <Card className="mb-8 border-2 border-blue-100 bg-gradient-to-br from-blue-50 via-indigo-50 to-white shadow-md shadow-blue-500/10 dark:border-blue-900/40 dark:from-blue-950/30 dark:via-indigo-950/20 dark:to-card">
-          <CardHeader>
+        <Card className={reportCardClass}>
+          <CardHeader className={reportCardHeaderClass}>
             <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/40">
-                <MessageSquare className="h-6 w-6 text-[rgb(37,99,235)] dark:text-blue-300" aria-hidden />
+              <div className={iconShellClass}>
+                <MessageSquare className="h-5 w-5" aria-hidden />
               </div>
               <div>
-                <CardTitle>Concrete recommendations</CardTitle>
+                <CardTitle className="text-base font-semibold">Concrete recommendations</CardTitle>
                 <CardDescription>Actionable next reps tied to how you interviewed.</CardDescription>
               </div>
             </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-5 pb-5">
             {report.concreteRecommendations.length ? (
-              <ol className="list-decimal space-y-3 pl-5 text-gray-800 dark:text-gray-100">
+              <ol className="list-decimal space-y-3 pl-5 text-foreground">
                 {report.concreteRecommendations.map((step) => (
                   <li key={step} className="leading-relaxed">
                     {step}
@@ -837,30 +747,24 @@ export default function SystemDesignPracticeReportPage() {
                 ))}
               </ol>
             ) : (
-              <p className="text-sm text-gray-600">No additional steps listed.</p>
+              <p className="text-sm text-muted-foreground">No additional steps listed.</p>
             )}
           </CardContent>
         </Card>
 
-        <Card className="border-2 border-blue-200 bg-gradient-to-br from-blue-50 via-indigo-50 to-blue-100 shadow-lg shadow-blue-500/15 dark:border-blue-900/50 dark:from-blue-950/35 dark:via-indigo-950/25 dark:to-blue-950/30">
-          <CardContent className="p-8 text-center">
-            <h2 className="mb-4 text-2xl font-bold text-slate-900 dark:text-slate-50">
+        <Card className="overflow-hidden rounded-xl border border-[#7367F0]/15 bg-gradient-to-br from-[#7367F0]/[0.06] via-card to-[#7367F0]/[0.04] shadow-card">
+          <CardContent className="p-6 text-center sm:p-8">
+            <h2 className="mb-3 text-xl font-bold text-foreground sm:text-2xl">
               Practice another system design?
             </h2>
-            <p className="mx-auto mb-6 max-w-lg text-gray-700 dark:text-gray-300">
+            <p className="mx-auto mb-6 max-w-lg text-muted-foreground">
               Keep rehearsing problems and refining how you sketch and narrate trade-offs.
             </p>
-            <Button
-              size="lg"
-              asChild
-              className="!bg-[rgb(37,99,235)] hover:!bg-[rgb(17,24,39)] gap-2 font-semibold text-white shadow-lg shadow-blue-500/25 transition-all hover:shadow-xl"
-            >
+            <Button size="lg" asChild className={institutePrimaryClass}>
               <Link href="/dashboard/system-design">Back to system design hub</Link>
             </Button>
           </CardContent>
         </Card>
-      </main>
-      </div>
     </div>
   );
 }

@@ -143,10 +143,10 @@ export default function InstituteBatchesPage() {
       <section
         className={cn(
           institutePanelClass,
-          "relative overflow-hidden border-blue-200/50 bg-gradient-to-br from-blue-50/70 via-white to-slate-50/90"
+          "relative overflow-hidden border-border bg-gradient-to-br from-card via-card to-muted/30"
         )}
       >
-        <div className="pointer-events-none absolute -right-16 -top-12 h-40 w-40 rounded-full bg-blue-400/10 blur-3xl" />
+        <div className="pointer-events-none absolute -right-16 -top-12 h-40 w-40 rounded-full bg-primary/80/10 blur-3xl" />
         <div className="pointer-events-none absolute -bottom-8 -left-8 h-32 w-32 rounded-full bg-indigo-400/10 blur-2xl" />
         <div className="relative flex flex-col gap-5 p-5 sm:flex-row sm:items-center sm:gap-8 sm:p-6">
           <div className="flex shrink-0 justify-center sm:justify-start">
@@ -156,14 +156,14 @@ export default function InstituteBatchesPage() {
                 aria-hidden
               />
             ) : (
-              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-[rgb(37,99,235)] to-blue-600 shadow-lg shadow-blue-500/30 ring-2 ring-blue-200/60 sm:h-[4.5rem] sm:w-[4.5rem]">
+              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary shadow-lg shadow-primary/30 ring-2 ring-border/60 sm:h-[4.5rem] sm:w-[4.5rem]">
                 <Layers className="h-8 w-8 text-white sm:h-9 sm:w-9" strokeWidth={1.75} />
               </div>
             )}
           </div>
           <div className="min-w-0 flex-1 space-y-3 text-center sm:text-left">
             <div>
-              <p className="text-xs font-bold uppercase tracking-wide text-[rgb(37,99,235)]">
+              <p className="text-xs font-bold uppercase tracking-wide text-primary">
                 Total batches
               </p>
               <div className="mt-2 flex flex-wrap items-end justify-center gap-x-3 gap-y-1 sm:justify-start">
@@ -193,11 +193,11 @@ export default function InstituteBatchesPage() {
       </section>
 
       <Card className={cn(institutePanelClass, "overflow-hidden shadow-xl")}>
-        <CardHeader className="border-b border-blue-100/60 bg-gradient-to-r from-blue-50/50 via-white to-indigo-50/30">
+        <CardHeader className="border-b border-border/60 bg-gradient-to-r from-muted/50 via-white to-indigo-50/30">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div className="flex gap-4">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[rgb(37,99,235)] to-blue-600 shadow-md shadow-blue-500/25 ring-2 ring-blue-200/40">
-                <Layers className="h-5 w-5 text-white" strokeWidth={1.75} />
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary shadow-md shadow-primary/25 ring-2 ring-border/40">
+                <Layers className="h-5 w-5" strokeWidth={1.75} />
               </div>
               <div className="min-w-0 space-y-1.5">
                 <CardTitle className="text-lg leading-tight">Your batches</CardTitle>
@@ -215,7 +215,7 @@ export default function InstituteBatchesPage() {
               </div>
             </div>
             {!loading && batchCount > 0 ? (
-              <span className="inline-flex w-fit shrink-0 items-center gap-1.5 self-start rounded-full border border-blue-200/80 bg-white/90 px-3 py-1.5 text-xs font-medium text-[rgb(37,99,235)] shadow-sm sm:mt-1">
+              <span className="inline-flex w-fit shrink-0 items-center gap-1.5 self-start rounded-full border border-border/80 bg-white/90 px-3 py-1.5 text-xs font-medium text-primary shadow-sm sm:mt-1">
                 <Sparkles className="h-3.5 w-3.5" />
                 Cohort list
               </span>
@@ -225,7 +225,7 @@ export default function InstituteBatchesPage() {
         <CardContent className="p-0 sm:p-0">
           {loading ? (
             <div className="flex justify-center py-16">
-              <Loader2 className="h-9 w-9 animate-spin text-[rgb(37,99,235)]" />
+              <Loader2 className="h-9 w-9 animate-spin text-primary" />
             </div>
           ) : batchCount === 0 ? (
             <div className="px-4 py-6 sm:px-6">
@@ -265,12 +265,12 @@ export default function InstituteBatchesPage() {
                     return (
                       <TableRow
                         key={b._id}
-                        className="group border-slate-100 align-middle transition-colors hover:bg-gradient-to-r hover:from-blue-50/50 hover:to-transparent"
+                        className="group border-slate-100 align-middle transition-colors hover:bg-gradient-to-r hover:bg-muted/50 hover:to-transparent"
                       >
                         <TableCell className="pl-6 align-middle">
                           <div className="flex items-center gap-3 py-1">
                             <div
-                              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-slate-100 to-slate-200/80 text-[rgb(37,99,235)] shadow-inner ring-2 ring-white"
+                              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-slate-100 to-slate-200/80 text-primary shadow-inner ring-2 ring-white"
                               aria-hidden
                             >
                               <Layers className="h-5 w-5" />
@@ -311,7 +311,7 @@ export default function InstituteBatchesPage() {
       </Card>
 
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent className="border-blue-100/80 sm:max-w-md">
+        <DialogContent className="border-border/80 sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="text-xl">Create batch</DialogTitle>
             <DialogDescription>

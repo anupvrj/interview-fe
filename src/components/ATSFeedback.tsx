@@ -623,10 +623,10 @@ export function ATSFeedback({ feedback }: ATSFeedbackProps) {
 
       {/* Suggestions */}
       {feedback.suggestions && feedback.suggestions.length > 0 && (
-        <Card className="border-blue-200 bg-blue-50/50">
+        <Card className="border-border bg-muted/50">
           <CardContent className="p-6">
             <div className="flex items-center gap-2 mb-4">
-              <Lightbulb className="w-5 h-5 text-blue-600" />
+              <Lightbulb className="w-5 h-5 text-primary" />
               <h3 className="text-lg font-semibold text-gray-900">
                 Recommendations
               </h3>
@@ -645,7 +645,7 @@ export function ATSFeedback({ feedback }: ATSFeedbackProps) {
                   }}
                 >
                   <div 
-                    className="w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center flex-shrink-0" 
+                    className="w-5 h-5 rounded-full bg-primary flex items-center justify-center flex-shrink-0" 
                     style={{ 
                       flexShrink: 0, 
                       minWidth: "20px",
