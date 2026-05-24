@@ -26,99 +26,11 @@ import {
   pdfResumeDropzoneAccept,
   pdfResumeFileValidator,
 } from "@/lib/pdf-dropzone";
-import { Menu, X } from "lucide-react";
-import type { FileRejection } from "react-dropzone";
 import { SiteHeader } from "@/components/SiteHeader";
 import { MarketingFooter } from "@/components/MarketingFooter";
+import type { FileRejection } from "react-dropzone";
 
 type Step = "upload" | "processing" | "results";
-
-// Mobile Menu Component for ATS Checker
-function ATSCheckerMobileMenu() {
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const { user, isLoaded } = useUser();
-
-  const menuItems = [
-    { href: "/about-us", label: "About us" },
-    { href: "/ai-resume-builder", label: "Resume Builder" },
-    { href: "/ai-interview-coach", label: "AI Interview Coach" },
-    { href: "/pricing", label: "Pricing" },
-  ];
-
-  return (
-    <>
-      {/* Mobile Menu Button */}
-      <div className="md:hidden">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          className="p-2"
-          aria-label="Toggle menu"
-        >
-          {mobileMenuOpen ? (
-            <X className="w-5 h-5" />
-          ) : (
-            <Menu className="w-5 h-5" />
-          )}
-        </Button>
-      </div>
-
-      {/* Mobile Menu Overlay */}
-      {mobileMenuOpen && (
-        <div
-          className="fixed top-0 left-0 right-0 bottom-0 w-full h-full bg-black/30 z-[60] md:hidden"
-          onClick={() => setMobileMenuOpen(false)}
-        />
-      )}
-
-      {/* Mobile Menu - Slides from Left */}
-      <nav
-        className={`fixed top-0 left-0 h-screen w-80 max-w-[85vw] bg-gray-100 z-[70] md:hidden transition-transform duration-300 ease-in-out shadow-2xl ${
-          mobileMenuOpen ? "translate-x-0" : "-translate-x-full"
-        }`}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex flex-col h-screen">
-          <div className="flex-1 overflow-y-auto py-2">
-            <div className="flex flex-col">
-              {menuItems.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="flex items-center px-4 py-3 text-sm font-medium text-gray-800 border-b border-gray-300 hover:bg-gray-200 transition-colors"
-                >
-                  <span>{item.label.toUpperCase()}</span>
-                </Link>
-              ))}
-
-              {isLoaded && user && (
-                <Link
-                  href="/dashboard"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="flex items-center px-4 py-3 text-sm font-medium text-gray-800 border-b border-gray-300 hover:bg-gray-200 transition-colors"
-                >
-                  <span>DASHBOARD</span>
-                </Link>
-              )}
-
-              {isLoaded && !user && (
-                <Link
-                  href="/sign-in"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="flex items-center px-4 py-3 text-sm font-medium text-gray-800 border-b border-gray-300 hover:bg-gray-200 transition-colors"
-                >
-                  <span>LOGIN / REGISTER</span>
-                </Link>
-              )}
-            </div>
-          </div>
-        </div>
-      </nav>
-    </>
-  );
-}
 
 /** Map extracted API sections to resume content shape; ensure array items have id for edit page */
 function mapExtractedSectionsToContent(
@@ -335,41 +247,11 @@ export default function ATSCheckerPage() {
   };
 
   return (
-    <div className="min-h-screen bg-white scroll-smooth selection:bg-blue-100">
-      <SiteHeader
-        mobileMenu={<ATSCheckerMobileMenu />}
-        desktopNav={
-          <nav className="hidden md:flex items-center gap-4 sm:gap-6">
-            <Link
-              href="/about-us"
-              className="text-sm sm:text-base text-gray-700 hover:text-[rgb(37,99,235)] transition-colors font-medium"
-            >
-              About us
-            </Link>
-            <Link
-              href="/ai-resume-builder"
-              className="text-sm sm:text-base text-gray-700 hover:text-[rgb(37,99,235)] transition-colors font-medium"
-            >
-              Resume Builder
-            </Link>
-            <Link
-              href="/ai-interview-coach"
-              className="text-sm sm:text-base text-gray-700 hover:text-[rgb(37,99,235)] transition-colors font-medium"
-            >
-              AI Interview Coach
-            </Link>
-            <Link
-              href="/pricing"
-              className="text-sm sm:text-base text-gray-700 hover:text-[rgb(37,99,235)] transition-colors font-medium"
-            >
-              Pricing
-            </Link>
-          </nav>
-        }
-      />
+    <div className="min-h-screen bg-background scroll-smooth selection:bg-info-muted">
+      <SiteHeader />
 
       {/* Hero Section with Animated Background */}
-      <section className="pt-32 sm:pt-40 lg:pt-48 pb-16 sm:pb-20 md:pb-24 lg:pb-28 px-4 sm:px-6 overflow-hidden bg-blue-50 relative">
+      <section className="pt-32 sm:pt-40 lg:pt-48 pb-16 sm:pb-20 md:pb-24 lg:pb-28 px-4 sm:px-6 overflow-hidden bg-muted relative">
         {/* Animated Background Elements */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden">
           {[...Array(8)].map((_, i) => (
@@ -384,7 +266,7 @@ export default function ATSCheckerPage() {
                 animationDelay: `${i * 0.5}s`,
               }}
             >
-              <FileCheck className="w-12 h-12 sm:w-16 sm:h-16 text-blue-400" />
+              <FileCheck className="w-12 h-12 sm:w-16 sm:h-16 text-primary/70" />
             </div>
           ))}
           {[...Array(8)].map((_, i) => (
@@ -399,7 +281,7 @@ export default function ATSCheckerPage() {
                 animationDelay: `${i * 0.5}s`,
               }}
             >
-              <FileText className="w-10 h-10 sm:w-14 sm:h-14 text-blue-300" />
+              <FileText className="w-10 h-10 sm:w-14 sm:h-14 text-primary/50" />
             </div>
           ))}
           {[...Array(6)].map((_, i) => (
@@ -422,7 +304,7 @@ export default function ATSCheckerPage() {
         <div className="container mx-auto max-w-4xl relative z-10">
           {/* Header */}
           <div className="text-center mb-8 sm:mb-12">
-            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-[rgb(37,99,235)] to-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg">
+            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-primary rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg">
               <FileCheck className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
             </div>
             <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-slate-900 mb-4">
@@ -435,7 +317,7 @@ export default function ATSCheckerPage() {
 
           {/* Upload Step */}
           {step === "upload" && (
-            <Card className="border-2 border-dashed border-blue-200/50 hover:border-[rgb(37,99,235)] bg-white/95 backdrop-blur-sm shadow-xl transition-colors">
+            <Card className="border-2 border-dashed border-border hover:border-primary bg-white/95 backdrop-blur-sm shadow-xl transition-colors">
               <CardContent className="p-8 sm:p-12">
                 <div
                   {...getRootProps()}
@@ -444,8 +326,8 @@ export default function ATSCheckerPage() {
                   }`}
                 >
                   <input {...getInputProps()} />
-                  <div className="w-20 h-20 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-6">
-                    <Upload className="w-10 h-10 text-blue-600" />
+                  <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mx-auto mb-6">
+                    <Upload className="w-10 h-10 text-primary" />
                   </div>
                   <h3 className="text-2xl font-bold text-slate-900 mb-2">
                     {isDragActive
@@ -456,7 +338,7 @@ export default function ATSCheckerPage() {
                     Drag and drop your PDF resume, or click to browse
                   </p>
                   {uploadedFile && (
-                    <div className="flex items-center justify-center gap-2 text-blue-600 mb-4">
+                    <div className="flex items-center justify-center gap-2 text-primary mb-4">
                       <FileText className="w-5 h-5" />
                       <span className="font-medium">{uploadedFile.name}</span>
                     </div>
@@ -481,9 +363,9 @@ export default function ATSCheckerPage() {
 
           {/* Processing Step */}
           {step === "processing" && (
-            <Card className="border-2 border-blue-200/50 bg-white/95 backdrop-blur-sm shadow-xl">
+            <Card className="border-2 border-border bg-white/95 backdrop-blur-sm shadow-xl">
               <CardContent className="p-8 sm:p-12 text-center">
-                <Loader2 className="w-16 h-16 text-blue-600 animate-spin mx-auto mb-6" />
+                <Loader2 className="w-16 h-16 text-primary animate-spin mx-auto mb-6" />
                 <h3 className="text-2xl font-bold text-slate-900 mb-2">
                   {uploading
                     ? "Uploading your resume..."
@@ -507,7 +389,7 @@ export default function ATSCheckerPage() {
           {step === "results" && atsScore !== null && (
             <div className="space-y-6">
               {/* Score Card */}
-              <Card className="border-2 border-blue-200/50 bg-white/95 backdrop-blur-sm shadow-xl">
+              <Card className="border-2 border-border bg-white/95 backdrop-blur-sm shadow-xl">
                 <CardContent className="p-8 sm:p-12">
                   <div className="text-center mb-6">
                     <div className="text-6xl sm:text-7xl font-bold mb-2">
@@ -561,7 +443,7 @@ export default function ATSCheckerPage() {
 
               {/* Feedback Card */}
               {atsFeedback && (
-                <Card className="border-2 border-blue-200/50 bg-white/95 backdrop-blur-sm shadow-xl">
+                <Card className="border-2 border-border bg-white/95 backdrop-blur-sm shadow-xl">
                   <CardContent className="p-8 sm:p-12">
                     <h3 className="text-2xl font-bold text-slate-900 mb-6">
                       Detailed Feedback
@@ -609,7 +491,7 @@ export default function ATSCheckerPage() {
                         atsFeedback.suggestions.length > 0 && (
                           <div>
                             <div className="flex items-center gap-2 mb-3">
-                              <Sparkles className="w-5 h-5 text-blue-600" />
+                              <Sparkles className="w-5 h-5 text-primary" />
                               <h4 className="text-lg font-semibold text-slate-900">
                                 Suggestions
                               </h4>
@@ -627,7 +509,7 @@ export default function ATSCheckerPage() {
                       {atsFeedback.keywords && (
                         <div>
                           <div className="flex items-center gap-2 mb-3">
-                            <TrendingUp className="w-5 h-5 text-blue-600" />
+                            <TrendingUp className="w-5 h-5 text-primary" />
                             <h4 className="text-lg font-semibold text-slate-900">
                               Keywords
                             </h4>
@@ -664,7 +546,7 @@ export default function ATSCheckerPage() {
                                       (keyword: string, idx: number) => (
                                         <span
                                           key={idx}
-                                          className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm"
+                                          className="px-3 py-1 bg-muted text-primary rounded-full text-sm"
                                         >
                                           {keyword}
                                         </span>
@@ -682,7 +564,7 @@ export default function ATSCheckerPage() {
               )}
 
               {/* CTA Button */}
-              <Card className="bg-gradient-to-br from-blue-50 to-blue-100/50 border-2 border-blue-200/50 shadow-xl">
+              <Card className="bg-card border-2 border-border shadow-xl">
                 <CardContent className="p-8 sm:p-12 text-center">
                   <h3 className="text-2xl font-bold text-slate-900 mb-4">
                     Ready to Improve Your ATS Score?
@@ -695,7 +577,7 @@ export default function ATSCheckerPage() {
                   <Button
                     size="lg"
                     onClick={handleImproveScore}
-                    className="text-white font-medium shadow-lg transition-all h-12 px-8 hover:opacity-90 !bg-[rgb(37,99,235)] text-base sm:text-lg hover:!bg-[rgb(17,24,39)]"
+                    className="text-white font-medium shadow-lg transition-all h-12 px-8 hover:opacity-90 !bg-primary text-base sm:text-lg hover:!bg-slate-900"
                   >
                     Improve Your Resume
                     <ArrowRight className="w-5 h-5 ml-2" />

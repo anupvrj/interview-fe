@@ -4,77 +4,97 @@
 
 @layer base {
   :root {
-    /* Light periwinkle blue background matching landing page */
-    --background: 225 60% 95%;
-    --foreground: 0 0% 5%;
+    /* Vuexy-inspired palette (#7367F0 primary, #F8F7FA canvas) */
+    --background: 240 20% 98%;
+    --foreground: 254 16% 21%;
 
-    /* Card colors - white with subtle blue tint */
     --card: 0 0% 100%;
-    --card-foreground: 0 0% 5%;
+    --card-foreground: 254 16% 21%;
 
-    /* Popover colors */
     --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 5%;
+    --popover-foreground: 254 16% 21%;
 
-    /* Primary - vibrant royal blue from landing page */
-    --primary: 225 85% 65%;
+    --primary: 247 75% 67%;
     --primary-foreground: 0 0% 100%;
+    --primary-muted: 247 89% 96%;
 
-    /* Secondary - lighter blue accent */
-    --secondary: 225 70% 75%;
-    --secondary-foreground: 0 0% 100%;
+    --secondary: 240 14% 96%;
+    --secondary-foreground: 254 16% 21%;
 
-    /* Muted - soft blue-gray */
-    --muted: 225 40% 92%;
-    --muted-foreground: 225 10% 45%;
+    --muted: 240 14% 96%;
+    --muted-foreground: 240 5% 46%;
 
-    /* Accent - deeper blue for highlights */
-    --accent: 225 80% 60%;
-    --accent-foreground: 0 0% 100%;
+    --accent: 247 89% 96%;
+    --accent-foreground: 247 75% 67%;
 
-    /* Destructive - keep red for errors */
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    /* Border and input - subtle blue-gray */
-    --border: 225 30% 88%;
-    --input: 225 30% 88%;
+    --border: 240 9% 91%;
+    --input: 240 9% 91%;
+    --ring: 247 75% 67%;
+    --radius: 0.625rem;
 
-    /* Ring - primary blue */
-    --ring: 225 85% 65%;
-    --radius: 0.75rem;
+    --sidebar: 0 0% 100%;
+    --sidebar-border: 240 9% 93%;
+    --sidebar-foreground: 240 5% 46%;
+    --sidebar-active: 247 75% 67%;
+
+    --header: 0 0% 100%;
+
+    --success: 152 69% 40%;
+    --success-foreground: 152 69% 40%;
+    --success-muted: 152 76% 94%;
+
+    --warning: 32 95% 44%;
+    --warning-foreground: 32 95% 44%;
+    --warning-muted: 48 96% 89%;
+
+    --info: 221 83% 53%;
+    --info-foreground: 221 83% 53%;
+    --info-muted: 214 100% 97%;
   }
 
   .dark {
-    /* Dark mode with blue undertones */
-    --background: 225 20% 8%;
-    --foreground: 225 10% 98%;
+    --background: 254 16% 8%;
+    --foreground: 240 6% 96%;
 
-    --card: 225 20% 12%;
-    --card-foreground: 225 10% 98%;
+    --card: 254 14% 12%;
+    --card-foreground: 240 6% 96%;
 
-    --popover: 225 20% 12%;
-    --popover-foreground: 225 10% 98%;
+    --popover: 254 14% 12%;
+    --popover-foreground: 240 6% 96%;
 
-    /* Keep same vibrant blue in dark mode */
-    --primary: 225 85% 65%;
+    --primary: 247 75% 67%;
     --primary-foreground: 0 0% 100%;
+    --primary-muted: 247 40% 18%;
 
-    --secondary: 225 70% 55%;
-    --secondary-foreground: 0 0% 100%;
+    --secondary: 254 12% 18%;
+    --secondary-foreground: 240 6% 96%;
 
-    --muted: 225 20% 18%;
-    --muted-foreground: 225 10% 60%;
+    --muted: 254 12% 18%;
+    --muted-foreground: 240 4% 60%;
 
-    --accent: 225 80% 60%;
-    --accent-foreground: 0 0% 100%;
+    --accent: 254 12% 18%;
+    --accent-foreground: 247 89% 96%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 225 20% 18%;
-    --input: 225 20% 18%;
-    --ring: 225 85% 65%;
+    --border: 254 10% 20%;
+    --input: 254 10% 20%;
+    --ring: 247 75% 67%;
+
+    --sidebar: 254 14% 10%;
+    --sidebar-border: 254 10% 20%;
+    --sidebar-foreground: 240 4% 65%;
+    --sidebar-active: 247 75% 67%;
+
+    --header: 254 14% 12%;
+
+    --success-muted: 142 40% 16%;
+    --warning-muted: 32 40% 16%;
+    --info-muted: 221 40% 16%;
   }
 }
 
@@ -183,11 +203,6 @@
     background: rgb(37 99 235 / var(--tw-bg-opacity, 1));
   }
 
-  /* Landing page inspired gradient */
-  .gradient-landing {
-    background: linear-gradient(135deg, #c5d5f7 0%, #e8eeff 50%, #d5e3ff 100%);
-  }
-
   /* Primary action gradient */
   .gradient-primary {
     background: rgb(37 99 235 / var(--tw-bg-opacity, 1));
@@ -266,6 +281,65 @@
     }
   }
 
+  @keyframes dashboard-hero-shimmer {
+    0%,
+    100% {
+      background-position: 200% 0;
+    }
+    50% {
+      background-position: -200% 0;
+    }
+  }
+
+  /* Profile hero — icons drift left → right with a gentle arc */
+  @keyframes profile-hero-drift {
+    0% {
+      left: -8%;
+      transform: translateY(0);
+      opacity: 0;
+    }
+    12% {
+      opacity: 0.55;
+    }
+    45% {
+      transform: translateY(-14px);
+      opacity: 0.5;
+    }
+    75% {
+      transform: translateY(10px);
+      opacity: 0.4;
+    }
+    100% {
+      left: 108%;
+      transform: translateY(-2px);
+      opacity: 0;
+    }
+  }
+
+  @keyframes profile-hero-drift-alt {
+    0% {
+      left: -10%;
+      transform: translateY(6px);
+      opacity: 0;
+    }
+    12% {
+      opacity: 0.5;
+    }
+    40% {
+      transform: translateY(-18px);
+      opacity: 0.48;
+    }
+    70% {
+      transform: translateY(12px);
+      opacity: 0.38;
+    }
+    100% {
+      left: 106%;
+      transform: translateY(0);
+      opacity: 0;
+    }
+  }
+
   @keyframes lineProgress {
     0% {
       width: 0%;
@@ -291,11 +365,24 @@
     border: 1px solid rgba(255, 255, 255, 0.2);
   }
 
-  /* Blue glass effect for cards */
-  .glass-blue {
-    background: rgba(197, 213, 247, 0.3);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(107, 138, 255, 0.2);
+  .app-stat-card {
+    @apply flex min-h-0 min-w-0 items-start gap-3 rounded-lg border border-border bg-card p-4 shadow-card transition-shadow hover:shadow-header sm:gap-4 sm:p-5;
+  }
+
+  .app-stat-icon {
+    @apply flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary-muted text-primary sm:h-12 sm:w-12;
+  }
+
+  .app-empty-state-icon {
+    @apply mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-lg bg-primary-muted text-primary shadow-card;
+  }
+
+  .app-hero-card {
+    @apply relative overflow-hidden rounded-lg border border-border bg-card p-6 shadow-card sm:p-8;
+  }
+
+  .app-control {
+    @apply h-11 rounded-[0.625rem] border border-input bg-card px-4 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-50;
   }
 
   /* Rich text preview styles */
@@ -549,5 +636,197 @@
 
 /* System design report: hide Excalidraw main menu trigger (hamburger) on embedded previews */
 .excalidraw-hide-main-menu button.main-menu-trigger {
+  display: none !important;
+}
+
+/* Auth pages — flatten Clerk card chrome, modernize controls */
+.auth-clerk-root .cl-cardBox,
+.auth-clerk-root .cl-card {
+  box-shadow: none !important;
+  border: none !important;
+  background: transparent !important;
+  padding: 0 !important;
+  width: 100% !important;
+  max-width: none !important;
+  overflow: visible !important;
+}
+
+.auth-clerk-root .cl-logoBox {
+  display: none !important;
+}
+
+/* Only the card chrome header (logo/title) — not form field label rows */
+.auth-clerk-root .cl-card > .cl-header {
+  display: none !important;
+}
+
+.auth-clerk-root .cl-main,
+.auth-clerk-root .cl-form,
+.auth-clerk-root .cl-formFieldRow {
+  align-items: stretch !important;
+  text-align: left !important;
+  width: 100% !important;
+}
+
+.auth-clerk-root .cl-formFieldLabelRow {
+  display: flex !important;
+  justify-content: flex-start !important;
+  align-items: flex-start !important;
+  visibility: visible !important;
+  width: 100% !important;
+  height: auto !important;
+  overflow: visible !important;
+  margin-bottom: 0.375rem !important;
+  text-align: left !important;
+}
+
+.auth-clerk-root .cl-formFieldLabel {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  width: 100% !important;
+  height: auto !important;
+  overflow: visible !important;
+  text-align: left !important;
+  color: hsl(var(--foreground)) !important;
+  font-size: 0.875rem !important;
+  font-weight: 500 !important;
+  line-height: 1.375 !important;
+  white-space: normal !important;
+}
+
+.auth-clerk-root .cl-main {
+  gap: 1.25rem !important;
+  padding: 0 !important;
+  align-items: stretch !important;
+  text-align: left !important;
+}
+
+.auth-clerk-root .cl-form {
+  gap: 1.25rem !important;
+  align-items: stretch !important;
+  text-align: left !important;
+}
+
+.auth-clerk-root .cl-formFieldRow {
+  margin-bottom: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  gap: 0.5rem !important;
+  text-align: left !important;
+}
+
+.auth-clerk-root .cl-formField,
+.auth-clerk-root .cl-formFieldInputGroup {
+  align-items: stretch !important;
+  text-align: left !important;
+  width: 100% !important;
+}
+.auth-clerk-root .cl-formFieldInput,
+.auth-clerk-root .cl-input {
+  min-height: 2.75rem !important;
+  border-radius: 0.625rem !important;
+  border-color: hsl(var(--input)) !important;
+  box-shadow: 0 1px 2px 0 rgba(47, 43, 61, 0.06) !important;
+  font-size: 0.875rem !important;
+  text-align: left !important;
+}
+
+.auth-clerk-root .cl-formFieldInput:focus,
+.auth-clerk-root .cl-input:focus {
+  border-color: hsl(var(--primary)) !important;
+  box-shadow: 0 0 0 3px hsl(var(--primary) / 0.15) !important;
+}
+
+.auth-clerk-root .cl-formButtonPrimary {
+  min-height: 2.75rem !important;
+  border-radius: 0.625rem !important;
+  font-size: 0.875rem !important;
+  font-weight: 600 !important;
+  box-shadow: 0 1px 2px 0 rgba(47, 43, 61, 0.08) !important;
+  transition: background-color 0.15s ease, box-shadow 0.15s ease !important;
+}
+
+.auth-clerk-root .cl-formButtonPrimary:hover {
+  background-color: rgb(15 23 42) !important;
+  box-shadow: 0 4px 12px 0 rgba(37, 99, 235, 0.2) !important;
+}
+
+.auth-clerk-root .cl-socialButtonsBlockButton,
+.auth-clerk-root .cl-socialButtonsIconButton {
+  position: relative !important;
+  overflow: visible !important;
+  min-height: 2.75rem !important;
+  border-radius: 0.625rem !important;
+  border: 1px solid hsl(var(--border)) !important;
+  background: hsl(var(--card)) !important;
+  box-shadow: 0 1px 2px 0 rgba(47, 43, 61, 0.06) !important;
+  font-size: 0.875rem !important;
+  font-weight: 500 !important;
+  transition: border-color 0.15s ease, background-color 0.15s ease !important;
+}
+
+.auth-clerk-root .cl-socialButtonsBlockButtonText {
+  text-align: left !important;
+}
+
+.auth-clerk-root .cl-badge,
+.auth-clerk-root .cl-socialButtonsBlockButton .cl-badge {
+  position: absolute !important;
+  top: -0.5rem !important;
+  right: 1rem !important;
+  inset-inline-end: 1rem !important;
+  z-index: 2 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  overflow: visible !important;
+  width: max-content !important;
+  max-width: calc(100% - 1rem) !important;
+  white-space: nowrap !important;
+  padding: 0.125rem 0.625rem !important;
+  font-size: 0.6875rem !important;
+  font-weight: 500 !important;
+  line-height: 1.25 !important;
+  letter-spacing: normal !important;
+  text-transform: none !important;
+  color: hsl(var(--primary)) !important;
+  background: hsl(var(--info-muted)) !important;
+  border: 1px solid hsl(var(--border)) !important;
+  box-shadow: 0 1px 2px rgba(47, 43, 61, 0.06) !important;
+  clip: auto !important;
+  clip-path: none !important;
+}
+
+.auth-clerk-root .cl-socialButtons {
+  gap: 0.75rem !important;
+  overflow: visible !important;
+  padding-top: 0.375rem !important;
+}
+
+.auth-clerk-root .cl-socialButtonsBlockButton:hover,
+.auth-clerk-root .cl-socialButtonsIconButton:hover {
+  border-color: hsl(var(--primary) / 0.35) !important;
+  background: hsl(var(--muted) / 0.6) !important;
+}
+
+.auth-clerk-root .cl-dividerRow {
+  margin: 0.25rem 0 !important;
+  gap: 0.75rem !important;
+}
+
+.auth-clerk-root .cl-dividerLine {
+  background: hsl(var(--border)) !important;
+}
+
+.auth-clerk-root .cl-dividerText {
+  font-size: 0.6875rem !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.06em !important;
+  text-transform: uppercase !important;
+  color: hsl(var(--muted-foreground)) !important;
+}
+
+.auth-clerk-root .cl-footer {
   display: none !important;
 }

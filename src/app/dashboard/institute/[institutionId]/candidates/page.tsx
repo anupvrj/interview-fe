@@ -398,10 +398,10 @@ export default function InstituteCandidatesPage() {
       <section
         className={cn(
           institutePanelClass,
-          "relative overflow-hidden border-blue-200/50 bg-gradient-to-br from-blue-50/70 via-white to-slate-50/90"
+          "relative overflow-hidden border-border bg-gradient-to-br from-card via-card to-muted/30"
         )}
       >
-        <div className="pointer-events-none absolute -right-16 -top-12 h-40 w-40 rounded-full bg-blue-400/10 blur-3xl" />
+        <div className="pointer-events-none absolute -right-16 -top-12 h-40 w-40 rounded-full bg-primary/80/10 blur-3xl" />
         <div className="pointer-events-none absolute -bottom-8 -left-8 h-32 w-32 rounded-full bg-indigo-400/10 blur-2xl" />
         <div className="relative flex flex-col gap-5 p-5 lg:flex-row lg:items-center lg:gap-8 lg:p-6">
           <div className="flex shrink-0 justify-center lg:justify-start">
@@ -411,14 +411,14 @@ export default function InstituteCandidatesPage() {
                 aria-hidden
               />
             ) : (
-              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-[rgb(37,99,235)] to-blue-600 shadow-lg shadow-blue-500/30 ring-2 ring-blue-200/60 lg:h-[4.5rem] lg:w-[4.5rem]">
+              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary shadow-lg shadow-primary/30 ring-2 ring-border/60 lg:h-[4.5rem] lg:w-[4.5rem]">
                 <Users className="h-8 w-8 text-white lg:h-9 lg:w-9" strokeWidth={1.75} />
               </div>
             )}
           </div>
           <div className="min-w-0 flex-1 space-y-3 text-center lg:text-left">
             <div>
-              <p className="text-xs font-bold uppercase tracking-wide text-[rgb(37,99,235)]">
+              <p className="text-xs font-bold uppercase tracking-wide text-primary">
                 Candidate directory
               </p>
               <p className="mt-2 text-sm leading-relaxed text-slate-600 sm:text-base">
@@ -453,7 +453,7 @@ export default function InstituteCandidatesPage() {
                 placeholder="Name or email…"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="h-11 border-slate-200 bg-white pl-10 shadow-sm transition-shadow focus-visible:ring-2 focus-visible:ring-[rgb(37,99,235)]/25"
+                className="h-11 border-slate-200 bg-white pl-10 shadow-sm transition-shadow focus-visible:ring-2 focus-visible:ring-primary/25"
               />
             </div>
           </div>
@@ -461,11 +461,11 @@ export default function InstituteCandidatesPage() {
       </section>
 
       <Card className={cn(institutePanelClass, "overflow-hidden shadow-xl")}>
-        <CardHeader className="border-b border-blue-100/60 bg-gradient-to-r from-blue-50/50 via-white to-indigo-50/30">
+        <CardHeader className="border-b border-border/60 bg-gradient-to-r from-muted/50 via-white to-indigo-50/30">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div className="flex gap-4">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[rgb(37,99,235)] to-blue-600 shadow-md shadow-blue-500/25 ring-2 ring-blue-200/40">
-                <Users className="h-5 w-5 text-white" strokeWidth={1.75} />
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary shadow-md shadow-primary/25 ring-2 ring-border/40">
+                <Users className="h-5 w-5" strokeWidth={1.75} />
               </div>
               <div className="min-w-0 space-y-1.5">
                 <CardTitle className="text-lg leading-tight">Member list</CardTitle>
@@ -485,7 +485,7 @@ export default function InstituteCandidatesPage() {
               </div>
             </div>
             {!loading && total > 0 ? (
-              <span className="inline-flex w-fit shrink-0 items-center gap-1.5 self-start rounded-full border border-blue-200/80 bg-white/90 px-3 py-1.5 text-xs font-medium text-[rgb(37,99,235)] shadow-sm sm:mt-1">
+              <span className="inline-flex w-fit shrink-0 items-center gap-1.5 self-start rounded-full border border-border/80 bg-white/90 px-3 py-1.5 text-xs font-medium text-primary shadow-sm sm:mt-1">
                 <Sparkles className="h-3.5 w-3.5" />
                 Live directory
               </span>
@@ -495,7 +495,7 @@ export default function InstituteCandidatesPage() {
         <CardContent className="p-0 sm:p-0">
           {loading ? (
             <div className="flex justify-center py-16">
-              <Loader2 className="h-9 w-9 animate-spin text-[rgb(37,99,235)]" />
+              <Loader2 className="h-9 w-9 animate-spin text-primary" />
             </div>
           ) : users.length === 0 ? (
             <div className="px-4 py-6 sm:px-6">
@@ -548,12 +548,12 @@ export default function InstituteCandidatesPage() {
                       return (
                         <TableRow
                           key={u._id}
-                          className="group border-slate-100 align-middle transition-colors hover:bg-gradient-to-r hover:from-blue-50/50 hover:to-transparent"
+                          className="group border-slate-100 align-middle transition-colors hover:bg-gradient-to-r hover:bg-muted/50 hover:to-transparent"
                         >
                           <TableCell className="pl-6 align-middle">
                             <div className="flex items-center gap-3 py-2">
                               <div
-                                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[rgb(37,99,235)] to-indigo-600 text-sm font-bold text-white shadow-md shadow-blue-500/15 ring-2 ring-white"
+                                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-indigo-600 text-sm font-bold text-white shadow-md shadow-primary/15 ring-2 ring-white"
                                 aria-hidden
                               >
                                 {candidateInitials(u.name, u.email)}
@@ -627,7 +627,7 @@ export default function InstituteCandidatesPage() {
                                 <Coins className="h-3.5 w-3.5" />
                               </Button>
                               <select
-                                className="h-8 w-[104px] shrink-0 cursor-pointer rounded-lg border border-slate-200 bg-white px-2 text-xs font-medium text-slate-800 shadow-sm outline-none transition hover:border-slate-300 focus:ring-2 focus:ring-[rgb(37,99,235)]/20"
+                                className="h-8 w-[104px] shrink-0 cursor-pointer rounded-lg border border-slate-200 bg-white px-2 text-xs font-medium text-slate-800 shadow-sm outline-none transition hover:border-slate-300 focus:ring-2 focus:ring-primary/20"
                                 value={uiPlanValue}
                                 onChange={(e) =>
                                   handleUpdatePlan(
@@ -702,7 +702,7 @@ export default function InstituteCandidatesPage() {
           if (!o) setScheduleUser(null);
         }}
       >
-        <DialogContent className="max-h-[90vh] overflow-y-auto border-blue-100/80 sm:max-w-lg">
+        <DialogContent className="max-h-[90vh] overflow-y-auto border-border/80 sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="text-xl">Schedule interview</DialogTitle>
             <DialogDescription>
@@ -866,7 +866,7 @@ export default function InstituteCandidatesPage() {
           }
         }}
       >
-        <DialogContent className="border-blue-100/80 sm:max-w-md">
+        <DialogContent className="border-border/80 sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="text-xl">Adjust credits</DialogTitle>
             <DialogDescription>
@@ -945,7 +945,7 @@ export default function InstituteCandidatesPage() {
       </Dialog>
 
       <Dialog open={addOpen} onOpenChange={setAddOpen}>
-        <DialogContent className="border-blue-100/80 sm:max-w-md">
+        <DialogContent className="border-border/80 sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="text-xl">Add user</DialogTitle>
             <DialogDescription>

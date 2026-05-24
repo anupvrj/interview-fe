@@ -20,10 +20,18 @@ import {
   Sparkles,
   Star,
   Workflow,
+  Target,
+  CheckCircle,
 } from "lucide-react";
 
 import { Button, buttonVariants } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -35,8 +43,10 @@ import { toast } from "sonner";
 
 import {
   institutePrimaryClass,
+  instituteSecondaryClass,
 } from "@/components/institute/InstituteChrome";
 import { SystemDesignHeroPreview } from "@/components/system-design/SystemDesignHeroPreview";
+import { DashboardStatCard } from "@/components/dashboard/DashboardStatCard";
 
 import {
   systemDesignApi,
@@ -119,7 +129,7 @@ function ProblemPickerBody(
                 onPick(p.id);
               }}
               className={cn(
-                "flex w-full flex-col items-stretch gap-1 rounded-lg border border-slate-200 bg-white p-3 text-left text-sm transition hover:border-blue-300 hover:bg-blue-50/50",
+                "flex w-full flex-col items-stretch gap-1 rounded-lg border border-[#7367F0]/15 bg-white p-3 text-left text-sm transition hover:border-[#7367F0]/30 hover:bg-[#7367F0]/5",
                 busy && "opacity-70",
               )}
             >
@@ -127,7 +137,7 @@ function ProblemPickerBody(
                 <span className="font-semibold text-slate-900">{p.title}</span>
                 {busy ? (
                   <Loader2
-                    className="mt-0.5 h-4 w-4 shrink-0 animate-spin text-[rgb(37,99,235)]"
+                    className="mt-0.5 h-4 w-4 shrink-0 animate-spin text-[#7367F0]"
                     aria-hidden
                   />
                 ) : null}
@@ -213,23 +223,6 @@ export default function SystemDesignDashboardPage() {
     if (currentPage > maxPage) setCurrentPage(maxPage);
   }, [currentPage, sessions.length]);
 
-  const getPageNumbers = () => {
-    const pages: number[] = [];
-    const maxVisible = 5;
-    if (totalPages <= maxVisible) {
-      for (let i = 1; i <= totalPages; i++) pages.push(i);
-      return pages;
-    }
-    if (currentPage <= 3) {
-      for (let i = 1; i <= 5; i++) pages.push(i);
-    } else if (currentPage >= totalPages - 2) {
-      for (let i = totalPages - 4; i <= totalPages; i++) pages.push(i);
-    } else {
-      for (let i = currentPage - 2; i <= currentPage + 2; i++) pages.push(i);
-    }
-    return pages;
-  };
-
   const stats = useMemo(() => {
     const total = sessions.length;
     const completed = sessions.filter((s) => s.status === "completed").length;
@@ -266,8 +259,8 @@ export default function SystemDesignDashboardPage() {
     return (
       <div className="flex min-h-[400px] items-center justify-center">
         <div className="text-center">
-          <Loader2 className="mx-auto mb-4 h-12 w-12 animate-spin text-[rgb(37,99,235)]" />
-          <p className="text-gray-600">Loading your system design sessions…</p>
+          <Loader2 className="mx-auto mb-4 h-12 w-12 animate-spin text-[#7367F0]" />
+          <p className="text-muted-foreground">Loading your system design sessions…</p>
         </div>
       </div>
     );
@@ -286,12 +279,11 @@ export default function SystemDesignDashboardPage() {
 
   return (
     <div className="mx-auto w-full max-w-7xl space-y-4 lg:space-y-6">
-      <section className="relative overflow-hidden rounded-2xl border border-blue-200/60 bg-gradient-to-br from-blue-50 via-white to-indigo-50 p-6 shadow-sm sm:p-8">
-        <div className="pointer-events-none absolute -right-16 -top-16 z-0 h-48 w-48 rounded-full bg-blue-200/30 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-20 -left-10 z-0 h-56 w-56 rounded-full bg-indigo-200/25 blur-3xl" />
+      <section className="relative overflow-hidden rounded-xl bg-[#7367F0]/[0.04] px-4 pb-8 pt-4 sm:px-6 sm:pb-10 sm:pt-6 md:pb-12">
+        <div className="pointer-events-none absolute -right-16 -top-16 z-0 h-48 w-48 rounded-full bg-[#7367F0]/10 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-20 -left-10 z-0 h-56 w-56 rounded-full bg-violet-200/20 blur-3xl" />
 
-        {/* Floating system-design motifs — same motion pattern as coding practice hero */}
-        <div className="pointer-events-none absolute inset-0 z-[1] overflow-hidden rounded-2xl">
+        <div className="pointer-events-none absolute inset-0 z-[1] overflow-hidden rounded-xl">
           {[...Array(8)].map((_, i) => (
             <div
               key={`sd-net-${i}`}
@@ -304,7 +296,7 @@ export default function SystemDesignDashboardPage() {
                 animationDelay: `${i * 0.5}s`,
               }}
             >
-              <Network className="h-12 w-12 text-blue-400 sm:h-16 sm:w-16" aria-hidden />
+              <Network className="h-12 w-12 text-[#7367F0]/40 sm:h-16 sm:w-16" aria-hidden />
             </div>
           ))}
           {[...Array(8)].map((_, i) => (
@@ -319,7 +311,7 @@ export default function SystemDesignDashboardPage() {
                 animationDelay: `${i * 0.5}s`,
               }}
             >
-              <LayoutGrid className="h-10 w-10 text-indigo-300 sm:h-14 sm:w-14" aria-hidden />
+              <LayoutGrid className="h-10 w-10 text-[#7367F0]/30 sm:h-14 sm:w-14" aria-hidden />
             </div>
           ))}
           {[...Array(6)].map((_, i) => {
@@ -344,17 +336,17 @@ export default function SystemDesignDashboardPage() {
 
         <div className="relative z-10 grid gap-8 lg:grid-cols-[1.2fr_0.85fr] lg:items-center">
           <div className="motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-left-2 motion-safe:duration-700 motion-safe:ease-out">
-            <div className="inline-flex items-center gap-2 rounded-full border border-blue-200/70 bg-white/70 px-3 py-1 text-xs font-semibold text-blue-800 shadow-sm">
+            <div className="inline-flex items-center gap-2 rounded-full bg-[#7367F0]/10 px-3 py-1 text-xs font-semibold text-[#7367F0]">
               <Sparkles className="h-3.5 w-3.5" aria-hidden />
               Whiteboard + voice practice
             </div>
 
             <h1 className="mt-4 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl lg:text-4xl">
               Design{" "}
-              <span className="text-[rgb(37,99,235)]">systems</span>
+              <span className="text-[#7367F0]">systems</span>
               {" "}
               like it&apos;s{" "}
-              <span className="text-[rgb(37,99,235)]">interview</span> day
+              <span className="text-[#7367F0]">interview</span> day
             </h1>
             <p className="mt-3 max-w-2xl text-sm leading-relaxed text-slate-600 sm:text-base">
               Pick a prompt, sketch your architecture on the canvas, and get
@@ -364,7 +356,7 @@ export default function SystemDesignDashboardPage() {
 
             <ul className="mt-6 space-y-2 text-sm text-slate-700">
               <li className="flex items-start gap-2">
-                <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[rgb(37,99,235)] text-[11px] font-bold text-white">
+                <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#7367F0] text-[11px] font-bold text-white">
                   1
                 </span>
                 <span>
@@ -373,7 +365,7 @@ export default function SystemDesignDashboardPage() {
                 </span>
               </li>
               <li className="flex items-start gap-2">
-                <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[rgb(37,99,235)] text-[11px] font-bold text-white">
+                <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#7367F0] text-[11px] font-bold text-white">
                   2
                 </span>
                 <span>
@@ -382,7 +374,7 @@ export default function SystemDesignDashboardPage() {
                 </span>
               </li>
               <li className="flex items-start gap-2">
-                <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[rgb(37,99,235)] text-[11px] font-bold text-white">
+                <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#7367F0] text-[11px] font-bold text-white">
                   3
                 </span>
                 <span>
@@ -427,13 +419,13 @@ export default function SystemDesignDashboardPage() {
           </div>
 
           <div className="relative mx-auto w-full max-w-[420px] motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-4 motion-safe:duration-700 motion-safe:delay-150 motion-safe:ease-out lg:mx-0 lg:justify-self-end">
-            <div className="pointer-events-none absolute -left-8 top-10 hidden rotate-[-8deg] rounded-xl border border-blue-200/60 bg-white/70 px-3 py-2 text-[11px] font-semibold text-blue-800 shadow-sm sm:block">
+            <div className="pointer-events-none absolute -left-8 top-10 hidden rotate-[-8deg] rounded-xl border border-[#7367F0]/20 bg-white/80 px-3 py-2 text-[11px] font-semibold text-[#7367F0] shadow-sm sm:block">
               <div className="flex items-center gap-2">
                 <Network className="h-4 w-4" aria-hidden />
                 End-to-end flow
               </div>
             </div>
-            <div className="pointer-events-none absolute -right-6 bottom-6 hidden rotate-[6deg] rounded-xl border border-indigo-200/60 bg-white/70 px-3 py-2 text-[11px] font-semibold text-indigo-800 shadow-sm sm:block">
+            <div className="pointer-events-none absolute -right-6 bottom-6 hidden rotate-[6deg] rounded-xl border border-violet-200/60 bg-white/80 px-3 py-2 text-[11px] font-semibold text-violet-700 shadow-sm sm:block">
               <div className="flex items-center gap-2">
                 <GitBranch className="h-4 w-4" aria-hidden />
                 Tradeoffs + deep dives
@@ -446,65 +438,58 @@ export default function SystemDesignDashboardPage() {
 
       {sessions.length > 0 ? (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
-          <div className="flex min-h-0 min-w-0 items-start gap-3 rounded-md border border-blue-200/50 bg-gradient-to-br from-blue-50 to-blue-100/50 p-4 shadow-lg shadow-blue-500/10 sm:gap-4 sm:p-5">
-            <div className="min-w-0 flex-1 space-y-1.5">
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-xs font-bold text-[rgb(37,99,235)] sm:text-sm">
-                  Sessions
-                </p>
-                <p className="shrink-0 text-right text-xl font-bold tabular-nums text-slate-900 sm:text-2xl">
-                  {stats.total}
-                </p>
-              </div>
-            </div>
-          </div>
-          <div className="flex min-h-0 min-w-0 items-start gap-3 rounded-md border border-blue-200/50 bg-gradient-to-br from-blue-50 to-blue-100/50 p-4 shadow-lg shadow-blue-500/10 sm:gap-4 sm:p-5">
-            <div className="min-w-0 flex-1 space-y-1.5">
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-xs font-bold text-[rgb(37,99,235)] sm:text-sm">
-                  Completed
-                </p>
-                <p className="shrink-0 text-right text-xl font-bold tabular-nums text-slate-900 sm:text-2xl">
-                  {stats.completed}
-                </p>
-              </div>
-            </div>
-          </div>
-          <div className="flex min-h-0 min-w-0 items-start gap-3 rounded-md border border-blue-200/50 bg-gradient-to-br from-blue-50 to-blue-100/50 p-4 shadow-lg shadow-blue-500/10 sm:gap-4 sm:p-5">
-            <div className="min-w-0 flex-1 space-y-1.5">
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-xs font-bold text-[rgb(37,99,235)] sm:text-sm">
-                  Average score
-                </p>
-                <p className="shrink-0 text-right text-xl font-bold tabular-nums text-slate-900 sm:text-2xl">
-                  {stats.avgScore == null ? "—" : stats.avgScore.toFixed(1)}
-                </p>
-              </div>
-            </div>
-          </div>
+          <DashboardStatCard
+            theme="emerald"
+            label="Sessions"
+            value={stats.total}
+            icon={LayoutGrid}
+          />
+          <DashboardStatCard
+            theme="sky"
+            label="Completed"
+            value={stats.completed}
+            icon={CheckCircle}
+          />
+          <DashboardStatCard
+            theme="violet"
+            label="Average score"
+            value={stats.avgScore == null ? "—" : stats.avgScore.toFixed(1)}
+            icon={Target}
+            progress={stats.avgScore ?? undefined}
+          />
         </div>
       ) : null}
 
-      <div>
-        <h2 className="text-lg font-semibold text-slate-900">
-          System design history
-        </h2>
-        <p className="mt-1 text-sm text-slate-600">
-          Continue an in-progress session or open a completed review.
-        </p>
-      </div>
-
-      <Card className="border border-slate-200 bg-white">
+      <Card className="overflow-hidden rounded-xl border border-border/60 bg-card shadow-card">
+        <CardHeader className="border-b border-border/60 px-5 py-4">
+          <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
+            <div>
+              <CardTitle className="text-lg font-semibold text-foreground">
+                System design history
+              </CardTitle>
+              <CardDescription className="mt-1 text-sm">
+                Continue an in-progress session or open a completed review.
+              </CardDescription>
+            </div>
+            <Button
+              type="button"
+              onClick={() => setProblemDialogOpen(true)}
+              className={institutePrimaryClass}
+            >
+              Start New Session
+            </Button>
+          </div>
+        </CardHeader>
         <CardContent className="p-0">
           {sessions.length === 0 ? (
-            <div className="p-10 text-center">
-              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-slate-100">
-                <LayoutGrid className="h-6 w-6 text-slate-500" aria-hidden />
+            <div className="px-5 py-16 text-center">
+              <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-xl bg-[#7367F0]/10">
+                <LayoutGrid className="h-8 w-8 text-[#7367F0]" aria-hidden />
               </div>
-              <h3 className="mt-4 text-base font-semibold text-slate-900">
+              <h3 className="mb-2 text-lg font-semibold text-foreground">
                 No sessions yet
               </h3>
-              <p className="mt-2 text-sm text-slate-600">
+              <p className="mx-auto mb-8 max-w-md text-sm text-muted-foreground">
                 Start your first system design session to see it here.
               </p>
               <div className="mt-6 flex justify-center">
@@ -519,7 +504,7 @@ export default function SystemDesignDashboardPage() {
             </div>
           ) : (
             <>
-              <div className="divide-y divide-slate-100">
+              <div className="divide-y divide-border/60">
                 {paginatedSessions.map((row) => {
                   const score = sessionScore(row);
                   const chatCount = row.chatHistory?.length ?? 0;
@@ -532,7 +517,7 @@ export default function SystemDesignDashboardPage() {
                   return (
                     <div
                       key={row.sessionId}
-                      className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between"
+                      className="flex flex-col gap-3 px-5 py-4 transition-colors hover:bg-muted/30 sm:flex-row sm:items-center sm:justify-between"
                     >
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
@@ -624,46 +609,38 @@ export default function SystemDesignDashboardPage() {
               </div>
 
               {totalPages > 1 ? (
-                <div className="mt-6 flex flex-col gap-4 border-t border-slate-200 px-4 pb-4 pt-4 sm:flex-row sm:items-center sm:justify-between">
-                  <p className="text-sm text-gray-600">
-                    Page {currentPage} of {totalPages}
+                <div className="flex flex-col gap-3 border-t border-border/70 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-sm text-muted-foreground">
+                    Showing {(currentPage - 1) * ITEMS_PER_PAGE + 1} to{" "}
+                    {Math.min(currentPage * ITEMS_PER_PAGE, sessions.length)} of{" "}
+                    {sessions.length}
                   </p>
-                  <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex items-center gap-2">
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => goToPage(currentPage - 1)}
                       disabled={currentPage === 1}
-                      className="border-blue-300 text-[rgb(37,99,235)] transition-all hover:!border-[rgb(17,24,39)] hover:!bg-[rgb(17,24,39)] hover:!text-white disabled:cursor-not-allowed disabled:opacity-50"
+                      className={cn(
+                        instituteSecondaryClass,
+                        "disabled:cursor-not-allowed disabled:opacity-50",
+                      )}
                     >
                       <ChevronLeft className="mr-1 h-4 w-4" aria-hidden />
                       Previous
                     </Button>
-                    <div className="flex flex-wrap items-center gap-1">
-                      {getPageNumbers().map((pageNum) => (
-                        <Button
-                          key={pageNum}
-                          variant={
-                            currentPage === pageNum ? "default" : "outline"
-                          }
-                          size="sm"
-                          onClick={() => goToPage(pageNum)}
-                          className={
-                            currentPage === pageNum
-                              ? "!bg-[rgb(37,99,235)] border-0 text-white hover:!bg-[rgb(17,24,39)]"
-                              : "border-blue-300 text-[rgb(37,99,235)] transition-all hover:!border-[rgb(17,24,39)] hover:!bg-[rgb(17,24,39)] hover:!text-white"
-                          }
-                        >
-                          {pageNum}
-                        </Button>
-                      ))}
-                    </div>
+                    <span className="px-2 text-sm text-muted-foreground">
+                      {currentPage} / {totalPages}
+                    </span>
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => goToPage(currentPage + 1)}
                       disabled={currentPage === totalPages}
-                      className="border-blue-300 text-[rgb(37,99,235)] transition-all hover:!border-[rgb(17,24,39)] hover:!bg-[rgb(17,24,39)] hover:!text-white disabled:cursor-not-allowed disabled:opacity-50"
+                      className={cn(
+                        instituteSecondaryClass,
+                        "disabled:cursor-not-allowed disabled:opacity-50",
+                      )}
                     >
                       Next
                       <ChevronRight className="ml-1 h-4 w-4" aria-hidden />

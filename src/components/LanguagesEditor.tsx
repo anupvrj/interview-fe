@@ -82,8 +82,8 @@ export function LanguagesEditor({ languages, onChange }: LanguagesEditorProps) {
                     }}
                     className={`w-4 h-4 rounded-full border-2 transition-colors ${
                       lang.proficiency && lang.proficiency >= level
-                        ? "bg-blue-500 border-blue-500"
-                        : "bg-gray-200 border-gray-300 hover:border-blue-300"
+                        ? "bg-primary border-primary"
+                        : "bg-gray-200 border-gray-300 hover:border-border"
                     }`}
                     title={`Level ${level}${
                       level === 5

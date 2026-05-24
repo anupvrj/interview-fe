@@ -87,7 +87,7 @@ export default function InstituteSettingsPage() {
       />
 
       <Card className={cn(institutePanelClass, "overflow-hidden shadow-xl")}>
-        <CardHeader className="border-b border-blue-100/60 bg-gradient-to-r from-blue-50/50 to-white">
+        <CardHeader className="border-b border-border/60 bg-gradient-to-r from-muted/50 to-white">
           <CardTitle>Details</CardTitle>
           <CardDescription>Visible to candidates on sign-up and in emails where used</CardDescription>
         </CardHeader>

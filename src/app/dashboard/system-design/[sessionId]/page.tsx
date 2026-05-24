@@ -580,7 +580,7 @@ export default function SystemDesignSessionPage() {
         aria-hidden
       />
       <div
-        className="pointer-events-none fixed -right-20 bottom-1/3 h-56 w-56 rounded-full bg-blue-600/10 blur-3xl"
+        className="pointer-events-none fixed -right-20 bottom-1/3 h-56 w-56 rounded-full bg-primary/10 blur-3xl"
         aria-hidden
       />
 
@@ -704,7 +704,7 @@ export default function SystemDesignSessionPage() {
                 <Button
                   type="button"
                   size="sm"
-                  className="h-10 w-full rounded-xl bg-gradient-to-r from-violet-600 to-blue-600 text-sm font-semibold text-white shadow-md hover:from-violet-700 hover:to-blue-700 disabled:opacity-60"
+                  className="h-10 w-full rounded-xl bg-gradient-to-r from-violet-600 to-primary text-sm font-semibold text-white shadow-md hover:from-violet-700 hover:bg-slate-900 disabled:opacity-60"
                   disabled={recordingStarting}
                   onClick={() => void handleStartPracticeSession()}
                 >
@@ -795,8 +795,8 @@ export default function SystemDesignSessionPage() {
                               "size-10 shrink-0 rounded-full border-white/25 bg-black/75 p-0 shadow-lg backdrop-blur-sm hover:bg-black/90 disabled:pointer-events-none",
                               !(isRecording || recordingStarting) &&
                                 recordingStarted
-                                ? "border-blue-400/50 text-blue-300 hover:border-blue-400/70"
-                                : "text-blue-300/85 opacity-[0.42]",
+                                ? "border-primary/50 text-primary/50 hover:border-primary/70"
+                                : "text-primary/50/85 opacity-[0.42]",
                             )}
                             onClick={() => void handleRestoreScreenRecording()}
                           >
@@ -900,7 +900,7 @@ export default function SystemDesignSessionPage() {
                             key={r}
                             className="flex items-start gap-1.5 text-xs text-gray-300"
                           >
-                            <span className="mt-1 h-1 w-1 shrink-0 rounded-full bg-blue-400" />
+                            <span className="mt-1 h-1 w-1 shrink-0 rounded-full bg-primary/80" />
                             {r}
                           </li>
                         ))}

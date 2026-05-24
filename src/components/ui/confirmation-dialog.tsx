@@ -59,8 +59,8 @@ export function ConfirmationDialog({
         <AlertTriangle className="w-6 h-6 text-white" />
       </div>
     ) : (
-      <div className="w-12 h-12 mx-auto mb-4 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center shadow-lg">
-        <AlertTriangle className="w-6 h-6 text-white" />
+      <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary-muted text-primary shadow-card">
+        <AlertTriangle className="h-6 w-6" />
       </div>
     );
 
@@ -70,7 +70,7 @@ export function ConfirmationDialog({
         className={`sm:max-w-[425px] ${
           variant === "destructive"
             ? "border-red-200"
-            : "border-purple-200"
+            : "border-border"
         }`}
       >
         <AlertDialogHeader>
@@ -109,7 +109,7 @@ export function ConfirmationDialog({
               className={
                 variant === "destructive"
                   ? "bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-700 hover:to-orange-700 text-white shadow-lg hover:shadow-xl transition-all min-w-[100px]"
-                  : "bg-gradient-to-r from-landing-blue-600 to-landing-blue-700 hover:from-purple-700 hover:to-blue-700 text-white shadow-lg hover:shadow-xl transition-all min-w-[100px]"
+                  : "bg-primary hover:bg-slate-900 text-white shadow-lg hover:shadow-xl transition-all min-w-[100px]"
               }
             >
               {isProcessing || isLoading ? (

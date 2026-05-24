@@ -43,7 +43,7 @@ export default function PostInterviewFeedbackPage() {
     <div className="w-full flex justify-center py-6 sm:py-10 lg:py-12">
       <Card className="w-full max-w-3xl border-2 border-border bg-card shadow-xl">
         <CardHeader className="space-y-3 pb-2 text-left">
-          <div className="flex h-12 w-14 items-center justify-center rounded-xl bg-blue-50 text-[rgb(37,99,235)]">
+          <div className="flex h-12 w-14 items-center justify-center rounded-xl bg-muted/30 text-primary">
             <MessageSquareHeart className="h-6 w-6" aria-hidden />
           </div>
           <CardTitle className="text-2xl font-bold tracking-tight text-gray-900">

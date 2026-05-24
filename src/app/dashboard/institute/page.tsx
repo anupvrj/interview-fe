@@ -51,7 +51,7 @@ export default function InstituteHubPage() {
   if (!isLoaded || loading) {
     return (
       <div className="flex min-h-[320px] items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
@@ -80,13 +80,13 @@ export default function InstituteHubPage() {
               <Link
                 key={inst._id}
                 href={`/dashboard/institute/${inst._id}`}
-                className="flex cursor-pointer flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 bg-slate-50/80 px-3 py-2 transition-colors hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40"
+                className="flex cursor-pointer flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 bg-slate-50/80 px-3 py-2 transition-colors hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
               >
                 <div>
                   <p className="font-medium text-slate-900">{inst.name}</p>
                   <p className="text-xs text-slate-500">{inst.slug}</p>
                 </div>
-                <span className="text-sm font-semibold text-blue-700">Open dashboard</span>
+                <span className="text-sm font-semibold text-primary">Open dashboard</span>
               </Link>
             ))
           )}

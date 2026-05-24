@@ -2,127 +2,91 @@
 
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { SignedIn, SignedOut, UserButton } from "@clerk/nextjs";
-import { User } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { SignedIn, SignedOut } from "@clerk/nextjs";
 import { InterviewTrixLogo } from "@/components/InterviewTrixLogo";
-import { NavigationMenu } from "@/components/NavigationMenu";
+import {
+  PublicDesktopNav,
+  PublicMobileNav,
+} from "@/components/NavigationMenu";
+import { ProfileMenu } from "@/components/app/ProfileMenu";
+import { Button } from "@/components/ui/button";
+import {
+  institutePrimaryClass,
+  instituteSecondaryClass,
+} from "@/components/institute/InstituteChrome";
+import { cn } from "@/lib/utils";
 
 export type SiteHeaderProps = {
-  /** Mobile hamburger / drawer menu (default: shared `NavigationMenu`) */
-  mobileMenu?: ReactNode;
-  /** Desktop nav area before auth buttons (default: `NavigationMenu`) */
+  mobileNav?: ReactNode;
   desktopNav?: ReactNode;
 };
 
+function ProfileControl({ className }: { className?: string }) {
+  return (
+    <div className={cn("flex items-center gap-2 sm:gap-3", className)}>
+      <SignedOut>
+        <Button
+          variant="outline"
+          size="sm"
+          asChild
+          className={cn(
+            instituteSecondaryClass,
+            "hidden h-9 px-3 text-xs lg:inline-flex lg:text-sm",
+          )}
+        >
+          <Link href="/sign-in">Sign in</Link>
+        </Button>
+        <Button
+          size="sm"
+          asChild
+          className={cn(institutePrimaryClass, "h-9 px-3 text-xs sm:text-sm")}
+        >
+          <Link href="/sign-up">
+            <span className="hidden min-[420px]:inline">Start New Interview</span>
+            <span className="min-[420px]:hidden">Get started</span>
+          </Link>
+        </Button>
+      </SignedOut>
+      <SignedIn>
+        <ProfileMenu />
+      </SignedIn>
+    </div>
+  );
+}
+
 export function SiteHeader({
-  mobileMenu = <NavigationMenu />,
-  desktopNav = <NavigationMenu />,
+  mobileNav = <PublicMobileNav />,
+  desktopNav = <PublicDesktopNav />,
 }: SiteHeaderProps) {
   return (
-    <nav className="fixed top-0 w-full z-50">
-      <div
-        className="sm:hidden h-1"
-        style={{ backgroundColor: "rgb(37 99 235 / var(--tw-bg-opacity, 1))" }}
-      />
-      <div className="bg-white/95 backdrop-blur-xl border-b border-gray-100">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-14 sm:h-16 lg:h-20">
-            <div className="flex items-center justify-between w-full sm:w-auto sm:justify-start sm:gap-4">
-              <div className="sm:hidden">{mobileMenu}</div>
-
-              <Link
-                href="/"
-                className="flex items-center hover:opacity-80 transition-opacity mx-auto sm:mx-0"
-              >
-                <InterviewTrixLogo
-                  variant="onLightBg"
-                  className="h-7 w-auto sm:hidden"
-                  priority
-                />
-                <InterviewTrixLogo
-                  className="hidden sm:block h-8 lg:h-10 w-auto"
-                  priority
-                />
-              </Link>
-
-              <div className="flex items-center gap-3 sm:hidden">
-                <SignedOut>
-                  <Link href="/sign-in" className="p-1">
-                    <User className="w-5 h-5 text-slate-900" />
-                  </Link>
-                </SignedOut>
-                <SignedIn>
-                  <UserButton
-                    appearance={{
-                      elements: {
-                        avatarBox:
-                          "w-6 h-6 ring-2 ring-blue-100 hover:ring-blue-300 transition-all",
-                        userButtonPopoverCard: "shadow-2xl border-2 border-blue-100",
-                        userButtonPopoverActionButton:
-                          "hover:bg-blue-50 transition-colors text-gray-700 font-medium",
-                        userButtonPopoverActionButtonIcon: "text-blue-600",
-                      },
-                    }}
-                    afterSignOutUrl="/"
-                    userProfileMode="navigation"
-                    userProfileUrl="/dashboard/profile"
-                  />
-                </SignedIn>
-              </div>
-            </div>
-
-            <div className="hidden sm:flex items-center gap-4 sm:gap-6">
-              {desktopNav}
-              <SignedOut>
-                <Link href="/sign-in">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-xs sm:text-sm px-2 sm:px-4"
-                  >
-                    Sign In
-                  </Button>
-                </Link>
-                <Link href="/sign-up">
-                  <Button
-                    size="sm"
-                    className="bg-blue-600 hover:bg-blue-700 text-white font-medium shadow-sm transition-all text-xs sm:text-sm px-4 py-2"
-                  >
-                    Get Started
-                  </Button>
-                </Link>
-              </SignedOut>
-              <SignedIn>
-                <Link href="/dashboard" className="hidden md:block">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="text-xs sm:text-sm px-2 sm:px-4"
-                  >
-                    Dashboard
-                  </Button>
-                </Link>
-                <UserButton
-                  appearance={{
-                    elements: {
-                      avatarBox:
-                        "w-8 h-8 sm:w-9 sm:h-9 lg:w-10 lg:h-10 ring-2 ring-blue-100 hover:ring-blue-300 transition-all",
-                      userButtonPopoverCard: "shadow-2xl border-2 border-blue-100",
-                      userButtonPopoverActionButton:
-                        "hover:bg-blue-50 transition-colors text-gray-700 font-medium",
-                      userButtonPopoverActionButtonIcon: "text-blue-600",
-                    },
-                  }}
-                  afterSignOutUrl="/"
-                  userProfileMode="navigation"
-                  userProfileUrl="/dashboard/profile"
-                />
-              </SignedIn>
-            </div>
+    <header className="fixed top-0 z-50 w-full border-b border-border/60 bg-header/95 shadow-header backdrop-blur-sm">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Mobile: hamburger left · logo center · profile right */}
+        <div className="grid h-14 grid-cols-3 items-center sm:h-16 lg:hidden">
+          <div className="justify-self-start">{mobileNav}</div>
+          <Link
+            href="/"
+            className="justify-self-center transition-opacity hover:opacity-80"
+          >
+            <InterviewTrixLogo variant="onLightBg" className="h-7 w-auto" priority />
+          </Link>
+          <div className="justify-self-end">
+            <ProfileControl />
           </div>
         </div>
+
+        {/* Desktop */}
+        <div className="hidden h-[4.25rem] items-center gap-6 lg:flex">
+          <Link
+            href="/"
+            className="flex shrink-0 items-center transition-opacity hover:opacity-80"
+          >
+            <InterviewTrixLogo className="h-8 w-auto xl:h-9" priority />
+          </Link>
+          <div className="flex flex-1 justify-center">{desktopNav}</div>
+          <ProfileControl />
+        </div>
       </div>
-    </nav>
+    </header>
   );
 }

@@ -391,9 +391,9 @@ export default function InstituteSchedulesPage() {
       />
 
       <Card className={cn(institutePanelClass, "overflow-hidden shadow-xl")}>
-        <CardHeader className="border-b border-blue-100/60 bg-gradient-to-r from-blue-50/50 to-white">
+        <CardHeader className="border-b border-border/60 bg-gradient-to-r from-muted/50 to-white">
           <CardTitle className="flex items-center gap-2 text-lg">
-            <CalendarClock className="h-5 w-5 text-[rgb(37,99,235)]" />
+            <CalendarClock className="h-5 w-5 text-primary" />
             Upcoming & pending
           </CardTitle>
           <CardDescription>
@@ -405,10 +405,10 @@ export default function InstituteSchedulesPage() {
         <CardContent className="pt-6">
           {loading ? (
             <div className="flex justify-center py-12">
-              <Loader2 className="h-8 w-8 animate-spin text-[rgb(37,99,235)]" />
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
           ) : pending.length === 0 ? (
-            <p className="rounded-xl border border-dashed border-blue-200/60 bg-blue-50/30 px-4 py-8 text-center text-sm text-slate-600">
+            <p className="rounded-xl border border-dashed border-border/60 bg-muted/20 px-4 py-8 text-center text-sm text-slate-600">
               No pending schedules.
             </p>
           ) : (
@@ -498,7 +498,7 @@ export default function InstituteSchedulesPage() {
                 </TableHeader>
                 <TableBody>
                   {filteredPending.map((s) => (
-                    <TableRow key={s._id} className="border-slate-100 hover:bg-blue-50/40">
+                    <TableRow key={s._id} className="border-slate-100 hover:bg-muted/40">
                       <TableCell className="whitespace-nowrap">
                         {new Date(s.scheduledAt).toLocaleString()}
                       </TableCell>
@@ -760,7 +760,7 @@ export default function InstituteSchedulesPage() {
                       <button
                         type="button"
                         className={`flex w-full flex-col items-start gap-0.5 px-3 py-2 text-left text-sm hover:bg-slate-50 ${
-                          scheduleSelectedUser?.clerkId === u.clerkId ? "bg-blue-50" : ""
+                          scheduleSelectedUser?.clerkId === u.clerkId ? "bg-muted/30" : ""
                         }`}
                         onClick={() => setScheduleSelectedUser(u)}
                       >

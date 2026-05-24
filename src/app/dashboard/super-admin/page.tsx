@@ -520,7 +520,7 @@ export default function SuperAdminPage() {
   if (!profile) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
     );
   }
@@ -528,17 +528,17 @@ export default function SuperAdminPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-          <Shield className="w-7 h-7 text-amber-600" />
+        <h1 className="flex items-center gap-2 text-2xl font-bold text-foreground">
+          <Shield className="h-7 w-7 text-[#7367F0]" />
           Super Admin
         </h1>
-        <p className="text-slate-600 mt-1">
+        <p className="mt-1 text-muted-foreground">
           InterviewTrix internal admin - manage institutions and platform users
         </p>
       </div>
 
-      <Card>
-        <CardHeader>
+      <Card className="overflow-hidden rounded-xl border border-border/60 bg-card shadow-card">
+        <CardHeader className="border-b border-border/60 px-5 py-4">
           <CardTitle className="flex items-center gap-2">
             <Building2 className="w-5 h-5" />
             Institutions
@@ -557,21 +557,21 @@ export default function SuperAdminPage() {
             <p className="text-slate-500">No institutions yet</p>
           ) : (
             <div className="overflow-x-auto w-full">
-              <Table className="min-w-[720px]">
+              <Table className="min-w-[720px] border-collapse text-left">
                 <TableHeader>
-                  <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Slug</TableHead>
-                    <TableHead>Domain</TableHead>
-                    <TableHead>Contact</TableHead>
-                    <TableHead>Users</TableHead>
-                    <TableHead>Max users</TableHead>
-                    <TableHead className="text-right">Dashboard & actions</TableHead>
+                  <TableRow className="border-b border-border/70 hover:bg-transparent">
+                    <TableHead className="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-[#a8aaae]">Name</TableHead>
+                    <TableHead className="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-[#a8aaae]">Slug</TableHead>
+                    <TableHead className="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-[#a8aaae]">Domain</TableHead>
+                    <TableHead className="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-[#a8aaae]">Contact</TableHead>
+                    <TableHead className="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-[#a8aaae]">Users</TableHead>
+                    <TableHead className="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-[#a8aaae]">Max users</TableHead>
+                    <TableHead className="px-5 py-3 text-right text-[11px] font-semibold uppercase tracking-[0.06em] text-[#a8aaae]">Dashboard & actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {institutions.map((inst) => (
-                    <TableRow key={inst._id}>
+                    <TableRow key={inst._id} className="border-b border-border/60 hover:bg-muted/30">
                       <TableCell className="font-medium">{inst.name}</TableCell>
                       <TableCell>{inst.slug}</TableCell>
                       <TableCell>{inst.domain || "—"}</TableCell>
@@ -624,8 +624,8 @@ export default function SuperAdminPage() {
       </Card>
 
       {schedules.filter((s) => s.status === "scheduled").length > 0 && (
-        <Card>
-          <CardHeader>
+        <Card className="overflow-hidden rounded-xl border border-border/60 bg-card shadow-card">
+          <CardHeader className="border-b border-border/60 px-5 py-4">
             <CardTitle className="flex items-center gap-2">
               <CalendarClock className="h-5 w-5" />
               Scheduled interviews
@@ -638,11 +638,11 @@ export default function SuperAdminPage() {
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow>
-                    <TableHead>When</TableHead>
-                    <TableHead>Candidate</TableHead>
-                    <TableHead>Role</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
+                  <TableRow className="border-b border-border/70 hover:bg-transparent">
+                    <TableHead className="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-[#a8aaae]">When</TableHead>
+                    <TableHead className="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-[#a8aaae]">Candidate</TableHead>
+                    <TableHead className="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-[#a8aaae]">Role</TableHead>
+                    <TableHead className="px-5 py-3 text-right text-[11px] font-semibold uppercase tracking-[0.06em] text-[#a8aaae]">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -693,8 +693,8 @@ export default function SuperAdminPage() {
         </Card>
       )}
 
-      <Card>
-        <CardHeader>
+      <Card className="overflow-hidden rounded-xl border border-border/60 bg-card shadow-card">
+        <CardHeader className="border-b border-border/60 px-5 py-4">
           <CardTitle className="flex items-center gap-2">
             <Users className="w-5 h-5" />
             All Users
@@ -719,28 +719,28 @@ export default function SuperAdminPage() {
         <CardContent>
           {loading ? (
             <div className="flex justify-center py-12">
-              <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+              <Loader2 className="w-8 h-8 animate-spin text-primary" />
             </div>
           ) : (
             <div className="overflow-x-auto w-full">
-              <Table className="min-w-[1080px]">
+              <Table className="min-w-[1080px] border-collapse text-left">
                 <TableHeader>
-                  <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead className="whitespace-nowrap">Default upload</TableHead>
-                    <TableHead>Role</TableHead>
-                    <TableHead>Institution</TableHead>
-                    <TableHead>Plan</TableHead>
-                    <TableHead>Credits</TableHead>
-                    <TableHead className="whitespace-nowrap">Avg. interview score</TableHead>
-                    <TableHead>Joined</TableHead>
-                    <TableHead className="text-right whitespace-nowrap">Actions</TableHead>
+                  <TableRow className="border-b border-border/70 hover:bg-transparent">
+                    <TableHead className="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-[#a8aaae]">Name</TableHead>
+                    <TableHead className="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-[#a8aaae]">Email</TableHead>
+                    <TableHead className="whitespace-nowrap px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-[#a8aaae]">Default upload</TableHead>
+                    <TableHead className="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-[#a8aaae]">Role</TableHead>
+                    <TableHead className="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-[#a8aaae]">Institution</TableHead>
+                    <TableHead className="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-[#a8aaae]">Plan</TableHead>
+                    <TableHead className="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-[#a8aaae]">Credits</TableHead>
+                    <TableHead className="whitespace-nowrap px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-[#a8aaae]">Avg. interview score</TableHead>
+                    <TableHead className="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-[#a8aaae]">Joined</TableHead>
+                    <TableHead className="whitespace-nowrap px-5 py-3 text-right text-[11px] font-semibold uppercase tracking-[0.06em] text-[#a8aaae]">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {users.map((u) => (
-                  <TableRow key={u._id}>
+                  <TableRow key={u._id} className="border-b border-border/60 hover:bg-muted/30">
                     <TableCell className="font-medium">{u.name}</TableCell>
                     <TableCell>{u.email}</TableCell>
                     <TableCell className="whitespace-nowrap">
@@ -780,7 +780,7 @@ export default function SuperAdminPage() {
                             (u as any).accessRole === "super_admin"
                               ? "bg-amber-50 border-amber-200"
                               : (u as any).accessRole === "institution_admin"
-                              ? "bg-blue-50 border-blue-200"
+                              ? "bg-muted/30 border-border"
                               : ""
                           }`}
                           onClick={() =>
@@ -794,7 +794,7 @@ export default function SuperAdminPage() {
                               (u as any).accessRole === "super_admin"
                                 ? "text-amber-800"
                                 : (u as any).accessRole === "institution_admin"
-                                ? "text-blue-800"
+                                ? "text-primary"
                                 : "text-gray-700"
                             }`}
                           >

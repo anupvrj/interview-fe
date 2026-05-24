@@ -22,8 +22,8 @@ import {
   ArrowDownRight,
 } from "lucide-react";
 import { Interview, interviewApi } from "@/lib/api";
-import { getInterviewCreditsUsed, getScoreColor } from "@/lib/utils";
-import { Progress } from "@/components/ui/progress";
+import { getInterviewCreditsUsed } from "@/lib/utils";
+import { DashboardStatCard } from "@/components/dashboard/DashboardStatCard";
 import {
   Bar,
   BarChart,
@@ -123,8 +123,8 @@ export default function AnalyticsPage() {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
-          <Loader2 className="w-12 h-12 animate-spin text-[rgb(37,99,235)] mx-auto mb-4" />
-          <p className="text-gray-600">Loading analytics...</p>
+          <Loader2 className="w-12 h-12 animate-spin text-[#7367F0] mx-auto mb-4" />
+          <p className="text-muted-foreground">Loading analytics...</p>
         </div>
       </div>
     );
@@ -197,135 +197,77 @@ export default function AnalyticsPage() {
 
   return (
     <div className="w-full max-w-7xl mx-auto space-y-4 lg:space-y-6">
-      {/* Hero Header Section */}
-      <div className="relative overflow-hidden rounded-md bg-gradient-to-br from-blue-600 via-blue-700 to-blue-800 px-4 py-3 sm:px-5 sm:py-4 text-white shadow-lg">
-        <div className="relative z-10">
-          <div className="mb-1.5 flex min-w-0 items-center gap-2.5">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-white/20 shadow-sm backdrop-blur-sm sm:h-9 sm:w-9">
-              <BarChart3 className="h-4 w-4" />
-            </div>
-            <h1 className="truncate text-lg font-bold leading-tight text-white sm:text-xl lg:text-2xl">
+      <section className="relative overflow-hidden rounded-xl bg-[#7367F0]/[0.04] px-4 py-4 sm:px-5 sm:py-5">
+        <div className="relative z-10 flex min-w-0 items-start gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#7367F0]/10 text-[#7367F0] sm:h-11 sm:w-11">
+            <BarChart3 className="h-5 w-5" />
+          </div>
+          <div className="min-w-0">
+            <h1 className="text-lg font-bold text-foreground sm:text-xl lg:text-2xl">
               Analytics
             </h1>
+            <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+              See how AI Interview Practice and coding mocks trend between sessions so you can
+              double down on weak dimensions before peer reviews and final rounds.
+            </p>
           </div>
-          <p className="max-w-2xl text-[10px] leading-tight text-white/85 sm:text-xs md:text-sm">
-            See how AI Interview Practice and coding mocks trend between sessions so you can
-            double down on weak dimensions before peer reviews and final rounds.
-          </p>
         </div>
-        <div className="absolute inset-0 bg-gradient-to-r from-blue-600/40 to-transparent opacity-40"></div>
-        <div className="absolute right-0 top-0 h-44 w-44 rounded-full bg-white/10 blur-3xl"></div>
-        <div className="absolute bottom-0 left-0 h-32 w-32 rounded-full bg-blue-500/20 blur-2xl"></div>
-      </div>
+      </section>
 
-      {/* Stats Cards */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4">
-        {/* Total Interviews */}
-        <div className="flex min-h-0 min-w-0 items-start gap-3 rounded-md border border-blue-200/50 bg-gradient-to-br from-blue-50 to-blue-100/50 p-4 shadow-lg shadow-blue-500/10 backdrop-blur-sm transition-all duration-300 hover:shadow-xl hover:shadow-blue-500/20 sm:gap-4 sm:p-5">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[rgb(37,99,235)] to-blue-600 shadow-lg shadow-blue-500/30 ring-2 ring-blue-200/50 sm:h-12 sm:w-12">
-            <FileText className="h-5 w-5 text-white sm:h-6 sm:w-6" />
-          </div>
-          <div className="min-w-0 flex-1 space-y-1.5">
-            <div className="flex items-center justify-between gap-2">
-              <p className="min-w-0 truncate text-xs font-bold leading-tight text-[rgb(37,99,235)] sm:text-sm">
-                Total Interviews
-              </p>
-              <p className="shrink-0 text-right text-lg font-bold tabular-nums leading-none text-slate-900 sm:text-xl lg:text-2xl">
-                {stats.totalInterviews}
-              </p>
-            </div>
-            <div className="flex flex-wrap items-center gap-1.5 text-xs font-medium text-slate-600 sm:text-sm">
+        <DashboardStatCard
+          theme="emerald"
+          label="Total Interviews"
+          value={stats.totalInterviews}
+          icon={FileText}
+          hint={
+            <>
               <Clock className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
               <span>All time</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Average Score */}
-        <div className="flex min-h-0 min-w-0 items-start gap-3 rounded-md border border-blue-200/50 bg-gradient-to-br from-blue-50 to-blue-100/50 p-4 shadow-lg shadow-blue-500/10 backdrop-blur-sm transition-all duration-300 hover:shadow-xl hover:shadow-blue-500/20 sm:gap-4 sm:p-5">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[rgb(37,99,235)] to-blue-600 shadow-lg shadow-blue-500/30 ring-2 ring-blue-200/50 sm:h-12 sm:w-12">
-            <Award className="h-5 w-5 text-white sm:h-6 sm:w-6" />
-          </div>
-          <div className="min-w-0 flex-1 space-y-1.5">
-            <div className="flex items-center justify-between gap-2">
-              <p className="min-w-0 truncate text-xs font-bold leading-tight text-[rgb(37,99,235)] sm:text-sm">
-                Average Score
-              </p>
-              <p
-                className={`shrink-0 text-right text-lg font-bold tabular-nums leading-none sm:text-xl lg:text-2xl ${getScoreColor(
-                  stats.averageScore
-                )}`}
-              >
-                {stats.averageScore}/100
-              </p>
-            </div>
-            <Progress
-              value={stats.averageScore}
-              className="h-2 w-full overflow-hidden rounded-full border border-blue-300/90 bg-blue-100/90 shadow-[inset_0_1px_2px_rgba(0,0,0,0.06)] sm:h-2.5"
-            />
-            <div className="flex flex-wrap items-center gap-1.5 text-xs font-medium text-slate-600 sm:text-sm">
+            </>
+          }
+        />
+        <DashboardStatCard
+          theme="violet"
+          label="Average Score"
+          value={`${stats.averageScore}/100`}
+          icon={Award}
+          progress={stats.averageScore}
+          hint={
+            <>
               <Percent className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
               <span>Out of 100</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Completed */}
-        <div className="flex min-h-0 min-w-0 items-start gap-3 rounded-md border border-blue-200/50 bg-gradient-to-br from-blue-50 to-blue-100/50 p-4 shadow-lg shadow-blue-500/10 backdrop-blur-sm transition-all duration-300 hover:shadow-xl hover:shadow-blue-500/20 sm:gap-4 sm:p-5">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[rgb(37,99,235)] to-blue-600 shadow-lg shadow-blue-500/30 ring-2 ring-blue-200/50 sm:h-12 sm:w-12">
-            <CheckCircle className="h-5 w-5 text-white sm:h-6 sm:w-6" />
-          </div>
-          <div className="min-w-0 flex-1 space-y-1.5">
-            <div className="flex items-center justify-between gap-2">
-              <p className="min-w-0 truncate text-xs font-bold leading-tight text-[rgb(37,99,235)] sm:text-sm">
-                Completed
-              </p>
-              <p className="shrink-0 text-right text-lg font-bold tabular-nums leading-none text-slate-900 sm:text-xl lg:text-2xl">
-                {stats.completedInterviews}
-              </p>
-            </div>
-            <div className="flex flex-wrap items-center gap-1.5 text-xs font-medium text-slate-600 sm:text-sm">
+            </>
+          }
+        />
+        <DashboardStatCard
+          theme="sky"
+          label="Completed"
+          value={stats.completedInterviews}
+          icon={CheckCircle}
+          hint={
+            <>
               <CheckCircle className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
               <span>Finished interviews</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Improvement */}
-        <div className="flex min-h-0 min-w-0 items-start gap-3 rounded-md border border-blue-200/50 bg-gradient-to-br from-blue-50 to-blue-100/50 p-4 shadow-lg shadow-blue-500/10 backdrop-blur-sm transition-all duration-300 hover:shadow-xl hover:shadow-blue-500/20 sm:gap-4 sm:p-5">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[rgb(37,99,235)] to-blue-600 shadow-lg shadow-blue-500/30 ring-2 ring-blue-200/50 sm:h-12 sm:w-12">
-            <TrendingUp className="h-5 w-5 text-white sm:h-6 sm:w-6" />
-          </div>
-          <div className="min-w-0 flex-1 space-y-1.5">
-            <div className="flex items-center justify-between gap-2">
-              <p className="min-w-0 truncate text-xs font-bold leading-tight text-[rgb(37,99,235)] sm:text-sm">
-                Improvement
-              </p>
-              <p
-                className={`shrink-0 text-right text-lg font-bold tabular-nums leading-none sm:text-xl lg:text-2xl ${
-                  stats.improvement >= 0 ? "text-green-600" : "text-red-600"
-                }`}
-              >
-                {stats.improvement !== undefined && !Number.isNaN(stats.improvement) ? (
-                  <>
-                    {stats.improvement >= 0 ? "+" : ""}
-                    {stats.improvement}%
-                  </>
-                ) : (
-                  "0%"
-                )}
-              </p>
-            </div>
-            <div className="flex flex-wrap items-center gap-1.5 text-xs font-medium text-slate-600 sm:text-sm">
+            </>
+          }
+        />
+        <DashboardStatCard
+          theme="amber"
+          label="Improvement"
+          value={`${stats.improvement >= 0 ? "+" : ""}${stats.improvement}%`}
+          icon={TrendingUp}
+          hint={
+            <>
               <TrendingUp className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
               <span>Since first interview</span>
-            </div>
-          </div>
-        </div>
+            </>
+          }
+        />
       </div>
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
-        <Card className="rounded-md border border-border bg-card shadow-sm xl:col-span-2">
+        <Card className="overflow-hidden rounded-xl border border-border/60 bg-card shadow-card xl:col-span-2">
           <CardHeader className="pb-2">
             <CardTitle className="text-lg text-slate-900">
               Daily interviews and score trend
@@ -358,7 +300,7 @@ export default function AnalyticsPage() {
                   yAxisId="left"
                   dataKey="interviews"
                   name="Interviews"
-                  fill="rgb(37,99,235)"
+                  fill="#7367F0"
                   radius={[4, 4, 0, 0]}
                 />
                 <Line
@@ -376,7 +318,7 @@ export default function AnalyticsPage() {
           </CardContent>
         </Card>
 
-        <Card className="rounded-md border border-border bg-card shadow-sm">
+        <Card className="overflow-hidden rounded-xl border border-border/60 bg-card shadow-card">
           <CardHeader className="pb-2">
             <CardTitle className="text-lg text-slate-900">Insights</CardTitle>
             <CardDescription>Quick performance summary</CardDescription>
@@ -413,7 +355,7 @@ export default function AnalyticsPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-        <Card className="rounded-md border border-border bg-card shadow-sm">
+        <Card className="overflow-hidden rounded-xl border border-border/60 bg-card shadow-card">
           <CardHeader className="pb-2">
             <CardTitle className="text-lg text-slate-900">
               Daily token spend
@@ -440,7 +382,7 @@ export default function AnalyticsPage() {
           </CardContent>
         </Card>
 
-        <Card className="rounded-md border border-border bg-card shadow-sm">
+        <Card className="overflow-hidden rounded-xl border border-border/60 bg-card shadow-card">
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between gap-2">
               <CardTitle className="text-lg text-slate-900">

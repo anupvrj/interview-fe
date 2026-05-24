@@ -26,8 +26,8 @@ const Slider = React.forwardRef<
           variant === "accent"
             ? "bg-red-600"
             : variant === "primary"
-              ? "bg-[rgb(37,99,235)]"
-              : "bg-landing-blue-700"
+              ? "bg-primary"
+              : "bg-primary"
         )}
       />
     </SliderPrimitive.Track>
@@ -37,7 +37,7 @@ const Slider = React.forwardRef<
         variant === "accent"
           ? "border-red-600 focus-visible:ring-red-500"
           : variant === "primary"
-            ? "border-[rgb(37,99,235)] focus-visible:ring-blue-500"
+            ? "border-primary focus-visible:ring-blue-500"
             : "border-purple-600 focus-visible:ring-purple-500"
       )}
     />

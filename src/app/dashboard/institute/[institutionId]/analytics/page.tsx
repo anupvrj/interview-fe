@@ -121,7 +121,7 @@ export default function InstituteAnalyticsPage() {
                 yAxisId="left"
                 dataKey="interviews"
                 name="Interviews"
-                fill="rgb(37,99,235)"
+                fill="hsl(var(--primary))"
                 radius={[4, 4, 0, 0]}
               />
               <Bar
@@ -176,8 +176,8 @@ export default function InstituteAnalyticsPage() {
                 {data.totals.schedulesPending}
               </p>
             </div>
-            <div className="rounded-md border border-blue-200 bg-blue-50 p-3">
-              <p className="text-xs font-semibold text-blue-700">Started</p>
+            <div className="rounded-md border border-border bg-muted/30 p-3">
+              <p className="text-xs font-semibold text-primary">Started</p>
               <p className="text-2xl font-bold tabular-nums text-slate-900">
                 {data.totals.schedulesStarted}
               </p>
@@ -217,7 +217,7 @@ export default function InstituteAnalyticsPage() {
                   interval={0}
                 />
                 <Tooltip contentStyle={{ borderRadius: 8, borderColor: "#cbd5e1" }} />
-                <Bar dataKey="averageScore" name="Avg score" fill="rgb(37,99,235)" radius={[0, 4, 4, 0]} />
+                <Bar dataKey="averageScore" name="Avg score" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>

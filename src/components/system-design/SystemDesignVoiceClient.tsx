@@ -792,7 +792,7 @@ export const SystemDesignVoiceClient = forwardRef<
                 type="button"
                 size="sm"
                 className={cn(
-                  "rounded-xl bg-gradient-to-r from-violet-600 to-blue-600 text-white hover:from-violet-700 hover:to-blue-700",
+                  "rounded-xl bg-gradient-to-r from-violet-600 to-primary text-white hover:from-violet-700 hover:bg-slate-900",
                   compact ? "h-7 px-3 text-[11px]" : "h-8 px-4 text-xs",
                 )}
                 disabled={startupInFlight}

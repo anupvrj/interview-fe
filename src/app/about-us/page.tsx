@@ -7,7 +7,6 @@ import {
   Mic,
   TrendingUp,
   Award,
-  Brain,
   Clock,
   Globe,
   ArrowRight,
@@ -27,6 +26,8 @@ import {
 import { SiteHeader } from "@/components/SiteHeader";
 import { MarketingFooter } from "@/components/MarketingFooter";
 import { ScrollSection } from "@/components/ScrollSection";
+import { appMarketingSection, appMarketingSectionAlt } from "@/lib/app-theme";
+import { cn } from "@/lib/utils";
 
 export default function AboutPage() {
   const [timelineProgress, setTimelineProgress] = useState(0);
@@ -114,131 +115,26 @@ export default function AboutPage() {
   }, [isMobile]);
 
   return (
-    <div className="min-h-screen bg-white scroll-smooth selection:bg-blue-100">
+    <div className="min-h-screen bg-background scroll-smooth selection:bg-info-muted">
       <SiteHeader />
 
-      {/* About Us Hero Section */}
-      <section className="pt-24 sm:pt-28 lg:pt-32 pb-12 sm:pb-16 px-4 sm:px-6 relative overflow-hidden">
-        <div 
-          className="absolute inset-0"
-          style={{
-            background: 'linear-gradient(135deg, #60A5FA 0%, #3B82F6 50%, #2563EB 100%)'
-          }}
-        ></div>
-        {/* Animated Background Icons */}
-        <div className="absolute inset-0 pointer-events-none z-10">
-          {[...Array(8)].map((_, i) => {
-            const positions = [
-              { left: '5%', top: '10%' },
-              { left: '25%', top: '5%' },
-              { left: '45%', top: '15%' },
-              { left: '65%', top: '8%' },
-              { left: '85%', top: '12%' },
-              { left: '15%', top: '25%' },
-              { left: '55%', top: '30%' },
-              { left: '75%', top: '22%' },
-            ];
-            return (
-              <div
-                key={`mic-${i}`}
-                className="absolute opacity-20"
-                style={{
-                  left: positions[i].left,
-                  top: positions[i].top,
-                  animation: `float-${i % 3} ${5 + (i % 3) * 2}s ease-in-out infinite`,
-                  animationDelay: `${i * 0.3}s`,
-                }}
-              >
-                <Mic className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
-              </div>
-            );
-          })}
-          {[...Array(8)].map((_, i) => {
-            const positions = [
-              { left: '10%', top: '50%' },
-              { left: '30%', top: '45%' },
-              { left: '50%', top: '55%' },
-              { left: '70%', top: '48%' },
-              { left: '90%', top: '52%' },
-              { left: '20%', top: '65%' },
-              { left: '60%', top: '70%' },
-              { left: '80%', top: '62%' },
-            ];
-            return (
-              <div
-                key={`brain-${i}`}
-                className="absolute opacity-20"
-                style={{
-                  left: positions[i].left,
-                  top: positions[i].top,
-                  animation: `float-${i % 3} ${6 + (i % 2) * 2}s ease-in-out infinite`,
-                  animationDelay: `${i * 0.4}s`,
-                }}
-              >
-                <Brain className="w-7 h-7 sm:w-9 sm:h-9 text-white" />
-              </div>
-            );
-          })}
-          {[...Array(6)].map((_, i) => {
-            const positions = [
-              { left: '8%', top: '35%' },
-              { left: '35%', top: '28%' },
-              { left: '62%', top: '38%' },
-              { left: '88%', top: '32%' },
-              { left: '18%', top: '80%' },
-              { left: '72%', top: '85%' },
-            ];
-            return (
-              <div
-                key={`message-${i}`}
-                className="absolute opacity-20"
-                style={{
-                  left: positions[i].left,
-                  top: positions[i].top,
-                  animation: `float-${i % 3} ${7 + (i % 2) * 2}s ease-in-out infinite`,
-                  animationDelay: `${i * 0.5}s`,
-                }}
-              >
-                <MessageSquare className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
-              </div>
-            );
-          })}
-          {[...Array(6)].map((_, i) => {
-            const positions = [
-              { left: '15%', top: '20%' },
-              { left: '40%', top: '12%' },
-              { left: '68%', top: '18%' },
-              { left: '92%', top: '25%' },
-              { left: '12%', top: '75%' },
-              { left: '58%', top: '78%' },
-            ];
-            return (
-              <div
-                key={`sparkles-${i}`}
-                className="absolute opacity-15"
-                style={{
-                  left: positions[i].left,
-                  top: positions[i].top,
-                  animation: `float-${i % 3} ${5 + (i % 3) * 2}s ease-in-out infinite`,
-                  animationDelay: `${i * 0.35}s`,
-                }}
-              >
-                <Sparkles className="w-5 h-5 sm:w-7 sm:h-7 text-white" />
-              </div>
-            );
-          })}
-        </div>
-        <div className="container mx-auto max-w-4xl relative z-10">
+      <section
+        className={cn(
+          appMarketingSection,
+          "relative overflow-hidden px-4 pb-12 pt-24 sm:px-6 sm:pb-16 sm:pt-28 lg:pt-32",
+        )}
+      >
+        <div className="relative z-10 container mx-auto max-w-4xl">
           <div className="text-center">
-            <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/20 backdrop-blur-sm rounded-full text-white font-medium text-sm mb-6 border border-white/30">
-              <Sparkles className="w-3 h-3" />
+            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-primary/15 bg-primary-muted px-3 py-1 text-sm font-medium text-primary">
+              <Sparkles className="h-3 w-3" />
               <span>About Us</span>
             </div>
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white mb-6 tracking-tight">
+            <h1 className="mb-6 text-4xl font-bold tracking-tight text-foreground sm:text-5xl lg:text-6xl">
               Your ally in an
-              <span className="block text-white/95">AI-filtered hiring world</span>
+              <span className="text-primary block">AI-filtered hiring world</span>
             </h1>
-            <p className="text-lg sm:text-xl text-white/90 max-w-2xl mx-auto leading-relaxed">
+            <p className="mx-auto max-w-2xl text-lg leading-relaxed text-muted-foreground sm:text-xl">
               Recruiters lean on ATS and AI long before they read your story. Interview Trix is built to get you visible—ATS-ready resumes, AI Interview Practice and coding practice, peer sessions, and smart job matching—your end-to-end career partner so you don&apos;t just apply, you win.
             </p>
           </div>
@@ -248,7 +144,10 @@ export default function AboutPage() {
       {/* What We Do Section */}
       <ScrollSection
         id="what-we-do"
-        className="py-12 sm:py-16 px-4 sm:px-6 bg-slate-50 scroll-mt-20"
+        className={cn(
+          appMarketingSectionAlt,
+          "scroll-mt-20 px-4 py-12 sm:px-6 sm:py-16",
+        )}
       >
         <div className="container mx-auto max-w-6xl">
           <div className="text-center mb-12">
@@ -261,8 +160,8 @@ export default function AboutPage() {
           </div>
 
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            <div className="bg-white rounded-2xl p-6 border border-gray-200 hover:border-blue-300 hover:shadow-lg transition-all">
-              <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center mb-4 shadow-lg">
+            <div className="bg-white rounded-2xl p-6 border border-gray-200 hover:border-border hover:shadow-lg transition-all">
+              <div className="w-14 h-14 bg-primary rounded-2xl flex items-center justify-center mb-4 shadow-lg">
                 <Mic className="w-7 h-7 text-white" />
               </div>
               <h3 className="text-xl font-bold text-slate-900 mb-2">
@@ -273,7 +172,7 @@ export default function AboutPage() {
               </p>
             </div>
 
-            <div className="bg-white rounded-2xl p-6 border border-gray-200 hover:border-blue-300 hover:shadow-lg transition-all">
+            <div className="bg-white rounded-2xl p-6 border border-gray-200 hover:border-border hover:shadow-lg transition-all">
               <div className="w-14 h-14 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-2xl flex items-center justify-center mb-4 shadow-lg">
                 <FileText className="w-7 h-7 text-white" />
               </div>
@@ -285,7 +184,7 @@ export default function AboutPage() {
               </p>
             </div>
 
-            <div className="bg-white rounded-2xl p-6 border border-gray-200 hover:border-blue-300 hover:shadow-lg transition-all">
+            <div className="bg-white rounded-2xl p-6 border border-gray-200 hover:border-border hover:shadow-lg transition-all">
               <div className="w-14 h-14 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-2xl flex items-center justify-center mb-4 shadow-lg">
                 <Users className="w-7 h-7 text-white" />
               </div>
@@ -307,13 +206,13 @@ export default function AboutPage() {
       >
         <div className="container mx-auto max-w-7xl">
           <div className="text-center mb-16">
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 rounded-full text-blue-700 font-medium text-sm mb-6">
+            <div className="inline-flex items-center gap-2 px-4 py-2 bg-muted rounded-full text-primary font-medium text-sm mb-6">
               <Sparkles className="w-4 h-4" />
               <span>Our Products</span>
             </div>
             <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-slate-900 mb-6 tracking-tight">
               Three Powerful Tools.
-              <span className="block text-blue-600">One Complete Platform.</span>
+              <span className="block text-primary">One Complete Platform.</span>
             </h2>
             <p className="text-xl sm:text-2xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
               Match · Refine · Apply—backed by the practice loop that seals the interview
@@ -324,17 +223,17 @@ export default function AboutPage() {
           <div className="grid md:grid-cols-3 gap-6 sm:gap-8">
             {/* AI Interview Practice product */}
             <div 
-              className="group relative bg-white rounded-3xl p-8 sm:p-10 border-2 border-gray-200 hover:border-blue-300 shadow-lg hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 overflow-hidden"
+              className="group relative bg-white rounded-3xl p-8 sm:p-10 border-2 border-gray-200 hover:border-border shadow-lg hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 overflow-hidden"
               style={{
                 animation: 'fadeInUp 0.6s ease-out 0.1s both'
               }}
             >
               {/* Decorative Background Gradient */}
-              <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-full opacity-50 blur-3xl -z-0 group-hover:opacity-70 transition-opacity duration-500"></div>
+              <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-muted to-indigo-100 rounded-full opacity-50 blur-3xl -z-0 group-hover:opacity-70 transition-opacity duration-500"></div>
               
               <div className="relative z-10">
                 {/* Icon */}
-                <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center mb-6 shadow-xl group-hover:scale-110 transition-transform duration-500">
+                <div className="w-20 h-20 bg-primary rounded-2xl flex items-center justify-center mb-6 shadow-xl group-hover:scale-110 transition-transform duration-500">
                   <Mic className="w-10 h-10 text-white" />
                 </div>
 
@@ -349,15 +248,15 @@ export default function AboutPage() {
                 {/* Features List */}
                 <ul className="space-y-3 mb-8">
                   <li className="flex items-start gap-3">
-                    <CheckCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                    <CheckCircle className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
                     <span className="text-sm text-gray-700">AI Interview Practice + instant feedback</span>
                   </li>
                   <li className="flex items-start gap-3">
-                    <CheckCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                    <CheckCircle className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
                     <span className="text-sm text-gray-700">Company-specific prep paths</span>
                   </li>
                   <li className="flex items-start gap-3">
-                    <CheckCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                    <CheckCircle className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
                     <span className="text-sm text-gray-700">Coding rounds + AI discussion scores</span>
                   </li>
                 </ul>
@@ -366,7 +265,7 @@ export default function AboutPage() {
                 <Link href="/dashboard/interviews/new">
                   <Button
                     size="lg"
-                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium shadow-lg hover:shadow-xl transition-all h-12"
+                    className="w-full bg-primary hover:bg-slate-900 text-white font-medium shadow-lg hover:shadow-xl transition-all h-12"
                   >
                     Try AI Interview Practice
                     <ArrowRight className="w-5 h-5 ml-2" />
@@ -487,11 +386,14 @@ export default function AboutPage() {
       {/* How Did We Start Section */}
       <ScrollSection
         id="how-we-started"
-        className="py-16 sm:py-20 lg:py-24 px-4 sm:px-6 bg-white scroll-mt-20"
+        className={cn(
+          appMarketingSection,
+          "scroll-mt-20 px-4 py-16 sm:px-6 sm:py-20 lg:py-24",
+        )}
       >
         <div className="container mx-auto max-w-7xl">
           <div className="text-center mb-16">
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 rounded-full text-blue-700 font-medium text-sm mb-6">
+            <div className="inline-flex items-center gap-2 px-4 py-2 bg-muted rounded-full text-primary font-medium text-sm mb-6">
               <Sparkles className="w-4 h-4" />
               <span>Our Story</span>
             </div>
@@ -505,50 +407,41 @@ export default function AboutPage() {
 
           {/* Story Cards - Enhanced Design */}
           <div className="grid md:grid-cols-3 gap-6 mb-16">
-            <div 
-              className="rounded-2xl p-8 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1"
-              style={{
-                animation: 'fadeInUp 0.6s ease-out 0.1s both',
-                background: 'linear-gradient(135deg, #60A5FA 0%, #3B82F6 50%, #2563EB 100%)'
-              }}
+            <div
+              className="hover:shadow-header rounded-2xl border border-border bg-card p-8 shadow-lg transition-all duration-300 hover:-translate-y-1"
+              style={{ animation: "fadeInUp 0.6s ease-out 0.1s both" }}
             >
-              <div className="w-16 h-16 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center mb-6 shadow-lg border border-white/30">
-                <Lightbulb className="w-8 h-8 text-white" />
+              <div className="border-primary/15 mb-6 flex h-16 w-16 items-center justify-center rounded-2xl border bg-primary-muted text-primary shadow-sm">
+                <Lightbulb className="h-8 w-8" />
               </div>
-              <h3 className="text-2xl font-bold text-white mb-4">The Problem</h3>
-              <p className="text-white/90 leading-relaxed">
+              <h3 className="mb-4 text-2xl font-bold text-foreground">The Problem</h3>
+              <p className="leading-relaxed text-muted-foreground">
                 Candidates were drowning in ATS black holes long before nerves ever showed up—AI tossed résumés aside, recruiters never saw the brilliance. Legacy prep skipped that reality entirely, priced out too many seekers, and still didn&apos;t mirror how companies hired.
               </p>
             </div>
 
-            <div 
-              className="rounded-2xl p-8 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1"
-              style={{
-                animation: 'fadeInUp 0.6s ease-out 0.2s both',
-                background: 'linear-gradient(135deg, #60A5FA 0%, #3B82F6 50%, #2563EB 100%)'
-              }}
+            <div
+              className="hover:shadow-header rounded-2xl border border-border bg-card p-8 shadow-lg transition-all duration-300 hover:-translate-y-1"
+              style={{ animation: "fadeInUp 0.6s ease-out 0.2s both" }}
             >
-              <div className="w-16 h-16 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center mb-6 shadow-lg border border-white/30">
-                <Rocket className="w-8 h-8 text-white" />
+              <div className="border-primary/15 mb-6 flex h-16 w-16 items-center justify-center rounded-2xl border bg-primary-muted text-primary shadow-sm">
+                <Rocket className="h-8 w-8" />
               </div>
-              <h3 className="text-2xl font-bold text-white mb-4">Our Solution</h3>
-              <p className="text-white/90 leading-relaxed">
+              <h3 className="mb-4 text-2xl font-bold text-foreground">Our Solution</h3>
+              <p className="leading-relaxed text-muted-foreground">
                 Interview Trix fights filters with your own AI ally—starting with ATS-smart resumes, layering AI Interview Practice and coding drills, pairing you with seasoned engineers when you need humans, then bringing search + JD-level tuning so applying isn&apos;t a spray-and-pray loop.
               </p>
             </div>
 
-            <div 
-              className="rounded-2xl p-8 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1"
-              style={{
-                animation: 'fadeInUp 0.6s ease-out 0.3s both',
-                background: 'linear-gradient(135deg, #60A5FA 0%, #3B82F6 50%, #2563EB 100%)'
-              }}
+            <div
+              className="hover:shadow-header rounded-2xl border border-border bg-card p-8 shadow-lg transition-all duration-300 hover:-translate-y-1"
+              style={{ animation: "fadeInUp 0.6s ease-out 0.3s both" }}
             >
-              <div className="w-16 h-16 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center mb-6 shadow-lg border border-white/30">
-                <Target className="w-8 h-8 text-white" />
+              <div className="border-primary/15 mb-6 flex h-16 w-16 items-center justify-center rounded-2xl border bg-primary-muted text-primary shadow-sm">
+                <Target className="h-8 w-8" />
               </div>
-              <h3 className="text-2xl font-bold text-white mb-4">Our Mission</h3>
-              <p className="text-white/90 leading-relaxed">
+              <h3 className="mb-4 text-2xl font-bold text-foreground">Our Mission</h3>
+              <p className="leading-relaxed text-muted-foreground">
                 Today we stand beside scholars, seekers, and teams across India—determined that anyone can learn to surf AI-driven hiring rather than disappear inside it.
               </p>
             </div>
@@ -556,10 +449,10 @@ export default function AboutPage() {
 
           {/* Horizontal Timeline - Enhanced with Animation */}
           <div ref={timelineRef} className="relative">
-            <div className="bg-gradient-to-br from-blue-50 via-indigo-50 to-blue-50 rounded-3xl p-8 sm:p-12 lg:p-16 border border-blue-100 relative overflow-hidden">
+            <div className="bg-gradient-to-br bg-card rounded-3xl p-8 sm:p-12 lg:p-16 border border-border relative overflow-hidden">
               {/* Decorative Background Elements */}
-              <div className="absolute top-0 right-0 w-64 h-64 bg-blue-200 rounded-full opacity-10 blur-3xl"></div>
-              <div className="absolute bottom-0 left-0 w-64 h-64 bg-indigo-200 rounded-full opacity-10 blur-3xl"></div>
+              <div className="absolute top-0 right-0 w-64 h-64 bg-muted rounded-full opacity-10 blur-3xl"></div>
+              <div className="absolute bottom-0 left-0 h-64 w-64 rounded-full bg-primary-muted opacity-40 blur-3xl" />
               
               {/* Animated Background Icons */}
               <div className="absolute inset-0 pointer-events-none">
@@ -583,7 +476,7 @@ export default function AboutPage() {
                         animationDelay: `${i * 0.3}s`,
                       }}
                     >
-                      <Rocket className="w-6 h-6 sm:w-8 sm:h-8 text-blue-400" />
+                      <Rocket className="w-6 h-6 sm:w-8 sm:h-8 text-primary/70" />
                     </div>
                   );
                 })}
@@ -607,7 +500,7 @@ export default function AboutPage() {
                         animationDelay: `${i * 0.4}s`,
                       }}
                     >
-                      <Award className="w-5 h-5 sm:w-7 sm:h-7 text-blue-400" />
+                      <Award className="w-5 h-5 sm:w-7 sm:h-7 text-primary/70" />
                     </div>
                   );
                 })}
@@ -653,7 +546,7 @@ export default function AboutPage() {
                         animationDelay: `${i * 0.35}s`,
                       }}
                     >
-                      <Sparkles className="w-5 h-5 sm:w-6 sm:h-6 text-blue-300" />
+                      <Sparkles className="w-5 h-5 sm:w-6 sm:h-6 text-primary/50" />
                     </div>
                   );
                 })}
@@ -694,7 +587,7 @@ export default function AboutPage() {
                   
                   {/* Animated Progress Line - Hidden on mobile, visible on desktop */}
                   <div 
-                    className="hidden md:block absolute top-1/2 left-0 h-1.5 bg-gradient-to-r from-blue-600 via-indigo-600 to-emerald-600 rounded-full transform -translate-y-1/2 transition-all duration-1000 ease-out shadow-lg"
+                    className="hidden md:block absolute top-1/2 left-0 h-1.5 bg-gradient-to-r from-primary via-indigo-600 to-emerald-600 rounded-full transform -translate-y-1/2 transition-all duration-1000 ease-out shadow-lg"
                     style={{ width: `${timelineProgress}%` }}
                   >
                     <div className="absolute right-0 top-1/2 transform -translate-y-1/2 translate-x-1/2 w-4 h-4 bg-emerald-600 rounded-full border-4 border-white shadow-lg"></div>
@@ -712,14 +605,14 @@ export default function AboutPage() {
                     >
                       <div className={`w-16 h-16 rounded-2xl flex items-center justify-center mb-4 shadow-lg transition-all duration-500 ${
                         timelineProgress >= 33 
-                          ? 'bg-gradient-to-br from-blue-600 to-blue-700 md:scale-110 scale-100' 
+                          ? 'bg-gradient-to-br from-primary to-primary md:scale-110 scale-100' 
                           : 'bg-gray-300 scale-100'
                       }`}>
                         <Lightbulb className="w-8 h-8 text-white" />
                       </div>
                       <div className="bg-white rounded-xl p-5 border-2 border-gray-200 shadow-md hover:shadow-lg transition-all w-full">
                         <p className="font-bold text-slate-900 mb-2 text-lg">2023</p>
-                        <p className="font-semibold text-blue-600 mb-2">The Beginning</p>
+                        <p className="font-semibold text-primary mb-2">The Beginning</p>
                         <p className="text-sm text-gray-600 leading-relaxed">
                           Identified the gap in interview preparation and started building the platform
                         </p>
@@ -784,7 +677,7 @@ export default function AboutPage() {
       {/* Reviews Section - Reused from Homepage */}
       <ScrollSection
         id="reviews"
-        className="py-12 sm:py-16 lg:py-20 px-4 sm:px-6 bg-blue-50/30 relative overflow-hidden"
+        className="py-12 sm:py-16 lg:py-20 px-4 sm:px-6 bg-muted/30 relative overflow-hidden"
       >
         {/* Animated Background Icons */}
         <div className="absolute inset-0 pointer-events-none">
@@ -799,7 +692,7 @@ export default function AboutPage() {
                 animationDelay: `${i * 0.3}s`,
               }}
             >
-              <Sparkles className="w-6 h-6 sm:w-8 sm:h-8 text-blue-400" />
+              <Sparkles className="w-6 h-6 sm:w-8 sm:h-8 text-primary/70" />
             </div>
           ))}
           {[...Array(10)].map((_, i) => (
@@ -813,7 +706,7 @@ export default function AboutPage() {
                 animationDelay: `${i * 0.4}s`,
               }}
             >
-              <Star className="w-5 h-5 sm:w-6 sm:h-6 text-blue-300 fill-blue-300" />
+              <Star className="w-5 h-5 sm:w-6 sm:h-6 text-primary/50 fill-primary/50" />
             </div>
           ))}
         </div>
@@ -823,7 +716,7 @@ export default function AboutPage() {
             <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-slate-900 mb-3 sm:mb-4">
               Transform careers—together
             </h2>
-            <p className="text-lg sm:text-xl text-blue-600 mb-4 sm:mb-6">
+            <p className="text-lg sm:text-xl text-primary mb-4 sm:mb-6">
               Learners rely on Interview Trix as their end-to-end hiring partner—and share the wins publicly.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-3">
@@ -832,7 +725,7 @@ export default function AboutPage() {
                   <Star key={i} className="w-5 h-5 sm:w-6 sm:h-6 fill-yellow-400 text-yellow-400" />
                 ))}
               </div>
-              <span className="text-base sm:text-lg text-blue-600 font-medium text-center sm:text-left">
+              <span className="text-base sm:text-lg text-primary font-medium text-center sm:text-left">
                 4.9/5 based on our user reviews
               </span>
             </div>
@@ -861,7 +754,7 @@ export default function AboutPage() {
                         </div>
                         <div>
                           <p className="font-bold text-slate-900 text-sm sm:text-base">Blake Beus</p>
-                          <p className="text-xs sm:text-sm text-blue-600">App Security at JPMorgan Chase</p>
+                          <p className="text-xs sm:text-sm text-primary">App Security at JPMorgan Chase</p>
                         </div>
                       </div>
                       <p className="text-sm sm:text-base text-gray-700 leading-relaxed mb-4">
@@ -884,7 +777,7 @@ export default function AboutPage() {
                         </div>
                         <div>
                           <p className="font-bold text-slate-900 text-sm sm:text-base">Priya Sharma</p>
-                          <p className="text-xs sm:text-sm text-blue-600">Online Business Manager</p>
+                          <p className="text-xs sm:text-sm text-primary">Online Business Manager</p>
                         </div>
                       </div>
                       <p className="text-sm sm:text-base text-gray-700 leading-relaxed mb-4">
@@ -907,7 +800,7 @@ export default function AboutPage() {
                         </div>
                         <div>
                           <p className="font-bold text-slate-900 text-sm sm:text-base">Dave Baxter</p>
-                          <p className="text-xs sm:text-sm text-blue-600">Estate Agent at DBRealty</p>
+                          <p className="text-xs sm:text-sm text-primary">Estate Agent at DBRealty</p>
                         </div>
                       </div>
                       <p className="text-sm sm:text-base text-gray-700 leading-relaxed mb-4">
@@ -933,7 +826,7 @@ export default function AboutPage() {
                         </div>
                         <div>
                           <p className="font-bold text-slate-900 text-sm sm:text-base">Priya Sharma</p>
-                          <p className="text-xs sm:text-sm text-blue-600">Online Business Manager</p>
+                          <p className="text-xs sm:text-sm text-primary">Online Business Manager</p>
                         </div>
                       </div>
                       <p className="text-sm sm:text-base text-gray-700 leading-relaxed mb-4">
@@ -959,7 +852,7 @@ export default function AboutPage() {
                         </div>
                         <div>
                           <p className="font-bold text-slate-900 text-sm sm:text-base">Dave Baxter</p>
-                          <p className="text-xs sm:text-sm text-blue-600">Estate Agent at DBRealty</p>
+                          <p className="text-xs sm:text-sm text-primary">Estate Agent at DBRealty</p>
                         </div>
                       </div>
                       <p className="text-sm sm:text-base text-gray-700 leading-relaxed mb-4">
@@ -980,12 +873,12 @@ export default function AboutPage() {
                   <div className="min-w-full sm:min-w-[33.333%]">
                     <div className="bg-white rounded-xl sm:rounded-2xl p-5 sm:p-6 shadow-lg border border-gray-100 hover:shadow-xl transition-all h-full">
                       <div className="flex items-center gap-3 sm:gap-4 mb-4">
-                        <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white font-bold text-lg sm:text-xl flex-shrink-0">
+                        <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-gradient-to-br from-primary/80 to-primary flex items-center justify-center text-white font-bold text-lg sm:text-xl flex-shrink-0">
                           RK
                         </div>
                         <div>
                           <p className="font-bold text-slate-900 text-sm sm:text-base">Rajesh Kumar</p>
-                          <p className="text-xs sm:text-sm text-blue-600">Software Engineer at TCS</p>
+                          <p className="text-xs sm:text-sm text-primary">Software Engineer at TCS</p>
                         </div>
                       </div>
                       <p className="text-sm sm:text-base text-gray-700 leading-relaxed mb-4">
@@ -1008,7 +901,7 @@ export default function AboutPage() {
                         </div>
                         <div>
                           <p className="font-bold text-slate-900 text-sm sm:text-base">Anjali Singh</p>
-                          <p className="text-xs sm:text-sm text-blue-600">Product Manager at Infosys</p>
+                          <p className="text-xs sm:text-sm text-primary">Product Manager at Infosys</p>
                         </div>
                       </div>
                       <p className="text-sm sm:text-base text-gray-700 leading-relaxed mb-4">
@@ -1031,7 +924,7 @@ export default function AboutPage() {
                         </div>
                         <div>
                           <p className="font-bold text-slate-900 text-sm sm:text-base">Vikram Patel</p>
-                          <p className="text-xs sm:text-sm text-blue-600">Data Scientist at Wipro</p>
+                          <p className="text-xs sm:text-sm text-primary">Data Scientist at Wipro</p>
                         </div>
                       </div>
                       <p className="text-sm sm:text-base text-gray-700 leading-relaxed mb-4">
@@ -1057,7 +950,7 @@ export default function AboutPage() {
                         </div>
                         <div>
                           <p className="font-bold text-slate-900 text-sm sm:text-base">Anjali Singh</p>
-                          <p className="text-xs sm:text-sm text-blue-600">Product Manager at Infosys</p>
+                          <p className="text-xs sm:text-sm text-primary">Product Manager at Infosys</p>
                         </div>
                       </div>
                       <p className="text-sm sm:text-base text-gray-700 leading-relaxed mb-4">
@@ -1083,7 +976,7 @@ export default function AboutPage() {
                         </div>
                         <div>
                           <p className="font-bold text-slate-900 text-sm sm:text-base">Vikram Patel</p>
-                          <p className="text-xs sm:text-sm text-blue-600">Data Scientist at Wipro</p>
+                          <p className="text-xs sm:text-sm text-primary">Data Scientist at Wipro</p>
                         </div>
                       </div>
                       <p className="text-sm sm:text-base text-gray-700 leading-relaxed mb-4">
@@ -1109,7 +1002,7 @@ export default function AboutPage() {
                         </div>
                         <div>
                           <p className="font-bold text-slate-900 text-sm sm:text-base">Sneha Mehta</p>
-                          <p className="text-xs sm:text-sm text-blue-600">Frontend Developer at Razorpay</p>
+                          <p className="text-xs sm:text-sm text-primary">Frontend Developer at Razorpay</p>
                         </div>
                       </div>
                       <p className="text-sm sm:text-base text-gray-700 leading-relaxed mb-4">
@@ -1132,7 +1025,7 @@ export default function AboutPage() {
                         </div>
                         <div>
                           <p className="font-bold text-slate-900 text-sm sm:text-base">Arjun Khanna</p>
-                          <p className="text-xs sm:text-sm text-blue-600">Backend Engineer at Flipkart</p>
+                          <p className="text-xs sm:text-sm text-primary">Backend Engineer at Flipkart</p>
                         </div>
                       </div>
                       <p className="text-sm sm:text-base text-gray-700 leading-relaxed mb-4">
@@ -1155,7 +1048,7 @@ export default function AboutPage() {
                         </div>
                         <div>
                           <p className="font-bold text-slate-900 text-sm sm:text-base">Neha Shah</p>
-                          <p className="text-xs sm:text-sm text-blue-600">QA Engineer at Deloitte</p>
+                          <p className="text-xs sm:text-sm text-primary">QA Engineer at Deloitte</p>
                         </div>
                       </div>
                       <p className="text-sm sm:text-base text-gray-700 leading-relaxed mb-4">
@@ -1181,7 +1074,7 @@ export default function AboutPage() {
                         </div>
                         <div>
                           <p className="font-bold text-slate-900 text-sm sm:text-base">Arjun Khanna</p>
-                          <p className="text-xs sm:text-sm text-blue-600">Backend Engineer at Flipkart</p>
+                          <p className="text-xs sm:text-sm text-primary">Backend Engineer at Flipkart</p>
                         </div>
                       </div>
                       <p className="text-sm sm:text-base text-gray-700 leading-relaxed mb-4">
@@ -1207,7 +1100,7 @@ export default function AboutPage() {
                         </div>
                         <div>
                           <p className="font-bold text-slate-900 text-sm sm:text-base">Neha Shah</p>
-                          <p className="text-xs sm:text-sm text-blue-600">QA Engineer at Deloitte</p>
+                          <p className="text-xs sm:text-sm text-primary">QA Engineer at Deloitte</p>
                         </div>
                       </div>
                       <p className="text-sm sm:text-base text-gray-700 leading-relaxed mb-4">
@@ -1234,7 +1127,7 @@ export default function AboutPage() {
                     onClick={() => setCurrentReviewSlide(index)}
                     className={`h-2 rounded-full transition-all duration-300 ${
                       isActive
-                        ? "w-8 bg-blue-600"
+                        ? "w-8 bg-primary"
                         : "w-2 bg-gray-300"
                     }`}
                     aria-label={`Go to review slide ${index + 1}`}

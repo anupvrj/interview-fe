@@ -208,7 +208,7 @@ export default function BatchScheduleRunPage({
 
       {data.topPerformers.length > 0 ? (
         <Card className={cn(institutePanelClass, "overflow-hidden shadow-xl")}>
-          <CardHeader className="border-b border-blue-100/60 bg-gradient-to-r from-amber-50/40 to-white pb-4">
+          <CardHeader className="border-b border-border/60 bg-gradient-to-r from-amber-50/40 to-white pb-4">
             <CardTitle className="flex items-center gap-2 text-lg">
               <Trophy className="h-5 w-5 text-amber-600" />
               Top performers
@@ -229,7 +229,7 @@ export default function BatchScheduleRunPage({
                   {data.topPerformers.map((row) => (
                     <TableRow
                       key={`${row.interviewId}-${row.rank}`}
-                      className="hover:bg-blue-50/40"
+                      className="hover:bg-muted/40"
                     >
                       <TableCell className="font-medium text-slate-600">{row.rank}</TableCell>
                       <TableCell>
@@ -263,9 +263,9 @@ export default function BatchScheduleRunPage({
       ) : null}
 
       <Card className={cn(institutePanelClass, "overflow-hidden shadow-xl")}>
-        <CardHeader className="border-b border-blue-100/60 bg-gradient-to-r from-blue-50/50 to-white">
+        <CardHeader className="border-b border-border/60 bg-gradient-to-r from-muted/50 to-white">
           <CardTitle className="flex items-center gap-2 text-lg">
-            <Users className="h-5 w-5 text-[rgb(37,99,235)]" />
+            <Users className="h-5 w-5 text-primary" />
             Everyone in this round
           </CardTitle>
           <CardDescription>
@@ -287,7 +287,7 @@ export default function BatchScheduleRunPage({
               </TableHeader>
               <TableBody>
                 {data.participants.map((p) => (
-                  <TableRow key={p.scheduleId} className="hover:bg-blue-50/40">
+                  <TableRow key={p.scheduleId} className="hover:bg-muted/40">
                     <TableCell>
                       <div className="font-medium text-slate-900">
                         {p.name || p.email || p.clerkId}

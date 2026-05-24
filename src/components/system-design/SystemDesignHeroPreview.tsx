@@ -37,17 +37,17 @@ export function SystemDesignHeroPreview() {
       `}</style>
 
       <div
-        className="relative isolate z-10 mx-auto w-full max-w-[420px] overflow-hidden rounded-2xl border border-blue-200/70 bg-gradient-to-br from-white via-blue-50 to-indigo-50 shadow-lg shadow-blue-500/15 ring-1 ring-blue-100"
+        className="relative isolate z-10 mx-auto w-full max-w-[420px] overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-white via-muted to-indigo-50 shadow-lg shadow-primary/15 ring-1 ring-border"
         role="img"
         aria-label="Architecture diagram with load balancer, database, Kafka hub, cloud, cache, and microservices connected by arrows."
       >
-        <div className="border-b border-blue-200/60 bg-blue-50 px-3 py-2">
-          <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-blue-950/55">
+        <div className="border-b border-border/60 bg-muted px-3 py-2">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-foreground/55">
             Practice flow
           </div>
         </div>
 
-        <div className="relative bg-blue-50 p-3">
+        <div className="relative bg-muted p-3">
           <svg
             className="h-auto w-full max-w-full aspect-[420/318]"
             viewBox="0 0 420 318"

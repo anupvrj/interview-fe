@@ -113,7 +113,7 @@ export function InstitutionAffiliationFields({
               <li key={r._id}>
                 <button
                   type="button"
-                  className="w-full px-3 py-2 text-left hover:bg-landing-blue-50"
+                  className="w-full px-3 py-2 text-left hover:bg-muted"
                   onClick={() => selectInstitution(r)}
                 >
                   {r.name}

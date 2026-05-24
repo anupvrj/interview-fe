@@ -98,9 +98,9 @@ export default function InstituteBillingPage() {
 
       {inst?.stripeCustomerId && (
         <Card className={cn(institutePanelClass, "overflow-hidden shadow-xl")}>
-          <CardHeader className="border-b border-blue-100/60 bg-gradient-to-r from-blue-50/50 to-white">
+          <CardHeader className="border-b border-border/60 bg-gradient-to-r from-muted/50 to-white">
             <CardTitle className="flex items-center gap-2 text-base">
-              <CreditCard className="h-4 w-4 text-[rgb(37,99,235)]" />
+              <CreditCard className="h-4 w-4 text-primary" />
               Billing account
             </CardTitle>
             <CardDescription>Stripe customer linked to this institution</CardDescription>
@@ -117,7 +117,7 @@ export default function InstituteBillingPage() {
       )}
 
       <Card className={cn(institutePanelClass, "overflow-hidden shadow-xl")}>
-        <CardHeader className="border-b border-blue-100/60 bg-gradient-to-r from-blue-50/50 to-white">
+        <CardHeader className="border-b border-border/60 bg-gradient-to-r from-muted/50 to-white">
           <CardTitle>Recent payments</CardTitle>
           <CardDescription>
             Charges to this institution’s billing account (plans and credit purchases from your
@@ -168,7 +168,7 @@ export default function InstituteBillingPage() {
                     return (
                       <TableRow
                         key={row._id || row.id}
-                        className="border-slate-100 hover:bg-blue-50/40"
+                        className="border-slate-100 hover:bg-muted/40"
                       >
                         <TableCell className="whitespace-nowrap text-slate-800">
                           {row.createdAt ? new Date(row.createdAt).toLocaleString() : "—"}
@@ -196,7 +196,7 @@ export default function InstituteBillingPage() {
                               href={receiptUrl}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1 text-sm font-semibold text-[rgb(37,99,235)] hover:underline"
+                              className="inline-flex items-center gap-1 text-sm font-semibold text-primary hover:underline"
                             >
                               Open
                               <ExternalLink className="h-3.5 w-3.5" />

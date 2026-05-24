@@ -95,7 +95,7 @@ export function PostInterviewFeedbackForm({
             className={cn(
               "min-w-[100px] border-gray-200",
               sessionHelpful === true &&
-                "!bg-[rgb(37,99,235)] hover:!bg-[rgb(17,24,39)] text-white shadow-md",
+                "!bg-primary hover:!bg-slate-900 text-white shadow-md",
             )}
             onClick={() => setSessionHelpful(true)}
           >
@@ -107,7 +107,7 @@ export function PostInterviewFeedbackForm({
             className={cn(
               "min-w-[100px] border-gray-200",
               sessionHelpful === false &&
-                "!bg-[rgb(37,99,235)] hover:!bg-[rgb(17,24,39)] text-white shadow-md",
+                "!bg-primary hover:!bg-slate-900 text-white shadow-md",
             )}
             onClick={() => setSessionHelpful(false)}
           >
@@ -132,7 +132,7 @@ export function PostInterviewFeedbackForm({
             className={cn(
               "min-w-[100px] border-gray-200",
               questionsRelevant === true &&
-                "!bg-[rgb(37,99,235)] hover:!bg-[rgb(17,24,39)] text-white shadow-md",
+                "!bg-primary hover:!bg-slate-900 text-white shadow-md",
             )}
             onClick={() => setQuestionsRelevant(true)}
           >
@@ -144,7 +144,7 @@ export function PostInterviewFeedbackForm({
             className={cn(
               "min-w-[100px] border-gray-200",
               questionsRelevant === false &&
-                "!bg-[rgb(37,99,235)] hover:!bg-[rgb(17,24,39)] text-white shadow-md",
+                "!bg-primary hover:!bg-slate-900 text-white shadow-md",
             )}
             onClick={() => setQuestionsRelevant(false)}
           >
@@ -177,7 +177,7 @@ export function PostInterviewFeedbackForm({
                 aria-checked={overallRating === value}
                 aria-label={`${value} out of 5 stars`}
                 className={cn(
-                  "rounded-md p-1.5 transition-colors hover:bg-amber-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(37,99,235)] focus-visible:ring-offset-2",
+                  "rounded-md p-1.5 transition-colors hover:bg-amber-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
                 )}
                 onClick={() => setOverallRating(value)}
               >
@@ -263,7 +263,7 @@ export function PostInterviewFeedbackForm({
           type="submit"
           size="lg"
           disabled={submitting}
-          className="w-full sm:w-auto min-w-[160px] !bg-[rgb(37,99,235)] hover:!bg-[rgb(17,24,39)] text-white shadow-md hover:shadow-lg transition-all disabled:opacity-60 disabled:hover:!bg-[rgb(37,99,235)]"
+          className="w-full sm:w-auto min-w-[160px] !bg-primary hover:!bg-slate-900 text-white shadow-md hover:shadow-lg transition-all disabled:opacity-60 disabled:hover:!bg-primary"
         >
           {submitting ? "Submitting…" : "Submit feedback"}
         </Button>

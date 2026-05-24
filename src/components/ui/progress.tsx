@@ -42,14 +42,14 @@ const Progress = React.forwardRef<
     <ProgressPrimitive.Root
       ref={ref}
       className={cn(
-        "relative h-4 w-full overflow-hidden rounded-full bg-secondary/20",
+        "relative h-4 w-full overflow-hidden rounded-full bg-muted",
         className,
       )}
       {...props}
     >
       <ProgressPrimitive.Indicator
         className={cn(
-          "relative h-full w-full flex-1 overflow-hidden bg-gradient-to-r from-primary to-secondary",
+          "relative h-full w-full flex-1 overflow-hidden bg-primary",
           "origin-left transition-[transform] duration-700 ease-out will-change-transform",
           !reducedMotion && display > 0 && "animate-progress-pulse",
         )}

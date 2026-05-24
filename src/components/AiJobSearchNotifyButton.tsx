@@ -85,7 +85,7 @@ export function AiJobSearchNotifyButton({
           onClick={handleClick}
           disabled={!isLoaded}
           className={cn(
-            "w-full sm:w-auto text-white font-medium shadow-sm transition-all h-12 px-6 hover:opacity-90 !bg-[rgb(37,99,235)]",
+            "w-full sm:w-auto text-white font-medium shadow-sm transition-all h-12 px-6 hover:opacity-90 !bg-primary",
             buttonClassName,
           )}
         >
@@ -118,7 +118,7 @@ export function AiJobSearchNotifyButton({
             <DialogFooter>
               <Button
                 type="submit"
-                className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700"
+                className="w-full sm:w-auto bg-primary hover:bg-slate-900"
               >
                 Confirm
               </Button>

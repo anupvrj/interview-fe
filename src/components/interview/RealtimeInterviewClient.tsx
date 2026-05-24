@@ -2241,7 +2241,7 @@ export function RealtimeInterviewClient({
           "flex items-center justify-center",
           codingDiscussionHost
             ? "h-auto min-h-[4.5rem] bg-transparent py-3"
-            : "bg-gradient-to-br from-purple-50 via-blue-50 to-pink-50",
+            : "bg-background",
           codingEmbed && !codingDiscussionHost ? "h-full min-h-[12rem]" : "",
           !codingEmbed && !codingDiscussionHost ? "min-h-screen" : "",
           className,
@@ -2275,7 +2275,7 @@ export function RealtimeInterviewClient({
           "flex items-center justify-center p-4",
           codingDiscussionHost
             ? "h-full min-h-0 bg-transparent"
-            : "bg-gradient-to-br from-purple-50 via-blue-50 to-pink-50",
+            : "bg-background",
           codingEmbed && !codingDiscussionHost ? "h-full min-h-0" : "",
           !codingEmbed && !codingDiscussionHost ? "min-h-screen" : "",
           className,
@@ -2363,7 +2363,7 @@ export function RealtimeInterviewClient({
                 setShowInterviewComplete(false);
                 endInterview();
               }}
-              className="min-w-[120px] bg-gradient-to-r from-violet-600 to-blue-600 hover:from-violet-700 hover:to-blue-700 text-white"
+              className="min-w-[120px] bg-gradient-to-r from-violet-600 to-primary hover:from-violet-700 hover:bg-slate-900 text-white"
             >
               View Report
             </Button>
@@ -2539,7 +2539,7 @@ export function RealtimeInterviewClient({
               size="lg"
               onClick={resumeInterview}
               disabled={isResuming || isReconnecting}
-              className="w-full sm:w-auto sm:whitespace-nowrap text-center h-auto py-2 px-4 bg-gradient-to-r from-violet-600 to-blue-600 hover:from-violet-700 hover:to-blue-700 text-white"
+              className="w-full sm:w-auto sm:whitespace-nowrap text-center h-auto py-2 px-4 bg-gradient-to-r from-violet-600 to-primary hover:from-violet-700 hover:bg-slate-900 text-white"
             >
               {isResuming || isReconnecting ? (
                 <>
@@ -2556,7 +2556,7 @@ export function RealtimeInterviewClient({
       {!codingDiscussionHost ? (
         <div className="pointer-events-none absolute inset-0 overflow-hidden">
           <div className="absolute -top-28 -left-24 h-72 w-72 rounded-full bg-purple-500/15 blur-3xl" />
-          <div className="absolute top-24 right-0 h-80 w-80 rounded-full bg-blue-500/10 blur-3xl" />
+          <div className="absolute top-24 right-0 h-80 w-80 rounded-full bg-primary/10 blur-3xl" />
         </div>
       ) : null}
 
@@ -2789,9 +2789,9 @@ export function RealtimeInterviewClient({
                     )}
                   >
                     {isPreparing ? (
-                      <div className="flex items-start gap-3 text-blue-400">
+                      <div className="flex items-start gap-3 text-primary/70">
                         <span
-                          className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-blue-400"
+                          className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-primary/80"
                           aria-hidden
                         />
                         <div>
@@ -2804,16 +2804,16 @@ export function RealtimeInterviewClient({
                         </div>
                       </div>
                     ) : isAIProcessing ? (
-                      <div className="space-y-2 text-blue-400">
+                      <div className="space-y-2 text-primary/70">
                         <div className="flex items-center gap-2">
                           <span className="text-sm font-medium">
                             AI is understanding your answer...
                           </span>
                         </div>
-                        <div className="flex gap-1.5 pl-0 text-blue-300/90">
-                          <span className="h-1.5 w-1.5 rounded-full bg-blue-400" />
-                          <span className="h-1.5 w-1.5 rounded-full bg-blue-400" />
-                          <span className="h-1.5 w-1.5 rounded-full bg-blue-400" />
+                        <div className="flex gap-1.5 pl-0 text-primary/50/90">
+                          <span className="h-1.5 w-1.5 rounded-full bg-primary/80" />
+                          <span className="h-1.5 w-1.5 rounded-full bg-primary/80" />
+                          <span className="h-1.5 w-1.5 rounded-full bg-primary/80" />
                         </div>
                       </div>
                     ) : isAISpeaking || currentAssistantTranscript ? (
@@ -2867,12 +2867,12 @@ export function RealtimeInterviewClient({
                         )}
                       >
                         <span
-                          className="h-2 w-2 rounded-full bg-blue-400"
+                          className="h-2 w-2 rounded-full bg-primary/80"
                           aria-hidden
                         />
                         <p
                           className={cn(
-                            "text-blue-400",
+                            "text-primary/70",
                             codingDiscussionHost && isCodingDiscussion
                               ? "text-[11px] leading-snug"
                               : "text-sm",
@@ -2919,7 +2919,7 @@ export function RealtimeInterviewClient({
                         onClick={() => setShowRecordingOptIn(true)}
                         disabled={!connected}
                         size={codingEmbed ? "sm" : "default"}
-                        className="rounded-xl bg-gradient-to-r from-violet-600 to-blue-600 px-4 hover:from-violet-700 hover:to-blue-700 sm:px-6"
+                        className="rounded-xl bg-gradient-to-r from-violet-600 to-primary px-4 hover:from-violet-700 hover:bg-slate-900 sm:px-6"
                       >
                         {isCodingDiscussion
                           ? "Start discussion"

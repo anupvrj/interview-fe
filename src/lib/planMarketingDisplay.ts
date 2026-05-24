@@ -17,7 +17,7 @@ export type MarketingIconName = keyof typeof MARKETING_ICON_MAP;
 
 export const PLAN_CARD_GRADIENT: Record<string, string> = {
   free: "from-slate-500 to-slate-600",
-  premium: "from-blue-600 to-blue-700",
+  premium: "from-primary to-primary",
   enterprise: "from-slate-700 to-slate-900",
 };
 
