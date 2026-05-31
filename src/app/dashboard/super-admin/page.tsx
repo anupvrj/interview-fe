@@ -30,6 +30,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { InterviewQuestionsField } from "@/components/institute/InterviewQuestionsField";
+import { PeerInterviewAdminPanel } from "@/components/admin/PeerInterviewAdminPanel";
 import {
   Loader2,
   Shield,
@@ -1019,6 +1020,8 @@ export default function SuperAdminPage() {
           )}
         </CardContent>
       </Card>
+
+      <PeerInterviewAdminPanel />
 
       <Dialog
         open={!!scheduleUser}

@@ -853,14 +853,18 @@ export const codingInterviewApi = {
 };
 
 export interface Subscription {
-    plan: "free" | "premium" | "enterprise";
+  plan: "free" | "premium" | "enterprise";
   status: "active" | "cancelled" | "expired";
   interviewsUsed?: number; // Deprecated: now using credits
   interviewsLimit?: number; // Deprecated: now using credits
-  creditsAvailable?: number; // New: credit-based system
-  creditsUsed?: number; // New: credit-based system
-  minimumRequired?: number; // New: minimum credits to start interview
+  creditsAvailable?: number;
+  creditsUsed?: number;
+  creditsTotal?: number;
+  minimumRequired?: number;
+  currentPeriodStart?: string;
   currentPeriodEnd?: string;
+  nextRenewalDate?: string;
+  billingCycle?: "monthly" | "quarterly" | "yearly";
   resetDate?: string;
   autoRenew?: boolean;
 }
@@ -964,10 +968,22 @@ export const paymentApi = {
   },
 
   getSubscription: async (): Promise<Subscription | null> => {
-    const response = await apiClient.get<{ data: Subscription | null }>(
-      "/payments/subscription",
-    );
-    return response.data.data;
+    const response = await apiClient.get<{
+      success?: boolean;
+      data?: Subscription | null;
+    }>("/payments/subscription");
+    const body = response.data;
+    if (!body || typeof body !== "object") return null;
+    const payload =
+      "data" in body &&
+      body.data &&
+      typeof body.data === "object" &&
+      ("plan" in body.data || "status" in body.data)
+        ? body.data
+        : "plan" in body || "status" in body
+          ? (body as Subscription)
+          : null;
+    return payload;
   },
 
   checkInterviewLimit: async (): Promise<InterviewLimitCheck> => {
@@ -1935,6 +1951,88 @@ export const adminApi = {
   cancelInterviewSchedule: async (scheduleId: string): Promise<void> => {
     await apiClient.delete(`/admin/interview-schedules/${scheduleId}`);
   },
+
+  listPeerInterviewers: async (): Promise<PeerInterviewer[]> => {
+    const r = await apiClient.get<{ success: boolean; data: PeerInterviewer[] }>(
+      "/admin/peer-interviewers"
+    );
+    return r.data.data;
+  },
+
+  createPeerInterviewer: async (
+    data: Omit<PeerInterviewer, "_id" | "createdAt" | "updatedAt">
+  ): Promise<PeerInterviewer> => {
+    const r = await apiClient.post<{ success: boolean; data: PeerInterviewer }>(
+      "/admin/peer-interviewers",
+      data
+    );
+    return r.data.data;
+  },
+
+  updatePeerInterviewer: async (
+    id: string,
+    data: Partial<PeerInterviewer>
+  ): Promise<PeerInterviewer> => {
+    const r = await apiClient.put<{ success: boolean; data: PeerInterviewer }>(
+      `/admin/peer-interviewers/${id}`,
+      data
+    );
+    return r.data.data;
+  },
+
+  deletePeerInterviewer: async (id: string): Promise<void> => {
+    await apiClient.delete(`/admin/peer-interviewers/${id}`);
+  },
+
+  listPeerInterviewerSlots: async (
+    interviewerId: string
+  ): Promise<PeerInterviewerSlot[]> => {
+    const r = await apiClient.get<{
+      success: boolean;
+      data: PeerInterviewerSlot[];
+    }>(`/admin/peer-interviewers/${interviewerId}/slots`);
+    return r.data.data;
+  },
+
+  createPeerInterviewerSlot: async (
+    interviewerId: string,
+    data: Omit<PeerInterviewerSlot, "_id" | "interviewerId" | "createdAt" | "updatedAt">
+  ): Promise<PeerInterviewerSlot> => {
+    const r = await apiClient.post<{ success: boolean; data: PeerInterviewerSlot }>(
+      `/admin/peer-interviewers/${interviewerId}/slots`,
+      data
+    );
+    return r.data.data;
+  },
+
+  deletePeerInterviewerSlot: async (
+    interviewerId: string,
+    slotId: string
+  ): Promise<void> => {
+    await apiClient.delete(
+      `/admin/peer-interviewers/${interviewerId}/slots/${slotId}`
+    );
+  },
+
+  listPeerBookings: async (status?: string): Promise<PeerInterviewBooking[]> => {
+    const q = status ? `?status=${encodeURIComponent(status)}` : "";
+    const r = await apiClient.get<{
+      success: boolean;
+      data: PeerInterviewBooking[];
+    }>(`/admin/peer-bookings${q}`);
+    return r.data.data;
+  },
+
+  assignPeerBooking: async (
+    bookingId: string,
+    interviewerId: string
+  ): Promise<PeerInterviewBooking> => {
+    const r = await apiClient.patch<{ success: boolean; data: PeerInterviewBooking }>(
+      `/admin/peer-bookings/${bookingId}/assign`,
+      { interviewerId }
+    );
+    return r.data.data;
+  },
 };
 
 /** Scheduled interviews (candidate: list mine, start). */
@@ -2468,6 +2566,158 @@ export const systemDesignApi = {
       },
     );
     return response.data.data;
+  },
+};
+
+export type PeerEligibility = {
+  eligible: boolean;
+  plan: string;
+  used: number;
+  limit: number;
+  reason?: string;
+  billingPeriodKey?: string;
+};
+
+export type PeerAvailabilitySlot = {
+  slotKey: string;
+  scheduledAt: string;
+  endAt: string;
+  durationMinutes: number;
+  interviewerId: string;
+  interviewerName: string;
+  interviewerRole: string;
+  timezone: string;
+};
+
+export type PeerInterviewer = {
+  _id: string;
+  name: string;
+  email: string;
+  role: string;
+  totalExperienceYears: number;
+  currentCompany: string;
+  profileImageUrl?: string;
+  industries: string[];
+  targetRoles: string[];
+  timezone: string;
+  isActive: boolean;
+};
+
+export type PeerInterviewerSlot = {
+  _id: string;
+  interviewerId: string;
+  dayOfWeek?: number;
+  specificDate?: string;
+  startTime: string;
+  endTime: string;
+  durationMinutes: number;
+  isActive: boolean;
+};
+
+export type PeerInterviewBooking = {
+  _id: string;
+  bookingId: string;
+  candidateClerkId: string;
+  currentJobRole: string;
+  targetJobRole: string;
+  scheduledAt: string;
+  durationMinutes: number;
+  timezone: string;
+  interviewerId?: PeerInterviewer | string;
+  status: "pending_assignment" | "confirmed" | "completed" | "cancelled";
+  meetLink?: string;
+  billingPeriodKey: string;
+  rescheduleCount?: number;
+  lastRescheduledAt?: string;
+  cancelledAt?: string;
+  createdAt: string;
+};
+
+export type PeerReschedulePolicy = {
+  allowed: boolean;
+  reason?: string;
+  remaining: number;
+};
+
+export const peerInterviewApi = {
+  getEligibility: async (): Promise<PeerEligibility> => {
+    const r = await apiClient.get<{ success: boolean; data: PeerEligibility }>(
+      "/peer-interviews/eligibility"
+    );
+    return r.data.data;
+  },
+
+  getAvailability: async (
+    from: string,
+    to: string,
+    timezone?: string,
+    excludeBookingId?: string
+  ): Promise<PeerAvailabilitySlot[]> => {
+    const q = new URLSearchParams({ from, to });
+    if (excludeBookingId) q.set("excludeBookingId", excludeBookingId);
+    if (timezone) q.set("timezone", timezone);
+    const r = await apiClient.get<{
+      success: boolean;
+      data: PeerAvailabilitySlot[];
+    }>(`/peer-interviews/availability?${q.toString()}`);
+    return r.data.data;
+  },
+
+  createBooking: async (body: {
+    currentJobRole: string;
+    targetJobRole: string;
+    scheduledAt: string;
+    timezone: string;
+    interviewerId: string;
+  }): Promise<PeerInterviewBooking> => {
+    const r = await apiClient.post<{ success: boolean; data: PeerInterviewBooking }>(
+      "/peer-interviews/bookings",
+      body
+    );
+    return r.data.data;
+  },
+
+  listMyBookings: async (): Promise<PeerInterviewBooking[]> => {
+    const r = await apiClient.get<{ success: boolean; data: PeerInterviewBooking[] }>(
+      "/peer-interviews/bookings/me"
+    );
+    return r.data.data;
+  },
+
+  getBooking: async (
+    bookingId: string
+  ): Promise<{ booking: PeerInterviewBooking; reschedule: PeerReschedulePolicy }> => {
+    const r = await apiClient.get<{
+      success: boolean;
+      data: { booking: PeerInterviewBooking; reschedule: PeerReschedulePolicy };
+    }>(`/peer-interviews/bookings/${bookingId}`);
+    return r.data.data;
+  },
+
+  rescheduleBooking: async (
+    bookingId: string,
+    body: {
+      scheduledAt: string;
+      interviewerId: string;
+      timezone?: string;
+    }
+  ): Promise<PeerInterviewBooking> => {
+    const r = await apiClient.patch<{ success: boolean; data: PeerInterviewBooking }>(
+      `/peer-interviews/bookings/${bookingId}/reschedule`,
+      body
+    );
+    return r.data.data;
+  },
+
+  cancelBooking: async (
+    bookingId: string,
+    reason?: string
+  ): Promise<PeerInterviewBooking> => {
+    const r = await apiClient.patch<{ success: boolean; data: PeerInterviewBooking }>(
+      `/peer-interviews/bookings/${bookingId}/cancel`,
+      { reason }
+    );
+    return r.data.data;
   },
 };
 

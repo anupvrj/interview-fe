@@ -59,7 +59,6 @@ import {
   resumeApi,
   userApi,
 } from "@/lib/api";
-import { getPeerInterviewUnlockStatus } from "@/lib/peer-interviews";
 import {
   cn,
   getInterviewCreditsUsed,

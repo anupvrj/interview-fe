@@ -25,26 +25,15 @@ import {
   XCircle,
   AlertTriangle,
 } from "lucide-react";
-import { paymentApi, planApi, Subscription, CreditBalance } from "@/lib/api";
+import { paymentApi, Subscription, CreditBalance } from "@/lib/api";
 import { formatDate } from "@/lib/utils";
+import {
+  normalizeSubscriptionPlan,
+  subscriptionPlanDisplayName,
+  isPaidSubscriptionPlan,
+  getUpgradeOffer,
+} from "@/lib/subscriptionPlans";
 import { institutePrimaryClass } from "@/components/institute/InstituteChrome";
-
-interface Plan {
-  _id: string;
-  planId: string;
-  name: string;
-  displayName: string;
-  features: any;
-  pricing: any;
-  creditsIncluded: any;
-}
-
-interface NextPlanDisplay {
-  id: string;
-  name: string;
-  price: number;
-  features: string[];
-}
 
 export default function PlanPage() {
   const { user, isLoaded } = useUser();
@@ -60,14 +49,11 @@ export default function PlanPage() {
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [reactivatingSubscription, setReactivatingSubscription] =
     useState(false);
-  const [allPlans, setAllPlans] = useState<Plan[]>([]);
-
+  const [planLoadError, setPlanLoadError] = useState<string | null>(null);
   useEffect(() => {
     if (isLoaded && user) {
       localStorage.setItem("clerk-user-id", user.id);
-      loadSubscription();
-      loadCreditBalance();
-      loadPlans();
+      void loadPageData();
     }
   }, [isLoaded, user]);
 
@@ -82,38 +68,30 @@ export default function PlanPage() {
     };
   }, []);
 
-  const loadSubscription = async () => {
+  const loadPageData = async () => {
     try {
       setLoading(true);
-      const data = await paymentApi.getSubscription();
-      console.log("📊 Subscription data loaded:", data);
-      console.log("🔍 Cancel button conditions:");
-      console.log("  - plan !== 'free':", data?.plan !== "free");
-      console.log("  - status === 'active':", data?.status === "active");
-      console.log("  - autoRenew:", data?.autoRenew);
-      setSubscription(data);
+      setPlanLoadError(null);
+      const [sub, balance] = await Promise.all([
+        paymentApi.getSubscription(),
+        paymentApi.getCreditBalance(),
+      ]);
+      setSubscription(sub);
+      setCreditBalance(balance);
+      if (!sub) {
+        setPlanLoadError(
+          "Could not load your subscription. Refresh the page or try again shortly.",
+        );
+      }
     } catch (error) {
-      console.error("Error loading subscription:", error);
+      console.error("Error loading plan page data:", error);
+      setPlanLoadError(
+        error instanceof Error
+          ? error.message
+          : "Failed to load subscription details.",
+      );
     } finally {
       setLoading(false);
-    }
-  };
-
-  const loadCreditBalance = async () => {
-    try {
-      const balance = await paymentApi.getCreditBalance();
-      setCreditBalance(balance);
-    } catch (error) {
-      console.error("Error loading credit balance:", error);
-    }
-  };
-
-  const loadPlans = async () => {
-    try {
-      const plans = await planApi.getAllPlans();
-      setAllPlans(plans);
-    } catch (error) {
-      console.error("Error loading plans:", error);
     }
   };
 
@@ -225,7 +203,7 @@ export default function PlanPage() {
         duration: 5000,
       });
       setShowCancelConfirm(false);
-      loadSubscription();
+      void loadPageData();
     } catch (error: any) {
       console.error("Error cancelling subscription:", error);
       toast.error("Cancellation Failed", {
@@ -246,7 +224,7 @@ export default function PlanPage() {
           "Your subscription has been reactivated. Auto-renewal is now enabled.",
         duration: 5000,
       });
-      loadSubscription();
+      void loadPageData();
     } catch (error: any) {
       console.error("Error reactivating subscription:", error);
       toast.error("Reactivation Failed", {
@@ -257,70 +235,6 @@ export default function PlanPage() {
     } finally {
       setReactivatingSubscription(false);
     }
-  };
-
-  const getNextPlan = (currentPlan: string): NextPlanDisplay | null => {
-    if (!allPlans || allPlans.length === 0) return null;
-
-    const planOrder = ["free", "premium", "enterprise"];
-    const currentIndex = planOrder.indexOf(currentPlan);
-
-    if (currentIndex === -1 || currentIndex === planOrder.length - 1) {
-      return null;
-    }
-
-    const nextPlanId = planOrder[currentIndex + 1];
-    const nextPlan = allPlans.find((p) => p.planId === nextPlanId);
-
-    if (!nextPlan) return null;
-
-    // Generate features list from plan data
-    const features: string[] = [];
-
-    if (nextPlan.features.freeInterviews) {
-      features.push(
-        `${nextPlan.features.freeInterviews.count} free ${nextPlan.features.freeInterviews.duration}-min interviews`,
-      );
-    }
-
-    if (nextPlan.features.additionalInterviews) {
-      features.push(
-        `${nextPlan.features.additionalInterviews.count} additional ${nextPlan.features.additionalInterviews.duration}-min interviews`,
-      );
-    }
-
-    if (nextPlan.features.resumeBuilder?.enabled) {
-      features.push("Resume Builder Pro");
-    }
-
-    if (nextPlan.features.atsScoring?.detailed) {
-      features.push("Detailed ATS score");
-    }
-
-    if (nextPlan.features.behavioralAnalysis) {
-      features.push("Behavioral analysis");
-    }
-
-    if (nextPlan.features.customQuestions) {
-      features.push("Custom interview questions");
-    }
-
-    if (nextPlan.features.prioritySupport) {
-      features.push("Priority support");
-    }
-
-    if (nextPlan.features.realInterviews) {
-      features.push(
-        `${nextPlan.features.realInterviews.count} real interviews with top engineers`,
-      );
-    }
-
-    return {
-      id: nextPlan.planId,
-      name: nextPlan.displayName,
-      price: nextPlan.pricing.monthly,
-      features,
-    };
   };
 
   if (!isLoaded || loading) {
@@ -334,14 +248,18 @@ export default function PlanPage() {
     );
   }
 
-  let planName = "Free Plan";
-  if (subscription?.plan === "premium") {
-    planName = "Premium Plan";
-  } else if (subscription?.plan === "enterprise") {
-    planName = "Enterprise Plan";
-  }
-
-  const nextPlan = subscription?.plan ? getNextPlan(subscription.plan) : null;
+  const normalizedPlan = normalizeSubscriptionPlan(subscription?.plan);
+  const planName = subscription
+    ? subscriptionPlanDisplayName(normalizedPlan)
+    : "Subscription unavailable";
+  const upgradeOffer = getUpgradeOffer(normalizedPlan);
+  const isPaidPlan = isPaidSubscriptionPlan(subscription?.plan);
+  const interviewCredits =
+    creditBalance?.available ??
+    subscription?.creditsAvailable ??
+    0;
+  const nextRenewalIso =
+    subscription?.nextRenewalDate ?? subscription?.currentPeriodEnd;
 
   return (
     <div className="w-full max-w-7xl mx-auto space-y-4 lg:space-y-6">
@@ -384,6 +302,11 @@ export default function PlanPage() {
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
+              {planLoadError && (
+                <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                  {planLoadError}
+                </div>
+              )}
               {/* Credit Usage for Interviews */}
               <div className="rounded-md border border-slate-200 bg-slate-50/80 p-4">
                 <div className="flex items-center justify-between mb-4">
@@ -397,7 +320,7 @@ export default function PlanPage() {
                   </div>
                   <div className="text-right">
                     <span className="text-2xl font-bold text-[#7367F0] block">
-                      {subscription?.creditsAvailable || 0}
+                      {interviewCredits}
                     </span>
                     <span className="text-xs text-gray-500">available</span>
                   </div>
@@ -420,28 +343,39 @@ export default function PlanPage() {
                 </div>
               </div>
 
-              {/* Renewal Date */}
-              {subscription?.currentPeriodEnd && (
+              {/* Next renewal — paid plans */}
+              {isPaidPlan && nextRenewalIso && (
                 <div className="flex items-center gap-3 rounded-md border border-slate-200 bg-slate-50/80 p-4">
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-[#7367F0] shadow-lg shadow-blue-500/30 ring-2 ring-blue-200/50">
                     <Calendar className="h-5 w-5 text-white" />
                   </div>
                   <div className="flex-1">
                     <p className="text-sm font-semibold text-gray-900 mb-1">
-                      Current Period
+                      Billing
                     </p>
                     <p className="text-sm text-gray-600">
-                      Renews on:{" "}
+                      Next renewal date:{" "}
                       <span className="font-medium">
-                        {formatDate(subscription.currentPeriodEnd)}
+                        {formatDate(nextRenewalIso)}
                       </span>
+                      {subscription?.billingCycle && (
+                        <span className="text-gray-500">
+                          {" "}
+                          ({subscription.billingCycle})
+                        </span>
+                      )}
                     </p>
+                    {subscription?.autoRenew === false && (
+                      <p className="text-xs text-amber-700 mt-1">
+                        Auto-renew is off — access continues until this date.
+                      </p>
+                    )}
                   </div>
                 </div>
               )}
 
               {/* Cancel Subscription Section - Only for active paid subscriptions */}
-              {subscription?.plan !== "free" &&
+              {isPaidPlan &&
                 subscription?.status === "active" &&
                 subscription?.autoRenew && (
                   <div className="pt-2">
@@ -511,7 +445,7 @@ export default function PlanPage() {
                 )}
 
               {/* Reactivate Subscription Section - Only for cancelled subscriptions within period */}
-              {subscription?.plan !== "free" &&
+              {isPaidPlan &&
                 subscription?.status === "cancelled" &&
                 subscription?.currentPeriodEnd &&
                 new Date(subscription.currentPeriodEnd) > new Date() && (
@@ -561,8 +495,8 @@ export default function PlanPage() {
             </CardContent>
           </Card>
 
-          {/* Upgrade card - right after current plan */}
-          {nextPlan && (
+          {/* Upgrade card - free → Premium; premium → Enterprise */}
+          {upgradeOffer && (
             <Card className="overflow-hidden rounded-xl border border-border/60 bg-card shadow-card">
               <CardContent className="py-5">
                 <div className="flex flex-col items-start justify-between gap-4 rounded-md border border-slate-200 bg-slate-50/80 p-4 sm:flex-row sm:items-center">
@@ -572,20 +506,22 @@ export default function PlanPage() {
                     </div>
                     <div>
                       <h3 className="mb-1 text-lg font-bold text-slate-900">
-                        Upgrade to a higher plan and save more
+                        {upgradeOffer.title}
                       </h3>
                       <p className="text-gray-600 text-sm">
-                        Unlock more interviews, resume builds, and premium
-                        features.
+                        {upgradeOffer.description}
                       </p>
                     </div>
                   </div>
-                  <Link href="/pricing" className="w-full sm:w-auto shrink-0">
+                  <Link
+                    href={upgradeOffer.href}
+                    className="w-full sm:w-auto shrink-0"
+                  >
                     <Button
                       size="lg"
                       className="w-full sm:w-auto !bg-purple-600 text-white shadow-lg transition-all hover:!bg-purple-700 hover:shadow-xl"
                     >
-                      View all plans
+                      {upgradeOffer.ctaLabel}
                       <ArrowRight className="w-5 h-5 ml-2" />
                     </Button>
                   </Link>
@@ -704,8 +640,8 @@ export default function PlanPage() {
         </Card>
       </div>
 
-      {/* Highest Plan Message */}
-      {!nextPlan && subscription?.plan !== "free" && (
+      {/* Highest tier — Enterprise only */}
+      {normalizedPlan === "enterprise" && (
         <Card className="overflow-hidden rounded-xl border border-border/60 bg-card shadow-card">
           <CardContent className="py-5">
             <div className="flex items-start gap-4 rounded-md border border-slate-200 bg-slate-50/80 p-4">

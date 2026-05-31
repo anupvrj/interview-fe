@@ -1,49 +1,90 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Interview, interviewApi, userApi } from "@/lib/api";
 import {
-  getPeerInterviewUnlockStatus,
-  PEER_INTERVIEW_UNLOCK_MIN_AVG_SCORE,
-  PEER_INTERVIEW_UNLOCK_MIN_COUNT,
-} from "@/lib/peer-interviews";
-import { cn, getScoreColor } from "@/lib/utils";
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import {
   ArrowRight,
-  CheckCircle,
+  Calendar,
+  ExternalLink,
   Loader2,
-  Lock,
-  PlayCircle,
   Sparkles,
+  UserRound,
+  UsersRound,
+  Video,
 } from "lucide-react";
+import { toast } from "sonner";
+import {
+  peerInterviewApi,
+  userApi,
+  type PeerInterviewBooking,
+  type PeerEligibility,
+} from "@/lib/api";
+import { cn } from "@/lib/utils";
+import { institutePrimaryClass } from "@/components/institute/InstituteChrome";
+import { getPeerReschedulePolicy } from "@/lib/peerInterviewReschedule";
 
-/** Frosted glass: blur + saturation read as “real” glass in WebKit/Blink */
-const glassBackdrop = {
-  backdropFilter: "blur(22px) saturate(180%)",
-  WebkitBackdropFilter: "blur(22px) saturate(180%)",
-} as const;
+const STEPS = [
+  {
+    title: "Book your slot",
+    description: "Share your current and target role, then pick a time from real interviewer availability.",
+  },
+  {
+    title: "Get matched",
+    description: "We assign an industry expert interviewer aligned with your target role.",
+  },
+  {
+    title: "Join on Google Meet",
+    description: "Receive calendar invite and Meet link by email once your session is confirmed.",
+  },
+  {
+    title: "Practice live",
+    description: "60-minute mock interview with structured feedback from someone who has been there.",
+  },
+];
 
-/** Cancel `DashboardLayout` main padding (`p-3 sm:p-4 lg:p-8`) so the route background is edge-to-edge */
-const dashboardContentBleed =
-  "-mx-3 -mt-3 -mb-3 sm:-mx-4 sm:-mt-4 sm:-mb-4 lg:-mx-8 lg:-mt-8 lg:-mb-8";
+function formatBookingTime(iso: string, tz: string) {
+  return new Date(iso).toLocaleString(undefined, {
+    timeZone: tz,
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
+}
 
-/** Fill the viewport below dashboard chrome (header + padding fudge) */
-const dashboardRouteMinH =
-  "min-h-[calc(100dvh-6.5rem)] sm:min-h-[calc(100dvh-6rem)] lg:min-h-[calc(100dvh-5.5rem)]";
+function interviewerName(booking: PeerInterviewBooking): string {
+  const iv = booking.interviewerId;
+  if (iv && typeof iv === "object" && "name" in iv) return iv.name;
+  return "Assigning…";
+}
 
 export default function PeerInterviewsPage() {
   const { user, isLoaded } = useUser();
   const router = useRouter();
-  const [interviews, setInterviews] = useState<Interview[]>([]);
+  const [eligibility, setEligibility] = useState<PeerEligibility | null>(null);
+  const [bookings, setBookings] = useState<PeerInterviewBooking[]>([]);
   const [loading, setLoading] = useState(true);
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
+
+  const refresh = async () => {
+    const [elig, list] = await Promise.all([
+      peerInterviewApi.getEligibility(),
+      peerInterviewApi.listMyBookings(),
+    ]);
+    setEligibility(elig);
+    setBookings(list);
+  };
 
   useEffect(() => {
     if (!isLoaded || !user) return;
-
     (async () => {
       try {
         const profile = await userApi.getMyProfile();
@@ -52,305 +93,299 @@ export default function PeerInterviewsPage() {
           profile.institutionId
         ) {
           router.replace(
-            `/dashboard/institute/${String(profile.institutionId)}`,
+            `/dashboard/institute/${String(profile.institutionId)}`
           );
           return;
         }
-        const list = await interviewApi.list(user.id);
-        setInterviews(list);
+        await refresh();
       } catch {
-        setInterviews([]);
+        setEligibility(null);
+        setBookings([]);
       } finally {
         setLoading(false);
       }
     })();
   }, [isLoaded, user, router]);
 
+  const upcoming = useMemo(
+    () =>
+      bookings.filter(
+        (b) =>
+          b.status !== "cancelled" &&
+          new Date(b.scheduledAt) > new Date() &&
+          (b.status === "confirmed" || b.status === "pending_assignment")
+      ),
+    [bookings]
+  );
+
+  const handleCancel = async (bookingId: string) => {
+    setCancellingId(bookingId);
+    try {
+      await peerInterviewApi.cancelBooking(bookingId);
+      toast.success("Booking cancelled");
+      await refresh();
+    } catch (e: unknown) {
+      const msg =
+        (e as { response?: { data?: { message?: string } } })?.response?.data
+          ?.message || "Could not cancel";
+      toast.error(msg);
+    } finally {
+      setCancellingId(null);
+    }
+  };
+
   if (!isLoaded || loading) {
     return (
       <div className="flex min-h-[400px] items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="mx-auto mb-4 h-12 w-12 animate-spin text-primary" />
-          <p className="text-gray-600">Loading peer interviews…</p>
-        </div>
+        <Loader2 className="h-12 w-12 animate-spin text-[#7367F0]" />
       </div>
     );
   }
 
-  const unlock = getPeerInterviewUnlockStatus(interviews);
-  const progressScores = unlock.last10Scores.slice(
-    0,
-    PEER_INTERVIEW_UNLOCK_MIN_COUNT,
-  );
-  const slotFillPercent =
-    (progressScores.length / PEER_INTERVIEW_UNLOCK_MIN_COUNT) * 100;
-
-  if (unlock.unlocked) {
-    return (
-      <div
-        className={`relative flex ${dashboardRouteMinH} flex-col overflow-hidden ${dashboardContentBleed}`}
-      >
-        <div
-          className="pointer-events-none absolute inset-0 bg-gradient-to-br from-sky-200/50 via-muted/40 to-indigo-200/45"
-          aria-hidden
-        />
-        <div
-          className="pointer-events-none absolute -left-24 top-1/4 h-72 w-72 rounded-full bg-primary/80/25 blur-3xl"
-          aria-hidden
-        />
-        <div
-          className="pointer-events-none absolute -right-20 bottom-0 h-80 w-80 rounded-full bg-indigo-300/20 blur-3xl"
-          aria-hidden
-        />
-
-        <div className="relative z-10 flex flex-1 flex-col items-center justify-center px-4 py-10 sm:px-6 lg:px-8">
-          <article
-            className="relative w-full max-w-2xl overflow-hidden rounded-2xl border border-white/[0.72] bg-gradient-to-br from-white/[0.42] via-white/[0.22] to-white/[0.12] p-8 shadow-[0_8px_32px_rgba(37,99,235,0.14),0_32px_64px_-24px_rgba(99,102,241,0.12)] ring-1 ring-white/30 sm:p-10 lg:p-12"
-            style={glassBackdrop}
-          >
-            <div
-              className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/90 to-transparent"
-              aria-hidden
-            />
-            <div className="relative mb-5 flex h-14 w-14 items-center justify-center rounded-xl bg-primary shadow-lg shadow-primary/30 sm:h-16 sm:w-16">
-              <CheckCircle className="h-7 w-7 text-white sm:h-8 sm:w-8" />
-            </div>
-            <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl">
-              Peer interviews unlocked
-            </h1>
-            <p className="mt-3 text-base leading-relaxed text-slate-600 sm:text-lg">
-              You beat the warmup wall—your last{" "}
-              {PEER_INTERVIEW_UNLOCK_MIN_COUNT} scored sessions average{" "}
-              <span className="font-semibold text-emerald-700">
-                {unlock.averageLast10}%
-              </span>
-              {". Matching with practicing engineers plus structured feedback rolls out here soon."}
-            </p>
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <Link href="/dashboard" className="flex-1">
-                <Button
-                  variant="outline"
-                  className="h-14 min-h-[3.5rem] w-full border border-white/50 bg-white/20 text-base font-semibold text-primary shadow-[inset_0_1px_0_0_rgba(255,255,255,0.55)] hover:bg-white/35 sm:text-lg"
-                  style={glassBackdrop}
-                >
-                  Back to dashboard
-                </Button>
-              </Link>
-            </div>
-          </article>
-        </div>
-      </div>
-    );
-  }
+  const canBook = eligibility?.eligible && (eligibility.used < eligibility.limit);
 
   return (
-    <div
-      className={`relative flex ${dashboardRouteMinH} flex-col overflow-hidden ${dashboardContentBleed}`}
-    >
-      {/* Backdrop so glass reads clearly */}
-      <div
-        className="pointer-events-none absolute inset-0 bg-gradient-to-br from-sky-300/65 via-violet-200/50 to-muted/55"
-        aria-hidden
-      />
-      <div
-        className="pointer-events-none absolute -left-32 top-16 h-[28rem] w-[28rem] rounded-full bg-primary/35 blur-3xl"
-        aria-hidden
-      />
-      <div
-        className="pointer-events-none absolute -right-28 bottom-12 h-96 w-96 rounded-full bg-fuchsia-400/30 blur-3xl"
-        aria-hidden
-      />
-      <div
-        className="pointer-events-none absolute left-1/4 top-1/2 h-72 w-72 -translate-y-1/2 rounded-full bg-cyan-300/35 blur-3xl"
-        aria-hidden
-      />
-
-      <div className="relative z-10 mx-auto flex w-full max-w-7xl flex-1 flex-col items-stretch gap-8 px-4 py-10 sm:px-6 lg:flex-row lg:items-center lg:gap-10 lg:px-8 lg:py-12 xl:gap-12">
-        {/* Left: main glass content */}
-        <article
-          className="relative min-w-0 flex-1 overflow-hidden rounded-2xl border border-white/[0.72] bg-gradient-to-br from-white/[0.38] via-white/[0.2] to-white/[0.08] p-6 shadow-[0_8px_32px_rgba(37,99,235,0.12),0_32px_64px_-20px_rgba(79,70,229,0.14)] ring-1 ring-inset ring-white/25 sm:p-8 lg:max-w-[64%] lg:p-10 xl:max-w-[62%]"
-          style={glassBackdrop}
-        >
-          <div
-            className="pointer-events-none absolute inset-x-4 top-0 h-px bg-gradient-to-r from-transparent via-white to-transparent opacity-90 sm:inset-x-6 lg:inset-x-8"
-            aria-hidden
-          />
-          <header className="relative flex items-start gap-3 sm:gap-4">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary shadow-md shadow-primary/25 ring-1 ring-white/50 sm:h-12 sm:w-12">
-              <Sparkles
-                className="h-5 w-5 sm:h-6 sm:w-6"
-                strokeWidth={2}
-              />
-            </div>
-            <div className="min-w-0">
-              <h1 className="text-lg font-bold text-slate-900 sm:text-xl lg:text-2xl">
-                Your progress toward Peer interviews
-              </h1>
-              <p className="mt-1.5 text-sm leading-relaxed text-slate-600 sm:text-base">
-                Graduate from solo AI rehearsals to timed sessions with real
-                engineers who comment like hiring panels—earn it by averaging{" "}
-                {PEER_INTERVIEW_UNLOCK_MIN_AVG_SCORE}% across your last{" "}
-                {PEER_INTERVIEW_UNLOCK_MIN_COUNT} completed AI Interview Practice
-                sessions.
-              </p>
-            </div>
-          </header>
-
-          {/* Score row */}
-          <section className="relative mt-6">
-            <p className="mb-3 text-sm font-semibold text-slate-800 sm:text-base">
-              Last {PEER_INTERVIEW_UNLOCK_MIN_COUNT} scores (newest first)
-            </p>
+    <div className="mx-auto w-full max-w-7xl space-y-4 lg:space-y-6">
+      <section className="relative overflow-hidden rounded-xl bg-[#7367F0]/[0.04] px-4 pb-8 pt-4 sm:px-6 sm:pb-12 sm:pt-6 md:pb-16">
+        <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-xl">
+          {[...Array(6)].map((_, i) => (
             <div
-              className="flex flex-wrap gap-2 sm:gap-2.5"
-              role="list"
-              aria-label="Recent interview scores"
+              key={i}
+              className="absolute"
+              style={{
+                left: `${(i * 18) % 90}%`,
+                top: `${(i * 22) % 85}%`,
+                opacity: 0.09,
+                animation: `float-${i % 3} ${6 + (i % 3) * 2}s ease-in-out infinite`,
+                animationDelay: `${i * 0.5}s`,
+              }}
             >
-              {Array.from({ length: PEER_INTERVIEW_UNLOCK_MIN_COUNT }).map(
-                (_, i) => {
-                  const s = progressScores[i];
-                  return (
-                    <div
-                      key={i}
-                      role="listitem"
+              <UsersRound className="h-10 w-10 text-[#7367F0]/40 sm:h-14 sm:w-14" />
+            </div>
+          ))}
+        </div>
+
+        <div className="relative z-10 mx-auto max-w-7xl">
+          <div className="grid items-center gap-8 lg:grid-cols-2 lg:gap-12">
+            <div className="space-y-4 text-center lg:text-left">
+              <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-[#7367F0]/10 px-3 py-1 text-sm font-medium text-[#7367F0]">
+                <Sparkles className="h-3 w-3" />
+                <span>Premium · up to 2 sessions / billing period</span>
+              </div>
+              <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl lg:text-[34px] lg:leading-[42px]">
+                <span className="text-[#7367F0]">Peer Interviews</span> with
+                industry experts
+              </h1>
+              <p className="text-sm text-muted-foreground sm:text-base">
+                Practice with real engineers from top companies—not AI. Book a
+                live mock interview and get actionable feedback.
+              </p>
+              <div className="flex flex-col items-center gap-3 sm:flex-row lg:justify-start">
+                {canBook ? (
+                  <Link href="/dashboard/peer-interviews/book" className="w-full sm:w-auto">
+                    <Button
+                      size="lg"
                       className={cn(
-                        "flex h-10 min-w-[2.75rem] items-center justify-center rounded-lg border text-sm font-bold tabular-nums shadow-[inset_0_1px_0_0_rgba(255,255,255,0.45)] sm:h-11 sm:min-w-[3rem] sm:text-base",
-                        s != null
-                          ? cn(
-                              "border-white/55 bg-white/18 backdrop-blur-[8px]",
-                              getScoreColor(s),
-                            )
-                          : "border-dashed border-white/45 bg-white/[0.08] text-slate-500/90 backdrop-blur-[6px]",
+                        institutePrimaryClass,
+                        "w-full sm:w-auto"
                       )}
-                      style={
-                        s != null
-                          ? {
-                              backdropFilter: "blur(8px) saturate(160%)",
-                              WebkitBackdropFilter: "blur(8px) saturate(160%)",
-                            }
-                          : {
-                              backdropFilter: "blur(6px) saturate(150%)",
-                              WebkitBackdropFilter: "blur(6px) saturate(150%)",
-                            }
-                      }
                     >
-                      {s != null ? s : "—"}
-                    </div>
-                  );
-                },
-              )}
+                      Book your peer interview
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </Button>
+                  </Link>
+                ) : (
+                  <Link href="/pricing" className="w-full sm:w-auto">
+                    <Button size="lg" className={cn(institutePrimaryClass, "w-full sm:w-auto")}>
+                      Upgrade to Premium
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </Button>
+                  </Link>
+                )}
+              </div>
+              {eligibility && !eligibility.eligible && eligibility.reason ? (
+                <p className="text-sm text-amber-700">{eligibility.reason}</p>
+              ) : null}
             </div>
-          </section>
-
-          {/* Inner glass progress panel */}
-          <section
-            className="relative mt-6 overflow-hidden rounded-xl border border-white/50 bg-gradient-to-br from-white/[0.22] to-white/[0.06] p-5 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.55),0_1px_2px_rgba(15,23,42,0.04)] sm:p-6"
-            style={{
-              backdropFilter: "blur(14px) saturate(170%)",
-              WebkitBackdropFilter: "blur(14px) saturate(170%)",
-            }}
-          >
-            <div
-              className="pointer-events-none absolute inset-x-0 top-0 h-px bg-white/50"
-              aria-hidden
-            />
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-sm sm:text-base">
-              <span className="font-semibold text-slate-800">
-                Overall progress
-              </span>
-              <span className="text-slate-600">
-                {progressScores.length} of {PEER_INTERVIEW_UNLOCK_MIN_COUNT}{" "}
-                slots filled
-              </span>
+            <div className="flex justify-center">
+              <div className="rounded-xl border border-border/60 bg-card p-6 shadow-card">
+                <div className="flex items-center gap-4">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-violet-500/12 text-violet-600">
+                    <UserRound className="h-7 w-7" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Your plan</p>
+                    <p className="text-lg font-semibold capitalize">
+                      {eligibility?.plan ?? "—"}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {eligibility?.used ?? 0} / {eligibility?.limit ?? 2} peer
+                      sessions used
+                    </p>
+                  </div>
+                </div>
+              </div>
             </div>
-            <div className="h-3 w-full overflow-hidden rounded-full bg-white/35 ring-1 ring-white/40 sm:h-3.5">
-              <div
-                className="h-full rounded-full bg-primary shadow-sm transition-[width] duration-500 ease-out"
-                style={{ width: `${slotFillPercent}%` }}
-              />
-            </div>
-            {unlock.scoredCompletedCount < PEER_INTERVIEW_UNLOCK_MIN_COUNT ? (
-              <p className="mt-3 text-sm leading-relaxed text-slate-600 sm:text-base">
-                You have{" "}
-                <strong className="font-semibold text-slate-800">
-                  {unlock.scoredCompletedCount}
-                </strong>{" "}
-                scored wrap-up
-                {unlock.scoredCompletedCount === 1 ? "" : "s"} on the books.
-                Keep closing AI Interview Practice sessions so reviewers can judge consistent
-                pacing, STAR depth, and how you synthesize AI feedback mid-loop.
-              </p>
-            ) : (
-              <p className="mt-3 text-sm leading-relaxed text-slate-600 sm:text-base">
-                Your rolling average is{" "}
-                <strong
-                  className={cn(
-                    "font-semibold",
-                    getScoreColor(unlock.averageLast10 ?? 0),
-                  )}
-                >
-                  {unlock.averageLast10}%
-                </strong>
-                . Hit{" "}
-                <strong className="font-semibold text-slate-800">
-                  {PEER_INTERVIEW_UNLOCK_MIN_AVG_SCORE}%
-                </strong>{" "}
-                and we unlock live peer mocks—same scoring rigor with human
-                nuance layered on top.
-              </p>
-            )}
-          </section>
-
-          {/* Actions */}
-          <div className="relative mt-6 flex flex-col gap-2.5 sm:flex-row sm:gap-3">
-            <Link href="/dashboard/interviews/new" className="flex-1">
-              <Button
-                size="lg"
-                className="h-12 min-h-[3rem] w-full rounded-xl !bg-primary px-5 text-sm font-semibold text-white shadow-md shadow-primary/25 transition-all hover:!bg-slate-900 hover:shadow-lg sm:text-base"
-              >
-                <PlayCircle className="mr-2 h-5 w-5 shrink-0" />
-                Start AI Interview Practice
-                <ArrowRight className="ml-2 h-4 w-4 shrink-0 opacity-90" />
-              </Button>
-            </Link>
-            <Link href="/dashboard/interviews" className="flex-1">
-              <Button
-                size="lg"
-                variant="outline"
-                className="h-12 min-h-[3rem] w-full rounded-xl border border-white/60 bg-white/15 px-5 text-sm font-semibold text-primary shadow-[inset_0_1px_0_0_rgba(255,255,255,0.55)] hover:bg-white/28 sm:text-base"
-                style={glassBackdrop}
-              >
-                View interview history
-              </Button>
-            </Link>
           </div>
-        </article>
+        </div>
+      </section>
 
-        {/* Right: large lock — full side, no square frame */}
-        <aside className="relative flex min-h-[280px] flex-1 flex-col items-center justify-center px-4 py-6 lg:min-h-0 lg:max-w-[36%] lg:items-center lg:justify-center lg:px-5 xl:px-6">
-          <div
-            className="pointer-events-none absolute left-1/2 top-1/2 h-[min(100%,28rem)] w-[min(100%,28rem)] -translate-x-1/2 -translate-y-1/2 rounded-full bg-gradient-to-br from-primary/80/25 via-indigo-400/20 to-violet-400/25 blur-3xl"
-            aria-hidden
-          />
-          <div className="relative flex flex-col items-center text-center lg:items-center">
-            <Lock
-              className="h-36 w-36 text-slate-700/85 drop-shadow-[0_4px_24px_rgba(37,99,235,0.15)] sm:h-44 sm:w-44 lg:h-52 lg:w-52 xl:h-60 xl:w-60"
-              strokeWidth={1.35}
-              aria-hidden
-            />
-            <p className="mt-8 text-xs font-bold uppercase tracking-[0.28em] text-slate-500 sm:text-sm">
-              Locked
-            </p>
-            <p className="mt-3 max-w-sm text-xl font-bold leading-snug text-slate-900 sm:text-2xl lg:text-3xl">
-              Peer-to-peer interviews
-            </p>
-            <p className="mt-3 max-w-xs text-sm leading-relaxed text-slate-600 sm:text-base">
-              Beat the jitters solo first—once those rolling scores clear the bar,
-              real engineers step in with candid debriefs you can trust.
-            </p>
-          </div>
-        </aside>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {STEPS.map((step, i) => (
+          <Card key={step.title} className="border-border/60 shadow-card">
+            <CardHeader className="pb-2">
+              <div className="mb-2 flex h-8 w-8 items-center justify-center rounded-lg bg-[#7367F0]/10 text-sm font-bold text-[#7367F0]">
+                {i + 1}
+              </div>
+              <CardTitle className="text-base">{step.title}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <CardDescription>{step.description}</CardDescription>
+            </CardContent>
+          </Card>
+        ))}
       </div>
+
+      {upcoming.length > 0 ? (
+        <Card className="border-[#7367F0]/20 shadow-card">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Calendar className="h-5 w-5 text-[#7367F0]" />
+              Upcoming session
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {upcoming.map((b) => (
+              <div
+                key={b.bookingId}
+                className="flex flex-col gap-3 rounded-lg border border-border/60 p-4 sm:flex-row sm:items-center sm:justify-between"
+              >
+                <div>
+                  <p className="font-medium">{b.targetJobRole}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {formatBookingTime(b.scheduledAt, b.timezone)} ·{" "}
+                    {interviewerName(b)}
+                  </p>
+                  <p className="text-xs capitalize text-muted-foreground">
+                    Status: {b.status.replace("_", " ")}
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {b.meetLink ? (
+                    <Button variant="outline" size="sm" asChild>
+                      <a href={b.meetLink} target="_blank" rel="noopener noreferrer">
+                        <Video className="mr-1 h-4 w-4" />
+                        Join Meet
+                        <ExternalLink className="ml-1 h-3 w-3" />
+                      </a>
+                    </Button>
+                  ) : null}
+                  {(() => {
+                    const rs = getPeerReschedulePolicy(b);
+                    return rs.allowed ? (
+                      <Button variant="outline" size="sm" asChild>
+                        <Link
+                          href={`/dashboard/peer-interviews/reschedule?bookingId=${encodeURIComponent(b.bookingId)}`}
+                        >
+                          Reschedule ({rs.remaining} left)
+                        </Link>
+                      </Button>
+                    ) : null;
+                  })()}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    disabled={cancellingId === b.bookingId}
+                    onClick={() => handleCancel(b.bookingId)}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      ) : null}
+
+      <section>
+        <h2 className="mb-4 text-lg font-semibold">Your bookings</h2>
+        {bookings.length === 0 ? (
+          <Card className="border-dashed shadow-card">
+            <CardContent className="flex flex-col items-center py-12 text-center">
+              <UsersRound className="mb-4 h-12 w-12 text-muted-foreground/50" />
+              <p className="text-muted-foreground">No peer interviews booked yet.</p>
+              {canBook ? (
+                <Link href="/dashboard/peer-interviews/book" className="mt-4">
+                  <Button className={institutePrimaryClass}>
+                    Book your first session
+                  </Button>
+                </Link>
+              ) : null}
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="overflow-hidden rounded-xl border border-border/60 bg-card shadow-card">
+            <table className="w-full text-sm">
+              <thead className="border-b bg-muted/30">
+                <tr>
+                  <th className="px-4 py-3 text-left font-medium">Target role</th>
+                  <th className="px-4 py-3 text-left font-medium">When</th>
+                  <th className="px-4 py-3 text-left font-medium">Interviewer</th>
+                  <th className="px-4 py-3 text-left font-medium">Status</th>
+                  <th className="px-4 py-3 text-right font-medium">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {bookings.map((b) => (
+                  <tr key={b.bookingId} className="border-b last:border-0">
+                    <td className="px-4 py-3">{b.targetJobRole}</td>
+                    <td className="px-4 py-3 text-muted-foreground">
+                      {formatBookingTime(b.scheduledAt, b.timezone)}
+                    </td>
+                    <td className="px-4 py-3">{interviewerName(b)}</td>
+                    <td className="px-4 py-3 capitalize">
+                      {b.status.replace(/_/g, " ")}
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <div className="flex flex-wrap items-center justify-end gap-1">
+                        {b.meetLink && b.status === "confirmed" ? (
+                          <Button variant="link" size="sm" asChild className="h-auto p-0">
+                            <a href={b.meetLink} target="_blank" rel="noopener noreferrer">
+                              Meet link
+                            </a>
+                          </Button>
+                        ) : null}
+                        {b.status !== "cancelled" &&
+                        new Date(b.scheduledAt) > new Date() ? (
+                          <>
+                            {getPeerReschedulePolicy(b).allowed ? (
+                              <Button variant="link" size="sm" asChild className="h-auto p-0">
+                                <Link
+                                  href={`/dashboard/peer-interviews/reschedule?bookingId=${encodeURIComponent(b.bookingId)}`}
+                                >
+                                  Reschedule
+                                </Link>
+                              </Button>
+                            ) : null}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              disabled={cancellingId === b.bookingId}
+                              onClick={() => handleCancel(b.bookingId)}
+                            >
+                              Cancel
+                            </Button>
+                          </>
+                        ) : null}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
     </div>
   );
 }

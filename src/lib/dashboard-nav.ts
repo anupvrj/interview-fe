@@ -124,7 +124,6 @@ const baseMenuItems: DashboardNavItem[] = [
     href: "/dashboard/peer-interviews",
     icon: UsersRound,
     accent: accent.violet,
-    locked: true,
   },
   {
     title: "Job Board",

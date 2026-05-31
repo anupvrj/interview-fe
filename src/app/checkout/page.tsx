@@ -12,6 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { paymentApi, planApi, Subscription } from "@/lib/api";
+import { normalizeSubscriptionPlan } from "@/lib/subscriptionPlans";
 import type { PlanRecord } from "@/lib/planRecord";
 import { getPlanMarketingHighlights } from "@/lib/planHighlightsFromFeatures";
 import Script from "next/script";
@@ -141,9 +142,11 @@ function CheckoutPageContent() {
         const subscription = await paymentApi.getSubscription();
         setCurrentSubscription(subscription);
 
+        const currentPlan = normalizeSubscriptionPlan(subscription?.plan);
+
         if (
           subscription &&
-          subscription.plan === planId &&
+          currentPlan === planId &&
           subscription.status === "active"
         ) {
           const nextPlan = getNextPlan(planId);
@@ -158,11 +161,11 @@ function CheckoutPageContent() {
           }
         } else if (
           subscription &&
-          subscription.plan !== "free" &&
-          getPlanLevel(subscription.plan) > getPlanLevel(planId)
+          currentPlan !== "free" &&
+          getPlanLevel(currentPlan) > getPlanLevel(planId)
         ) {
           setSamePlanError(
-            `You are currently on the ${planLabel(subscription.plan)} plan. Please contact support if you want to change your plan.`,
+            `You are currently on the ${planLabel(currentPlan)} plan. Please contact support if you want to change your plan.`,
           );
         } else {
           setSamePlanError(null);
