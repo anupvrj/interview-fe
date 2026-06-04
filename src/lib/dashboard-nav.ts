@@ -229,7 +229,15 @@ export function getDashboardNavItems(
     ];
   }
 
-  const items = [...baseMenuItems];
+  let items = [...baseMenuItems];
+
+  if (accessRole !== "super_admin") {
+    items = items.filter(
+      (item) =>
+        item.href !== "/dashboard/peer-interviews" &&
+        item.href !== "/dashboard/job-board",
+    );
+  }
 
   if (accessRole === "super_admin") {
     items.push(
