@@ -29,7 +29,7 @@ export const organizationSchema = {
   "@type": "Organization",
   name: "Interview Trix",
   url: process.env.NEXT_PUBLIC_APP_URL || "https://interviewtrix.com",
-  logo: `${process.env.NEXT_PUBLIC_APP_URL || "https://interviewtrix.com"}/logo.png`,
+  logo: `${process.env.NEXT_PUBLIC_APP_URL || "https://interviewtrix.com"}/brand/interviewtrix-logo.png`,
   description:
     "From ATS-optimized resumes to AI Interview Practice and detailed performance reports — everything you need to get shortlisted and hired.",
   sameAs: [...ORGANIZATION_SAME_AS],
