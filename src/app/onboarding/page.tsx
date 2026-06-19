@@ -29,6 +29,7 @@ import {
   X,
   Eye,
 } from "lucide-react";
+import { isPaidPlanId } from "@/lib/pricingPageContent";
 import { userApi } from "@/lib/api";
 import { InstitutionAffiliationFields } from "@/components/profile/InstitutionAffiliationFields";
 import {
@@ -42,7 +43,6 @@ import {
 } from "@/lib/pdf-dropzone";
 import { PageHeader } from "@/components/app/PageHeader";
 import { appCard } from "@/lib/app-theme";
-import { cn } from "@/lib/utils";
 
 const INDUSTRIES = [
   "IT/Software",
@@ -172,11 +172,11 @@ export default function OnboardingPage() {
           localStorage.removeItem("pendingPlan");
           didRedirect = true;
           router.replace("/contact");
-        } else if (pendingPlan === "premium") {
+        } else if (pendingPlan && isPaidPlanId(pendingPlan)) {
           console.log("📦 Pending plan found, redirecting to checkout");
           localStorage.removeItem("pendingPlan");
           didRedirect = true;
-          router.replace(`/checkout?plan=${pendingPlan}`);
+          router.replace(`/checkout?plan=${pendingPlan}&cycle=monthly`);
         } else {
           if (pendingPlan) localStorage.removeItem("pendingPlan");
           console.log("🏠 Redirecting to dashboard");
@@ -327,9 +327,9 @@ export default function OnboardingPage() {
       if (pendingPlan === "enterprise") {
         localStorage.removeItem("pendingPlan");
         router.push("/contact");
-      } else if (pendingPlan === "premium") {
+      } else if (pendingPlan && isPaidPlanId(pendingPlan)) {
         localStorage.removeItem("pendingPlan");
-        router.push(`/checkout?plan=${pendingPlan}`);
+        router.push(`/checkout?plan=${pendingPlan}&cycle=monthly`);
       } else {
         if (pendingPlan) localStorage.removeItem("pendingPlan");
         router.push("/dashboard");

@@ -25,4 +25,9 @@ export interface PlanRecord {
   color: string;
   icon: string;
   order: number;
+  metadata?: {
+    comingSoonHighlights?: string[];
+    bestFor?: string;
+    tags?: string[];
+  };
 }

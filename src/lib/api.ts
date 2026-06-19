@@ -8,6 +8,19 @@ import axios, {
 export const API_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:5004/api";
 
+export type SubscriptionPlanSlug =
+  | "free"
+  | "general_pass"
+  | "tech_basic"
+  | "tech_pro"
+  | "enterprise"
+  | "premium";
+
+export type SelfServePlanSlug =
+  | "general_pass"
+  | "tech_basic"
+  | "tech_pro";
+
 export const apiClient: AxiosInstance = axios.create({
   baseURL: API_URL,
   timeout: 60000,
@@ -123,7 +136,7 @@ export interface User {
     size: number;
   };
   subscription?: {
-    plan: "free" | "premium" | "enterprise";
+    plan: SubscriptionPlanSlug;
     status: "active" | "cancelled" | "expired";
     currentPeriodEnd?: string;
     interviewsUsed?: number;
@@ -853,7 +866,7 @@ export const codingInterviewApi = {
 };
 
 export interface Subscription {
-    plan: "free" | "premium" | "enterprise";
+    plan: SubscriptionPlanSlug;
   status: "active" | "cancelled" | "expired";
   interviewsUsed?: number; // Deprecated: now using credits
   interviewsLimit?: number; // Deprecated: now using credits
@@ -890,7 +903,7 @@ export interface RazorpayOrder {
 
 export const paymentApi = {
   createOrder: async (
-    plan: "premium",
+    plan: SelfServePlanSlug,
     billingCycle: "monthly" | "quarterly" | "yearly" = "monthly",
   ): Promise<RazorpayOrder> => {
     const response = await apiClient.post<{ data: RazorpayOrder }>(

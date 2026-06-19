@@ -20,7 +20,8 @@ import { SiteHeader } from "@/components/SiteHeader";
 import { MarketingFooter } from "@/components/MarketingFooter";
 import { PageHeader } from "@/components/app/PageHeader";
 import { appCard } from "@/lib/app-theme";
-import { cn } from "@/lib/utils";
+import { isPaidPlanId, type PaidPlanId } from "@/lib/pricingPageContent";
+import type { SelfServePlanSlug } from "@/lib/api";
 
 declare global {
   interface Window {
@@ -32,7 +33,7 @@ function CheckoutPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user, isLoaded } = useUser();
-  const planId = searchParams.get("plan") as "premium" | null;
+  const planId = searchParams.get("plan") as PaidPlanId | null;
   const billingCycle = (searchParams.get("cycle") || "monthly") as
     | "monthly"
     | "quarterly"
@@ -46,7 +47,7 @@ function CheckoutPageContent() {
   const [currentSubscription, setCurrentSubscription] =
     useState<Subscription | null>(null);
   const [samePlanError, setSamePlanError] = useState<string | null>(null);
-  const [premiumPlan, setPremiumPlan] = useState<PlanRecord | null>(null);
+  const [selectedPlan, setSelectedPlan] = useState<PlanRecord | null>(null);
   const [planCatalog, setPlanCatalog] = useState<PlanRecord[]>([]);
   const [catalogError, setCatalogError] = useState<string | null>(null);
 
@@ -54,14 +55,19 @@ function CheckoutPageContent() {
   const getPlanLevel = (plan: string): number => {
     const levels: Record<string, number> = {
       free: 0,
-      premium: 1,
-      enterprise: 2,
+      general_pass: 1,
+      tech_basic: 2,
+      tech_pro: 3,
+      premium: 3,
+      enterprise: 4,
     };
     return levels[plan] ?? 0;
   };
 
   const getNextPlan = (currentPlan: string): string | null => {
-    if (currentPlan === "free") return "premium";
+    if (currentPlan === "free") return "general_pass";
+    if (currentPlan === "general_pass") return "tech_basic";
+    if (currentPlan === "tech_basic") return "tech_pro";
     return null;
   };
 
@@ -114,7 +120,7 @@ function CheckoutPageContent() {
         return;
       }
 
-      if (!planId || planId !== "premium") {
+      if (!planId || !isPaidPlanId(planId)) {
         router.push("/pricing");
         return;
       }
@@ -123,15 +129,15 @@ function CheckoutPageContent() {
         setCatalogError(null);
         const catalog = await planApi.getAllPlans();
         setPlanCatalog(catalog);
-        const premium = catalog.find((p) => p.planId === "premium");
-        if (!premium) {
+        const planRecord = catalog.find((p) => p.planId === planId);
+        if (!planRecord) {
           setCatalogError(
-            "Premium plan is not available. Please try again later.",
+            "This plan is not available. Please choose another from pricing.",
           );
-          setPremiumPlan(null);
+          setSelectedPlan(null);
           return;
         }
-        setPremiumPlan(premium);
+        setSelectedPlan(planRecord);
 
         const planLabel = (id: string) =>
           catalog.find((p) => p.planId === id)?.displayName ??
@@ -182,14 +188,16 @@ function CheckoutPageContent() {
   }, [isLoaded, user, planId, router]);
 
   const handlePayment = async () => {
-    if (!planId || !user || samePlanError || !premiumPlan) return;
+    if (!planId || !user || samePlanError || !selectedPlan) return;
 
     setLoading(true);
     setError(null);
 
     try {
-      // Create order/subscription
-      const order = await paymentApi.createOrder(planId, billingCycle);
+      const order = await paymentApi.createOrder(
+        planId as SelfServePlanSlug,
+        billingCycle,
+      );
       console.log("🔍 Order received from backend:", order);
       console.log("💰 Amount in paise:", order.amount);
       console.log("💰 Amount in rupees:", order.amount / 100);
@@ -216,7 +224,7 @@ function CheckoutPageContent() {
           key: order.keyId,
           subscription_id: order.subscriptionId,
           name: "Interview Trix",
-          description: `${premiumPlan.name} Plan - ${premiumPlan.creditsIncluded[billingCycle]} credits (${billingCycle} billing)`,
+          description: `${selectedPlan.name} Plan - ${selectedPlan.creditsIncluded[billingCycle]} credits (${billingCycle} billing)`,
           prefill: {
             name: user.fullName || user.firstName || "",
             email: user.primaryEmailAddress?.emailAddress || "",
@@ -264,7 +272,7 @@ function CheckoutPageContent() {
           amount: order.amount,
           currency: order.currency,
           name: "Interview Trix",
-          description: `${premiumPlan.name} Plan - ${premiumPlan.creditsIncluded[billingCycle]} credits`,
+          description: `${selectedPlan.name} Plan - ${selectedPlan.creditsIncluded[billingCycle]} credits`,
           order_id: order.orderId,
           // Enable Indian payment methods
           method: {
@@ -333,7 +341,7 @@ function CheckoutPageContent() {
     );
   }
 
-  if (catalogError || !premiumPlan) {
+  if (catalogError || !selectedPlan) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-background px-4">
         <p className="text-gray-700 mb-4 text-center max-w-md">
@@ -346,7 +354,7 @@ function CheckoutPageContent() {
     );
   }
 
-  const plan = premiumPlan;
+  const plan = selectedPlan;
   const planPrice = plan.pricing[billingCycle];
   const planCredits = plan.creditsIncluded[billingCycle];
   const highlightLines = getPlanMarketingHighlights(plan);

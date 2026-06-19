@@ -1,28 +1,40 @@
 import type { LucideIcon } from "lucide-react";
-import { Sparkles, Zap, Trophy, Crown, Building2 } from "lucide-react";
+import {
+  Sparkles,
+  Zap,
+  Trophy,
+  Crown,
+  Building2,
+  Mic,
+  Code2,
+} from "lucide-react";
 
-/**
- * Shared Lucide icons for marketing plan cards (homepage + /pricing).
- * Tailwind gradient strings must appear as literals here so they are generated.
- */
 export const MARKETING_ICON_MAP = {
   Sparkles,
   Zap,
   Trophy,
   Crown,
   Building2,
+  Mic,
+  Code: Code2,
 } as const;
 
 export type MarketingIconName = keyof typeof MARKETING_ICON_MAP;
 
 export const PLAN_CARD_GRADIENT: Record<string, string> = {
   free: "from-slate-500 to-slate-600",
-  premium: "from-primary to-primary",
+  general_pass: "from-violet-500 to-purple-600",
+  tech_basic: "from-blue-500 to-cyan-600",
+  tech_pro: "from-primary to-indigo-700",
+  premium: "from-primary to-indigo-700",
   enterprise: "from-slate-700 to-slate-900",
 };
 
 export const PLAN_ICON_KEY: Record<string, MarketingIconName> = {
   free: "Sparkles",
+  general_pass: "Mic",
+  tech_basic: "Code",
+  tech_pro: "Trophy",
   premium: "Trophy",
   enterprise: "Building2",
 };
@@ -33,10 +45,7 @@ export function getMarketingPlanIcon(
 ): LucideIcon {
   const byId = PLAN_ICON_KEY[planId];
   if (byId) return MARKETING_ICON_MAP[byId];
-  if (
-    iconFromApi &&
-    iconFromApi in MARKETING_ICON_MAP
-  ) {
+  if (iconFromApi && iconFromApi in MARKETING_ICON_MAP) {
     return MARKETING_ICON_MAP[iconFromApi as MarketingIconName];
   }
   return Sparkles;
