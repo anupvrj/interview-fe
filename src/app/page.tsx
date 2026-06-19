@@ -39,64 +39,53 @@ import { AiJobSearchNotifyButton } from "@/components/AiJobSearchNotifyButton";
 import { appMarketingSection, appMarketingSectionAlt, appMarketingSectionPurple, appMarketingSectionLight } from "@/lib/app-theme";
 import { cn } from "@/lib/utils";
 
-// Custom hook for counting animation
-function useCountUp(end: number, duration: number = 2000, suffix: string = "", prefix: string = "") {
+// Count-up when stats section scrolls into view
+function useCountUp(
+  end: number,
+  duration: number = 2000,
+  suffix: string = "",
+  prefix: string = "",
+  delay: number = 0,
+) {
   const [count, setCount] = useState(0);
-  const [hasStarted, setHasStarted] = useState(false);
+  const hasStartedRef = useRef(false);
 
   useEffect(() => {
+    const element = document.getElementById("stats-section");
+    if (!element) return;
+
     const observer = new IntersectionObserver(
       (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting && !hasStarted) {
-            setHasStarted(true);
-            const startTime = Date.now();
-            const startValue = 0;
+        if (!entries[0]?.isIntersecting || hasStartedRef.current) return;
+        hasStartedRef.current = true;
 
-            const animate = () => {
-              const now = Date.now();
-              const elapsed = now - startTime;
-              const progress = Math.min(elapsed / duration, 1);
-              
-              // Easing function for smooth animation
-              const easeOutQuart = 1 - Math.pow(1 - progress, 4);
-              const currentValue = Math.floor(startValue + (end - startValue) * easeOutQuart);
-              
-              setCount(currentValue);
+        const run = () => {
+          const startTime = Date.now();
+          const animate = () => {
+            const elapsed = Date.now() - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+            const easeOutQuart = 1 - Math.pow(1 - progress, 4);
+            setCount(Math.floor(end * easeOutQuart));
+            if (progress < 1) requestAnimationFrame(animate);
+            else setCount(end);
+          };
+          requestAnimationFrame(animate);
+        };
 
-              if (progress < 1) {
-                requestAnimationFrame(animate);
-              } else {
-                setCount(end);
-              }
-            };
-
-            requestAnimationFrame(animate);
-          }
-        });
+        if (delay > 0) {
+          window.setTimeout(run, delay);
+        } else {
+          run();
+        }
       },
-      { threshold: 0.3 }
+      { threshold: 0.25 },
     );
 
-    // Use setTimeout to ensure DOM is ready
-    const timer = setTimeout(() => {
-      const element = document.getElementById("stats-section");
-      if (element) {
-        observer.observe(element);
-      }
-    }, 100);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [end, duration, delay]);
 
-    return () => {
-      clearTimeout(timer);
-      const element = document.getElementById("stats-section");
-      if (element) {
-        observer.unobserve(element);
-      }
-    };
-  }, [end, duration, hasStarted]);
-
-  const formattedCount = count.toLocaleString("en-IN");
-  return prefix + formattedCount + suffix;
+  return prefix + count.toLocaleString("en-IN") + suffix;
 }
 
 export default function LandingPage() {
@@ -113,10 +102,10 @@ export default function LandingPage() {
   const [scrollPosition, setScrollPosition] = useState(0);
   const jobResultsRef = useRef<HTMLDivElement>(null);
   
-  // Animated counts
-  const usersCount = useCountUp(50000, 2000, "+");
-  const resumesCount = useCountUp(120000, 2000, "+");
-  const interviewsCount = useCountUp(25000, 2000, "+");
+  // Animated counts (scroll into view → count up over ~2s, staggered)
+  const usersCount = useCountUp(3000, 2000, "+", "", 0);
+  const resumesCount = useCountUp(3000, 2000, "+", "", 200);
+  const interviewsCount = useCountUp(5000, 2200, "+", "", 400);
   
   const resumeTemplates = [
     "/resume-template-images/atlantic-blue-template-design.webp",
@@ -1313,7 +1302,7 @@ export default function LandingPage() {
                 </div>
               </div>
               <div className="flex-1">
-                <div className="mb-1 text-2xl font-bold text-primary sm:text-3xl lg:text-4xl">
+                <div className="mb-1 text-2xl font-bold tabular-nums text-primary sm:text-3xl lg:text-4xl">
                   {usersCount}
                 </div>
                 <div className="text-sm sm:text-base text-primary">
@@ -1330,7 +1319,7 @@ export default function LandingPage() {
                 </div>
               </div>
               <div className="flex-1">
-                <div className="mb-1 text-2xl font-bold text-primary sm:text-3xl lg:text-4xl">
+                <div className="mb-1 text-2xl font-bold tabular-nums text-primary sm:text-3xl lg:text-4xl">
                   {resumesCount}
                 </div>
                 <div className="text-sm sm:text-base text-primary">
@@ -1347,7 +1336,7 @@ export default function LandingPage() {
                 </div>
               </div>
               <div className="flex-1">
-                <div className="mb-1 text-2xl font-bold text-primary sm:text-3xl lg:text-4xl">
+                <div className="mb-1 text-2xl font-bold tabular-nums text-primary sm:text-3xl lg:text-4xl">
                   {interviewsCount}
                 </div>
                 <div className="text-sm sm:text-base text-primary">
