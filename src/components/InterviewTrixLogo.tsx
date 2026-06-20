@@ -3,12 +3,14 @@ import { cn } from "@/lib/utils";
 
 /** Known assets with correct intrinsic dimensions for `next/image`. */
 const PRESETS = {
-  /** Full-color wordmark on white / light UI */
-  default: { src: "/interviewtrix.png", width: 2187, height: 480 },
-  /** Light wordmark for dark backgrounds (e.g. footer) */
-  white: { src: "/interviewtrix-white.png", width: 1067, height: 234 },
-  /** Wordmark tuned for soft / gradient panels (auth marketing column) */
-  onLightBg: { src: "/interviewtrix-bg.png", width: 1067, height: 234 },
+  /** Full-color wordmark (transparent PNG) */
+  default: { src: "/brand/interviewtrix-logo.png", width: 1067, height: 234 },
+  /** Wordmark on dark backgrounds (e.g. footer, sidebar) */
+  white: { src: "/brand/interviewtrix-logo.png", width: 1067, height: 234 },
+  /** Wordmark on soft / gradient panels (auth marketing column) */
+  onLightBg: { src: "/brand/interviewtrix-logo.png", width: 1067, height: 234 },
+  /** Square mark for compact UI */
+  icon: { src: "/brand/interviewtrix-icon.png", width: 269, height: 269 },
 } as const;
 
 export type InterviewTrixLogoVariant = keyof typeof PRESETS;

@@ -80,6 +80,10 @@ export const metadata: Metadata = {
   verification: {
     google: "your-google-verification-code", // Replace with actual code from Google Search Console
   },
+  icons: {
+    icon: [{ url: "/brand/interviewtrix-icon.png", type: "image/png" }],
+    apple: [{ url: "/brand/interviewtrix-icon.png", type: "image/png" }],
+  },
 };
 
 export default function RootLayout({
