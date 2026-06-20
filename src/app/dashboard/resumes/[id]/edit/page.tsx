@@ -31,6 +31,7 @@ import {
   X,
   Check,
   RefreshCw,
+  Palette,
 } from "lucide-react";
 import { Resume, ResumeTemplate, resumeApi, apiClient } from "@/lib/api";
 import { ResumePreview } from "@/components/ResumePreview";
@@ -48,6 +49,11 @@ import {
 } from "@/lib/resume-page-dimensions";
 import { ATSFeedback } from "@/components/ATSFeedback";
 import { ProfilePictureCropper } from "@/components/ProfilePictureCropper";
+import { ChangeTemplateDialog } from "@/components/resume-editor/ChangeTemplateDialog";
+import {
+  buildLayoutForTemplateSwitch,
+  buildSectionsForTemplateSwitch,
+} from "@/lib/resume-template-switch";
 import { debugResumePagination } from "@/lib/debug-resume-pagination";
 
 interface Section {
@@ -149,6 +155,8 @@ export default function EditResumePage() {
   const [viewMode, setViewMode] = useState<"edit" | "ats">("edit");
 
   // Delete section dialog state
+  const [changeTemplateOpen, setChangeTemplateOpen] = useState(false);
+  const [changingTemplate, setChangingTemplate] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [sectionToDelete, setSectionToDelete] = useState<{
     id: string;
@@ -279,6 +287,7 @@ export default function EditResumePage() {
 
         await resumeApi.update(resumeId, {
           title: resume.title,
+          templateId: resume.templateId,
           content: resume.content,
           profileSummary: resume.profileSummary,
           sectionOrder: sectionOrderData,
@@ -695,6 +704,7 @@ export default function EditResumePage() {
 
       await resumeApi.update(resumeId, {
         title: resume.title,
+        templateId: resume.templateId,
         content: resume.content,
         sectionOrder: sectionOrderData,
         layout: layout || {
@@ -714,6 +724,51 @@ export default function EditResumePage() {
       alert("Failed to save resume. Please try again.");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleChangeTemplate = async (newTemplateId: string) => {
+    if (!resume || newTemplateId === resume.templateId) {
+      setChangeTemplateOpen(false);
+      return;
+    }
+
+    try {
+      setChangingTemplate(true);
+      const templateList = await resumeApi.getTemplates();
+      const newTemplate = templateList.find((t) => t.id === newTemplateId);
+      if (!newTemplate) {
+        alert("Template not found. Please try again.");
+        return;
+      }
+
+      const { TemplateLoader } = await import("@/lib/templateLoader");
+      await TemplateLoader.loadTemplate(newTemplateId);
+
+      const nextLayout = buildLayoutForTemplateSwitch(newTemplate);
+      const nextSections = buildSectionsForTemplateSwitch(newTemplate, sections);
+
+      setTemplate(newTemplate);
+      setLayout(nextLayout);
+      setSections(nextSections);
+      setResume((prev) =>
+        prev
+          ? {
+              ...prev,
+              templateId: newTemplateId,
+              layout: nextLayout,
+              pdfS3Key: undefined,
+            }
+          : prev,
+      );
+      setChangeTemplateOpen(false);
+      setHasChanges(true);
+      bumpPreviewKey("templateChange");
+    } catch (error) {
+      console.error("Error changing template:", error);
+      alert("Failed to change template. Please try again.");
+    } finally {
+      setChangingTemplate(false);
     }
   };
 
@@ -1381,6 +1436,26 @@ export default function EditResumePage() {
                 </span>
               )}
 
+              <Button
+                type="button"
+                onClick={() => setChangeTemplateOpen(true)}
+                variant="outline"
+                size="sm"
+                className="shrink-0 max-md:flex-1"
+                disabled={changingTemplate}
+              >
+                {changingTemplate ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Applying...
+                  </>
+                ) : (
+                  <>
+                    <Palette className="w-4 h-4 mr-2" />
+                    Change Template
+                  </>
+                )}
+              </Button>
               <Button
                 onClick={handleSave}
                 disabled={saving || !hasChanges || autoSaving}
@@ -6825,6 +6900,13 @@ export default function EditResumePage() {
       </div>
 
       {/* Delete Section Confirmation Dialog */}
+      <ChangeTemplateDialog
+        open={changeTemplateOpen}
+        onOpenChange={setChangeTemplateOpen}
+        currentTemplateId={resume?.templateId}
+        onSelectTemplate={handleChangeTemplate}
+        applying={changingTemplate}
+      />
       <ConfirmationDialog
         open={deleteDialogOpen}
         onOpenChange={setDeleteDialogOpen}

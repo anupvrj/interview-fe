@@ -1,0 +1,124 @@
+import type { ResumeTemplate } from "@/lib/api";
+import { getExtendedTemplate } from "@/lib/templateConfigs";
+import { getTemplateStyle } from "@/lib/templateRenderer";
+import { resolveLayoutPaddingMm } from "@/lib/resume-page-dimensions";
+
+export type ResumeEditorLayout = {
+  type: "single" | "double";
+  columnWidths: { left: number; right: number };
+  padding?: { top: number; bottom: number; left: number; right: number };
+  fontSize?: {
+    heading?: number;
+    subheading?: number;
+    body?: number;
+    small?: number;
+    sectionHeader?: number;
+  };
+  fontFamily?: string;
+};
+
+export type ResumeEditorSection = {
+  id: string;
+  type: string;
+  title: string;
+  visible: boolean;
+  expanded: boolean;
+};
+
+/** Fresh layout from the target template — same rules as creating a new resume. */
+export function buildLayoutForTemplateSwitch(
+  newTemplate: ResumeTemplate,
+): ResumeEditorLayout {
+  const extended = getExtendedTemplate(newTemplate);
+  const style = getTemplateStyle(extended);
+  const renderingLayout = extended.rendering?.layout;
+
+  const renderingType = renderingLayout?.type;
+  const type: "single" | "double" =
+    renderingType === "double" || renderingType === "header-plus-columns"
+      ? "double"
+      : "single";
+
+  const columnWidths = renderingLayout?.columnWidths ?? {
+    left: 60,
+    right: 40,
+  };
+
+  let padding = resolveLayoutPaddingMm(style.padding);
+
+  if (newTemplate.id === "mercury") {
+    padding = { top: 20, bottom: 20, left: 20, right: 20 };
+  }
+
+  return {
+    type,
+    columnWidths: {
+      left: columnWidths.left,
+      right: columnWidths.right,
+    },
+    padding,
+  };
+}
+
+/** Rebuild section order/titles from the new template while keeping user visibility and custom sections. */
+export function buildSectionsForTemplateSwitch(
+  newTemplate: ResumeTemplate,
+  currentSections: ResumeEditorSection[],
+): ResumeEditorSection[] {
+  const extended = getExtendedTemplate(newTemplate);
+  const defaultOrder = extended.defaultSectionOrder ?? [];
+
+  if (defaultOrder.length === 0) {
+    return currentSections.map((section) => ({
+      ...section,
+      expanded: section.expanded ?? section.visible,
+    }));
+  }
+
+  const byId = new Map(currentSections.map((section) => [section.id, section]));
+  const byType = new Map<string, ResumeEditorSection>();
+  for (const section of currentSections) {
+    if (!byType.has(section.type)) {
+      byType.set(section.type, section);
+    }
+  }
+
+  const defaultTypes = new Set(defaultOrder.map((section) => section.type));
+  const usedIds = new Set<string>();
+  const result: ResumeEditorSection[] = [];
+
+  for (const templateSection of defaultOrder) {
+    const match =
+      byId.get(templateSection.id) ?? byType.get(templateSection.type);
+
+    result.push({
+      id: templateSection.id,
+      type: templateSection.type,
+      title: templateSection.title,
+      visible: match?.visible ?? templateSection.visible,
+      expanded: match?.expanded ?? templateSection.visible,
+    });
+
+    usedIds.add(templateSection.id);
+    if (match) {
+      usedIds.add(match.id);
+    }
+  }
+
+  for (const section of currentSections) {
+    if (usedIds.has(section.id)) {
+      continue;
+    }
+
+    if (section.type === "custom" || !defaultTypes.has(section.type)) {
+      result.push({
+        ...section,
+        expanded: section.expanded ?? section.visible,
+      });
+      usedIds.add(section.id);
+    }
+  }
+
+  return result;
+}
+
