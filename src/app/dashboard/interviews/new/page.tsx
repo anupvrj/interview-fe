@@ -100,8 +100,30 @@ export default function NewInterviewPage() {
     try {
       const result = await paymentApi.checkInterviewLimit();
       setLimitCheck(result);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error checking limit:", error);
+      try {
+        const sub = await paymentApi.getSubscription();
+        if (
+          sub &&
+          (sub.isExpired ||
+            sub.needsRenewal ||
+            sub.status === "expired" ||
+            sub.expiredPlanId)
+        ) {
+          setLimitCheck({
+            allowed: false,
+            isExpired: true,
+            reason:
+              "Your subscription has expired. Renew your plan to start new interviews.",
+            creditsAvailable: sub.creditsAvailable ?? 0,
+            minimumRequired: 150,
+          });
+          return;
+        }
+      } catch {
+        // fall through — limitCheck stays null, retry UI shown
+      }
     } finally {
       setCheckingLimit(false);
     }
@@ -251,21 +273,37 @@ export default function NewInterviewPage() {
           </CardContent>
         </Card>
       ) : limitCheck && !limitCheck.allowed ? (
-        <Card className="border-2 border-orange-400 bg-gradient-to-br from-orange-50 via-red-50 to-pink-50 shadow-xl">
+        <Card
+          className={cn(
+            "border-2 shadow-xl",
+            limitCheck.isExpired
+              ? "border-amber-400 bg-gradient-to-br from-amber-50 via-orange-50 to-amber-50"
+              : "border-orange-400 bg-gradient-to-br from-orange-50 via-red-50 to-pink-50",
+          )}
+        >
           <CardContent className="pt-6">
             <div className="flex flex-col md:flex-row items-start gap-6">
               <div className="flex-shrink-0">
-                <div className="w-16 h-16 bg-gradient-to-br from-orange-500 to-red-500 rounded-2xl flex items-center justify-center shadow-lg">
+                <div
+                  className={cn(
+                    "w-16 h-16 rounded-2xl flex items-center justify-center shadow-lg",
+                    limitCheck.isExpired
+                      ? "bg-gradient-to-br from-amber-500 to-orange-600"
+                      : "bg-gradient-to-br from-orange-500 to-red-500",
+                  )}
+                >
                   <Crown className="h-8 w-8 text-white" />
                 </div>
               </div>
               <div className="flex-1">
                 <h3 className="text-2xl font-bold text-gray-900 mb-3">
-                  Upgrade Your Free Tier
+                  {limitCheck.isExpired
+                    ? "Subscription expired"
+                    : "Not enough credits"}
                 </h3>
                 <p className="text-gray-700 mb-4 text-lg">
                   {limitCheck.reason ||
-                    "Insufficient credits. Purchase more credits to continue!"}
+                    "Purchase a plan or credits to continue interviewing."}
                 </p>
                 {limitCheck.creditsAvailable !== undefined &&
                   limitCheck.minimumRequired !== undefined && (
@@ -285,30 +323,47 @@ export default function NewInterviewPage() {
                         </span>{" "}
                         credits (30-min interview)
                       </p>
-                      <p className="text-xs text-gray-600 mt-2">
-                        Billing runs at 5 credits per minute—grab more credits to
-                        keep interviewing and unlock full scoring reports.
-                      </p>
+                      {!limitCheck.isExpired && (
+                        <p className="text-xs text-gray-600 mt-2">
+                          Billing runs at 5 credits per minute—grab more credits
+                          to keep interviewing and unlock full scoring reports.
+                        </p>
+                      )}
                     </div>
                   )}
                 <div className="flex flex-col sm:flex-row gap-3">
-                  <Button
-                    onClick={() => router.push("/dashboard/plan")}
-                    size="lg"
-                    className="!bg-emerald-600 hover:!bg-emerald-700 text-white shadow-lg hover:shadow-xl transition-all"
-                  >
-                    <Zap className="h-5 w-5 mr-2" />
-                    Purchase Credits
-                  </Button>
-                  <Button
-                    onClick={() => router.push("/pricing")}
-                    size="lg"
-                    variant="outline"
-                    className="border-2 border-primary text-primary hover:bg-muted"
-                  >
-                    <Crown className="h-5 w-5 mr-2" />
-                    View Plans
-                  </Button>
+                  {limitCheck.isExpired ? (
+                    <Button
+                      onClick={() =>
+                        router.push("/dashboard/plan?renew=1")
+                      }
+                      size="lg"
+                      className="!bg-[#7367F0] hover:!bg-[#6358d8] text-white shadow-lg hover:shadow-xl transition-all"
+                    >
+                      <Crown className="h-5 w-5 mr-2" />
+                      Renew subscription
+                    </Button>
+                  ) : (
+                    <>
+                      <Button
+                        onClick={() => router.push("/dashboard/plan")}
+                        size="lg"
+                        className="!bg-emerald-600 hover:!bg-emerald-700 text-white shadow-lg hover:shadow-xl transition-all"
+                      >
+                        <Zap className="h-5 w-5 mr-2" />
+                        Purchase credits
+                      </Button>
+                      <Button
+                        onClick={() => router.push("/pricing")}
+                        size="lg"
+                        variant="outline"
+                        className="border-2 border-primary text-primary hover:bg-muted"
+                      >
+                        <Crown className="h-5 w-5 mr-2" />
+                        View plans
+                      </Button>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
@@ -335,6 +390,17 @@ export default function NewInterviewPage() {
                 </p>
               </div>
             </div>
+          </CardContent>
+        </Card>
+      ) : !checkingLimit && !limitCheck ? (
+        <Card className={cn(appCard)}>
+          <CardContent className="pt-6">
+            <p className="text-gray-700 mb-4">
+              Could not verify your interview access. Please try again.
+            </p>
+            <Button type="button" onClick={() => checkInterviewLimit()}>
+              Retry
+            </Button>
           </CardContent>
         </Card>
       ) : null}

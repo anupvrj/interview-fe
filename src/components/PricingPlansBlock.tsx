@@ -182,6 +182,9 @@ export type PricingPlansBlockProps = {
   paidOnly?: boolean;
   /** Compact card style for homepage */
   compact?: boolean;
+  /** Renewal flow — CTA copy and auto-renew footnote */
+  renewalMode?: boolean;
+  showAutoRenewNote?: boolean;
 };
 
 export function PricingPlansBlock({
@@ -189,6 +192,8 @@ export function PricingPlansBlock({
   showViewAllPlansLink = false,
   paidOnly = false,
   compact = false,
+  renewalMode = false,
+  showAutoRenewNote = false,
 }: PricingPlansBlockProps) {
   const router = useRouter();
   const { user, isLoaded } = useUser();
@@ -292,11 +297,12 @@ export function PricingPlansBlock({
       {showHeading ? (
         <div className="mb-10 text-center sm:mb-12 lg:mb-16">
           <h2 className="mb-3 text-2xl font-bold sm:mb-4 sm:text-3xl lg:text-4xl">
-            Choose Your Plan
+            {renewalMode ? "Renew your subscription" : "Choose Your Plan"}
           </h2>
           <p className="mx-auto max-w-2xl text-sm text-gray-600 sm:text-base lg:text-lg">
-            Career-targeted tracks for non-tech professionals, junior developers,
-            and senior engineers.
+            {renewalMode
+              ? "Select a monthly plan. After payment, Razorpay will auto-renew each billing cycle until you cancel."
+              : "Career-targeted tracks for non-tech professionals, junior developers, and senior engineers."}
           </p>
         </div>
       ) : null}
@@ -463,7 +469,7 @@ export function PricingPlansBlock({
                       </>
                     ) : (
                       <>
-                        Subscribe monthly
+                        {renewalMode ? "Renew monthly" : "Subscribe monthly"}
                         <ArrowRight className="ml-2 inline h-4 w-4" />
                       </>
                     )}
@@ -474,6 +480,13 @@ export function PricingPlansBlock({
           })}
         </div>
       )}
+
+      {showAutoRenewNote ? (
+        <p className="mt-8 text-center text-sm text-muted-foreground">
+          Plans bill monthly. Razorpay auto-renews on your billing date when a
+          valid card or UPI mandate is on file.
+        </p>
+      ) : null}
 
       {showViewAllPlansLink ? (
         <div className="mt-8 text-center sm:mt-12">

@@ -20,6 +20,7 @@ import { SiteHeader } from "@/components/SiteHeader";
 import { MarketingFooter } from "@/components/MarketingFooter";
 import { PageHeader } from "@/components/app/PageHeader";
 import { appCard } from "@/lib/app-theme";
+import { cn } from "@/lib/utils";
 import { isPaidPlanId, type PaidPlanId } from "@/lib/pricingPageContent";
 import type { SelfServePlanSlug } from "@/lib/api";
 

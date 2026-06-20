@@ -76,6 +76,8 @@ import {
 import { DashboardWelcomeHero } from "@/components/dashboard/DashboardWelcomeHero";
 import { RecentInterviewsList } from "@/components/dashboard/RecentInterviewsList";
 import { DashboardResumesList } from "@/components/dashboard/DashboardResumesList";
+import { SubscriptionExpiredDialog } from "@/components/SubscriptionExpiredDialog";
+import { useSubscriptionExpiredGate } from "@/hooks/useSubscriptionExpiredGate";
 
 const ONBOARDING_BANNER_DISMISSED_KEY = "dashboard-onboarding-banner-dismissed";
 
@@ -105,6 +107,12 @@ export default function DashboardPage() {
     boolean | null
   >(null);
   const [videoUnavailableOpen, setVideoUnavailableOpen] = useState(false);
+  const {
+    open: subscriptionExpiredOpen,
+    setOpen: setSubscriptionExpiredOpen,
+    checking: checkingSubscription,
+    navigateToNewSession,
+  } = useSubscriptionExpiredGate();
   const [downloadingResumeId, setDownloadingResumeId] = useState<string | null>(
     null,
   );
@@ -605,11 +613,21 @@ export default function DashboardPage() {
               >
                 View all
               </Link>
-              <Link href="/dashboard/interviews/new">
-                <Button className={institutePrimaryClass}>
-                  <Plus className="mr-2 h-4 w-4" /> Start Interview
-                </Button>
-              </Link>
+              <Button
+                type="button"
+                disabled={checkingSubscription}
+                onClick={() =>
+                  navigateToNewSession("/dashboard/interviews/new")
+                }
+                className={institutePrimaryClass}
+              >
+                {checkingSubscription ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Plus className="mr-2 h-4 w-4" />
+                )}
+                Start Interview
+              </Button>
             </div>
           </div>
         </CardHeader>
@@ -725,6 +743,11 @@ export default function DashboardPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <SubscriptionExpiredDialog
+        open={subscriptionExpiredOpen}
+        onOpenChange={setSubscriptionExpiredOpen}
+      />
     </div>
   );
 }

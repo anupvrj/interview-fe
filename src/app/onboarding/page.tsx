@@ -43,6 +43,7 @@ import {
 } from "@/lib/pdf-dropzone";
 import { PageHeader } from "@/components/app/PageHeader";
 import { appCard } from "@/lib/app-theme";
+import { cn } from "@/lib/utils";
 
 const INDUSTRIES = [
   "IT/Software",

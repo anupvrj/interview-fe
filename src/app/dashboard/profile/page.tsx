@@ -25,7 +25,6 @@ import {
   X,
   Target,
   Briefcase,
-  Building2,
   Edit2,
   Save,
   Trash2,
@@ -55,12 +54,24 @@ import {
   pdfResumeDropzoneAccept,
   pdfResumeFileValidator,
 } from "@/lib/pdf-dropzone";
-import {
-  appCard,
-  appOutlineButton,
-  appPrimaryButton,
-  appBadgeInfo,
-} from "@/lib/app-theme";
+import { institutePrimaryClass } from "@/components/institute/InstituteChrome";
+import { DashboardStatCard } from "@/components/dashboard/DashboardStatCard";
+
+const profileCardClass =
+  "overflow-hidden rounded-xl border border-border/60 bg-card shadow-card";
+
+const profileInputClass =
+  "h-11 w-full min-w-0 rounded-[0.625rem] border-border/60 bg-background shadow-sm";
+
+const profileFormFieldClass = "flex min-w-0 flex-col gap-2";
+
+const profileFieldTileClass =
+  "rounded-xl border border-border/60 bg-muted/20 px-4 py-3";
+
+const profileSectionLabelClass =
+  "text-[11px] font-semibold uppercase tracking-wide text-muted-foreground";
+
+const profileFormLabelClass = "block text-sm font-medium text-foreground";
 
 const INDUSTRIES = [
   "IT/Software",
@@ -90,12 +101,12 @@ function ProfileField({
   className?: string;
 }) {
   return (
-    <div className={className}>
-      <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-        {label}
-      </p>
+    <div className={cn(profileFieldTileClass, className)}>
+      <p className={profileSectionLabelClass}>{label}</p>
       {children ?? (
-        <p className="mt-1 text-sm font-medium text-foreground">{value ?? "—"}</p>
+        <p className="mt-1.5 text-sm font-medium text-foreground">
+          {value ?? "—"}
+        </p>
       )}
     </div>
   );
@@ -103,19 +114,26 @@ function ProfileField({
 
 function SectionIcon({
   icon: Icon,
-  className,
+  tone = "violet",
 }: {
   icon: LucideIcon;
-  className: string;
+  tone?: "violet" | "cyan" | "emerald" | "amber";
 }) {
+  const toneClass = {
+    violet: "border-[#7367F0]/15 bg-[#7367F0]/10 text-[#7367F0]",
+    cyan: "border-cyan-500/20 bg-cyan-500/10 text-cyan-600",
+    emerald: "border-emerald-500/20 bg-emerald-500/10 text-emerald-600",
+    amber: "border-amber-500/20 bg-amber-500/10 text-amber-600",
+  }[tone];
+
   return (
     <div
       className={cn(
-        "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg",
-        className,
+        "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border",
+        toneClass,
       )}
     >
-      <Icon className="h-4 w-4" />
+      <Icon className="h-5 w-5" />
     </div>
   );
 }
@@ -364,26 +382,29 @@ export default function ProfilePage() {
     "—";
   const displayEmail =
     clerkUser?.primaryEmailAddress?.emailAddress || "—";
-  const jobParts = [
-    user?.currentJob?.company?.trim(),
-    user?.currentJob?.role?.trim(),
-    user?.currentJob?.industry?.trim(),
-  ].filter(Boolean);
-  const jobSummary = jobParts.length > 0 ? jobParts.join(" · ") : null;
+
+  const profileCompletionScore = (() => {
+    let score = 0;
+    if (user?.name?.trim()) score += 25;
+    if (user?.userType) score += 25;
+    if (user?.resume) score += 30;
+    if (user?.industries?.length || user?.affiliationInstitutionName) score += 20;
+    return Math.min(100, score);
+  })();
 
   if (!isLoaded || loading) {
     return (
       <div className="flex min-h-[400px] items-center justify-center">
         <div className="text-center">
-          <Loader2 className="mx-auto mb-3 h-10 w-10 animate-spin text-primary" />
-          <p className="text-sm text-muted-foreground">Loading your profile...</p>
+          <Loader2 className="mx-auto mb-4 h-12 w-12 animate-spin text-[#7367F0]" />
+          <p className="text-sm text-muted-foreground">Loading your profile…</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="mx-auto w-full max-w-7xl space-y-4">
+    <div className="mx-auto w-full max-w-7xl space-y-4 lg:space-y-6">
       <ProfileWelcomeHero
         firstName={clerkUser?.firstName || user?.name?.split(/\s+/)[0] || ""}
       />
@@ -391,13 +412,13 @@ export default function ProfilePage() {
       {(error || success) && (
         <div className="space-y-2">
           {error && (
-            <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-700">
+            <div className="flex items-start gap-2.5 rounded-xl border border-destructive/25 bg-destructive/5 px-4 py-3 text-sm text-destructive">
               <X className="mt-0.5 h-4 w-4 shrink-0" />
               <span>{error}</span>
             </div>
           )}
           {success && (
-            <div className="flex items-start gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-sm text-emerald-700">
+            <div className="flex items-start gap-2.5 rounded-xl border border-emerald-500/25 bg-emerald-500/5 px-4 py-3 text-sm text-emerald-700 dark:text-emerald-400">
               <CheckCircle className="mt-0.5 h-4 w-4 shrink-0" />
               <span>{success}</span>
             </div>
@@ -405,49 +426,87 @@ export default function ProfilePage() {
         </div>
       )}
 
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
+        <DashboardStatCard
+          theme="violet"
+          label="Account"
+          value={user?.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : "Student"}
+          hint={user?.createdAt ? `Since ${formatDate(user.createdAt)}` : "Member"}
+          icon={UserIcon}
+        />
+        <DashboardStatCard
+          theme="emerald"
+          label="Resume"
+          value={user?.resume ? "Uploaded" : "Not set"}
+          hint={
+            user?.resume
+              ? formatFileSize(user.resume.size)
+              : "Add PDF for interviews"
+          }
+          icon={FileText}
+          progress={user?.resume ? 100 : 0}
+        />
+        <DashboardStatCard
+          theme="sky"
+          label="Profile complete"
+          value={`${profileCompletionScore}%`}
+          hint={
+            profileCompletionScore >= 100
+              ? "All set"
+              : "Fill professional details"
+          }
+          icon={Award}
+          progress={profileCompletionScore}
+        />
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-3 lg:gap-6">
         <div className="space-y-4 lg:col-span-2">
           {/* Profile summary */}
-          <Card className={appCard}>
-            <CardContent className="p-4 sm:p-5">
+          <Card className={profileCardClass}>
+            <CardHeader className="border-b border-border/60 px-5 py-4">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                <div className="flex min-w-0 items-start gap-3">
+                <div className="flex min-w-0 items-start gap-4">
                   {clerkUser?.imageUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={clerkUser.imageUrl}
                       alt=""
-                      className="h-14 w-14 shrink-0 rounded-xl border border-border/80 object-cover"
+                      className="h-16 w-16 shrink-0 rounded-2xl border-2 border-[#7367F0]/20 object-cover shadow-sm ring-2 ring-[#7367F0]/10"
                     />
                   ) : (
-                    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-[#7367F0]/10 text-[#7367F0]">
-                      <UserIcon className="h-6 w-6" />
+                    <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border border-[#7367F0]/15 bg-[#7367F0]/10 text-[#7367F0]">
+                      <UserIcon className="h-7 w-7" />
                     </div>
                   )}
                   <div className="min-w-0 flex-1">
                     {editingName ? (
-                      <div className="space-y-2">
+                      <div className="space-y-3">
+                        <Label htmlFor="profile-full-name" className={profileFormLabelClass}>
+                          Full name
+                        </Label>
                         <Input
+                          id="profile-full-name"
                           value={fullNameInput}
                           onChange={(e) => setFullNameInput(e.target.value)}
                           placeholder="Enter full name"
-                          className="h-9"
+                          className={profileInputClass}
                         />
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
                           <Button
                             size="sm"
                             onClick={handleSaveName}
                             disabled={savingName}
-                            className={cn("gap-1.5", appPrimaryButton)}
+                            className={cn("gap-1.5", institutePrimaryClass)}
                           >
                             {savingName ? (
                               <>
-                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                Saving...
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                                Saving…
                               </>
                             ) : (
                               <>
-                                <Save className="h-3.5 w-3.5" />
+                                <Save className="h-4 w-4" />
                                 Save
                               </>
                             )}
@@ -455,7 +514,6 @@ export default function ProfilePage() {
                           <Button
                             size="sm"
                             variant="outline"
-                            className={appOutlineButton}
                             onClick={() => {
                               setEditingName(false);
                               setFullNameInput(user?.name || displayName);
@@ -467,15 +525,15 @@ export default function ProfilePage() {
                       </div>
                     ) : (
                       <>
-                        <h2 className="truncate text-base font-semibold text-foreground">
+                        <CardTitle className="truncate text-xl font-bold text-foreground">
                           {displayName}
-                        </h2>
-                        <p className="mt-0.5 truncate text-sm text-muted-foreground">
+                        </CardTitle>
+                        <CardDescription className="mt-1 truncate text-sm">
                           {displayEmail}
-                        </p>
-                        <div className="mt-2 flex flex-wrap items-center gap-2">
-                          <span className={appBadgeInfo}>
-                            {user?.role || "Student"}
+                        </CardDescription>
+                        <div className="mt-3 flex flex-wrap items-center gap-2">
+                          <span className="inline-flex items-center rounded-full border border-[#7367F0]/20 bg-[#7367F0]/10 px-2.5 py-0.5 text-xs font-semibold capitalize text-[#7367F0]">
+                            {user?.role || "student"}
                           </span>
                           {user?.createdAt && (
                             <span className="text-xs text-muted-foreground">
@@ -491,16 +549,17 @@ export default function ProfilePage() {
                   <Button
                     variant="outline"
                     size="sm"
-                    className={cn("shrink-0 gap-1.5", appOutlineButton)}
+                    className="shrink-0 gap-1.5"
                     onClick={() => setEditingName(true)}
                   >
-                    <Edit2 className="h-3.5 w-3.5" />
+                    <Edit2 className="h-4 w-4" />
                     Edit name
                   </Button>
                 )}
               </div>
-
-              <div className="mt-4 grid gap-x-6 gap-y-3 border-t border-border/60 pt-4 sm:grid-cols-2">
+            </CardHeader>
+            <CardContent className="p-5">
+              <div className="grid gap-3 sm:grid-cols-2">
                 <ProfileField label="Full name" value={displayName} />
                 <ProfileField label="Email" value={displayEmail} />
                 <ProfileField
@@ -520,40 +579,39 @@ export default function ProfilePage() {
           </Card>
 
           {/* Professional details */}
-          <Card className={appCard}>
-            <CardHeader className="flex flex-row items-start justify-between space-y-0 px-4 pb-0 pt-4 sm:px-5">
-              <div className="flex items-center gap-2.5">
-                <SectionIcon
-                  icon={Briefcase}
-                  className="bg-cyan-500/10 text-cyan-600"
-                />
-                <div>
-                  <CardTitle className="text-base font-semibold">
-                    Professional Details
-                  </CardTitle>
-                  <CardDescription className="text-xs">
-                    Background and interests
-                  </CardDescription>
+          <Card className={profileCardClass}>
+            <CardHeader className="border-b border-border/60 px-5 py-4">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <SectionIcon icon={Briefcase} tone="cyan" />
+                  <div>
+                    <CardTitle className="text-lg font-semibold text-foreground">
+                      Professional details
+                    </CardTitle>
+                    <CardDescription className="mt-0.5 text-sm">
+                      Background, institute, and industry interests
+                    </CardDescription>
+                  </div>
                 </div>
+                {!editingProfile && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="shrink-0 gap-1.5"
+                    onClick={() => setEditingProfile(true)}
+                  >
+                    <Edit2 className="h-4 w-4" />
+                    Edit
+                  </Button>
+                )}
               </div>
-              {!editingProfile && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className={cn("gap-1.5", appOutlineButton)}
-                  onClick={() => setEditingProfile(true)}
-                >
-                  <Edit2 className="h-3.5 w-3.5" />
-                  Edit
-                </Button>
-              )}
             </CardHeader>
-            <CardContent className="space-y-4 px-4 pb-4 pt-3 sm:px-5 sm:pb-5">
+            <CardContent className="space-y-5 p-5">
               {editingProfile ? (
                 <>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <div className="space-y-1.5">
-                      <Label className="text-xs font-medium text-muted-foreground">
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className={profileFormFieldClass}>
+                      <Label htmlFor="profile-user-type" className={profileFormLabelClass}>
                         User type
                       </Label>
                       <Select
@@ -568,7 +626,7 @@ export default function ProfilePage() {
                           }))
                         }
                       >
-                        <SelectTrigger className="h-9 w-full">
+                        <SelectTrigger id="profile-user-type" className={profileInputClass}>
                           <SelectValue placeholder="Select user type" />
                         </SelectTrigger>
                         <SelectContent>
@@ -580,15 +638,16 @@ export default function ProfilePage() {
                     </div>
 
                     {profileData.userType === "experienced" && (
-                      <div className="space-y-1.5">
-                        <Label className="text-xs font-medium text-muted-foreground">
+                      <div className={profileFormFieldClass}>
+                        <Label htmlFor="profile-experience" className={profileFormLabelClass}>
                           Years of experience
                         </Label>
                         <Input
+                          id="profile-experience"
                           type="number"
                           min="0"
                           max="50"
-                          className="h-9"
+                          className={profileInputClass}
                           value={profileData.experience || ""}
                           onChange={(e) =>
                             setProfileData((prev) => ({
@@ -604,17 +663,16 @@ export default function ProfilePage() {
                   </div>
 
                   {profileData.userType === "experienced" && (
-                    <div className="space-y-2 rounded-lg border border-border/60 bg-muted/20 p-3">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                        Current job
-                      </p>
-                      <div className="grid gap-3 sm:grid-cols-3">
-                        <div className="space-y-1.5">
-                          <Label className="text-xs font-medium text-muted-foreground">
+                    <div className="space-y-4 rounded-xl border border-border/60 bg-muted/20 p-4">
+                      <p className={profileSectionLabelClass}>Current job</p>
+                      <div className="grid gap-4 md:grid-cols-3">
+                        <div className={profileFormFieldClass}>
+                          <Label htmlFor="profile-company" className={profileFormLabelClass}>
                             Company
                           </Label>
                           <Input
-                            className="h-9"
+                            id="profile-company"
+                            className={profileInputClass}
                             value={profileData.currentJob.company}
                             onChange={(e) =>
                               setProfileData((prev) => ({
@@ -625,15 +683,16 @@ export default function ProfilePage() {
                                 },
                               }))
                             }
-                            placeholder="Google, TCS..."
+                            placeholder="Google, TCS…"
                           />
                         </div>
-                        <div className="space-y-1.5">
-                          <Label className="text-xs font-medium text-muted-foreground">
+                        <div className={profileFormFieldClass}>
+                          <Label htmlFor="profile-role" className={profileFormLabelClass}>
                             Role
                           </Label>
                           <Input
-                            className="h-9"
+                            id="profile-role"
+                            className={profileInputClass}
                             value={profileData.currentJob.role}
                             onChange={(e) =>
                               setProfileData((prev) => ({
@@ -647,8 +706,8 @@ export default function ProfilePage() {
                             placeholder="Software Engineer"
                           />
                         </div>
-                        <div className="space-y-1.5">
-                          <Label className="text-xs font-medium text-muted-foreground">
+                        <div className={profileFormFieldClass}>
+                          <Label htmlFor="profile-job-industry" className={profileFormLabelClass}>
                             Industry
                           </Label>
                           <Select
@@ -663,8 +722,11 @@ export default function ProfilePage() {
                               }))
                             }
                           >
-                            <SelectTrigger className="h-9 w-full">
-                              <SelectValue placeholder="Select" />
+                            <SelectTrigger
+                              id="profile-job-industry"
+                              className={profileInputClass}
+                            >
+                              <SelectValue placeholder="Select industry" />
                             </SelectTrigger>
                             <SelectContent>
                               {INDUSTRIES.map((industry) => (
@@ -687,11 +749,14 @@ export default function ProfilePage() {
                     disabled={savingProfile}
                   />
 
-                  <div className="space-y-2">
-                    <Label className="text-xs font-medium text-muted-foreground">
-                      Industries of interest (optional)
+                  <div className="space-y-3">
+                    <Label className={profileFormLabelClass}>
+                      Industries of interest{" "}
+                      <span className="font-normal text-muted-foreground">
+                        (optional)
+                      </span>
                     </Label>
-                    <div className="flex flex-wrap gap-1.5">
+                    <div className="flex flex-wrap gap-2">
                       {INDUSTRIES.map((industry) => {
                         const selected = profileData.industries.includes(industry);
                         return (
@@ -700,35 +765,35 @@ export default function ProfilePage() {
                             type="button"
                             onClick={() => toggleIndustry(industry)}
                             className={cn(
-                              "inline-flex items-center gap-1 rounded-md border px-2.5 py-1 text-xs font-medium transition-colors",
+                              "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
                               selected
                                 ? "border-[#7367F0] bg-[#7367F0]/10 text-[#7367F0]"
-                                : "border-border bg-card text-muted-foreground hover:border-[#7367F0]/40 hover:text-foreground",
+                                : "border-border/60 bg-background text-muted-foreground hover:border-[#7367F0]/40 hover:text-foreground",
                             )}
                           >
                             {industry}
-                            {selected && <CheckCircle className="h-3 w-3" />}
+                            {selected && <CheckCircle className="h-3.5 w-3.5" />}
                           </button>
                         );
                       })}
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 border-t border-border/60 pt-3">
+                  <div className="flex flex-wrap items-center gap-2 border-t border-border/60 pt-4">
                     <Button
                       size="sm"
                       onClick={handleSaveProfile}
                       disabled={savingProfile}
-                      className={cn("gap-1.5", appPrimaryButton)}
+                      className={cn("gap-1.5", institutePrimaryClass)}
                     >
                       {savingProfile ? (
                         <>
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                          Saving...
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Saving…
                         </>
                       ) : (
                         <>
-                          <Save className="h-3.5 w-3.5" />
+                          <Save className="h-4 w-4" />
                           Save changes
                         </>
                       )}
@@ -736,7 +801,6 @@ export default function ProfilePage() {
                     <Button
                       size="sm"
                       variant="outline"
-                      className={appOutlineButton}
                       onClick={() => {
                         setEditingProfile(false);
                         if (user) {
@@ -761,7 +825,7 @@ export default function ProfilePage() {
                 </>
               ) : (
                 <div className="space-y-4">
-                  <div className="grid gap-x-6 gap-y-3 sm:grid-cols-3">
+                  <div className="grid gap-3 sm:grid-cols-3">
                     <ProfileField
                       label="User type"
                       value={
@@ -794,37 +858,48 @@ export default function ProfilePage() {
                     />
                   </div>
 
-                  {(jobSummary || user?.userType === "experienced") && (
-                    <div className="rounded-lg border border-border/60 bg-muted/20 px-3 py-2.5">
-                      <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                        Current job
-                      </p>
-                      <p className="mt-1 flex items-center gap-1.5 text-sm font-medium text-foreground">
-                        <Building2 className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                        {jobSummary || "Not set"}
-                      </p>
+                  {user?.userType === "experienced" && (
+                    <div className="space-y-3">
+                      <p className={profileSectionLabelClass}>Current job</p>
+                      <div className="grid gap-3 md:grid-cols-3">
+                        <ProfileField
+                          label="Company"
+                          value={user?.currentJob?.company?.trim() || "Not set"}
+                        />
+                        <ProfileField
+                          label="Role"
+                          value={user?.currentJob?.role?.trim() || "Not set"}
+                        />
+                        <ProfileField
+                          label="Industry"
+                          value={user?.currentJob?.industry?.trim() || "Not set"}
+                        />
+                      </div>
                     </div>
                   )}
 
                   <div>
-                    <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    <p className={profileSectionLabelClass}>
                       Industries of interest
                     </p>
                     {user?.industries && user.industries.length > 0 ? (
-                      <div className="mt-2 flex flex-wrap gap-1.5">
+                      <div className="mt-3 flex flex-wrap gap-2">
                         {user.industries.map((industry) => (
-                          <span key={industry} className={appBadgeInfo}>
+                          <span
+                            key={industry}
+                            className="inline-flex items-center rounded-full border border-[#7367F0]/20 bg-[#7367F0]/10 px-2.5 py-0.5 text-xs font-medium text-[#7367F0]"
+                          >
                             {industry}
                           </span>
                         ))}
                       </div>
                     ) : (
-                      <p className="mt-1 text-sm text-muted-foreground">Not set</p>
+                      <p className="mt-2 text-sm text-muted-foreground">Not set</p>
                     )}
                   </div>
 
                   {!user?.userType && (
-                    <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs text-amber-800">
+                    <div className="rounded-xl border border-amber-500/25 bg-amber-500/5 px-4 py-3 text-sm text-amber-800 dark:text-amber-200">
                       Complete your professional details for personalized
                       interview experiences.
                     </div>
@@ -835,37 +910,36 @@ export default function ProfilePage() {
           </Card>
 
           {/* Resume */}
-          <Card className={appCard}>
-            <CardHeader className="flex flex-row items-start justify-between space-y-0 px-4 pb-0 pt-4 sm:px-5">
-              <div className="flex items-center gap-2.5">
-                <SectionIcon
-                  icon={FileText}
-                  className="bg-emerald-500/10 text-emerald-600"
-                />
-                <div>
-                  <CardTitle className="text-base font-semibold">
-                    Resume
-                  </CardTitle>
-                  <CardDescription className="text-xs">
-                    Used automatically for new interviews
-                  </CardDescription>
+          <Card className={profileCardClass}>
+            <CardHeader className="border-b border-border/60 px-5 py-4">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <SectionIcon icon={FileText} tone="emerald" />
+                  <div>
+                    <CardTitle className="text-lg font-semibold text-foreground">
+                      Resume
+                    </CardTitle>
+                    <CardDescription className="mt-0.5 text-sm">
+                      PDF used automatically for new interviews
+                    </CardDescription>
+                  </div>
                 </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="shrink-0 gap-1.5"
+                  onClick={() => open()}
+                >
+                  <Upload className="h-4 w-4" />
+                  Upload
+                </Button>
               </div>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                className={cn("gap-1.5", appOutlineButton)}
-                onClick={() => open()}
-              >
-                <Upload className="h-3.5 w-3.5" />
-                Upload
-              </Button>
             </CardHeader>
-            <CardContent className="space-y-3 px-4 pb-4 pt-3 sm:px-5 sm:pb-5">
+            <CardContent className="space-y-4 p-5">
               {user?.resume && (
-                <div className="flex items-center gap-3 rounded-lg border border-emerald-200/80 bg-emerald-50/50 p-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-600 text-white">
+                <div className="flex items-center gap-4 rounded-xl border border-emerald-500/25 bg-gradient-to-r from-emerald-500/5 to-transparent p-4">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-sm">
                     <FileText className="h-5 w-5" />
                   </div>
                   <div className="min-w-0 flex-1">
@@ -884,13 +958,24 @@ export default function ProfilePage() {
               <input {...getInputProps()} />
 
               {!uploadedFile ? (
-                <p className="text-xs text-muted-foreground">
-                  Click <span className="font-medium text-foreground">Upload</span>{" "}
-                  to select a PDF (max 5 MB).
-                </p>
+                <button
+                  type="button"
+                  onClick={() => open()}
+                  className="flex w-full flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border/80 bg-muted/20 px-4 py-8 text-center transition-colors hover:border-[#7367F0]/40 hover:bg-[#7367F0]/[0.03]"
+                >
+                  <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-[#7367F0]/15 bg-[#7367F0]/10 text-[#7367F0]">
+                    <Upload className="h-5 w-5" />
+                  </div>
+                  <p className="text-sm font-medium text-foreground">
+                    Click to upload resume
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    PDF only · max 5 MB
+                  </p>
+                </button>
               ) : (
-                <div className="flex items-center gap-3 rounded-lg border border-border/80 bg-muted/20 p-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-600 text-white">
+                <div className="flex items-center gap-4 rounded-xl border border-border/60 bg-muted/20 p-4">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-white">
                     <FileText className="h-5 w-5" />
                   </div>
                   <div className="min-w-0 flex-1">
@@ -906,7 +991,7 @@ export default function ProfilePage() {
                     variant="ghost"
                     size="icon"
                     onClick={() => setUploadedFile(null)}
-                    className="h-8 w-8 shrink-0 text-muted-foreground hover:text-red-600"
+                    className="h-9 w-9 shrink-0 text-muted-foreground hover:text-destructive"
                   >
                     <X className="h-4 w-4" />
                   </Button>
@@ -917,17 +1002,16 @@ export default function ProfilePage() {
                 <Button
                   onClick={handleUpload}
                   disabled={uploading}
-                  size="sm"
-                  className={cn("gap-1.5", appPrimaryButton)}
+                  className={cn("gap-1.5", institutePrimaryClass)}
                 >
                   {uploading ? (
                     <>
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      Uploading...
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Uploading…
                     </>
                   ) : (
                     <>
-                      <Upload className="h-3.5 w-3.5" />
+                      <Upload className="h-4 w-4" />
                       {user?.resume ? "Update resume" : "Upload resume"}
                     </>
                   )}
@@ -939,45 +1023,45 @@ export default function ProfilePage() {
 
         {/* Sidebar tips */}
         <div className="lg:col-span-1">
-          <Card className={cn(appCard, "sticky top-6")}>
-            <CardHeader className="px-4 pb-2 pt-4 sm:px-5">
+          <Card className={cn(profileCardClass, "sticky top-6")}>
+            <CardHeader className="border-b border-border/60 px-5 py-4">
               <div className="flex items-center gap-2">
-                <Sparkles className="h-4 w-4 text-[#7367F0]" />
-                <CardTitle className="text-sm font-semibold">
+                <Sparkles className="h-5 w-5 text-[#7367F0]" />
+                <CardTitle className="text-base font-semibold text-foreground">
                   Why keep your resume updated?
                 </CardTitle>
               </div>
             </CardHeader>
-            <CardContent className="space-y-3 px-4 pb-4 sm:px-5 sm:pb-5">
+            <CardContent className="space-y-4 p-5">
               {[
                 {
                   icon: Target,
                   title: "Personalized questions",
                   desc: "AI asks questions based on your resume",
-                  color: "text-[#7367F0]",
+                  tone: "violet" as const,
                 },
                 {
                   icon: Shield,
                   title: "Better matching",
                   desc: "Tailored to your skills and experience",
-                  color: "text-cyan-600",
+                  tone: "cyan" as const,
                 },
                 {
                   icon: CheckCircle,
                   title: "Auto-selected",
                   desc: "Latest resume used for interviews",
-                  color: "text-emerald-600",
+                  tone: "emerald" as const,
                 },
                 {
                   icon: Award,
                   title: "Improved feedback",
                   desc: "More accurate performance analysis",
-                  color: "text-amber-600",
+                  tone: "amber" as const,
                 },
               ].map((item) => (
-                <div key={item.title} className="flex gap-2.5">
-                  <item.icon className={cn("mt-0.5 h-4 w-4 shrink-0", item.color)} />
-                  <div>
+                <div key={item.title} className="flex gap-3">
+                  <SectionIcon icon={item.icon} tone={item.tone} />
+                  <div className="min-w-0">
                     <p className="text-sm font-medium text-foreground">
                       {item.title}
                     </p>
@@ -991,27 +1075,24 @@ export default function ProfilePage() {
       </div>
 
       {/* Danger zone */}
-      <Card className="rounded-xl border border-red-200 bg-red-50/80 shadow-sm">
-        <CardHeader className="px-4 pb-2 pt-4 sm:px-5">
-          <div className="flex items-center gap-2.5">
-            <SectionIcon
-              icon={AlertTriangle}
-              className="bg-red-600 text-white"
-            />
+      <Card className="overflow-hidden rounded-xl border border-destructive/25 bg-destructive/5 shadow-card">
+        <CardHeader className="border-b border-destructive/15 px-5 py-4">
+          <div className="flex items-center gap-3">
+            <SectionIcon icon={AlertTriangle} tone="amber" />
             <div>
-              <CardTitle className="text-base font-semibold text-red-900">
+              <CardTitle className="text-lg font-semibold text-foreground">
                 Danger zone
               </CardTitle>
-              <CardDescription className="text-xs text-red-800/80">
+              <CardDescription className="mt-0.5 text-sm">
                 Permanently delete your account and all data
               </CardDescription>
             </div>
           </div>
         </CardHeader>
-        <CardContent className="space-y-3 px-4 pb-4 sm:px-5 sm:pb-5">
-          <p className="text-xs text-red-900/90">
-            <strong>Warning:</strong> This cannot be undone. Deletes your profile,
-            interviews, payments, resume, videos, and Clerk account.
+        <CardContent className="space-y-4 p-5">
+          <p className="text-sm text-muted-foreground">
+            This cannot be undone. Deletes your profile, interviews, payments,
+            resume, videos, and Clerk account.
           </p>
 
           {!showDeleteConfirm ? (
@@ -1020,14 +1101,14 @@ export default function ProfilePage() {
               variant="destructive"
               size="sm"
               onClick={() => setShowDeleteConfirm(true)}
-              className="gap-1.5 bg-red-600 hover:bg-red-700"
+              className="gap-1.5"
             >
-              <Trash2 className="h-3.5 w-3.5" />
+              <Trash2 className="h-4 w-4" />
               Delete my account
             </Button>
           ) : (
-            <div className="space-y-2 rounded-lg border border-red-300 bg-white/80 p-3">
-              <p className="text-xs font-semibold text-red-700">
+            <div className="space-y-3 rounded-xl border border-destructive/25 bg-background/80 p-4">
+              <p className="text-sm font-semibold text-foreground">
                 Are you absolutely sure?
               </p>
               <div className="flex flex-wrap gap-2">
@@ -1037,16 +1118,16 @@ export default function ProfilePage() {
                   size="sm"
                   onClick={handleDeleteProfile}
                   disabled={deleting}
-                  className="gap-1.5 bg-red-600 hover:bg-red-700"
+                  className="gap-1.5"
                 >
                   {deleting ? (
                     <>
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      Deleting...
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Deleting…
                     </>
                   ) : (
                     <>
-                      <Trash2 className="h-3.5 w-3.5" />
+                      <Trash2 className="h-4 w-4" />
                       Yes, delete
                     </>
                   )}

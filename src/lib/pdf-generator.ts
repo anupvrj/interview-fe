@@ -285,7 +285,10 @@ export async function uploadPDFToS3(
     });
 
     if (!response.ok) {
-      throw new Error(`Upload failed with status: ${response.status}`);
+      const errorText = await response.text();
+      throw new Error(
+        `Upload failed with status: ${response.status}${errorText ? ` — ${errorText.slice(0, 300)}` : ""}`,
+      );
     }
   } catch (error) {
     console.error("Error uploading PDF to S3:", error);

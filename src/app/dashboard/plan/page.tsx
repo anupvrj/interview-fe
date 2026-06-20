@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useUser } from "@clerk/nextjs";
 import Link from "next/link";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -15,18 +15,27 @@ import {
 import { Input } from "@/components/ui/input";
 import {
   Crown,
-  CheckCircle,
   Loader2,
   Sparkles,
   ArrowRight,
   Calendar,
-  Zap,
   Coins,
   XCircle,
   AlertTriangle,
+  CheckCircle,
+  Shield,
+  TrendingUp,
 } from "lucide-react";
 import { paymentApi, planApi, Subscription, CreditBalance } from "@/lib/api";
-import { formatDate } from "@/lib/utils";
+import { cn, formatDate } from "@/lib/utils";
+import {
+  getNextPlanId,
+  isHighestSelfServePlan,
+  normalizeSubscriptionPlan,
+  type SubscriptionPlanId,
+} from "@/lib/subscriptionPlans";
+import { SubscriptionRenewalGate } from "@/components/SubscriptionRenewalGate";
+import { DashboardStatCard } from "@/components/dashboard/DashboardStatCard";
 import { institutePrimaryClass } from "@/components/institute/InstituteChrome";
 
 interface Plan {
@@ -66,7 +75,6 @@ export default function PlanPage() {
     if (isLoaded && user) {
       localStorage.setItem("clerk-user-id", user.id);
       loadSubscription();
-      loadCreditBalance();
       loadPlans();
     }
   }, [isLoaded, user]);
@@ -86,12 +94,9 @@ export default function PlanPage() {
     try {
       setLoading(true);
       const data = await paymentApi.getSubscription();
-      console.log("📊 Subscription data loaded:", data);
-      console.log("🔍 Cancel button conditions:");
-      console.log("  - plan !== 'free':", data?.plan !== "free");
-      console.log("  - status === 'active':", data?.status === "active");
-      console.log("  - autoRenew:", data?.autoRenew);
       setSubscription(data);
+      // Keep credit balance in sync (expiry may forfeit credits on fetch)
+      await loadCreditBalance();
     } catch (error) {
       console.error("Error loading subscription:", error);
     } finally {
@@ -259,24 +264,14 @@ export default function PlanPage() {
     }
   };
 
-  const getNextPlan = (currentPlan: string): NextPlanDisplay | null => {
+  const getNextPlan = (
+    currentPlan: SubscriptionPlanId,
+  ): NextPlanDisplay | null => {
     if (!allPlans || allPlans.length === 0) return null;
 
-    const planOrder = [
-      "free",
-      "general_pass",
-      "tech_basic",
-      "tech_pro",
-      "premium",
-      "enterprise",
-    ];
-    const currentIndex = planOrder.indexOf(currentPlan);
+    const nextPlanId = getNextPlanId(currentPlan);
+    if (!nextPlanId) return null;
 
-    if (currentIndex === -1 || currentIndex === planOrder.length - 1) {
-      return null;
-    }
-
-    const nextPlanId = planOrder[currentIndex + 1];
     const nextPlan = allPlans.find((p) => p.planId === nextPlanId);
 
     if (!nextPlan) return null;
@@ -332,405 +327,466 @@ export default function PlanPage() {
 
   if (!isLoaded || loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
+      <div className="flex min-h-[400px] items-center justify-center">
         <div className="text-center">
-          <Loader2 className="w-12 h-12 animate-spin text-[#7367F0] mx-auto mb-4" />
-          <p className="text-muted-foreground">Loading your plan details...</p>
+          <Loader2 className="mx-auto mb-4 h-12 w-12 animate-spin text-[#7367F0]" />
+          <p className="text-sm text-muted-foreground">
+            Loading your plan details…
+          </p>
         </div>
       </div>
     );
   }
 
-  let planName = "Free Plan";
-  if (
-    subscription?.plan === "tech_pro" ||
-    subscription?.plan === "premium"
-  ) {
-    planName = "Premium Plan";
-  } else if (subscription?.plan === "enterprise") {
-    planName = "Enterprise Plan";
+  const isExpired =
+    subscription?.isExpired === true ||
+    subscription?.needsRenewal === true ||
+    subscription?.status === "expired" ||
+    !!subscription?.expiredPlanId;
+
+  if (isExpired) {
+    return (
+      <SubscriptionRenewalGate expiredOn={subscription?.currentPeriodEnd} />
+    );
   }
 
-  const nextPlan = subscription?.plan ? getNextPlan(subscription.plan) : null;
+  const normalizedPlan = normalizeSubscriptionPlan(subscription?.plan);
+  const currentPlanRecord = allPlans.find((p) => p.planId === normalizedPlan);
+  const planName =
+    normalizedPlan === "free"
+      ? "Free tier"
+      : currentPlanRecord?.displayName || currentPlanRecord?.name || "Your plan";
+
+  const nextPlan = getNextPlan(normalizedPlan);
+  const isPaidPlan = normalizedPlan !== "free";
+  const displayCredits =
+    creditBalance?.available ?? subscription?.creditsAvailable ?? 0;
+  const monthlyCredits = currentPlanRecord?.creditsIncluded?.monthly ?? 0;
+  const creditProgress =
+    monthlyCredits > 0
+      ? Math.min(100, (displayCredits / monthlyCredits) * 100)
+      : undefined;
+  const statusLabel =
+    subscription?.status === "cancelled"
+      ? "Cancelled"
+      : isPaidPlan
+        ? "Active"
+        : "Free tier";
 
   return (
-    <div className="w-full max-w-7xl mx-auto space-y-4 lg:space-y-6">
-      <section className="relative overflow-hidden rounded-xl bg-[#7367F0]/[0.04] px-4 py-4 sm:px-5 sm:py-5">
-        <div className="relative z-10 flex min-w-0 items-start gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#7367F0]/10 text-[#7367F0] sm:h-11 sm:w-11">
-            <Crown className="h-5 w-5" />
+    <div className="mx-auto w-full max-w-7xl space-y-4 lg:space-y-6">
+      {/* Hero */}
+      <section className="relative overflow-hidden rounded-xl border border-[#7367F0]/10 bg-gradient-to-br from-[#7367F0]/[0.06] via-card to-[#7367F0]/[0.04] px-4 py-6 sm:px-6 sm:py-8">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-[#7367F0]/10 blur-3xl"
+        />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -bottom-12 left-1/4 h-32 w-32 rounded-full bg-violet-400/10 blur-2xl"
+        />
+        <div className="relative z-10 space-y-4">
+          <div className="inline-flex items-center gap-2 rounded-full border border-[#7367F0]/20 bg-[#7367F0]/10 px-3 py-1 text-xs font-semibold text-[#7367F0] sm:text-sm">
+            <Sparkles className="h-3.5 w-3.5" />
+            Plan &amp; billing
           </div>
-          <div className="min-w-0">
-            <h1 className="text-lg font-bold text-foreground sm:text-xl lg:text-2xl">
-              Subscription & Credits
+          <div className="max-w-2xl space-y-2">
+            <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+              Subscription &amp;{" "}
+              <span className="text-[#7367F0]">credits</span>
             </h1>
-            <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-              Credits fuel the full partner loop—Smart ATS resume passes, AI Interview Practice and
-              coding mocks, peer sessions, and the stretch to offers—top up when
-              you need more runway.
+            <p className="text-sm text-muted-foreground sm:text-base">
+              Manage your plan, track interview credits, and top up when you
+              need more runway for AI practice, coding rounds, and reports.
             </p>
           </div>
+          <ul className="flex flex-wrap gap-2 pt-1">
+            {[
+              "5 credits / minute",
+              "Monthly plan credits",
+              "One-click top-up",
+            ].map((pill) => (
+              <li
+                key={pill}
+                className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-background/80 px-3 py-1 text-xs font-medium text-muted-foreground"
+              >
+                <CheckCircle className="h-3 w-3 text-[#7367F0]" />
+                {pill}
+              </li>
+            ))}
+          </ul>
         </div>
       </section>
 
-      {/* Main Content Grid */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        {/* Left Column - Current Plan + Upgrade card */}
-        <div className="space-y-4">
-          <Card className="h-fit overflow-hidden rounded-xl border border-border/60 bg-card shadow-card">
-            <CardHeader className="pb-4">
-              <div className="flex items-center gap-3 mb-2">
-                <div className="flex h-10 w-10 items-center justify-center rounded-md bg-[#7367F0] shadow-lg shadow-blue-500/30 ring-2 ring-blue-200/50">
-                  <Crown className="h-5 w-5 text-white" />
+      {/* Stats */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
+        <DashboardStatCard
+          theme="violet"
+          label="Current plan"
+          value={planName}
+          hint={
+            isPaidPlan && subscription?.autoRenew
+              ? "Auto-renew on"
+              : isPaidPlan
+                ? "Auto-renew off"
+                : "Upgrade anytime"
+          }
+          icon={Crown}
+        />
+        <DashboardStatCard
+          theme="emerald"
+          label="Credits available"
+          value={displayCredits.toLocaleString()}
+          hint="5 credits per interview minute"
+          icon={Coins}
+          progress={creditProgress}
+        />
+        <DashboardStatCard
+          theme="sky"
+          label={
+            isPaidPlan && subscription?.currentPeriodEnd
+              ? "Next renewal"
+              : "Status"
+          }
+          value={
+            isPaidPlan && subscription?.currentPeriodEnd
+              ? formatDate(subscription.currentPeriodEnd)
+              : statusLabel
+          }
+          hint={
+            subscription?.status === "cancelled"
+              ? "Access until period ends"
+              : isPaidPlan
+                ? "Billing period"
+                : "No active subscription"
+          }
+          icon={Calendar}
+        />
+      </div>
+
+      {/* Main grid */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-5 lg:gap-6">
+        {/* Subscription */}
+        <Card className="overflow-hidden rounded-xl border border-border/60 bg-card shadow-card lg:col-span-3">
+          <CardHeader className="border-b border-border/60 px-5 py-4">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#7367F0]/15 bg-[#7367F0]/10 text-[#7367F0]">
+                  <Shield className="h-5 w-5" />
                 </div>
                 <div>
-                  <CardTitle className="text-xl font-bold text-slate-900">
-                    {planName}
+                  <CardTitle className="text-lg font-semibold text-foreground">
+                    Your subscription
                   </CardTitle>
-                  <CardDescription className="text-sm mt-1">
-                    Your active subscription
+                  <CardDescription className="mt-0.5 text-sm">
+                    {isPaidPlan
+                      ? "Paid plan — interview sessions and monthly credits"
+                      : "Free tier — purchase a plan or credits to unlock more"}
                   </CardDescription>
                 </div>
               </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {/* Credit Usage for Interviews */}
-              <div className="rounded-md border border-slate-200 bg-slate-50/80 p-4">
-                <div className="flex items-center justify-between mb-4">
-                  <div>
-                    <span className="text-sm font-semibold text-gray-700 block mb-1">
-                      Credits for Interviews
-                    </span>
-                    <span className="text-xs text-gray-500">
-                      5 credits per minute
-                    </span>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-2xl font-bold text-[#7367F0] block">
-                      {subscription?.creditsAvailable || 0}
-                    </span>
-                    <span className="text-xs text-gray-500">available</span>
-                  </div>
+              {isPaidPlan ? (
+                <span className="inline-flex shrink-0 items-center rounded-full border border-emerald-500/25 bg-emerald-500/10 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 dark:text-emerald-400">
+                  {statusLabel}
+                </span>
+              ) : null}
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-5 p-5">
+            <div className="grid gap-3 sm:grid-cols-3">
+              {[
+                { label: "30-min session", value: "150 credits" },
+                { label: "60-min session", value: "300 credits" },
+                { label: "Min. to start", value: "150 credits" },
+              ].map((row) => (
+                <div
+                  key={row.label}
+                  className="rounded-xl border border-border/60 bg-muted/30 px-4 py-3"
+                >
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    {row.label}
+                  </p>
+                  <p className="mt-1 text-base font-bold tabular-nums text-foreground">
+                    {row.value}
+                  </p>
                 </div>
-                <div className="space-y-2 border-t border-slate-200 pt-3">
-                  <div className="flex justify-between text-xs text-gray-600">
-                    <span>30-min interview</span>
-                    <span className="font-semibold">150 credits</span>
-                  </div>
-                  <div className="flex justify-between text-xs text-gray-600">
-                    <span>60-min interview</span>
-                    <span className="font-semibold">300 credits</span>
-                  </div>
-                  <div className="flex justify-between text-xs text-gray-600">
-                    <span>Minimum to start</span>
-                    <span className="font-semibold text-orange-600">
-                      25 credits
-                    </span>
-                  </div>
-                </div>
+              ))}
+            </div>
+
+            {creditBalance ? (
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-xl border border-border/60 bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
+                <span>
+                  Lifetime used:{" "}
+                  <strong className="font-semibold text-foreground">
+                    {creditBalance.used.toLocaleString()}
+                  </strong>
+                </span>
+                <span className="hidden h-4 w-px bg-border sm:inline" />
+                <span>
+                  Wallet total:{" "}
+                  <strong className="font-semibold text-foreground">
+                    {creditBalance.total.toLocaleString()}
+                  </strong>
+                </span>
               </div>
+            ) : null}
 
-              {/* Renewal Date */}
-              {subscription?.currentPeriodEnd && (
-                <div className="flex items-center gap-3 rounded-md border border-slate-200 bg-slate-50/80 p-4">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-[#7367F0] shadow-lg shadow-blue-500/30 ring-2 ring-blue-200/50">
-                    <Calendar className="h-5 w-5 text-white" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-semibold text-gray-900 mb-1">
-                      Current Period
-                    </p>
-                    <p className="text-sm text-gray-600">
-                      Renews on:{" "}
-                      <span className="font-medium">
-                        {formatDate(subscription.currentPeriodEnd)}
-                      </span>
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {/* Cancel Subscription Section - Only for active paid subscriptions */}
-              {subscription?.plan !== "free" &&
-                subscription?.status === "active" &&
-                subscription?.autoRenew && (
-                  <div className="pt-2">
-                    <div className="mb-4 h-px bg-slate-200"></div>
-                    {!showCancelConfirm ? (
-                      <div className="rounded-md border border-red-200 bg-red-50 p-4">
-                        <div className="flex items-start gap-4 mb-4">
-                          <AlertTriangle className="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" />
-                          <div>
-                            <p className="text-sm font-semibold text-gray-900 mb-2">
-                              Cancel Subscription
-                            </p>
-                            <ul className="text-xs text-gray-600 space-y-1 ml-4 list-disc">
-                              <li>Stop automatic renewals</li>
-                              <li>Keep access until period ends</li>
-                              <li>Credits remain available</li>
-                            </ul>
-                          </div>
-                        </div>
-                        <Button
-                          onClick={() => setShowCancelConfirm(true)}
-                          variant="destructive"
-                          size="sm"
-                          className="w-full"
-                        >
-                          <XCircle className="w-4 h-4 mr-2" />
-                          Cancel Subscription
-                        </Button>
-                      </div>
-                    ) : (
-                      <div className="rounded-md border border-red-200 bg-red-50 p-4">
-                        <p className="text-sm font-semibold text-gray-900 mb-4">
-                          Are you sure you want to cancel?
-                        </p>
-                        <div className="flex gap-3">
-                          <Button
-                            onClick={handleCancelSubscription}
-                            disabled={cancellingSubscription}
-                            variant="destructive"
-                            size="sm"
-                            className="flex-1"
-                          >
-                            {cancellingSubscription ? (
-                              <>
-                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                Cancelling...
-                              </>
-                            ) : (
-                              <>
-                                <XCircle className="w-4 h-4 mr-2" />
-                                Yes, Cancel
-                              </>
-                            )}
-                          </Button>
-                          <Button
-                            onClick={() => setShowCancelConfirm(false)}
-                            variant="outline"
-                            size="sm"
-                            className="flex-1"
-                          >
-                            Keep It
-                          </Button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-              {/* Reactivate Subscription Section - Only for cancelled subscriptions within period */}
-              {subscription?.plan !== "free" &&
-                subscription?.status === "cancelled" &&
-                subscription?.currentPeriodEnd &&
-                new Date(subscription.currentPeriodEnd) > new Date() && (
-                  <div className="pt-2">
-                    <div className="mb-4 h-px bg-slate-200"></div>
-                    <div className="rounded-md border border-green-200 bg-green-50 p-4">
-                      <div className="flex items-start gap-4 mb-4">
-                        <Sparkles className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
-                        <div>
-                          <p className="text-sm font-semibold text-gray-900 mb-2">
-                            Reactivate Subscription
+            {isPaidPlan &&
+              subscription?.status === "active" &&
+              subscription?.autoRenew && (
+                <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-4">
+                  {!showCancelConfirm ? (
+                    <>
+                      <div className="flex items-start gap-3">
+                        <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-destructive" />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-semibold text-foreground">
+                            Cancel subscription
                           </p>
-                          <p className="text-xs text-gray-600 mb-2">
-                            Access until{" "}
-                            <span className="font-semibold">
-                              {formatDate(subscription.currentPeriodEnd)}
-                            </span>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            Stop auto-renewal. You keep access and credits until
+                            the current period ends.
                           </p>
-                          <ul className="text-xs text-gray-600 space-y-1 ml-4 list-disc">
-                            <li>Enable auto-renewals</li>
-                            <li>Continue without interruption</li>
-                            <li>Keep all credits & benefits</li>
-                          </ul>
                         </div>
                       </div>
                       <Button
-                        onClick={handleReactivateSubscription}
-                        disabled={reactivatingSubscription}
+                        type="button"
+                        onClick={() => setShowCancelConfirm(true)}
+                        variant="outline"
                         size="sm"
-                        className="w-full !bg-green-600 hover:!bg-green-700 text-white"
+                        className="mt-4 w-full border-destructive/30 text-destructive hover:bg-destructive/10 sm:w-auto"
                       >
-                        {reactivatingSubscription ? (
-                          <>
-                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                            Reactivating...
-                          </>
-                        ) : (
-                          <>
-                            <Crown className="w-4 h-4 mr-2" />
-                            Reactivate Now
-                          </>
-                        )}
+                        <XCircle className="mr-2 h-4 w-4" />
+                        Cancel subscription
                       </Button>
-                    </div>
-                  </div>
-                )}
-            </CardContent>
-          </Card>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-sm font-semibold text-foreground">
+                        Cancel auto-renewal?
+                      </p>
+                      <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+                        <Button
+                          type="button"
+                          onClick={handleCancelSubscription}
+                          disabled={cancellingSubscription}
+                          variant="destructive"
+                          size="sm"
+                          className="flex-1"
+                        >
+                          {cancellingSubscription ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Cancelling…
+                            </>
+                          ) : (
+                            "Yes, cancel"
+                          )}
+                        </Button>
+                        <Button
+                          type="button"
+                          onClick={() => setShowCancelConfirm(false)}
+                          variant="outline"
+                          size="sm"
+                          className="flex-1"
+                        >
+                          Keep plan
+                        </Button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
 
-          {/* Upgrade card - right after current plan */}
-          {nextPlan && (
-            <Card className="overflow-hidden rounded-xl border border-border/60 bg-card shadow-card">
-              <CardContent className="py-5">
-                <div className="flex flex-col items-start justify-between gap-4 rounded-md border border-slate-200 bg-slate-50/80 p-4 sm:flex-row sm:items-center">
-                  <div className="flex items-start gap-4">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-gradient-to-br from-purple-500 to-purple-600 shadow-lg shadow-purple-500/30">
-                      <Zap className="h-5 w-5 text-white" />
-                    </div>
-                    <div>
-                      <h3 className="mb-1 text-lg font-bold text-slate-900">
-                        Upgrade to a higher plan and save more
-                      </h3>
-                      <p className="text-gray-600 text-sm">
-                        Unlock more interviews, resume builds, and premium
-                        features.
+            {isPaidPlan &&
+              subscription?.status === "cancelled" &&
+              subscription?.currentPeriodEnd &&
+              new Date(subscription.currentPeriodEnd) > new Date() && (
+                <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-4">
+                  <div className="flex items-start gap-3">
+                    <Sparkles className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold text-foreground">
+                        Reactivate subscription
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Access until{" "}
+                        <span className="font-medium text-foreground">
+                          {formatDate(subscription.currentPeriodEnd)}
+                        </span>
+                        . Turn auto-renewal back on to continue uninterrupted.
                       </p>
                     </div>
                   </div>
-                  <Link href="/pricing" className="w-full sm:w-auto shrink-0">
-                    <Button
-                      size="lg"
-                      className="w-full sm:w-auto !bg-purple-600 text-white shadow-lg transition-all hover:!bg-purple-700 hover:shadow-xl"
-                    >
-                      View all plans
-                      <ArrowRight className="w-5 h-5 ml-2" />
-                    </Button>
-                  </Link>
+                  <Button
+                    type="button"
+                    onClick={handleReactivateSubscription}
+                    disabled={reactivatingSubscription}
+                    size="sm"
+                    className="mt-4 w-full bg-emerald-600 text-white hover:bg-emerald-700 sm:w-auto"
+                  >
+                    {reactivatingSubscription ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Reactivating…
+                      </>
+                    ) : (
+                      <>
+                        <Crown className="mr-2 h-4 w-4" />
+                        Reactivate now
+                      </>
+                    )}
+                  </Button>
                 </div>
-              </CardContent>
-            </Card>
-          )}
-        </div>
+              )}
+          </CardContent>
+        </Card>
 
-        {/* Right Column - Credit Balance & Purchase */}
-        <Card className="h-fit overflow-hidden rounded-xl border border-border/60 bg-card shadow-card">
-          <CardHeader className="pb-4">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="flex h-10 w-10 items-center justify-center rounded-md bg-gradient-to-br from-emerald-500 to-emerald-600 shadow-lg shadow-emerald-500/30">
-                <Coins className="h-5 w-5 text-white" />
+        {/* Credits purchase */}
+        <Card className="overflow-hidden rounded-xl border border-border/60 bg-card shadow-card lg:col-span-2">
+          <CardHeader className="border-b border-border/60 px-5 py-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-emerald-500/20 bg-emerald-500/10 text-emerald-600">
+                <Coins className="h-5 w-5" />
               </div>
               <div>
-                <CardTitle className="text-xl font-bold text-slate-900">Credits</CardTitle>
-                <CardDescription className="text-sm mt-1">
-                  1 credit = ₹1
+                <CardTitle className="text-lg font-semibold text-foreground">
+                  Top up credits
+                </CardTitle>
+                <CardDescription className="mt-0.5 text-sm">
+                  1 credit = ₹1 · minimum 300 credits
                 </CardDescription>
               </div>
             </div>
           </CardHeader>
-          <CardContent className="space-y-4">
-            {/* Current Balance */}
-            <div className="rounded-md border border-slate-200 bg-slate-50/80 p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600 mb-2">
-                    Available Balance
-                  </p>
-                  <p className="text-3xl font-bold text-emerald-600 lg:text-4xl">
-                    {creditBalance?.available || 0}
-                  </p>
-                  <p className="text-xs text-gray-500 mt-2">
-                    Total: {creditBalance?.total || 0} • Used:{" "}
-                    {creditBalance?.used || 0}
-                  </p>
-                </div>
-                <div className="flex h-12 w-12 items-center justify-center rounded-md bg-gradient-to-br from-emerald-500 to-emerald-600 shadow-lg shadow-emerald-500/30">
-                  <Coins className="h-7 w-7 text-white" />
-                </div>
-              </div>
+          <CardContent className="space-y-4 p-5">
+            <div className="rounded-xl border border-[#7367F0]/15 bg-gradient-to-br from-[#7367F0]/[0.06] to-transparent p-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-[#7367F0]">
+                Available balance
+              </p>
+              <p className="mt-1 text-3xl font-bold tabular-nums text-foreground">
+                {displayCredits.toLocaleString()}
+              </p>
+              {creditBalance ? (
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {creditBalance.used.toLocaleString()} used lifetime
+                </p>
+              ) : null}
             </div>
 
-            {/* Purchase Credits */}
-            <div className="rounded-md border border-slate-200 bg-slate-50/80 p-4">
-              <h4 className="font-bold text-lg text-gray-900 mb-4 flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-emerald-600" />
-                Purchase Credits
-              </h4>
-              <div className="mb-4 rounded-md border border-blue-200 bg-blue-50 p-3">
-                <div className="flex items-start gap-2">
-                  <Coins className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
-                  <div className="text-xs text-blue-800">
-                    <p className="font-semibold mb-1">Credit Purchase Info:</p>
-                    <ul className="space-y-0.5 list-disc list-inside">
-                      <li>1 credit = ₹1</li>
-                      <li>Minimum purchase: 300 credits (₹300)</li>
-                    </ul>
-                  </div>
-                </div>
-              </div>
-              <div className="space-y-3">
-                <div>
-                  <Input
-                    type="number"
-                    placeholder="Enter amount (min 300)"
-                    value={customCreditAmount}
-                    onChange={(e) => handleCreditAmountChange(e.target.value)}
-                    min="300"
-                    step="50"
-                    className={`w-full h-12 text-base ${creditAmountError ? "border-red-500 focus-visible:ring-red-500" : ""}`}
-                  />
-                  {creditAmountError ? (
-                    <div className="flex items-center gap-1 mt-2">
-                      <AlertTriangle className="w-4 h-4 text-red-500" />
-                      <p className="text-xs text-red-600 font-medium">
-                        {creditAmountError}
-                      </p>
-                    </div>
-                  ) : (
-                    <p className="text-xs text-gray-500 mt-2">
-                      {customCreditAmount
-                        ? `Total: ₹${Number.parseInt(customCreditAmount) || 0}`
-                        : ""}
-                    </p>
-                  )}
-                </div>
-                <Button
-                  onClick={handlePurchaseCredits}
-                  disabled={
-                    purchasingCredits ||
-                    !customCreditAmount ||
-                    !!creditAmountError
-                  }
-                  size="lg"
-                  className="h-11 w-full !bg-emerald-600 text-white shadow-lg transition-all hover:!bg-emerald-700 hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {purchasingCredits ? (
-                    <>
-                      <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                      Processing...
-                    </>
-                  ) : (
-                    <>
-                      <Coins className="w-5 h-5 mr-2" />
-                      Buy Credits Now
-                    </>
-                  )}
-                </Button>
-              </div>
+            <div className="space-y-3">
+              <label
+                htmlFor="credit-amount"
+                className="text-sm font-medium text-foreground"
+              >
+                Credit amount
+              </label>
+              <Input
+                id="credit-amount"
+                type="number"
+                placeholder="e.g. 500 (min 300)"
+                value={customCreditAmount}
+                onChange={(e) => handleCreditAmountChange(e.target.value)}
+                min="300"
+                step="50"
+                className={cn(
+                  "h-11 text-base",
+                  creditAmountError &&
+                    "border-destructive focus-visible:ring-destructive",
+                )}
+              />
+              {creditAmountError ? (
+                <p className="flex items-center gap-1.5 text-xs font-medium text-destructive">
+                  <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                  {creditAmountError}
+                </p>
+              ) : customCreditAmount ? (
+                <p className="text-sm text-muted-foreground">
+                  You pay{" "}
+                  <span className="font-semibold text-foreground">
+                    ₹{Number.parseInt(customCreditAmount) || 0}
+                  </span>
+                </p>
+              ) : null}
+
+              <Button
+                type="button"
+                onClick={handlePurchaseCredits}
+                disabled={
+                  purchasingCredits ||
+                  !customCreditAmount ||
+                  !!creditAmountError
+                }
+                size="lg"
+                className={cn(
+                  "h-11 w-full shadow-lg transition-all hover:shadow-xl",
+                  institutePrimaryClass,
+                )}
+              >
+                {purchasingCredits ? (
+                  <>
+                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                    Processing…
+                  </>
+                ) : (
+                  <>
+                    <Coins className="mr-2 h-5 w-5" />
+                    Buy credits
+                  </>
+                )}
+              </Button>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Highest Plan Message */}
-      {!nextPlan && subscription?.plan !== "free" && (
-        <Card className="overflow-hidden rounded-xl border border-border/60 bg-card shadow-card">
-          <CardContent className="py-5">
-            <div className="flex items-start gap-4 rounded-md border border-slate-200 bg-slate-50/80 p-4">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-gradient-to-br from-amber-500 to-amber-600 shadow-lg shadow-amber-500/30">
-                <Sparkles className="h-5 w-5 text-white" />
+      {/* Upgrade CTA */}
+      {nextPlan && !isHighestSelfServePlan(normalizedPlan) && (
+        <Card className="overflow-hidden rounded-xl border border-[#7367F0]/20 bg-gradient-to-r from-[#7367F0]/[0.08] via-card to-violet-500/[0.06] shadow-card">
+          <CardContent className="flex flex-col items-start gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-4">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#7367F0] text-white shadow-lg shadow-[#7367F0]/25">
+                <TrendingUp className="h-5 w-5" />
               </div>
-              <div className="flex-1">
-                <h3 className="mb-1 text-lg font-bold text-slate-900">
-                  🎉 You're on our highest plan!
+              <div>
+                <h3 className="text-base font-bold text-foreground sm:text-lg">
+                  Upgrade to {nextPlan.name}
                 </h3>
-                <p className="text-sm text-gray-700">
-                  Enjoy all premium features and unlimited benefits. Thank you
-                  for being a valued member!
+                <p className="mt-0.5 text-sm text-muted-foreground">
+                  From ₹{nextPlan.price}/mo — more sessions, coding rounds, and
+                  system design allotments.
                 </p>
               </div>
+            </div>
+            <Link
+              href="/pricing"
+              className={cn(
+                buttonVariants({ size: "lg" }),
+                institutePrimaryClass,
+                "w-full shrink-0 shadow-lg sm:w-auto",
+              )}
+            >
+              View all plans
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Link>
+          </CardContent>
+        </Card>
+      )}
+
+      {isHighestSelfServePlan(normalizedPlan) && (
+        <Card className="overflow-hidden rounded-xl border border-amber-500/25 bg-gradient-to-r from-amber-500/[0.08] to-card shadow-card">
+          <CardContent className="flex items-start gap-4 p-5">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-500 text-white shadow-lg shadow-amber-500/25">
+              <Sparkles className="h-5 w-5" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-foreground sm:text-lg">
+                You&apos;re on our highest plan
+              </h3>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Tech Pro includes the fullest session allotments and priority
+                support. Thank you for being a valued member.
+              </p>
             </div>
           </CardContent>
         </Card>

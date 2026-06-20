@@ -868,12 +868,15 @@ export const codingInterviewApi = {
 export interface Subscription {
     plan: SubscriptionPlanSlug;
   status: "active" | "cancelled" | "expired";
+  isExpired?: boolean;
+  needsRenewal?: boolean;
   interviewsUsed?: number; // Deprecated: now using credits
   interviewsLimit?: number; // Deprecated: now using credits
   creditsAvailable?: number; // New: credit-based system
   creditsUsed?: number; // New: credit-based system
   minimumRequired?: number; // New: minimum credits to start interview
   currentPeriodEnd?: string;
+  expiredPlanId?: string;
   resetDate?: string;
   autoRenew?: boolean;
 }
@@ -887,6 +890,7 @@ export interface CreditBalance {
 export interface InterviewLimitCheck {
   allowed: boolean;
   reason?: string;
+  isExpired?: boolean;
   creditsAvailable?: number; // New: credit-based system
   minimumRequired?: number; // New: minimum credits required
   interviewsUsed?: number; // Deprecated
