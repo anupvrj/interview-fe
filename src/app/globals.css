@@ -152,6 +152,106 @@
     border-color: rgb(91, 127, 255) !important;
   }
 
+  @keyframes pricing-credits-shine {
+    0% {
+      transform: translateX(-120%) skewX(-12deg);
+      opacity: 0;
+    }
+    15% {
+      opacity: 1;
+    }
+    85% {
+      opacity: 1;
+    }
+    100% {
+      transform: translateX(220%) skewX(-12deg);
+      opacity: 0;
+    }
+  }
+
+  .pricing-credits-badge {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .pricing-credits-badge::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    width: 45%;
+    background: linear-gradient(
+      105deg,
+      transparent 0%,
+      rgb(255 255 255 / 0.55) 45%,
+      transparent 100%
+    );
+    animation: pricing-credits-shine 2.8s ease-in-out infinite;
+    pointer-events: none;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .pricing-credits-badge::after {
+      animation: none;
+    }
+  }
+
+  @keyframes coming-soon-glow {
+    0%,
+    100% {
+      box-shadow: 0 0 0 0 rgb(251 191 36 / 0.15);
+    }
+    50% {
+      box-shadow: 0 0 10px 1px rgb(251 191 36 / 0.35);
+    }
+  }
+
+  @keyframes coming-soon-shine {
+    0% {
+      transform: translateX(-140%) skewX(-12deg);
+      opacity: 0;
+    }
+    20% {
+      opacity: 1;
+    }
+    80% {
+      opacity: 1;
+    }
+    100% {
+      transform: translateX(240%) skewX(-12deg);
+      opacity: 0;
+    }
+  }
+
+  .coming-soon-tag {
+    position: relative;
+    overflow: hidden;
+    animation: coming-soon-glow 2.4s ease-in-out infinite;
+  }
+
+  .coming-soon-tag::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    width: 50%;
+    background: linear-gradient(
+      105deg,
+      transparent 0%,
+      rgb(255 255 255 / 0.65) 50%,
+      transparent 100%
+    );
+    animation: coming-soon-shine 2.6s ease-in-out infinite;
+    pointer-events: none;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .coming-soon-tag {
+      animation: none;
+    }
+    .coming-soon-tag::after {
+      animation: none;
+    }
+  }
+
   /* Shake animation for Mock Interview section */
   @keyframes shake-vertical {
     0%,

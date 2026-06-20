@@ -22,6 +22,7 @@ import {
   getDashboardNavItems,
   type DashboardNavItem,
 } from "@/lib/dashboard-nav";
+import { SubscriptionExpiredBanner } from "@/components/SubscriptionExpiredBanner";
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -389,7 +390,10 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             </header>
           </div>
 
-          <div className="p-4 sm:p-5 lg:px-6 lg:pb-8 lg:pt-5">{children}</div>
+          <div className="p-4 sm:p-5 lg:px-6 lg:pb-8 lg:pt-5">
+            <SubscriptionExpiredBanner />
+            {children}
+          </div>
         </main>
       </div>
     </div>

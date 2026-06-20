@@ -47,6 +47,9 @@ import {
 } from "@/components/institute/InstituteChrome";
 import { SystemDesignHeroPreview } from "@/components/system-design/SystemDesignHeroPreview";
 import { DashboardStatCard } from "@/components/dashboard/DashboardStatCard";
+import { SubscriptionExpiredDialog } from "@/components/SubscriptionExpiredDialog";
+import { useSubscriptionExpiredGate } from "@/hooks/useSubscriptionExpiredGate";
+import { fetchSubscriptionExpired } from "@/lib/subscriptionAccess";
 
 import {
   systemDesignApi,
@@ -170,6 +173,12 @@ export default function SystemDesignDashboardPage() {
   );
   const [createRandomBusy, setCreateRandomBusy] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const {
+    open: subscriptionExpiredOpen,
+    setOpen: setSubscriptionExpiredOpen,
+    checking: checkingSubscription,
+    guardSessionStart,
+  } = useSubscriptionExpiredGate();
 
   const refreshSessions = useCallback(async () => {
     try {
@@ -236,7 +245,17 @@ export default function SystemDesignDashboardPage() {
     return { total, completed, avgScore };
   }, [sessions]);
 
+  const openProblemPicker = () => {
+    void guardSessionStart(() => setProblemDialogOpen(true));
+  };
+
   const startSession = async (problemId?: string) => {
+    const expired = await fetchSubscriptionExpired();
+    if (expired) {
+      setSubscriptionExpiredOpen(true);
+      return;
+    }
+
     if (problemId) setCreateBusyProblemId(problemId);
     else setCreateRandomBusy(true);
     try {
@@ -389,13 +408,17 @@ export default function SystemDesignDashboardPage() {
             <div className="mt-7 flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:gap-4">
               <Button
                 type="button"
-                onClick={() => setProblemDialogOpen(true)}
+                disabled={checkingSubscription}
+                onClick={openProblemPicker}
                 size="lg"
                 className={cn(
                   "h-auto px-5 py-4 text-sm font-semibold sm:px-6 sm:py-5 sm:text-base",
                   institutePrimaryClass,
                 )}
               >
+                {checkingSubscription ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : null}
                 Start New Session
                 <ChevronRight className="ml-2 h-4 w-4" aria-hidden />
               </Button>
@@ -473,9 +496,13 @@ export default function SystemDesignDashboardPage() {
             </div>
             <Button
               type="button"
-              onClick={() => setProblemDialogOpen(true)}
+              disabled={checkingSubscription}
+              onClick={openProblemPicker}
               className={institutePrimaryClass}
             >
+              {checkingSubscription ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : null}
               Start New Session
             </Button>
           </div>
@@ -495,9 +522,13 @@ export default function SystemDesignDashboardPage() {
               <div className="mt-6 flex justify-center">
                 <Button
                   type="button"
-                  onClick={() => setProblemDialogOpen(true)}
+                  disabled={checkingSubscription}
+                  onClick={openProblemPicker}
                   className={institutePrimaryClass}
                 >
+                  {checkingSubscription ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : null}
                   Start New Session
                 </Button>
               </div>
@@ -688,6 +719,11 @@ export default function SystemDesignDashboardPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <SubscriptionExpiredDialog
+        open={subscriptionExpiredOpen}
+        onOpenChange={setSubscriptionExpiredOpen}
+      />
     </div>
   );
 }

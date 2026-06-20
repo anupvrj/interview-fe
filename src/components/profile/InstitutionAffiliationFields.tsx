@@ -84,13 +84,13 @@ export function InstitutionAffiliationFields({
   };
 
   return (
-    <div className={cn("space-y-3", className)}>
-      <Label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-        <Building2 className="w-4 h-4 shrink-0" />
+    <div className={cn("space-y-4 rounded-xl border border-border/60 bg-muted/20 p-4", className)}>
+      <Label className="flex items-center gap-2 text-sm font-medium text-foreground">
+        <Building2 className="h-4 w-4 shrink-0 text-[#7367F0]" />
         Institute / college / organization{" "}
-        <span className="text-gray-400 font-normal">(optional)</span>
+        <span className="font-normal text-muted-foreground">(optional)</span>
       </Label>
-      <div ref={wrapRef} className="relative space-y-2">
+      <div ref={wrapRef} className="relative space-y-3">
         <div className="relative">
           <Input
             placeholder="Search registered institutes…"
@@ -101,19 +101,19 @@ export function InstitutionAffiliationFields({
               setOpen(true);
             }}
             onFocus={() => setOpen(true)}
-            className="pr-9"
+            className="h-11 rounded-[0.625rem] border-border/60 bg-background pr-9 shadow-sm"
           />
           {loading && (
-            <Loader2 className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-gray-400" />
+            <Loader2 className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />
           )}
         </div>
         {open && results.length > 0 && (
-          <ul className="absolute z-20 mt-1 max-h-48 w-full overflow-auto rounded-md border bg-white text-sm shadow-lg">
+          <ul className="absolute z-20 mt-1 max-h-48 w-full overflow-auto rounded-xl border border-border/60 bg-popover text-sm shadow-lg">
             {results.map((r) => (
               <li key={r._id}>
                 <button
                   type="button"
-                  className="w-full px-3 py-2 text-left hover:bg-muted"
+                  className="w-full px-4 py-2.5 text-left transition-colors hover:bg-muted"
                   onClick={() => selectInstitution(r)}
                 >
                   {r.name}
@@ -122,19 +122,19 @@ export function InstitutionAffiliationFields({
             ))}
           </ul>
         )}
-        <p className="text-xs text-gray-500">
+        <p className="text-xs text-muted-foreground">
           Type at least 2 characters to search. Or enter a name below if yours is
           not listed.
         </p>
-        <div>
-          <div className="mb-1 flex items-center justify-between gap-2">
-            <Label className="text-xs text-gray-600">
+        <div className="space-y-2">
+          <div className="flex items-center justify-between gap-2">
+            <Label className="text-sm font-medium text-foreground">
               Or type your institute name
             </Label>
             {value.affiliationInstitutionName.trim() ? (
               <button
                 type="button"
-                className="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-gray-800"
+                className="inline-flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
                 onClick={clearAffiliation}
               >
                 <X className="h-3.5 w-3.5" />
@@ -152,9 +152,10 @@ export function InstitutionAffiliationFields({
                 affiliationInstitutionName: e.target.value,
               });
             }}
+            className="h-11 rounded-[0.625rem] border-border/60 bg-background shadow-sm"
           />
           {value.affiliationInstitutionId ? (
-            <p className="mt-1 text-xs text-gray-500">Matched from directory</p>
+            <p className="text-xs text-muted-foreground">Matched from directory</p>
           ) : null}
         </div>
       </div>

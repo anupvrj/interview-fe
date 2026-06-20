@@ -114,6 +114,28 @@ export default function NewCodingInterviewPage() {
       setLimitCheck(result);
     } catch (error: unknown) {
       console.error("Error checking limit:", error);
+      try {
+        const sub = await paymentApi.getSubscription();
+        if (
+          sub &&
+          (sub.isExpired ||
+            sub.needsRenewal ||
+            sub.status === "expired" ||
+            sub.expiredPlanId)
+        ) {
+          setLimitCheck({
+            allowed: false,
+            isExpired: true,
+            reason:
+              "Your subscription has expired. Renew your plan to start new coding sessions.",
+            creditsAvailable: sub.creditsAvailable ?? 0,
+            minimumRequired: 150,
+          });
+          return;
+        }
+      } catch {
+        // fall through — limitCheck stays null, retry UI shown
+      }
     } finally {
       setCheckingLimit(false);
     }
