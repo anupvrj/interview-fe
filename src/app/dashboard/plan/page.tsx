@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useUser } from "@clerk/nextjs";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
@@ -26,7 +27,8 @@ import {
   Shield,
   TrendingUp,
 } from "lucide-react";
-import { paymentApi, planApi, Subscription, CreditBalance } from "@/lib/api";
+import { paymentApi, planApi, CreditBalance } from "@/lib/api";
+import { usePendingSubscriptionPolling } from "@/hooks/usePendingSubscriptionPolling";
 import { cn, formatDate } from "@/lib/utils";
 import {
   getNextPlanId,
@@ -57,7 +59,14 @@ interface NextPlanDisplay {
 
 export default function PlanPage() {
   const { user, isLoaded } = useUser();
-  const [subscription, setSubscription] = useState<Subscription | null>(null);
+  const searchParams = useSearchParams();
+  const {
+    subscription,
+    activationState,
+    isPolling,
+    pollTimedOut,
+    refresh: refreshSubscription,
+  } = usePendingSubscriptionPolling({ silent: true });
   const [loading, setLoading] = useState(true);
   const [creditBalance, setCreditBalance] = useState<CreditBalance | null>(
     null,
@@ -73,11 +82,21 @@ export default function PlanPage() {
 
   useEffect(() => {
     if (isLoaded && user) {
-      localStorage.setItem("clerk-user-id", user.id);
-      loadSubscription();
-      loadPlans();
+      Promise.all([refreshSubscription(), loadPlans(), loadCreditBalance()]).finally(
+        () => setLoading(false),
+      );
     }
-  }, [isLoaded, user]);
+  }, [isLoaded, user, refreshSubscription]);
+
+  useEffect(() => {
+    if (searchParams.get("payment") === "processing") {
+      toast.info("Autopay authorized", {
+        description:
+          "Your plan activates automatically once Razorpay captures the subscription payment (usually within minutes; UPI may take until the next day).",
+        duration: 8000,
+      });
+    }
+  }, [searchParams]);
 
   // Load Razorpay script
   useEffect(() => {
@@ -93,9 +112,7 @@ export default function PlanPage() {
   const loadSubscription = async () => {
     try {
       setLoading(true);
-      const data = await paymentApi.getSubscription();
-      setSubscription(data);
-      // Keep credit balance in sync (expiry may forfeit credits on fetch)
+      await refreshSubscription();
       await loadCreditBalance();
     } catch (error) {
       console.error("Error loading subscription:", error);
@@ -233,9 +250,12 @@ export default function PlanPage() {
       loadSubscription();
     } catch (error: any) {
       console.error("Error cancelling subscription:", error);
+      const apiMessage =
+        error?.response?.data?.message ||
+        error?.message ||
+        "Failed to cancel subscription. Please try again.";
       toast.error("Cancellation Failed", {
-        description:
-          error.message || "Failed to cancel subscription. Please try again.",
+        description: apiMessage,
       });
     } finally {
       setCancellingSubscription(false);
@@ -352,13 +372,20 @@ export default function PlanPage() {
 
   const normalizedPlan = normalizeSubscriptionPlan(subscription?.plan);
   const currentPlanRecord = allPlans.find((p) => p.planId === normalizedPlan);
-  const planName =
-    normalizedPlan === "free"
+  const isPendingActivation = activationState === "pending";
+  const isFailedActivation = activationState === "failed";
+  const pendingPlanName =
+    subscription?.pendingPayment?.planDisplayName ||
+    subscription?.pendingPayment?.plan ||
+    "Your plan";
+  const planName = isPendingActivation
+    ? `Activating ${pendingPlanName}`
+    : normalizedPlan === "free"
       ? "Free tier"
       : currentPlanRecord?.displayName || currentPlanRecord?.name || "Your plan";
 
   const nextPlan = getNextPlan(normalizedPlan);
-  const isPaidPlan = normalizedPlan !== "free";
+  const isPaidPlan = normalizedPlan !== "free" && !isPendingActivation;
   const displayCredits =
     creditBalance?.available ?? subscription?.creditsAvailable ?? 0;
   const monthlyCredits = currentPlanRecord?.creditsIncluded?.monthly ?? 0;
@@ -366,12 +393,17 @@ export default function PlanPage() {
     monthlyCredits > 0
       ? Math.min(100, (displayCredits / monthlyCredits) * 100)
       : undefined;
-  const statusLabel =
-    subscription?.status === "cancelled"
-      ? "Cancelled"
-      : isPaidPlan
-        ? "Active"
-        : "Free tier";
+  const statusLabel = isPendingActivation
+    ? isPolling
+      ? "Processing payment…"
+      : "Awaiting payment"
+    : isFailedActivation
+      ? "Payment failed"
+      : subscription?.status === "cancelled"
+        ? "Cancelled"
+        : isPaidPlan
+          ? "Active"
+          : "Free tier";
 
   return (
     <div className="mx-auto w-full max-w-7xl space-y-4 lg:space-y-6">
@@ -417,6 +449,53 @@ export default function PlanPage() {
           </ul>
         </div>
       </section>
+
+      {isPendingActivation && subscription?.pendingPayment ? (
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 px-4 py-4 text-sm text-amber-900 dark:text-amber-100">
+          <div className="flex items-start gap-3">
+            {isPolling ? (
+              <Loader2 className="mt-0.5 h-5 w-5 shrink-0 animate-spin text-amber-600" />
+            ) : (
+              <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+            )}
+            <div>
+              <p className="font-semibold">Payment processing</p>
+              <p className="mt-1 text-amber-800/90 dark:text-amber-200/90">
+                UPI AutoPay is set up for ₹
+                {subscription.pendingPayment.amount.toLocaleString()}. Paid plan
+                features unlock when Razorpay captures the charge — keep
+                sufficient balance and do not cancel the mandate in GPay.
+                {pollTimedOut
+                  ? " If this takes longer than expected, contact support."
+                  : " Checking automatically every few seconds…"}
+              </p>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {isFailedActivation ? (
+        <div className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm font-semibold text-destructive">
+                Subscription payment could not be completed
+              </p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                AutoPay was cancelled or the bank did not confirm the payment.
+                You are on the free tier until checkout succeeds.
+              </p>
+            </div>
+            <Link
+              href={`/checkout?plan=${subscription?.failedPayment?.plan || subscription?.pendingPayment?.plan || "tech_basic"}`}
+              className={cn(buttonVariants({ size: "sm" }), "shrink-0")}
+            >
+              Complete payment
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Link>
+          </div>
+        </div>
+      ) : null}
 
       {/* Stats */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">

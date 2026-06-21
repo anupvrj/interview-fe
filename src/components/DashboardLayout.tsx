@@ -23,6 +23,7 @@ import {
   type DashboardNavItem,
 } from "@/lib/dashboard-nav";
 import { SubscriptionExpiredBanner } from "@/components/SubscriptionExpiredBanner";
+import { SubscriptionPendingBanner } from "@/components/SubscriptionPendingBanner";
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -391,6 +392,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           </div>
 
           <div className="p-4 sm:p-5 lg:px-6 lg:pb-8 lg:pt-5">
+            <SubscriptionPendingBanner />
             <SubscriptionExpiredBanner />
             {children}
           </div>
