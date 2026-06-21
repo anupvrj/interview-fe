@@ -865,20 +865,40 @@ export const codingInterviewApi = {
   },
 };
 
+export type SubscriptionActivationState =
+  | "none"
+  | "pending"
+  | "active"
+  | "failed";
+
 export interface Subscription {
-    plan: SubscriptionPlanSlug;
+  plan: SubscriptionPlanSlug;
   status: "active" | "cancelled" | "expired";
   isExpired?: boolean;
   needsRenewal?: boolean;
-  interviewsUsed?: number; // Deprecated: now using credits
-  interviewsLimit?: number; // Deprecated: now using credits
-  creditsAvailable?: number; // New: credit-based system
-  creditsUsed?: number; // New: credit-based system
-  minimumRequired?: number; // New: minimum credits to start interview
+  activationState?: SubscriptionActivationState;
+  interviewsUsed?: number;
+  interviewsLimit?: number;
+  creditsAvailable?: number;
+  creditsUsed?: number;
+  minimumRequired?: number;
   currentPeriodEnd?: string;
   expiredPlanId?: string;
   resetDate?: string;
   autoRenew?: boolean;
+  pendingPayment?: {
+    plan?: SubscriptionPlanSlug;
+    planDisplayName?: string;
+    amount: number;
+    billingCycle?: string;
+    subscriptionId?: string;
+    mandateAuthorizedAt?: string | null;
+  } | null;
+  failedPayment?: {
+    plan?: SubscriptionPlanSlug;
+    amount: number;
+    failedAt?: string;
+  } | null;
 }
 
 export interface CreditBalance {
@@ -969,14 +989,27 @@ export const paymentApi = {
     razorpayOrderId: string,
     razorpayPaymentId: string,
     razorpaySignature: string,
-  ): Promise<{ subscription: Subscription | null }> => {
+  ): Promise<{
+    subscription: Subscription | null;
+    activationStatus?: SubscriptionActivationState;
+  }> => {
     const response = await apiClient.post<{
-      data: { subscription: Subscription | null };
+      data: {
+        subscription: Subscription | null;
+        activationStatus?: SubscriptionActivationState;
+      };
     }>("/payments/verify", {
       razorpayOrderId,
       razorpayPaymentId,
       razorpaySignature,
     });
+    return response.data.data;
+  },
+
+  syncPendingSubscription: async (): Promise<Subscription | null> => {
+    const response = await apiClient.post<{ data: Subscription | null }>(
+      "/payments/sync-pending-subscription",
+    );
     return response.data.data;
   },
 

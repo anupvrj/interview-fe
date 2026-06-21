@@ -236,18 +236,25 @@ function CheckoutPageContent() {
           handler: async function (response: any) {
             try {
               console.log("✅ Subscription payment authorized:", response);
-              // Subscription activation will be handled via webhook
-              // For now, verify the payment
+              let activationStatus: string = "pending";
               if (response.razorpay_payment_id) {
                 const result = await paymentApi.verifyPayment(
-                  order.orderId, // Use subscription ID as order ID
+                  order.orderId,
                   response.razorpay_payment_id,
                   response.razorpay_signature || "",
                 );
-                console.log("✅ Subscription payment verified:", result);
+                console.log("✅ Subscription checkout result:", result);
+                activationStatus =
+                  result.activationStatus ??
+                  (result.subscription?.activationState === "active"
+                    ? "active"
+                    : "pending");
               }
-              // Redirect - webhook will activate subscription
-              router.push("/dashboard?payment=success&type=subscription");
+              if (activationStatus === "active") {
+                router.push("/dashboard?payment=success&type=subscription");
+              } else {
+                router.push("/dashboard/plan?payment=processing");
+              }
             } catch (err: any) {
               console.error("❌ Subscription authorization failed:", err);
               setError(
@@ -508,6 +515,11 @@ function CheckoutPageContent() {
 
             <p className="text-sm text-gray-500 text-center mt-4">
               Secure payment powered by Razorpay
+            </p>
+            <p className="text-xs text-muted-foreground text-center mt-2 px-2">
+              Card payments usually activate your plan instantly. UPI AutoPay
+              may take until the bank confirms the first debit (often same day,
+              sometimes the next day).
             </p>
           </Card>
 
