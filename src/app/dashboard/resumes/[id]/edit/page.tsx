@@ -39,6 +39,10 @@ import { RichTextEditor } from "@/components/RichTextEditor";
 import { getExtendedTemplate } from "@/lib/templateConfigs";
 import { getTemplateStyle } from "@/lib/templateRenderer";
 import { ExecutiveSkills } from "@/components/resume-editor/ExecutiveSkills";
+import { LayoutTypographyControls } from "@/components/resume-editor/LayoutTypographyControls";
+import {
+  RESUME_FIELD_INPUT_CLASS,
+} from "@/components/resume-editor/resumeFieldStyles";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import { LanguagesEditor } from "@/components/LanguagesEditor";
 import { captureAndUploadThumbnail } from "@/lib/resume-thumbnail";
@@ -76,6 +80,27 @@ interface Section {
   title: string;
   visible: boolean;
   expanded: boolean;
+}
+
+function expandOnlySection(
+  sections: Section[],
+  expandedId: string | null,
+): Section[] {
+  return sections.map((s) => ({
+    ...s,
+    expanded: expandedId !== null && s.id === expandedId,
+  }));
+}
+
+function withFirstVisibleExpanded(sections: Section[]): Section[] {
+  let expandedAssigned = false;
+  return sections.map((s) => {
+    if (s.visible && !expandedAssigned) {
+      expandedAssigned = true;
+      return { ...s, expanded: true };
+    }
+    return { ...s, expanded: false };
+  });
 }
 
 export default function EditResumePage() {
@@ -147,6 +172,24 @@ export default function EditResumePage() {
     { value: "'Merriweather', serif", label: "Merriweather" },
     { value: "'PT Sans', sans-serif", label: "PT Sans" },
   ];
+
+  const fontFamilyOptions = useMemo(() => {
+    const current = effectiveTypography?.fontFamily;
+    if (!current) return FONT_FAMILY_OPTIONS;
+    if (FONT_FAMILY_OPTIONS.some((opt) => opt.value === current)) {
+      return FONT_FAMILY_OPTIONS;
+    }
+    const shortLabel =
+      current.split(",")[0]?.replace(/^['"]|['"]$/g, "").trim() || "Custom";
+    return [{ value: current, label: shortLabel }, ...FONT_FAMILY_OPTIONS];
+  }, [effectiveTypography?.fontFamily]);
+
+  const selectedFontFamily = useMemo(() => {
+    const current = effectiveTypography?.fontFamily;
+    if (!current) return FONT_FAMILY_OPTIONS[0].value;
+    const exact = fontFamilyOptions.find((opt) => opt.value === current);
+    return exact?.value ?? FONT_FAMILY_OPTIONS[0].value;
+  }, [effectiveTypography?.fontFamily, fontFamilyOptions]);
 
   // Initialize sections as empty - will be populated from database
   const [sections, setSections] = useState<Section[]>([]);
@@ -537,10 +580,12 @@ export default function EditResumePage() {
 
       // Load section order from database or use default
       if (resumeData.sectionOrder && resumeData.sectionOrder.length > 0) {
-        const loadedSections = resumeData.sectionOrder.map((s) => ({
-          ...s,
-          expanded: true,
-        })) as Section[];
+        const loadedSections = withFirstVisibleExpanded(
+          resumeData.sectionOrder.map((s) => ({
+            ...s,
+            expanded: false,
+          })) as Section[],
+        );
 
         // Ensure all custom sections in sectionOrder have corresponding entries in customSections
         const customSections = resumeData.content.customSections || [];
@@ -624,50 +669,52 @@ export default function EditResumePage() {
 
             // Check if template has specific default section order
             if (extendedTemplate.defaultSectionOrder) {
-              return extendedTemplate.defaultSectionOrder.map((section) => ({
-                ...section,
-                type: section.type as Section["type"], // Cast to proper type
-                expanded: section.visible, // Expand visible sections by default
-              }));
+              return withFirstVisibleExpanded(
+                extendedTemplate.defaultSectionOrder.map((section) => ({
+                  ...section,
+                  type: section.type as Section["type"],
+                  expanded: false,
+                })),
+              );
             }
           }
 
           // Fallback to generic default sections
-          return [
+          return withFirstVisibleExpanded([
             {
               id: "personalInfo",
               type: "personalInfo",
               title: "Personal Information",
               visible: true,
-              expanded: false, // Start collapsed (compact view)
+              expanded: false,
             },
             {
               id: "profileSummary",
               type: "profileSummary",
               title: "Profile Summary",
               visible: true,
-              expanded: true,
+              expanded: false,
             },
             {
               id: "experience",
               type: "experience",
               title: "Experience",
               visible: true,
-              expanded: true,
+              expanded: false,
             },
             {
               id: "education",
               type: "education",
               title: "Education",
               visible: true,
-              expanded: true,
+              expanded: false,
             },
             {
               id: "skills",
               type: "skills",
               title: "Skills",
               visible: true,
-              expanded: true,
+              expanded: false,
             },
             {
               id: "projects",
@@ -746,7 +793,7 @@ export default function EditResumePage() {
               visible: false,
               expanded: false,
             },
-          ];
+          ]);
         };
 
         setSections(getDefaultSections());
@@ -1135,11 +1182,12 @@ export default function EditResumePage() {
   };
 
   const toggleSection = (sectionId: string) => {
-    setSections(
-      sections.map((s) =>
-        s.id === sectionId ? { ...s, expanded: !s.expanded } : s,
-      ),
-    );
+    setSections((prev) => {
+      const target = prev.find((s) => s.id === sectionId);
+      if (!target) return prev;
+      const nextExpandedId = target.expanded ? null : sectionId;
+      return expandOnlySection(prev, nextExpandedId);
+    });
   };
 
   const deleteSection = (sectionId: string) => {
@@ -1297,11 +1345,12 @@ export default function EditResumePage() {
       const existingSectionIndex = sections.findIndex((s) => s.type === type);
       if (existingSectionIndex >= 0) {
         setSections((prev) =>
-          prev.map((s, idx) =>
-            idx === existingSectionIndex
-              ? { ...s, visible: true, expanded: true }
-              : s
-          )
+          expandOnlySection(
+            prev.map((s, idx) =>
+              idx === existingSectionIndex ? { ...s, visible: true } : s,
+            ),
+            prev[existingSectionIndex].id,
+          ),
         );
         setHasChanges(true);
         return;
@@ -1316,7 +1365,7 @@ export default function EditResumePage() {
       visible: true,
       expanded: true,
     };
-    setSections([...sections, newSection]);
+    setSections(expandOnlySection([...sections, newSection], sectionId));
 
     // If it's a custom section, initialize it in customSections with empty content
     if (type === "custom" && resume) {
@@ -1575,7 +1624,7 @@ export default function EditResumePage() {
       {/* Main Content: preview on top on mobile; side-by-side from md */}
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden md:flex-row">
         {/* Left Panel: Edit Form (below preview on mobile) */}
-        <div className="order-2 flex min-h-0 w-full flex-1 flex-col overflow-y-auto bg-white md:order-none md:w-1/2 md:border-r">
+        <div className="resume-editor-fields order-2 flex min-h-0 w-full flex-1 flex-col overflow-y-auto bg-white md:order-none md:w-1/2 md:border-r">
           {/* Toggle between Edit Resume and ATS Report */}
           <div className="border-b bg-gray-50">
             <div className="flex">
@@ -1711,11 +1760,11 @@ export default function EditResumePage() {
                           Column Widths
                         </Label>
                         <div className="flex items-center gap-2">
-                          <div className="flex-1">
-                            <Label className="text-xs text-gray-500">
+                          <div className="flex-1 space-y-1">
+                            <Label className="block text-xs text-gray-500">
                               Left: {layout.columnWidths.left}%
                             </Label>
-                            <div className="flex items-center gap-2 mt-1">
+                            <div className="flex items-center gap-1">
                               <Button
                                 variant="outline"
                                 size="icon"
@@ -1756,7 +1805,7 @@ export default function EditResumePage() {
                                   });
                                   setHasChanges(true);
                                 }}
-                                className="w-16 h-7 text-center text-xs"
+                                className="h-7 w-[4.25rem] shrink-0 !h-7 !px-1.5 text-center text-xs tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                               />
                               <Button
                                 variant="outline"
@@ -1781,11 +1830,11 @@ export default function EditResumePage() {
                               </Button>
                             </div>
                           </div>
-                          <div className="flex-1">
-                            <Label className="text-xs text-gray-500">
+                          <div className="flex-1 space-y-1">
+                            <Label className="block text-xs text-gray-500">
                               Right: {layout.columnWidths.right}%
                             </Label>
-                            <div className="flex items-center gap-2 mt-1">
+                            <div className="flex items-center gap-1">
                               <Button
                                 variant="outline"
                                 size="icon"
@@ -1826,7 +1875,7 @@ export default function EditResumePage() {
                                   });
                                   setHasChanges(true);
                                 }}
-                                className="w-16 h-7 text-center text-xs"
+                                className="h-7 w-[4.25rem] shrink-0 !h-7 !px-1.5 text-center text-xs tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                               />
                               <Button
                                 variant="outline"
@@ -1861,9 +1910,9 @@ export default function EditResumePage() {
                         Padding (mm)
                       </Label>
                       <div className="grid grid-cols-2 gap-2">
-                        <div>
-                          <Label className="text-xs text-gray-500">Top</Label>
-                          <div className="flex items-center gap-1 mt-1">
+                        <div className="space-y-1">
+                          <Label className="block text-xs text-gray-500">Top</Label>
+                          <div className="flex items-center gap-1">
                             <Button
                               variant="outline"
                               size="icon"
@@ -1910,7 +1959,7 @@ export default function EditResumePage() {
                                 });
                                 setHasChanges(true);
                               }}
-                              className="w-14 h-7 text-center text-xs"
+                              className="h-7 w-[4.25rem] shrink-0 !h-7 !px-1.5 text-center text-xs tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                             />
                             <Button
                               variant="outline"
@@ -1938,11 +1987,11 @@ export default function EditResumePage() {
                             </Button>
                           </div>
                         </div>
-                        <div>
-                          <Label className="text-xs text-gray-500">
+                        <div className="space-y-1">
+                          <Label className="block text-xs text-gray-500">
                             Bottom
                           </Label>
-                          <div className="flex items-center gap-1 mt-1">
+                          <div className="flex items-center gap-1">
                             <Button
                               variant="outline"
                               size="icon"
@@ -1989,7 +2038,7 @@ export default function EditResumePage() {
                                 });
                                 setHasChanges(true);
                               }}
-                              className="w-14 h-7 text-center text-xs"
+                              className="h-7 w-[4.25rem] shrink-0 !h-7 !px-1.5 text-center text-xs tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                             />
                             <Button
                               variant="outline"
@@ -2017,9 +2066,9 @@ export default function EditResumePage() {
                             </Button>
                           </div>
                         </div>
-                        <div>
-                          <Label className="text-xs text-gray-500">Left</Label>
-                          <div className="flex items-center gap-1 mt-1">
+                        <div className="space-y-1">
+                          <Label className="block text-xs text-gray-500">Left</Label>
+                          <div className="flex items-center gap-1">
                             <Button
                               variant="outline"
                               size="icon"
@@ -2066,7 +2115,7 @@ export default function EditResumePage() {
                                 });
                                 setHasChanges(true);
                               }}
-                              className="w-14 h-7 text-center text-xs"
+                              className="h-7 w-[4.25rem] shrink-0 !h-7 !px-1.5 text-center text-xs tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                             />
                             <Button
                               variant="outline"
@@ -2094,9 +2143,9 @@ export default function EditResumePage() {
                             </Button>
                           </div>
                         </div>
-                        <div>
-                          <Label className="text-xs text-gray-500">Right</Label>
-                          <div className="flex items-center gap-1 mt-1">
+                        <div className="space-y-1">
+                          <Label className="block text-xs text-gray-500">Right</Label>
+                          <div className="flex items-center gap-1">
                             <Button
                               variant="outline"
                               size="icon"
@@ -2143,7 +2192,7 @@ export default function EditResumePage() {
                                 });
                                 setHasChanges(true);
                               }}
-                              className="w-14 h-7 text-center text-xs"
+                              className="h-7 w-[4.25rem] shrink-0 !h-7 !px-1.5 text-center text-xs tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                             />
                             <Button
                               variant="outline"
@@ -2174,183 +2223,29 @@ export default function EditResumePage() {
                       </div>
                     </div>
 
-                    {/* Typography: font sizes and font family */}
-                    {effectiveTypography && (
-                      <div className="space-y-3 pt-2 border-t">
-                        <Label className="text-xs text-gray-600">
-                          Typography
-                        </Label>
-                        <div className="grid grid-cols-2 gap-3">
-                          <div>
-                            <Label className="text-xs text-gray-500">
-                              Heading
-                            </Label>
-                            <Input
-                              type="number"
-                              min="10"
-                              max="48"
-                              step="0.5"
-                              value={effectiveTypography.fontSize.heading}
-                              onChange={(e) => {
-                                const value = Math.max(
-                                  10,
-                                  Math.min(48, Number(e.target.value) || 10),
-                                );
-                                setLayout({
-                                  ...layout,
-                                  fontSize: {
-                                    ...layout?.fontSize,
-                                    heading: value,
-                                  },
-                                });
-                                setHasChanges(true);
-                              }}
-                              className="mt-1 h-7 text-xs"
-                            />
-                          </div>
-                          <div>
-                            <Label className="text-xs text-gray-500">
-                              Subheading
-                            </Label>
-                            <Input
-                              type="number"
-                              min="8"
-                              max="36"
-                              step="0.5"
-                              value={effectiveTypography.fontSize.subheading}
-                              onChange={(e) => {
-                                const value = Math.max(
-                                  8,
-                                  Math.min(36, Number(e.target.value) || 8),
-                                );
-                                setLayout({
-                                  ...layout,
-                                  fontSize: {
-                                    ...layout?.fontSize,
-                                    subheading: value,
-                                  },
-                                });
-                                setHasChanges(true);
-                              }}
-                              className="mt-1 h-7 text-xs"
-                            />
-                          </div>
-                          <div>
-                            <Label className="text-xs text-gray-500">
-                              Body
-                            </Label>
-                            <Input
-                              type="number"
-                              min="8"
-                              max="24"
-                              step="0.5"
-                              value={effectiveTypography.fontSize.body}
-                              onChange={(e) => {
-                                const value = Math.max(
-                                  8,
-                                  Math.min(24, Number(e.target.value) || 8),
-                                );
-                                setLayout({
-                                  ...layout,
-                                  fontSize: {
-                                    ...layout?.fontSize,
-                                    body: value,
-                                  },
-                                });
-                                setHasChanges(true);
-                              }}
-                              className="mt-1 h-7 text-xs"
-                            />
-                          </div>
-                          <div>
-                            <Label className="text-xs text-gray-500">
-                              Small
-                            </Label>
-                            <Input
-                              type="number"
-                              min="6"
-                              max="20"
-                              step="0.5"
-                              value={effectiveTypography.fontSize.small}
-                              onChange={(e) => {
-                                const value = Math.max(
-                                  6,
-                                  Math.min(20, Number(e.target.value) || 6),
-                                );
-                                setLayout({
-                                  ...layout,
-                                  fontSize: {
-                                    ...layout?.fontSize,
-                                    small: value,
-                                  },
-                                });
-                                setHasChanges(true);
-                              }}
-                              className="mt-1 h-7 text-xs"
-                            />
-                          </div>
-                          <div>
-                            <Label className="text-xs text-gray-500">
-                              Section header
-                            </Label>
-                            <Input
-                              type="number"
-                              min="8"
-                              max="24"
-                              step="0.5"
-                              value={effectiveTypography.fontSize.sectionHeader}
-                              onChange={(e) => {
-                                const value = Math.max(
-                                  8,
-                                  Math.min(24, Number(e.target.value) || 8),
-                                );
-                                setLayout({
-                                  ...layout,
-                                  fontSize: {
-                                    ...layout?.fontSize,
-                                    sectionHeader: value,
-                                  },
-                                });
-                                setHasChanges(true);
-                              }}
-                              className="mt-1 h-7 text-xs"
-                            />
-                          </div>
-                        </div>
-                        <div>
-                          <Label className="text-xs text-gray-500">
-                            Font family
-                          </Label>
-                          <Select
-                            value={
-                              effectiveTypography.fontFamily ||
-                              FONT_FAMILY_OPTIONS[0].value
-                            }
-                            onValueChange={(value) => {
-                              setLayout({
-                                ...layout,
-                                fontFamily: value,
-                              });
-                              setHasChanges(true);
-                            }}
-                          >
-                            <SelectTrigger className="mt-1 h-8 text-xs">
-                              <SelectValue placeholder="Font" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {FONT_FAMILY_OPTIONS.map((opt) => (
-                                <SelectItem
-                                  key={opt.value}
-                                  value={opt.value}
-                                  className="text-xs"
-                                >
-                                  {opt.label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
+                    {effectiveTypography && layout && (
+                      <LayoutTypographyControls
+                        typography={effectiveTypography}
+                        fontFamilyOptions={fontFamilyOptions}
+                        selectedFontFamily={selectedFontFamily}
+                        onFontSizeChange={(key, value) => {
+                          setLayout({
+                            ...layout,
+                            fontSize: {
+                              ...layout.fontSize,
+                              [key]: value,
+                            },
+                          });
+                          setHasChanges(true);
+                        }}
+                        onFontFamilyChange={(value) => {
+                          setLayout({
+                            ...layout,
+                            fontFamily: value,
+                          });
+                          setHasChanges(true);
+                        }}
+                      />
                     )}
                   </CardContent>
                 )}
@@ -2681,7 +2576,7 @@ export default function EditResumePage() {
                                       },
                                     })
                                   }
-                                  className="mt-1 h-9 text-sm"
+                                  className={RESUME_FIELD_INPUT_CLASS}
                                 />
                               </div>
                               <div>
@@ -2699,7 +2594,7 @@ export default function EditResumePage() {
                                       },
                                     })
                                   }
-                                  className="mt-1 h-9 text-sm"
+                                  className={RESUME_FIELD_INPUT_CLASS}
                                 />
                               </div>
                               <div>
@@ -2720,7 +2615,7 @@ export default function EditResumePage() {
                                       },
                                     })
                                   }
-                                  className="mt-1 h-9 text-sm"
+                                  className={RESUME_FIELD_INPUT_CLASS}
                                   placeholder="e.g., 5 years, 3+ years"
                                 />
                               </div>
@@ -2740,7 +2635,7 @@ export default function EditResumePage() {
                                       },
                                     })
                                   }
-                                  className="mt-1 h-9 text-sm"
+                                  className={RESUME_FIELD_INPUT_CLASS}
                                 />
                               </div>
                               <div>
@@ -2758,7 +2653,7 @@ export default function EditResumePage() {
                                       },
                                     })
                                   }
-                                  className="mt-1 h-9 text-sm"
+                                  className={RESUME_FIELD_INPUT_CLASS}
                                 />
                               </div>
                               <div>
@@ -2776,7 +2671,7 @@ export default function EditResumePage() {
                                       },
                                     })
                                   }
-                                  className="mt-1 h-9 text-sm"
+                                  className={RESUME_FIELD_INPUT_CLASS}
                                 />
                               </div>
                               <div>
@@ -2794,7 +2689,7 @@ export default function EditResumePage() {
                                       },
                                     })
                                   }
-                                  className="mt-1 h-9 text-sm"
+                                  className={RESUME_FIELD_INPUT_CLASS}
                                 />
                               </div>
                               <div>
@@ -2812,7 +2707,7 @@ export default function EditResumePage() {
                                       },
                                     })
                                   }
-                                  className="mt-1 h-9 text-sm"
+                                  className={RESUME_FIELD_INPUT_CLASS}
                                 />
                               </div>
                             </div>
@@ -2839,7 +2734,7 @@ export default function EditResumePage() {
                                         },
                                       })
                                     }
-                                    className="mt-1 h-9 text-sm"
+                                    className={RESUME_FIELD_INPUT_CLASS}
                                     type="date"
                                     placeholder="Select date"
                                   />
@@ -2856,7 +2751,7 @@ export default function EditResumePage() {
                                         },
                                       })
                                     }
-                                    className="mt-1 h-9 text-sm"
+                                    className={RESUME_FIELD_INPUT_CLASS}
                                     placeholder="e.g., American, Indian"
                                   />
                                 </div>
@@ -2874,7 +2769,7 @@ export default function EditResumePage() {
                                         },
                                       })
                                     }
-                                    className="mt-1 h-9 text-sm"
+                                    className={RESUME_FIELD_INPUT_CLASS}
                                     placeholder="Passport or ID number"
                                   />
                                 </div>
@@ -2892,7 +2787,7 @@ export default function EditResumePage() {
                                         },
                                       })
                                     }
-                                    className="mt-1 h-9 text-sm"
+                                    className={RESUME_FIELD_INPUT_CLASS}
                                     placeholder="e.g., Single, Married"
                                   />
                                 </div>
@@ -2910,7 +2805,7 @@ export default function EditResumePage() {
                                         },
                                       })
                                     }
-                                    className="mt-1 h-9 text-sm"
+                                    className={RESUME_FIELD_INPUT_CLASS}
                                     placeholder="Military service details"
                                   />
                                 </div>
@@ -2928,7 +2823,7 @@ export default function EditResumePage() {
                                         },
                                       })
                                     }
-                                    className="mt-1 h-9 text-sm"
+                                    className={RESUME_FIELD_INPUT_CLASS}
                                     placeholder="License number or class"
                                   />
                                 </div>
@@ -2946,7 +2841,7 @@ export default function EditResumePage() {
                                         },
                                       })
                                     }
-                                    className="mt-1 h-9 text-sm"
+                                    className={RESUME_FIELD_INPUT_CLASS}
                                     placeholder="e.g., Male, Female, Non-binary"
                                   />
                                 </div>
@@ -2962,7 +2857,7 @@ export default function EditResumePage() {
                                         },
                                       })
                                     }
-                                    className="mt-1 h-9 text-sm"
+                                    className={RESUME_FIELD_INPUT_CLASS}
                                     placeholder="Disability status (optional)"
                                   />
                                 </div>
@@ -2978,7 +2873,7 @@ export default function EditResumePage() {
                                         },
                                       })
                                     }
-                                    className="mt-1 h-9 text-sm"
+                                    className={RESUME_FIELD_INPUT_CLASS}
                                     placeholder="e.g., Work Visa, Permanent Resident"
                                   />
                                 </div>
@@ -3004,7 +2899,7 @@ export default function EditResumePage() {
                                           },
                                         })
                                       }
-                                      className="mt-1 h-9 text-sm"
+                                      className={RESUME_FIELD_INPUT_CLASS}
                                       placeholder="e.g., V0305854"
                                     />
                                   </div>
@@ -3025,7 +2920,7 @@ export default function EditResumePage() {
                                           },
                                         })
                                       }
-                                      className="mt-1 h-9 text-sm"
+                                      className={RESUME_FIELD_INPUT_CLASS}
                                       placeholder="e.g., Lucknow"
                                     />
                                   </div>
@@ -3045,7 +2940,7 @@ export default function EditResumePage() {
                                           },
                                         })
                                       }
-                                      className="mt-1 h-9 text-sm"
+                                      className={RESUME_FIELD_INPUT_CLASS}
                                       type="date"
                                       placeholder="Select date"
                                     />
@@ -3067,7 +2962,7 @@ export default function EditResumePage() {
                                           },
                                         })
                                       }
-                                      className="mt-1 h-9 text-sm"
+                                      className={RESUME_FIELD_INPUT_CLASS}
                                       type="date"
                                       placeholder="Select date"
                                     />
@@ -3087,7 +2982,7 @@ export default function EditResumePage() {
                                     type="button"
                                     variant="outline"
                                     size="sm"
-                                    className="h-8 text-xs"
+                                    className={RESUME_FIELD_INPUT_CLASS}
                                     onClick={() =>
                                       updateContent({
                                         personalInfo: {
@@ -3105,7 +3000,7 @@ export default function EditResumePage() {
                                     type="button"
                                     variant="outline"
                                     size="sm"
-                                    className="h-8 text-xs"
+                                    className={RESUME_FIELD_INPUT_CLASS}
                                     onClick={() =>
                                       updateContent({
                                         personalInfo: {
@@ -3123,7 +3018,7 @@ export default function EditResumePage() {
                                     type="button"
                                     variant="outline"
                                     size="sm"
-                                    className="h-8 text-xs"
+                                    className={RESUME_FIELD_INPUT_CLASS}
                                     onClick={() =>
                                       updateContent({
                                         personalInfo: {
@@ -3141,7 +3036,7 @@ export default function EditResumePage() {
                                     type="button"
                                     variant="outline"
                                     size="sm"
-                                    className="h-8 text-xs"
+                                    className={RESUME_FIELD_INPUT_CLASS}
                                     onClick={() =>
                                       updateContent({
                                         personalInfo: {
@@ -3159,7 +3054,7 @@ export default function EditResumePage() {
                                     type="button"
                                     variant="outline"
                                     size="sm"
-                                    className="h-8 text-xs"
+                                    className={RESUME_FIELD_INPUT_CLASS}
                                     onClick={() =>
                                       updateContent({
                                         personalInfo: {
@@ -3177,7 +3072,7 @@ export default function EditResumePage() {
                                     type="button"
                                     variant="outline"
                                     size="sm"
-                                    className="h-8 text-xs"
+                                    className={RESUME_FIELD_INPUT_CLASS}
                                     onClick={() =>
                                       updateContent({
                                         personalInfo: {
@@ -3195,7 +3090,7 @@ export default function EditResumePage() {
                                     type="button"
                                     variant="outline"
                                     size="sm"
-                                    className="h-8 text-xs"
+                                    className={RESUME_FIELD_INPUT_CLASS}
                                     onClick={() =>
                                       updateContent({
                                         personalInfo: {
@@ -3225,7 +3120,7 @@ export default function EditResumePage() {
                                           },
                                         })
                                       }
-                                      className="mt-1 h-8 text-sm"
+                                      className={RESUME_FIELD_INPUT_CLASS}
                                     />
                                   </div>
                                 )}
@@ -3242,7 +3137,7 @@ export default function EditResumePage() {
                                           },
                                         })
                                       }
-                                      className="mt-1 h-8 text-sm"
+                                      className={RESUME_FIELD_INPUT_CLASS}
                                     />
                                   </div>
                                 )}
@@ -3259,7 +3154,7 @@ export default function EditResumePage() {
                                           },
                                         })
                                       }
-                                      className="mt-1 h-8 text-sm"
+                                      className={RESUME_FIELD_INPUT_CLASS}
                                     />
                                   </div>
                                 )}
@@ -3276,7 +3171,7 @@ export default function EditResumePage() {
                                           },
                                         })
                                       }
-                                      className="mt-1 h-8 text-sm"
+                                      className={RESUME_FIELD_INPUT_CLASS}
                                     />
                                   </div>
                                 )}
@@ -3293,7 +3188,7 @@ export default function EditResumePage() {
                                           },
                                         })
                                       }
-                                      className="mt-1 h-8 text-sm"
+                                      className={RESUME_FIELD_INPUT_CLASS}
                                     />
                                   </div>
                                 )}
@@ -3310,7 +3205,7 @@ export default function EditResumePage() {
                                           },
                                         })
                                       }
-                                      className="mt-1 h-8 text-sm"
+                                      className={RESUME_FIELD_INPUT_CLASS}
                                     />
                                   </div>
                                 )}
@@ -3327,7 +3222,7 @@ export default function EditResumePage() {
                                           },
                                         })
                                       }
-                                      className="mt-1 h-8 text-sm"
+                                      className={RESUME_FIELD_INPUT_CLASS}
                                     />
                                   </div>
                                 )}
@@ -3592,7 +3487,7 @@ export default function EditResumePage() {
                                         };
                                         updateContent({ experience: updated });
                                       }}
-                                      className="mt-1 h-9 text-sm"
+                                      className={RESUME_FIELD_INPUT_CLASS}
                                     />
                                   </div>
                                   <div>
@@ -3609,7 +3504,7 @@ export default function EditResumePage() {
                                         };
                                         updateContent({ experience: updated });
                                       }}
-                                      className="mt-1 h-9 text-sm"
+                                      className={RESUME_FIELD_INPUT_CLASS}
                                     />
                                   </div>
                                   <div>
@@ -3628,7 +3523,7 @@ export default function EditResumePage() {
                                         };
                                         updateContent({ experience: updated });
                                       }}
-                                      className="mt-1 h-9 text-sm"
+                                      className={RESUME_FIELD_INPUT_CLASS}
                                       placeholder="MM/YYYY"
                                     />
                                   </div>
@@ -3650,7 +3545,7 @@ export default function EditResumePage() {
                                         };
                                         updateContent({ experience: updated });
                                       }}
-                                      className="mt-1 h-9 text-sm"
+                                      className={RESUME_FIELD_INPUT_CLASS}
                                       placeholder="MM/YYYY or Present"
                                     />
                                   </div>
@@ -3851,7 +3746,7 @@ export default function EditResumePage() {
                                         };
                                         updateContent({ education: updated });
                                       }}
-                                      className="mt-1 h-9 text-sm"
+                                      className={RESUME_FIELD_INPUT_CLASS}
                                     />
                                   </div>
                                   <div>
@@ -3868,7 +3763,7 @@ export default function EditResumePage() {
                                         };
                                         updateContent({ education: updated });
                                       }}
-                                      className="mt-1 h-9 text-sm"
+                                      className={RESUME_FIELD_INPUT_CLASS}
                                       placeholder="e.g. 8.5/10 or 3.6/4.0"
                                     />
                                   </div>
@@ -3888,7 +3783,7 @@ export default function EditResumePage() {
                                         };
                                         updateContent({ education: updated });
                                       }}
-                                      className="mt-1 h-9 text-sm"
+                                      className={RESUME_FIELD_INPUT_CLASS}
                                       placeholder="e.g. 85% or 8.5/10"
                                     />
                                   </div>
@@ -3908,7 +3803,7 @@ export default function EditResumePage() {
                                         };
                                         updateContent({ education: updated });
                                       }}
-                                      className="mt-1 h-9 text-sm"
+                                      className={RESUME_FIELD_INPUT_CLASS}
                                     />
                                   </div>
                                   <div className="col-span-2">
@@ -3927,7 +3822,7 @@ export default function EditResumePage() {
                                         };
                                         updateContent({ education: updated });
                                       }}
-                                      className="mt-1 h-9 text-sm"
+                                      className={RESUME_FIELD_INPUT_CLASS}
                                       placeholder="e.g. City, State / Country"
                                     />
                                   </div>
@@ -3947,7 +3842,7 @@ export default function EditResumePage() {
                                         };
                                         updateContent({ education: updated });
                                       }}
-                                      className="mt-1 h-9 text-sm"
+                                      className={RESUME_FIELD_INPUT_CLASS}
                                       placeholder="MM/YYYY"
                                     />
                                   </div>
@@ -3965,7 +3860,7 @@ export default function EditResumePage() {
                                         };
                                         updateContent({ education: updated });
                                       }}
-                                      className="mt-1 h-9 text-sm"
+                                      className={RESUME_FIELD_INPUT_CLASS}
                                       placeholder="MM/YYYY"
                                     />
                                   </div>
@@ -4359,7 +4254,7 @@ export default function EditResumePage() {
                                           updateContent({ projects: updated });
                                         }}
                                         onKeyDown={(e) => e.stopPropagation()}
-                                        className="mt-1 h-9 text-sm"
+                                        className={RESUME_FIELD_INPUT_CLASS}
                                       />
                                     </div>
                                     <div>
@@ -4379,7 +4274,7 @@ export default function EditResumePage() {
                                           updateContent({ projects: updated });
                                         }}
                                         onKeyDown={(e) => e.stopPropagation()}
-                                        className="mt-1 h-9 text-sm"
+                                        className={RESUME_FIELD_INPUT_CLASS}
                                         placeholder="https://..."
                                       />
                                     </div>
@@ -4400,7 +4295,7 @@ export default function EditResumePage() {
                                           updateContent({ projects: updated });
                                         }}
                                         onKeyDown={(e) => e.stopPropagation()}
-                                        className="mt-1 h-9 text-sm"
+                                        className={RESUME_FIELD_INPUT_CLASS}
                                         placeholder="MM/YYYY"
                                       />
                                     </div>
@@ -4421,7 +4316,7 @@ export default function EditResumePage() {
                                           updateContent({ projects: updated });
                                         }}
                                         onKeyDown={(e) => e.stopPropagation()}
-                                        className="mt-1 h-9 text-sm"
+                                        className={RESUME_FIELD_INPUT_CLASS}
                                         placeholder="MM/YYYY or Present"
                                       />
                                     </div>
@@ -4469,7 +4364,7 @@ export default function EditResumePage() {
                                         updateContent({ projects: updated });
                                       }}
                                       onKeyDown={(e) => e.stopPropagation()}
-                                      className="mt-1 h-9 text-sm"
+                                      className={RESUME_FIELD_INPUT_CLASS}
                                       placeholder="React, Node.js..."
                                     />
                                   </div>
@@ -4655,7 +4550,7 @@ export default function EditResumePage() {
                                             );
                                             setHasChanges(true);
                                           }}
-                                          className="mt-1 h-9 text-sm"
+                                          className={RESUME_FIELD_INPUT_CLASS}
                                           placeholder="AWS Certified Solutions Architect"
                                         />
                                       </div>
@@ -4687,7 +4582,7 @@ export default function EditResumePage() {
                                             );
                                             setHasChanges(true);
                                           }}
-                                          className="mt-1 h-9 text-sm"
+                                          className={RESUME_FIELD_INPUT_CLASS}
                                           placeholder="Amazon Web Services"
                                         />
                                       </div>
@@ -4719,7 +4614,7 @@ export default function EditResumePage() {
                                             );
                                             setHasChanges(true);
                                           }}
-                                          className="mt-1 h-9 text-sm"
+                                          className={RESUME_FIELD_INPUT_CLASS}
                                           type="month"
                                           max={today}
                                         />
@@ -4752,7 +4647,7 @@ export default function EditResumePage() {
                                             );
                                             setHasChanges(true);
                                           }}
-                                          className="mt-1 h-9 text-sm"
+                                          className={RESUME_FIELD_INPUT_CLASS}
                                           type="month"
                                         />
                                       </div>
@@ -4784,7 +4679,7 @@ export default function EditResumePage() {
                                             );
                                             setHasChanges(true);
                                           }}
-                                          className="mt-1 h-9 text-sm"
+                                          className={RESUME_FIELD_INPUT_CLASS}
                                           placeholder="e.g., AWS-ASA-123456"
                                         />
                                       </div>
@@ -4816,7 +4711,7 @@ export default function EditResumePage() {
                                             );
                                             setHasChanges(true);
                                           }}
-                                          className="mt-1 h-9 text-sm"
+                                          className={RESUME_FIELD_INPUT_CLASS}
                                           type="url"
                                           placeholder="https://..."
                                         />
@@ -5599,7 +5494,7 @@ export default function EditResumePage() {
                                           );
                                           setHasChanges(true);
                                         }}
-                                        className="mt-1 h-9 text-sm"
+                                        className={RESUME_FIELD_INPUT_CLASS}
                                         placeholder="Employee of the Year"
                                       />
                                     </div>
@@ -5630,7 +5525,7 @@ export default function EditResumePage() {
                                           );
                                           setHasChanges(true);
                                         }}
-                                        className="mt-1 h-9 text-sm"
+                                        className={RESUME_FIELD_INPUT_CLASS}
                                         placeholder="Company Name"
                                       />
                                     </div>
@@ -5659,7 +5554,7 @@ export default function EditResumePage() {
                                           );
                                           setHasChanges(true);
                                         }}
-                                        className="mt-1 h-9 text-sm"
+                                        className={RESUME_FIELD_INPUT_CLASS}
                                         type="month"
                                       />
                                     </div>
@@ -5888,7 +5783,7 @@ export default function EditResumePage() {
                                           );
                                           setHasChanges(true);
                                         }}
-                                        className="mt-1 h-9 text-sm"
+                                        className={RESUME_FIELD_INPUT_CLASS}
                                         placeholder="John Smith"
                                       />
                                     </div>
@@ -5920,7 +5815,7 @@ export default function EditResumePage() {
                                           );
                                           setHasChanges(true);
                                         }}
-                                        className="mt-1 h-9 text-sm"
+                                        className={RESUME_FIELD_INPUT_CLASS}
                                         placeholder="Engineering Manager"
                                       />
                                     </div>
@@ -5952,7 +5847,7 @@ export default function EditResumePage() {
                                           );
                                           setHasChanges(true);
                                         }}
-                                        className="mt-1 h-9 text-sm"
+                                        className={RESUME_FIELD_INPUT_CLASS}
                                         placeholder="Company Name"
                                       />
                                     </div>
@@ -5982,7 +5877,7 @@ export default function EditResumePage() {
                                           );
                                           setHasChanges(true);
                                         }}
-                                        className="mt-1 h-9 text-sm"
+                                        className={RESUME_FIELD_INPUT_CLASS}
                                         type="email"
                                         placeholder="email@example.com"
                                       />
@@ -6013,7 +5908,7 @@ export default function EditResumePage() {
                                           );
                                           setHasChanges(true);
                                         }}
-                                        className="mt-1 h-9 text-sm"
+                                        className={RESUME_FIELD_INPUT_CLASS}
                                         type="tel"
                                         placeholder="+1 (555) 123-4567"
                                       />
