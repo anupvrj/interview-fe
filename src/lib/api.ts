@@ -3,10 +3,25 @@ import axios, {
   AxiosError,
   type InternalAxiosRequestConfig,
 } from "axios";
+import type { ATSReportV3 } from "@/types/atsReport";
+export { isATSReportV3 } from "@/types/atsReport";
 
 /** Base URL for API (includes `/api` path). Use for `<img src>` and other non-axios URLs. */
 export const API_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:5004/api";
+
+export type SubscriptionPlanSlug =
+  | "free"
+  | "general_pass"
+  | "tech_basic"
+  | "tech_pro"
+  | "enterprise"
+  | "premium";
+
+export type SelfServePlanSlug =
+  | "general_pass"
+  | "tech_basic"
+  | "tech_pro";
 
 export const apiClient: AxiosInstance = axios.create({
   baseURL: API_URL,
@@ -123,7 +138,7 @@ export interface User {
     size: number;
   };
   subscription?: {
-    plan: "free" | "premium" | "enterprise";
+    plan: SubscriptionPlanSlug;
     status: "active" | "cancelled" | "expired";
     currentPeriodEnd?: string;
     interviewsUsed?: number;
@@ -852,17 +867,40 @@ export const codingInterviewApi = {
   },
 };
 
+export type SubscriptionActivationState =
+  | "none"
+  | "pending"
+  | "active"
+  | "failed";
+
 export interface Subscription {
-    plan: "free" | "premium" | "enterprise";
+  plan: SubscriptionPlanSlug;
   status: "active" | "cancelled" | "expired";
-  interviewsUsed?: number; // Deprecated: now using credits
-  interviewsLimit?: number; // Deprecated: now using credits
-  creditsAvailable?: number; // New: credit-based system
-  creditsUsed?: number; // New: credit-based system
-  minimumRequired?: number; // New: minimum credits to start interview
+  isExpired?: boolean;
+  needsRenewal?: boolean;
+  activationState?: SubscriptionActivationState;
+  interviewsUsed?: number;
+  interviewsLimit?: number;
+  creditsAvailable?: number;
+  creditsUsed?: number;
+  minimumRequired?: number;
   currentPeriodEnd?: string;
+  expiredPlanId?: string;
   resetDate?: string;
   autoRenew?: boolean;
+  pendingPayment?: {
+    plan?: SubscriptionPlanSlug;
+    planDisplayName?: string;
+    amount: number;
+    billingCycle?: string;
+    subscriptionId?: string;
+    mandateAuthorizedAt?: string | null;
+  } | null;
+  failedPayment?: {
+    plan?: SubscriptionPlanSlug;
+    amount: number;
+    failedAt?: string;
+  } | null;
 }
 
 export interface CreditBalance {
@@ -874,6 +912,7 @@ export interface CreditBalance {
 export interface InterviewLimitCheck {
   allowed: boolean;
   reason?: string;
+  isExpired?: boolean;
   creditsAvailable?: number; // New: credit-based system
   minimumRequired?: number; // New: minimum credits required
   interviewsUsed?: number; // Deprecated
@@ -890,7 +929,7 @@ export interface RazorpayOrder {
 
 export const paymentApi = {
   createOrder: async (
-    plan: "premium",
+    plan: SelfServePlanSlug,
     billingCycle: "monthly" | "quarterly" | "yearly" = "monthly",
   ): Promise<RazorpayOrder> => {
     const response = await apiClient.post<{ data: RazorpayOrder }>(
@@ -952,14 +991,27 @@ export const paymentApi = {
     razorpayOrderId: string,
     razorpayPaymentId: string,
     razorpaySignature: string,
-  ): Promise<{ subscription: Subscription | null }> => {
+  ): Promise<{
+    subscription: Subscription | null;
+    activationStatus?: SubscriptionActivationState;
+  }> => {
     const response = await apiClient.post<{
-      data: { subscription: Subscription | null };
+      data: {
+        subscription: Subscription | null;
+        activationStatus?: SubscriptionActivationState;
+      };
     }>("/payments/verify", {
       razorpayOrderId,
       razorpayPaymentId,
       razorpaySignature,
     });
+    return response.data.data;
+  },
+
+  syncPendingSubscription: async (): Promise<Subscription | null> => {
+    const response = await apiClient.post<{ data: Subscription | null }>(
+      "/payments/sync-pending-subscription",
+    );
     return response.data.data;
   },
 
@@ -1161,23 +1213,46 @@ export interface Resume {
     };
   };
   atsScore?: number;
-  atsFeedback?: {
-    score: number;
-    strengths: string[];
-    weaknesses: string[];
-    suggestions: string[];
-    details?: {
-      formatting?: { score: number; issues: string[]; improvements: string[] };
-      content?: { score: number; issues: string[]; improvements: string[] };
-      keywords?: { score: number; issues: string[]; improvements: string[] };
-      structure?: { score: number; issues: string[]; improvements: string[] };
-    };
+  atsFeedback?: ATSReportV3 | LegacyATSFeedback;
+  atsImprovementMeta?: {
+    improvedAt: string;
+    previousScore?: number;
+    suppressedCheckIds: import("@/types/atsReport").ATSCheckId[];
+  };
+  atsIgnoredIssues?: import("@/types/atsReport").ATSIgnoredIssue[];
+  atsScoringContext?: {
+    rawPdfText?: string;
+    lastJobDescription?: string;
   };
   isDefault?: boolean;
   pdfS3Key?: string; // S3 key for generated PDF
   thumbnailS3Key?: string; // S3 key for resume thumbnail
   createdAt: string;
   updatedAt: string;
+}
+
+export interface LegacyATSFeedback {
+  score: number;
+  strengths: string[];
+  weaknesses: string[];
+  suggestions: string[];
+  details?: {
+    formatting?: { score: number; issues: string[]; improvements: string[] };
+    content?: { score: number; issues: string[]; improvements: string[] };
+    keywords?: { score: number; issues: string[]; improvements: string[] };
+    structure?: { score: number; issues: string[]; improvements: string[] };
+  };
+}
+
+export interface RecalculateATSOptions {
+  jobDescription?: string;
+  rawPdfText?: string;
+  fileMetadata?: {
+    fileName: string;
+    fileSizeBytes: number;
+    mimeType: string;
+    rawTextLength?: number;
+  };
 }
 
 export const resumeApi = {
@@ -1325,13 +1400,68 @@ export const resumeApi = {
     return created;
   },
 
-  recalculateATS: async (resumeId: string): Promise<Resume> => {
+  recalculateATS: async (
+    resumeId: string,
+    options: RecalculateATSOptions = {},
+  ): Promise<Resume> => {
     const response = await apiClient.post<{ data: Resume }>(
       `/resumes/${resumeId}/ats-score`,
-      {},
+      options,
       {
-        timeout: 180000, // 3 minutes (180 seconds) for ATS score calculation
+        timeout: 180000,
       },
+    );
+    return response.data.data;
+  },
+
+  improveFromATS: async (
+    resumeId: string,
+    options: { jobDescription?: string } = {},
+  ): Promise<Resume> => {
+    const response = await apiClient.post<{ data: Resume }>(
+      `/resumes/${resumeId}/improve-from-ats`,
+      options,
+      {
+        timeout: 300000,
+      },
+    );
+    return response.data.data;
+  },
+
+  improveATSIssue: async (
+    resumeId: string,
+    body: {
+      checkId: string;
+      categoryLabel?: string;
+      issue: import("@/types/atsReport").ATSIssue;
+    },
+  ): Promise<{
+    improvedContent: string;
+    sourceContent: string;
+    contentType: "bullet" | "paragraph" | "text";
+  }> => {
+    const response = await apiClient.post<{
+      data: {
+        improvedContent: string;
+        sourceContent: string;
+        contentType: "bullet" | "paragraph" | "text";
+      };
+    }>(`/resumes/${resumeId}/ats-improve-issue`, body, {
+      timeout: 60000,
+    });
+    return response.data.data;
+  },
+
+  ignoreATSIssue: async (
+    resumeId: string,
+    body: {
+      checkId: string;
+      issue: import("@/types/atsReport").ATSIssue;
+    },
+  ): Promise<Resume> => {
+    const response = await apiClient.post<{ data: Resume }>(
+      `/resumes/${resumeId}/ats-ignore-issue`,
+      body,
     );
     return response.data.data;
   },

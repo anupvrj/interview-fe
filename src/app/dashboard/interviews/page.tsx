@@ -51,6 +51,8 @@ import {
 import { institutePrimaryClass } from "@/components/institute/InstituteChrome";
 import { DashboardStatCard } from "@/components/dashboard/DashboardStatCard";
 import { RecentInterviewsList } from "@/components/dashboard/RecentInterviewsList";
+import { SubscriptionExpiredDialog } from "@/components/SubscriptionExpiredDialog";
+import { useSubscriptionExpiredGate } from "@/hooks/useSubscriptionExpiredGate";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -66,6 +68,12 @@ export default function InterviewsPage() {
   const [videoUnavailableOpen, setVideoUnavailableOpen] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [deleteBusy, setDeleteBusy] = useState(false);
+  const {
+    open: subscriptionExpiredOpen,
+    setOpen: setSubscriptionExpiredOpen,
+    checking: checkingSubscription,
+    navigateToNewSession,
+  } = useSubscriptionExpiredGate();
 
   useEffect(() => {
     if (isLoaded && user) {
@@ -258,18 +266,24 @@ export default function InterviewsPage() {
               </div>
               
               <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-3 sm:gap-4 pt-2 px-2 sm:px-0">
-                <Link href="/dashboard/interviews/new" className="w-full sm:w-auto">
-                  <Button
-                    size="lg"
-                    className={cn(
-                      institutePrimaryClass,
-                      "h-auto w-full px-5 py-4 text-sm font-semibold shadow-lg transition-all hover:shadow-xl sm:w-auto sm:px-6 sm:py-5 sm:text-base",
-                    )}
-                  >
-                    Start New Interview
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                  </Button>
-                </Link>
+                <Button
+                  type="button"
+                  size="lg"
+                  disabled={checkingSubscription}
+                  onClick={() =>
+                    navigateToNewSession("/dashboard/interviews/new")
+                  }
+                  className={cn(
+                    institutePrimaryClass,
+                    "h-auto w-full px-5 py-4 text-sm font-semibold shadow-lg transition-all hover:shadow-xl sm:w-auto sm:px-6 sm:py-5 sm:text-base",
+                  )}
+                >
+                  {checkingSubscription ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : null}
+                  Start New Interview
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
                 <div className="flex items-center gap-1.5 sm:gap-2">
                   <div className="flex items-center gap-0.5 sm:gap-1">
                     {[...Array(5)].map((_, i) => (
@@ -406,12 +420,19 @@ export default function InterviewsPage() {
                     : "Start from 24 hours before the scheduled slot until the expire deadline. Saved resume required."}
               </CardDescription>
             </div>
-            <Link href="/dashboard/interviews/new">
-              <Button className={institutePrimaryClass}>
+            <Button
+              type="button"
+              disabled={checkingSubscription}
+              onClick={() => navigateToNewSession("/dashboard/interviews/new")}
+              className={institutePrimaryClass}
+            >
+              {checkingSubscription ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
                 <Plus className="mr-2 h-4 w-4" />
-                Start New Interview
-              </Button>
-            </Link>
+              )}
+              Start New Interview
+            </Button>
           </div>
 
           <div
@@ -679,6 +700,11 @@ export default function InterviewsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <SubscriptionExpiredDialog
+        open={subscriptionExpiredOpen}
+        onOpenChange={setSubscriptionExpiredOpen}
+      />
     </div>
   );
 }

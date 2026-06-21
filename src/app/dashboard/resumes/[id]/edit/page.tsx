@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import "@/styles/mercury-template.css";
 import { useUser } from "@clerk/nextjs";
-import { useRouter, useParams } from "next/navigation";
+import { useRouter, useParams, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -34,11 +34,14 @@ import {
   Palette,
 } from "lucide-react";
 import { Resume, ResumeTemplate, resumeApi, apiClient } from "@/lib/api";
+import { isATSReportV3 } from "@/types/atsReport";
 import { ResumePreview } from "@/components/ResumePreview";
 import { RichTextEditor } from "@/components/RichTextEditor";
 import { getExtendedTemplate } from "@/lib/templateConfigs";
 import { getTemplateStyle } from "@/lib/templateRenderer";
 import { ExecutiveSkills } from "@/components/resume-editor/ExecutiveSkills";
+import { LayoutTypographyControls } from "@/components/resume-editor/LayoutTypographyControls";
+import { RESUME_FIELD_INPUT_CLASS } from "@/components/resume-editor/resumeFieldStyles";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import { LanguagesEditor } from "@/components/LanguagesEditor";
 import { captureAndUploadThumbnail } from "@/lib/resume-thumbnail";
@@ -47,7 +50,12 @@ import {
   mergeLayoutPaddingWithTemplateStyle,
   resolveLayoutPaddingMm,
 } from "@/lib/resume-page-dimensions";
-import { ATSFeedback } from "@/components/ATSFeedback";
+import { ATSReportView } from "@/components/ats-checker/ATSReportView";
+import { applyAtsIssueFixToResume } from "@/lib/atsIssueApply";
+import {
+  assignSectionColumnOnReorder,
+  toSectionOrderPayload,
+} from "@/lib/sectionColumnUtils";
 import { ProfilePictureCropper } from "@/components/ProfilePictureCropper";
 import { ChangeTemplateDialog } from "@/components/resume-editor/ChangeTemplateDialog";
 import {
@@ -59,34 +67,58 @@ import { debugResumePagination } from "@/lib/debug-resume-pagination";
 interface Section {
   id: string;
   type:
-  | "personalInfo"
-  | "profileSummary"
-  | "experience"
-  | "education"
-  | "skills"
-  | "projects"
-  | "achievements"
-  | "languages"
-  | "certificates"
-  | "interests"
-  | "courses"
-  | "awards"
-  | "organisations"
-  | "publications"
-  | "references"
-  | "declaration"
-  | "spacer"
-  | "custom";
+    | "personalInfo"
+    | "profileSummary"
+    | "experience"
+    | "education"
+    | "skills"
+    | "projects"
+    | "achievements"
+    | "languages"
+    | "certificates"
+    | "interests"
+    | "courses"
+    | "awards"
+    | "organisations"
+    | "publications"
+    | "references"
+    | "declaration"
+    | "spacer"
+    | "custom";
   title: string;
   visible: boolean;
   expanded: boolean;
+  column?: "left" | "right";
+}
+
+function expandOnlySection(
+  sections: Section[],
+  expandedId: string | null,
+): Section[] {
+  return sections.map((s) => ({
+    ...s,
+    expanded: expandedId !== null && s.id === expandedId,
+  }));
+}
+
+function withFirstVisibleExpanded(sections: Section[]): Section[] {
+  let expandedAssigned = false;
+  return sections.map((s) => {
+    if (s.visible && !expandedAssigned) {
+      expandedAssigned = true;
+      return { ...s, expanded: true };
+    }
+    return { ...s, expanded: false };
+  });
 }
 
 export default function EditResumePage() {
   const { user, isLoaded } = useUser();
   const router = useRouter();
   const params = useParams();
+  const searchParams = useSearchParams();
   const resumeId = params.id as string;
+  const showImprovedBanner = searchParams.get("improved") === "1";
 
   const [mounted, setMounted] = useState(false);
   const [resume, setResume] = useState<Resume | null>(null);
@@ -150,6 +182,27 @@ export default function EditResumePage() {
     { value: "'PT Sans', sans-serif", label: "PT Sans" },
   ];
 
+  const fontFamilyOptions = useMemo(() => {
+    const current = effectiveTypography?.fontFamily;
+    if (!current) return FONT_FAMILY_OPTIONS;
+    if (FONT_FAMILY_OPTIONS.some((opt) => opt.value === current)) {
+      return FONT_FAMILY_OPTIONS;
+    }
+    const shortLabel =
+      current
+        .split(",")[0]
+        ?.replace(/^['"]|['"]$/g, "")
+        .trim() || "Custom";
+    return [{ value: current, label: shortLabel }, ...FONT_FAMILY_OPTIONS];
+  }, [effectiveTypography?.fontFamily]);
+
+  const selectedFontFamily = useMemo(() => {
+    const current = effectiveTypography?.fontFamily;
+    if (!current) return FONT_FAMILY_OPTIONS[0].value;
+    const exact = fontFamilyOptions.find((opt) => opt.value === current);
+    return exact?.value ?? FONT_FAMILY_OPTIONS[0].value;
+  }, [effectiveTypography?.fontFamily, fontFamilyOptions]);
+
   // Initialize sections as empty - will be populated from database
   const [sections, setSections] = useState<Section[]>([]);
   const [viewMode, setViewMode] = useState<"edit" | "ats">("edit");
@@ -175,11 +228,37 @@ export default function EditResumePage() {
     }
   }, [mounted, isLoaded, user, resumeId]);
 
+  useEffect(() => {
+    if (searchParams.get("view") === "ats") {
+      setViewMode("ats");
+    }
+  }, [searchParams]);
+
   // Track dragging state
   const isDraggingRef = useRef(false);
   const isThumbnailUploadingRef = useRef(false);
   const autoThumbnailAttemptsRef = useRef(0);
   const MAX_AUTO_THUMBNAIL_ATTEMPTS = 3;
+  const resumeRef = useRef(resume);
+  const layoutRef = useRef(layout);
+  const sectionsRef = useRef(sections);
+  const hasChangesRef = useRef(hasChanges);
+
+  useEffect(() => {
+    resumeRef.current = resume;
+  }, [resume]);
+
+  useEffect(() => {
+    layoutRef.current = layout;
+  }, [layout]);
+
+  useEffect(() => {
+    sectionsRef.current = sections;
+  }, [sections]);
+
+  useEffect(() => {
+    hasChangesRef.current = hasChanges;
+  }, [hasChanges]);
 
   const bumpPreviewKey = useCallback((reason: string) => {
     setPreviewKey((prev) => {
@@ -187,6 +266,51 @@ export default function EditResumePage() {
       debugResumePagination("previewKey:bump", { reason, next });
       return next;
     });
+  }, []);
+
+  const persistResumeToServer = useCallback(
+    async (resumeSnapshot: Resume) => {
+      const currentLayout = layoutRef.current;
+      const currentSections = sectionsRef.current;
+      if (!currentLayout || currentSections.length === 0) {
+        throw new Error("Resume layout not ready");
+      }
+
+      const sectionOrderData = toSectionOrderPayload(currentSections);
+
+      await resumeApi.update(resumeId, {
+        title: resumeSnapshot.title,
+        content: resumeSnapshot.content,
+        profileSummary: resumeSnapshot.profileSummary,
+        sectionOrder: sectionOrderData,
+        layout: currentLayout,
+      });
+
+      setHasChanges(false);
+      setLastSaved(new Date());
+    },
+    [resumeId],
+  );
+
+  const ensureResumePersisted = useCallback(async () => {
+    const current = resumeRef.current;
+    if (!current || !hasChangesRef.current) return;
+    await persistResumeToServer(current);
+  }, [persistResumeToServer]);
+
+  const applyAtsReportUpdate = useCallback((updatedResume: Resume) => {
+    setResume((prev) =>
+      prev
+        ? {
+            ...prev,
+            atsScore: updatedResume.atsScore,
+            atsFeedback: updatedResume.atsFeedback,
+            atsImprovementMeta: updatedResume.atsImprovementMeta,
+            atsScoringContext:
+              updatedResume.atsScoringContext ?? prev.atsScoringContext,
+          }
+        : prev,
+    );
   }, []);
 
   const triggerThumbnailCapture = useCallback(
@@ -239,9 +363,10 @@ export default function EditResumePage() {
   );
 
   // Attempt thumbnail generation on initial preview render (not only after save).
+  const thumbnailS3Key = resume?.thumbnailS3Key;
   useEffect(() => {
     if (!mounted || loading || !resume || !template || !resumeId) return;
-    if (resume.thumbnailS3Key) return;
+    if (thumbnailS3Key) return;
     if (autoThumbnailAttemptsRef.current >= MAX_AUTO_THUMBNAIL_ATTEMPTS) return;
 
     const timers = [
@@ -256,57 +381,52 @@ export default function EditResumePage() {
   }, [
     mounted,
     loading,
-    resume,
-    template,
     resumeId,
+    template,
+    thumbnailS3Key,
     triggerThumbnailCapture,
-    MAX_AUTO_THUMBNAIL_ATTEMPTS,
+    resume,
   ]);
 
-  // Autosave effect - saves 5 seconds after last change
+  // Autosave only when the user has unsaved edits — not on ATS/thumbnail resume syncs.
   useEffect(() => {
-    if (!hasChanges || !resume || !layout || sections.length === 0) {
+    if (!hasChanges) {
       return;
     }
 
     const autoSaveTimer = setTimeout(async () => {
+      const currentResume = resumeRef.current;
+      const currentLayout = layoutRef.current;
+      const currentSections = sectionsRef.current;
+
+      if (!currentResume || !currentLayout || currentSections.length === 0) {
+        return;
+      }
+
       try {
         setAutoSaving(true);
-        const sectionOrderData = sections.map((s) => ({
-          id: s.id,
-          type: s.type,
-          title: s.title,
-          visible: s.visible,
-        }));
-
-        // Log customSections before saving
-        console.log("💾 [Autosave] Saving resume with customSections:", {
-          customSectionsCount: resume.content.customSections?.length || 0,
-          customSections: resume.content.customSections,
-        });
+        const sectionOrderData = toSectionOrderPayload(currentSections);
 
         await resumeApi.update(resumeId, {
-          title: resume.title,
-          templateId: resume.templateId,
-          content: resume.content,
-          profileSummary: resume.profileSummary,
+          title: currentResume.title,
+          content: currentResume.content,
+          profileSummary: currentResume.profileSummary,
           sectionOrder: sectionOrderData,
-          layout: layout,
+          layout: currentLayout,
         });
 
         setHasChanges(false);
         setLastSaved(new Date());
-        // Capture designed resume after save (force: bypass "already has thumbnail").
         await triggerThumbnailCapture(resumeId, { force: true });
       } catch (error) {
         console.error("Autosave failed:", error);
       } finally {
         setAutoSaving(false);
       }
-    }, 5000); // 5 seconds after last change
+    }, 5000);
 
     return () => clearTimeout(autoSaveTimer);
-  }, [hasChanges, resume, layout, sections, resumeId, triggerThumbnailCapture]);
+  }, [hasChanges, resumeId, triggerThumbnailCapture]);
 
   const loadResume = async () => {
     try {
@@ -464,10 +584,12 @@ export default function EditResumePage() {
 
       // Load section order from database or use default
       if (resumeData.sectionOrder && resumeData.sectionOrder.length > 0) {
-        const loadedSections = resumeData.sectionOrder.map((s) => ({
-          ...s,
-          expanded: true,
-        })) as Section[];
+        const loadedSections = withFirstVisibleExpanded(
+          resumeData.sectionOrder.map((s) => ({
+            ...s,
+            expanded: false,
+          })) as Section[],
+        );
 
         // Ensure all custom sections in sectionOrder have corresponding entries in customSections
         const customSections = resumeData.content.customSections || [];
@@ -494,12 +616,7 @@ export default function EditResumePage() {
           // Immediately save missing custom sections to database to prevent data loss on reload
           (async () => {
             try {
-              const sectionOrderData = loadedSections.map((s) => ({
-                id: s.id,
-                type: s.type,
-                title: s.title,
-                visible: s.visible,
-              }));
+              const sectionOrderData = toSectionOrderPayload(loadedSections);
 
               await resumeApi.update(resumeId, {
                 content: resumeData.content,
@@ -551,50 +668,52 @@ export default function EditResumePage() {
 
             // Check if template has specific default section order
             if (extendedTemplate.defaultSectionOrder) {
-              return extendedTemplate.defaultSectionOrder.map((section) => ({
-                ...section,
-                type: section.type as Section["type"], // Cast to proper type
-                expanded: section.visible, // Expand visible sections by default
-              }));
+              return withFirstVisibleExpanded(
+                extendedTemplate.defaultSectionOrder.map((section) => ({
+                  ...section,
+                  type: section.type as Section["type"],
+                  expanded: false,
+                })),
+              );
             }
           }
 
           // Fallback to generic default sections
-          return [
+          return withFirstVisibleExpanded([
             {
               id: "personalInfo",
               type: "personalInfo",
               title: "Personal Information",
               visible: true,
-              expanded: false, // Start collapsed (compact view)
+              expanded: false,
             },
             {
               id: "profileSummary",
               type: "profileSummary",
               title: "Profile Summary",
               visible: true,
-              expanded: true,
+              expanded: false,
             },
             {
               id: "experience",
               type: "experience",
               title: "Experience",
               visible: true,
-              expanded: true,
+              expanded: false,
             },
             {
               id: "education",
               type: "education",
               title: "Education",
               visible: true,
-              expanded: true,
+              expanded: false,
             },
             {
               id: "skills",
               type: "skills",
               title: "Skills",
               visible: true,
-              expanded: true,
+              expanded: false,
             },
             {
               id: "projects",
@@ -673,7 +792,7 @@ export default function EditResumePage() {
               visible: false,
               expanded: false,
             },
-          ];
+          ]);
         };
 
         setSections(getDefaultSections());
@@ -695,12 +814,7 @@ export default function EditResumePage() {
 
     try {
       setSaving(true);
-      const sectionOrderData = sections.map((s) => ({
-        id: s.id,
-        type: s.type,
-        title: s.title,
-        visible: s.visible,
-      }));
+      const sectionOrderData = toSectionOrderPayload(sections);
 
       await resumeApi.update(resumeId, {
         title: resume.title,
@@ -716,9 +830,6 @@ export default function EditResumePage() {
       // Capture thumbnail before loadResume — loadResume bumps preview key and remounts DOM.
       await triggerThumbnailCapture(resumeId, { force: true });
       await loadResume();
-
-      // ATS score calculation is now only done on manual refresh
-      // This improves UX by not blocking saves
     } catch (error) {
       console.error("Error saving resume:", error);
       alert("Failed to save resume. Please try again.");
@@ -746,7 +857,10 @@ export default function EditResumePage() {
       await TemplateLoader.loadTemplate(newTemplateId);
 
       const nextLayout = buildLayoutForTemplateSwitch(newTemplate);
-      const nextSections = buildSectionsForTemplateSwitch(newTemplate, sections);
+      const nextSections = buildSectionsForTemplateSwitch(
+        newTemplate,
+        sections,
+      );
 
       setTemplate(newTemplate);
       setLayout(nextLayout);
@@ -773,23 +887,33 @@ export default function EditResumePage() {
   };
 
   const handleRefreshATS = async () => {
-    if (!resume || !resumeId) return;
+    const current = resumeRef.current;
+    if (!current || !resumeId) return;
 
     try {
       setRefreshingATS(true);
 
-      // Call the API to recalculate ATS score and wait for the response
-      const updatedResume = await resumeApi.recalculateATS(resumeId);
+      await ensureResumePersisted();
 
-      // Update the resume state with the new ATS score
-      setResume((prev) => {
-        if (!prev) return prev;
-        return {
-          ...prev,
-          atsScore: updatedResume.atsScore,
-          atsFeedback: updatedResume.atsFeedback,
-        };
+      const updatedResume = await resumeApi.recalculateATS(resumeId, {
+        jobDescription: current.atsScoringContext?.lastJobDescription,
+        rawPdfText: current.atsScoringContext?.rawPdfText,
       });
+
+      applyAtsReportUpdate(updatedResume);
+
+      const params = new URLSearchParams(searchParams.toString());
+      params.delete("improved");
+      if (viewMode === "ats") {
+        params.set("view", "ats");
+      }
+      const query = params.toString();
+      router.replace(
+        query
+          ? `/dashboard/resumes/${resumeId}/edit?${query}`
+          : `/dashboard/resumes/${resumeId}/edit`,
+        { scroll: false },
+      );
     } catch (error) {
       console.error("Error refreshing ATS score:", error);
       alert("Failed to refresh ATS score. Please try again.");
@@ -797,6 +921,69 @@ export default function EditResumePage() {
       setRefreshingATS(false);
     }
   };
+
+  const handleRunJobMatch = async (jobDescription: string) => {
+    const current = resumeRef.current;
+    if (!current || !resumeId) return;
+
+    try {
+      setRefreshingATS(true);
+
+      await ensureResumePersisted();
+
+      const updatedResume = await resumeApi.recalculateATS(resumeId, {
+        jobDescription,
+        rawPdfText: current.atsScoringContext?.rawPdfText,
+      });
+
+      applyAtsReportUpdate(updatedResume);
+    } catch (error) {
+      console.error("Error running Job Match analysis:", error);
+      throw error instanceof Error
+        ? error
+        : new Error("Failed to run Job Match analysis. Please try again.");
+    } finally {
+      setRefreshingATS(false);
+    }
+  };
+
+  const handleApplyAtsIssueFix = useCallback(
+    (original: string, improved: string) => {
+      const current = resumeRef.current;
+      if (!current) return false;
+      const next = applyAtsIssueFixToResume(current, original, improved);
+      if (!next) return false;
+      resumeRef.current = next;
+      setResume(next);
+      setHasChanges(true);
+      return true;
+    },
+    [],
+  );
+
+  const handleIgnoreATSIssue = useCallback(
+    async (
+      check: import("@/types/atsReport").ATSCheckResult,
+      issue: import("@/types/atsReport").ATSIssue,
+    ) => {
+      if (!resumeId) return;
+      const updated = await resumeApi.ignoreATSIssue(resumeId, {
+        checkId: check.id,
+        issue,
+      });
+      setResume((prev) =>
+        prev
+          ? {
+              ...prev,
+              atsScore: updated.atsScore,
+              atsFeedback: updated.atsFeedback,
+              atsIgnoredIssues: updated.atsIgnoredIssues,
+            }
+          : prev,
+      );
+    },
+    [resumeId],
+  );
 
   const handleDownload = async () => {
     try {
@@ -888,11 +1075,12 @@ export default function EditResumePage() {
               : "n/a",
         });
 
-        const templateId =
-          resume?.templateId || template?.id || "classic";
-        const pdfTemplate = template ?? {
-          id: templateId,
-        } as ResumeTemplate;
+        const templateId = resume?.templateId || template?.id || "classic";
+        const pdfTemplate =
+          template ??
+          ({
+            id: templateId,
+          } as ResumeTemplate);
         const pdfPadding = resolveLayoutPaddingMm(
           mergeLayoutPaddingWithTemplateStyle(
             resume?.layout?.padding ?? layout?.padding,
@@ -1041,11 +1229,12 @@ export default function EditResumePage() {
   };
 
   const toggleSection = (sectionId: string) => {
-    setSections(
-      sections.map((s) =>
-        s.id === sectionId ? { ...s, expanded: !s.expanded } : s,
-      ),
-    );
+    setSections((prev) => {
+      const target = prev.find((s) => s.id === sectionId);
+      if (!target) return prev;
+      const nextExpandedId = target.expanded ? null : sectionId;
+      return expandOnlySection(prev, nextExpandedId);
+    });
   };
 
   const deleteSection = (sectionId: string) => {
@@ -1203,11 +1392,12 @@ export default function EditResumePage() {
       const existingSectionIndex = sections.findIndex((s) => s.type === type);
       if (existingSectionIndex >= 0) {
         setSections((prev) =>
-          prev.map((s, idx) =>
-            idx === existingSectionIndex
-              ? { ...s, visible: true, expanded: true }
-              : s
-          )
+          expandOnlySection(
+            prev.map((s, idx) =>
+              idx === existingSectionIndex ? { ...s, visible: true } : s,
+            ),
+            prev[existingSectionIndex].id,
+          ),
         );
         setHasChanges(true);
         return;
@@ -1222,7 +1412,7 @@ export default function EditResumePage() {
       visible: true,
       expanded: true,
     };
-    setSections([...sections, newSection]);
+    setSections(expandOnlySection([...sections, newSection], sectionId));
 
     // If it's a custom section, initialize it in customSections with empty content
     if (type === "custom" && resume) {
@@ -1290,30 +1480,23 @@ export default function EditResumePage() {
 
     setDragOverId(targetId);
 
-    const draggedIndex = sections.findIndex((s) => s.id === draggedSection);
-    const targetIndex = sections.findIndex((s) => s.id === targetId);
+    const oldSignature = sections
+      .map((s, idx) => `${idx}:${s.id}:${s.column ?? ""}`)
+      .join(",");
+    const newSections = assignSectionColumnOnReorder(
+      sections,
+      draggedSection,
+      targetId,
+      {
+        layoutType: layout?.type,
+        template,
+      },
+    );
+    const newSignature = newSections
+      .map((s, idx) => `${idx}:${s.id}:${s.column ?? ""}`)
+      .join(",");
 
-    if (draggedIndex === -1 || targetIndex === -1) return;
-
-    // Create new sections array with reordered items
-    // IMPORTANT: Create a completely new array to ensure React detects the change
-    // Also remove any column property to allow dynamic redistribution
-    const newSections = sections.map((s) => {
-      // TypeScript-safe way to remove column property if it exists
-      const sectionWithoutColumn = { ...s };
-      if ("column" in sectionWithoutColumn) {
-        delete (sectionWithoutColumn as any).column;
-      }
-      return sectionWithoutColumn;
-    });
-    const [removed] = newSections.splice(draggedIndex, 1);
-    newSections.splice(targetIndex, 0, removed);
-
-    const oldOrder = sections.map((s, idx) => `${idx}:${s.id}`).join(",");
-    const newOrder = newSections.map((s, idx) => `${idx}:${s.id}`).join(",");
-
-    // Update sections - MUST be a new array reference for React to detect change
-    if (oldOrder !== newOrder) {
+    if (oldSignature !== newSignature) {
       setSections(newSections);
     }
   };
@@ -1391,12 +1574,13 @@ export default function EditResumePage() {
               {resume.atsScore !== undefined && resume.atsScore !== null && (
                 <div className="flex items-center gap-2 flex-wrap justify-center">
                   <div
-                    className={`px-3 py-2 sm:px-4 rounded-lg border-2 font-semibold text-sm flex items-center gap-1.5 sm:gap-2 ${resume.atsScore >= 80
-                      ? "bg-green-50 text-green-700 border-green-300"
-                      : resume.atsScore >= 60
-                        ? "bg-yellow-50 text-yellow-700 border-yellow-300"
-                        : "bg-red-50 text-red-700 border-red-300"
-                      }`}
+                    className={`px-3 py-2 sm:px-4 rounded-lg border-2 font-semibold text-sm flex items-center gap-1.5 sm:gap-2 ${
+                      resume.atsScore >= 80
+                        ? "bg-green-50 text-green-700 border-green-300"
+                        : resume.atsScore >= 60
+                          ? "bg-yellow-50 text-yellow-700 border-yellow-300"
+                          : "bg-red-50 text-red-700 border-red-300"
+                    }`}
                   >
                     <span className="whitespace-nowrap">ATS Score:</span>
                     <span className="text-xl font-bold">{resume.atsScore}</span>
@@ -1501,25 +1685,27 @@ export default function EditResumePage() {
       {/* Main Content: preview on top on mobile; side-by-side from md */}
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden md:flex-row">
         {/* Left Panel: Edit Form (below preview on mobile) */}
-        <div className="order-2 flex min-h-0 w-full flex-1 flex-col overflow-y-auto bg-white md:order-none md:w-1/2 md:border-r">
+        <div className="resume-editor-fields order-2 flex min-h-0 w-full flex-1 flex-col overflow-y-auto bg-white md:order-none md:w-1/2 md:border-r">
           {/* Toggle between Edit Resume and ATS Report */}
           <div className="border-b bg-gray-50">
             <div className="flex">
               <button
                 onClick={() => setViewMode("edit")}
-                className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${viewMode === "edit"
-                  ? "bg-white text-purple-600 border-b-2 border-purple-600"
-                  : "text-gray-600 hover:text-gray-900"
-                  }`}
+                className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
+                  viewMode === "edit"
+                    ? "bg-white text-purple-600 border-b-2 border-purple-600"
+                    : "text-gray-600 hover:text-gray-900"
+                }`}
               >
                 Edit Resume
               </button>
               <button
                 onClick={() => setViewMode("ats")}
-                className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${viewMode === "ats"
-                  ? "bg-white text-purple-600 border-b-2 border-purple-600"
-                  : "text-gray-600 hover:text-gray-900"
-                  }`}
+                className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
+                  viewMode === "ats"
+                    ? "bg-white text-purple-600 border-b-2 border-purple-600"
+                    : "text-gray-600 hover:text-gray-900"
+                }`}
               >
                 ATS Report
               </button>
@@ -1528,7 +1714,33 @@ export default function EditResumePage() {
 
           {viewMode === "ats" ? (
             resume.atsFeedback ? (
-              <ATSFeedback feedback={resume.atsFeedback} />
+              <div className="p-4">
+                {showImprovedBanner && (
+                  <div className="mb-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
+                    Resume improved from ATS feedback. Issues addressed by AI
+                    are hidden here; re-run ATS check anytime to see a fresh
+                    full report.
+                  </div>
+                )}
+                <ATSReportView
+                  key={`${resume.atsScore ?? 0}-${isATSReportV3(resume.atsFeedback) ? resume.atsFeedback.issueCount : 0}-${resume.atsImprovementMeta?.improvedAt ?? "fresh"}`}
+                  feedback={resume.atsFeedback}
+                  resumeId={resume.resumeId}
+                  enableIssueMagic
+                  onApplyIssueFix={handleApplyAtsIssueFix}
+                  onIgnoreIssue={handleIgnoreATSIssue}
+                  suppressedCheckIds={
+                    showImprovedBanner
+                      ? resume.atsImprovementMeta?.suppressedCheckIds
+                      : undefined
+                  }
+                  onRunJobMatch={handleRunJobMatch}
+                  jobMatchRunning={refreshingATS}
+                  initialJobDescription={
+                    resume.atsScoringContext?.lastJobDescription
+                  }
+                />
+              </div>
             ) : (
               <div className="p-6 text-center text-gray-500">
                 <p>
@@ -1612,11 +1824,11 @@ export default function EditResumePage() {
                           Column Widths
                         </Label>
                         <div className="flex items-center gap-2">
-                          <div className="flex-1">
-                            <Label className="text-xs text-gray-500">
+                          <div className="flex-1 space-y-1">
+                            <Label className="block text-xs text-gray-500">
                               Left: {layout.columnWidths.left}%
                             </Label>
-                            <div className="flex items-center gap-2 mt-1">
+                            <div className="flex items-center gap-1">
                               <Button
                                 variant="outline"
                                 size="icon"
@@ -1657,7 +1869,7 @@ export default function EditResumePage() {
                                   });
                                   setHasChanges(true);
                                 }}
-                                className="w-16 h-7 text-center text-xs"
+                                className="h-7 w-[4.25rem] shrink-0 !h-7 !px-1.5 text-center text-xs tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                               />
                               <Button
                                 variant="outline"
@@ -1682,11 +1894,11 @@ export default function EditResumePage() {
                               </Button>
                             </div>
                           </div>
-                          <div className="flex-1">
-                            <Label className="text-xs text-gray-500">
+                          <div className="flex-1 space-y-1">
+                            <Label className="block text-xs text-gray-500">
                               Right: {layout.columnWidths.right}%
                             </Label>
-                            <div className="flex items-center gap-2 mt-1">
+                            <div className="flex items-center gap-1">
                               <Button
                                 variant="outline"
                                 size="icon"
@@ -1727,7 +1939,7 @@ export default function EditResumePage() {
                                   });
                                   setHasChanges(true);
                                 }}
-                                className="w-16 h-7 text-center text-xs"
+                                className="h-7 w-[4.25rem] shrink-0 !h-7 !px-1.5 text-center text-xs tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                               />
                               <Button
                                 variant="outline"
@@ -1762,9 +1974,11 @@ export default function EditResumePage() {
                         Padding (mm)
                       </Label>
                       <div className="grid grid-cols-2 gap-2">
-                        <div>
-                          <Label className="text-xs text-gray-500">Top</Label>
-                          <div className="flex items-center gap-1 mt-1">
+                        <div className="space-y-1">
+                          <Label className="block text-xs text-gray-500">
+                            Top
+                          </Label>
+                          <div className="flex items-center gap-1">
                             <Button
                               variant="outline"
                               size="icon"
@@ -1811,7 +2025,7 @@ export default function EditResumePage() {
                                 });
                                 setHasChanges(true);
                               }}
-                              className="w-14 h-7 text-center text-xs"
+                              className="h-7 w-[4.25rem] shrink-0 !h-7 !px-1.5 text-center text-xs tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                             />
                             <Button
                               variant="outline"
@@ -1839,11 +2053,11 @@ export default function EditResumePage() {
                             </Button>
                           </div>
                         </div>
-                        <div>
-                          <Label className="text-xs text-gray-500">
+                        <div className="space-y-1">
+                          <Label className="block text-xs text-gray-500">
                             Bottom
                           </Label>
-                          <div className="flex items-center gap-1 mt-1">
+                          <div className="flex items-center gap-1">
                             <Button
                               variant="outline"
                               size="icon"
@@ -1890,7 +2104,7 @@ export default function EditResumePage() {
                                 });
                                 setHasChanges(true);
                               }}
-                              className="w-14 h-7 text-center text-xs"
+                              className="h-7 w-[4.25rem] shrink-0 !h-7 !px-1.5 text-center text-xs tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                             />
                             <Button
                               variant="outline"
@@ -1918,9 +2132,11 @@ export default function EditResumePage() {
                             </Button>
                           </div>
                         </div>
-                        <div>
-                          <Label className="text-xs text-gray-500">Left</Label>
-                          <div className="flex items-center gap-1 mt-1">
+                        <div className="space-y-1">
+                          <Label className="block text-xs text-gray-500">
+                            Left
+                          </Label>
+                          <div className="flex items-center gap-1">
                             <Button
                               variant="outline"
                               size="icon"
@@ -1967,7 +2183,7 @@ export default function EditResumePage() {
                                 });
                                 setHasChanges(true);
                               }}
-                              className="w-14 h-7 text-center text-xs"
+                              className="h-7 w-[4.25rem] shrink-0 !h-7 !px-1.5 text-center text-xs tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                             />
                             <Button
                               variant="outline"
@@ -1995,9 +2211,11 @@ export default function EditResumePage() {
                             </Button>
                           </div>
                         </div>
-                        <div>
-                          <Label className="text-xs text-gray-500">Right</Label>
-                          <div className="flex items-center gap-1 mt-1">
+                        <div className="space-y-1">
+                          <Label className="block text-xs text-gray-500">
+                            Right
+                          </Label>
+                          <div className="flex items-center gap-1">
                             <Button
                               variant="outline"
                               size="icon"
@@ -2044,7 +2262,7 @@ export default function EditResumePage() {
                                 });
                                 setHasChanges(true);
                               }}
-                              className="w-14 h-7 text-center text-xs"
+                              className="h-7 w-[4.25rem] shrink-0 !h-7 !px-1.5 text-center text-xs tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                             />
                             <Button
                               variant="outline"
@@ -2075,183 +2293,29 @@ export default function EditResumePage() {
                       </div>
                     </div>
 
-                    {/* Typography: font sizes and font family */}
-                    {effectiveTypography && (
-                      <div className="space-y-3 pt-2 border-t">
-                        <Label className="text-xs text-gray-600">
-                          Typography
-                        </Label>
-                        <div className="grid grid-cols-2 gap-3">
-                          <div>
-                            <Label className="text-xs text-gray-500">
-                              Heading
-                            </Label>
-                            <Input
-                              type="number"
-                              min="10"
-                              max="48"
-                              step="0.5"
-                              value={effectiveTypography.fontSize.heading}
-                              onChange={(e) => {
-                                const value = Math.max(
-                                  10,
-                                  Math.min(48, Number(e.target.value) || 10),
-                                );
-                                setLayout({
-                                  ...layout,
-                                  fontSize: {
-                                    ...layout?.fontSize,
-                                    heading: value,
-                                  },
-                                });
-                                setHasChanges(true);
-                              }}
-                              className="mt-1 h-7 text-xs"
-                            />
-                          </div>
-                          <div>
-                            <Label className="text-xs text-gray-500">
-                              Subheading
-                            </Label>
-                            <Input
-                              type="number"
-                              min="8"
-                              max="36"
-                              step="0.5"
-                              value={effectiveTypography.fontSize.subheading}
-                              onChange={(e) => {
-                                const value = Math.max(
-                                  8,
-                                  Math.min(36, Number(e.target.value) || 8),
-                                );
-                                setLayout({
-                                  ...layout,
-                                  fontSize: {
-                                    ...layout?.fontSize,
-                                    subheading: value,
-                                  },
-                                });
-                                setHasChanges(true);
-                              }}
-                              className="mt-1 h-7 text-xs"
-                            />
-                          </div>
-                          <div>
-                            <Label className="text-xs text-gray-500">
-                              Body
-                            </Label>
-                            <Input
-                              type="number"
-                              min="8"
-                              max="24"
-                              step="0.5"
-                              value={effectiveTypography.fontSize.body}
-                              onChange={(e) => {
-                                const value = Math.max(
-                                  8,
-                                  Math.min(24, Number(e.target.value) || 8),
-                                );
-                                setLayout({
-                                  ...layout,
-                                  fontSize: {
-                                    ...layout?.fontSize,
-                                    body: value,
-                                  },
-                                });
-                                setHasChanges(true);
-                              }}
-                              className="mt-1 h-7 text-xs"
-                            />
-                          </div>
-                          <div>
-                            <Label className="text-xs text-gray-500">
-                              Small
-                            </Label>
-                            <Input
-                              type="number"
-                              min="6"
-                              max="20"
-                              step="0.5"
-                              value={effectiveTypography.fontSize.small}
-                              onChange={(e) => {
-                                const value = Math.max(
-                                  6,
-                                  Math.min(20, Number(e.target.value) || 6),
-                                );
-                                setLayout({
-                                  ...layout,
-                                  fontSize: {
-                                    ...layout?.fontSize,
-                                    small: value,
-                                  },
-                                });
-                                setHasChanges(true);
-                              }}
-                              className="mt-1 h-7 text-xs"
-                            />
-                          </div>
-                          <div>
-                            <Label className="text-xs text-gray-500">
-                              Section header
-                            </Label>
-                            <Input
-                              type="number"
-                              min="8"
-                              max="24"
-                              step="0.5"
-                              value={effectiveTypography.fontSize.sectionHeader}
-                              onChange={(e) => {
-                                const value = Math.max(
-                                  8,
-                                  Math.min(24, Number(e.target.value) || 8),
-                                );
-                                setLayout({
-                                  ...layout,
-                                  fontSize: {
-                                    ...layout?.fontSize,
-                                    sectionHeader: value,
-                                  },
-                                });
-                                setHasChanges(true);
-                              }}
-                              className="mt-1 h-7 text-xs"
-                            />
-                          </div>
-                        </div>
-                        <div>
-                          <Label className="text-xs text-gray-500">
-                            Font family
-                          </Label>
-                          <Select
-                            value={
-                              effectiveTypography.fontFamily ||
-                              FONT_FAMILY_OPTIONS[0].value
-                            }
-                            onValueChange={(value) => {
-                              setLayout({
-                                ...layout,
-                                fontFamily: value,
-                              });
-                              setHasChanges(true);
-                            }}
-                          >
-                            <SelectTrigger className="mt-1 h-8 text-xs">
-                              <SelectValue placeholder="Font" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {FONT_FAMILY_OPTIONS.map((opt) => (
-                                <SelectItem
-                                  key={opt.value}
-                                  value={opt.value}
-                                  className="text-xs"
-                                >
-                                  {opt.label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
+                    {effectiveTypography && layout && (
+                      <LayoutTypographyControls
+                        typography={effectiveTypography}
+                        fontFamilyOptions={fontFamilyOptions}
+                        selectedFontFamily={selectedFontFamily}
+                        onFontSizeChange={(key, value) => {
+                          setLayout({
+                            ...layout,
+                            fontSize: {
+                              ...layout.fontSize,
+                              [key]: value,
+                            },
+                          });
+                          setHasChanges(true);
+                        }}
+                        onFontFamilyChange={(value) => {
+                          setLayout({
+                            ...layout,
+                            fontFamily: value,
+                          });
+                          setHasChanges(true);
+                        }}
+                      />
                     )}
                   </CardContent>
                 )}
@@ -2267,11 +2331,12 @@ export default function EditResumePage() {
                     return (
                       <Card
                         key={section.id}
-                        className={`border transition-all ${dragOverId === section.id &&
+                        className={`border transition-all ${
+                          dragOverId === section.id &&
                           draggedSection !== section.id
-                          ? "border-purple-400 border-2 shadow-md"
-                          : ""
-                          }`}
+                            ? "border-purple-400 border-2 shadow-md"
+                            : ""
+                        }`}
                         draggable
                         onDragStart={(e) => handleDragStart(e, section.id)}
                         onDragOver={(e) => handleDragOver(e, section.id)}
@@ -2582,7 +2647,7 @@ export default function EditResumePage() {
                                       },
                                     })
                                   }
-                                  className="mt-1 h-9 text-sm"
+                                  className={RESUME_FIELD_INPUT_CLASS}
                                 />
                               </div>
                               <div>
@@ -2600,7 +2665,7 @@ export default function EditResumePage() {
                                       },
                                     })
                                   }
-                                  className="mt-1 h-9 text-sm"
+                                  className={RESUME_FIELD_INPUT_CLASS}
                                 />
                               </div>
                               <div>
@@ -2621,7 +2686,7 @@ export default function EditResumePage() {
                                       },
                                     })
                                   }
-                                  className="mt-1 h-9 text-sm"
+                                  className={RESUME_FIELD_INPUT_CLASS}
                                   placeholder="e.g., 5 years, 3+ years"
                                 />
                               </div>
@@ -2641,7 +2706,7 @@ export default function EditResumePage() {
                                       },
                                     })
                                   }
-                                  className="mt-1 h-9 text-sm"
+                                  className={RESUME_FIELD_INPUT_CLASS}
                                 />
                               </div>
                               <div>
@@ -2659,7 +2724,7 @@ export default function EditResumePage() {
                                       },
                                     })
                                   }
-                                  className="mt-1 h-9 text-sm"
+                                  className={RESUME_FIELD_INPUT_CLASS}
                                 />
                               </div>
                               <div>
@@ -2677,7 +2742,7 @@ export default function EditResumePage() {
                                       },
                                     })
                                   }
-                                  className="mt-1 h-9 text-sm"
+                                  className={RESUME_FIELD_INPUT_CLASS}
                                 />
                               </div>
                               <div>
@@ -2695,7 +2760,7 @@ export default function EditResumePage() {
                                       },
                                     })
                                   }
-                                  className="mt-1 h-9 text-sm"
+                                  className={RESUME_FIELD_INPUT_CLASS}
                                 />
                               </div>
                               <div>
@@ -2713,7 +2778,7 @@ export default function EditResumePage() {
                                       },
                                     })
                                   }
-                                  className="mt-1 h-9 text-sm"
+                                  className={RESUME_FIELD_INPUT_CLASS}
                                 />
                               </div>
                             </div>
@@ -2740,7 +2805,7 @@ export default function EditResumePage() {
                                         },
                                       })
                                     }
-                                    className="mt-1 h-9 text-sm"
+                                    className={RESUME_FIELD_INPUT_CLASS}
                                     type="date"
                                     placeholder="Select date"
                                   />
@@ -2757,7 +2822,7 @@ export default function EditResumePage() {
                                         },
                                       })
                                     }
-                                    className="mt-1 h-9 text-sm"
+                                    className={RESUME_FIELD_INPUT_CLASS}
                                     placeholder="e.g., American, Indian"
                                   />
                                 </div>
@@ -2775,7 +2840,7 @@ export default function EditResumePage() {
                                         },
                                       })
                                     }
-                                    className="mt-1 h-9 text-sm"
+                                    className={RESUME_FIELD_INPUT_CLASS}
                                     placeholder="Passport or ID number"
                                   />
                                 </div>
@@ -2793,7 +2858,7 @@ export default function EditResumePage() {
                                         },
                                       })
                                     }
-                                    className="mt-1 h-9 text-sm"
+                                    className={RESUME_FIELD_INPUT_CLASS}
                                     placeholder="e.g., Single, Married"
                                   />
                                 </div>
@@ -2811,7 +2876,7 @@ export default function EditResumePage() {
                                         },
                                       })
                                     }
-                                    className="mt-1 h-9 text-sm"
+                                    className={RESUME_FIELD_INPUT_CLASS}
                                     placeholder="Military service details"
                                   />
                                 </div>
@@ -2829,7 +2894,7 @@ export default function EditResumePage() {
                                         },
                                       })
                                     }
-                                    className="mt-1 h-9 text-sm"
+                                    className={RESUME_FIELD_INPUT_CLASS}
                                     placeholder="License number or class"
                                   />
                                 </div>
@@ -2847,7 +2912,7 @@ export default function EditResumePage() {
                                         },
                                       })
                                     }
-                                    className="mt-1 h-9 text-sm"
+                                    className={RESUME_FIELD_INPUT_CLASS}
                                     placeholder="e.g., Male, Female, Non-binary"
                                   />
                                 </div>
@@ -2863,7 +2928,7 @@ export default function EditResumePage() {
                                         },
                                       })
                                     }
-                                    className="mt-1 h-9 text-sm"
+                                    className={RESUME_FIELD_INPUT_CLASS}
                                     placeholder="Disability status (optional)"
                                   />
                                 </div>
@@ -2879,7 +2944,7 @@ export default function EditResumePage() {
                                         },
                                       })
                                     }
-                                    className="mt-1 h-9 text-sm"
+                                    className={RESUME_FIELD_INPUT_CLASS}
                                     placeholder="e.g., Work Visa, Permanent Resident"
                                   />
                                 </div>
@@ -2905,7 +2970,7 @@ export default function EditResumePage() {
                                           },
                                         })
                                       }
-                                      className="mt-1 h-9 text-sm"
+                                      className={RESUME_FIELD_INPUT_CLASS}
                                       placeholder="e.g., V0305854"
                                     />
                                   </div>
@@ -2926,7 +2991,7 @@ export default function EditResumePage() {
                                           },
                                         })
                                       }
-                                      className="mt-1 h-9 text-sm"
+                                      className={RESUME_FIELD_INPUT_CLASS}
                                       placeholder="e.g., Lucknow"
                                     />
                                   </div>
@@ -2946,7 +3011,7 @@ export default function EditResumePage() {
                                           },
                                         })
                                       }
-                                      className="mt-1 h-9 text-sm"
+                                      className={RESUME_FIELD_INPUT_CLASS}
                                       type="date"
                                       placeholder="Select date"
                                     />
@@ -2968,7 +3033,7 @@ export default function EditResumePage() {
                                           },
                                         })
                                       }
-                                      className="mt-1 h-9 text-sm"
+                                      className={RESUME_FIELD_INPUT_CLASS}
                                       type="date"
                                       placeholder="Select date"
                                     />
@@ -2988,7 +3053,7 @@ export default function EditResumePage() {
                                     type="button"
                                     variant="outline"
                                     size="sm"
-                                    className="h-8 text-xs"
+                                    className={RESUME_FIELD_INPUT_CLASS}
                                     onClick={() =>
                                       updateContent({
                                         personalInfo: {
@@ -3006,7 +3071,7 @@ export default function EditResumePage() {
                                     type="button"
                                     variant="outline"
                                     size="sm"
-                                    className="h-8 text-xs"
+                                    className={RESUME_FIELD_INPUT_CLASS}
                                     onClick={() =>
                                       updateContent({
                                         personalInfo: {
@@ -3024,7 +3089,7 @@ export default function EditResumePage() {
                                     type="button"
                                     variant="outline"
                                     size="sm"
-                                    className="h-8 text-xs"
+                                    className={RESUME_FIELD_INPUT_CLASS}
                                     onClick={() =>
                                       updateContent({
                                         personalInfo: {
@@ -3042,7 +3107,7 @@ export default function EditResumePage() {
                                     type="button"
                                     variant="outline"
                                     size="sm"
-                                    className="h-8 text-xs"
+                                    className={RESUME_FIELD_INPUT_CLASS}
                                     onClick={() =>
                                       updateContent({
                                         personalInfo: {
@@ -3060,7 +3125,7 @@ export default function EditResumePage() {
                                     type="button"
                                     variant="outline"
                                     size="sm"
-                                    className="h-8 text-xs"
+                                    className={RESUME_FIELD_INPUT_CLASS}
                                     onClick={() =>
                                       updateContent({
                                         personalInfo: {
@@ -3078,7 +3143,7 @@ export default function EditResumePage() {
                                     type="button"
                                     variant="outline"
                                     size="sm"
-                                    className="h-8 text-xs"
+                                    className={RESUME_FIELD_INPUT_CLASS}
                                     onClick={() =>
                                       updateContent({
                                         personalInfo: {
@@ -3096,7 +3161,7 @@ export default function EditResumePage() {
                                     type="button"
                                     variant="outline"
                                     size="sm"
-                                    className="h-8 text-xs"
+                                    className={RESUME_FIELD_INPUT_CLASS}
                                     onClick={() =>
                                       updateContent({
                                         personalInfo: {
@@ -3126,7 +3191,7 @@ export default function EditResumePage() {
                                           },
                                         })
                                       }
-                                      className="mt-1 h-8 text-sm"
+                                      className={RESUME_FIELD_INPUT_CLASS}
                                     />
                                   </div>
                                 )}
@@ -3143,7 +3208,7 @@ export default function EditResumePage() {
                                           },
                                         })
                                       }
-                                      className="mt-1 h-8 text-sm"
+                                      className={RESUME_FIELD_INPUT_CLASS}
                                     />
                                   </div>
                                 )}
@@ -3160,7 +3225,7 @@ export default function EditResumePage() {
                                           },
                                         })
                                       }
-                                      className="mt-1 h-8 text-sm"
+                                      className={RESUME_FIELD_INPUT_CLASS}
                                     />
                                   </div>
                                 )}
@@ -3177,7 +3242,7 @@ export default function EditResumePage() {
                                           },
                                         })
                                       }
-                                      className="mt-1 h-8 text-sm"
+                                      className={RESUME_FIELD_INPUT_CLASS}
                                     />
                                   </div>
                                 )}
@@ -3194,7 +3259,7 @@ export default function EditResumePage() {
                                           },
                                         })
                                       }
-                                      className="mt-1 h-8 text-sm"
+                                      className={RESUME_FIELD_INPUT_CLASS}
                                     />
                                   </div>
                                 )}
@@ -3211,7 +3276,7 @@ export default function EditResumePage() {
                                           },
                                         })
                                       }
-                                      className="mt-1 h-8 text-sm"
+                                      className={RESUME_FIELD_INPUT_CLASS}
                                     />
                                   </div>
                                 )}
@@ -3228,7 +3293,7 @@ export default function EditResumePage() {
                                           },
                                         })
                                       }
-                                      className="mt-1 h-8 text-sm"
+                                      className={RESUME_FIELD_INPUT_CLASS}
                                     />
                                   </div>
                                 )}
@@ -3245,11 +3310,12 @@ export default function EditResumePage() {
                     return (
                       <Card
                         key={section.id}
-                        className={`border transition-all ${dragOverId === section.id &&
+                        className={`border transition-all ${
+                          dragOverId === section.id &&
                           draggedSection !== section.id
-                          ? "border-purple-400 border-2 shadow-md"
-                          : ""
-                          }`}
+                            ? "border-purple-400 border-2 shadow-md"
+                            : ""
+                        }`}
                         draggable
                         onDragStart={(e) => handleDragStart(e, section.id)}
                         onDragOver={(e) => handleDragOver(e, section.id)}
@@ -3352,9 +3418,9 @@ export default function EditResumePage() {
                                 setResume((prev) =>
                                   prev
                                     ? {
-                                      ...prev,
-                                      profileSummary: html,
-                                    }
+                                        ...prev,
+                                        profileSummary: html,
+                                      }
                                     : null,
                                 );
                                 setHasChanges(true);
@@ -3373,11 +3439,12 @@ export default function EditResumePage() {
                     return (
                       <Card
                         key={section.id}
-                        className={`border transition-all ${dragOverId === section.id &&
+                        className={`border transition-all ${
+                          dragOverId === section.id &&
                           draggedSection !== section.id
-                          ? "border-purple-400 border-2 shadow-md"
-                          : ""
-                          }`}
+                            ? "border-purple-400 border-2 shadow-md"
+                            : ""
+                        }`}
                         draggable
                         onDragStart={(e) => handleDragStart(e, section.id)}
                         onDragOver={(e) => handleDragOver(e, section.id)}
@@ -3493,7 +3560,7 @@ export default function EditResumePage() {
                                         };
                                         updateContent({ experience: updated });
                                       }}
-                                      className="mt-1 h-9 text-sm"
+                                      className={RESUME_FIELD_INPUT_CLASS}
                                     />
                                   </div>
                                   <div>
@@ -3510,7 +3577,7 @@ export default function EditResumePage() {
                                         };
                                         updateContent({ experience: updated });
                                       }}
-                                      className="mt-1 h-9 text-sm"
+                                      className={RESUME_FIELD_INPUT_CLASS}
                                     />
                                   </div>
                                   <div>
@@ -3529,7 +3596,7 @@ export default function EditResumePage() {
                                         };
                                         updateContent({ experience: updated });
                                       }}
-                                      className="mt-1 h-9 text-sm"
+                                      className={RESUME_FIELD_INPUT_CLASS}
                                       placeholder="MM/YYYY"
                                     />
                                   </div>
@@ -3551,7 +3618,7 @@ export default function EditResumePage() {
                                         };
                                         updateContent({ experience: updated });
                                       }}
-                                      className="mt-1 h-9 text-sm"
+                                      className={RESUME_FIELD_INPUT_CLASS}
                                       placeholder="MM/YYYY or Present"
                                     />
                                   </div>
@@ -3564,8 +3631,8 @@ export default function EditResumePage() {
                                         ? exp.description
                                         : Array.isArray(exp.description)
                                           ? exp.description
-                                            .map((d) => `<p>${d}</p>`)
-                                            .join("")
+                                              .map((d) => `<p>${d}</p>`)
+                                              .join("")
                                           : ""
                                     }
                                     onChange={(html) => {
@@ -3634,11 +3701,12 @@ export default function EditResumePage() {
                     return (
                       <Card
                         key={section.id}
-                        className={`border transition-all ${dragOverId === section.id &&
+                        className={`border transition-all ${
+                          dragOverId === section.id &&
                           draggedSection !== section.id
-                          ? "border-purple-400 border-2 shadow-md"
-                          : ""
-                          }`}
+                            ? "border-purple-400 border-2 shadow-md"
+                            : ""
+                        }`}
                         draggable
                         onDragStart={(e) => handleDragStart(e, section.id)}
                         onDragOver={(e) => handleDragOver(e, section.id)}
@@ -3752,7 +3820,7 @@ export default function EditResumePage() {
                                         };
                                         updateContent({ education: updated });
                                       }}
-                                      className="mt-1 h-9 text-sm"
+                                      className={RESUME_FIELD_INPUT_CLASS}
                                     />
                                   </div>
                                   <div>
@@ -3769,7 +3837,7 @@ export default function EditResumePage() {
                                         };
                                         updateContent({ education: updated });
                                       }}
-                                      className="mt-1 h-9 text-sm"
+                                      className={RESUME_FIELD_INPUT_CLASS}
                                       placeholder="e.g. 8.5/10 or 3.6/4.0"
                                     />
                                   </div>
@@ -3789,7 +3857,7 @@ export default function EditResumePage() {
                                         };
                                         updateContent({ education: updated });
                                       }}
-                                      className="mt-1 h-9 text-sm"
+                                      className={RESUME_FIELD_INPUT_CLASS}
                                       placeholder="e.g. 85% or 8.5/10"
                                     />
                                   </div>
@@ -3809,7 +3877,7 @@ export default function EditResumePage() {
                                         };
                                         updateContent({ education: updated });
                                       }}
-                                      className="mt-1 h-9 text-sm"
+                                      className={RESUME_FIELD_INPUT_CLASS}
                                     />
                                   </div>
                                   <div className="col-span-2">
@@ -3828,7 +3896,7 @@ export default function EditResumePage() {
                                         };
                                         updateContent({ education: updated });
                                       }}
-                                      className="mt-1 h-9 text-sm"
+                                      className={RESUME_FIELD_INPUT_CLASS}
                                       placeholder="e.g. City, State / Country"
                                     />
                                   </div>
@@ -3848,7 +3916,7 @@ export default function EditResumePage() {
                                         };
                                         updateContent({ education: updated });
                                       }}
-                                      className="mt-1 h-9 text-sm"
+                                      className={RESUME_FIELD_INPUT_CLASS}
                                       placeholder="MM/YYYY"
                                     />
                                   </div>
@@ -3866,7 +3934,7 @@ export default function EditResumePage() {
                                         };
                                         updateContent({ education: updated });
                                       }}
-                                      className="mt-1 h-9 text-sm"
+                                      className={RESUME_FIELD_INPUT_CLASS}
                                       placeholder="MM/YYYY"
                                     />
                                   </div>
@@ -3975,11 +4043,12 @@ export default function EditResumePage() {
                     return (
                       <Card
                         key={section.id}
-                        className={`border transition-all ${dragOverId === section.id &&
+                        className={`border transition-all ${
+                          dragOverId === section.id &&
                           draggedSection !== section.id
-                          ? "border-purple-400 border-2 shadow-md"
-                          : ""
-                          }`}
+                            ? "border-purple-400 border-2 shadow-md"
+                            : ""
+                        }`}
                         draggable
                         onDragStart={(e) => handleDragStart(e, section.id)}
                         onDragOver={(e) => handleDragOver(e, section.id)}
@@ -4138,11 +4207,12 @@ export default function EditResumePage() {
                     return (
                       <Card
                         key={section.id}
-                        className={`border transition-all ${dragOverId === section.id &&
+                        className={`border transition-all ${
+                          dragOverId === section.id &&
                           draggedSection !== section.id
-                          ? "border-purple-400 border-2 shadow-md"
-                          : ""
-                          }`}
+                            ? "border-purple-400 border-2 shadow-md"
+                            : ""
+                        }`}
                         draggable
                         onDragStart={(e) => handleDragStart(e, section.id)}
                         onDragOver={(e) => handleDragOver(e, section.id)}
@@ -4260,7 +4330,7 @@ export default function EditResumePage() {
                                           updateContent({ projects: updated });
                                         }}
                                         onKeyDown={(e) => e.stopPropagation()}
-                                        className="mt-1 h-9 text-sm"
+                                        className={RESUME_FIELD_INPUT_CLASS}
                                       />
                                     </div>
                                     <div>
@@ -4280,7 +4350,7 @@ export default function EditResumePage() {
                                           updateContent({ projects: updated });
                                         }}
                                         onKeyDown={(e) => e.stopPropagation()}
-                                        className="mt-1 h-9 text-sm"
+                                        className={RESUME_FIELD_INPUT_CLASS}
                                         placeholder="https://..."
                                       />
                                     </div>
@@ -4301,7 +4371,7 @@ export default function EditResumePage() {
                                           updateContent({ projects: updated });
                                         }}
                                         onKeyDown={(e) => e.stopPropagation()}
-                                        className="mt-1 h-9 text-sm"
+                                        className={RESUME_FIELD_INPUT_CLASS}
                                         placeholder="MM/YYYY"
                                       />
                                     </div>
@@ -4322,7 +4392,7 @@ export default function EditResumePage() {
                                           updateContent({ projects: updated });
                                         }}
                                         onKeyDown={(e) => e.stopPropagation()}
-                                        className="mt-1 h-9 text-sm"
+                                        className={RESUME_FIELD_INPUT_CLASS}
                                         placeholder="MM/YYYY or Present"
                                       />
                                     </div>
@@ -4356,8 +4426,8 @@ export default function EditResumePage() {
                                         typeof project.technologies === "string"
                                           ? project.technologies
                                           : (project.technologies || []).join(
-                                            ", ",
-                                          )
+                                              ", ",
+                                            )
                                       }
                                       onChange={(e) => {
                                         const updated = [
@@ -4370,7 +4440,7 @@ export default function EditResumePage() {
                                         updateContent({ projects: updated });
                                       }}
                                       onKeyDown={(e) => e.stopPropagation()}
-                                      className="mt-1 h-9 text-sm"
+                                      className={RESUME_FIELD_INPUT_CLASS}
                                       placeholder="React, Node.js..."
                                     />
                                   </div>
@@ -4546,17 +4616,17 @@ export default function EditResumePage() {
                                             setResume((prev) =>
                                               prev
                                                 ? {
-                                                  ...prev,
-                                                  content: {
-                                                    ...prev.content,
-                                                    certificates: updated,
-                                                  },
-                                                }
+                                                    ...prev,
+                                                    content: {
+                                                      ...prev.content,
+                                                      certificates: updated,
+                                                    },
+                                                  }
                                                 : null,
                                             );
                                             setHasChanges(true);
                                           }}
-                                          className="mt-1 h-9 text-sm"
+                                          className={RESUME_FIELD_INPUT_CLASS}
                                           placeholder="AWS Certified Solutions Architect"
                                         />
                                       </div>
@@ -4578,17 +4648,17 @@ export default function EditResumePage() {
                                             setResume((prev) =>
                                               prev
                                                 ? {
-                                                  ...prev,
-                                                  content: {
-                                                    ...prev.content,
-                                                    certificates: updated,
-                                                  },
-                                                }
+                                                    ...prev,
+                                                    content: {
+                                                      ...prev.content,
+                                                      certificates: updated,
+                                                    },
+                                                  }
                                                 : null,
                                             );
                                             setHasChanges(true);
                                           }}
-                                          className="mt-1 h-9 text-sm"
+                                          className={RESUME_FIELD_INPUT_CLASS}
                                           placeholder="Amazon Web Services"
                                         />
                                       </div>
@@ -4610,17 +4680,17 @@ export default function EditResumePage() {
                                             setResume((prev) =>
                                               prev
                                                 ? {
-                                                  ...prev,
-                                                  content: {
-                                                    ...prev.content,
-                                                    certificates: updated,
-                                                  },
-                                                }
+                                                    ...prev,
+                                                    content: {
+                                                      ...prev.content,
+                                                      certificates: updated,
+                                                    },
+                                                  }
                                                 : null,
                                             );
                                             setHasChanges(true);
                                           }}
-                                          className="mt-1 h-9 text-sm"
+                                          className={RESUME_FIELD_INPUT_CLASS}
                                           type="month"
                                           max={today}
                                         />
@@ -4643,17 +4713,17 @@ export default function EditResumePage() {
                                             setResume((prev) =>
                                               prev
                                                 ? {
-                                                  ...prev,
-                                                  content: {
-                                                    ...prev.content,
-                                                    certificates: updated,
-                                                  },
-                                                }
+                                                    ...prev,
+                                                    content: {
+                                                      ...prev.content,
+                                                      certificates: updated,
+                                                    },
+                                                  }
                                                 : null,
                                             );
                                             setHasChanges(true);
                                           }}
-                                          className="mt-1 h-9 text-sm"
+                                          className={RESUME_FIELD_INPUT_CLASS}
                                           type="month"
                                         />
                                       </div>
@@ -4675,17 +4745,17 @@ export default function EditResumePage() {
                                             setResume((prev) =>
                                               prev
                                                 ? {
-                                                  ...prev,
-                                                  content: {
-                                                    ...prev.content,
-                                                    certificates: updated,
-                                                  },
-                                                }
+                                                    ...prev,
+                                                    content: {
+                                                      ...prev.content,
+                                                      certificates: updated,
+                                                    },
+                                                  }
                                                 : null,
                                             );
                                             setHasChanges(true);
                                           }}
-                                          className="mt-1 h-9 text-sm"
+                                          className={RESUME_FIELD_INPUT_CLASS}
                                           placeholder="e.g., AWS-ASA-123456"
                                         />
                                       </div>
@@ -4707,17 +4777,17 @@ export default function EditResumePage() {
                                             setResume((prev) =>
                                               prev
                                                 ? {
-                                                  ...prev,
-                                                  content: {
-                                                    ...prev.content,
-                                                    certificates: updated,
-                                                  },
-                                                }
+                                                    ...prev,
+                                                    content: {
+                                                      ...prev.content,
+                                                      certificates: updated,
+                                                    },
+                                                  }
                                                 : null,
                                             );
                                             setHasChanges(true);
                                           }}
-                                          className="mt-1 h-9 text-sm"
+                                          className={RESUME_FIELD_INPUT_CLASS}
                                           type="url"
                                           placeholder="https://..."
                                         />
@@ -4730,15 +4800,15 @@ export default function EditResumePage() {
                                         setResume((prev) =>
                                           prev
                                             ? {
-                                              ...prev,
-                                              content: {
-                                                ...prev.content,
-                                                certificates:
-                                                  prev.content.certificates?.filter(
-                                                    (_, i) => i !== index,
-                                                  ) || [],
-                                              },
-                                            }
+                                                ...prev,
+                                                content: {
+                                                  ...prev.content,
+                                                  certificates:
+                                                    prev.content.certificates?.filter(
+                                                      (_, i) => i !== index,
+                                                    ) || [],
+                                                },
+                                              }
                                             : null,
                                         );
                                         setHasChanges(true);
@@ -4759,24 +4829,24 @@ export default function EditResumePage() {
                                 setResume((prev) =>
                                   prev
                                     ? {
-                                      ...prev,
-                                      content: {
-                                        ...prev.content,
-                                        certificates: [
-                                          ...(prev.content.certificates ||
-                                            []),
-                                          {
-                                            id: nanoid(),
-                                            title: "",
-                                            issuer: "",
-                                            issueDate: "",
-                                            expiryDate: "",
-                                            certificateId: "",
-                                            link: "",
-                                          },
-                                        ],
-                                      },
-                                    }
+                                        ...prev,
+                                        content: {
+                                          ...prev.content,
+                                          certificates: [
+                                            ...(prev.content.certificates ||
+                                              []),
+                                            {
+                                              id: nanoid(),
+                                              title: "",
+                                              issuer: "",
+                                              issueDate: "",
+                                              expiryDate: "",
+                                              certificateId: "",
+                                              link: "",
+                                            },
+                                          ],
+                                        },
+                                      }
                                     : null,
                                 );
                                 setHasChanges(true);
@@ -4894,12 +4964,12 @@ export default function EditResumePage() {
                                 setResume((prev) =>
                                   prev
                                     ? {
-                                      ...prev,
-                                      content: {
-                                        ...prev.content,
-                                        interests: html,
-                                      },
-                                    }
+                                        ...prev,
+                                        content: {
+                                          ...prev.content,
+                                          interests: html,
+                                        },
+                                      }
                                     : null,
                                 );
                                 setHasChanges(true);
@@ -4924,11 +4994,12 @@ export default function EditResumePage() {
                     return (
                       <Card
                         key={section.id}
-                        className={`border transition-all ${dragOverId === section.id &&
+                        className={`border transition-all ${
+                          dragOverId === section.id &&
                           draggedSection !== section.id
-                          ? "border-purple-400 border-2 shadow-md"
-                          : ""
-                          }`}
+                            ? "border-purple-400 border-2 shadow-md"
+                            : ""
+                        }`}
                         draggable
                         onDragStart={(e) => handleDragStart(e, section.id)}
                         onDragOver={(e) => handleDragOver(e, section.id)}
@@ -5018,8 +5089,9 @@ export default function EditResumePage() {
                         {section.expanded && (
                           <CardContent className="p-4 space-y-4">
                             <RichTextEditor
-                              key={`${section.id}-${customContent.length > 0 ? "loaded" : "empty"
-                                }`}
+                              key={`${section.id}-${
+                                customContent.length > 0 ? "loaded" : "empty"
+                              }`}
                               value={customContent}
                               onChange={(html) => {
                                 if (!resume) return;
@@ -5068,11 +5140,12 @@ export default function EditResumePage() {
                     return (
                       <Card
                         key={section.id}
-                        className={`border transition-all ${dragOverId === section.id &&
+                        className={`border transition-all ${
+                          dragOverId === section.id &&
                           draggedSection !== section.id
-                          ? "border-purple-400 border-2 shadow-md"
-                          : ""
-                          }`}
+                            ? "border-purple-400 border-2 shadow-md"
+                            : ""
+                        }`}
                         draggable
                         onDragStart={(e) => handleDragStart(e, section.id)}
                         onDragOver={(e) => handleDragOver(e, section.id)}
@@ -5228,12 +5301,12 @@ export default function EditResumePage() {
                                 setResume((prev) =>
                                   prev
                                     ? {
-                                      ...prev,
-                                      content: {
-                                        ...prev.content,
-                                        declaration: html,
-                                      },
-                                    }
+                                        ...prev,
+                                        content: {
+                                          ...prev.content,
+                                          declaration: html,
+                                        },
+                                      }
                                     : null,
                                 );
                                 setHasChanges(true);
@@ -5346,19 +5419,19 @@ export default function EditResumePage() {
                               languages={
                                 Array.isArray(resume.content.languages)
                                   ? resume.content.languages.map(
-                                    (lang: any) => ({
-                                      id:
-                                        lang.id ||
-                                        `lang-${Date.now()}-${Math.random()}`,
-                                      name: lang.name || "",
-                                      proficiency:
-                                        typeof lang.proficiency === "number"
-                                          ? lang.proficiency
-                                          : typeof lang.level === "number"
-                                            ? lang.level
-                                            : undefined, // No default proficiency
-                                    }),
-                                  )
+                                      (lang: any) => ({
+                                        id:
+                                          lang.id ||
+                                          `lang-${Date.now()}-${Math.random()}`,
+                                        name: lang.name || "",
+                                        proficiency:
+                                          typeof lang.proficiency === "number"
+                                            ? lang.proficiency
+                                            : typeof lang.level === "number"
+                                              ? lang.level
+                                              : undefined, // No default proficiency
+                                      }),
+                                    )
                                   : []
                               }
                               onChange={(updatedLanguages) => {
@@ -5490,17 +5563,17 @@ export default function EditResumePage() {
                                           setResume((prev) =>
                                             prev
                                               ? {
-                                                ...prev,
-                                                content: {
-                                                  ...prev.content,
-                                                  awards: updated,
-                                                },
-                                              }
+                                                  ...prev,
+                                                  content: {
+                                                    ...prev.content,
+                                                    awards: updated,
+                                                  },
+                                                }
                                               : null,
                                           );
                                           setHasChanges(true);
                                         }}
-                                        className="mt-1 h-9 text-sm"
+                                        className={RESUME_FIELD_INPUT_CLASS}
                                         placeholder="Employee of the Year"
                                       />
                                     </div>
@@ -5521,17 +5594,17 @@ export default function EditResumePage() {
                                           setResume((prev) =>
                                             prev
                                               ? {
-                                                ...prev,
-                                                content: {
-                                                  ...prev.content,
-                                                  awards: updated,
-                                                },
-                                              }
+                                                  ...prev,
+                                                  content: {
+                                                    ...prev.content,
+                                                    awards: updated,
+                                                  },
+                                                }
                                               : null,
                                           );
                                           setHasChanges(true);
                                         }}
-                                        className="mt-1 h-9 text-sm"
+                                        className={RESUME_FIELD_INPUT_CLASS}
                                         placeholder="Company Name"
                                       />
                                     </div>
@@ -5550,17 +5623,17 @@ export default function EditResumePage() {
                                           setResume((prev) =>
                                             prev
                                               ? {
-                                                ...prev,
-                                                content: {
-                                                  ...prev.content,
-                                                  awards: updated,
-                                                },
-                                              }
+                                                  ...prev,
+                                                  content: {
+                                                    ...prev.content,
+                                                    awards: updated,
+                                                  },
+                                                }
                                               : null,
                                           );
                                           setHasChanges(true);
                                         }}
-                                        className="mt-1 h-9 text-sm"
+                                        className={RESUME_FIELD_INPUT_CLASS}
                                         type="month"
                                       />
                                     </div>
@@ -5581,12 +5654,12 @@ export default function EditResumePage() {
                                           setResume((prev) =>
                                             prev
                                               ? {
-                                                ...prev,
-                                                content: {
-                                                  ...prev.content,
-                                                  awards: updated,
-                                                },
-                                              }
+                                                  ...prev,
+                                                  content: {
+                                                    ...prev.content,
+                                                    awards: updated,
+                                                  },
+                                                }
                                               : null,
                                           );
                                           setHasChanges(true);
@@ -5603,15 +5676,15 @@ export default function EditResumePage() {
                                       setResume((prev) =>
                                         prev
                                           ? {
-                                            ...prev,
-                                            content: {
-                                              ...prev.content,
-                                              awards:
-                                                prev.content.awards?.filter(
-                                                  (_, i) => i !== index,
-                                                ) || [],
-                                            },
-                                          }
+                                              ...prev,
+                                              content: {
+                                                ...prev.content,
+                                                awards:
+                                                  prev.content.awards?.filter(
+                                                    (_, i) => i !== index,
+                                                  ) || [],
+                                              },
+                                            }
                                           : null,
                                       );
                                       setHasChanges(true);
@@ -5631,21 +5704,21 @@ export default function EditResumePage() {
                                 setResume((prev) =>
                                   prev
                                     ? {
-                                      ...prev,
-                                      content: {
-                                        ...prev.content,
-                                        awards: [
-                                          ...(prev.content.awards || []),
-                                          {
-                                            id: nanoid(),
-                                            title: "",
-                                            issuer: "",
-                                            date: "",
-                                            description: "",
-                                          },
-                                        ],
-                                      },
-                                    }
+                                        ...prev,
+                                        content: {
+                                          ...prev.content,
+                                          awards: [
+                                            ...(prev.content.awards || []),
+                                            {
+                                              id: nanoid(),
+                                              title: "",
+                                              issuer: "",
+                                              date: "",
+                                              description: "",
+                                            },
+                                          ],
+                                        },
+                                      }
                                     : null,
                                 );
                                 setHasChanges(true);
@@ -5779,17 +5852,17 @@ export default function EditResumePage() {
                                           setResume((prev) =>
                                             prev
                                               ? {
-                                                ...prev,
-                                                content: {
-                                                  ...prev.content,
-                                                  references: updated,
-                                                },
-                                              }
+                                                  ...prev,
+                                                  content: {
+                                                    ...prev.content,
+                                                    references: updated,
+                                                  },
+                                                }
                                               : null,
                                           );
                                           setHasChanges(true);
                                         }}
-                                        className="mt-1 h-9 text-sm"
+                                        className={RESUME_FIELD_INPUT_CLASS}
                                         placeholder="John Smith"
                                       />
                                     </div>
@@ -5811,17 +5884,17 @@ export default function EditResumePage() {
                                           setResume((prev) =>
                                             prev
                                               ? {
-                                                ...prev,
-                                                content: {
-                                                  ...prev.content,
-                                                  references: updated,
-                                                },
-                                              }
+                                                  ...prev,
+                                                  content: {
+                                                    ...prev.content,
+                                                    references: updated,
+                                                  },
+                                                }
                                               : null,
                                           );
                                           setHasChanges(true);
                                         }}
-                                        className="mt-1 h-9 text-sm"
+                                        className={RESUME_FIELD_INPUT_CLASS}
                                         placeholder="Engineering Manager"
                                       />
                                     </div>
@@ -5843,17 +5916,17 @@ export default function EditResumePage() {
                                           setResume((prev) =>
                                             prev
                                               ? {
-                                                ...prev,
-                                                content: {
-                                                  ...prev.content,
-                                                  references: updated,
-                                                },
-                                              }
+                                                  ...prev,
+                                                  content: {
+                                                    ...prev.content,
+                                                    references: updated,
+                                                  },
+                                                }
                                               : null,
                                           );
                                           setHasChanges(true);
                                         }}
-                                        className="mt-1 h-9 text-sm"
+                                        className={RESUME_FIELD_INPUT_CLASS}
                                         placeholder="Company Name"
                                       />
                                     </div>
@@ -5873,17 +5946,17 @@ export default function EditResumePage() {
                                           setResume((prev) =>
                                             prev
                                               ? {
-                                                ...prev,
-                                                content: {
-                                                  ...prev.content,
-                                                  references: updated,
-                                                },
-                                              }
+                                                  ...prev,
+                                                  content: {
+                                                    ...prev.content,
+                                                    references: updated,
+                                                  },
+                                                }
                                               : null,
                                           );
                                           setHasChanges(true);
                                         }}
-                                        className="mt-1 h-9 text-sm"
+                                        className={RESUME_FIELD_INPUT_CLASS}
                                         type="email"
                                         placeholder="email@example.com"
                                       />
@@ -5904,17 +5977,17 @@ export default function EditResumePage() {
                                           setResume((prev) =>
                                             prev
                                               ? {
-                                                ...prev,
-                                                content: {
-                                                  ...prev.content,
-                                                  references: updated,
-                                                },
-                                              }
+                                                  ...prev,
+                                                  content: {
+                                                    ...prev.content,
+                                                    references: updated,
+                                                  },
+                                                }
                                               : null,
                                           );
                                           setHasChanges(true);
                                         }}
-                                        className="mt-1 h-9 text-sm"
+                                        className={RESUME_FIELD_INPUT_CLASS}
                                         type="tel"
                                         placeholder="+1 (555) 123-4567"
                                       />
@@ -5927,15 +6000,15 @@ export default function EditResumePage() {
                                       setResume((prev) =>
                                         prev
                                           ? {
-                                            ...prev,
-                                            content: {
-                                              ...prev.content,
-                                              references:
-                                                prev.content.references?.filter(
-                                                  (_, i) => i !== index,
-                                                ) || [],
-                                            },
-                                          }
+                                              ...prev,
+                                              content: {
+                                                ...prev.content,
+                                                references:
+                                                  prev.content.references?.filter(
+                                                    (_, i) => i !== index,
+                                                  ) || [],
+                                              },
+                                            }
                                           : null,
                                       );
                                       setHasChanges(true);
@@ -5955,22 +6028,22 @@ export default function EditResumePage() {
                                 setResume((prev) =>
                                   prev
                                     ? {
-                                      ...prev,
-                                      content: {
-                                        ...prev.content,
-                                        references: [
-                                          ...(prev.content.references || []),
-                                          {
-                                            id: nanoid(),
-                                            name: "",
-                                            position: "",
-                                            company: "",
-                                            email: "",
-                                            phone: "",
-                                          },
-                                        ],
-                                      },
-                                    }
+                                        ...prev,
+                                        content: {
+                                          ...prev.content,
+                                          references: [
+                                            ...(prev.content.references || []),
+                                            {
+                                              id: nanoid(),
+                                              name: "",
+                                              position: "",
+                                              company: "",
+                                              email: "",
+                                              phone: "",
+                                            },
+                                          ],
+                                        },
+                                      }
                                     : null,
                                 );
                                 setHasChanges(true);
@@ -6143,9 +6216,9 @@ export default function EditResumePage() {
                                               (c: any) =>
                                                 c.id === course.id
                                                   ? {
-                                                    ...c,
-                                                    name: e.target.value,
-                                                  }
+                                                      ...c,
+                                                      name: e.target.value,
+                                                    }
                                                   : c,
                                             );
                                           updateContent({
@@ -6167,10 +6240,10 @@ export default function EditResumePage() {
                                               (c: any) =>
                                                 c.id === course.id
                                                   ? {
-                                                    ...c,
-                                                    institution:
-                                                      e.target.value,
-                                                  }
+                                                      ...c,
+                                                      institution:
+                                                        e.target.value,
+                                                    }
                                                   : c,
                                             );
                                           updateContent({
@@ -6212,9 +6285,9 @@ export default function EditResumePage() {
                                             (c: any) =>
                                               c.id === course.id
                                                 ? {
-                                                  ...c,
-                                                  description: html,
-                                                }
+                                                    ...c,
+                                                    description: html,
+                                                  }
                                                 : c,
                                           );
                                         updateContent({
@@ -6392,9 +6465,9 @@ export default function EditResumePage() {
                                               (o: any) =>
                                                 o.id === org.id
                                                   ? {
-                                                    ...o,
-                                                    name: e.target.value,
-                                                  }
+                                                      ...o,
+                                                      name: e.target.value,
+                                                    }
                                                   : o,
                                             );
                                           updateContent({
@@ -6416,9 +6489,9 @@ export default function EditResumePage() {
                                               (o: any) =>
                                                 o.id === org.id
                                                   ? {
-                                                    ...o,
-                                                    role: e.target.value,
-                                                  }
+                                                      ...o,
+                                                      role: e.target.value,
+                                                    }
                                                   : o,
                                             );
                                           updateContent({
@@ -6442,9 +6515,9 @@ export default function EditResumePage() {
                                               (o: any) =>
                                                 o.id === org.id
                                                   ? {
-                                                    ...o,
-                                                    startDate: e.target.value,
-                                                  }
+                                                      ...o,
+                                                      startDate: e.target.value,
+                                                    }
                                                   : o,
                                             );
                                           updateContent({
@@ -6466,9 +6539,9 @@ export default function EditResumePage() {
                                               (o: any) =>
                                                 o.id === org.id
                                                   ? {
-                                                    ...o,
-                                                    endDate: e.target.value,
-                                                  }
+                                                      ...o,
+                                                      endDate: e.target.value,
+                                                    }
                                                   : o,
                                             );
                                           updateContent({
@@ -6491,9 +6564,9 @@ export default function EditResumePage() {
                                             (o: any) =>
                                               o.id === org.id
                                                 ? {
-                                                  ...o,
-                                                  description: html,
-                                                }
+                                                    ...o,
+                                                    description: html,
+                                                  }
                                                 : o,
                                           );
                                         updateContent({
@@ -6667,9 +6740,9 @@ export default function EditResumePage() {
                                             (p: any) =>
                                               p.id === pub.id
                                                 ? {
-                                                  ...p,
-                                                  title: e.target.value,
-                                                }
+                                                    ...p,
+                                                    title: e.target.value,
+                                                  }
                                                 : p,
                                           );
                                         updateContent({
@@ -6692,9 +6765,9 @@ export default function EditResumePage() {
                                               (p: any) =>
                                                 p.id === pub.id
                                                   ? {
-                                                    ...p,
-                                                    publisher: e.target.value,
-                                                  }
+                                                      ...p,
+                                                      publisher: e.target.value,
+                                                    }
                                                   : p,
                                             );
                                           updateContent({
@@ -6714,9 +6787,9 @@ export default function EditResumePage() {
                                               (p: any) =>
                                                 p.id === pub.id
                                                   ? {
-                                                    ...p,
-                                                    date: e.target.value,
-                                                  }
+                                                      ...p,
+                                                      date: e.target.value,
+                                                    }
                                                   : p,
                                             );
                                           updateContent({
@@ -6838,17 +6911,18 @@ export default function EditResumePage() {
                         const alreadyAdded = allowMultiple
                           ? false // Always allow adding spacers and custom sections
                           : sections.find(
-                            (s) => s.type === section.type && s.visible,
-                          );
+                              (s) => s.type === section.type && s.visible,
+                            );
                         return (
                           <Button
                             key={section.type}
                             variant="outline"
                             size="sm"
-                            className={`text-xs justify-start ${alreadyAdded
-                              ? "opacity-50 cursor-not-allowed"
-                              : "hover:bg-purple-50"
-                              }`}
+                            className={`text-xs justify-start ${
+                              alreadyAdded
+                                ? "opacity-50 cursor-not-allowed"
+                                : "hover:bg-purple-50"
+                            }`}
                             onClick={() => {
                               if (!alreadyAdded) {
                                 addSection(section.type);
@@ -6912,25 +6986,25 @@ export default function EditResumePage() {
         onOpenChange={setDeleteDialogOpen}
         title={
           sectionToDelete &&
-            ["personalInfo", "experience", "education"].includes(
-              sectionToDelete.type,
-            )
+          ["personalInfo", "experience", "education"].includes(
+            sectionToDelete.type,
+          )
             ? "Cannot Delete Essential Section"
             : "Delete Section"
         }
         description={
           sectionToDelete &&
-            ["personalInfo", "experience", "education"].includes(
-              sectionToDelete.type,
-            )
+          ["personalInfo", "experience", "education"].includes(
+            sectionToDelete.type,
+          )
             ? "Cannot delete essential sections like Personal Info, Experience, and Education. These sections are required for your resume."
             : `Are you sure you want to delete the "${sectionToDelete?.title}" section? This action cannot be undone.`
         }
         confirmText={
           sectionToDelete &&
-            ["personalInfo", "experience", "education"].includes(
-              sectionToDelete.type,
-            )
+          ["personalInfo", "experience", "education"].includes(
+            sectionToDelete.type,
+          )
             ? "OK"
             : "Delete"
         }
@@ -6938,9 +7012,9 @@ export default function EditResumePage() {
         onConfirm={handleConfirmDelete}
         variant={
           sectionToDelete &&
-            ["personalInfo", "experience", "education"].includes(
-              sectionToDelete.type,
-            )
+          ["personalInfo", "experience", "education"].includes(
+            sectionToDelete.type,
+          )
             ? "default"
             : "destructive"
         }

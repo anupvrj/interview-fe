@@ -1,8 +1,9 @@
 import { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Pricing Plans - Choose Your Perfect Plan | Interview Trix',
-  description: 'Flexible pricing plans for every career stage. Get access to AI resume builder, AI Interview Practice, job search, and more. Start free or choose a plan that fits your needs.',
+  title: 'Pricing Plans - Career-Targeted Subscriptions | InterviewTrix',
+  description:
+    'General Pass for non-tech professionals, Tech Basic for developers, Tech Pro for senior engineers. Monthly subscriptions from ₹599 with AI interviews, coding, system design, resume & ATS.',
   keywords: 'pricing, plans, subscription, career tools pricing, interview preparation cost, resume builder pricing',
   openGraph: {
     title: 'Pricing Plans - Choose Your Perfect Plan | Interview Trix',

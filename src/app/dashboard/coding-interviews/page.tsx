@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useUser } from "@clerk/nextjs";
-import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -41,6 +40,8 @@ import { institutePrimaryClass } from "@/components/institute/InstituteChrome";
 import { CodingRoundHeroPreview } from "@/components/coding-interviews/CodingRoundHeroPreview";
 import { DashboardStatCard } from "@/components/dashboard/DashboardStatCard";
 import { RecentInterviewsList } from "@/components/dashboard/RecentInterviewsList";
+import { SubscriptionExpiredDialog } from "@/components/SubscriptionExpiredDialog";
+import { useSubscriptionExpiredGate } from "@/hooks/useSubscriptionExpiredGate";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -52,6 +53,12 @@ export default function CodingInterviewsPage() {
   const [videoUnavailableOpen, setVideoUnavailableOpen] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [deleteBusy, setDeleteBusy] = useState(false);
+  const {
+    open: subscriptionExpiredOpen,
+    setOpen: setSubscriptionExpiredOpen,
+    checking: checkingSubscription,
+    navigateToNewSession,
+  } = useSubscriptionExpiredGate();
 
   const refreshRows = async () => {
     try {
@@ -199,18 +206,24 @@ export default function CodingInterviewsPage() {
               </div>
 
               <div className="flex flex-col items-center justify-center gap-3 px-2 pt-2 sm:flex-row sm:gap-4 lg:justify-start">
-                <Link href="/dashboard/coding-interviews/new" className="w-full sm:w-auto">
-                  <Button
-                    size="lg"
-                    className={cn(
-                      institutePrimaryClass,
-                      "h-auto w-full px-5 py-4 text-sm font-semibold shadow-lg transition-all hover:shadow-xl sm:w-auto sm:px-6 sm:py-5 sm:text-base",
-                    )}
-                  >
-                    Start new session
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                  </Button>
-                </Link>
+                <Button
+                  type="button"
+                  size="lg"
+                  disabled={checkingSubscription}
+                  onClick={() =>
+                    navigateToNewSession("/dashboard/coding-interviews/new")
+                  }
+                  className={cn(
+                    institutePrimaryClass,
+                    "h-auto w-full px-5 py-4 text-sm font-semibold shadow-lg transition-all hover:shadow-xl sm:w-auto sm:px-6 sm:py-5 sm:text-base",
+                  )}
+                >
+                  {checkingSubscription ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : null}
+                  Start new session
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
                 <div className="flex items-center gap-1.5 sm:gap-2">
                   <div className="flex items-center gap-0.5 sm:gap-1">
                     {[...Array(5)].map((_, i) => (
@@ -301,12 +314,21 @@ export default function CodingInterviewsPage() {
                   : `${rows.length} session${rows.length === 1 ? "" : "s"} in your history`}
               </CardDescription>
             </div>
-            <Link href="/dashboard/coding-interviews/new">
-              <Button className={institutePrimaryClass}>
+            <Button
+              type="button"
+              disabled={checkingSubscription}
+              onClick={() =>
+                navigateToNewSession("/dashboard/coding-interviews/new")
+              }
+              className={institutePrimaryClass}
+            >
+              {checkingSubscription ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
                 <Plus className="mr-2 h-4 w-4" />
-                Start new session
-              </Button>
-            </Link>
+              )}
+              Start new session
+            </Button>
           </div>
         </CardHeader>
         <CardContent className="p-0">
@@ -386,6 +408,11 @@ export default function CodingInterviewsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <SubscriptionExpiredDialog
+        open={subscriptionExpiredOpen}
+        onOpenChange={setSubscriptionExpiredOpen}
+      />
     </div>
   );
 }
