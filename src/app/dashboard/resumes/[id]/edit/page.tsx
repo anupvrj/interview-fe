@@ -53,6 +53,10 @@ import {
 } from "@/lib/resume-page-dimensions";
 import { ATSReportView } from "@/components/ats-checker/ATSReportView";
 import { applyAtsIssueFixToResume } from "@/lib/atsIssueApply";
+import {
+  assignSectionColumnOnReorder,
+  toSectionOrderPayload,
+} from "@/lib/sectionColumnUtils";
 import { ProfilePictureCropper } from "@/components/ProfilePictureCropper";
 import { debugResumePagination } from "@/lib/debug-resume-pagination";
 
@@ -80,6 +84,7 @@ interface Section {
   title: string;
   visible: boolean;
   expanded: boolean;
+  column?: "left" | "right";
 }
 
 function expandOnlySection(
@@ -262,12 +267,7 @@ export default function EditResumePage() {
         throw new Error("Resume layout not ready");
       }
 
-      const sectionOrderData = currentSections.map((s) => ({
-        id: s.id,
-        type: s.type,
-        title: s.title,
-        visible: s.visible,
-      }));
+      const sectionOrderData = toSectionOrderPayload(currentSections);
 
       await resumeApi.update(resumeId, {
         title: resumeSnapshot.title,
@@ -396,12 +396,7 @@ export default function EditResumePage() {
 
       try {
         setAutoSaving(true);
-        const sectionOrderData = currentSections.map((s) => ({
-          id: s.id,
-          type: s.type,
-          title: s.title,
-          visible: s.visible,
-        }));
+        const sectionOrderData = toSectionOrderPayload(currentSections);
 
         await resumeApi.update(resumeId, {
           title: currentResume.title,
@@ -612,12 +607,7 @@ export default function EditResumePage() {
           // Immediately save missing custom sections to database to prevent data loss on reload
           (async () => {
             try {
-              const sectionOrderData = loadedSections.map((s) => ({
-                id: s.id,
-                type: s.type,
-                title: s.title,
-                visible: s.visible,
-              }));
+              const sectionOrderData = toSectionOrderPayload(loadedSections);
 
               await resumeApi.update(resumeId, {
                 content: resumeData.content,
@@ -815,12 +805,7 @@ export default function EditResumePage() {
 
     try {
       setSaving(true);
-      const sectionOrderData = sections.map((s) => ({
-        id: s.id,
-        type: s.type,
-        title: s.title,
-        visible: s.visible,
-      }));
+      const sectionOrderData = toSectionOrderPayload(sections);
 
       await resumeApi.update(resumeId, {
         title: resume.title,
@@ -1433,30 +1418,23 @@ export default function EditResumePage() {
 
     setDragOverId(targetId);
 
-    const draggedIndex = sections.findIndex((s) => s.id === draggedSection);
-    const targetIndex = sections.findIndex((s) => s.id === targetId);
+    const oldSignature = sections
+      .map((s, idx) => `${idx}:${s.id}:${s.column ?? ""}`)
+      .join(",");
+    const newSections = assignSectionColumnOnReorder(
+      sections,
+      draggedSection,
+      targetId,
+      {
+        layoutType: layout?.type,
+        template,
+      },
+    );
+    const newSignature = newSections
+      .map((s, idx) => `${idx}:${s.id}:${s.column ?? ""}`)
+      .join(",");
 
-    if (draggedIndex === -1 || targetIndex === -1) return;
-
-    // Create new sections array with reordered items
-    // IMPORTANT: Create a completely new array to ensure React detects the change
-    // Also remove any column property to allow dynamic redistribution
-    const newSections = sections.map((s) => {
-      // TypeScript-safe way to remove column property if it exists
-      const sectionWithoutColumn = { ...s };
-      if ("column" in sectionWithoutColumn) {
-        delete (sectionWithoutColumn as any).column;
-      }
-      return sectionWithoutColumn;
-    });
-    const [removed] = newSections.splice(draggedIndex, 1);
-    newSections.splice(targetIndex, 0, removed);
-
-    const oldOrder = sections.map((s, idx) => `${idx}:${s.id}`).join(",");
-    const newOrder = newSections.map((s, idx) => `${idx}:${s.id}`).join(",");
-
-    // Update sections - MUST be a new array reference for React to detect change
-    if (oldOrder !== newOrder) {
+    if (oldSignature !== newSignature) {
       setSections(newSections);
     }
   };

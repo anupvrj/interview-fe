@@ -10,6 +10,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { ResumeTemplate, resumeApi } from "@/lib/api";
+import { buildResumeTemplateApplication } from "@/lib/applyResumeTemplate";
 import { TemplatePreview } from "@/components/TemplatePreview";
 
 const categoryLabels = {
@@ -66,8 +67,13 @@ export function ATSImproveTemplatePicker({
     if (applying) return;
     setApplying(true);
     try {
-      if (!skipTemplate && selectedTemplate && selectedTemplate !== currentTemplateId) {
-        await resumeApi.update(resumeId, { templateId: selectedTemplate });
+      if (!skipTemplate && selectedTemplate) {
+        const resume = await resumeApi.get(resumeId);
+        const templateApplication = await buildResumeTemplateApplication(
+          selectedTemplate,
+          resume,
+        );
+        await resumeApi.update(resumeId, templateApplication);
         onComplete(selectedTemplate);
       } else {
         onComplete(currentTemplateId);

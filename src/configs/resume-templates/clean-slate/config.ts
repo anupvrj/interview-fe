@@ -93,6 +93,17 @@ export const cleanslateExtendedConfig: Partial<ExtendedResumeTemplate> = {
         left: 60,
         right: 40,
       },
+      columnAssignment: {
+        left: ["profileSummary", "experience", "education", "projects"],
+        right: [
+          "skills",
+          "certificates",
+          "interests",
+          "languages",
+          "awards",
+          "certifications",
+        ],
+      },
     },
   },
   defaultSectionOrder: [

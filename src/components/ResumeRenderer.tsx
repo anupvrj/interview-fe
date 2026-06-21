@@ -10,6 +10,7 @@ import { Resume, ResumeTemplate } from "@/lib/api";
 import { ATLANTIC_BLUE_INNER_PADDING_PX } from "@/configs/resume-templates/atlantic-blue/column-insets";
 import { mergeLayoutPaddingWithTemplateStyle } from "@/lib/resume-page-dimensions";
 import { getExtendedTemplate } from "@/lib/templateConfigs";
+import { isListedInTemplateColumnAssignment } from "@/lib/sectionColumnUtils";
 import { getTemplateStyle, TemplateStyleConfig } from "@/lib/templateRenderer";
 import {
   User,
@@ -244,13 +245,23 @@ export function ResumeRenderer({
       let nonPersonalInfoIndex = 0;
 
       bodySections.forEach((section, index) => {
-        // First check if explicit column assignment exists
+        // Saved column from editor reordering takes precedence
+        if (section.column === "left" || section.column === "right") {
+          if (section.column === "left") {
+            leftColumn.push(section);
+          } else {
+            rightColumn.push(section);
+          }
+          return;
+        }
+
+        // Template defaults by section id/type
         if (columnAssignment && (columnAssignment.left?.length > 0 || columnAssignment.right?.length > 0)) {
-          if (columnAssignment.left?.includes(section.type)) {
+          if (isListedInTemplateColumnAssignment(columnAssignment.left, section)) {
             leftColumn.push(section);
             return;
           }
-          if (columnAssignment.right?.includes(section.type)) {
+          if (isListedInTemplateColumnAssignment(columnAssignment.right, section)) {
             rightColumn.push(section);
             return;
           }
@@ -259,21 +270,7 @@ export function ResumeRenderer({
           return;
         }
 
-        // Specifically handle the "clean-slate" distribution
-        if (template.id === "clean-slate") {
-          const rightColumnTypes = ["skills", "certificates", "interests", "languages", "awards", "certifications"];
-          if (rightColumnTypes.includes(section.type)) {
-            rightColumn.push(section);
-          } else {
-            leftColumn.push(section); // profileSummary, experience, education, projects, etc.
-          }
-          return;
-        }
-
-        // IGNORE explicit column assignment - always use index-based distribution
-        // This ensures sections move between columns when reordered
-        // Dynamic flowing distribution: 1→left, 2→right, 3→left, 4→right, etc.
-        // This ensures even distribution regardless of section types
+        // Dynamic flowing distribution when no explicit assignment exists
         if (templateStyle.headerStyle === "two-column") {
           // Atlantic Blue: Keep only personalInfo fixed in left column, rest flow evenly
           if (section.type === "personalInfo") {
