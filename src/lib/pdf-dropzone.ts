@@ -5,7 +5,7 @@
  * @see https://github.com/react-dropzone/react-dropzone/issues/1199
  */
 
-export const PDF_RESUME_MAX_BYTES = 5 * 1024 * 1024; // 5 MB
+export const PDF_RESUME_MAX_BYTES = 2 * 1024 * 1024; // 2 MB (ATS standard)
 
 export const pdfResumeDropzoneAccept = {
   "application/pdf": [".pdf"],

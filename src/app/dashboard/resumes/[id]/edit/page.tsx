@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import "@/styles/mercury-template.css";
 import { useUser } from "@clerk/nextjs";
-import { useRouter, useParams } from "next/navigation";
+import { useRouter, useParams, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -33,6 +33,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { Resume, ResumeTemplate, resumeApi, apiClient } from "@/lib/api";
+import { isATSReportV3 } from "@/types/atsReport";
 import { ResumePreview } from "@/components/ResumePreview";
 import { RichTextEditor } from "@/components/RichTextEditor";
 import { getExtendedTemplate } from "@/lib/templateConfigs";
@@ -46,7 +47,8 @@ import {
   mergeLayoutPaddingWithTemplateStyle,
   resolveLayoutPaddingMm,
 } from "@/lib/resume-page-dimensions";
-import { ATSFeedback } from "@/components/ATSFeedback";
+import { ATSReportView } from "@/components/ats-checker/ATSReportView";
+import { applyAtsIssueFixToResume } from "@/lib/atsIssueApply";
 import { ProfilePictureCropper } from "@/components/ProfilePictureCropper";
 import { debugResumePagination } from "@/lib/debug-resume-pagination";
 
@@ -80,7 +82,9 @@ export default function EditResumePage() {
   const { user, isLoaded } = useUser();
   const router = useRouter();
   const params = useParams();
+  const searchParams = useSearchParams();
   const resumeId = params.id as string;
+  const showImprovedBanner = searchParams.get("improved") === "1";
 
   const [mounted, setMounted] = useState(false);
   const [resume, setResume] = useState<Resume | null>(null);
@@ -167,11 +171,37 @@ export default function EditResumePage() {
     }
   }, [mounted, isLoaded, user, resumeId]);
 
+  useEffect(() => {
+    if (searchParams.get("view") === "ats") {
+      setViewMode("ats");
+    }
+  }, [searchParams]);
+
   // Track dragging state
   const isDraggingRef = useRef(false);
   const isThumbnailUploadingRef = useRef(false);
   const autoThumbnailAttemptsRef = useRef(0);
   const MAX_AUTO_THUMBNAIL_ATTEMPTS = 3;
+  const resumeRef = useRef(resume);
+  const layoutRef = useRef(layout);
+  const sectionsRef = useRef(sections);
+  const hasChangesRef = useRef(hasChanges);
+
+  useEffect(() => {
+    resumeRef.current = resume;
+  }, [resume]);
+
+  useEffect(() => {
+    layoutRef.current = layout;
+  }, [layout]);
+
+  useEffect(() => {
+    sectionsRef.current = sections;
+  }, [sections]);
+
+  useEffect(() => {
+    hasChangesRef.current = hasChanges;
+  }, [hasChanges]);
 
   const bumpPreviewKey = useCallback((reason: string) => {
     setPreviewKey((prev) => {
@@ -179,6 +209,56 @@ export default function EditResumePage() {
       debugResumePagination("previewKey:bump", { reason, next });
       return next;
     });
+  }, []);
+
+  const persistResumeToServer = useCallback(
+    async (resumeSnapshot: Resume) => {
+      const currentLayout = layoutRef.current;
+      const currentSections = sectionsRef.current;
+      if (!currentLayout || currentSections.length === 0) {
+        throw new Error("Resume layout not ready");
+      }
+
+      const sectionOrderData = currentSections.map((s) => ({
+        id: s.id,
+        type: s.type,
+        title: s.title,
+        visible: s.visible,
+      }));
+
+      await resumeApi.update(resumeId, {
+        title: resumeSnapshot.title,
+        content: resumeSnapshot.content,
+        profileSummary: resumeSnapshot.profileSummary,
+        sectionOrder: sectionOrderData,
+        layout: currentLayout,
+      });
+
+      setHasChanges(false);
+      setLastSaved(new Date());
+    },
+    [resumeId],
+  );
+
+  const ensureResumePersisted = useCallback(async () => {
+    const current = resumeRef.current;
+    if (!current || !hasChangesRef.current) return;
+    await persistResumeToServer(current);
+  }, [persistResumeToServer]);
+
+  const applyAtsReportUpdate = useCallback((updatedResume: Resume) => {
+    setResume((prev) =>
+      prev
+        ? {
+            ...prev,
+            atsScore: updatedResume.atsScore,
+            atsFeedback: updatedResume.atsFeedback,
+            atsImprovementMeta: updatedResume.atsImprovementMeta,
+            atsScoringContext:
+              updatedResume.atsScoringContext ?? prev.atsScoringContext,
+          }
+        : prev,
+    );
   }, []);
 
   const triggerThumbnailCapture = useCallback(
@@ -231,9 +311,10 @@ export default function EditResumePage() {
   );
 
   // Attempt thumbnail generation on initial preview render (not only after save).
+  const thumbnailS3Key = resume?.thumbnailS3Key;
   useEffect(() => {
     if (!mounted || loading || !resume || !template || !resumeId) return;
-    if (resume.thumbnailS3Key) return;
+    if (thumbnailS3Key) return;
     if (autoThumbnailAttemptsRef.current >= MAX_AUTO_THUMBNAIL_ATTEMPTS) return;
 
     const timers = [
@@ -248,56 +329,57 @@ export default function EditResumePage() {
   }, [
     mounted,
     loading,
-    resume,
-    template,
     resumeId,
+    template,
+    thumbnailS3Key,
     triggerThumbnailCapture,
-    MAX_AUTO_THUMBNAIL_ATTEMPTS,
+    resume,
   ]);
 
-  // Autosave effect - saves 5 seconds after last change
+  // Autosave only when the user has unsaved edits — not on ATS/thumbnail resume syncs.
   useEffect(() => {
-    if (!hasChanges || !resume || !layout || sections.length === 0) {
+    if (!hasChanges) {
       return;
     }
 
     const autoSaveTimer = setTimeout(async () => {
+      const currentResume = resumeRef.current;
+      const currentLayout = layoutRef.current;
+      const currentSections = sectionsRef.current;
+
+      if (!currentResume || !currentLayout || currentSections.length === 0) {
+        return;
+      }
+
       try {
         setAutoSaving(true);
-        const sectionOrderData = sections.map((s) => ({
+        const sectionOrderData = currentSections.map((s) => ({
           id: s.id,
           type: s.type,
           title: s.title,
           visible: s.visible,
         }));
 
-        // Log customSections before saving
-        console.log("💾 [Autosave] Saving resume with customSections:", {
-          customSectionsCount: resume.content.customSections?.length || 0,
-          customSections: resume.content.customSections,
-        });
-
         await resumeApi.update(resumeId, {
-          title: resume.title,
-          content: resume.content,
-          profileSummary: resume.profileSummary,
+          title: currentResume.title,
+          content: currentResume.content,
+          profileSummary: currentResume.profileSummary,
           sectionOrder: sectionOrderData,
-          layout: layout,
+          layout: currentLayout,
         });
 
         setHasChanges(false);
         setLastSaved(new Date());
-        // Capture designed resume after save (force: bypass "already has thumbnail").
         await triggerThumbnailCapture(resumeId, { force: true });
       } catch (error) {
         console.error("Autosave failed:", error);
       } finally {
         setAutoSaving(false);
       }
-    }, 5000); // 5 seconds after last change
+    }, 5000);
 
     return () => clearTimeout(autoSaveTimer);
-  }, [hasChanges, resume, layout, sections, resumeId, triggerThumbnailCapture]);
+  }, [hasChanges, resumeId, triggerThumbnailCapture]);
 
   const loadResume = async () => {
     try {
@@ -706,9 +788,6 @@ export default function EditResumePage() {
       // Capture thumbnail before loadResume — loadResume bumps preview key and remounts DOM.
       await triggerThumbnailCapture(resumeId, { force: true });
       await loadResume();
-
-      // ATS score calculation is now only done on manual refresh
-      // This improves UX by not blocking saves
     } catch (error) {
       console.error("Error saving resume:", error);
       alert("Failed to save resume. Please try again.");
@@ -718,23 +797,33 @@ export default function EditResumePage() {
   };
 
   const handleRefreshATS = async () => {
-    if (!resume || !resumeId) return;
+    const current = resumeRef.current;
+    if (!current || !resumeId) return;
 
     try {
       setRefreshingATS(true);
 
-      // Call the API to recalculate ATS score and wait for the response
-      const updatedResume = await resumeApi.recalculateATS(resumeId);
+      await ensureResumePersisted();
 
-      // Update the resume state with the new ATS score
-      setResume((prev) => {
-        if (!prev) return prev;
-        return {
-          ...prev,
-          atsScore: updatedResume.atsScore,
-          atsFeedback: updatedResume.atsFeedback,
-        };
+      const updatedResume = await resumeApi.recalculateATS(resumeId, {
+        jobDescription: current.atsScoringContext?.lastJobDescription,
+        rawPdfText: current.atsScoringContext?.rawPdfText,
       });
+
+      applyAtsReportUpdate(updatedResume);
+
+      const params = new URLSearchParams(searchParams.toString());
+      params.delete("improved");
+      if (viewMode === "ats") {
+        params.set("view", "ats");
+      }
+      const query = params.toString();
+      router.replace(
+        query
+          ? `/dashboard/resumes/${resumeId}/edit?${query}`
+          : `/dashboard/resumes/${resumeId}/edit`,
+        { scroll: false },
+      );
     } catch (error) {
       console.error("Error refreshing ATS score:", error);
       alert("Failed to refresh ATS score. Please try again.");
@@ -742,6 +831,66 @@ export default function EditResumePage() {
       setRefreshingATS(false);
     }
   };
+
+  const handleRunJobMatch = async (jobDescription: string) => {
+    const current = resumeRef.current;
+    if (!current || !resumeId) return;
+
+    try {
+      setRefreshingATS(true);
+
+      await ensureResumePersisted();
+
+      const updatedResume = await resumeApi.recalculateATS(resumeId, {
+        jobDescription,
+        rawPdfText: current.atsScoringContext?.rawPdfText,
+      });
+
+      applyAtsReportUpdate(updatedResume);
+    } catch (error) {
+      console.error("Error running Job Match analysis:", error);
+      throw error instanceof Error
+        ? error
+        : new Error("Failed to run Job Match analysis. Please try again.");
+    } finally {
+      setRefreshingATS(false);
+    }
+  };
+
+  const handleApplyAtsIssueFix = useCallback(
+    (original: string, improved: string) => {
+      const current = resumeRef.current;
+      if (!current) return false;
+      const next = applyAtsIssueFixToResume(current, original, improved);
+      if (!next) return false;
+      resumeRef.current = next;
+      setResume(next);
+      setHasChanges(true);
+      return true;
+    },
+    [],
+  );
+
+  const handleIgnoreATSIssue = useCallback(
+    async (check: import("@/types/atsReport").ATSCheckResult, issue: import("@/types/atsReport").ATSIssue) => {
+      if (!resumeId) return;
+      const updated = await resumeApi.ignoreATSIssue(resumeId, {
+        checkId: check.id,
+        issue,
+      });
+      setResume((prev) =>
+        prev
+          ? {
+              ...prev,
+              atsScore: updated.atsScore,
+              atsFeedback: updated.atsFeedback,
+              atsIgnoredIssues: updated.atsIgnoredIssues,
+            }
+          : prev,
+      );
+    },
+    [resumeId],
+  );
 
   const handleDownload = async () => {
     try {
@@ -1453,7 +1602,32 @@ export default function EditResumePage() {
 
           {viewMode === "ats" ? (
             resume.atsFeedback ? (
-              <ATSFeedback feedback={resume.atsFeedback} />
+              <div className="p-4">
+                {showImprovedBanner && (
+                  <div className="mb-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
+                    Resume improved from ATS feedback. Issues addressed by AI are
+                    hidden here; re-run ATS check anytime to see a fresh full report.
+                  </div>
+                )}
+                <ATSReportView
+                  key={`${resume.atsScore ?? 0}-${isATSReportV3(resume.atsFeedback) ? resume.atsFeedback.issueCount : 0}-${resume.atsImprovementMeta?.improvedAt ?? "fresh"}`}
+                  feedback={resume.atsFeedback}
+                  resumeId={resume.resumeId}
+                  enableIssueMagic
+                  onApplyIssueFix={handleApplyAtsIssueFix}
+                  onIgnoreIssue={handleIgnoreATSIssue}
+                  suppressedCheckIds={
+                    showImprovedBanner
+                      ? resume.atsImprovementMeta?.suppressedCheckIds
+                      : undefined
+                  }
+                  onRunJobMatch={handleRunJobMatch}
+                  jobMatchRunning={refreshingATS}
+                  initialJobDescription={
+                    resume.atsScoringContext?.lastJobDescription
+                  }
+                />
+              </div>
             ) : (
               <div className="p-6 text-center text-gray-500">
                 <p>

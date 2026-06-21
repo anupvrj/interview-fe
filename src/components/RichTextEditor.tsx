@@ -69,7 +69,11 @@ export function RichTextEditor({
     ],
     content: value || "",
     onUpdate: ({ editor }) => {
-      onChange(editor.getHTML());
+      const html = editor.getHTML();
+      if (normalizeHTML(html) === normalizeHTML(value || "")) {
+        return;
+      }
+      onChange(html);
     },
     editorProps: {
       attributes: {
@@ -101,7 +105,7 @@ export function RichTextEditor({
     // Only update if content actually changed (after normalization)
     if (newContent !== currentContent) {
       const { from, to } = editor.state.selection;
-      editor.commands.setContent(newContent);
+      editor.commands.setContent(newContent, { emitUpdate: false });
       // Restore cursor position if possible
       try {
         editor.commands.setTextSelection({ from, to });
