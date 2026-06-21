@@ -3,6 +3,8 @@ import axios, {
   AxiosError,
   type InternalAxiosRequestConfig,
 } from "axios";
+import type { ATSReportV3 } from "@/types/atsReport";
+export { isATSReportV3 } from "@/types/atsReport";
 
 /** Base URL for API (includes `/api` path). Use for `<img src>` and other non-axios URLs. */
 export const API_URL =
@@ -1211,23 +1213,46 @@ export interface Resume {
     };
   };
   atsScore?: number;
-  atsFeedback?: {
-    score: number;
-    strengths: string[];
-    weaknesses: string[];
-    suggestions: string[];
-    details?: {
-      formatting?: { score: number; issues: string[]; improvements: string[] };
-      content?: { score: number; issues: string[]; improvements: string[] };
-      keywords?: { score: number; issues: string[]; improvements: string[] };
-      structure?: { score: number; issues: string[]; improvements: string[] };
-    };
+  atsFeedback?: ATSReportV3 | LegacyATSFeedback;
+  atsImprovementMeta?: {
+    improvedAt: string;
+    previousScore?: number;
+    suppressedCheckIds: import("@/types/atsReport").ATSCheckId[];
+  };
+  atsIgnoredIssues?: import("@/types/atsReport").ATSIgnoredIssue[];
+  atsScoringContext?: {
+    rawPdfText?: string;
+    lastJobDescription?: string;
   };
   isDefault?: boolean;
   pdfS3Key?: string; // S3 key for generated PDF
   thumbnailS3Key?: string; // S3 key for resume thumbnail
   createdAt: string;
   updatedAt: string;
+}
+
+export interface LegacyATSFeedback {
+  score: number;
+  strengths: string[];
+  weaknesses: string[];
+  suggestions: string[];
+  details?: {
+    formatting?: { score: number; issues: string[]; improvements: string[] };
+    content?: { score: number; issues: string[]; improvements: string[] };
+    keywords?: { score: number; issues: string[]; improvements: string[] };
+    structure?: { score: number; issues: string[]; improvements: string[] };
+  };
+}
+
+export interface RecalculateATSOptions {
+  jobDescription?: string;
+  rawPdfText?: string;
+  fileMetadata?: {
+    fileName: string;
+    fileSizeBytes: number;
+    mimeType: string;
+    rawTextLength?: number;
+  };
 }
 
 export const resumeApi = {
@@ -1375,13 +1400,68 @@ export const resumeApi = {
     return created;
   },
 
-  recalculateATS: async (resumeId: string): Promise<Resume> => {
+  recalculateATS: async (
+    resumeId: string,
+    options: RecalculateATSOptions = {},
+  ): Promise<Resume> => {
     const response = await apiClient.post<{ data: Resume }>(
       `/resumes/${resumeId}/ats-score`,
-      {},
+      options,
       {
-        timeout: 180000, // 3 minutes (180 seconds) for ATS score calculation
+        timeout: 180000,
       },
+    );
+    return response.data.data;
+  },
+
+  improveFromATS: async (
+    resumeId: string,
+    options: { jobDescription?: string } = {},
+  ): Promise<Resume> => {
+    const response = await apiClient.post<{ data: Resume }>(
+      `/resumes/${resumeId}/improve-from-ats`,
+      options,
+      {
+        timeout: 300000,
+      },
+    );
+    return response.data.data;
+  },
+
+  improveATSIssue: async (
+    resumeId: string,
+    body: {
+      checkId: string;
+      categoryLabel?: string;
+      issue: import("@/types/atsReport").ATSIssue;
+    },
+  ): Promise<{
+    improvedContent: string;
+    sourceContent: string;
+    contentType: "bullet" | "paragraph" | "text";
+  }> => {
+    const response = await apiClient.post<{
+      data: {
+        improvedContent: string;
+        sourceContent: string;
+        contentType: "bullet" | "paragraph" | "text";
+      };
+    }>(`/resumes/${resumeId}/ats-improve-issue`, body, {
+      timeout: 60000,
+    });
+    return response.data.data;
+  },
+
+  ignoreATSIssue: async (
+    resumeId: string,
+    body: {
+      checkId: string;
+      issue: import("@/types/atsReport").ATSIssue;
+    },
+  ): Promise<Resume> => {
+    const response = await apiClient.post<{ data: Resume }>(
+      `/resumes/${resumeId}/ats-ignore-issue`,
+      body,
     );
     return response.data.data;
   },
