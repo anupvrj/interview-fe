@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Target } from "lucide-react";
+import { ArrowRight, ChevronDown, ChevronUp, Target } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ATSCheckId, ATSCheckResult, ATSReportV3 } from "@/types/atsReport";
 import { CATEGORY_ORDER } from "@/types/atsReport";
@@ -20,6 +20,8 @@ interface ATSReportDashboardProps {
   onRunJobMatch?: (jobDescription: string) => void | Promise<void>;
   jobMatchRunning?: boolean;
   initialJobDescription?: string;
+  /** Use stacked layout tuned for narrow panels (e.g. resume editor split view) */
+  embedded?: boolean;
 }
 
 function findCheckInReport(
@@ -60,50 +62,86 @@ function findFirstActionableCheck(report: ATSReportV3): {
 }
 
 function ReportSummary({ report }: { report: ATSReportV3 }) {
-  const hasContent =
-    report.strengths.length > 0 ||
-    report.weaknesses.length > 0 ||
-    report.suggestions.length > 0;
-  if (!hasContent) return null;
+  const sections = [
+    {
+      id: "strengths",
+      label: "Strengths",
+      items: report.strengths.slice(0, 4),
+      labelClass: "text-green-700",
+      countClass: "bg-green-100 text-green-700",
+    },
+    {
+      id: "weaknesses",
+      label: "Weaknesses",
+      items: report.weaknesses.slice(0, 4),
+      labelClass: "text-red-700",
+      countClass: "bg-red-100 text-red-700",
+    },
+    {
+      id: "suggestions",
+      label: "Top suggestions",
+      items: report.suggestions.slice(0, 4),
+      labelClass: "text-primary",
+      countClass: "bg-primary/10 text-primary",
+    },
+  ].filter((section) => section.items.length > 0);
+
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+
+  if (sections.length === 0) return null;
+
+  const toggle = (id: string) =>
+    setExpanded((prev) => ({ ...prev, [id]: !prev[id] }));
 
   return (
-    <div className="grid gap-4 rounded-xl border border-border bg-muted/20 p-5 sm:grid-cols-3">
-      {report.strengths.length > 0 && (
-        <div>
-          <p className="mb-2 text-xs font-bold uppercase tracking-wide text-green-700">
-            Strengths
-          </p>
-          <ul className="space-y-1 text-sm text-muted-foreground">
-            {report.strengths.slice(0, 4).map((s, i) => (
-              <li key={i}>• {s}</li>
-            ))}
-          </ul>
-        </div>
-      )}
-      {report.weaknesses.length > 0 && (
-        <div>
-          <p className="mb-2 text-xs font-bold uppercase tracking-wide text-red-700">
-            Weaknesses
-          </p>
-          <ul className="space-y-1 text-sm text-muted-foreground">
-            {report.weaknesses.slice(0, 4).map((s, i) => (
-              <li key={i}>• {s}</li>
-            ))}
-          </ul>
-        </div>
-      )}
-      {report.suggestions.length > 0 && (
-        <div>
-          <p className="mb-2 text-xs font-bold uppercase tracking-wide text-primary">
-            Top suggestions
-          </p>
-          <ul className="space-y-1 text-sm text-muted-foreground">
-            {report.suggestions.slice(0, 4).map((s, i) => (
-              <li key={i}>• {s}</li>
-            ))}
-          </ul>
-        </div>
-      )}
+    <div className="overflow-hidden rounded-xl border border-border bg-muted/20">
+      {sections.map((section, index) => {
+        const isOpen = expanded[section.id] === true;
+        return (
+          <div
+            key={section.id}
+            className={index > 0 ? "border-t border-border/60" : undefined}
+          >
+            <button
+              type="button"
+              onClick={() => toggle(section.id)}
+              className="flex w-full items-center gap-2 px-4 py-3 text-left transition-colors hover:bg-muted/40"
+              aria-expanded={isOpen}
+            >
+              <span
+                className={cn(
+                  "min-w-0 flex-1 text-xs font-bold uppercase tracking-wide",
+                  section.labelClass,
+                )}
+              >
+                {section.label}
+              </span>
+              <span
+                className={cn(
+                  "shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums",
+                  section.countClass,
+                )}
+              >
+                {section.items.length}
+              </span>
+              {isOpen ? (
+                <ChevronUp className="h-4 w-4 shrink-0 text-muted-foreground" />
+              ) : (
+                <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+              )}
+            </button>
+            {isOpen && (
+              <ul className="space-y-1.5 border-t border-border/40 px-4 pb-4 pt-3 text-sm leading-relaxed text-muted-foreground">
+                {section.items.map((item, i) => (
+                  <li key={`${section.id}-${i}`} className="break-words">
+                    • {item}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -196,6 +234,7 @@ export function ATSReportDashboard({
   onRunJobMatch,
   jobMatchRunning = false,
   initialJobDescription,
+  embedded = false,
 }: ATSReportDashboardProps) {
   const normalizedReport = useMemo(() => normalizeATSReportV3(report), [report]);
   const initial = useMemo(
@@ -206,6 +245,8 @@ export function ATSReportDashboard({
     initial?.check.id ?? null,
   );
   const [categoryLabel, setCategoryLabel] = useState(initial?.label ?? "Content");
+  const detailPanelRef = useRef<HTMLDivElement>(null);
+  const shouldScrollToDetailRef = useRef(false);
 
   const selectedCheck = useMemo(() => {
     if (!selectedCheckId) return null;
@@ -219,7 +260,26 @@ export function ATSReportDashboard({
     setCategoryLabel(next?.label ?? "Content");
   }, [normalizedReport, selectedCheckId, selectedCheck]);
 
+  useEffect(() => {
+    if (!shouldScrollToDetailRef.current || !selectedCheckId || !selectedCheck) {
+      return;
+    }
+    shouldScrollToDetailRef.current = false;
+
+    const scrollToDetail = () => {
+      detailPanelRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    };
+
+    requestAnimationFrame(() => {
+      requestAnimationFrame(scrollToDetail);
+    });
+  }, [selectedCheckId, selectedCheck]);
+
   const handleSelectCheck = (check: ATSCheckResult, label: string) => {
+    shouldScrollToDetailRef.current = true;
     setSelectedCheckId(check.id);
     setCategoryLabel(label);
   };
@@ -227,7 +287,7 @@ export function ATSReportDashboard({
   const showJobMatch = reportHasJobMatch(normalizedReport);
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 space-y-6 overflow-hidden">
       {showJobMatch ? (
         <JobMatchBanner report={normalizedReport} />
       ) : (
@@ -238,19 +298,38 @@ export function ATSReportDashboard({
         />
       )}
       <ReportSummary report={normalizedReport} />
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[320px_1fr]">
-        <ATSScoreSidebar
-          score={normalizedReport.score}
-          issueCount={normalizedReport.issueCount}
-          categories={normalizedReport.categories}
-          selectedCheckId={selectedCheck?.id ?? null}
-          onSelectCheck={handleSelectCheck}
-        />
-        <div className="rounded-xl border border-border bg-card shadow-card p-6 lg:p-8 min-h-[480px]">
+      <div
+        className={cn(
+          "grid min-w-0 gap-4",
+          embedded
+            ? "grid-cols-1 2xl:grid-cols-[minmax(240px,280px)_minmax(0,1fr)]"
+            : "grid-cols-1 lg:grid-cols-[minmax(260px,320px)_minmax(0,1fr)]",
+        )}
+      >
+        <div className="min-w-0">
+          <ATSScoreSidebar
+            score={normalizedReport.score}
+            issueCount={normalizedReport.issueCount}
+            categories={normalizedReport.categories}
+            selectedCheckId={selectedCheck?.id ?? null}
+            onSelectCheck={handleSelectCheck}
+            compact={embedded}
+          />
+        </div>
+        <div
+          ref={detailPanelRef}
+          id="ats-check-detail-panel"
+          className={cn(
+            "min-w-0 overflow-hidden rounded-xl border border-border bg-card shadow-card scroll-mt-4",
+            embedded ? "p-4 sm:p-5" : "p-4 sm:p-6 lg:p-8",
+            "min-h-[320px] sm:min-h-[400px]",
+          )}
+        >
           <ATSCheckDetailPanel
             check={selectedCheck}
             categoryLabel={categoryLabel}
             targetRole={normalizedReport.inferredProfile?.targetRole}
+            compact={embedded}
           />
         </div>
       </div>

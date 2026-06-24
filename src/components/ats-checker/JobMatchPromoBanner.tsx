@@ -49,34 +49,33 @@ export function JobMatchPromoBanner({
   return (
     <div className="rounded-xl border border-dashed border-primary/30 bg-primary/5 p-5 sm:p-6">
       <div className="flex flex-col gap-4">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div className="flex items-start gap-3">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white shadow-sm">
-              <Target className="h-5 w-5 text-primary" />
-            </div>
-            <div>
-              <p className="font-semibold text-foreground">
-                Unlock Job Match insights
-              </p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Check your ATS score with a job description to see how well your
-                resume matches the role — experience fit, must-have skills,
-                education, and responsibilities.
-              </p>
-            </div>
+        <div className="flex items-start gap-3">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white shadow-sm">
+            <Target className="h-5 w-5 text-primary" />
           </div>
-          {!expanded && (
-            <Button
-              type="button"
-              variant="outline"
-              className="shrink-0 border-primary/40"
-              disabled={loading || !onRunJobMatch}
-              onClick={() => setExpanded(true)}
-            >
-              Run ATS check with job description
-            </Button>
-          )}
+          <div className="min-w-0 flex-1">
+            <p className="font-semibold text-foreground">
+              Unlock Job Match insights
+            </p>
+            <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+              Check your ATS score with a job description to see how well your
+              resume matches the role — experience fit, must-have skills,
+              education, and responsibilities.
+            </p>
+          </div>
         </div>
+
+        {!expanded && (
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full border-primary/40 sm:w-auto sm:self-start"
+            disabled={loading || !onRunJobMatch}
+            onClick={() => setExpanded(true)}
+          >
+            Run ATS check with job description
+          </Button>
+        )}
 
         {expanded && (
           <div className="space-y-3 rounded-xl border border-border bg-card p-4">

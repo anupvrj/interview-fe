@@ -145,9 +145,9 @@ export function ResumePreview({
   };
 
   return (
-    <div className="flex flex-col h-full bg-gray-100">
+    <div className="flex h-full flex-col bg-muted/25">
       {/* Zoom Controls */}
-      <div className="sticky top-0 z-20 bg-white border-b px-4 py-2 flex items-center justify-between shadow-sm">
+      <div className="sticky top-0 z-20 flex items-center justify-between border-b border-border/60 bg-header/95 px-4 py-2 shadow-sm backdrop-blur-md">
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
@@ -159,7 +159,7 @@ export function ResumePreview({
           >
             <ZoomOut className="w-4 h-4" />
           </Button>
-          <span className="text-sm font-medium min-w-[60px] text-center">
+          <span className="min-w-[60px] text-center text-sm font-medium text-foreground">
             {zoomLevel}%
           </span>
           <Button
@@ -186,7 +186,7 @@ export function ResumePreview({
       </div>
 
       {/* Scrollable Preview Container */}
-      <div ref={containerRef} className="flex-1 overflow-auto bg-gray-200">
+      <div ref={containerRef} className="flex-1 overflow-auto bg-muted/40">
         {/* Zoom Container - handles centering and sizing */}
         <div
           className="flex items-start min-h-full"

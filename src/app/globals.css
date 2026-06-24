@@ -487,11 +487,11 @@
 
   /* Resume editor sidebar — compact fields with label above input */
   .resume-editor-fields label:not([class*="font-semibold"]) {
-    @apply mb-1.5 block text-xs font-normal leading-snug text-gray-600;
+    @apply mb-1.5 block text-xs font-normal leading-snug text-muted-foreground;
   }
 
   .resume-editor-fields label.font-semibold {
-    @apply mb-2 block text-xs text-gray-700;
+    @apply mb-2 block text-xs text-foreground;
     font-weight: 600;
   }
 
@@ -777,6 +777,10 @@
   }
 
   /* Sonner Toast Customization */
+  [data-sonner-toaster] {
+    z-index: 10050 !important;
+  }
+
   [data-sonner-toast] {
     font-family: inherit;
   }

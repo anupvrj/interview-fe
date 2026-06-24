@@ -1336,6 +1336,7 @@ export const resumeApi = {
       sectionOrder?: Resume["sectionOrder"];
       layout?: Resume["layout"];
       isDefault?: boolean;
+      pdfS3Key?: string;
     },
   ): Promise<Resume> => {
     const response = await apiClient.put<{ data: Resume }>(
@@ -1434,6 +1435,7 @@ export const resumeApi = {
       checkId: string;
       categoryLabel?: string;
       issue: import("@/types/atsReport").ATSIssue;
+      userPrompt?: string;
     },
   ): Promise<{
     improvedContent: string;
@@ -1558,6 +1560,7 @@ export const contentApi = {
   refineContent: async (
     content: string,
     contentType?: "paragraph" | "list" | "auto",
+    userPrompt?: string,
   ): Promise<{
     originalContent: string;
     refinedContent: string;
@@ -1570,6 +1573,7 @@ export const contentApi = {
     const response = await apiClient.post("/refine-content", {
       content,
       contentType: contentType || "auto",
+      userPrompt: userPrompt?.trim() || undefined,
     });
     return response.data.data;
   },

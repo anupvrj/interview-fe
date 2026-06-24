@@ -84,8 +84,8 @@ export function ATSIssueSuggestionActions({
   };
 
   return (
-    <div className="space-y-3 rounded-lg border border-green-100 bg-green-50 px-3 py-3">
-      <div className="flex flex-wrap items-center justify-end gap-0.5">
+    <div className="min-w-0 space-y-3 overflow-hidden rounded-lg border border-green-100 bg-green-50 px-3 py-3">
+      <div className="relative z-10 flex flex-wrap items-center justify-end gap-0.5 overflow-visible">
         <ATSIconActionButton
           label={copied ? "Copied" : "Copy"}
           variant="outline"
@@ -147,17 +147,17 @@ export function ATSIssueSuggestionActions({
         )}
       </div>
 
-      <div className="flex gap-2">
+      <div className="flex min-w-0 items-start gap-2">
         <Check className="mt-0.5 h-4 w-4 shrink-0 text-green-600" />
         {isEditing ? (
           <Textarea
             value={editedContent}
             onChange={(e) => setEditedContent(e.target.value)}
-            className="min-h-[72px] flex-1 border-green-200 bg-white text-sm text-green-900"
+            className="min-h-[72px] min-w-0 flex-1 border-green-200 bg-white text-sm text-green-900"
             rows={3}
           />
         ) : (
-          <p className="flex-1 whitespace-pre-wrap text-sm leading-relaxed text-green-900">
+          <p className="min-w-0 flex-1 break-words whitespace-pre-wrap text-sm leading-relaxed text-green-900 [overflow-wrap:anywhere]">
             {editedContent}
           </p>
         )}

@@ -28,7 +28,12 @@ import {
   ArrowRight,
   SkipForward,
 } from "lucide-react";
-import { ResumeTemplate, resumeApi, resumeDataExtractionApi } from "@/lib/api";
+import { ResumeTemplate, resumeApi } from "@/lib/api";
+import {
+  buildSectionOrderForExtractedContent,
+  mapExtractedSectionsToContent,
+  RESUME_IMPORT_PROCESSING_MESSAGES,
+} from "@/lib/resume-data-import";
 import { TemplatePreview } from "@/components/TemplatePreview";
 import { extractTextFromPDF } from "@/lib/pdf-utils";
 import {
@@ -47,16 +52,7 @@ const categoryLabels = {
 type FilterCategory = "all" | "simple" | "modern" | "creative";
 type Step = "template" | "upload" | "processing";
 
-const uploadedResumeProcessingMessages = [
-  "Extracting data from your resume and structuring it...",
-  "Analyzing your work experience and achievements...",
-  "Identifying key skills and strengths...",
-  "Mapping your experience into clear resume sections...",
-  "Refining wording for better recruiter impact...",
-  "Organizing sections for better readability...",
-  "Polishing details to make your resume stand out...",
-  "Final checks in progress. Almost done...",
-];
+const uploadedResumeProcessingMessages = [...RESUME_IMPORT_PROCESSING_MESSAGES];
 
 const defaultResumeProcessingMessages = [
   "Setting up your resume with default content...",
@@ -375,21 +371,19 @@ export default function NewResumePage() {
 
       console.log("📋 Extracting resume data from uploaded text...");
 
-      // Extract resume data using LLM (only when resume is uploaded)
+      const { resumeDataExtractionApi } = await import("@/lib/api");
       const extractedData = await resumeDataExtractionApi.extractResumeData(
         selectedTemplate,
-        resumeText, // Will have content since this is called after upload
+        resumeText,
       );
 
       console.log("✅ Data extracted via LLM");
 
-      // Prepare template config for backend
       const { TemplateLoader } = await import("@/lib/templateLoader");
       const templateConfig =
         await TemplateLoader.loadTemplate(selectedTemplate);
       const extended = templateConfig.extended;
 
-      // Extract layout from extended config
       const renderingLayout = extended.rendering?.layout;
       const initialLayout = {
         type: (renderingLayout?.type === "header-plus-columns"
@@ -404,156 +398,13 @@ export default function NewResumePage() {
         },
       };
 
-      // Build content first so we can ensure sections with data are in section order
-      const content = mapExtractedDataToResumeContent(extractedData.sections);
+      const content = mapExtractedSectionsToContent(extractedData.sections);
+      const sectionOrder = buildSectionOrderForExtractedContent(
+        extended,
+        content,
+        initialLayout.type,
+      );
 
-      // Default section titles for sections that may be extracted but missing from template
-      const SECTION_TITLES: Record<string, string> = {
-        personalInfo: "Personal Information",
-        profileSummary: "Profile Summary",
-        experience: "Professional Experience",
-        education: "Education",
-        skills: "Skills",
-        projects: "Projects",
-        languages: "Languages",
-        certificates: "Certificates",
-        awards: "Awards",
-        achievements: "Achievements",
-        interests: "Interests",
-        courses: "Courses",
-        organisations: "Organisations",
-        publications: "Publications",
-        references: "References",
-        declaration: "Declaration",
-        technicalSkills: "Technical Skills",
-      };
-
-      // Check if content has data for a section (array with length, or non-empty string)
-      const hasContent = (key: string): boolean => {
-        const val = content[key];
-        if (val == null) return false;
-        if (Array.isArray(val)) return val.length > 0;
-        if (typeof val === "string") return val.trim().length > 0;
-        if (typeof val === "object" && !Array.isArray(val))
-          return Object.keys(val).length > 0;
-        return false;
-      };
-
-      // Prepare section order with column assignments
-      let sectionOrder = extended.defaultSectionOrder || [];
-
-      // If template has no default section order, use a minimal default so we can add extracted sections
-      if (sectionOrder.length === 0) {
-        sectionOrder = [
-          {
-            id: "personalInfo",
-            type: "personalInfo",
-            title: SECTION_TITLES.personalInfo,
-            visible: true,
-          },
-          {
-            id: "profileSummary",
-            type: "profileSummary",
-            title: SECTION_TITLES.profileSummary,
-            visible: true,
-          },
-          {
-            id: "experience",
-            type: "experience",
-            title: SECTION_TITLES.experience,
-            visible: true,
-          },
-          {
-            id: "education",
-            type: "education",
-            title: SECTION_TITLES.education,
-            visible: true,
-          },
-          {
-            id: "skills",
-            type: "skills",
-            title: SECTION_TITLES.skills,
-            visible: true,
-          },
-          {
-            id: "projects",
-            type: "projects",
-            title: SECTION_TITLES.projects,
-            visible: false,
-          },
-          {
-            id: "languages",
-            type: "languages",
-            title: SECTION_TITLES.languages,
-            visible: false,
-          },
-          {
-            id: "certificates",
-            type: "certificates",
-            title: SECTION_TITLES.certificates,
-            visible: false,
-          },
-          {
-            id: "awards",
-            type: "awards",
-            title: SECTION_TITLES.awards,
-            visible: false,
-          },
-        ];
-      }
-
-      // Ensure every section that has extracted content exists in sectionOrder and is visible
-      const sectionTypesInOrder = new Set(sectionOrder.map((s) => s.type));
-      for (const key of Object.keys(content)) {
-        if (!hasContent(key)) continue;
-        const title =
-          SECTION_TITLES[key] ||
-          key.replace(/([A-Z])/g, " $1").replace(/^./, (c) => c.toUpperCase());
-        if (sectionTypesInOrder.has(key)) {
-          sectionOrder = sectionOrder.map((s) =>
-            s.type === key ? { ...s, visible: true } : s,
-          );
-        } else {
-          sectionOrder.push({
-            id: key,
-            type: key,
-            title,
-            visible: true,
-          });
-          sectionTypesInOrder.add(key);
-        }
-      }
-
-      if (initialLayout.type === "double") {
-        const hasColumnAssignment =
-          renderingLayout?.columnAssignment &&
-          (renderingLayout.columnAssignment.left.length > 0 ||
-            renderingLayout.columnAssignment.right.length > 0);
-
-        if (hasColumnAssignment) {
-          sectionOrder = sectionOrder.map((s) => ({
-            ...s,
-            column: renderingLayout.columnAssignment?.left.includes(s.id)
-              ? ("left" as const)
-              : renderingLayout.columnAssignment?.right.includes(s.id)
-                ? ("right" as const)
-                : ("left" as const),
-          }));
-        } else {
-          let nonPersonalIndex = 0;
-          sectionOrder = sectionOrder.map((s) => {
-            if (s.id === "personalInfo") return s;
-            const column =
-              nonPersonalIndex % 2 === 0
-                ? ("left" as const)
-                : ("right" as const);
-            nonPersonalIndex++;
-            return { ...s, column };
-          });
-        }
-      }
-
-      // Create resume with extracted data
       const resume = await resumeApi.create(user.id, {
         templateId: selectedTemplate,
         title: "My Resume",
@@ -598,61 +449,6 @@ export default function NewResumePage() {
     } finally {
       setCreating(false);
     }
-  };
-
-  const mapExtractedDataToResumeContent = (
-    sections: Record<
-      string,
-      {
-        sectionType: string;
-        content: string | any;
-        format: "html" | "list" | "paragraph" | "structured";
-      }
-    >,
-  ) => {
-    const content: any = {};
-
-    for (const [sectionType, sectionData] of Object.entries(sections)) {
-      // Handle personalInfo specially - it's an object, not an array
-      if (sectionType === "personalInfo") {
-        if (
-          sectionData.format === "structured" &&
-          typeof sectionData.content === "object" &&
-          !Array.isArray(sectionData.content)
-        ) {
-          content.personalInfo = sectionData.content;
-        } else if (typeof sectionData.content === "object") {
-          content.personalInfo = sectionData.content;
-        }
-      }
-      // Handle technicalSkills - map to single skills field
-      else if (sectionType === "technicalSkills") {
-        // New structure: single skills field
-        content.skills = sectionData.content;
-      }
-      // Handle skills - map to single skills field
-      else if (sectionType === "skills") {
-        // New structure: single skills field
-        content.skills = sectionData.content;
-      }
-      // Handle array-based structured data (experience, education, projects, etc.)
-      else if (
-        sectionData.format === "structured" &&
-        Array.isArray(sectionData.content)
-      ) {
-        content[sectionType] = sectionData.content;
-      }
-      // Handle string content (profileSummary, etc.)
-      else if (typeof sectionData.content === "string") {
-        content[sectionType] = sectionData.content;
-      }
-      // Fallback: assign content as-is
-      else {
-        content[sectionType] = sectionData.content;
-      }
-    }
-
-    return content;
   };
 
   if (!isLoaded || loading) {

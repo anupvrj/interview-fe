@@ -22,6 +22,7 @@ import { resumeApi } from "@/lib/api";
 import type { ATSCheckResult, ATSIssue } from "@/types/atsReport";
 import { ATSIconActionButton } from "./ATSIconActionButton";
 import { useATSIssueMagic } from "./ATSIssueMagicContext";
+import { AIContentPromptField } from "@/components/resume-editor/AIContentPromptField";
 
 interface ATSIssueImproveDialogProps {
   open: boolean;
@@ -44,6 +45,7 @@ export function ATSIssueImproveDialog({
   const [sourceContent, setSourceContent] = useState("");
   const [copied, setCopied] = useState(false);
   const [inserted, setInserted] = useState(false);
+  const [userPrompt, setUserPrompt] = useState("");
 
   const generate = useCallback(async () => {
     if (!resumeId) return;
@@ -56,6 +58,7 @@ export function ATSIssueImproveDialog({
         checkId: check.id,
         categoryLabel,
         issue,
+        userPrompt: userPrompt.trim() || undefined,
       });
       setImprovedContent(result.improvedContent);
       setSourceContent(result.sourceContent);
@@ -65,16 +68,46 @@ export function ATSIssueImproveDialog({
     } finally {
       setLoading(false);
     }
-  }, [resumeId, check.id, categoryLabel, issue]);
+  }, [resumeId, check.id, categoryLabel, issue, userPrompt]);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open || !resumeId) return;
+
     setImprovedContent("");
     setSourceContent("");
+    setUserPrompt("");
     setCopied(false);
     setInserted(false);
-    void generate();
-  }, [open, check.id, issue.title, generate]);
+
+    let cancelled = false;
+    void (async () => {
+      setLoading(true);
+      try {
+        const result = await resumeApi.improveATSIssue(resumeId, {
+          checkId: check.id,
+          categoryLabel,
+          issue,
+        });
+        if (!cancelled) {
+          setImprovedContent(result.improvedContent);
+          setSourceContent(result.sourceContent);
+        }
+      } catch (error) {
+        console.error("Error improving ATS issue:", error);
+        if (!cancelled) {
+          toast.error("Could not generate improved content. Please try again.");
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [open, resumeId, check.id, categoryLabel, issue]);
 
   const handleCopy = async () => {
     if (!improvedContent) return;
@@ -142,6 +175,13 @@ export function ATSIssueImproveDialog({
             </div>
           )}
 
+          <AIContentPromptField
+            id="ats-issue-ai-prompt"
+            value={userPrompt}
+            onChange={setUserPrompt}
+            disabled={loading}
+          />
+
           <div className="rounded-lg border border-green-200 bg-green-50 p-3">
             <p className="text-xs font-semibold uppercase tracking-wide text-green-700">
               AI suggestion
@@ -176,7 +216,7 @@ export function ATSIssueImproveDialog({
             ) : (
               <Wand2 className="mr-2 h-4 w-4" />
             )}
-            Regenerate
+            Regenerate with instructions
           </Button>
           <div className="flex gap-2">
             <Button

@@ -11,8 +11,6 @@ import {
   isResumePaginationDebugEnabled,
 } from "@/lib/debug-resume-pagination";
 import {
-  collectOrphanRepairBoxes,
-  fixOrphanSemanticBoxes,
   runResumePagination,
   trimTrailingEmptySliverPages,
   type PageBand,
@@ -22,9 +20,14 @@ import {
 import {
   getLastGoodPagesForResume,
   setLastGoodPagesForResume,
+  clearLastGoodPagesForResume,
 } from "@/lib/resume-pagination-last-good-cache";
 import { resolvePaginationStraddleColumn } from "@/lib/resolve-pagination-straddle-column";
-import { snapResumePageBreaksToLineBounds } from "@/lib/snap-resume-page-breaks";
+import {
+  measureTextLineBounds,
+  resolveTailSliverMaxPx,
+  snapResumePageBreaksToLineBounds,
+} from "@/lib/snap-resume-page-breaks";
 
 /** Same shape as `PageBand` from the pagination engine (preview + PDF slices). */
 export type PageData = PageBand;
@@ -41,6 +44,11 @@ interface PaginationOptions {
    * so ResizeObserver re-attaches to the live node.
    */
   measureLayoutKey?: string;
+  /**
+   * Changes when typography/padding/layout affects measure height (font size, font family, margins).
+   * Triggers immediate remeasure so page bands are not stale while text grows.
+   */
+  layoutMeasureKey?: string;
 }
 
 /** Coalesce rapid resume/section updates (typing, paste) into one measure pass. */
@@ -62,6 +70,7 @@ export function useResumePagination({
   pageHeightLimit,
   snapPageBreaksToLineBounds = false,
   measureLayoutKey = "",
+  layoutMeasureKey = "",
 }: PaginationOptions) {
   const [isPaginating, setIsPaginating] = useState(false);
   const [isCalculated, setIsCalculated] = useState(false);
@@ -196,11 +205,15 @@ export function useResumePagination({
         };
       });
 
+    const textLines = measureTextLineBounds(container);
+    const tailSliverMaxPx = resolveTailSliverMaxPx(textLines);
+
     let trimmedPages = runResumePagination(
       fullHeight,
       elements,
       integerLimit,
       atomicIfFitsOnOnePage,
+      tailSliverMaxPx,
     );
 
     if (snapPageBreaksToLineBounds) {
@@ -209,23 +222,6 @@ export function useResumePagination({
         trimmedPages,
         fullHeight,
       );
-    }
-
-    const orphanBoxes = collectOrphanRepairBoxes(elements);
-    for (let pass = 0; pass < 6; pass++) {
-      const next = fixOrphanSemanticBoxes(trimmedPages, orphanBoxes);
-      if (
-        next.length === trimmedPages.length &&
-        next.every(
-          (p, idx) =>
-            p.offsetY === trimmedPages[idx].offsetY &&
-            p.height === trimmedPages[idx].height,
-        )
-      ) {
-        trimmedPages = next;
-        break;
-      }
-      trimmedPages = next;
     }
 
     trimmedPages = trimTrailingEmptySliverPages(trimmedPages, elements);
@@ -320,9 +316,50 @@ export function useResumePagination({
     isTwoColumn,
     pageHeightLimit,
     snapPageBreaksToLineBounds,
+    layoutMeasureKey,
   ]);
 
   calculatePagesRef.current = calculatePages;
+
+  /** Typography/layout changes reflow text immediately — remeasure without waiting for debounce. */
+  useLayoutEffect(() => {
+    if (!resume?.resumeId || !measuringRef.current || !layoutMeasureKey) {
+      return;
+    }
+
+    clearLastGoodPagesForResume(resume.resumeId);
+    setIsPaginating(true);
+    setIsCalculated(false);
+
+    let cancelled = false;
+    void (async () => {
+      if (typeof document !== "undefined" && "fonts" in document) {
+        try {
+          await (
+            document as Document & { fonts: FontFaceSet }
+          ).fonts.ready;
+        } catch {
+          /* ignore */
+        }
+      }
+
+      await new Promise<void>((resolve) => {
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => resolve());
+        });
+      });
+
+      if (cancelled || !measuringRef.current) return;
+
+      layoutStabilizeFollowUpsUsedRef.current = 0;
+      settle100msPassesRef.current = 0;
+      calculatePagesRef.current?.("debounced");
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [layoutMeasureKey, resume?.resumeId]);
 
   useEffect(() => {
     if (!resume || !measuringRef.current) return;
@@ -411,6 +448,7 @@ export function useResumePagination({
     isTwoColumn,
     pageHeightLimit,
     snapPageBreaksToLineBounds,
+    layoutMeasureKey,
     calculatePages,
   ]);
 

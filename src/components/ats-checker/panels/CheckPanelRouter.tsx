@@ -135,12 +135,14 @@ interface CheckPanelRouterProps {
   check: ATSCheckResult;
   targetRole?: string;
   categoryLabel?: string;
+  compact?: boolean;
 }
 
 export function CheckPanelRouter({
   check,
   targetRole,
   categoryLabel,
+  compact: _compact = false,
 }: CheckPanelRouterProps) {
   if (check.status === "skipped") {
     return (
@@ -288,7 +290,7 @@ export function CheckPanelRouter({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 space-y-5 overflow-hidden sm:space-y-6">
       {(check.summary || check.issueCount > 0 || check.status === "pass") && (
         <ATSIssueHero
           summary={check.summary}

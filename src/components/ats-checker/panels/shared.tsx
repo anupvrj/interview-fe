@@ -32,7 +32,7 @@ function ATSIssueActionButtons({
   categoryLabel?: string;
 }) {
   return (
-    <div className="flex shrink-0 flex-wrap items-center justify-end gap-1">
+    <div className="relative z-10 flex shrink-0 flex-wrap items-center justify-end gap-1 overflow-visible">
       <ATSIssueIgnoreButton check={check} issue={issue} />
       <ATSIssueMagicButton
         check={check}
@@ -62,11 +62,11 @@ export function ATSIssueHero({
         : "border-red-200 bg-red-50";
 
   return (
-    <div className={cn("rounded-xl border p-5 sm:p-6", styles)}>
-      <div className="flex items-start gap-4">
+    <div className={cn("overflow-hidden rounded-xl border p-4 sm:p-5", styles)}>
+      <div className="flex items-start gap-3 sm:gap-4">
         <div
           className={cn(
-            "flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-lg font-bold",
+            "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-base font-bold sm:h-12 sm:w-12 sm:text-lg",
             variant === "success"
               ? "bg-green-100 text-green-700"
               : variant === "info"
@@ -75,20 +75,20 @@ export function ATSIssueHero({
           )}
         >
           {variant === "success" ? (
-            <Check className="h-6 w-6" />
+            <Check className="h-5 w-5 sm:h-6 sm:w-6" />
           ) : (
             issueCount || "!"
           )}
         </div>
         <div className="min-w-0 flex-1">
-          <p className="font-semibold text-foreground">
+          <p className="break-words font-semibold leading-snug text-foreground [overflow-wrap:anywhere]">
             {summary?.headline ||
               (issueCount > 0
                 ? `${issueCount} issue${issueCount > 1 ? "s" : ""} found`
                 : "No issues found")}
           </p>
           {summary?.badge && (
-            <span className="mt-2 inline-block rounded-full bg-white/80 px-3 py-1 text-xs font-semibold text-amber-700">
+            <span className="mt-2 inline-block max-w-full break-words rounded-full bg-white/80 px-3 py-1 text-xs font-semibold text-amber-700">
               {summary.badge}
             </span>
           )}
@@ -184,9 +184,9 @@ export function ATSSynonymRow({
 }) {
   const alts = issue.alternatives || [];
   return (
-    <div className="space-y-3 rounded-xl border border-border bg-card p-4">
-      <div className="flex items-start justify-between gap-3">
-        <p className="min-w-0 flex-1 font-semibold text-foreground">
+    <div className="min-w-0 space-y-3 rounded-xl border border-border bg-card p-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <p className="min-w-0 flex-1 break-words font-semibold text-foreground">
           {issue.title}
         </p>
         {check && (
@@ -197,7 +197,7 @@ export function ATSSynonymRow({
           />
         )}
       </div>
-      <p className="text-sm leading-relaxed text-muted-foreground">
+      <p className="break-words text-sm leading-relaxed text-muted-foreground [overflow-wrap:anywhere]">
         {issue.description}
       </p>
       {alts.length > 0 && (
@@ -274,11 +274,13 @@ export function ATSRewritePair({
   showMagic?: boolean;
 }) {
   return (
-    <div className="space-y-3 rounded-xl border border-border bg-card p-4">
+    <div className="min-w-0 space-y-3 rounded-xl border border-border bg-card p-4">
       {issue.excerpt && (
-        <div className="flex gap-2 rounded-lg border border-red-100 bg-red-50 px-3 py-2">
+        <div className="flex gap-2 overflow-hidden rounded-lg border border-red-100 bg-red-50 px-3 py-2">
           <X className="mt-0.5 h-4 w-4 shrink-0 text-red-600" />
-          <p className="text-sm text-red-900">&ldquo;{issue.excerpt}&rdquo;</p>
+          <p className="min-w-0 flex-1 break-words text-sm leading-relaxed text-red-900 [overflow-wrap:anywhere]">
+            &ldquo;{issue.excerpt}&rdquo;
+          </p>
         </div>
       )}
       {issue.rewriteSuggestion ? (
@@ -562,19 +564,21 @@ export function ATSGenericIssueList({
   );
 
   return (
-    <div className="space-y-4">
+    <div className="min-w-0 space-y-4">
       {negatives.map((issue, idx) => (
         <div
           key={idx}
-          className="rounded-xl border border-border bg-card p-4 space-y-3"
+          className="min-w-0 space-y-3 overflow-hidden rounded-xl border border-border bg-card p-4"
         >
-          <div className="flex items-start gap-2">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
             {(issue.severity === "fail" || !issue.severity) && issue.kind === "negative" ? (
               <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
             ) : null}
             <div className="min-w-0 flex-1">
-              <div className="flex items-start justify-between gap-2">
-                <h4 className="font-semibold text-foreground">{issue.title}</h4>
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                <h4 className="break-words font-semibold text-foreground [overflow-wrap:anywhere]">
+                  {issue.title}
+                </h4>
                 {check && (
                   <ATSIssueActionButtons
                     check={check}
@@ -583,16 +587,18 @@ export function ATSGenericIssueList({
                   />
                 )}
               </div>
-              <p className="text-sm text-muted-foreground">{issue.description}</p>
+              <p className="mt-1 break-words text-sm leading-relaxed text-muted-foreground [overflow-wrap:anywhere]">
+                {issue.description}
+              </p>
             </div>
           </div>
           {issue.excerpt && (
-            <div className="rounded-lg bg-red-50 border border-red-100 px-3 py-2 text-sm text-red-900">
+            <div className="overflow-hidden rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-sm leading-relaxed text-red-900 break-words [overflow-wrap:anywhere]">
               &ldquo;{issue.excerpt}&rdquo;
             </div>
           )}
           {issue.suggestion && (
-            <p className="text-sm text-foreground">
+            <p className="break-words text-sm leading-relaxed text-foreground [overflow-wrap:anywhere]">
               <span className="font-medium">Suggestion: </span>
               {issue.suggestion}
             </p>
