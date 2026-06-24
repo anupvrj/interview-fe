@@ -8,6 +8,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Plus, Trash2, GripVertical } from "lucide-react";
+import {
+  resumeEntryCard,
+  resumeGripIcon,
+} from "@/components/resume-editor/resumeEditorStyles";
 
 interface Skill {
   id: string;
@@ -65,21 +69,16 @@ export function ExecutiveSkills({ skills, onChange }: ExecutiveSkillsProps) {
   return (
     <div className="space-y-3">
       {skills.map((skill, index) => (
-        <div
-          key={skill.id}
-          className="border border-gray-200 rounded-lg p-4 bg-white hover:border-purple-300 transition-colors"
-        >
+        <div key={skill.id} className={resumeEntryCard}>
           {/* Skill Header */}
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2 flex-1">
-              <GripVertical className="w-4 h-4 text-gray-400 cursor-move" />
+          <div className="mb-3 flex items-center justify-between">
+            <div className="flex flex-1 items-center gap-2">
+              <GripVertical className={resumeGripIcon} />
               <div className="flex-1">
                 {skill.name ? (
-                  <span className="font-medium text-gray-900">
-                    {skill.name}
-                  </span>
+                  <span className="font-medium text-foreground">{skill.name}</span>
                 ) : (
-                  <span className="text-gray-400 italic">New Skill</span>
+                  <span className="italic text-muted-foreground">New Skill</span>
                 )}
               </div>
               {/* Rating Display (Dots) */}
@@ -87,19 +86,19 @@ export function ExecutiveSkills({ skills, onChange }: ExecutiveSkillsProps) {
                 {Array.from({ length: 5 }, (_, i) => (
                   <div
                     key={i}
-                    className={`w-2 h-2 rounded-full ${
-                      i < skill.level ? "bg-primary" : "bg-gray-300"
+                    className={`h-2 w-2 rounded-full ${
+                      i < skill.level ? "bg-primary" : "bg-muted-foreground/25"
                     }`}
                   />
                 ))}
               </div>
             </div>
-            <div className="flex items-center gap-2 ml-2">
+            <div className="ml-2 flex items-center gap-2">
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => toggleExpanded(skill.id)}
-                className="h-8 px-2 text-gray-600 hover:text-primary"
+                className="h-8 px-2 text-muted-foreground hover:text-primary"
               >
                 {expandedSkills.has(skill.id) ? "▼" : "▶"}
               </Button>
@@ -116,7 +115,7 @@ export function ExecutiveSkills({ skills, onChange }: ExecutiveSkillsProps) {
 
           {/* Skill Edit Form */}
           {expandedSkills.has(skill.id) && (
-            <div className="space-y-4 pt-3 border-t border-gray-100">
+            <div className="space-y-4 border-t border-border/60 pt-3">
               {/* Skill Name */}
               <div>
                 <Label
@@ -150,20 +149,20 @@ export function ExecutiveSkills({ skills, onChange }: ExecutiveSkillsProps) {
                         key={i}
                         type="button"
                         onClick={() => updateSkill(skill.id, "level", i + 1)}
-                        className={`w-8 h-8 rounded-full border-2 transition-all ${
+                        className={`h-8 w-8 rounded-full border-2 transition-all ${
                           i < skill.level
-                            ? "bg-primary border-purple-600"
-                            : "bg-white border-gray-300 hover:border-purple-400"
+                            ? "border-primary bg-primary"
+                            : "border-border bg-card hover:border-primary/40"
                         }`}
                         title={`Level ${i + 1}`}
                       />
                     ))}
                   </div>
-                  <span className="text-sm text-gray-600 font-medium">
+                  <span className="text-sm font-medium text-muted-foreground">
                     {skill.level} / 5
                   </span>
                 </div>
-                <p className="text-xs text-gray-500 mt-2">
+                <p className="mt-2 text-xs text-muted-foreground">
                   Click on the dots to set proficiency level
                 </p>
               </div>
@@ -177,14 +176,14 @@ export function ExecutiveSkills({ skills, onChange }: ExecutiveSkillsProps) {
         type="button"
         variant="outline"
         onClick={addSkill}
-        className="w-full border-dashed border-2 border-purple-300 text-purple-700 hover:bg-purple-50 hover:border-purple-400"
+        className="w-full border-dashed border-2 border-primary/30 text-primary hover:border-primary/50 hover:bg-primary/[0.06]"
       >
         <Plus className="w-4 h-4 mr-2" />
         Add Skill
       </Button>
 
       {skills.length === 0 && (
-        <p className="text-sm text-gray-500 text-center py-4">
+        <p className="py-4 text-center text-sm text-muted-foreground">
           No skills added yet. Click "Add Skill" to get started.
         </p>
       )}

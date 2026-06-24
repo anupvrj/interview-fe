@@ -20,3 +20,7 @@ export function setLastGoodPagesForResume(
     pages.map((p) => ({ ...p })),
   );
 }
+
+export function clearLastGoodPagesForResume(resumeId: string): void {
+  lastGoodPagesByResumeId.delete(resumeId);
+}

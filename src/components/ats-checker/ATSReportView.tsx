@@ -26,6 +26,8 @@ interface ATSReportViewProps {
     check: import("@/types/atsReport").ATSCheckResult,
     issue: import("@/types/atsReport").ATSIssue,
   ) => void | Promise<void>;
+  /** Narrow half-panel layout (resume editor) */
+  embedded?: boolean;
 }
 
 export function ATSReportView({
@@ -39,6 +41,7 @@ export function ATSReportView({
   enableIssueMagic = false,
   onApplyIssueFix,
   onIgnoreIssue,
+  embedded = false,
 }: ATSReportViewProps) {
   const filteredReport = useMemo(() => {
     if (!isATSReportV3(feedback)) return null;
@@ -59,6 +62,7 @@ export function ATSReportView({
         onRunJobMatch={onRunJobMatch}
         jobMatchRunning={jobMatchRunning}
         initialJobDescription={initialJobDescription}
+        embedded={embedded}
       />
     );
 

@@ -36,7 +36,7 @@ function LayoutNumberField({
 
   return (
     <div className="space-y-1">
-      <Label className="block text-xs font-normal text-gray-500">{label}</Label>
+      <Label className="block text-xs font-normal text-muted-foreground">{label}</Label>
       <div className="flex items-center gap-1">
         <Button
           type="button"
@@ -108,8 +108,8 @@ export function LayoutTypographyControls({
   onFontFamilyChange,
 }: LayoutTypographyControlsProps) {
   return (
-    <div className="space-y-2 pt-2 border-t">
-      <Label className="text-xs font-semibold text-gray-600">Typography</Label>
+    <div className="space-y-2 border-t border-border/60 pt-2">
+      <Label className="text-xs font-semibold text-muted-foreground">Typography</Label>
 
       <div className="grid grid-cols-2 gap-3">
         <LayoutNumberField

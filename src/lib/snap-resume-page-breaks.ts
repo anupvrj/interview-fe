@@ -23,37 +23,21 @@ export function snapResumePageBreaksToLineBounds(
 
   if (lines.length === 0) return pages;
 
-  const breaks: number[] = [];
-  for (let i = 0; i < pages.length - 1; i++) {
-    breaks.push(pages[i].offsetY + pages[i].height);
-  }
-
-  for (let i = 0; i < breaks.length; i++) {
-    const prevBreak = i === 0 ? 0 : breaks[i - 1];
-    const nextBreak = i === breaks.length - 1 ? fullHeight : breaks[i + 1];
-    const y = breaks[i];
-    const snapped = snapCutToAvoidSplitLines(y, lines, prevBreak, nextBreak);
-    if (snapped !== y) {
-      breaks[i] = Math.floor(snapped);
+  let current = pages;
+  for (let pass = 0; pass < 5; pass++) {
+    const next = snapResumePageBreaksOnce(
+      lines,
+      current,
+      fullHeight,
+    );
+    if (pageBandsEqual(current, next)) {
+      current = next;
+      break;
     }
+    current = next;
   }
 
-  const out: PageBand[] = [];
-  for (let i = 0; i <= breaks.length; i++) {
-    const offsetY = i === 0 ? 0 : breaks[i - 1];
-    const endY = i === breaks.length ? fullHeight : breaks[i];
-    const height = Math.floor(endY - offsetY);
-    if (height <= 0) {
-      return pages;
-    }
-    out.push({
-      pageNumber: out.length + 1,
-      offsetY: Math.floor(offsetY),
-      height,
-    });
-  }
-
-  const result = out.length === pages.length ? out : pages;
+  const result = current;
   if (
     isResumePaginationDebugEnabled() &&
     result !== pages &&
@@ -79,6 +63,63 @@ export function snapResumePageBreaksToLineBounds(
   return result;
 }
 
+function snapResumePageBreaksOnce(
+  lines: { top: number; bottom: number }[],
+  pages: PageBand[],
+  fullHeight: number,
+): PageBand[] {
+  const breaks: number[] = [];
+  for (let i = 0; i < pages.length - 1; i++) {
+    breaks.push(pages[i].offsetY + pages[i].height);
+  }
+
+  for (let i = 0; i < breaks.length; i++) {
+    const prevBreak = i === 0 ? 0 : breaks[i - 1];
+    const nextBreak = i === breaks.length - 1 ? fullHeight : breaks[i + 1];
+    const y = breaks[i];
+    const snapped = snapCutToAvoidSplitLines(y, lines, prevBreak, nextBreak);
+    if (snapped !== y) {
+      breaks[i] = Math.floor(snapped);
+    }
+  }
+
+  const out = rebuildPageBandsFromBreaks(breaks, fullHeight);
+  return out.length === pages.length ? out : pages;
+}
+
+function pageBandsEqual(a: PageBand[], b: PageBand[]): boolean {
+  return (
+    a.length === b.length &&
+    a.every(
+      (p, i) =>
+        p.offsetY === b[i].offsetY &&
+        p.height === b[i].height &&
+        p.pageNumber === b[i].pageNumber,
+    )
+  );
+}
+
+function rebuildPageBandsFromBreaks(
+  breaks: number[],
+  fullHeight: number,
+): PageBand[] {
+  const out: PageBand[] = [];
+  for (let i = 0; i <= breaks.length; i++) {
+    const offsetY = i === 0 ? 0 : breaks[i - 1];
+    const endY = i === breaks.length ? fullHeight : breaks[i];
+    const height = Math.floor(endY - offsetY);
+    if (height <= 0) {
+      return [];
+    }
+    out.push({
+      pageNumber: out.length + 1,
+      offsetY: Math.floor(offsetY),
+      height,
+    });
+  }
+  return out;
+}
+
 function snapCutToAvoidSplitLines(
   y: number,
   lines: { top: number; bottom: number }[],
@@ -89,41 +130,126 @@ function snapCutToAvoidSplitLines(
     if (y <= line.top + LINE_CUT_EPS || y >= line.bottom - LINE_CUT_EPS) {
       continue;
     }
+
+    // Prefer moving the whole line to the next page when it starts on this page.
     if (line.top > prevBreak + LINE_CUT_EPS) {
       return line.top;
     }
-    if (line.bottom < nextBreak - LINE_CUT_EPS) {
+
+    // Line started on a previous page slice — extend this page to include the full line.
+    if (line.bottom <= nextBreak - LINE_CUT_EPS) {
       return line.bottom;
     }
   }
   return y;
 }
 
+/** Max tail sliver (px) scaled to measured line height — larger body fonts need more room. */
+export function resolveTailSliverMaxPx(
+  lines: { top: number; bottom: number }[],
+): number {
+  let maxLine = 16;
+  for (const line of lines) {
+    maxLine = Math.max(maxLine, line.bottom - line.top);
+  }
+  return Math.max(48, Math.ceil(maxLine * 3));
+}
+
+/** Measure all text line boxes in container document coordinates (px). */
+export function measureTextLineBounds(
+  container: HTMLElement,
+): { top: number; bottom: number }[] {
+  const containerRect = container.getBoundingClientRect();
+  return collectTextLineBounds(container, containerRect);
+}
+
+/**
+ * Collect every rendered text line in document Y (px), including plain divs
+ * (e.g. project "Technologies:" rows) that are not p/li headings.
+ */
 function collectTextLineBounds(
   container: HTMLElement,
   containerRect: DOMRect,
 ): { top: number; bottom: number }[] {
-  const out: { top: number; bottom: number }[] = [];
-  const nodes = container.querySelectorAll("p, li, h1, h2, h3, h4, h5, h6");
+  const raw: { top: number; bottom: number }[] = [];
+  const walker = document.createTreeWalker(
+    container,
+    NodeFilter.SHOW_TEXT,
+    {
+      acceptNode(node) {
+        if (!node.textContent?.trim()) {
+          return NodeFilter.FILTER_REJECT;
+        }
+        const parent = node.parentElement;
+        if (!parent || !container.contains(parent)) {
+          return NodeFilter.FILTER_REJECT;
+        }
+        const style = globalThis.getComputedStyle(parent);
+        if (
+          style.display === "none" ||
+          style.visibility === "hidden" ||
+          style.opacity === "0"
+        ) {
+          return NodeFilter.FILTER_REJECT;
+        }
+        return NodeFilter.FILTER_ACCEPT;
+      },
+    },
+  );
 
-  nodes.forEach((el) => {
-    if (!el.textContent?.trim()) return;
+  let textNode: Node | null;
+  while ((textNode = walker.nextNode())) {
     const range = document.createRange();
     try {
-      range.selectNodeContents(el);
+      range.selectNodeContents(textNode);
     } catch {
-      return;
+      continue;
     }
     const rects = range.getClientRects();
     for (let i = 0; i < rects.length; i++) {
       const r = rects[i];
       if (r.width < 1 || r.height < 4) continue;
-      out.push({
+      raw.push({
         top: r.top - containerRect.top,
         bottom: r.bottom - containerRect.top,
       });
     }
-  });
+  }
 
-  return out.sort((a, b) => a.top - b.top);
+  return mergeAdjacentLineBounds(raw);
+}
+
+/** Merge rects that belong to the same line (subpixel / split runs). */
+function mergeAdjacentLineBounds(
+  lines: { top: number; bottom: number }[],
+): { top: number; bottom: number }[] {
+  if (lines.length === 0) return lines;
+
+  const sorted = [...lines].sort((a, b) =>
+    a.top !== b.top ? a.top - b.top : a.bottom - b.bottom,
+  );
+
+  const merged: { top: number; bottom: number }[] = [];
+  for (const line of sorted) {
+    const prev = merged[merged.length - 1];
+    if (
+      prev &&
+      Math.abs(prev.top - line.top) <= LINE_CUT_EPS &&
+      Math.abs(prev.bottom - line.bottom) <= LINE_CUT_EPS
+    ) {
+      continue;
+    }
+    if (
+      prev &&
+      Math.abs(prev.bottom - line.top) <= LINE_CUT_EPS &&
+      Math.abs(prev.top - line.top) <= 3
+    ) {
+      prev.bottom = Math.max(prev.bottom, line.bottom);
+      prev.top = Math.min(prev.top, line.top);
+      continue;
+    }
+    merged.push({ top: line.top, bottom: line.bottom });
+  }
+
+  return merged;
 }

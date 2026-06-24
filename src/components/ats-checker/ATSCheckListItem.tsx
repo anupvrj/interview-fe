@@ -30,12 +30,12 @@ export function ATSCheckListItem({
       type="button"
       onClick={onSelect}
       className={cn(
-        "w-full flex items-center gap-2 px-3 py-2 rounded-lg text-left text-sm transition-colors",
+        "w-full flex items-start gap-2 px-3 py-2 rounded-lg text-left text-sm transition-colors",
         selected ? "bg-primary/10 text-primary" : "hover:bg-muted/80",
       )}
     >
       <StatusIcon status={check.status} />
-      <span className="flex-1 truncate">{check.label}</span>
+      <span className="min-w-0 flex-1 break-words text-left">{check.label}</span>
       {check.status !== "skipped" && check.issueCount > 0 ? (
         <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700">
           {check.issueCount} issue{check.issueCount !== 1 ? "s" : ""}

@@ -17,6 +17,7 @@ interface ATSScoreSidebarProps {
   categories: Record<string, ATSCategoryResult>;
   selectedCheckId: string | null;
   onSelectCheck: (check: ATSCheckResult, categoryLabel: string) => void;
+  compact?: boolean;
 }
 
 function ScoreGauge({ score }: { score: number }) {
@@ -64,6 +65,7 @@ export function ATSScoreSidebar({
   categories,
   selectedCheckId,
   onSelectCheck,
+  compact = false,
 }: ATSScoreSidebarProps) {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({
     jobMatch: true,
@@ -74,7 +76,12 @@ export function ATSScoreSidebar({
     setExpanded((prev) => ({ ...prev, [id]: !prev[id] }));
 
   return (
-    <div className="rounded-xl border border-border bg-card shadow-card p-5 space-y-5">
+    <div
+      className={cn(
+        "min-w-0 space-y-5 rounded-xl border border-border bg-card shadow-card",
+        compact ? "p-4" : "p-5",
+      )}
+    >
       <div className="text-center">
         <h2 className="text-lg font-bold text-foreground mb-3">Your Score</h2>
         <ScoreGauge score={score} />
@@ -99,9 +106,9 @@ export function ATSScoreSidebar({
               <button
                 type="button"
                 onClick={() => toggle(catId)}
-                className="w-full flex items-center gap-2 py-2 text-left"
+                className="flex w-full items-start gap-2 py-2 text-left"
               >
-                <span className="flex-1 text-xs font-bold uppercase tracking-wide text-foreground">
+                <span className="min-w-0 flex-1 text-xs font-bold uppercase tracking-wide text-foreground break-words">
                   {cat.label}
                   {cat.issueCount > 0 && (
                     <span className="ml-1 font-normal normal-case text-muted-foreground">

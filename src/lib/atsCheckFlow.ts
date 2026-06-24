@@ -16,59 +16,13 @@ export interface ATSAnalysisResult {
   resumeId: string;
 }
 
-export function mapExtractedSectionsToContent(
-  sections: Record<
-    string,
-    {
-      sectionType: string;
-      content: string | unknown;
-      format: "html" | "list" | "paragraph" | "structured";
-    }
-  >,
-): Record<string, unknown> {
-  const content: Record<string, unknown> = {};
-  const nanoid = () => Math.random().toString(36).substring(2, 11);
+import {
+  mapExtractedSectionsToContent,
+  type ExtractedSectionPayload,
+} from "@/lib/resume-data-import";
 
-  for (const [sectionType, sectionData] of Object.entries(sections)) {
-    if (sectionType === "personalInfo") {
-      if (
-        sectionData.format === "structured" &&
-        typeof sectionData.content === "object" &&
-        sectionData.content !== null &&
-        !Array.isArray(sectionData.content)
-      ) {
-        content.personalInfo = sectionData.content;
-      } else if (
-        typeof sectionData.content === "object" &&
-        sectionData.content !== null
-      ) {
-        content.personalInfo = sectionData.content;
-      }
-    } else if (sectionType === "technicalSkills" || sectionType === "skills") {
-      content.skills = sectionData.content;
-    } else if (
-      sectionData.format === "structured" &&
-      Array.isArray(sectionData.content)
-    ) {
-      const arr = sectionData.content as Record<string, unknown>[];
-      content[sectionType] = arr.map((item) =>
-        item && typeof item === "object" && "id" in item
-          ? item
-          : { ...item, id: nanoid() },
-      );
-    } else if (typeof sectionData.content === "string") {
-      content[sectionType] = sectionData.content;
-    } else {
-      content[sectionType] = sectionData.content;
-    }
-  }
-
-  if (!content.customSections) {
-    content.customSections = [];
-  }
-
-  return content;
-}
+export { mapExtractedSectionsToContent };
+export type { ExtractedSectionPayload };
 
 export async function savePendingATSUpload(
   file: File,

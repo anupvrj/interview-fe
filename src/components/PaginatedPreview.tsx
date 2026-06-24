@@ -54,13 +54,33 @@ export const PaginatedPreview: React.FC<PaginatedPreviewProps> = ({
   const { topMm: TOP_MARGIN_MM, contentHeightMm: CONTENT_HEIGHT_MM } =
     pageVerticalGuttersMm(paddingMm);
 
+  const typographyKey = useMemo(() => {
+    const fs = currentLayout.fontSize as
+      | {
+          heading?: number;
+          subheading?: number;
+          body?: number;
+          small?: number;
+          sectionHeader?: number;
+        }
+      | undefined;
+    return [
+      fs?.heading ?? "",
+      fs?.subheading ?? "",
+      fs?.body ?? "",
+      fs?.small ?? "",
+      fs?.sectionHeader ?? "",
+      currentLayout.fontFamily ?? "",
+    ].join("|");
+  }, [currentLayout.fontSize, currentLayout.fontFamily]);
+
   const rendererKey = useMemo(() => {
     const padKey = `${paddingMm.top}-${paddingMm.bottom}-${paddingMm.left}-${paddingMm.right}`;
     return (
       sections?.map((s, idx) => `${idx}:${s.id}-${s.visible}`).join("|") +
-      `-${currentLayout.type}-${padKey}`
+      `-${template.id}-${currentLayout.type}-${padKey}-${typographyKey}`
     );
-  }, [sections, currentLayout.type, paddingMm]);
+  }, [sections, template.id, currentLayout.type, paddingMm, typographyKey]);
 
   const isAtlanticBlue = template.id === "atlantic-blue";
 
@@ -94,6 +114,7 @@ export const PaginatedPreview: React.FC<PaginatedPreviewProps> = ({
       /** Snap page cuts to line boundaries for all templates (rich text / multi-line items). */
       snapPageBreaksToLineBounds: true,
       measureLayoutKey: rendererKey,
+      layoutMeasureKey: rendererKey,
     });
 
   useEffect(() => {

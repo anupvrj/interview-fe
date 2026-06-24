@@ -31,6 +31,7 @@ const MIN_VISIBLE_SECTION_HEADER_PX = 80;
 const MIN_VISIBLE_ITEM_PX = 120;
 const MIN_ITEM_HEIGHT_PX = 150;
 const TRAILING_EMPTY_SLIVER_MAX_PX = 80;
+const DEFAULT_TAIL_SLIVER_MAX_PX = 48;
 
 function intersectsBand(
   box: PaginationBox,
@@ -81,6 +82,7 @@ export function computePageBands(
   elements: PaginationElementInput[],
   integerLimit: number,
   atomicIfFitsOnOnePage: PaginationAtomicIfFitsBox[] = [],
+  tailSliverMaxPx: number = DEFAULT_TAIL_SLIVER_MAX_PX,
 ): PageBand[] {
   const newPages: PageBand[] = [];
   let currentY = 0;
@@ -108,6 +110,15 @@ export function computePageBands(
 
         if (needsBreakBefore && el.top > currentY) {
           safeEndY = Math.min(safeEndY, el.top);
+          continue;
+        }
+
+        // If only a tiny tail would land on the next page, keep the whole tail on this page.
+        if (el.bottom > targetEndY) {
+          const tailPx = el.bottom - targetEndY;
+          if (tailPx > 0 && tailPx <= tailSliverMaxPx) {
+            safeEndY = Math.min(fullHeight, Math.max(safeEndY, el.bottom));
+          }
         }
       }
     }
@@ -241,12 +252,14 @@ export function runResumePagination(
   elements: PaginationElementInput[],
   integerLimit: number,
   atomicIfFitsOnOnePage: PaginationAtomicIfFitsBox[] = [],
+  tailSliverMaxPx: number = DEFAULT_TAIL_SLIVER_MAX_PX,
 ): PageBand[] {
   let pages = computePageBands(
     fullHeight,
     elements,
     integerLimit,
     atomicIfFitsOnOnePage,
+    tailSliverMaxPx,
   );
   pages = trimTrailingEmptySliverPages(pages, elements);
 

@@ -6,6 +6,7 @@ import { useUser } from "@clerk/nextjs";
 import { useRouter, useParams, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { IconTooltipButton } from "@/components/ui/icon-tooltip-button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -25,13 +26,14 @@ import {
   Trash2,
   ChevronDown,
   ChevronUp,
-  GripVertical,
   Eye,
   Edit,
   X,
   Check,
-  RefreshCw,
   Palette,
+  FlaskConical,
+  Upload,
+  LayoutGrid,
 } from "lucide-react";
 import { Resume, ResumeTemplate, resumeApi, apiClient } from "@/lib/api";
 import { isATSReportV3 } from "@/types/atsReport";
@@ -42,6 +44,30 @@ import { getTemplateStyle } from "@/lib/templateRenderer";
 import { ExecutiveSkills } from "@/components/resume-editor/ExecutiveSkills";
 import { LayoutTypographyControls } from "@/components/resume-editor/LayoutTypographyControls";
 import { RESUME_FIELD_INPUT_CLASS } from "@/components/resume-editor/resumeFieldStyles";
+import {
+  resumeAddSectionButton,
+  resumeAddSectionsCard,
+  resumeAtsScoreShell,
+  resumeAtsScoreTone,
+  resumeEditorFormArea,
+  resumeEditorPage,
+  resumeEditorPanel,
+  resumeEditorTabActive,
+  resumeEditorTabBase,
+  resumeEditorTabInactive,
+  resumeEditorTabsRow,
+  resumeEditorToolbar,
+  resumeEditorToolbarInner,
+  resumeEntryCard,
+  resumePreviewHeader,
+  resumePreviewPanel,
+  resumePrimaryCta,
+  resumeSaveButton,
+  resumeSectionCardClass,
+  resumeSectionContent,
+  resumeSectionHeader,
+} from "@/components/resume-editor/resumeEditorStyles";
+import { cn } from "@/lib/utils";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import { LanguagesEditor } from "@/components/LanguagesEditor";
 import { captureAndUploadThumbnail } from "@/lib/resume-thumbnail";
@@ -55,14 +81,20 @@ import { applyAtsIssueFixToResume } from "@/lib/atsIssueApply";
 import {
   assignSectionColumnOnReorder,
   toSectionOrderPayload,
+  type SectionWithColumn,
 } from "@/lib/sectionColumnUtils";
 import { ProfilePictureCropper } from "@/components/ProfilePictureCropper";
 import { ChangeTemplateDialog } from "@/components/resume-editor/ChangeTemplateDialog";
+import { ImportResumeDialog } from "@/components/resume-editor/ImportResumeDialog";
+import { RearrangeSectionsDialog } from "@/components/resume-editor/RearrangeSectionsDialog";
+import { ResumeSectionDragHandle } from "@/components/resume-editor/ResumeSectionDragHandle";
+import { TemplateStyleLoader } from "@/components/TemplateStyleLoader";
 import {
   buildLayoutForTemplateSwitch,
   buildSectionsForTemplateSwitch,
 } from "@/lib/resume-template-switch";
 import { debugResumePagination } from "@/lib/debug-resume-pagination";
+import { waitForResumePaginationSettled } from "@/lib/wait-for-resume-pagination";
 
 interface Section {
   id: string;
@@ -129,6 +161,7 @@ export default function EditResumePage() {
   const [hasChanges, setHasChanges] = useState(false);
   const [autoSaving, setAutoSaving] = useState(false);
   const [refreshingATS, setRefreshingATS] = useState(false);
+  const [displayAtsScore, setDisplayAtsScore] = useState<number | null>(null);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [profilePictureFileName, setProfilePictureFileName] = useState("");
   const [previewKey, setPreviewKey] = useState(0);
@@ -203,6 +236,13 @@ export default function EditResumePage() {
     return exact?.value ?? FONT_FAMILY_OPTIONS[0].value;
   }, [effectiveTypography?.fontFamily, fontFamilyOptions]);
 
+  /** Keep preview/PDF aligned when template state updates before resume syncs from API. */
+  const previewResume = useMemo(() => {
+    if (!resume || !template) return resume;
+    if (resume.templateId === template.id) return resume;
+    return { ...resume, templateId: template.id };
+  }, [resume, template]);
+
   // Initialize sections as empty - will be populated from database
   const [sections, setSections] = useState<Section[]>([]);
   const [viewMode, setViewMode] = useState<"edit" | "ats">("edit");
@@ -210,6 +250,8 @@ export default function EditResumePage() {
   // Delete section dialog state
   const [changeTemplateOpen, setChangeTemplateOpen] = useState(false);
   const [changingTemplate, setChangingTemplate] = useState(false);
+  const [importResumeOpen, setImportResumeOpen] = useState(false);
+  const [rearrangeSectionsOpen, setRearrangeSectionsOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [sectionToDelete, setSectionToDelete] = useState<{
     id: string;
@@ -260,6 +302,18 @@ export default function EditResumePage() {
     hasChangesRef.current = hasChanges;
   }, [hasChanges]);
 
+  const invalidateAtsScoreDisplay = useCallback(() => {
+    setDisplayAtsScore(null);
+  }, []);
+
+  const syncAtsScoreDisplayFromResume = useCallback((resumeData: Resume | null) => {
+    setDisplayAtsScore(
+      resumeData && typeof resumeData.atsScore === "number"
+        ? resumeData.atsScore
+        : null,
+    );
+  }, []);
+
   const bumpPreviewKey = useCallback((reason: string) => {
     setPreviewKey((prev) => {
       const next = prev + 1;
@@ -280,6 +334,7 @@ export default function EditResumePage() {
 
       await resumeApi.update(resumeId, {
         title: resumeSnapshot.title,
+        templateId: resumeSnapshot.templateId,
         content: resumeSnapshot.content,
         profileSummary: resumeSnapshot.profileSummary,
         sectionOrder: sectionOrderData,
@@ -349,7 +404,19 @@ export default function EditResumePage() {
           debugResumePagination("thumbnail:auto:setResume", {
             targetResumeId,
           });
-          setResume(updatedResume);
+          setResume((prev) => {
+            if (!prev || !hasChangesRef.current) return updatedResume;
+            return {
+              ...updatedResume,
+              templateId: prev.templateId,
+              layout: prev.layout ?? updatedResume.layout,
+              content: prev.content,
+              profileSummary: prev.profileSummary,
+              title: prev.title,
+              sectionOrder: prev.sectionOrder,
+              pdfS3Key: prev.pdfS3Key,
+            };
+          });
         } else {
           console.error("Auto thumbnail upload failed:", result.error);
         }
@@ -409,6 +476,7 @@ export default function EditResumePage() {
 
         await resumeApi.update(resumeId, {
           title: currentResume.title,
+          templateId: currentResume.templateId,
           content: currentResume.content,
           profileSummary: currentResume.profileSummary,
           sectionOrder: sectionOrderData,
@@ -459,6 +527,7 @@ export default function EditResumePage() {
       }
 
       setResume(resumeData);
+      syncAtsScoreDisplayFromResume(resumeData);
 
       // Extract filename from profile picture URL if it exists
       if (resumeData.content.personalInfo?.profilePicture) {
@@ -492,6 +561,12 @@ export default function EditResumePage() {
         setProfilePictureFileName(filename);
       } else {
         setProfilePictureFileName("");
+      }
+
+      // Load template CSS + config before preview renders
+      if (resumeData.templateId) {
+        const { TemplateLoader } = await import("@/lib/templateLoader");
+        await TemplateLoader.loadTemplate(resumeData.templateId);
       }
 
       // Load template by templateId first to get padding configuration
@@ -827,9 +902,8 @@ export default function EditResumePage() {
         },
       });
       setHasChanges(false);
-      // Capture thumbnail before loadResume — loadResume bumps preview key and remounts DOM.
+      setLastSaved(new Date());
       await triggerThumbnailCapture(resumeId, { force: true });
-      await loadResume();
     } catch (error) {
       console.error("Error saving resume:", error);
       alert("Failed to save resume. Please try again.");
@@ -862,21 +936,34 @@ export default function EditResumePage() {
         sections,
       );
 
+      const sectionOrderData = toSectionOrderPayload(nextSections);
+      const updatedResume: Resume = {
+        ...resume,
+        templateId: newTemplateId,
+        layout: nextLayout,
+        pdfS3Key: undefined,
+      };
+
+      await resumeApi.update(resumeId, {
+        title: updatedResume.title,
+        templateId: newTemplateId,
+        content: updatedResume.content,
+        profileSummary: updatedResume.profileSummary,
+        sectionOrder: sectionOrderData,
+        layout: nextLayout,
+        pdfS3Key: "",
+      });
+
       setTemplate(newTemplate);
       setLayout(nextLayout);
       setSections(nextSections);
-      setResume((prev) =>
-        prev
-          ? {
-              ...prev,
-              templateId: newTemplateId,
-              layout: nextLayout,
-              pdfS3Key: undefined,
-            }
-          : prev,
-      );
+      setResume(updatedResume);
+      resumeRef.current = updatedResume;
+      layoutRef.current = nextLayout;
+      sectionsRef.current = nextSections;
+
       setChangeTemplateOpen(false);
-      setHasChanges(true);
+      setLastSaved(new Date());
       bumpPreviewKey("templateChange");
     } catch (error) {
       console.error("Error changing template:", error);
@@ -886,7 +973,60 @@ export default function EditResumePage() {
     }
   };
 
-  const handleRefreshATS = async () => {
+  const handleResumeImported = (updatedResume: Resume) => {
+    setResume(updatedResume);
+    resumeRef.current = updatedResume;
+
+    if (updatedResume.sectionOrder?.length) {
+      const loadedSections = withFirstVisibleExpanded(
+        updatedResume.sectionOrder.map((s) => ({
+          ...s,
+          expanded: false,
+        })) as Section[],
+      );
+      setSections(loadedSections);
+      sectionsRef.current = loadedSections;
+    }
+
+    if (updatedResume.layout) {
+      setLayout(updatedResume.layout as typeof layout);
+      layoutRef.current = updatedResume.layout as typeof layout;
+    }
+
+    setHasChanges(false);
+    setLastSaved(new Date());
+    invalidateAtsScoreDisplay();
+    bumpPreviewKey("importResume");
+  };
+
+  const handleSectionsRearranged = (reordered: SectionWithColumn[]) => {
+    const withExpanded: Section[] = reordered.map((section) => {
+      const existing = sections.find((item) => item.id === section.id);
+      if (!existing) {
+        return {
+          id: section.id,
+          type: section.type as Section["type"],
+          title: section.title,
+          visible: section.visible,
+          expanded: false,
+          column: section.column,
+        };
+      }
+      return {
+        ...existing,
+        title: section.title,
+        visible: section.visible,
+        column: section.column,
+      };
+    });
+
+    setSections(withExpanded);
+    sectionsRef.current = withExpanded;
+    setHasChanges(true);
+    bumpPreviewKey("rearrangeSections");
+  };
+
+  const handleCheckATS = async () => {
     const current = resumeRef.current;
     if (!current || !resumeId) return;
 
@@ -901,6 +1041,9 @@ export default function EditResumePage() {
       });
 
       applyAtsReportUpdate(updatedResume);
+      setDisplayAtsScore(
+        typeof updatedResume.atsScore === "number" ? updatedResume.atsScore : null,
+      );
 
       const params = new URLSearchParams(searchParams.toString());
       params.delete("improved");
@@ -915,8 +1058,8 @@ export default function EditResumePage() {
         { scroll: false },
       );
     } catch (error) {
-      console.error("Error refreshing ATS score:", error);
-      alert("Failed to refresh ATS score. Please try again.");
+      console.error("Error checking ATS score:", error);
+      alert("Failed to check ATS score. Please try again.");
     } finally {
       setRefreshingATS(false);
     }
@@ -937,6 +1080,9 @@ export default function EditResumePage() {
       });
 
       applyAtsReportUpdate(updatedResume);
+      setDisplayAtsScore(
+        typeof updatedResume.atsScore === "number" ? updatedResume.atsScore : null,
+      );
     } catch (error) {
       console.error("Error running Job Match analysis:", error);
       throw error instanceof Error
@@ -956,6 +1102,7 @@ export default function EditResumePage() {
       resumeRef.current = next;
       setResume(next);
       setHasChanges(true);
+      invalidateAtsScoreDisplay();
       return true;
     },
     [],
@@ -981,6 +1128,9 @@ export default function EditResumePage() {
             }
           : prev,
       );
+      setDisplayAtsScore(
+        typeof updated.atsScore === "number" ? updated.atsScore : null,
+      );
     },
     [resumeId],
   );
@@ -988,11 +1138,14 @@ export default function EditResumePage() {
   const handleDownload = async () => {
     try {
       setDownloading(true);
+      await ensureResumePersisted();
       debugResumePagination("download:start", { resumeId, zoomLevel });
+
+      const previewContainerId = `resume-preview-container-${resumeId}`;
+      await waitForResumePaginationSettled(previewContainerId);
 
       // Get ALL page elements (we now have multiple pages)
       // Use unique ID per resume to avoid conflicts
-      const previewContainerId = `resume-preview-container-${resumeId}`;
       const page1Element = document.getElementById(previewContainerId);
 
       // Store current zoom level and reset to 100% for PDF generation
@@ -1075,7 +1228,8 @@ export default function EditResumePage() {
               : "n/a",
         });
 
-        const templateId = resume?.templateId || template?.id || "classic";
+        const templateId =
+          template?.id ?? resumeRef.current?.templateId ?? resume?.templateId ?? "classic";
         const pdfTemplate =
           template ??
           ({
@@ -1226,6 +1380,7 @@ export default function EditResumePage() {
       content: mergedContent,
     });
     setHasChanges(true);
+    invalidateAtsScoreDisplay();
   };
 
   const toggleSection = (sectionId: string) => {
@@ -1450,16 +1605,6 @@ export default function EditResumePage() {
   // ============================================
 
   const handleDragStart = (e: React.DragEvent, sectionId: string) => {
-    // Don't start drag when user is interacting with inputs (fixes Space/keys not working)
-    const target = e.target as HTMLElement;
-    if (
-      target.closest(
-        "input, textarea, select, button, [contenteditable='true']",
-      )
-    ) {
-      e.preventDefault();
-      return;
-    }
     e.dataTransfer.effectAllowed = "move";
     e.dataTransfer.setData("text/plain", sectionId);
     isDraggingRef.current = true;
@@ -1538,145 +1683,145 @@ export default function EditResumePage() {
         suppressHydrationWarning
       >
         <div className="text-center">
-          <Loader2 className="w-12 h-12 animate-spin text-purple-600 mx-auto mb-4" />
-          <p className="text-gray-600">Loading resume...</p>
+          <Loader2 className="mx-auto mb-4 h-12 w-12 animate-spin text-primary" />
+          <p className="text-muted-foreground">Loading resume...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="h-screen flex flex-col bg-gray-50" suppressHydrationWarning>
+    <div className={resumeEditorPage} suppressHydrationWarning>
       {/* Top Header Bar */}
-      <div className="bg-white border-b shadow-sm z-10">
-        <div className="max-w-full mx-auto px-4 py-3">
-          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between md:gap-4">
-            {/* Left Section: Back Button + Title */}
-            <div className="flex items-center gap-4 min-w-0 md:flex-1">
-              <Link href="/dashboard/resumes">
+      <div className={resumeEditorToolbar}>
+        <div className={resumeEditorToolbarInner}>
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-4">
+            {/* Left Section: Back Button + Title + Save Status */}
+            <div className="flex min-w-0 flex-1 items-start gap-4">
+              <Link href="/dashboard/resumes" className="shrink-0 pt-0.5">
                 <Button variant="ghost" size="icon" className="flex-shrink-0">
                   <ArrowLeft className="w-5 h-5" />
                 </Button>
               </Link>
-              <Input
-                value={resume.title}
-                onChange={(e) => {
-                  setResume({ ...resume, title: e.target.value });
-                  setHasChanges(true);
-                }}
-                className="text-lg font-semibold border-0 p-0 h-auto focus-visible:ring-0 bg-transparent max-w-xs min-w-0 flex-1"
-                placeholder="Resume Title"
-              />
+              <div className="min-w-0 flex-1">
+                <Input
+                  value={resume.title}
+                  onChange={(e) => {
+                    setResume({ ...resume, title: e.target.value });
+                    setHasChanges(true);
+                  }}
+                  className="h-auto max-w-xs min-w-0 border-0 bg-transparent p-0 text-lg font-semibold focus-visible:ring-0"
+                  placeholder="Resume Title"
+                />
+                {autoSaving ? (
+                  <p className="mt-0.5 flex items-center text-xs text-muted-foreground">
+                    <Loader2 className="mr-1 h-3 w-3 shrink-0 animate-spin" />
+                    Auto-saving...
+                  </p>
+                ) : lastSaved && !hasChanges ? (
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    Saved at {new Date(lastSaved).toLocaleTimeString()}
+                  </p>
+                ) : null}
+              </div>
             </div>
 
-            {/* Middle Section: ATS Score (Centered) */}
-            <div className="flex items-center justify-center min-w-0 shrink-0 md:flex-1">
-              {resume.atsScore !== undefined && resume.atsScore !== null && (
-                <div className="flex items-center gap-2 flex-wrap justify-center">
-                  <div
-                    className={`px-3 py-2 sm:px-4 rounded-lg border-2 font-semibold text-sm flex items-center gap-1.5 sm:gap-2 ${
-                      resume.atsScore >= 80
-                        ? "bg-green-50 text-green-700 border-green-300"
-                        : resume.atsScore >= 60
-                          ? "bg-yellow-50 text-yellow-700 border-yellow-300"
-                          : "bg-red-50 text-red-700 border-red-300"
-                    }`}
-                  >
-                    <span className="whitespace-nowrap">ATS Score:</span>
-                    <span className="text-xl font-bold">{resume.atsScore}</span>
-                    <span className="text-xs opacity-70">/100</span>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={handleRefreshATS}
-                    disabled={refreshingATS}
-                    className="h-8 w-8 p-0 shrink-0"
-                    title="Refresh ATS Score"
-                  >
-                    {refreshingATS ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <RefreshCw className="w-4 h-4" />
-                    )}
-                  </Button>
-                </div>
-              )}
+            {/* Middle Section: ATS Score */}
+            <div className="flex shrink-0 items-center justify-center">
+              <div
+                className={cn(resumeAtsScoreShell, resumeAtsScoreTone(displayAtsScore))}
+              >
+                <span className="whitespace-nowrap">ATS Score:</span>
+                <span className="text-xl font-bold">
+                  {displayAtsScore ?? "-"}
+                </span>
+                {displayAtsScore !== null ? (
+                  <span className="text-xs opacity-70">/100</span>
+                ) : null}
+              </div>
             </div>
 
-            {/* Right Section: Autosave Status + Buttons */}
-            <div className="flex flex-wrap items-center gap-2 justify-start min-w-0 md:flex-1 md:justify-end">
-              {/* Autosave Status */}
-              {autoSaving && (
-                <span className="text-sm text-gray-500 flex items-center min-w-0">
-                  <Loader2 className="w-3 h-3 mr-1 animate-spin shrink-0" />
-                  Auto-saving...
-                </span>
-              )}
-              {!autoSaving && lastSaved && !hasChanges && (
-                <span className="text-sm text-gray-500 max-md:w-full max-md:text-center md:max-w-[min(100%,14rem)] md:truncate">
-                  Saved at {new Date(lastSaved).toLocaleTimeString()}
-                </span>
-              )}
-
-              <Button
-                type="button"
-                onClick={() => setChangeTemplateOpen(true)}
-                variant="outline"
-                size="sm"
-                className="shrink-0 max-md:flex-1"
-                disabled={changingTemplate}
-              >
-                {changingTemplate ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Applying...
-                  </>
-                ) : (
-                  <>
-                    <Palette className="w-4 h-4 mr-2" />
-                    Change Template
-                  </>
-                )}
-              </Button>
-              <Button
-                onClick={handleSave}
-                disabled={saving || !hasChanges || autoSaving}
-                className="bg-gradient-to-r from-purple-600 to-primary hover:bg-slate-900 text-white shrink-0 max-md:flex-1"
-                size="sm"
-              >
-                {saving ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Saving...
-                  </>
-                ) : (
-                  <>
-                    <Save className="w-4 h-4 mr-2" />
-                    {hasChanges ? "Save Now" : "Saved"}
-                  </>
-                )}
-              </Button>
-              <Button
-                onClick={handleDownload}
-                disabled={downloading}
-                variant="outline"
-                size="sm"
-                className="shrink-0 max-md:flex-1"
-              >
-                {downloading ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Generating...
-                  </>
-                ) : (
-                  <>
-                    <Download className="w-4 h-4 mr-2" />
-                    Download PDF
-                  </>
-                )}
-              </Button>
+            {/* Right Section: Action Buttons */}
+            <div className="flex w-full shrink-0 items-center justify-start gap-2 lg:ml-auto lg:w-auto lg:justify-end">
+              <div className="flex w-full items-center justify-start gap-1.5 sm:w-auto">
+                <IconTooltipButton
+                  onClick={handleCheckATS}
+                  variant="outline"
+                  label={refreshingATS ? "Checking ATS…" : "Check ATS"}
+                  disabled={refreshingATS || autoSaving || saving}
+                >
+                  {refreshingATS ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <FlaskConical className="h-4 w-4" />
+                  )}
+                </IconTooltipButton>
+                <IconTooltipButton
+                  onClick={() => setImportResumeOpen(true)}
+                  variant="outline"
+                  label="Import from resume PDF"
+                  disabled={
+                    refreshingATS || autoSaving || saving || changingTemplate
+                  }
+                >
+                  <Upload className="h-4 w-4" />
+                </IconTooltipButton>
+                <IconTooltipButton
+                  onClick={() => setRearrangeSectionsOpen(true)}
+                  variant="outline"
+                  label="Rearrange sections"
+                  disabled={
+                    refreshingATS ||
+                    autoSaving ||
+                    saving ||
+                    changingTemplate ||
+                    !layout ||
+                    sections.length === 0
+                  }
+                >
+                  <LayoutGrid className="h-4 w-4" />
+                </IconTooltipButton>
+                <IconTooltipButton
+                  onClick={() => setChangeTemplateOpen(true)}
+                  variant="outline"
+                  label={changingTemplate ? "Applying template…" : "Change template"}
+                  disabled={changingTemplate}
+                >
+                  {changingTemplate ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Palette className="h-4 w-4" />
+                  )}
+                </IconTooltipButton>
+                <IconTooltipButton
+                  onClick={handleSave}
+                  disabled={saving || !hasChanges || autoSaving}
+                  label={
+                    saving ? "Saving…" : hasChanges ? "Save now" : "Saved"
+                  }
+                  className={resumeSaveButton}
+                >
+                  {saving ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : hasChanges ? (
+                    <Save className="h-4 w-4" />
+                  ) : (
+                    <Check className="h-4 w-4" />
+                  )}
+                </IconTooltipButton>
+                <IconTooltipButton
+                  onClick={handleDownload}
+                  disabled={downloading}
+                  variant="outline"
+                  label={downloading ? "Generating PDF…" : "Download PDF"}
+                >
+                  {downloading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Download className="h-4 w-4" />
+                  )}
+                </IconTooltipButton>
+              </div>
             </div>
           </div>
         </div>
@@ -1685,27 +1830,29 @@ export default function EditResumePage() {
       {/* Main Content: preview on top on mobile; side-by-side from md */}
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden md:flex-row">
         {/* Left Panel: Edit Form (below preview on mobile) */}
-        <div className="resume-editor-fields order-2 flex min-h-0 w-full flex-1 flex-col overflow-y-auto bg-white md:order-none md:w-1/2 md:border-r">
+        <div className={resumeEditorPanel}>
           {/* Toggle between Edit Resume and ATS Report */}
-          <div className="border-b bg-gray-50">
+          <div className={resumeEditorTabsRow}>
             <div className="flex">
               <button
                 onClick={() => setViewMode("edit")}
-                className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
+                className={cn(
+                  resumeEditorTabBase,
                   viewMode === "edit"
-                    ? "bg-white text-purple-600 border-b-2 border-purple-600"
-                    : "text-gray-600 hover:text-gray-900"
-                }`}
+                    ? resumeEditorTabActive
+                    : resumeEditorTabInactive,
+                )}
               >
                 Edit Resume
               </button>
               <button
                 onClick={() => setViewMode("ats")}
-                className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
+                className={cn(
+                  resumeEditorTabBase,
                   viewMode === "ats"
-                    ? "bg-white text-purple-600 border-b-2 border-purple-600"
-                    : "text-gray-600 hover:text-gray-900"
-                }`}
+                    ? resumeEditorTabActive
+                    : resumeEditorTabInactive,
+                )}
               >
                 ATS Report
               </button>
@@ -1714,9 +1861,9 @@ export default function EditResumePage() {
 
           {viewMode === "ats" ? (
             resume.atsFeedback ? (
-              <div className="p-4">
+              <div className="min-w-0 overflow-x-hidden p-3 sm:p-4">
                 {showImprovedBanner && (
-                  <div className="mb-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
+                  <div className="mb-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800 break-words">
                     Resume improved from ATS feedback. Issues addressed by AI
                     are hidden here; re-run ATS check anytime to see a fresh
                     full report.
@@ -1726,6 +1873,7 @@ export default function EditResumePage() {
                   key={`${resume.atsScore ?? 0}-${isATSReportV3(resume.atsFeedback) ? resume.atsFeedback.issueCount : 0}-${resume.atsImprovementMeta?.improvedAt ?? "fresh"}`}
                   feedback={resume.atsFeedback}
                   resumeId={resume.resumeId}
+                  embedded
                   enableIssueMagic
                   onApplyIssueFix={handleApplyAtsIssueFix}
                   onIgnoreIssue={handleIgnoreATSIssue}
@@ -1742,17 +1890,18 @@ export default function EditResumePage() {
                 />
               </div>
             ) : (
-              <div className="p-6 text-center text-gray-500">
+              <div className="p-6 text-center text-muted-foreground">
                 <p>
-                  No ATS feedback available. Please calculate ATS score first.
+                  No ATS feedback yet. Click <strong>Check ATS</strong> in the
+                  header to run a score and report.
                 </p>
               </div>
             )
           ) : (
-            <div className="p-6 space-y-4">
+            <div className={resumeEditorFormArea}>
               {/* Layout Controls */}
-              <Card className="border-2">
-                <div className="flex items-center justify-between p-4 border-b bg-gray-50">
+              <Card className={resumeSectionCardClass(false, false)}>
+                <div className={resumeSectionHeader}>
                   <Label className="text-sm font-semibold">Layout</Label>
                   <Button
                     size="icon"
@@ -1768,7 +1917,7 @@ export default function EditResumePage() {
                   </Button>
                 </div>
                 {layoutExpanded && (
-                  <CardContent className="p-4 space-y-4">
+                  <CardContent className={resumeSectionContent}>
                     {/* Column Type Selection - Hidden from user */}
                     {/* <div className="flex gap-2">
                       <Button
@@ -2331,26 +2480,25 @@ export default function EditResumePage() {
                     return (
                       <Card
                         key={section.id}
-                        className={`border transition-all ${
+                        className={resumeSectionCardClass(
                           dragOverId === section.id &&
-                          draggedSection !== section.id
-                            ? "border-purple-400 border-2 shadow-md"
-                            : ""
-                        }`}
-                        draggable
-                        onDragStart={(e) => handleDragStart(e, section.id)}
+                          draggedSection !== section.id,
+                          draggedSection === section.id,
+                        )}
                         onDragOver={(e) => handleDragOver(e, section.id)}
                         onDragLeave={handleDragLeave}
-                        onDragEnd={handleDragEnd}
                         onDrop={(e) => handleDrop(e, section.id)}
                         style={{
-                          cursor: "move",
                           opacity: draggedSection === section.id ? 0.5 : 1,
                         }}
                       >
-                        <div className="flex items-center justify-between p-4 border-b bg-gray-50">
+                        <div className={resumeSectionHeader}>
                           <div className="flex items-center gap-2 flex-1">
-                            <GripVertical className="w-4 h-4 text-gray-400 cursor-grab active:cursor-grabbing" />
+                            <ResumeSectionDragHandle
+                              sectionId={section.id}
+                              onDragStart={handleDragStart}
+                              onDragEnd={handleDragEnd}
+                            />
                             <h3 className="font-semibold text-sm flex-1">
                               {section.title}
                             </h3>
@@ -2414,7 +2562,7 @@ export default function EditResumePage() {
 
                         {/* Expanded Edit View */}
                         {editingPersonalInfo && (
-                          <CardContent className="p-4 space-y-4">
+                          <CardContent className={resumeSectionContent}>
                             {/* Profile Picture Upload */}
                             <div className="flex items-center gap-4">
                               <div className="flex-shrink-0 relative">
@@ -3310,26 +3458,25 @@ export default function EditResumePage() {
                     return (
                       <Card
                         key={section.id}
-                        className={`border transition-all ${
+                        className={resumeSectionCardClass(
                           dragOverId === section.id &&
-                          draggedSection !== section.id
-                            ? "border-purple-400 border-2 shadow-md"
-                            : ""
-                        }`}
-                        draggable
-                        onDragStart={(e) => handleDragStart(e, section.id)}
+                          draggedSection !== section.id,
+                          draggedSection === section.id,
+                        )}
                         onDragOver={(e) => handleDragOver(e, section.id)}
                         onDragLeave={handleDragLeave}
-                        onDragEnd={handleDragEnd}
                         onDrop={(e) => handleDrop(e, section.id)}
                         style={{
-                          cursor: "move",
                           opacity: draggedSection === section.id ? 0.5 : 1,
                         }}
                       >
-                        <div className="flex items-center justify-between p-4 border-b bg-gray-50">
+                        <div className={resumeSectionHeader}>
                           <div className="flex items-center gap-2 flex-1">
-                            <GripVertical className="w-4 h-4 text-gray-400 cursor-grab active:cursor-grabbing" />
+                            <ResumeSectionDragHandle
+                              sectionId={section.id}
+                              onDragStart={handleDragStart}
+                              onDragEnd={handleDragEnd}
+                            />
                             {editingSectionTitle === section.id ? (
                               <div className="flex items-center gap-2 flex-1">
                                 <Input
@@ -3439,26 +3586,25 @@ export default function EditResumePage() {
                     return (
                       <Card
                         key={section.id}
-                        className={`border transition-all ${
+                        className={resumeSectionCardClass(
                           dragOverId === section.id &&
-                          draggedSection !== section.id
-                            ? "border-purple-400 border-2 shadow-md"
-                            : ""
-                        }`}
-                        draggable
-                        onDragStart={(e) => handleDragStart(e, section.id)}
+                          draggedSection !== section.id,
+                          draggedSection === section.id,
+                        )}
                         onDragOver={(e) => handleDragOver(e, section.id)}
                         onDragLeave={handleDragLeave}
-                        onDragEnd={handleDragEnd}
                         onDrop={(e) => handleDrop(e, section.id)}
                         style={{
-                          cursor: "move",
                           opacity: draggedSection === section.id ? 0.5 : 1,
                         }}
                       >
-                        <div className="flex items-center justify-between p-4 border-b bg-gray-50">
+                        <div className={resumeSectionHeader}>
                           <div className="flex items-center gap-2 flex-1">
-                            <GripVertical className="w-4 h-4 text-gray-400 cursor-grab active:cursor-grabbing" />
+                            <ResumeSectionDragHandle
+                              sectionId={section.id}
+                              onDragStart={handleDragStart}
+                              onDragEnd={handleDragEnd}
+                            />
                             {editingSectionTitle === section.id ? (
                               <div className="flex items-center gap-2 flex-1">
                                 <Input
@@ -3537,11 +3683,11 @@ export default function EditResumePage() {
                           </div>
                         </div>
                         {section.expanded && (
-                          <CardContent className="p-4 space-y-4">
+                          <CardContent className={resumeSectionContent}>
                             {resume.content.experience.map((exp, index) => (
                               <div
                                 key={exp.id || index}
-                                className="p-3 border rounded-lg space-y-3"
+                                className={resumeEntryCard}
                               >
                                 <div className="grid grid-cols-2 gap-3">
                                   <div>
@@ -3685,7 +3831,7 @@ export default function EditResumePage() {
                                   ],
                                 });
                               }}
-                              className="w-full bg-purple-600 hover:bg-purple-700 text-white"
+                              className={resumePrimaryCta}
                             >
                               <Plus className="w-4 h-4 mr-2" />
                               Add Experience
@@ -3701,26 +3847,25 @@ export default function EditResumePage() {
                     return (
                       <Card
                         key={section.id}
-                        className={`border transition-all ${
+                        className={resumeSectionCardClass(
                           dragOverId === section.id &&
-                          draggedSection !== section.id
-                            ? "border-purple-400 border-2 shadow-md"
-                            : ""
-                        }`}
-                        draggable
-                        onDragStart={(e) => handleDragStart(e, section.id)}
+                          draggedSection !== section.id,
+                          draggedSection === section.id,
+                        )}
                         onDragOver={(e) => handleDragOver(e, section.id)}
                         onDragLeave={handleDragLeave}
-                        onDragEnd={handleDragEnd}
                         onDrop={(e) => handleDrop(e, section.id)}
                         style={{
-                          cursor: "move",
                           opacity: draggedSection === section.id ? 0.5 : 1,
                         }}
                       >
-                        <div className="flex items-center justify-between p-4 border-b bg-gray-50">
+                        <div className={resumeSectionHeader}>
                           <div className="flex items-center gap-2 flex-1">
-                            <GripVertical className="w-4 h-4 text-gray-400 cursor-grab active:cursor-grabbing" />
+                            <ResumeSectionDragHandle
+                              sectionId={section.id}
+                              onDragStart={handleDragStart}
+                              onDragEnd={handleDragEnd}
+                            />
                             {editingSectionTitle === section.id ? (
                               <div className="flex items-center gap-2 flex-1">
                                 <Input
@@ -3799,11 +3944,11 @@ export default function EditResumePage() {
                           </div>
                         </div>
                         {section.expanded && (
-                          <CardContent className="p-4 space-y-4">
+                          <CardContent className={resumeSectionContent}>
                             {resume.content.education.map((edu, index) => (
                               <div
                                 key={edu.id || index}
-                                className="p-3 border rounded-lg space-y-3"
+                                className={resumeEntryCard}
                               >
                                 <div className="grid grid-cols-2 gap-3">
                                   <div>
@@ -3976,7 +4121,7 @@ export default function EditResumePage() {
                                   ],
                                 });
                               }}
-                              className="w-full bg-purple-600 hover:bg-purple-700 text-white"
+                              className={resumePrimaryCta}
                             >
                               <Plus className="w-4 h-4 mr-2" />
                               Add Education
@@ -4043,26 +4188,25 @@ export default function EditResumePage() {
                     return (
                       <Card
                         key={section.id}
-                        className={`border transition-all ${
+                        className={resumeSectionCardClass(
                           dragOverId === section.id &&
-                          draggedSection !== section.id
-                            ? "border-purple-400 border-2 shadow-md"
-                            : ""
-                        }`}
-                        draggable
-                        onDragStart={(e) => handleDragStart(e, section.id)}
+                          draggedSection !== section.id,
+                          draggedSection === section.id,
+                        )}
                         onDragOver={(e) => handleDragOver(e, section.id)}
                         onDragLeave={handleDragLeave}
-                        onDragEnd={handleDragEnd}
                         onDrop={(e) => handleDrop(e, section.id)}
                         style={{
-                          cursor: "move",
                           opacity: draggedSection === section.id ? 0.5 : 1,
                         }}
                       >
-                        <div className="flex items-center justify-between p-4 border-b bg-gray-50">
+                        <div className={resumeSectionHeader}>
                           <div className="flex items-center gap-2 flex-1">
-                            <GripVertical className="w-4 h-4 text-gray-400 cursor-grab active:cursor-grabbing" />
+                            <ResumeSectionDragHandle
+                              sectionId={section.id}
+                              onDragStart={handleDragStart}
+                              onDragEnd={handleDragEnd}
+                            />
                             {editingSectionTitle === section.id ? (
                               <div className="flex items-center gap-2 flex-1">
                                 <Input
@@ -4141,7 +4285,7 @@ export default function EditResumePage() {
                           </div>
                         </div>
                         {section.expanded && (
-                          <CardContent className="p-4 space-y-4">
+                          <CardContent className={resumeSectionContent}>
                             {isExecutiveTemplate ? (
                               // Executive Template: Skill items with ratings
                               <ExecutiveSkills
@@ -4207,26 +4351,25 @@ export default function EditResumePage() {
                     return (
                       <Card
                         key={section.id}
-                        className={`border transition-all ${
+                        className={resumeSectionCardClass(
                           dragOverId === section.id &&
-                          draggedSection !== section.id
-                            ? "border-purple-400 border-2 shadow-md"
-                            : ""
-                        }`}
-                        draggable
-                        onDragStart={(e) => handleDragStart(e, section.id)}
+                          draggedSection !== section.id,
+                          draggedSection === section.id,
+                        )}
                         onDragOver={(e) => handleDragOver(e, section.id)}
                         onDragLeave={handleDragLeave}
-                        onDragEnd={handleDragEnd}
                         onDrop={(e) => handleDrop(e, section.id)}
                         style={{
-                          cursor: "move",
                           opacity: draggedSection === section.id ? 0.5 : 1,
                         }}
                       >
-                        <div className="flex items-center justify-between p-4 border-b bg-gray-50">
+                        <div className={resumeSectionHeader}>
                           <div className="flex items-center gap-2 flex-1">
-                            <GripVertical className="w-4 h-4 text-gray-400 cursor-grab active:cursor-grabbing" />
+                            <ResumeSectionDragHandle
+                              sectionId={section.id}
+                              onDragStart={handleDragStart}
+                              onDragEnd={handleDragEnd}
+                            />
                             {editingSectionTitle === section.id ? (
                               <div className="flex items-center gap-2 flex-1">
                                 <Input
@@ -4305,12 +4448,12 @@ export default function EditResumePage() {
                           </div>
                         </div>
                         {section.expanded && (
-                          <CardContent className="p-4 space-y-4">
+                          <CardContent className={resumeSectionContent}>
                             {(resume.content.projects || []).map(
                               (project, index) => (
                                 <div
                                   key={project.id || index}
-                                  className="p-3 border rounded-lg space-y-3"
+                                  className={resumeEntryCard}
                                 >
                                   <div className="grid grid-cols-2 gap-3">
                                     <div>
@@ -4481,7 +4624,7 @@ export default function EditResumePage() {
                                   ],
                                 });
                               }}
-                              className="w-full bg-purple-600 hover:bg-purple-700 text-white"
+                              className={resumePrimaryCta}
                             >
                               <Plus className="w-4 h-4 mr-2" />
                               Add Project
@@ -4498,16 +4641,17 @@ export default function EditResumePage() {
                       <Card
                         key={section.id}
                         className="border transition-all"
-                        draggable
-                        onDragStart={(e) => handleDragStart(e, section.id)}
                         onDragOver={(e) => handleDragOver(e, section.id)}
                         onDragLeave={handleDragLeave}
-                        onDragEnd={handleDragEnd}
                         onDrop={(e) => handleDrop(e, section.id)}
                       >
-                        <div className="flex items-center justify-between p-4 border-b bg-gray-50">
+                        <div className={resumeSectionHeader}>
                           <div className="flex items-center gap-2 flex-1">
-                            <GripVertical className="w-4 h-4 text-gray-400 cursor-grab" />
+                            <ResumeSectionDragHandle
+                              sectionId={section.id}
+                              onDragStart={handleDragStart}
+                              onDragEnd={handleDragEnd}
+                            />
                             {editingSectionTitle === section.id ? (
                               <div className="flex items-center gap-2 flex-1">
                                 <Input
@@ -4851,7 +4995,7 @@ export default function EditResumePage() {
                                 );
                                 setHasChanges(true);
                               }}
-                              className="w-full bg-purple-600 hover:bg-purple-700 text-white"
+                              className={resumePrimaryCta}
                             >
                               <Plus className="w-4 h-4 mr-2" />
                               Add Certificate
@@ -4868,16 +5012,17 @@ export default function EditResumePage() {
                       <Card
                         key={section.id}
                         className="border"
-                        draggable
-                        onDragStart={(e) => handleDragStart(e, section.id)}
                         onDragOver={(e) => handleDragOver(e, section.id)}
                         onDragLeave={handleDragLeave}
-                        onDragEnd={handleDragEnd}
                         onDrop={(e) => handleDrop(e, section.id)}
                       >
-                        <div className="flex items-center justify-between p-4 border-b bg-gray-50">
+                        <div className={resumeSectionHeader}>
                           <div className="flex items-center gap-2 flex-1">
-                            <GripVertical className="w-4 h-4 text-gray-400 cursor-grab" />
+                            <ResumeSectionDragHandle
+                              sectionId={section.id}
+                              onDragStart={handleDragStart}
+                              onDragEnd={handleDragEnd}
+                            />
                             {editingSectionTitle === section.id ? (
                               <div className="flex items-center gap-2 flex-1">
                                 <Input
@@ -4994,21 +5139,22 @@ export default function EditResumePage() {
                     return (
                       <Card
                         key={section.id}
-                        className={`border transition-all ${
+                        className={resumeSectionCardClass(
                           dragOverId === section.id &&
-                          draggedSection !== section.id
-                            ? "border-purple-400 border-2 shadow-md"
-                            : ""
-                        }`}
-                        draggable
-                        onDragStart={(e) => handleDragStart(e, section.id)}
+                          draggedSection !== section.id,
+                          draggedSection === section.id,
+                        )}
                         onDragOver={(e) => handleDragOver(e, section.id)}
-                        onDragEnd={handleDragEnd}
+                        onDragLeave={handleDragLeave}
                         onDrop={(e) => handleDrop(e, section.id)}
                       >
-                        <div className="flex items-center justify-between p-4 border-b bg-gray-50">
+                        <div className={resumeSectionHeader}>
                           <div className="flex items-center gap-2 flex-1 min-w-0">
-                            <GripVertical className="w-4 h-4 text-gray-400 cursor-grab active:cursor-grabbing" />
+                            <ResumeSectionDragHandle
+                              sectionId={section.id}
+                              onDragStart={handleDragStart}
+                              onDragEnd={handleDragEnd}
+                            />
                             {editingSectionTitle === section.id ? (
                               <div className="flex items-center gap-2 flex-1">
                                 <Input
@@ -5087,7 +5233,7 @@ export default function EditResumePage() {
                           </div>
                         </div>
                         {section.expanded && (
-                          <CardContent className="p-4 space-y-4">
+                          <CardContent className={resumeSectionContent}>
                             <RichTextEditor
                               key={`${section.id}-${
                                 customContent.length > 0 ? "loaded" : "empty"
@@ -5140,21 +5286,22 @@ export default function EditResumePage() {
                     return (
                       <Card
                         key={section.id}
-                        className={`border transition-all ${
+                        className={resumeSectionCardClass(
                           dragOverId === section.id &&
-                          draggedSection !== section.id
-                            ? "border-purple-400 border-2 shadow-md"
-                            : ""
-                        }`}
-                        draggable
-                        onDragStart={(e) => handleDragStart(e, section.id)}
+                          draggedSection !== section.id,
+                          draggedSection === section.id,
+                        )}
                         onDragOver={(e) => handleDragOver(e, section.id)}
-                        onDragEnd={handleDragEnd}
+                        onDragLeave={handleDragLeave}
                         onDrop={(e) => handleDrop(e, section.id)}
                       >
                         <div className="flex items-center justify-between p-2 border-b bg-gray-50">
                           <div className="flex items-center gap-2 flex-1">
-                            <GripVertical className="w-4 h-4 text-gray-400 cursor-grab active:cursor-grabbing" />
+                            <ResumeSectionDragHandle
+                              sectionId={section.id}
+                              onDragStart={handleDragStart}
+                              onDragEnd={handleDragEnd}
+                            />
                             <h3 className="font-semibold text-sm text-gray-500">
                               {section.title}
                             </h3>
@@ -5205,16 +5352,17 @@ export default function EditResumePage() {
                       <Card
                         key={section.id}
                         className="border"
-                        draggable
-                        onDragStart={(e) => handleDragStart(e, section.id)}
                         onDragOver={(e) => handleDragOver(e, section.id)}
                         onDragLeave={handleDragLeave}
-                        onDragEnd={handleDragEnd}
                         onDrop={(e) => handleDrop(e, section.id)}
                       >
-                        <div className="flex items-center justify-between p-4 border-b bg-gray-50">
+                        <div className={resumeSectionHeader}>
                           <div className="flex items-center gap-2 flex-1">
-                            <GripVertical className="w-4 h-4 text-gray-400 cursor-grab" />
+                            <ResumeSectionDragHandle
+                              sectionId={section.id}
+                              onDragStart={handleDragStart}
+                              onDragEnd={handleDragEnd}
+                            />
                             {editingSectionTitle === section.id ? (
                               <div className="flex items-center gap-2 flex-1">
                                 <Input
@@ -5326,16 +5474,17 @@ export default function EditResumePage() {
                       <Card
                         key={section.id}
                         className="border"
-                        draggable
-                        onDragStart={(e) => handleDragStart(e, section.id)}
                         onDragOver={(e) => handleDragOver(e, section.id)}
                         onDragLeave={handleDragLeave}
-                        onDragEnd={handleDragEnd}
                         onDrop={(e) => handleDrop(e, section.id)}
                       >
-                        <div className="flex items-center justify-between p-4 border-b bg-gray-50">
+                        <div className={resumeSectionHeader}>
                           <div className="flex items-center gap-2 flex-1">
-                            <GripVertical className="w-4 h-4 text-gray-400 cursor-grab" />
+                            <ResumeSectionDragHandle
+                              sectionId={section.id}
+                              onDragStart={handleDragStart}
+                              onDragEnd={handleDragEnd}
+                            />
                             {editingSectionTitle === section.id ? (
                               <div className="flex items-center gap-2 flex-1">
                                 <Input
@@ -5450,16 +5599,17 @@ export default function EditResumePage() {
                       <Card
                         key={section.id}
                         className="border"
-                        draggable
-                        onDragStart={(e) => handleDragStart(e, section.id)}
                         onDragOver={(e) => handleDragOver(e, section.id)}
                         onDragLeave={handleDragLeave}
-                        onDragEnd={handleDragEnd}
                         onDrop={(e) => handleDrop(e, section.id)}
                       >
-                        <div className="flex items-center justify-between p-4 border-b bg-gray-50">
+                        <div className={resumeSectionHeader}>
                           <div className="flex items-center gap-2 flex-1">
-                            <GripVertical className="w-4 h-4 text-gray-400 cursor-grab" />
+                            <ResumeSectionDragHandle
+                              sectionId={section.id}
+                              onDragStart={handleDragStart}
+                              onDragEnd={handleDragEnd}
+                            />
                             {editingSectionTitle === section.id ? (
                               <div className="flex items-center gap-2 flex-1">
                                 <Input
@@ -5723,7 +5873,7 @@ export default function EditResumePage() {
                                 );
                                 setHasChanges(true);
                               }}
-                              className="w-full bg-purple-600 hover:bg-purple-700 text-white"
+                              className={resumePrimaryCta}
                             >
                               <Plus className="w-4 h-4 mr-2" />
                               Add Award
@@ -5740,16 +5890,17 @@ export default function EditResumePage() {
                       <Card
                         key={section.id}
                         className="border"
-                        draggable
-                        onDragStart={(e) => handleDragStart(e, section.id)}
                         onDragOver={(e) => handleDragOver(e, section.id)}
                         onDragLeave={handleDragLeave}
-                        onDragEnd={handleDragEnd}
                         onDrop={(e) => handleDrop(e, section.id)}
                       >
-                        <div className="flex items-center justify-between p-4 border-b bg-gray-50">
+                        <div className={resumeSectionHeader}>
                           <div className="flex items-center gap-2 flex-1">
-                            <GripVertical className="w-4 h-4 text-gray-400 cursor-grab" />
+                            <ResumeSectionDragHandle
+                              sectionId={section.id}
+                              onDragStart={handleDragStart}
+                              onDragEnd={handleDragEnd}
+                            />
                             {editingSectionTitle === section.id ? (
                               <div className="flex items-center gap-2 flex-1">
                                 <Input
@@ -6048,7 +6199,7 @@ export default function EditResumePage() {
                                 );
                                 setHasChanges(true);
                               }}
-                              className="w-full bg-purple-600 hover:bg-purple-700 text-white"
+                              className={resumePrimaryCta}
                             >
                               <Plus className="w-4 h-4 mr-2" />
                               Add Reference
@@ -6065,16 +6216,17 @@ export default function EditResumePage() {
                       <Card
                         key={section.id}
                         className="border"
-                        draggable
-                        onDragStart={(e) => handleDragStart(e, section.id)}
                         onDragOver={(e) => handleDragOver(e, section.id)}
                         onDragLeave={handleDragLeave}
-                        onDragEnd={handleDragEnd}
                         onDrop={(e) => handleDrop(e, section.id)}
                       >
-                        <div className="flex items-center justify-between p-4 border-b bg-gray-50">
+                        <div className={resumeSectionHeader}>
                           <div className="flex items-center gap-2 flex-1">
-                            <GripVertical className="w-4 h-4 text-gray-400 cursor-grab" />
+                            <ResumeSectionDragHandle
+                              sectionId={section.id}
+                              onDragStart={handleDragStart}
+                              onDragEnd={handleDragEnd}
+                            />
                             {editingSectionTitle === section.id ? (
                               <div className="flex items-center gap-2 flex-1">
                                 <Input
@@ -6153,7 +6305,7 @@ export default function EditResumePage() {
                           </div>
                         </div>
                         {section.expanded && (
-                          <CardContent className="p-4 space-y-4">
+                          <CardContent className={resumeSectionContent}>
                             <Button
                               size="sm"
                               onClick={() => {
@@ -6313,16 +6465,17 @@ export default function EditResumePage() {
                       <Card
                         key={section.id}
                         className="border"
-                        draggable
-                        onDragStart={(e) => handleDragStart(e, section.id)}
                         onDragOver={(e) => handleDragOver(e, section.id)}
                         onDragLeave={handleDragLeave}
-                        onDragEnd={handleDragEnd}
                         onDrop={(e) => handleDrop(e, section.id)}
                       >
-                        <div className="flex items-center justify-between p-4 border-b bg-gray-50">
+                        <div className={resumeSectionHeader}>
                           <div className="flex items-center gap-2 flex-1">
-                            <GripVertical className="w-4 h-4 text-gray-400 cursor-grab" />
+                            <ResumeSectionDragHandle
+                              sectionId={section.id}
+                              onDragStart={handleDragStart}
+                              onDragEnd={handleDragEnd}
+                            />
                             {editingSectionTitle === section.id ? (
                               <div className="flex items-center gap-2 flex-1">
                                 <Input
@@ -6401,7 +6554,7 @@ export default function EditResumePage() {
                           </div>
                         </div>
                         {section.expanded && (
-                          <CardContent className="p-4 space-y-4">
+                          <CardContent className={resumeSectionContent}>
                             <Button
                               size="sm"
                               onClick={() => {
@@ -6592,16 +6745,17 @@ export default function EditResumePage() {
                       <Card
                         key={section.id}
                         className="border"
-                        draggable
-                        onDragStart={(e) => handleDragStart(e, section.id)}
                         onDragOver={(e) => handleDragOver(e, section.id)}
                         onDragLeave={handleDragLeave}
-                        onDragEnd={handleDragEnd}
                         onDrop={(e) => handleDrop(e, section.id)}
                       >
-                        <div className="flex items-center justify-between p-4 border-b bg-gray-50">
+                        <div className={resumeSectionHeader}>
                           <div className="flex items-center gap-2 flex-1">
-                            <GripVertical className="w-4 h-4 text-gray-400 cursor-grab" />
+                            <ResumeSectionDragHandle
+                              sectionId={section.id}
+                              onDragStart={handleDragStart}
+                              onDragEnd={handleDragEnd}
+                            />
                             {editingSectionTitle === section.id ? (
                               <div className="flex items-center gap-2 flex-1">
                                 <Input
@@ -6680,7 +6834,7 @@ export default function EditResumePage() {
                           </div>
                         </div>
                         {section.expanded && (
-                          <CardContent className="p-4 space-y-4">
+                          <CardContent className={resumeSectionContent}>
                             <Button
                               size="sm"
                               onClick={() => {
@@ -6835,10 +6989,10 @@ export default function EditResumePage() {
                 })}
 
               {/* Add Section Button */}
-              <Card className="border-dashed border-2">
+              <Card className={resumeAddSectionsCard}>
                 <CardContent className="p-4">
                   <div className="space-y-2">
-                    <p className="text-sm font-semibold text-gray-700 mb-3">
+                    <p className="mb-3 text-sm font-semibold text-foreground">
                       Add More Sections
                     </p>
                     <div className="grid grid-cols-2 gap-2">
@@ -6918,11 +7072,12 @@ export default function EditResumePage() {
                             key={section.type}
                             variant="outline"
                             size="sm"
-                            className={`text-xs justify-start ${
+                            className={cn(
+                              "justify-start text-xs",
                               alreadyAdded
-                                ? "opacity-50 cursor-not-allowed"
-                                : "hover:bg-purple-50"
-                            }`}
+                                ? "cursor-not-allowed opacity-50"
+                                : resumeAddSectionButton,
+                            )}
                             onClick={() => {
                               if (!alreadyAdded) {
                                 addSection(section.type);
@@ -6944,27 +7099,30 @@ export default function EditResumePage() {
         </div>
 
         {/* Right Panel: Preview (on top on mobile) */}
-        <div className="order-1 flex min-h-0 w-full flex-1 flex-col overflow-auto border-b border-gray-200 bg-gray-100 md:order-none md:w-1/2 md:border-b-0">
-          <div className="sticky top-0 bg-white border-b p-4 z-10 flex items-center justify-between">
-            <h3 className="font-semibold text-sm flex items-center gap-2">
-              <Eye className="w-4 h-4" />
+        <div className={resumePreviewPanel}>
+          <div className={resumePreviewHeader}>
+            <h3 className="flex items-center gap-2 text-sm font-semibold">
+              <Eye className="h-4 w-4 text-primary" />
               Preview
             </h3>
-            <div className="text-xs text-gray-500">Live Preview</div>
+            <div className="text-xs text-muted-foreground">Live Preview</div>
           </div>
           <div className="p-4">
-            {template ? (
-              <ResumePreview
+            {template && previewResume ? (
+              <>
+                <TemplateStyleLoader templateId={template.id} />
+                <ResumePreview
                 key={`resume-preview-${previewKey}`}
-                resume={resume}
+                resume={previewResume}
                 template={template}
                 sections={sections}
                 layout={layout || undefined}
                 zoomLevel={zoomLevel}
                 onZoomChange={setZoomLevel}
               />
+              </>
             ) : (
-              <div className="flex items-center justify-center h-full text-gray-500">
+              <div className="flex h-full items-center justify-center text-muted-foreground">
                 <Loader2 className="w-6 h-6 animate-spin mr-2" />
                 Loading template...
               </div>
@@ -6981,6 +7139,26 @@ export default function EditResumePage() {
         onSelectTemplate={handleChangeTemplate}
         applying={changingTemplate}
       />
+      {resume && template ? (
+        <ImportResumeDialog
+          open={importResumeOpen}
+          onOpenChange={setImportResumeOpen}
+          resumeId={resumeId}
+          templateId={resume.templateId}
+          layout={layout}
+          onImported={handleResumeImported}
+        />
+      ) : null}
+      {resume && template && layout ? (
+        <RearrangeSectionsDialog
+          open={rearrangeSectionsOpen}
+          onOpenChange={setRearrangeSectionsOpen}
+          sections={sections}
+          layoutType={layout.type}
+          template={template}
+          onSectionsChange={handleSectionsRearranged}
+        />
+      ) : null}
       <ConfirmationDialog
         open={deleteDialogOpen}
         onOpenChange={setDeleteDialogOpen}
