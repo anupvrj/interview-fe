@@ -207,6 +207,11 @@ const hasContentInRange = (
       el.top < endY,
   );
 
+/**
+ * Drop trailing empty *slivers* (short blank tails). A full-height blank trailing
+ * page is intentionally kept so it stays visible and the user can delete it; the
+ * preview layer suppresses it only after an explicit dismissal.
+ */
 export function trimTrailingEmptySliverPages(
   pages: PageBand[],
   elements: PaginationElementInput[],
@@ -216,17 +221,20 @@ export function trimTrailingEmptySliverPages(
     const page = pages[lastContentPageIndex];
     const startY = page.offsetY;
     const endY = page.offsetY + page.height;
-    const isTinySliver = page.height <= TRAILING_EMPTY_SLIVER_MAX_PX;
     if (hasContentInRange(elements, startY, endY)) {
       break;
     }
-    if (!isTinySliver) {
+    // Keep genuinely empty full-size pages (deletable); only trim short slivers.
+    if (page.height > TRAILING_EMPTY_SLIVER_MAX_PX) {
       break;
     }
     lastContentPageIndex--;
   }
 
-  return pages.slice(0, lastContentPageIndex + 1);
+  return pages.slice(0, lastContentPageIndex + 1).map((page, index) => ({
+    ...page,
+    pageNumber: index + 1,
+  }));
 }
 
 /** Build orphan-repair boxes from headers (all) + items (meaningful only). */

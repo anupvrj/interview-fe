@@ -29,12 +29,16 @@ import {
   Search,
   Briefcase,
   Code,
+  Camera,
+  Target,
+  BarChart3,
 } from "lucide-react";
 import Image from "next/image";
 import { PlansSection } from "@/components/PlansSection";
 import { ScrollSection } from "@/components/ScrollSection";
 import { SiteHeader } from "@/components/SiteHeader";
 import { MarketingFooter } from "@/components/MarketingFooter";
+import { WhyFeatureCardsMarquee } from "@/components/marketing/WhyFeatureCardsMarquee";
 import { AiJobSearchNotifyButton } from "@/components/AiJobSearchNotifyButton";
 import { appMarketingSection, appMarketingSectionAlt, appMarketingSectionPurple, appMarketingSectionLight } from "@/lib/app-theme";
 import { cn } from "@/lib/utils";
@@ -114,15 +118,15 @@ export default function LandingPage() {
     "/resume-template-images/clean-slate-preview.webp",
   ];
 
-  const firstLine = "Beat the ATS Black Hole";
-  const secondLine = "With Your AI Career Ally";
+  const firstLine = "Land Your Dream Job Faster";
+  const secondLine = "With Data-Driven AI Mock Interview";
   const fullText = firstLine + " " + secondLine;
-  const highlightStart = 9; // "ATS" in first line (after "Beat the ")
-  const highlightEnd = highlightStart + 3;
-  // Highlight "Ally" at end of second line (local index 20 in secondLine)
-  const allyLocalStart = 20;
+  const highlightStart = 10; // "Dream Job" in first line
+  const highlightEnd = highlightStart + 9;
+  // Highlight "AI Mock Interview" at end of second line (local index 17 in secondLine)
+  const allyLocalStart = 17;
   const happensStart = firstLine.length + 1 + allyLocalStart;
-  const happensEnd = happensStart + 4;
+  const happensEnd = happensStart + 18;
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -395,7 +399,7 @@ export default function LandingPage() {
                 </div>
               </h1>
               <p className="text-sm sm:text-base lg:text-xl text-gray-600 leading-relaxed max-w-xl mx-auto lg:mx-0 px-2 sm:px-0">
-                AI filters your resume before a human ever sees it. Interview Trix is your end-to-end career partner—ATS-ready resumes, AI Interview Practice and coding practice, peer sessions, and smart job matching—so you work smarter and get noticed.
+                Build an ATS-proof resume, master live mock interviews, and apply to roles with measurable hire probabilities. Practice smarter with a unified AI career engine that learns your weaknesses.
               </p>
               
               {/* Company Logos */}
@@ -561,130 +565,9 @@ export default function LandingPage() {
               From an ATS-ready resume to AI Interview Practice, peer interviews, and the perfect job match—one platform built for how hiring works today.
             </p>
           </div>
-
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            <div className="group bg-card shadow-card hover:shadow-header relative rounded-2xl border border-border p-6 transition-all duration-300 hover:-translate-y-0.5 hover:border-primary/40">
-              <div className="absolute inset-0 bg-card/30 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
-              <div className="relative">
-                <div className="w-14 h-14 bg-primary rounded-2xl flex items-center justify-center mb-4 shadow-lg group-hover:scale-110 transition-transform">
-                  <FileText className="w-7 h-7 text-white" />
-                </div>
-                <h3 className="text-xl font-bold text-slate-900 mb-2">
-                  AI Resume Builder
-                </h3>
-                <p className="text-sm font-semibold text-gray-800 mb-2">
-                  Pass the bots. Reach the desk.
-                </p>
-                <p className="text-sm text-gray-600 leading-relaxed">
-                  Real-time analysis, instant improvements, Smart ATS Score, and ATS-optimized templates—whether you&apos;re a fresher or a seasoned pro.
-                </p>
-              </div>
-            </div>
-
-            <div className="group bg-card shadow-card hover:shadow-header relative rounded-2xl border border-border p-6 transition-all duration-300 hover:-translate-y-0.5 hover:border-primary/40">
-              <div className="absolute inset-0 bg-card/30 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
-              <div className="relative">
-                <div className="w-14 h-14 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-2xl flex items-center justify-center mb-4 shadow-lg group-hover:scale-110 transition-transform">
-                  <Mic className="w-7 h-7 text-white" />
-                </div>
-                <h3 className="text-xl font-bold text-slate-900 mb-2">
-                  AI Interview Practice
-                </h3>
-                <p className="text-sm font-semibold text-gray-800 mb-2">
-                  Company-specific. Multilingual.
-                </p>
-                <p className="text-sm text-gray-600 leading-relaxed">
-                  Tell us your dream company—we simulate their style. Practice in multiple languages with adaptive follow-ups that feel like the real thing.
-                </p>
-              </div>
-            </div>
-
-            <div className="group bg-card shadow-card hover:shadow-header relative rounded-2xl border border-border p-6 transition-all duration-300 hover:-translate-y-0.5 hover:border-primary/40">
-              <div className="absolute inset-0 bg-card/30 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
-              <div className="relative">
-                <div className="w-14 h-14 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-2xl flex items-center justify-center mb-4 shadow-lg group-hover:scale-110 transition-transform">
-                  <Code className="w-7 h-7 text-white" />
-                </div>
-                <h3 className="text-xl font-bold text-slate-900 mb-2">
-                  Practice Coding Round
-                </h3>
-                <p className="text-sm font-semibold text-gray-800 mb-2">
-                  Solve. Defend. Get scored.
-                </p>
-                <p className="text-sm text-gray-600 leading-relaxed">
-                  Work through problems, then discuss your solution with AI—full report and discussion score so you&apos;re never caught off guard.
-                </p>
-              </div>
-            </div>
-
-            <Link
-              href="/sign-up"
-              className="group bg-card hover:shadow-header relative block rounded-2xl border border-border p-6 text-left shadow-card transition-all duration-300 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-xl"
-            >
-              <div className="absolute inset-0 bg-card/30 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
-              <div className="relative">
-                <div className="w-14 h-14 bg-gradient-to-br from-amber-500 to-amber-600 rounded-2xl flex items-center justify-center mb-4 shadow-lg group-hover:scale-110 transition-transform">
-                  <Video className="w-7 h-7 text-white" />
-                </div>
-                <h3 className="text-xl font-bold text-slate-900 mb-2">
-                  Peer Interviews
-                </h3>
-                <p className="text-sm font-semibold text-gray-800 mb-2">
-                  Beat the fear. Real engineers.
-                </p>
-                <p className="text-sm text-gray-600 leading-relaxed">
-                  Schedule with engineers from top companies—real-time feedback and an overall performance score from people who&apos;ve been there.
-                </p>
-                <p className="text-sm font-medium text-primary mt-3 flex items-center gap-1">
-                  Sign up to book
-                  <ArrowRight className="w-4 h-4" />
-                </p>
-              </div>
-            </Link>
-
-            <div className="group bg-card shadow-card hover:shadow-header relative rounded-2xl border border-border p-6 transition-all duration-300 hover:-translate-y-0.5 hover:border-primary/40">
-              <div className="absolute inset-0 bg-card/30 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
-              <div className="relative">
-                <div className="w-14 h-14 bg-gradient-to-br from-cyan-500 to-cyan-600 rounded-2xl flex items-center justify-center mb-4 shadow-lg group-hover:scale-110 transition-transform">
-                  <Award className="w-7 h-7 text-white" />
-                </div>
-                <h3 className="text-xl font-bold text-slate-900 mb-2">
-                  Company-Specific Prep
-                </h3>
-                <p className="text-sm font-semibold text-gray-800 mb-2">
-                  Target your next employer.
-                </p>
-                <p className="text-sm text-gray-600 leading-relaxed">
-                  Role- and round-aware practice so you walk in aligned with how that team actually interviews.
-                </p>
-              </div>
-            </div>
-
-            <Link
-              href="/ai-job-search"
-              className="group bg-card hover:shadow-header relative block rounded-2xl border border-border p-6 text-left shadow-card transition-all duration-300 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-xl"
-            >
-              <div className="absolute inset-0 bg-card/30 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
-              <div className="relative">
-                <div className="w-14 h-14 bg-gradient-to-br from-violet-500 to-violet-600 rounded-2xl flex items-center justify-center mb-4 shadow-lg group-hover:scale-110 transition-transform">
-                  <Search className="w-7 h-7 text-white" />
-                </div>
-                <h3 className="text-xl font-bold text-slate-900 mb-2">
-                  Smart Job Search
-                </h3>
-                <p className="text-sm font-semibold text-gray-800 mb-2">
-                  Match · Refine · Apply
-                </p>
-                <p className="text-sm text-gray-600 leading-relaxed">
-                  Surface strong fits, see your odds of getting hired, then refine your resume for that exact job description before you apply.
-                </p>
-                <p className="text-sm font-medium text-primary mt-3 flex items-center gap-1">
-                  Learn more
-                  <ArrowRight className="w-4 h-4" />
-                </p>
-              </div>
-            </Link>
-          </div>
+        </div>
+        <div className="relative z-10">
+          <WhyFeatureCardsMarquee />
         </div>
       </ScrollSection>
 
@@ -702,52 +585,72 @@ export default function LandingPage() {
             <div className="space-y-6">
               {/* Badge */}
               <div className="inline-flex items-center gap-2 px-3 py-1 bg-muted rounded-full text-primary font-medium text-sm">
-                <span>ATS-Optimized Templates · Real-Time Suggestions</span>
+                <span>AI-Powered Writing • Live ATS Analysis</span>
               </div>
 
               {/* Headline */}
               <h2 className="text-3xl sm:text-4xl md:text-5xl font-semibold tracking-tight text-slate-900 leading-tight">
-                Start With a Resume That <span className="text-primary">Passes the Bots</span>
+                <span className="text-primary">Beat the Bots</span> Before a Human Ever Reads You
               </h2>
 
               {/* Sub-headline */}
               <p className="text-base sm:text-lg text-gray-600 leading-relaxed">
-                Our model analyzes your resume in real time—instant improvements and a Smart ATS Score—so you land on the recruiter&apos;s desk, not in the black hole.
+                Most applications are rejected by tracking software before reaching a recruiter&apos;s desk. Skip the manual formatting—import your existing resume or chat with our AI to instantly generate quantified achievements, patch missing keywords, and build a flawless, ATS-proof resume.
               </p>
 
               {/* AI-Powered Features */}
               <div className="flex flex-col sm:grid sm:grid-cols-2 gap-4 sm:gap-6 pt-4">
-                <div className="flex items-center gap-3">
+                <div className="group flex items-start gap-3">
                   <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
                     <FileText className="w-5 h-5 text-primary" />
                   </div>
-                  <h3 className="text-sm sm:text-base font-semibold text-gray-900">
-                    ATS-Optimized Templates
-                  </h3>
+                  <div className="min-w-0">
+                    <h3 className="text-sm sm:text-base font-semibold text-gray-900">
+                      50+ ATS-Safe Templates
+                    </h3>
+                    <p className="mt-0.5 text-xs sm:text-sm leading-snug text-gray-500">
+                      Guaranteed parsing without hidden formatting errors.
+                    </p>
+                  </div>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="group flex items-start gap-3">
                   <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
                     <Check className="w-5 h-5 text-primary" />
                   </div>
-                  <h3 className="text-sm sm:text-base font-semibold text-gray-900">
-                    Smart ATS Scoring
-                  </h3>
+                  <div className="min-w-0">
+                    <h3 className="text-sm sm:text-base font-semibold text-gray-900">
+                      Live ATS Scoring
+                    </h3>
+                    <p className="mt-0.5 text-xs sm:text-sm leading-snug text-gray-500">
+                      Watch your exact match rate update in real-time as you tweak your profile.
+                    </p>
+                  </div>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="group flex items-start gap-3">
                   <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
                     <Sparkles className="w-5 h-5 text-primary" />
                   </div>
-                  <h3 className="text-sm sm:text-base font-semibold text-gray-900">
-                    Real-Time Improvements
-                  </h3>
+                  <div className="min-w-0">
+                    <h3 className="text-sm sm:text-base font-semibold text-gray-900">
+                      One-Click AI Rewrites
+                    </h3>
+                    <p className="mt-0.5 text-xs sm:text-sm leading-snug text-gray-500">
+                      Highlight weak bullets and let the AI instantly rewrite them with powerful metrics.
+                    </p>
+                  </div>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="group flex items-start gap-3">
                   <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
                     <Zap className="w-5 h-5 text-primary" />
                   </div>
-                  <h3 className="text-sm sm:text-base font-semibold text-gray-900">
-                    Instant Suggestions
-                  </h3>
+                  <div className="min-w-0">
+                    <h3 className="text-sm sm:text-base font-semibold text-gray-900">
+                      Frictionless Import
+                    </h3>
+                    <p className="mt-0.5 text-xs sm:text-sm leading-snug text-gray-500">
+                      Never stare at a blank page. Pull data straight from LinkedIn or an old PDF.
+                    </p>
+                  </div>
                 </div>
               </div>
 
@@ -758,7 +661,7 @@ export default function LandingPage() {
                     size="lg"
                     className="w-full sm:w-auto text-white font-medium shadow-sm transition-all h-12 px-6 hover:opacity-90 !bg-primary"
                   >
-                    Try Builder Free
+                    Build Free Resume
                     <ArrowRight className="w-4 h-4 ml-2" />
                   </Button>
                 </Link>
@@ -768,7 +671,7 @@ export default function LandingPage() {
                     size="lg"
                     className="w-full sm:w-auto border-gray-200 text-gray-700 font-medium h-12 px-6 hover:!bg-slate-900 hover:!text-white transition-all"
                   >
-                    Browse Templates
+                    Browse 50+ Templates
                   </Button>
                 </Link>
               </div>
@@ -863,31 +766,44 @@ export default function LandingPage() {
             <div className="space-y-6">
               {/* Badge */}
               <div className="inline-flex items-center gap-2 px-3 py-1 bg-muted rounded-full text-primary font-medium text-sm">
-                <span>AI Interview Practice · Company-Specific Prep</span>
+                <span>Live AI Mock Interviews • Advanced Proctoring</span>
               </div>
 
               {/* Headline */}
               <h2 className="text-3xl sm:text-4xl md:text-5xl font-semibold tracking-tight text-slate-900 leading-tight">
-                Shortlisted? <span className="text-primary">Perform</span> Under Pressure
+                Shortlisted? <span className="text-primary">Perform Under Pressure</span>
               </h2>
 
               {/* Sub-headline */}
               <p className="text-base sm:text-lg text-gray-600 leading-relaxed">
-                AI Interview Practice in multiple languages, tailored to your dream company&apos;s style—plus coding rounds where you defend your solution and receive a full report and discussion score.
+                Enable your camera for a hyper-realistic AI mock session. The system tracks your eye contact, detects cheating attempts, curates company-specific questions, and adapts difficulty in real-time to generate instant feedback.
               </p>
 
               {/* AI-Powered Features */}
               <div className="space-y-6 pt-4">
                 <div className="flex items-start gap-4">
                   <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
-                    <Mic className="w-5 h-5 text-primary" />
+                    <Camera className="w-5 h-5 text-primary" />
                   </div>
                   <div>
                     <h3 className="text-base font-semibold text-gray-900 mb-1">
-                      AI Interview Practice
+                      Behavioral &amp; Integrity Analysis
                     </h3>
                     <p className="text-sm text-gray-600 leading-relaxed">
-                      Tell us the company—we simulate their interview style with realistic, adaptive spoken sessions.
+                      Our AI evaluates your facial expressions and eye contact to build interview confidence, while built-in proctoring detects unauthorized help or cheating attempts.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-4">
+                  <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
+                    <Target className="w-5 h-5 text-primary" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-semibold text-gray-900 mb-1">
+                      Hyper-Personalized Context
+                    </h3>
+                    <p className="text-sm text-gray-600 leading-relaxed">
+                      We ingest your specific resume and target company profile to generate precise, role-specific questions tailored entirely to your experience level.
                     </p>
                   </div>
                 </div>
@@ -897,36 +813,23 @@ export default function LandingPage() {
                   </div>
                   <div>
                     <h3 className="text-base font-semibold text-gray-900 mb-1">
-                      Multilingual Support
+                      Adaptive Difficulty Scaling
                     </h3>
                     <p className="text-sm text-gray-600 leading-relaxed">
-                      Practice across the languages you need so you&apos;re fluent when it counts.
+                      The Contextual Brain analyzes your spoken answers in real-time, dynamically adjusting the interview&apos;s difficulty to match the authentic pressure of a hiring manager.
                     </p>
                   </div>
                 </div>
                 <div className="flex items-start gap-4">
                   <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
-                    <Code className="w-5 h-5 text-primary" />
+                    <BarChart3 className="w-5 h-5 text-primary" />
                   </div>
                   <div>
                     <h3 className="text-base font-semibold text-gray-900 mb-1">
-                      Practice Coding + AI Discussion
+                      Instant Skill Analytics
                     </h3>
                     <p className="text-sm text-gray-600 leading-relaxed">
-                      Solve challenging problems, then discuss your approach—questions targeted to your actual code and solution.
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-4">
-                  <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
-                    <MessageSquare className="w-5 h-5 text-primary" />
-                  </div>
-                  <div>
-                    <h3 className="text-base font-semibold text-gray-900 mb-1">
-                      Reports &amp; Scores
-                    </h3>
-                    <p className="text-sm text-gray-600 leading-relaxed">
-                      Full feedback and discussion scores so you know exactly what to improve before the real round.
+                      Get an immediate, granular report on your communication skills, speaking pace, behavioral alignment, and answer structure the second your session ends.
                     </p>
                   </div>
                 </div>
@@ -934,22 +837,22 @@ export default function LandingPage() {
 
               {/* CTA Buttons */}
               <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 pt-4">
-                <Link href="/sign-up" className="w-full sm:w-auto">
+                <Link href="/ai-interview-coach" className="w-full sm:w-auto">
                   <Button
                     size="lg"
                     className="w-full sm:w-auto bg-primary hover:bg-slate-900 text-white font-medium shadow-sm transition-all h-12 px-6"
                   >
-                    Start Free Interview
+                    Start Mock Interview
                     <ArrowRight className="w-4 h-4 ml-2" />
                   </Button>
                 </Link>
-                <Link href="/ai-interview-coach" className="w-full sm:w-auto">
+                <Link href="#sample-analytics-preview" className="w-full sm:w-auto">
                   <Button
                     variant="outline"
                     size="lg"
                     className="w-full sm:w-auto border-gray-200 text-gray-700 font-medium h-12 px-6 hover:!bg-slate-900 hover:!text-white transition-all"
                   >
-                    Learn More
+                    View Sample Analytics
                   </Button>
                 </Link>
               </div>
@@ -968,7 +871,7 @@ export default function LandingPage() {
             </div>
 
             {/* Right Side - Product UI Demo */}
-            <div className="relative lg:pl-8 shake-vertical">
+            <div id="sample-analytics-preview" className="relative lg:pl-8 shake-vertical scroll-mt-24">
               <div className="relative">
                 {/* Background Shape */}
                 <div className="absolute inset-0 bg-primary rounded-3xl transform rotate-3 opacity-10"></div>

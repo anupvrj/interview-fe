@@ -1036,3 +1036,16 @@
 .auth-clerk-root .cl-footer {
   display: none !important;
 }
+
+@keyframes why-feature-marquee-ltr {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-why-feature-marquee-ltr {
+  animation: why-feature-marquee-ltr 50s linear infinite;
+}

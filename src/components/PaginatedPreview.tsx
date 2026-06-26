@@ -1,6 +1,13 @@
 "use client";
 
-import React, { useEffect, useMemo } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useState,
+} from "react";
+import { Trash2 } from "lucide-react";
 import { Resume, ResumeTemplate } from "@/lib/api";
 import { getExtendedTemplate } from "@/lib/templateConfigs";
 import { getTemplateStyle } from "@/lib/templateRenderer";
@@ -15,12 +22,54 @@ import {
   resolveLayoutPaddingMm,
 } from "@/lib/resume-page-dimensions";
 import { debugResumePagination } from "@/lib/debug-resume-pagination";
+import { buildResumeContentMeasureKey } from "@/lib/resume-content-measure-key";
+import type { PageData } from "@/hooks/useResumePagination";
+import {
+  applyDismissedEmptyTrailingPages,
+  canDeleteEmptyResumePage,
+  canDeleteResumePage,
+  filterNonEmptyPreviewPages,
+  isEmptyResumePageBand,
+} from "@/lib/resume-page-delete";
+import { cn } from "@/lib/utils";
+
+export interface ResumePaginationSnapshot {
+  /** Display pagination bands (after blank-page dismissals). */
+  pages: PageData[];
+  /** Live pagination bands from the committed measure pass. */
+  rawPages: PageData[];
+  measureRoot: HTMLElement | null;
+  isCalculated: boolean;
+}
 
 interface PaginatedPreviewProps {
   resume: Resume;
   template: ResumeTemplate;
   sections?: any[];
   layout?: any;
+  /** User-dismissed blank trailing pages (persisted in resume layout). */
+  dismissedEmptyTrailingPages?: number;
+  onPageDelete?: (payload: {
+    pageNumber: number;
+    totalPages: number;
+  }) => void;
+  onPaginationSnapshot?: (snapshot: ResumePaginationSnapshot) => void;
+}
+
+/**
+ * A committed render frame. Page bands are only valid for the exact content they were
+ * measured against, so we pair them atomically with the resume/sections/layout/template
+ * used. The hidden measure DOM always renders the live props; the visible pages render
+ * from this frame. The frame swaps only when a fresh measure for the current key lands,
+ * which makes a band/content mismatch (clipping, blank pages) impossible.
+ */
+interface PreviewFrame {
+  key: string;
+  pages: PageData[];
+  resume: Resume;
+  sections: any[] | undefined;
+  layout: any;
+  template: ResumeTemplate;
 }
 
 export const PaginatedPreview: React.FC<PaginatedPreviewProps> = ({
@@ -28,9 +77,11 @@ export const PaginatedPreview: React.FC<PaginatedPreviewProps> = ({
   template,
   sections,
   layout,
+  dismissedEmptyTrailingPages = 0,
+  onPageDelete,
+  onPaginationSnapshot,
 }) => {
   const currentLayout = layout || resume.layout || { type: "single" };
-  const isTwoColumn = currentLayout.type === "double";
 
   /** Same padding merge as ResumeRenderer + server PDF (no double-counting @page). */
   const paddingMm = useMemo(() => {
@@ -44,7 +95,7 @@ export const PaginatedPreview: React.FC<PaginatedPreviewProps> = ({
       ),
     );
   }, [
-    template.id,
+    template,
     currentLayout.type,
     currentLayout.padding?.top,
     currentLayout.padding?.bottom,
@@ -74,62 +125,166 @@ export const PaginatedPreview: React.FC<PaginatedPreviewProps> = ({
     ].join("|");
   }, [currentLayout.fontSize, currentLayout.fontFamily]);
 
+  const contentMeasureKey = useMemo(
+    () => buildResumeContentMeasureKey(resume),
+    [resume],
+  );
+
+  const sectionOrderKey = useMemo(
+    () =>
+      sections
+        ?.map((s, idx) => `${idx}:${s.id}-${s.visible}-${s.column ?? ""}`)
+        .join("|") ?? "",
+    [sections],
+  );
+
+  /** Single source of truth for "what affects layout" — drives both measure + commit. */
   const rendererKey = useMemo(() => {
     const padKey = `${paddingMm.top}-${paddingMm.bottom}-${paddingMm.left}-${paddingMm.right}`;
-    return (
-      sections?.map((s, idx) => `${idx}:${s.id}-${s.visible}`).join("|") +
-      `-${template.id}-${currentLayout.type}-${padKey}-${typographyKey}`
-    );
-  }, [sections, template.id, currentLayout.type, paddingMm, typographyKey]);
-
-  const isAtlanticBlue = template.id === "atlantic-blue";
-
-  const pageHeightLimit = (CONTENT_HEIGHT_MM / A4_HEIGHT_MM) * 1122.5;
-
-  useEffect(() => {
-    debugResumePagination("PaginatedPreview:layout", {
-      rendererKeyHead: rendererKey.slice(0, 160),
-      rendererKeyLen: rendererKey.length,
-      pageHeightLimit,
-      CONTENT_HEIGHT_MM,
-      paddingMm,
-      templateId: template.id,
-      resumeId: resume.resumeId,
-    });
+    return `${sectionOrderKey}-${template.id}-${currentLayout.type}-${padKey}-${typographyKey}-${contentMeasureKey}`;
   }, [
-    rendererKey,
-    pageHeightLimit,
-    CONTENT_HEIGHT_MM,
-    paddingMm,
+    sectionOrderKey,
     template.id,
-    resume.resumeId,
+    currentLayout.type,
+    paddingMm,
+    typographyKey,
+    contentMeasureKey,
   ]);
 
-  const { pages, isPaginating, measuringRef } =
-    useResumePagination({
-      resume,
-      sections: sections || [],
-      isTwoColumn,
-      pageHeightLimit,
-      /** Snap page cuts to line boundaries for all templates (rich text / multi-line items). */
-      snapPageBreaksToLineBounds: true,
-      measureLayoutKey: rendererKey,
-      layoutMeasureKey: rendererKey,
+  const isAtlanticBlue = template.id === "atlantic-blue";
+  const pageHeightLimit = (CONTENT_HEIGHT_MM / A4_HEIGHT_MM) * 1122.5;
+
+  const { pages, pagesKey, isPaginating, measuringRef } = useResumePagination({
+    resume,
+    sections: sections || [],
+    pageHeightLimit,
+    /** Snap page cuts to line boundaries for all templates (rich text / multi-line items). */
+    snapPageBreaksToLineBounds: true,
+    measureKey: rendererKey,
+  });
+
+  // ---- Atomic double buffer ----
+  const [frame, setFrame] = useState<PreviewFrame>(() => ({
+    key: "",
+    pages: [],
+    resume,
+    sections,
+    layout,
+    template,
+  }));
+
+  useLayoutEffect(() => {
+    // Commit only when the freshly measured bands belong to the current content.
+    if (pagesKey && pagesKey === rendererKey && pages.length > 0) {
+      setFrame({ key: rendererKey, pages, resume, sections, layout, template });
+    }
+  }, [pagesKey, rendererKey, pages, resume, sections, layout, template]);
+
+  const frameIsCurrent = frame.key === rendererKey;
+
+  /** Visible bands: dismiss blank trailing pages / drop empty pages only when the
+   *  committed frame matches the live measure DOM (otherwise show frame bands as-is). */
+  const visiblePages = useMemo(() => {
+    if (frame.pages.length === 0) return [] as PageData[];
+    if (!frameIsCurrent) return frame.pages;
+
+    const measureRoot = measuringRef.current;
+    const dismissed = applyDismissedEmptyTrailingPages(
+      frame.pages,
+      measureRoot,
+      dismissedEmptyTrailingPages,
+    );
+
+    if (onPageDelete || !measureRoot) return dismissed;
+
+    const nonEmpty = filterNonEmptyPreviewPages(measureRoot, dismissed);
+    return nonEmpty.length > 0 ? nonEmpty : dismissed;
+    // measuringRef is stable; rendererKey gating handled via frameIsCurrent.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [frame, frameIsCurrent, dismissedEmptyTrailingPages, onPageDelete]);
+
+  const totalPreviewPages = visiblePages.length;
+
+  const isPageEmpty = useCallback(
+    (page: PageData): boolean => {
+      const measureRoot =
+        measuringRef.current ??
+        document.getElementById(`resume-measure-${resume.resumeId}`);
+      return isEmptyResumePageBand(measureRoot, page);
+    },
+    // measuringRef is stable.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [resume.resumeId],
+  );
+
+  const canShowPageDeleteControl = useCallback(
+    (page: PageData): boolean =>
+      canDeleteResumePage(page.pageNumber, totalPreviewPages),
+    [totalPreviewPages],
+  );
+
+  // Report the committed frame so page-delete acts on bands that match the DOM.
+  useLayoutEffect(() => {
+    onPaginationSnapshot?.({
+      pages: visiblePages,
+      rawPages: frame.pages,
+      measureRoot: measuringRef.current,
+      isCalculated: frameIsCurrent && !isPaginating,
     });
+    // measuringRef is stable.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visiblePages, frame, frameIsCurrent, isPaginating, onPaginationSnapshot]);
+
+  const handlePageDeleteClick = useCallback(
+    (page: PageData) => {
+      if (!onPageDelete || !isPageEmpty(page)) return;
+
+      const measureRoot =
+        measuringRef.current ??
+        document.getElementById(`resume-measure-${resume.resumeId}`);
+
+      if (!canDeleteEmptyResumePage(measureRoot, page.pageNumber, visiblePages)) {
+        return;
+      }
+
+      onPageDelete({
+        pageNumber: page.pageNumber,
+        totalPages: totalPreviewPages,
+      });
+    },
+    // measuringRef is stable.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [isPageEmpty, onPageDelete, visiblePages, resume.resumeId, totalPreviewPages],
+  );
 
   useEffect(() => {
-    debugResumePagination("PaginatedPreview:pages", {
-      pagesCount: pages.length,
+    debugResumePagination("PaginatedPreview:frame", {
       resumeId: resume.resumeId,
       templateId: template.id,
+      rendererKeyHead: rendererKey.slice(0, 80),
+      pagesCount: pages.length,
+      framePages: frame.pages.length,
+      frameIsCurrent,
+      isPaginating,
     });
-  }, [pages.length, resume.resumeId, template.id]);
+  }, [
+    resume.resumeId,
+    template.id,
+    rendererKey,
+    pages.length,
+    frame.pages.length,
+    frameIsCurrent,
+    isPaginating,
+  ]);
+
+  const showSpinner = visiblePages.length === 0;
 
   return (
     <>
+      {/* Hidden measure DOM — always renders the LIVE props. */}
       <div
         ref={measuringRef}
-        key={`measure-${rendererKey}`}
+        id={`resume-measure-${resume.resumeId}`}
         style={{
           position: "absolute",
           visibility: "hidden",
@@ -147,67 +302,105 @@ export const PaginatedPreview: React.FC<PaginatedPreviewProps> = ({
         />
       </div>
 
-      <div className="flex flex-col items-center">
-        {pages.map((page, index) => (
-          <div
-            key={`page-${index}-${rendererKey}`}
-            className={
-              isAtlanticBlue ? "resume-page resume-page--atlantic-blue" : "resume-page"
-            }
-            style={{
-              width: `${A4_WIDTH_MM}mm`,
-              height: `${A4_HEIGHT_MM}mm`,
-              maxHeight: `${A4_HEIGHT_MM}mm`,
-              overflow: "hidden",
-              marginBottom: "20px",
-              position: "relative",
-              /* Inline fill so every page (incl. page 2+) paints full A4; class alone can composite transparent gaps above clipped content */
-              background: isAtlanticBlue
-                ? ATLANTIC_BLUE_PAGINATED_PAGE_BG
-                : "#ffffff",
-              boxShadow:
-                "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)",
-            }}
-          >
-            <div
-              style={{
-                position: "absolute",
-                top: `${TOP_MARGIN_MM}mm`,
-                left: 0,
-                width: `${A4_WIDTH_MM}mm`,
-                height: `${page.height}px`,
-                overflow: "hidden",
-                /* Same fill under the clip so empty tail of the slice is not transparent */
-                background: isAtlanticBlue
-                  ? ATLANTIC_BLUE_PAGINATED_PAGE_BG
-                  : "#ffffff",
-              }}
-            >
-              <div
-                style={{
-                  position: "absolute",
-                  /* top (not marginTop): Chromium PDF clips margin-based shifts inside overflow:hidden */
-                  top: `-${Math.floor(page.offsetY)}px`,
-                  left: 0,
-                  width: "100%",
-                }}
-              >
-                <ResumeRenderer
-                  resume={resume}
-                  template={template}
-                  sections={sections}
-                  layout={layout}
-                  pageNumber={page.pageNumber}
-                />
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {isPaginating && (
+      {showSpinner && isPaginating && (
         <div className="text-gray-400 text-sm mt-4 animate-pulse">
-          Optimizing floor...
+          Optimizing layout...
+        </div>
+      )}
+
+      {/* Visible pages — render from the committed frame (bands + matching content). */}
+      {visiblePages.length > 0 && (
+        <div
+          className="inline-block"
+          style={{ paddingRight: onPageDelete ? "44px" : undefined }}
+        >
+          <div className="flex flex-col items-center">
+            {visiblePages.map((page, index) => (
+              <div
+                key={`page-wrap-${index}-${frame.key}`}
+                className="relative mb-5"
+                style={{ width: `${A4_WIDTH_MM}mm` }}
+              >
+                <div
+                  className={
+                    isAtlanticBlue
+                      ? "resume-page resume-page--atlantic-blue"
+                      : "resume-page"
+                  }
+                  style={{
+                    width: `${A4_WIDTH_MM}mm`,
+                    height: `${A4_HEIGHT_MM}mm`,
+                    maxHeight: `${A4_HEIGHT_MM}mm`,
+                    overflow: "hidden",
+                    position: "relative",
+                    background: isAtlanticBlue
+                      ? ATLANTIC_BLUE_PAGINATED_PAGE_BG
+                      : "#ffffff",
+                    boxShadow:
+                      "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)",
+                  }}
+                >
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: `${TOP_MARGIN_MM}mm`,
+                      left: 0,
+                      width: `${A4_WIDTH_MM}mm`,
+                      height: `${page.height}px`,
+                      overflow: "hidden",
+                      background: isAtlanticBlue
+                        ? ATLANTIC_BLUE_PAGINATED_PAGE_BG
+                        : "#ffffff",
+                    }}
+                  >
+                    <div
+                      style={{
+                        position: "absolute",
+                        top: `-${Math.floor(page.offsetY)}px`,
+                        left: 0,
+                        width: "100%",
+                      }}
+                    >
+                      <ResumeRenderer
+                        resume={frame.resume}
+                        template={frame.template}
+                        sections={frame.sections}
+                        layout={frame.layout}
+                        pageNumber={page.pageNumber}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {onPageDelete && canShowPageDeleteControl(page) ? (
+                  <button
+                    type="button"
+                    disabled={!isPageEmpty(page)}
+                    onClick={() => handlePageDeleteClick(page)}
+                    className={cn(
+                      "absolute top-2 z-10 inline-flex h-8 w-8 items-center justify-center rounded-md border border-border/80 bg-background shadow-sm transition-colors",
+                      isPageEmpty(page)
+                        ? "text-muted-foreground hover:border-destructive/40 hover:bg-destructive/10 hover:text-destructive"
+                        : "cursor-not-allowed text-muted-foreground/40 opacity-50",
+                    )}
+                    style={{ left: `calc(${A4_WIDTH_MM}mm + 12px)` }}
+                    title={
+                      isPageEmpty(page)
+                        ? `Remove blank page ${page.pageNumber}`
+                        : `Page ${page.pageNumber} has content and cannot be deleted`
+                    }
+                    aria-label={
+                      isPageEmpty(page)
+                        ? `Remove blank page ${page.pageNumber}`
+                        : `Page ${page.pageNumber} has content`
+                    }
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                ) : null}
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </>

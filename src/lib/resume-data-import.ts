@@ -123,6 +123,70 @@ export function hasResumeSectionContent(
   return false;
 }
 
+const RESUME_STRING_CONTENT_FIELDS = new Set([
+  "interests",
+  "profileSummary",
+  "declaration",
+]);
+
+/** Coerce LLM/import values into resume string fields (schema expects strings, not arrays). */
+export function coerceToResumeString(value: unknown): string {
+  if (value == null) return "";
+  if (typeof value === "string") return value;
+
+  if (Array.isArray(value)) {
+    return value
+      .flatMap((item) => {
+        if (typeof item === "string") return [item.trim()];
+        if (item && typeof item === "object" && !Array.isArray(item)) {
+          const record = item as Record<string, unknown>;
+          const candidate =
+            record.name ??
+            record.title ??
+            record.interest ??
+            record.label ??
+            record.text;
+          if (typeof candidate === "string" && candidate.trim()) {
+            return [candidate.trim()];
+          }
+        }
+        return [];
+      })
+      .filter(Boolean)
+      .join(", ");
+  }
+
+  if (typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    const keys = Object.keys(record);
+
+    if (keys.length > 0 && keys.every((key) => /^\d+$/.test(key))) {
+      return keys
+        .sort((a, b) => Number(a) - Number(b))
+        .map((key) => String(record[key] ?? ""))
+        .join("");
+    }
+
+    if (typeof record.content === "string") return record.content;
+    if (Array.isArray(record.content)) {
+      return coerceToResumeString(record.content);
+    }
+  }
+
+  return String(value);
+}
+
+function sanitizeResumeStringFields(
+  content: Record<string, unknown>,
+): Record<string, unknown> {
+  for (const field of RESUME_STRING_CONTENT_FIELDS) {
+    if (field in content && content[field] != null) {
+      content[field] = coerceToResumeString(content[field]);
+    }
+  }
+  return content;
+}
+
 /** Maps LLM extraction output to resume `content` — same rules as resume creation. */
 export function mapExtractedSectionsToContent(
   sections: Record<string, ExtractedSectionPayload>,
@@ -149,6 +213,11 @@ export function mapExtractedSectionsToContent(
 
     if (sectionType === "technicalSkills" || sectionType === "skills") {
       content.skills = sectionData.content;
+      continue;
+    }
+
+    if (RESUME_STRING_CONTENT_FIELDS.has(sectionType)) {
+      content[sectionType] = coerceToResumeString(sectionData.content);
       continue;
     }
 
@@ -179,7 +248,7 @@ export function mapExtractedSectionsToContent(
     content.customSections = [];
   }
 
-  return content;
+  return sanitizeResumeStringFields(content);
 }
 
 export function buildSectionOrderForExtractedContent(
