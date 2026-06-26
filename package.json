@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "npm run copy-template-css && npm run copy-pdf-worker && next dev -p 3001",
+    "dev": "npm run copy-template-css && npm run copy-pdf-worker && env NODE_ENV=development next dev -p 3001",
     "build": "npm run copy-template-css && npm run copy-pdf-worker && next build",
     "start": "next start -p 3001",
     "lint": "next lint",

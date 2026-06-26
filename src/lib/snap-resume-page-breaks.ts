@@ -131,14 +131,22 @@ function snapCutToAvoidSplitLines(
       continue;
     }
 
-    // Prefer moving the whole line to the next page when it starts on this page.
-    if (line.top > prevBreak + LINE_CUT_EPS) {
+    const distToTop = y - line.top;
+    const distToBottom = line.bottom - y;
+    const canMoveToNextPage = line.top > prevBreak + LINE_CUT_EPS;
+    const canExtendThisPage = line.bottom <= nextBreak - LINE_CUT_EPS;
+
+    // Cut through middle of a line — snap to the nearest valid line edge.
+    if (canMoveToNextPage && (!canExtendThisPage || distToTop <= distToBottom)) {
       return line.top;
     }
 
-    // Line started on a previous page slice — extend this page to include the full line.
-    if (line.bottom <= nextBreak - LINE_CUT_EPS) {
+    if (canExtendThisPage) {
       return line.bottom;
+    }
+
+    if (canMoveToNextPage) {
+      return line.top;
     }
   }
   return y;

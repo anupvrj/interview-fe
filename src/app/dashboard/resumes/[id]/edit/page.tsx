@@ -1,6 +1,13 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef, useMemo } from "react";
+import {
+  useEffect,
+  useState,
+  useCallback,
+  useRef,
+  useMemo,
+  type SetStateAction,
+} from "react";
 import "@/styles/mercury-template.css";
 import { useUser } from "@clerk/nextjs";
 import { useRouter, useParams, useSearchParams } from "next/navigation";
@@ -34,10 +41,12 @@ import {
   FlaskConical,
   Upload,
   LayoutGrid,
+  Undo2,
+  Redo2,
 } from "lucide-react";
 import { Resume, ResumeTemplate, resumeApi, apiClient } from "@/lib/api";
 import { isATSReportV3 } from "@/types/atsReport";
-import { ResumePreview } from "@/components/ResumePreview";
+import { ResumePreview, type ResumePreviewHandle } from "@/components/ResumePreview";
 import { RichTextEditor } from "@/components/RichTextEditor";
 import { getExtendedTemplate } from "@/lib/templateConfigs";
 import { getTemplateStyle } from "@/lib/templateRenderer";
@@ -90,11 +99,18 @@ import { RearrangeSectionsDialog } from "@/components/resume-editor/RearrangeSec
 import { ResumeSectionDragHandle } from "@/components/resume-editor/ResumeSectionDragHandle";
 import { TemplateStyleLoader } from "@/components/TemplateStyleLoader";
 import {
+  canDeleteEmptyResumePage,
+  isEmptyResumePageBand,
+} from "@/lib/resume-page-delete";
+import type { ResumePaginationSnapshot } from "@/components/PaginatedPreview";
+import {
   buildLayoutForTemplateSwitch,
   buildSectionsForTemplateSwitch,
 } from "@/lib/resume-template-switch";
 import { debugResumePagination } from "@/lib/debug-resume-pagination";
 import { waitForResumePaginationSettled } from "@/lib/wait-for-resume-pagination";
+import { useResumeEditorHistory } from "@/hooks/useResumeEditorHistory";
+import type { ResumeEditorLayout } from "@/lib/resume-editor-history";
 
 interface Section {
   id: string;
@@ -153,7 +169,7 @@ export default function EditResumePage() {
   const showImprovedBanner = searchParams.get("improved") === "1";
 
   const [mounted, setMounted] = useState(false);
-  const [resume, setResume] = useState<Resume | null>(null);
+  const [resume, setResumeState] = useState<Resume | null>(null);
   const [template, setTemplate] = useState<ResumeTemplate | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -165,13 +181,14 @@ export default function EditResumePage() {
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [profilePictureFileName, setProfilePictureFileName] = useState("");
   const [previewKey, setPreviewKey] = useState(0);
+  const previewRef = useRef<ResumePreviewHandle>(null);
   const [zoomLevel, setZoomLevel] = useState(100);
   const [editingSectionTitle, setEditingSectionTitle] = useState<string | null>(
     null,
   );
   const [sectionTitleValue, setSectionTitleValue] = useState("");
   const [draggedSection, setDraggedSection] = useState<string | null>(null);
-  const [layout, setLayout] = useState<{
+  const [layout, setLayoutState] = useState<{
     type: "single" | "double";
     columnWidths: { left: number; right: number };
     padding?: { top: number; bottom: number; left: number; right: number };
@@ -183,6 +200,7 @@ export default function EditResumePage() {
       sectionHeader?: number;
     };
     fontFamily?: string;
+    dismissedEmptyTrailingPages?: number;
   } | null>(null);
 
   // Effective typography: template defaults merged with layout overrides (for Layout UI)
@@ -244,7 +262,7 @@ export default function EditResumePage() {
   }, [resume, template]);
 
   // Initialize sections as empty - will be populated from database
-  const [sections, setSections] = useState<Section[]>([]);
+  const [sections, setSectionsState] = useState<Section[]>([]);
   const [viewMode, setViewMode] = useState<"edit" | "ats">("edit");
 
   // Delete section dialog state
@@ -258,6 +276,16 @@ export default function EditResumePage() {
     title: string;
     type: string;
   } | null>(null);
+  const [pageDeleteDialogOpen, setPageDeleteDialogOpen] = useState(false);
+  const [pendingPageDelete, setPendingPageDelete] = useState<{
+    pageNumber: number;
+  } | null>(null);
+  const paginationSnapshotRef = useRef<ResumePaginationSnapshot>({
+    pages: [],
+    rawPages: [],
+    measureRoot: null,
+    isCalculated: false,
+  });
 
   useEffect(() => {
     setMounted(true);
@@ -302,6 +330,101 @@ export default function EditResumePage() {
     hasChangesRef.current = hasChanges;
   }, [hasChanges]);
 
+  const editorHistory = useResumeEditorHistory();
+  const isApplyingHistoryRef = useRef(false);
+  const suppressHistoryRef = useRef(false);
+  const historyTransactionDepthRef = useRef(0);
+  const contentEditHistoryPendingRef = useRef(false);
+  const contentEditHistoryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
+
+  const getEditorSnapshot = useCallback(() => {
+    const currentResume = resumeRef.current;
+    const currentLayout = layoutRef.current;
+    const currentSections = sectionsRef.current;
+    if (!currentResume || !currentLayout) {
+      throw new Error("Resume editor snapshot is not ready");
+    }
+    return {
+      resume: currentResume,
+      sections: currentSections,
+      layout: currentLayout as ResumeEditorLayout,
+    };
+  }, []);
+
+  const shouldRecordHistory = useCallback(() => {
+    return (
+      !isApplyingHistoryRef.current &&
+      !suppressHistoryRef.current &&
+      historyTransactionDepthRef.current === 0 &&
+      !!resumeRef.current &&
+      !!layoutRef.current
+    );
+  }, []);
+
+  const recordImmediateHistory = useCallback(() => {
+    if (!shouldRecordHistory()) return;
+    editorHistory.record(getEditorSnapshot());
+  }, [editorHistory, getEditorSnapshot, shouldRecordHistory]);
+
+  const recordDebouncedHistory = useCallback(() => {
+    if (!shouldRecordHistory()) return;
+    if (!contentEditHistoryPendingRef.current) {
+      recordImmediateHistory();
+      contentEditHistoryPendingRef.current = true;
+    }
+    if (contentEditHistoryTimerRef.current) {
+      clearTimeout(contentEditHistoryTimerRef.current);
+    }
+    contentEditHistoryTimerRef.current = setTimeout(() => {
+      contentEditHistoryPendingRef.current = false;
+      contentEditHistoryTimerRef.current = null;
+    }, 800);
+  }, [recordImmediateHistory, shouldRecordHistory]);
+
+  const beginHistoryTransaction = useCallback(() => {
+    if (historyTransactionDepthRef.current === 0) {
+      recordImmediateHistory();
+    }
+    historyTransactionDepthRef.current += 1;
+  }, [recordImmediateHistory]);
+
+  const endHistoryTransaction = useCallback(() => {
+    historyTransactionDepthRef.current = Math.max(
+      0,
+      historyTransactionDepthRef.current - 1,
+    );
+  }, []);
+
+  const setResume = useCallback(
+    (action: SetStateAction<Resume | null>) => {
+      recordDebouncedHistory();
+      setResumeState(action);
+    },
+    [recordDebouncedHistory],
+  );
+
+  const setSections = useCallback(
+    (action: SetStateAction<Section[]>) => {
+      if (shouldRecordHistory() && !isDraggingRef.current) {
+        recordImmediateHistory();
+      }
+      setSectionsState(action);
+    },
+    [recordImmediateHistory, shouldRecordHistory],
+  );
+
+  const setLayout = useCallback(
+    (action: SetStateAction<typeof layout>) => {
+      if (shouldRecordHistory()) {
+        recordImmediateHistory();
+      }
+      setLayoutState(action);
+    },
+    [recordImmediateHistory, shouldRecordHistory],
+  );
+
   const invalidateAtsScoreDisplay = useCallback(() => {
     setDisplayAtsScore(null);
   }, []);
@@ -321,6 +444,87 @@ export default function EditResumePage() {
       return next;
     });
   }, []);
+
+  const handleRearrangeDialogOpenChange = useCallback((open: boolean) => {
+    setRearrangeSectionsOpen(open);
+  }, []);
+
+  const applyEditorSnapshot = useCallback(
+    (snapshot: ReturnType<typeof getEditorSnapshot>) => {
+      isApplyingHistoryRef.current = true;
+      setResumeState(snapshot.resume);
+      setSectionsState(snapshot.sections as Section[]);
+      setLayoutState(snapshot.layout);
+      resumeRef.current = snapshot.resume;
+      sectionsRef.current = snapshot.sections;
+      layoutRef.current = snapshot.layout;
+      setHasChanges(true);
+      invalidateAtsScoreDisplay();
+      bumpPreviewKey("history");
+      requestAnimationFrame(() => {
+        isApplyingHistoryRef.current = false;
+      });
+    },
+    [bumpPreviewKey, invalidateAtsScoreDisplay],
+  );
+
+  const handleUndo = useCallback(() => {
+    try {
+      const snapshot = editorHistory.undo(getEditorSnapshot());
+      if (!snapshot) return;
+      applyEditorSnapshot({
+        resume: snapshot.resume,
+        sections: snapshot.sections as Section[],
+        layout: snapshot.layout,
+      });
+    } catch {
+      // Snapshot not ready yet.
+    }
+  }, [applyEditorSnapshot, editorHistory, getEditorSnapshot]);
+
+  const handleRedo = useCallback(() => {
+    try {
+      const snapshot = editorHistory.redo(getEditorSnapshot());
+      if (!snapshot) return;
+      applyEditorSnapshot({
+        resume: snapshot.resume,
+        sections: snapshot.sections as Section[],
+        layout: snapshot.layout,
+      });
+    } catch {
+      // Snapshot not ready yet.
+    }
+  }, [applyEditorSnapshot, editorHistory, getEditorSnapshot]);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      const mod = event.metaKey || event.ctrlKey;
+      if (!mod) return;
+      const target = event.target as HTMLElement | null;
+      if (
+        target &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.isContentEditable)
+      ) {
+        return;
+      }
+
+      if (event.key.toLowerCase() === "z" && !event.shiftKey) {
+        event.preventDefault();
+        handleUndo();
+      } else if (
+        (event.key.toLowerCase() === "z" && event.shiftKey) ||
+        event.key.toLowerCase() === "y"
+      ) {
+        event.preventDefault();
+        handleRedo();
+      }
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [handleRedo, handleUndo]);
 
   const persistResumeToServer = useCallback(
     async (resumeSnapshot: Resume) => {
@@ -354,7 +558,7 @@ export default function EditResumePage() {
   }, [persistResumeToServer]);
 
   const applyAtsReportUpdate = useCallback((updatedResume: Resume) => {
-    setResume((prev) =>
+    setResumeState((prev) =>
       prev
         ? {
             ...prev,
@@ -404,7 +608,7 @@ export default function EditResumePage() {
           debugResumePagination("thumbnail:auto:setResume", {
             targetResumeId,
           });
-          setResume((prev) => {
+          setResumeState((prev) => {
             if (!prev || !hasChangesRef.current) return updatedResume;
             return {
               ...updatedResume,
@@ -500,6 +704,7 @@ export default function EditResumePage() {
     try {
       debugResumePagination("loadResume:start", { resumeId });
       setLoading(true);
+      suppressHistoryRef.current = true;
       const resumeData = await resumeApi.get(resumeId);
 
       // Normalize profileSummary - check multiple locations
@@ -526,7 +731,7 @@ export default function EditResumePage() {
         resumeData.content.customSections = [];
       }
 
-      setResume(resumeData);
+      setResumeState(resumeData);
       syncAtsScoreDisplayFromResume(resumeData);
 
       // Extract filename from profile picture URL if it exists
@@ -607,6 +812,9 @@ export default function EditResumePage() {
             }
           ).fontSize,
           fontFamily: (resumeData.layout as { fontFamily?: string }).fontFamily,
+          dismissedEmptyTrailingPages:
+            (resumeData.layout as { dismissedEmptyTrailingPages?: number })
+              .dismissedEmptyTrailingPages ?? 0,
         });
 
         // If Mercury template has wrong padding, update it
@@ -686,7 +894,7 @@ export default function EditResumePage() {
             ...customSections,
             ...missingCustomSections,
           ];
-          setResume(resumeData);
+          setResumeState(resumeData);
 
           // Immediately save missing custom sections to database to prevent data loss on reload
           (async () => {
@@ -712,7 +920,7 @@ export default function EditResumePage() {
           );
           // Update resume state to ensure customSections are preserved
           // Use a single update to ensure both resume and sections are in sync
-          setResume((prevResume) => {
+          setResumeState((prevResume) => {
             if (!prevResume) {
               return {
                 ...resumeData,
@@ -880,6 +1088,8 @@ export default function EditResumePage() {
       alert("Failed to load resume. Please try again.");
       router.push("/dashboard/resumes");
     } finally {
+      suppressHistoryRef.current = false;
+      editorHistory.clear();
       setLoading(false);
     }
   };
@@ -954,10 +1164,14 @@ export default function EditResumePage() {
         pdfS3Key: "",
       });
 
+      recordImmediateHistory();
+      suppressHistoryRef.current = true;
+
       setTemplate(newTemplate);
-      setLayout(nextLayout);
-      setSections(nextSections);
-      setResume(updatedResume);
+      setLayoutState(nextLayout);
+      setSectionsState(nextSections);
+      setResumeState(updatedResume);
+      suppressHistoryRef.current = false;
       resumeRef.current = updatedResume;
       layoutRef.current = nextLayout;
       sectionsRef.current = nextSections;
@@ -974,7 +1188,10 @@ export default function EditResumePage() {
   };
 
   const handleResumeImported = (updatedResume: Resume) => {
-    setResume(updatedResume);
+    recordImmediateHistory();
+    suppressHistoryRef.current = true;
+
+    setResumeState(updatedResume);
     resumeRef.current = updatedResume;
 
     if (updatedResume.sectionOrder?.length) {
@@ -984,14 +1201,16 @@ export default function EditResumePage() {
           expanded: false,
         })) as Section[],
       );
-      setSections(loadedSections);
+      setSectionsState(loadedSections);
       sectionsRef.current = loadedSections;
     }
 
     if (updatedResume.layout) {
-      setLayout(updatedResume.layout as typeof layout);
+      setLayoutState(updatedResume.layout as typeof layout);
       layoutRef.current = updatedResume.layout as typeof layout;
     }
+
+    suppressHistoryRef.current = false;
 
     setHasChanges(false);
     setLastSaved(new Date());
@@ -1000,30 +1219,39 @@ export default function EditResumePage() {
   };
 
   const handleSectionsRearranged = (reordered: SectionWithColumn[]) => {
-    const withExpanded: Section[] = reordered.map((section) => {
-      const existing = sections.find((item) => item.id === section.id);
-      if (!existing) {
+    beginHistoryTransaction();
+    try {
+      const withExpanded: Section[] = reordered.map((section) => {
+        const existing = sections.find((item) => item.id === section.id);
+        if (!existing) {
+          return {
+            id: section.id,
+            type: section.type as Section["type"],
+            title: section.title,
+            visible: section.visible,
+            expanded: false,
+            column: section.column,
+          };
+        }
         return {
-          id: section.id,
-          type: section.type as Section["type"],
+          ...existing,
           title: section.title,
           visible: section.visible,
-          expanded: false,
           column: section.column,
         };
-      }
-      return {
-        ...existing,
-        title: section.title,
-        visible: section.visible,
-        column: section.column,
-      };
-    });
+      });
 
-    setSections(withExpanded);
-    sectionsRef.current = withExpanded;
-    setHasChanges(true);
-    bumpPreviewKey("rearrangeSections");
+      setSectionsState(withExpanded);
+      sectionsRef.current = withExpanded;
+      setLayout((prev) =>
+        prev
+          ? { ...prev, dismissedEmptyTrailingPages: 0 }
+          : prev,
+      );
+      setHasChanges(true);
+    } finally {
+      endHistoryTransaction();
+    }
   };
 
   const handleCheckATS = async () => {
@@ -1118,7 +1346,7 @@ export default function EditResumePage() {
         checkId: check.id,
         issue,
       });
-      setResume((prev) =>
+      setResumeState((prev) =>
         prev
           ? {
               ...prev,
@@ -1327,7 +1555,7 @@ export default function EditResumePage() {
             // Reload the resume to get updated data with thumbnail
             const updatedResume = await resumeApi.get(resumeId);
             debugResumePagination("download:thumbnail:setResume", { resumeId });
-            setResume(updatedResume);
+            setResumeState(updatedResume);
           } else {
             console.error("❌ Failed to upload thumbnail:", result.error);
           }
@@ -1345,6 +1573,8 @@ export default function EditResumePage() {
 
   const updateContent = (updates: Partial<Resume["content"]>) => {
     if (!resume) return;
+
+    recordDebouncedHistory();
 
     debugResumePagination("updateContent", {
       resumeId: resume.resumeId,
@@ -1375,7 +1605,7 @@ export default function EditResumePage() {
       mergedContent.customSections = mergedCustomSections;
     }
 
-    setResume({
+    setResumeState({
       ...resume,
       content: mergedContent,
     });
@@ -1391,6 +1621,131 @@ export default function EditResumePage() {
       return expandOnlySection(prev, nextExpandedId);
     });
   };
+
+  const performSectionDelete = useCallback(
+    (sectionId: string): boolean => {
+      const section = sections.find((s) => s.id === sectionId);
+
+      if (!section || section.type === "personalInfo") {
+        return false;
+      }
+
+      beginHistoryTransaction();
+      try {
+        const isMultipleAllowed =
+          section.type === "spacer" || section.type === "custom";
+
+        if (!isMultipleAllowed) {
+          setSectionsState((prev) =>
+            prev.map((s) =>
+              s.id === sectionId
+                ? { ...s, visible: false, expanded: false }
+                : s,
+            ),
+          );
+        } else {
+          const currentResume = resumeRef.current;
+          if (section.type === "custom" && currentResume) {
+            const updatedCustomSections =
+              currentResume.content.customSections?.filter(
+                (cs: { id: string }) => cs.id !== sectionId,
+              ) || [];
+            updateContent({
+              customSections: updatedCustomSections,
+            });
+          }
+          setSectionsState((prev) => prev.filter((s) => s.id !== sectionId));
+        }
+
+        setHasChanges(true);
+        setLayout((prev) =>
+          prev
+            ? { ...prev, dismissedEmptyTrailingPages: 0 }
+            : prev,
+        );
+        return true;
+      } finally {
+        endHistoryTransaction();
+      }
+    },
+    [
+      beginHistoryTransaction,
+      endHistoryTransaction,
+      sections,
+      setLayout,
+      updateContent,
+    ],
+  );
+
+  const performEmptyPageDelete = useCallback(
+    (pageNumber: number) => {
+      const { pages, rawPages, measureRoot } = paginationSnapshotRef.current;
+      const pageBands = pages.length > 0 ? pages : rawPages;
+      const page = pageBands.find((entry) => entry.pageNumber === pageNumber);
+      if (
+        !page ||
+        !measureRoot ||
+        !isEmptyResumePageBand(measureRoot, page)
+      ) {
+        return false;
+      }
+
+      beginHistoryTransaction();
+      try {
+        setLayout((prev) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            dismissedEmptyTrailingPages:
+              (prev.dismissedEmptyTrailingPages ?? 0) + 1,
+          };
+        });
+        setHasChanges(true);
+        bumpPreviewKey("deleteEmptyPage");
+        return true;
+      } finally {
+        endHistoryTransaction();
+      }
+    },
+    [beginHistoryTransaction, bumpPreviewKey, endHistoryTransaction, setLayout],
+  );
+
+  const requestPageDelete = useCallback((payload: { pageNumber: number }) => {
+    const { pages, rawPages, measureRoot } = paginationSnapshotRef.current;
+    const pageBands = pages.length > 0 ? pages : rawPages;
+    if (
+      !canDeleteEmptyResumePage(measureRoot, payload.pageNumber, pageBands)
+    ) {
+      return;
+    }
+
+    setPendingPageDelete({ pageNumber: payload.pageNumber });
+    setPageDeleteDialogOpen(true);
+  }, []);
+
+  const handlePaginationSnapshot = useCallback(
+    (snapshot: ResumePaginationSnapshot) => {
+      paginationSnapshotRef.current = snapshot;
+    },
+    [],
+  );
+
+  const handleConfirmPageDelete = () => {
+    if (!pendingPageDelete) return;
+    performEmptyPageDelete(pendingPageDelete.pageNumber);
+    setPendingPageDelete(null);
+  };
+
+  const handlePreviewPageDelete = useCallback(
+    (payload: { pageNumber: number; totalPages: number }) => {
+      requestPageDelete({ pageNumber: payload.pageNumber });
+    },
+    [requestPageDelete],
+  );
+
+  const handlePreviewRefresh = useCallback(() => {
+    bumpPreviewKey("previewRefresh");
+  }, [bumpPreviewKey]);
 
   const deleteSection = (sectionId: string) => {
     // Prevent deletion of essential sections
@@ -1424,43 +1779,13 @@ export default function EditResumePage() {
 
     const essentialSections = ["personalInfo", "experience", "education"];
 
-    // If it's an essential section, just close the dialog (error was shown)
     if (essentialSections.includes(sectionToDelete.type)) {
       setDeleteDialogOpen(false);
       setSectionToDelete(null);
       return;
     }
 
-    // For non-essential standard sections, just mark them as hidden
-    const isMultipleAllowed =
-      sectionToDelete.type === "spacer" || sectionToDelete.type === "custom";
-
-    if (!isMultipleAllowed) {
-      setSections((prev) =>
-        prev.map((s) =>
-          s.id === sectionToDelete.id
-            ? { ...s, visible: false, expanded: false }
-            : s,
-        ),
-      );
-    } else {
-      // If deleting a custom section, also remove its data from customSections
-      if (sectionToDelete.type === "custom" && resume) {
-        const updatedCustomSections =
-          resume.content.customSections?.filter(
-            (cs: any) => cs.id !== sectionToDelete.id,
-          ) || [];
-        updateContent({
-          customSections: updatedCustomSections,
-        });
-      }
-      // Remove the section entirely from the array
-      setSections((prev) => prev.filter((s) => s.id !== sectionToDelete.id));
-    }
-
-    setHasChanges(true);
-
-    // Close dialog and reset state
+    performSectionDelete(sectionToDelete.id);
     setDeleteDialogOpen(false);
     setSectionToDelete(null);
   };
@@ -1476,45 +1801,50 @@ export default function EditResumePage() {
   const saveSectionTitle = (sectionId: string) => {
     const section = sections.find((s) => s.id === sectionId);
 
-    setSections(
-      sections.map((s) =>
-        s.id === sectionId ? { ...s, title: sectionTitleValue } : s,
-      ),
-    );
-
-    // If it's a custom section, also update the title in customSections
-    if (section?.type === "custom" && resume) {
-      const currentCustomSections = resume.content.customSections || [];
-      const existingIndex = currentCustomSections.findIndex(
-        (cs: any) => cs.id === sectionId,
+    beginHistoryTransaction();
+    try {
+      setSectionsState(
+        sections.map((s) =>
+          s.id === sectionId ? { ...s, title: sectionTitleValue } : s,
+        ),
       );
 
-      let updatedCustomSections;
-      if (existingIndex >= 0) {
-        updatedCustomSections = [...currentCustomSections];
-        updatedCustomSections[existingIndex] = {
-          ...updatedCustomSections[existingIndex],
-          title: sectionTitleValue,
-        };
-      } else {
-        updatedCustomSections = [
-          ...currentCustomSections,
-          {
-            id: sectionId,
+      // If it's a custom section, also update the title in customSections
+      if (section?.type === "custom" && resume) {
+        const currentCustomSections = resume.content.customSections || [];
+        const existingIndex = currentCustomSections.findIndex(
+          (cs: any) => cs.id === sectionId,
+        );
+
+        let updatedCustomSections;
+        if (existingIndex >= 0) {
+          updatedCustomSections = [...currentCustomSections];
+          updatedCustomSections[existingIndex] = {
+            ...updatedCustomSections[existingIndex],
             title: sectionTitleValue,
-            content: "",
-          },
-        ];
+          };
+        } else {
+          updatedCustomSections = [
+            ...currentCustomSections,
+            {
+              id: sectionId,
+              title: sectionTitleValue,
+              content: "",
+            },
+          ];
+        }
+
+        updateContent({
+          customSections: updatedCustomSections,
+        });
       }
 
-      updateContent({
-        customSections: updatedCustomSections,
-      });
+      setEditingSectionTitle(null);
+      setSectionTitleValue("");
+      setHasChanges(true);
+    } finally {
+      endHistoryTransaction();
     }
-
-    setEditingSectionTitle(null);
-    setSectionTitleValue("");
-    setHasChanges(true);
   };
   const addSection = (type: Section["type"]) => {
     // Convert type to readable title
@@ -1559,38 +1889,43 @@ export default function EditResumePage() {
       }
     }
 
-    const sectionId = `${type}_${Date.now()}`;
-    const newSection: Section = {
-      id: sectionId,
-      type,
-      title: titleMap[type] || type.charAt(0).toUpperCase() + type.slice(1),
-      visible: true,
-      expanded: true,
-    };
-    setSections(expandOnlySection([...sections, newSection], sectionId));
+    beginHistoryTransaction();
+    try {
+      const sectionId = `${type}_${Date.now()}`;
+      const newSection: Section = {
+        id: sectionId,
+        type,
+        title: titleMap[type] || type.charAt(0).toUpperCase() + type.slice(1),
+        visible: true,
+        expanded: true,
+      };
+      setSectionsState(expandOnlySection([...sections, newSection], sectionId));
 
-    // If it's a custom section, initialize it in customSections with empty content
-    if (type === "custom" && resume) {
-      const currentCustomSections = resume.content.customSections || [];
-      const existingIndex = currentCustomSections.findIndex(
-        (cs: any) => cs.id === sectionId,
-      );
+      // If it's a custom section, initialize it in customSections with empty content
+      if (type === "custom" && resume) {
+        const currentCustomSections = resume.content.customSections || [];
+        const existingIndex = currentCustomSections.findIndex(
+          (cs: any) => cs.id === sectionId,
+        );
 
-      if (existingIndex < 0) {
-        updateContent({
-          customSections: [
-            ...currentCustomSections,
-            {
-              id: sectionId,
-              title: newSection.title,
-              content: "", // Initialize with empty content
-            },
-          ],
-        });
+        if (existingIndex < 0) {
+          updateContent({
+            customSections: [
+              ...currentCustomSections,
+              {
+                id: sectionId,
+                title: newSection.title,
+                content: "",
+              },
+            ],
+          });
+        }
       }
-    }
 
-    setHasChanges(true);
+      setHasChanges(true);
+    } finally {
+      endHistoryTransaction();
+    }
   };
 
   const [dragOverId, setDragOverId] = useState<string | null>(null);
@@ -1608,6 +1943,7 @@ export default function EditResumePage() {
     e.dataTransfer.effectAllowed = "move";
     e.dataTransfer.setData("text/plain", sectionId);
     isDraggingRef.current = true;
+    recordImmediateHistory();
     // Defer setting state to avoid blocking drag start
     requestAnimationFrame(() => {
       setDraggedSection(sectionId);
@@ -1744,6 +2080,22 @@ export default function EditResumePage() {
             {/* Right Section: Action Buttons */}
             <div className="flex w-full shrink-0 items-center justify-start gap-2 lg:ml-auto lg:w-auto lg:justify-end">
               <div className="flex w-full items-center justify-start gap-1.5 sm:w-auto">
+                <IconTooltipButton
+                  onClick={handleUndo}
+                  variant="outline"
+                  label="Undo (Ctrl+Z)"
+                  disabled={!editorHistory.canUndo || autoSaving || saving}
+                >
+                  <Undo2 className="h-4 w-4" />
+                </IconTooltipButton>
+                <IconTooltipButton
+                  onClick={handleRedo}
+                  variant="outline"
+                  label="Redo (Ctrl+Shift+Z)"
+                  disabled={!editorHistory.canRedo || autoSaving || saving}
+                >
+                  <Redo2 className="h-4 w-4" />
+                </IconTooltipButton>
                 <IconTooltipButton
                   onClick={handleCheckATS}
                   variant="outline"
@@ -7112,6 +7464,7 @@ export default function EditResumePage() {
               <>
                 <TemplateStyleLoader templateId={template.id} />
                 <ResumePreview
+                ref={previewRef}
                 key={`resume-preview-${previewKey}`}
                 resume={previewResume}
                 template={template}
@@ -7119,6 +7472,9 @@ export default function EditResumePage() {
                 layout={layout || undefined}
                 zoomLevel={zoomLevel}
                 onZoomChange={setZoomLevel}
+                onPageDelete={handlePreviewPageDelete}
+                onPaginationSnapshot={handlePaginationSnapshot}
+                onRefresh={handlePreviewRefresh}
               />
               </>
             ) : (
@@ -7152,11 +7508,12 @@ export default function EditResumePage() {
       {resume && template && layout ? (
         <RearrangeSectionsDialog
           open={rearrangeSectionsOpen}
-          onOpenChange={setRearrangeSectionsOpen}
+          onOpenChange={handleRearrangeDialogOpenChange}
           sections={sections}
           layoutType={layout.type}
           template={template}
           onSectionsChange={handleSectionsRearranged}
+          onSectionDelete={performSectionDelete}
         />
       ) : null}
       <ConfirmationDialog
@@ -7196,6 +7553,19 @@ export default function EditResumePage() {
             ? "default"
             : "destructive"
         }
+      />
+      <ConfirmationDialog
+        open={pageDeleteDialogOpen}
+        onOpenChange={(open) => {
+          setPageDeleteDialogOpen(open);
+          if (!open) setPendingPageDelete(null);
+        }}
+        title={`Remove blank page ${pendingPageDelete?.pageNumber ?? ""}?`}
+        description="This removes an empty trailing page from the preview. Your resume sections and content are not changed."
+        confirmText="Remove blank page"
+        cancelText="Cancel"
+        onConfirm={handleConfirmPageDelete}
+        variant="destructive"
       />
     </div>
   );

@@ -1,13 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { GripVertical, Lock } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { GripVertical, Lock, Trash2 } from "lucide-react";
 import type { ResumeTemplate } from "@/lib/api";
 import type { SectionWithColumn } from "@/lib/sectionColumnUtils";
 import {
+  applySectionDelete,
   applySectionDrop,
+  canDeleteSection,
   getSectionBoxLabel,
-  groupSectionsIntoPages,
   isSectionLocked,
   partitionSectionsForRearrange,
   rebuildSectionsFromRearrange,
@@ -33,15 +34,20 @@ interface RearrangeSectionsDialogProps {
   layoutType: RearrangeLayoutType;
   template: ResumeTemplate;
   onSectionsChange: (sections: SectionWithColumn[]) => void;
+  onSectionDelete?: (sectionId: string) => boolean;
 }
 
 interface SectionBoxProps {
   section: SectionWithColumn;
   locked?: boolean;
   draggable?: boolean;
+  deletable?: boolean;
+  isDragging?: boolean;
   onDragStart: (sectionId: string) => void;
+  onDragEnd: () => void;
   onDragOver: (event: React.DragEvent) => void;
   onDrop: (sectionId: string) => void;
+  onDelete?: (sectionId: string) => void;
   isDragOver?: boolean;
 }
 
@@ -49,9 +55,13 @@ function SectionBox({
   section,
   locked = false,
   draggable = true,
+  deletable = false,
+  isDragging = false,
   onDragStart,
+  onDragEnd,
   onDragOver,
   onDrop,
+  onDelete,
   isDragOver = false,
 }: SectionBoxProps) {
   return (
@@ -66,8 +76,10 @@ function SectionBox({
         event.dataTransfer.setData("text/plain", section.id);
         onDragStart(section.id);
       }}
+      onDragEnd={onDragEnd}
       onDragOver={(event) => {
         event.preventDefault();
+        event.dataTransfer.dropEffect = "move";
         onDragOver(event);
       }}
       onDrop={(event) => {
@@ -81,6 +93,8 @@ function SectionBox({
           ? "cursor-not-allowed border-slate-300 bg-slate-100"
           : "cursor-grab border-sky-200 bg-sky-100 hover:border-sky-300 hover:bg-sky-50 active:cursor-grabbing",
         isDragOver && !locked && "ring-2 ring-primary/40",
+        isDragging && "opacity-50",
+        deletable && "pr-10",
       )}
     >
       <span className="absolute left-2 top-2 text-slate-400">
@@ -91,6 +105,21 @@ function SectionBox({
         )}
       </span>
       {getSectionBoxLabel(section)}
+      {deletable && onDelete ? (
+        <button
+          type="button"
+          aria-label={`Remove ${getSectionBoxLabel(section)} section`}
+          title="Remove section from resume"
+          className="absolute right-2 top-2 rounded-md p-1 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600"
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            onDelete(section.id);
+          }}
+        >
+          <Trash2 className="h-3.5 w-3.5" aria-hidden />
+        </button>
+      ) : null}
     </div>
   );
 }
@@ -100,7 +129,9 @@ interface ColumnDropZoneProps {
   sections: SectionWithColumn[];
   draggedId: string | null;
   onDragStart: (sectionId: string) => void;
+  onDragEnd: () => void;
   onDropOnSection: (column: ColumnKey, targetSectionId: string | null) => void;
+  onSectionDelete?: (sectionId: string) => void;
 }
 
 function ColumnDropZone({
@@ -108,14 +139,19 @@ function ColumnDropZone({
   sections,
   draggedId,
   onDragStart,
+  onDragEnd,
   onDropOnSection,
+  onSectionDelete,
 }: ColumnDropZoneProps) {
   const [dragOverId, setDragOverId] = useState<string | null>(null);
 
   return (
     <div
       className="flex min-h-[120px] flex-1 flex-col gap-2"
-      onDragOver={(event) => event.preventDefault()}
+      onDragOver={(event) => {
+        event.preventDefault();
+        event.dataTransfer.dropEffect = "move";
+      }}
       onDrop={(event) => {
         event.preventDefault();
         setDragOverId(null);
@@ -133,12 +169,16 @@ function ColumnDropZone({
             section={section}
             locked={isSectionLocked(section)}
             draggable={!isSectionLocked(section)}
+            deletable={canDeleteSection(section)}
+            isDragging={draggedId === section.id}
             onDragStart={onDragStart}
+            onDragEnd={onDragEnd}
             onDragOver={() => setDragOverId(section.id)}
             onDrop={() => {
               setDragOverId(null);
               onDropOnSection(column, section.id);
             }}
+            onDelete={onSectionDelete}
             isDragOver={dragOverId === section.id && draggedId !== section.id}
           />
         ))
@@ -154,22 +194,26 @@ export function RearrangeSectionsDialog({
   layoutType,
   template,
   onSectionsChange,
+  onSectionDelete,
 }: RearrangeSectionsDialogProps) {
   const [partition, setPartition] = useState<RearrangePartition | null>(null);
   const [draggedId, setDraggedId] = useState<string | null>(null);
+  const draggedIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!open) {
+      draggedIdRef.current = null;
       setDraggedId(null);
       return;
     }
+    if (draggedIdRef.current) return;
     setPartition(partitionSectionsForRearrange(sections, layoutType, template));
   }, [open, sections, layoutType, template]);
 
-  const pages = useMemo(
-    () => (partition ? groupSectionsIntoPages(partition) : []),
-    [partition],
-  );
+  const handleDragStart = useCallback((sectionId: string) => {
+    draggedIdRef.current = sectionId;
+    setDraggedId(sectionId);
+  }, []);
 
   const commitPartition = useCallback(
     (nextPartition: RearrangePartition) => {
@@ -180,20 +224,45 @@ export function RearrangeSectionsDialog({
     [onSectionsChange, sections],
   );
 
+  const handleDragEnd = useCallback(() => {
+    draggedIdRef.current = null;
+    setDraggedId(null);
+  }, []);
+
   const handleDrop = useCallback(
     (column: ColumnKey, targetSectionId: string | null) => {
-      if (!partition || !draggedId) return;
+      const activeDraggedId = draggedIdRef.current;
+      if (!partition || !activeDraggedId) return;
 
       const next = applySectionDrop(
         partition,
-        draggedId,
+        activeDraggedId,
         column,
         targetSectionId,
       );
+      draggedIdRef.current = null;
       setDraggedId(null);
       commitPartition(next);
     },
-    [commitPartition, draggedId, partition],
+    [commitPartition, partition],
+  );
+
+  const handleDelete = useCallback(
+    (sectionId: string) => {
+      if (!partition) return;
+
+      if (onSectionDelete?.(sectionId)) {
+        draggedIdRef.current = null;
+        setDraggedId(null);
+        return;
+      }
+
+      const next = applySectionDelete(partition, sectionId);
+      draggedIdRef.current = null;
+      setDraggedId(null);
+      commitPartition(next);
+    },
+    [commitPartition, onSectionDelete, partition],
   );
 
   return (
@@ -205,70 +274,66 @@ export function RearrangeSectionsDialog({
               Hold &amp; Drag the boxes to rearrange the sections
             </DialogTitle>
             <DialogDescription>
-              Changes apply instantly to your live preview and are saved
-              automatically.
+              Drag to reorder sections or remove optional ones with the trash
+              icon. Changes apply instantly to your live preview.
             </DialogDescription>
           </DialogHeader>
         </div>
 
-        <div className="space-y-5 px-6 py-5">
-          {!partition ? null : pages.length === 0 ? (
+        <div className="space-y-3 px-6 py-5">
+          {!partition ? (
             <p className="text-center text-sm text-muted-foreground">
               No visible sections to rearrange.
             </p>
           ) : (
-            pages.map((page) => (
-              <div
-                key={`page-${page.pageNumber}`}
-                className="overflow-hidden rounded-xl border border-border/80 bg-white shadow-card"
-              >
-                <div className="flex items-center justify-end border-b border-border/60 px-4 py-2">
-                  <span className="text-xs font-medium text-muted-foreground">
-                    Page {page.pageNumber} of {page.totalPages}
-                  </span>
-                </div>
+            <div className="overflow-hidden rounded-xl border border-border/80 bg-white shadow-card">
+              <div className="space-y-3 p-4">
+                {partition.lockedHeader ? (
+                  <SectionBox
+                    section={partition.lockedHeader}
+                    locked
+                    draggable={false}
+                    onDragStart={() => undefined}
+                    onDragEnd={() => undefined}
+                    onDragOver={() => undefined}
+                    onDrop={() => undefined}
+                  />
+                ) : null}
 
-                <div className="space-y-3 p-4">
-                  {page.lockedHeader ? (
-                    <SectionBox
-                      section={page.lockedHeader}
-                      locked
-                      draggable={false}
-                      onDragStart={() => undefined}
-                      onDragOver={() => undefined}
-                      onDrop={() => undefined}
-                    />
-                  ) : null}
-
-                  {page.isDoubleColumn ? (
-                    <div className="grid grid-cols-2 gap-3">
-                      <ColumnDropZone
-                        column="left"
-                        sections={page.leftColumn}
-                        draggedId={draggedId}
-                        onDragStart={setDraggedId}
-                        onDropOnSection={handleDrop}
-                      />
-                      <ColumnDropZone
-                        column="right"
-                        sections={page.rightColumn}
-                        draggedId={draggedId}
-                        onDragStart={setDraggedId}
-                        onDropOnSection={handleDrop}
-                      />
-                    </div>
-                  ) : (
+                {partition.isDoubleColumn ? (
+                  <div className="grid grid-cols-2 gap-3">
                     <ColumnDropZone
-                      column="single"
-                      sections={page.singleColumn}
+                      column="left"
+                      sections={partition.leftColumn}
                       draggedId={draggedId}
-                      onDragStart={setDraggedId}
+                      onDragStart={handleDragStart}
+                      onDragEnd={handleDragEnd}
                       onDropOnSection={handleDrop}
+                      onSectionDelete={handleDelete}
                     />
-                  )}
-                </div>
+                    <ColumnDropZone
+                      column="right"
+                      sections={partition.rightColumn}
+                      draggedId={draggedId}
+                      onDragStart={handleDragStart}
+                      onDragEnd={handleDragEnd}
+                      onDropOnSection={handleDrop}
+                      onSectionDelete={handleDelete}
+                    />
+                  </div>
+                ) : (
+                  <ColumnDropZone
+                    column="single"
+                    sections={partition.singleColumn}
+                    draggedId={draggedId}
+                    onDragStart={handleDragStart}
+                    onDragEnd={handleDragEnd}
+                    onDropOnSection={handleDrop}
+                    onSectionDelete={handleDelete}
+                  />
+                )}
               </div>
-            ))
+            </div>
           )}
         </div>
 

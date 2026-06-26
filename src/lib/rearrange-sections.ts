@@ -1,4 +1,9 @@
 import type { ResumeTemplate } from "@/lib/api";
+import type { PageBand } from "@/lib/resume-pagination-engine";
+import {
+  collectPageSectionPresence,
+  resolveSectionPrimaryPage,
+} from "@/lib/resume-page-delete";
 import { getExtendedTemplate } from "@/lib/templateConfigs";
 import { getTemplateStyle } from "@/lib/templateRenderer";
 import {
@@ -26,6 +31,19 @@ export interface RearrangePageLayout {
   rightColumn: SectionWithColumn[];
   singleColumn: SectionWithColumn[];
   isDoubleColumn: boolean;
+  /** Trailing blank page from live preview pagination (no sections). */
+  isEmpty?: boolean;
+  /** Sections shown on this page because content continues from an earlier page. */
+  continuedSectionIds?: string[];
+}
+
+export function isEmptyRearrangePage(page: RearrangePageLayout): boolean {
+  if (page.isEmpty) return true;
+  const hasBodySections =
+    page.leftColumn.length > 0 ||
+    page.rightColumn.length > 0 ||
+    page.singleColumn.length > 0;
+  return !hasBodySections && !page.lockedHeader;
 }
 
 export function getLockedHeaderSection(
@@ -145,33 +163,64 @@ export function partitionSectionsForRearrange(
   };
 }
 
+export function canDeleteSection(section: SectionWithColumn): boolean {
+  return section.type !== "personalInfo";
+}
+
+export function isEssentialSection(section: SectionWithColumn): boolean {
+  return (
+    section.type === "personalInfo" ||
+    section.type === "experience" ||
+    section.type === "education"
+  );
+}
+
 export function rebuildSectionsFromRearrange(
   allSections: SectionWithColumn[],
   partition: Omit<RearrangePartition, "hiddenSections">,
 ): SectionWithColumn[] {
-  const hiddenSections = allSections.filter((s) => !s.visible);
+  let visibleOrdered: SectionWithColumn[];
 
   if (!partition.isDoubleColumn) {
-    const visible = partition.lockedHeader
+    visibleOrdered = partition.lockedHeader
       ? [partition.lockedHeader, ...partition.singleColumn]
       : [...partition.singleColumn];
-    return [...visible, ...hiddenSections];
+  } else {
+    const leftColumn = partition.leftColumn.map((section) => ({
+      ...section,
+      column: "left" as const,
+    }));
+    const rightColumn = partition.rightColumn.map((section) => ({
+      ...section,
+      column: "right" as const,
+    }));
+
+    visibleOrdered = partition.lockedHeader
+      ? [partition.lockedHeader, ...leftColumn, ...rightColumn]
+      : [...leftColumn, ...rightColumn];
   }
 
-  const leftColumn = partition.leftColumn.map((section) => ({
-    ...section,
-    column: "left" as const,
-  }));
-  const rightColumn = partition.rightColumn.map((section) => ({
-    ...section,
-    column: "right" as const,
-  }));
+  const visibleIds = new Set(visibleOrdered.map((section) => section.id));
+  const byId = new Map(allSections.map((section) => [section.id, section]));
 
-  const visible = partition.lockedHeader
-    ? [partition.lockedHeader, ...leftColumn, ...rightColumn]
-    : [...leftColumn, ...rightColumn];
+  const mergedVisible = visibleOrdered.map((section) => {
+    const existing = byId.get(section.id) ?? section;
+    return {
+      ...existing,
+      visible: true,
+      column: section.column,
+    };
+  });
 
-  return [...visible, ...hiddenSections];
+  const hiddenSections = allSections
+    .filter((section) => !visibleIds.has(section.id))
+    .map((section) => ({
+      ...section,
+      visible: false,
+      expanded: false,
+    }));
+
+  return [...mergedVisible, ...hiddenSections];
 }
 
 export function reorderWithinList<T>(list: T[], fromIndex: number, toIndex: number): T[] {
@@ -180,6 +229,20 @@ export function reorderWithinList<T>(list: T[], fromIndex: number, toIndex: numb
   const [removed] = next.splice(fromIndex, 1);
   next.splice(toIndex, 0, removed);
   return next;
+}
+
+export function applySectionDelete(
+  partition: RearrangePartition,
+  sectionId: string,
+): RearrangePartition {
+  if (partition.lockedHeader?.id === sectionId) return partition;
+
+  return {
+    ...partition,
+    leftColumn: partition.leftColumn.filter((section) => section.id !== sectionId),
+    rightColumn: partition.rightColumn.filter((section) => section.id !== sectionId),
+    singleColumn: partition.singleColumn.filter((section) => section.id !== sectionId),
+  };
 }
 
 export function applySectionDrop(
@@ -200,6 +263,21 @@ export function applySectionDrop(
     return partition;
   }
 
+  if (targetSectionId === draggedId) {
+    return partition;
+  }
+
+  const sourceColumn = findSectionColumnInPartition(partition, draggedId);
+  const sourceList =
+    sourceColumn === "left"
+      ? partition.leftColumn
+      : sourceColumn === "right"
+        ? partition.rightColumn
+        : sourceColumn === "single"
+          ? partition.singleColumn
+          : [];
+  const fromIndex = sourceList.findIndex((s) => s.id === draggedId);
+
   let leftColumn = partition.leftColumn.filter((s) => s.id !== draggedId);
   let rightColumn = partition.rightColumn.filter((s) => s.id !== draggedId);
   let singleColumn = partition.singleColumn.filter((s) => s.id !== draggedId);
@@ -216,6 +294,20 @@ export function applySectionDrop(
     : targetList.length;
   if (insertAt < 0) insertAt = targetList.length;
 
+  // When moving down within the same column, "drop on" means insert after the target.
+  if (
+    targetSectionId &&
+    sourceColumn === targetColumn &&
+    fromIndex >= 0
+  ) {
+    const originalTargetIndex = sourceList.findIndex(
+      (s) => s.id === targetSectionId,
+    );
+    if (originalTargetIndex >= 0 && fromIndex < originalTargetIndex) {
+      insertAt += 1;
+    }
+  }
+
   targetList.splice(insertAt, 0, draggedSection);
 
   if (targetColumn === "left") leftColumn = targetList;
@@ -229,91 +321,150 @@ export function applySectionDrop(
     singleColumn,
   };
 }
-export function groupSectionsIntoPages(
+
+type ColumnKey = "left" | "right" | "single";
+
+function buildSingleRearrangePage(
   partition: Omit<RearrangePartition, "hiddenSections">,
 ): RearrangePageLayout[] {
-  if (!partition.isDoubleColumn) {
-    const items = partition.singleColumn;
-    const totalPages = items.length > 4 ? 2 : 1;
-    if (totalPages === 1) {
-      return [
-        {
-          pageNumber: 1,
-          totalPages: 1,
-          lockedHeader: partition.lockedHeader,
-          leftColumn: [],
-          rightColumn: [],
-          singleColumn: items,
-          isDoubleColumn: false,
-        },
-      ];
-    }
-
-    const split = Math.ceil(items.length / 2);
-    return [
-      {
-        pageNumber: 1,
-        totalPages: 2,
-        lockedHeader: partition.lockedHeader,
-        leftColumn: [],
-        rightColumn: [],
-        singleColumn: items.slice(0, split),
-        isDoubleColumn: false,
-      },
-      {
-        pageNumber: 2,
-        totalPages: 2,
-        lockedHeader: null,
-        leftColumn: [],
-        rightColumn: [],
-        singleColumn: items.slice(split),
-        isDoubleColumn: false,
-      },
-    ];
-  }
-
-  const left = partition.leftColumn;
-  const right = partition.rightColumn;
-  const totalBody = left.length + right.length;
-  const totalPages = totalBody > 4 ? 2 : 1;
-
-  if (totalPages === 1) {
-    return [
-      {
-        pageNumber: 1,
-        totalPages: 1,
-        lockedHeader: partition.lockedHeader,
-        leftColumn: left,
-        rightColumn: right,
-        singleColumn: [],
-        isDoubleColumn: true,
-      },
-    ];
-  }
-
-  const leftSplit = Math.ceil(left.length / 2);
-  const rightSplit = Math.ceil(right.length / 2);
-
   return [
     {
       pageNumber: 1,
-      totalPages: 2,
+      totalPages: 1,
       lockedHeader: partition.lockedHeader,
-      leftColumn: left.slice(0, leftSplit),
-      rightColumn: right.slice(0, rightSplit),
-      singleColumn: [],
-      isDoubleColumn: true,
-    },
-    {
-      pageNumber: 2,
-      totalPages: 2,
-      lockedHeader: null,
-      leftColumn: left.slice(leftSplit),
-      rightColumn: right.slice(rightSplit),
-      singleColumn: [],
-      isDoubleColumn: true,
+      leftColumn: [...partition.leftColumn],
+      rightColumn: [...partition.rightColumn],
+      singleColumn: [...partition.singleColumn],
+      isDoubleColumn: partition.isDoubleColumn,
     },
   ];
+}
+
+/** Group rearrange boxes by where each section starts in live preview pagination. */
+export function groupSectionsIntoPagesFromPagination(
+  partition: Omit<RearrangePartition, "hiddenSections">,
+  measureContainer: HTMLElement | null,
+  pages: Pick<PageBand, "pageNumber" | "offsetY" | "height">[],
+): RearrangePageLayout[] {
+  if (!measureContainer || pages.length === 0) {
+    return [];
+  }
+
+  type PageBucket = {
+    leftColumn: SectionWithColumn[];
+    rightColumn: SectionWithColumn[];
+    singleColumn: SectionWithColumn[];
+  };
+
+  const buckets = new Map<number, PageBucket>();
+  for (const page of pages) {
+    buckets.set(page.pageNumber, {
+      leftColumn: [],
+      rightColumn: [],
+      singleColumn: [],
+    });
+  }
+
+  const pushSection = (
+    bucket: PageBucket,
+    column: ColumnKey,
+    section: SectionWithColumn,
+  ) => {
+    const target =
+      column === "left"
+        ? bucket.leftColumn
+        : column === "right"
+          ? bucket.rightColumn
+          : bucket.singleColumn;
+
+    if (target.some((entry) => entry.id === section.id)) return;
+    target.push(section);
+  };
+
+  const assignSection = (section: SectionWithColumn, column: ColumnKey) => {
+    const pageNumber = resolveSectionPrimaryPage(
+      measureContainer,
+      section.id,
+      pages,
+    );
+    const bucket =
+      buckets.get(pageNumber) ?? buckets.get(pages[0]?.pageNumber ?? 1);
+    if (!bucket) return;
+    pushSection(bucket, column, section);
+  };
+
+  if (!partition.isDoubleColumn) {
+    partition.singleColumn.forEach((section) =>
+      assignSection(section, "single"),
+    );
+  } else {
+    partition.leftColumn.forEach((section) => assignSection(section, "left"));
+    partition.rightColumn.forEach((section) => assignSection(section, "right"));
+  }
+
+  const layouts: RearrangePageLayout[] = [];
+
+  for (const page of pages) {
+    const bucket = buckets.get(page.pageNumber);
+    if (!bucket) continue;
+
+    const hasBodySections =
+      bucket.leftColumn.length > 0 ||
+      bucket.rightColumn.length > 0 ||
+      bucket.singleColumn.length > 0;
+    const includeLockedHeader = page.pageNumber === 1 && partition.lockedHeader;
+
+    if (!hasBodySections && !includeLockedHeader) {
+      const hasPreviewContent =
+        collectPageSectionPresence(measureContainer, page).length > 0;
+      if (page.pageNumber > 1 && !hasPreviewContent) {
+        layouts.push({
+          pageNumber: page.pageNumber,
+          totalPages: pages.length,
+          lockedHeader: null,
+          leftColumn: [],
+          rightColumn: [],
+          singleColumn: [],
+          isDoubleColumn: partition.isDoubleColumn,
+          isEmpty: true,
+        });
+      }
+      continue;
+    }
+
+    layouts.push({
+      pageNumber: page.pageNumber,
+      totalPages: pages.length,
+      lockedHeader: includeLockedHeader ? partition.lockedHeader : null,
+      leftColumn: bucket.leftColumn,
+      rightColumn: bucket.rightColumn,
+      singleColumn: bucket.singleColumn,
+      isDoubleColumn: partition.isDoubleColumn,
+    });
+  }
+
+  if (layouts.length === 0) {
+    return buildSingleRearrangePage(partition);
+  }
+
+  return layouts.map((layout, index) => ({
+    ...layout,
+    pageNumber: index + 1,
+    totalPages: layouts.length,
+  }));
+}
+
+export function buildAllSectionsSingleRearrangePage(
+  partition: Omit<RearrangePartition, "hiddenSections">,
+): RearrangePageLayout[] {
+  return buildSingleRearrangePage(partition);
+}
+
+/** @deprecated Use groupSectionsIntoPagesFromPagination with live preview pagination. */
+export function groupSectionsIntoPages(
+  partition: Omit<RearrangePartition, "hiddenSections">,
+): RearrangePageLayout[] {
+  return buildSingleRearrangePage(partition);
 }
 
 export function getSectionBoxLabel(section: SectionWithColumn): string {

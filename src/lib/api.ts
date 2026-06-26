@@ -1211,6 +1211,8 @@ export interface Resume {
       left: number;
       right: number;
     };
+    /** Blank trailing pages removed by the user in the editor preview. */
+    dismissedEmptyTrailingPages?: number;
   };
   atsScore?: number;
   atsFeedback?: ATSReportV3 | LegacyATSFeedback;
