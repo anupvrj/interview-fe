@@ -32,6 +32,7 @@ import {
   Camera,
   Target,
   BarChart3,
+  Network,
 } from "lucide-react";
 import Image from "next/image";
 import { PlansSection } from "@/components/PlansSection";
@@ -39,6 +40,8 @@ import { ScrollSection } from "@/components/ScrollSection";
 import { SiteHeader } from "@/components/SiteHeader";
 import { MarketingFooter } from "@/components/MarketingFooter";
 import { WhyFeatureCardsMarquee } from "@/components/marketing/WhyFeatureCardsMarquee";
+import { CodingRoundHeroPreview } from "@/components/coding-interviews/CodingRoundHeroPreview";
+import { SystemDesignHeroPreview } from "@/components/system-design/SystemDesignHeroPreview";
 import { AiJobSearchNotifyButton } from "@/components/AiJobSearchNotifyButton";
 import { appMarketingSection, appMarketingSectionAlt, appMarketingSectionPurple, appMarketingSectionLight } from "@/lib/app-theme";
 import { cn } from "@/lib/utils";
@@ -91,6 +94,21 @@ function useCountUp(
 
   return prefix + count.toLocaleString("en-IN") + suffix;
 }
+
+const trustedCompanies = [
+  { name: "Razorpay", file: "razorpay.png" },
+  { name: "Amazon", file: "amazon.png" },
+  { name: "TCS", file: "tcs.png" },
+  { name: "Accenture", file: "accenture.png" },
+  { name: "Deloitte", file: "deloitte.png" },
+  { name: "Bosch Group", file: "bosch-group.png" },
+  { name: "Mercedes-Benz", file: "mercedes-benz.png" },
+  { name: "Fortinet", file: "fortinet.png" },
+  { name: "News Corp", file: "news-corp.png" },
+  { name: "Walmart", file: "walmart.png" },
+  { name: "PayPal", file: "paypal.png" },
+  { name: "BCE Global Tech", file: "bce-global-tech.png" },
+];
 
 export default function LandingPage() {
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -402,19 +420,6 @@ export default function LandingPage() {
                 Build an ATS-proof resume, master live mock interviews, and apply to roles with measurable hire probabilities. Practice smarter with a unified AI career engine that learns your weaknesses.
               </p>
               
-              {/* Company Logos */}
-              <div className="pt-4 sm:pt-6 px-2 sm:px-0">
-                <p className="text-xs sm:text-sm text-gray-500 mb-3 sm:mb-4 text-center lg:text-left">Trusted by candidates at top companies</p>
-                <div className="flex flex-wrap items-center justify-center lg:justify-start gap-4 sm:gap-6 opacity-60">
-                  <div className="text-lg sm:text-xl font-bold text-gray-700">Amazon</div>
-                  <div className="text-lg sm:text-xl font-bold text-gray-700">Deloitte</div>
-                  <div className="text-lg sm:text-xl font-bold text-gray-700">Flipkart</div>
-                  <div className="text-lg sm:text-xl font-bold text-gray-700">TCS</div>
-                  <div className="text-lg sm:text-xl font-bold text-gray-700">Infosys</div>
-                  <div className="text-lg sm:text-xl font-bold text-gray-700">Razorpay</div>
-                </div>
-              </div>
-              
               <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-3 sm:gap-4 pt-2 px-2 sm:px-0">
                 <Link href="/sign-up" className="w-full sm:w-auto">
                   <Button
@@ -434,18 +439,33 @@ export default function LandingPage() {
                   <span className="text-xs sm:text-sm font-medium text-gray-600">4.9/5</span>
                 </div>
               </div>
+
+              {/* Quick Stats */}
+              <div className="flex flex-wrap items-center justify-center lg:justify-start gap-6 pt-2 text-sm text-gray-500 font-medium">
+                <div className="flex items-center gap-2">
+                  <Check className="w-4 h-4 text-primary" />
+                  <span>No credit card required</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Check className="w-4 h-4 text-primary" />
+                  <span>5,000+ students trained</span>
+                </div>
+              </div>
             </div>
 
             {/* Right Section - Interview Preview */}
             <div className="relative flex justify-center lg:justify-start order-1 lg:order-2">
               <div className="relative rounded-lg sm:rounded-xl shadow-2xl overflow-hidden bg-white w-full max-w-[600px] sm:max-w-[700px] border-2 sm:border-4 border-border">
-                <Image
-                  src="/mock-interview-previewiew.png"
-                  alt="AI Interview Practice interface"
-                  width={700}
-                  height={560}
+                <video
+                  src="/interview_trix_ai_interview.mp4"
+                  poster="/mock-interview-previewiew.png"
                   className="w-full h-auto object-contain"
-                  priority
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                  preload="metadata"
+                  aria-label="AI Interview Practice demo"
                 />
                 {/* Overlay Badges */}
                 <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 bg-green-500 text-white px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-md shadow-lg flex items-center gap-1 sm:gap-1.5 animate-bounce" style={{ animationDuration: '2s' }}>
@@ -478,11 +498,78 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* Trusted Companies */}
+      <section className="relative overflow-hidden border-y border-border/60 bg-gradient-to-b from-white to-slate-50/80 px-4 py-14 sm:px-6 sm:py-20">
+        <div className="container relative mx-auto max-w-7xl">
+          <div className="mx-auto max-w-3xl text-center">
+            <div className="inline-flex items-center gap-2 px-3 py-1 bg-muted rounded-full text-primary font-medium text-sm">
+              <span>Trusted Worldwide</span>
+            </div>
+            <h2 className="mt-5 text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight text-slate-900">
+              Our candidates work at the{" "}
+              <span className="text-primary">world&apos;s best companies</span>
+            </h2>
+            <p className="mt-4 text-base sm:text-lg lg:text-xl text-gray-600 leading-relaxed">
+              From global tech giants to fast-growing innovators — thousands have
+              landed roles at the companies they aimed for.
+            </p>
+          </div>
+
+          {/* Desktop / tablet grid */}
+          <div className="mt-14 hidden grid-cols-2 gap-4 sm:grid sm:grid-cols-3 sm:gap-6 lg:grid-cols-4">
+            {trustedCompanies.map((company) => (
+              <div
+                key={company.file}
+                className="group flex items-center justify-center rounded-2xl border border-slate-200/70 bg-white px-4 py-6 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-primary/30 hover:shadow-md sm:px-6 sm:py-8"
+              >
+                <Image
+                  src={`/company-logos/${company.file}`}
+                  alt={`${company.name} logo`}
+                  width={180}
+                  height={56}
+                  className="h-8 w-auto max-w-[140px] object-contain transition-transform duration-300 group-hover:scale-105 sm:h-10 sm:max-w-[160px]"
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Mobile carousel — auto-scrolling, two logos in view */}
+        <div
+          className="-mx-4 mt-10 overflow-hidden sm:hidden"
+          style={{
+            maskImage:
+              "linear-gradient(to right, transparent, black 12%, black 88%, transparent)",
+            WebkitMaskImage:
+              "linear-gradient(to right, transparent, black 12%, black 88%, transparent)",
+          }}
+        >
+          <div className="flex w-max animate-trusted-logos-marquee">
+            {[...trustedCompanies, ...trustedCompanies].map((company, index) => (
+              <div
+                key={`${company.file}-${index}`}
+                className="flex w-[50vw] shrink-0 items-center justify-center px-3"
+              >
+                <div className="flex h-20 w-full items-center justify-center rounded-2xl border border-slate-200/70 bg-white px-4 shadow-sm">
+                  <Image
+                    src={`/company-logos/${company.file}`}
+                    alt={`${company.name} logo`}
+                    width={180}
+                    height={56}
+                    className="h-8 w-auto max-w-[34vw] object-contain"
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* Features Section */}
       <ScrollSection
         id="why-us"
         className={cn(
-          appMarketingSectionPurple,
+          "relative overflow-hidden border-y border-[#7367F0]/20 bg-gradient-to-br from-[#7367F0]/[0.16] via-[#7367F0]/[0.06] to-[#7367F0]/[0.22]",
           "scroll-mt-20 px-4 py-12 sm:px-6 sm:py-16 lg:py-20",
         )}
       >
@@ -500,13 +587,13 @@ export default function LandingPage() {
               }}
             >
               {i % 4 === 0 ? (
-                <FileText className="h-10 w-10 text-white sm:h-14 sm:w-14" />
+                <FileText className="h-10 w-10 text-primary sm:h-14 sm:w-14" />
               ) : i % 4 === 1 ? (
-                <Mic className="h-10 w-10 text-white sm:h-14 sm:w-14" />
+                <Mic className="h-10 w-10 text-primary sm:h-14 sm:w-14" />
               ) : i % 4 === 2 ? (
-                <Code className="h-10 w-10 text-white sm:h-14 sm:w-14" />
+                <Code className="h-10 w-10 text-primary sm:h-14 sm:w-14" />
               ) : (
-                <Video className="h-10 w-10 text-white sm:h-14 sm:w-14" />
+                <Video className="h-10 w-10 text-primary sm:h-14 sm:w-14" />
               )}
             </div>
           ))}
@@ -523,11 +610,11 @@ export default function LandingPage() {
               }}
             >
               {i % 3 === 0 ? (
-                <Search className="h-8 w-8 text-white sm:h-11 sm:w-11" />
+                <Search className="h-8 w-8 text-primary sm:h-11 sm:w-11" />
               ) : i % 3 === 1 ? (
-                <Award className="h-8 w-8 text-white sm:h-11 sm:w-11" />
+                <Award className="h-8 w-8 text-primary sm:h-11 sm:w-11" />
               ) : (
-                <MessageSquare className="h-8 w-8 text-white sm:h-11 sm:w-11" />
+                <MessageSquare className="h-8 w-8 text-primary sm:h-11 sm:w-11" />
               )}
             </div>
           ))}
@@ -544,29 +631,28 @@ export default function LandingPage() {
               }}
             >
               {i % 2 === 0 ? (
-                <Sparkles className="h-7 w-7 text-white sm:h-10 sm:w-10" />
+                <Sparkles className="h-7 w-7 text-primary sm:h-10 sm:w-10" />
               ) : (
-                <Brain className="h-7 w-7 text-white sm:h-10 sm:w-10" />
+                <Brain className="h-7 w-7 text-primary sm:h-10 sm:w-10" />
               )}
             </div>
           ))}
         </div>
-        <div className="relative z-10 container mx-auto max-w-6xl">
+        <div className="relative z-10 container mx-auto max-w-7xl">
           <div className="mb-12 text-center">
-            <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/15 px-3 py-1 text-sm font-medium text-white/95">
-              <Sparkles className="h-3 w-3" />
+            <div className="mb-4 inline-flex items-center gap-2 px-3 py-1 bg-muted rounded-full text-primary font-medium text-sm">
               <span>Why Interview Trix</span>
             </div>
-            <h2 className="mb-4 text-3xl font-bold tracking-tight text-white/95 sm:text-4xl lg:text-5xl">
+            <h2 className="mb-4 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl lg:text-5xl">
               Don&apos;t just apply.{" "}
-              <span className="text-white/95">Win.</span>
+              <span className="text-primary">Win.</span>
             </h2>
-            <p className="mx-auto max-w-2xl text-lg leading-relaxed text-white/75">
+            <p className="mx-auto max-w-2xl text-lg leading-relaxed text-gray-600">
               From an ATS-ready resume to AI Interview Practice, peer interviews, and the perfect job match—one platform built for how hiring works today.
             </p>
           </div>
         </div>
-        <div className="relative z-10">
+        <div className="relative z-10 container mx-auto max-w-7xl">
           <WhyFeatureCardsMarquee />
         </div>
       </ScrollSection>
@@ -590,12 +676,12 @@ export default function LandingPage() {
 
               {/* Headline */}
               <h2 className="text-3xl sm:text-4xl md:text-5xl font-semibold tracking-tight text-slate-900 leading-tight">
-                <span className="text-primary">Beat the Bots</span> Before a Human Ever Reads You
+                Build an <span className="text-primary">ATS-Proof Resume</span> using AI
               </h2>
 
               {/* Sub-headline */}
               <p className="text-base sm:text-lg text-gray-600 leading-relaxed">
-                Most applications are rejected by tracking software before reaching a recruiter&apos;s desk. Skip the manual formatting—import your existing resume or chat with our AI to instantly generate quantified achievements, patch missing keywords, and build a flawless, ATS-proof resume.
+                Stop getting rejected by tracking software. Import your current CV and let our AI resume builder instantly generate quantified achievements, patch keywords, and craft a flawless resume.
               </p>
 
               {/* AI-Powered Features */}
@@ -771,65 +857,65 @@ export default function LandingPage() {
 
               {/* Headline */}
               <h2 className="text-3xl sm:text-4xl md:text-5xl font-semibold tracking-tight text-slate-900 leading-tight">
-                Shortlisted? <span className="text-primary">Perform Under Pressure</span>
+                Master <span className="text-primary">AI Interview Practice</span>
               </h2>
 
               {/* Sub-headline */}
               <p className="text-base sm:text-lg text-gray-600 leading-relaxed">
-                Enable your camera for a hyper-realistic AI mock session. The system tracks your eye contact, detects cheating attempts, curates company-specific questions, and adapts difficulty in real-time to generate instant feedback.
+                Get 100% prepared before real one happens. Practice with tailored, company-specific questions, adapt to real-time difficulty changes, and get instant feedback on your delivery.
               </p>
 
               {/* AI-Powered Features */}
-              <div className="space-y-6 pt-4">
-                <div className="flex items-start gap-4">
+              <div className="flex flex-col sm:grid sm:grid-cols-2 gap-4 sm:gap-6 pt-4">
+                <div className="group flex items-start gap-3">
                   <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
                     <Camera className="w-5 h-5 text-primary" />
                   </div>
-                  <div>
-                    <h3 className="text-base font-semibold text-gray-900 mb-1">
-                      Behavioral &amp; Integrity Analysis
+                  <div className="min-w-0">
+                    <h3 className="text-sm sm:text-base font-semibold text-gray-900">
+                      Conversational Voice AI
                     </h3>
-                    <p className="text-sm text-gray-600 leading-relaxed">
-                      Our AI evaluates your facial expressions and eye contact to build interview confidence, while built-in proctoring detects unauthorized help or cheating attempts.
+                    <p className="mt-0.5 text-xs sm:text-sm leading-snug text-gray-500">
+                      Fluid, hyper-realistic voice chats that feel like a real recruiter.
                     </p>
                   </div>
                 </div>
-                <div className="flex items-start gap-4">
+                <div className="group flex items-start gap-3">
                   <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
                     <Target className="w-5 h-5 text-primary" />
                   </div>
-                  <div>
-                    <h3 className="text-base font-semibold text-gray-900 mb-1">
-                      Hyper-Personalized Context
+                  <div className="min-w-0">
+                    <h3 className="text-sm sm:text-base font-semibold text-gray-900">
+                      Company-Specific Scenarios
                     </h3>
-                    <p className="text-sm text-gray-600 leading-relaxed">
-                      We ingest your specific resume and target company profile to generate precise, role-specific questions tailored entirely to your experience level.
+                    <p className="mt-0.5 text-xs sm:text-sm leading-snug text-gray-500">
+                      Targeted questions tailored to your exact job title and company.
                     </p>
                   </div>
                 </div>
-                <div className="flex items-start gap-4">
+                <div className="group flex items-start gap-3">
                   <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
                     <Brain className="w-5 h-5 text-primary" />
                   </div>
-                  <div>
-                    <h3 className="text-base font-semibold text-gray-900 mb-1">
+                  <div className="min-w-0">
+                    <h3 className="text-sm sm:text-base font-semibold text-gray-900">
                       Adaptive Difficulty Scaling
                     </h3>
-                    <p className="text-sm text-gray-600 leading-relaxed">
-                      The Contextual Brain analyzes your spoken answers in real-time, dynamically adjusting the interview&apos;s difficulty to match the authentic pressure of a hiring manager.
+                    <p className="mt-0.5 text-xs sm:text-sm leading-snug text-gray-500">
+                      Difficulty ramps up instantly based on your real-time performance.
                     </p>
                   </div>
                 </div>
-                <div className="flex items-start gap-4">
+                <div className="group flex items-start gap-3">
                   <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
                     <BarChart3 className="w-5 h-5 text-primary" />
                   </div>
-                  <div>
-                    <h3 className="text-base font-semibold text-gray-900 mb-1">
-                      Instant Skill Analytics
+                  <div className="min-w-0">
+                    <h3 className="text-sm sm:text-base font-semibold text-gray-900">
+                      Instant Voice Analytics
                     </h3>
-                    <p className="text-sm text-gray-600 leading-relaxed">
-                      Get an immediate, granular report on your communication skills, speaking pace, behavioral alignment, and answer structure the second your session ends.
+                    <p className="mt-0.5 text-xs sm:text-sm leading-snug text-gray-500">
+                      Instant breakdown of your tone, filler words, pacing, and accuracy.
                     </p>
                   </div>
                 </div>
@@ -855,18 +941,6 @@ export default function LandingPage() {
                     View Sample Analytics
                   </Button>
                 </Link>
-              </div>
-
-              {/* Quick Stats */}
-              <div className="flex flex-wrap items-center gap-6 pt-4 text-sm text-gray-500 font-medium">
-                <div className="flex items-center gap-2">
-                  <Check className="w-4 h-4 text-primary" />
-                  <span>No credit card required</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Check className="w-4 h-4 text-primary" />
-                  <span>5,000+ students trained</span>
-                </div>
               </div>
             </div>
 
@@ -964,7 +1038,212 @@ export default function LandingPage() {
         </div>
       </ScrollSection>
 
+      {/* Practice Coding Round hero */}
+      <ScrollSection
+        id="practice-coding"
+        className={cn(
+          appMarketingSection,
+          "scroll-mt-20 border-t border-border px-4 py-12 sm:px-6 sm:py-16",
+        )}
+      >
+        <div className="container mx-auto max-w-7xl">
+          <div className="grid lg:grid-cols-2 gap-16 items-center">
+            {/* Left Side - Animated Preview */}
+            <div className="order-2 flex justify-center lg:order-1 lg:justify-start shake-vertical">
+              <CodingRoundHeroPreview />
+            </div>
+
+            {/* Right Side - Marketing Content */}
+            <div className="order-1 space-y-6 lg:order-2">
+              <div className="inline-flex items-center gap-2 px-3 py-1 bg-muted rounded-full text-primary font-medium text-sm">
+                <span>Live IDE • Public + Hidden Tests</span>
+              </div>
+
+              <h2 className="text-3xl sm:text-4xl md:text-5xl font-semibold tracking-tight text-slate-900 leading-tight">
+                Practice the <span className="text-primary">Coding Round</span>
+              </h2>
+
+              <p className="text-base sm:text-lg text-gray-600 leading-relaxed">
+                Solve real DSA problems in a live editor while an AI interviewer
+                cross-examines your logic. Run public tests, submit against hidden
+                cases, and defend your time and space complexity out loud.
+              </p>
+
+              <div className="flex flex-col sm:grid sm:grid-cols-2 gap-4 sm:gap-6 pt-4">
+                <div className="group flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
+                    <Code className="w-5 h-5 text-primary" />
+                  </div>
+                  <div className="min-w-0">
+                    <h3 className="text-sm sm:text-base font-semibold text-gray-900">
+                      Real-Time Code Execution
+                    </h3>
+                    <p className="mt-0.5 text-xs sm:text-sm leading-snug text-gray-500">
+                      Write and run code instantly against public and hidden tests.
+                    </p>
+                  </div>
+                </div>
+                <div className="group flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
+                    <Brain className="w-5 h-5 text-primary" />
+                  </div>
+                  <div className="min-w-0">
+                    <h3 className="text-sm sm:text-base font-semibold text-gray-900">
+                      AI Logic Cross-Examination
+                    </h3>
+                    <p className="mt-0.5 text-xs sm:text-sm leading-snug text-gray-500">
+                      Explain your approach and defend complexity, just like a real round.
+                    </p>
+                  </div>
+                </div>
+                <div className="group flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
+                    <CheckCircle className="w-5 h-5 text-primary" />
+                  </div>
+                  <div className="min-w-0">
+                    <h3 className="text-sm sm:text-base font-semibold text-gray-900">
+                      Hidden Test Coverage
+                    </h3>
+                    <p className="mt-0.5 text-xs sm:text-sm leading-snug text-gray-500">
+                      Catch edge cases before the real interview does.
+                    </p>
+                  </div>
+                </div>
+                <div className="group flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
+                    <BarChart3 className="w-5 h-5 text-primary" />
+                  </div>
+                  <div className="min-w-0">
+                    <h3 className="text-sm sm:text-base font-semibold text-gray-900">
+                      Instant Performance Report
+                    </h3>
+                    <p className="mt-0.5 text-xs sm:text-sm leading-snug text-gray-500">
+                      Get scored on correctness, efficiency, and communication.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 pt-4">
+                <Link href="/ai-coding-practice" className="w-full sm:w-auto">
+                  <Button
+                    size="lg"
+                    className="w-full sm:w-auto bg-primary hover:bg-slate-900 text-white font-medium shadow-sm transition-all h-12 px-6"
+                  >
+                    Start Coding Round
+                    <ArrowRight className="w-4 h-4 ml-2" />
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      </ScrollSection>
+
+      {/* Practice System Design hero */}
+      <ScrollSection
+        id="practice-system-design"
+        className={cn(
+          appMarketingSectionAlt,
+          "scroll-mt-20 border-t border-border px-4 py-12 sm:px-6 sm:py-16",
+        )}
+      >
+        <div className="container mx-auto max-w-7xl">
+          <div className="grid lg:grid-cols-2 gap-16 items-center">
+            {/* Left Side - Marketing Content */}
+            <div className="space-y-6">
+              <div className="inline-flex items-center gap-2 px-3 py-1 bg-muted rounded-full text-primary font-medium text-sm">
+                <span>Live Whiteboard • Voice-Driven</span>
+              </div>
+
+              <h2 className="text-3xl sm:text-4xl md:text-5xl font-semibold tracking-tight text-slate-900 leading-tight">
+                Practice Live <span className="text-primary">System Design</span>
+              </h2>
+
+              <p className="text-base sm:text-lg text-gray-600 leading-relaxed">
+                Architect scalable systems on a live canvas and debate trade-offs
+                through a realistic, voice-driven conversation. Think like a
+                Principal Engineer before you face the panel.
+              </p>
+
+              <div className="flex flex-col sm:grid sm:grid-cols-2 gap-4 sm:gap-6 pt-4">
+                <div className="group flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
+                    <Network className="w-5 h-5 text-primary" />
+                  </div>
+                  <div className="min-w-0">
+                    <h3 className="text-sm sm:text-base font-semibold text-gray-900">
+                      Interactive Architecture Canvas
+                    </h3>
+                    <p className="mt-0.5 text-xs sm:text-sm leading-snug text-gray-500">
+                      Drag, connect, and design real distributed systems live.
+                    </p>
+                  </div>
+                </div>
+                <div className="group flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
+                    <Mic className="w-5 h-5 text-primary" />
+                  </div>
+                  <div className="min-w-0">
+                    <h3 className="text-sm sm:text-base font-semibold text-gray-900">
+                      Voice-Driven Discussion
+                    </h3>
+                    <p className="mt-0.5 text-xs sm:text-sm leading-snug text-gray-500">
+                      Talk through your design as the AI probes your decisions.
+                    </p>
+                  </div>
+                </div>
+                <div className="group flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
+                    <TrendingUp className="w-5 h-5 text-primary" />
+                  </div>
+                  <div className="min-w-0">
+                    <h3 className="text-sm sm:text-base font-semibold text-gray-900">
+                      Scalability Trade-offs
+                    </h3>
+                    <p className="mt-0.5 text-xs sm:text-sm leading-snug text-gray-500">
+                      Defend caching, sharding, and consistency choices in depth.
+                    </p>
+                  </div>
+                </div>
+                <div className="group flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
+                    <Award className="w-5 h-5 text-primary" />
+                  </div>
+                  <div className="min-w-0">
+                    <h3 className="text-sm sm:text-base font-semibold text-gray-900">
+                      Senior-Level Feedback
+                    </h3>
+                    <p className="mt-0.5 text-xs sm:text-sm leading-snug text-gray-500">
+                      Calibrated to the bar set by top-tier engineering interviews.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 pt-4">
+                <Link href="/ai-system-design" className="w-full sm:w-auto">
+                  <Button
+                    size="lg"
+                    className="w-full sm:w-auto bg-primary hover:bg-slate-900 text-white font-medium shadow-sm transition-all h-12 px-6"
+                  >
+                    Start System Design
+                    <ArrowRight className="w-4 h-4 ml-2" />
+                  </Button>
+                </Link>
+              </div>
+            </div>
+
+            {/* Right Side - Animated Preview */}
+            <div className="relative flex justify-center lg:justify-end shake-vertical">
+              <SystemDesignHeroPreview />
+            </div>
+          </div>
+        </div>
+      </ScrollSection>
+
       {/* AI Job Search Hero Section */}
+      {false && (
       <section
         className={cn(
           appMarketingSectionLight,
@@ -1186,6 +1465,7 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
+      )}
 
       {/* Stats Section */}
       <section
