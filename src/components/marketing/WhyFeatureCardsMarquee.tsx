@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import {
   ArrowRight,
@@ -80,7 +79,7 @@ const featureCards: FeatureCard[] = [
 ];
 
 const cardShellClass =
-  "group relative flex h-full min-h-[280px] w-[min(88vw,360px)] shrink-0 flex-col rounded-2xl border border-border bg-card p-6 text-left shadow-card transition-all duration-300 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-xl";
+  "group relative flex h-full min-h-[260px] flex-col rounded-xl border border-border/80 bg-card p-6 text-left shadow-card transition-all duration-300 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-xl";
 
 function FeatureCardIcon({
   icon: Icon,
@@ -92,7 +91,7 @@ function FeatureCardIcon({
   return (
     <div
       className={cn(
-        "mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br shadow-md transition-transform group-hover:scale-105",
+        "flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br shadow-md transition-transform group-hover:scale-105",
         gradient,
       )}
     >
@@ -101,20 +100,20 @@ function FeatureCardIcon({
   );
 }
 
-function WhyFeatureCard({
-  card,
-  duplicate,
-}: {
-  card: FeatureCard;
-  duplicate?: boolean;
-}) {
+function WhyFeatureCard({ card }: { card: FeatureCard }) {
   const content = (
     <>
-      <div className="absolute inset-0 rounded-2xl bg-card/30 opacity-0 transition-opacity group-hover:opacity-100" />
+      <div className="absolute inset-0 rounded-xl bg-muted/40 opacity-0 transition-opacity group-hover:opacity-100" />
       <div className="relative flex h-full flex-col">
-        <FeatureCardIcon icon={card.icon} gradient={card.gradient} />
-        <h3 className="mb-2 text-xl font-bold text-slate-900">{card.title}</h3>
-        <p className="mb-2 text-sm font-semibold text-gray-800">{card.tagline}</p>
+        <div className="mb-4 flex items-start gap-4">
+          <FeatureCardIcon icon={card.icon} gradient={card.gradient} />
+          <div className="min-w-0">
+            <h3 className="text-xl font-bold text-slate-900">{card.title}</h3>
+            <p className="mt-1 text-sm font-semibold text-gray-800">
+              {card.tagline}
+            </p>
+          </div>
+        </div>
         <p className="flex-1 text-sm leading-relaxed text-gray-600">{card.body}</p>
         {card.cta ? (
           <p className="mt-3 flex items-center gap-1 text-sm font-medium text-primary">
@@ -128,60 +127,21 @@ function WhyFeatureCard({
 
   if (card.href) {
     return (
-      <Link
-        href={card.href}
-        className={cardShellClass}
-        aria-hidden={duplicate}
-        tabIndex={duplicate ? -1 : undefined}
-      >
+      <Link href={card.href} className={cardShellClass}>
         {content}
       </Link>
     );
   }
 
-  return (
-    <div className={cardShellClass} aria-hidden={duplicate}>
-      {content}
-    </div>
-  );
+  return <div className={cardShellClass}>{content}</div>;
 }
 
 export function WhyFeatureCardsMarquee() {
-  const [paused, setPaused] = useState(false);
-  const loopCards = [...featureCards, ...featureCards];
-
   return (
-    <div className="relative w-full">
-      <div
-        className="pointer-events-none absolute inset-y-0 left-0 z-10 w-10 bg-gradient-to-r from-[#796ef2] to-transparent sm:w-20"
-        aria-hidden
-      />
-      <div
-        className="pointer-events-none absolute inset-y-0 right-0 z-10 w-10 bg-gradient-to-l from-[#796ef2] to-transparent sm:w-20"
-        aria-hidden
-      />
-
-      <div
-        className="overflow-hidden"
-        onMouseEnter={() => setPaused(true)}
-        onMouseLeave={() => setPaused(false)}
-        onTouchStart={() => setPaused(true)}
-        onTouchEnd={() => setPaused(false)}
-        onTouchCancel={() => setPaused(false)}
-      >
-        <div
-          className="flex w-max gap-6 py-1 will-change-transform animate-why-feature-marquee-ltr motion-reduce:animate-none"
-          style={{ animationPlayState: paused ? "paused" : "running" }}
-        >
-          {loopCards.map((card, index) => (
-            <WhyFeatureCard
-              key={`${card.title}-${index}`}
-              card={card}
-              duplicate={index >= featureCards.length}
-            />
-          ))}
-        </div>
-      </div>
+    <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+      {featureCards.map((card) => (
+        <WhyFeatureCard key={card.title} card={card} />
+      ))}
     </div>
   );
 }

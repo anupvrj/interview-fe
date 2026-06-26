@@ -1049,3 +1049,18 @@
 .animate-why-feature-marquee-ltr {
   animation: why-feature-marquee-ltr 50s linear infinite;
 }
+
+@keyframes trusted-logos-marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-trusted-logos-marquee {
+  animation: trusted-logos-marquee 20s linear infinite;
+  will-change: transform;
+}
+
