@@ -1555,6 +1555,33 @@ export const resumeDataExtractionApi = {
     );
     return response.data.data;
   },
+
+  importLinkedInProfile: async (
+    handle: string,
+    templateId: string,
+  ): Promise<{
+    sections: Record<
+      string,
+      {
+        sectionType: string;
+        content: string | any;
+        format: "html" | "list" | "paragraph" | "structured";
+      }
+    >;
+    templateId: string;
+  }> => {
+    const response = await apiClient.post(
+      "/import-linkedin-profile",
+      {
+        handle,
+        templateId,
+      },
+      {
+        timeout: 180000, // 180 seconds (3 minutes) for fetch + AI enhancement
+      },
+    );
+    return response.data.data;
+  },
 };
 
 // Content API

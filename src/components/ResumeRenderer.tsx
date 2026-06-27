@@ -49,6 +49,13 @@ interface ResumeRendererProps {
   pageNumber?: number;
 }
 
+import { formatExperienceDateRange } from "@/lib/resume-date-utils";
+import {
+  RESUME_DISPLAY_PLACEHOLDERS,
+  normalizePersonalInfoRecord,
+  personalInfoDisplayText,
+} from "@/lib/resume-data-import";
+
 interface PageBreak {
   pageNumber: number;
   sections: string[];
@@ -119,6 +126,11 @@ export function ResumeRenderer({
       }),
     },
   };
+
+  const personalInfo = useMemo(
+    () => normalizePersonalInfoRecord(resume.content?.personalInfo),
+    [resume.content?.personalInfo],
+  );
 
   // Get template-specific default sections or use generic defaults
   const getDefaultSections = (): Section[] => {
@@ -523,7 +535,6 @@ export function ResumeRenderer({
 
   // Render additional personal information fields
   const renderAdditionalPersonalInfo = (isInSidebar: boolean = false) => {
-    const personalInfo = resume.content.personalInfo;
     const additionalFields: Array<{
       label: string;
       value: string | undefined;
@@ -702,7 +713,6 @@ export function ResumeRenderer({
 
   // Render contact information based on template configuration
   const renderContactInfo = (isInSidebar: boolean = false) => {
-    const personalInfo = resume.content.personalInfo;
     const contactConfig = templateStyle.contactDisplay;
 
     const contactItems = [
@@ -894,8 +904,7 @@ export function ResumeRenderer({
                     : { textAlign: "left", marginBottom: "12px" }
                 }
               >
-                {resume.content.personalInfo.fullName && (
-                  <h1
+                <h1
                     className={`${template.id}-name`}
                     style={{
                       fontSize: `${templateStyle.fontSize.heading}px`,
@@ -907,11 +916,12 @@ export function ResumeRenderer({
                         : {}),
                     }}
                   >
-                    {resume.content.personalInfo.fullName}
+                    {personalInfoDisplayText(
+                      personalInfo.fullName,
+                      RESUME_DISPLAY_PLACEHOLDERS.fullName,
+                    )}
                   </h1>
-                )}
-                {resume.content.personalInfo.portfolio && (
-                  <p
+                <p
                     className={`${template.id}-job-title`}
                     style={{
                       fontSize:
@@ -925,10 +935,12 @@ export function ResumeRenderer({
                         : {}),
                     }}
                   >
-                    {resume.content.personalInfo.portfolio}
+                    {personalInfoDisplayText(
+                      personalInfo.portfolio,
+                      RESUME_DISPLAY_PLACEHOLDERS.portfolio,
+                    )}
                   </p>
-                )}
-                {resume.content.personalInfo.yearsOfExperience && (
+                {personalInfo.yearsOfExperience && (
                   <p
                     style={{
                       fontSize: `${templateStyle.fontSize.subheading}px`,
@@ -936,7 +948,7 @@ export function ResumeRenderer({
                       margin: "0 0 20px 0",
                     }}
                   >
-                    Experience: {resume.content.personalInfo.yearsOfExperience}
+                    Experience: {personalInfo.yearsOfExperience}
                   </p>
                 )}
               </div>
@@ -953,9 +965,9 @@ export function ResumeRenderer({
                     : { textAlign: "center", marginBottom: "20px" }
                 }
               >
-                {resume.content.personalInfo?.profilePicture ? (
+                {personalInfo?.profilePicture ? (
                   <img
-                    src={resume.content.personalInfo.profilePicture}
+                    src={personalInfo.profilePicture}
                     alt="Profile"
                     className={
                       template.id === "atlantic-blue"
@@ -1021,7 +1033,6 @@ export function ResumeRenderer({
           ) {
             return null;
           }
-          const personalInfo = resume.content.personalInfo;
           const contactItems = [
             {
               type: "email",
@@ -1122,7 +1133,6 @@ export function ResumeRenderer({
           ) {
             return null;
           }
-          const personalInfo = resume.content.personalInfo;
           const additionalFields: Array<{
             label: string;
             value: string | undefined;
@@ -1231,7 +1241,6 @@ export function ResumeRenderer({
           ) {
             return null;
           }
-          const personalInfo = resume.content.personalInfo;
           if (!personalInfo.passportNo) {
             return null;
           }
@@ -1336,8 +1345,7 @@ export function ResumeRenderer({
                   marginBottom: "16px",
                 }}
               >
-                {resume.content.personalInfo.fullName && (
-                  <h1
+                <h1
                     className={`${template.id}-name`}
                     style={{
                       fontSize: `${templateStyle.fontSize.heading}px`,
@@ -1351,11 +1359,12 @@ export function ResumeRenderer({
                       flexShrink: 0,
                     }}
                   >
-                    {resume.content.personalInfo.fullName}
+                    {personalInfoDisplayText(
+                      personalInfo.fullName,
+                      RESUME_DISPLAY_PLACEHOLDERS.fullName,
+                    )}
                   </h1>
-                )}
-                {resume.content.personalInfo.portfolio && (
-                  <p
+                <p
                     className={`${template.id}-job-title`}
                     style={{
                       fontSize: `${templateStyle.fontSize.subheading}px`,
@@ -1378,9 +1387,11 @@ export function ResumeRenderer({
                           : "0",
                     }}
                   >
-                    {resume.content.personalInfo.portfolio}
+                    {personalInfoDisplayText(
+                      personalInfo.portfolio,
+                      RESUME_DISPLAY_PLACEHOLDERS.portfolio,
+                    )}
                   </p>
-                )}
               </div>
               <div className={`${template.id}-contact`}>
                 {renderContactInfo(isInSidebar)}
@@ -1413,9 +1424,9 @@ export function ResumeRenderer({
             >
               {/* Profile Picture on Left */}
               <div style={{ flexShrink: 0 }}>
-                {resume.content.personalInfo?.profilePicture ? (
+                {personalInfo?.profilePicture ? (
                   <img
-                    src={resume.content.personalInfo.profilePicture}
+                    src={personalInfo.profilePicture}
                     alt="Profile"
                     className={`${template.id}-profile-picture`}
                     style={{
@@ -1444,8 +1455,7 @@ export function ResumeRenderer({
                 className={`${template.id}-header-content`}
                 style={{ flex: 1, paddingTop: "10px" }}
               >
-                {resume.content.personalInfo.fullName && (
-                  <h1
+                <h1
                     className={`${template.id}-name`}
                     style={{
                       fontSize: `${templateStyle.fontSize.heading}px`,
@@ -1456,11 +1466,12 @@ export function ResumeRenderer({
                       fontFamily: templateStyle.fontFamily,
                     }}
                   >
-                    {resume.content.personalInfo.fullName}
+                    {personalInfoDisplayText(
+                      personalInfo.fullName,
+                      RESUME_DISPLAY_PLACEHOLDERS.fullName,
+                    )}
                   </h1>
-                )}
-                {resume.content.personalInfo.portfolio && (
-                  <p
+                <p
                     className={`${template.id}-job-title`}
                     style={{
                       fontSize: `${templateStyle.fontSize.subheading}px`,
@@ -1470,9 +1481,11 @@ export function ResumeRenderer({
                       fontFamily: templateStyle.fontFamily,
                     }}
                   >
-                    {resume.content.personalInfo.portfolio}
+                    {personalInfoDisplayText(
+                      personalInfo.portfolio,
+                      RESUME_DISPLAY_PLACEHOLDERS.portfolio,
+                    )}
                   </p>
-                )}
                 {renderProfileHeaderContactInfo()}
                 {renderProfileHeaderAdditionalInfo()}
                 {renderProfileHeaderPassportDetails()}
@@ -1505,10 +1518,10 @@ export function ResumeRenderer({
               }}
             >
               {/* Profile Picture Fallback for Standard Layout */}
-              {resume.content.personalInfo?.profilePicture && (
+              {personalInfo?.profilePicture && (
                 <div style={{ flexShrink: 0, marginBottom: "10px" }}>
                   <img
-                    src={resume.content.personalInfo.profilePicture}
+                    src={personalInfo.profilePicture}
                     alt="Profile"
                     style={{
                       width: template.id === "mercury" ? "120px" : "80px",
@@ -1529,8 +1542,7 @@ export function ResumeRenderer({
                       : "left",
                 }}
               >
-                {resume.content.personalInfo.fullName && (
-                  <h1
+                <h1
                     className={`${template.id}-name`}
                     style={{
                       fontSize: `${templateStyle.fontSize.heading}px`,
@@ -1547,11 +1559,12 @@ export function ResumeRenderer({
                       fontFamily: templateStyle.fontFamily,
                     }}
                   >
-                    {resume.content.personalInfo.fullName}
+                    {personalInfoDisplayText(
+                      personalInfo.fullName,
+                      RESUME_DISPLAY_PLACEHOLDERS.fullName,
+                    )}
                   </h1>
-                )}
-                {resume.content.personalInfo.portfolio && (
-                  <p
+                <p
                     className={`${template.id}-job-title`}
                     style={{
                       fontSize: `${templateStyle.fontSize.subheading}px`,
@@ -1564,10 +1577,12 @@ export function ResumeRenderer({
                       fontStyle: "italic",
                     }}
                   >
-                    {resume.content.personalInfo.portfolio}
+                    {personalInfoDisplayText(
+                      personalInfo.portfolio,
+                      RESUME_DISPLAY_PLACEHOLDERS.portfolio,
+                    )}
                   </p>
-                )}
-                {resume.content.personalInfo.yearsOfExperience && (
+                {personalInfo.yearsOfExperience && (
                   <p
                     style={{
                       fontSize: `${templateStyle.fontSize.subheading}px`,
@@ -1577,7 +1592,7 @@ export function ResumeRenderer({
                       fontStyle: "italic",
                     }}
                   >
-                    Experience: {resume.content.personalInfo.yearsOfExperience}
+                    Experience: {personalInfo.yearsOfExperience}
                   </p>
                 )}
                 {renderContactInfo(isInSidebar)}
@@ -1615,8 +1630,7 @@ export function ResumeRenderer({
                   fontStyle: "italic",
                 }}
               >
-                No profile summary available. Add your profile summary in the
-                editor.
+                {RESUME_DISPLAY_PLACEHOLDERS.profileSummary}
               </div>
             </div>
           );
@@ -1740,7 +1754,7 @@ export function ResumeRenderer({
                         }}
                       >
                         <span className={`${template.id}-date`}>
-                          {exp.startDate} - {exp.endDate || "Present"}
+                          {formatExperienceDateRange(exp)}
                         </span>
                         {exp.location && (
                           <div className={`${template.id}-location`}>
@@ -1848,7 +1862,7 @@ export function ResumeRenderer({
                           }}
                         >
                           <div className={`${template.id}-job-date`}>
-                            {exp.startDate} - {exp.endDate || "Present"}
+                            {formatExperienceDateRange(exp)}
                           </div>
                           {exp.location && (
                             <div className={`${template.id}-location`}>

@@ -27,7 +27,9 @@ import {
   X,
   ArrowRight,
   SkipForward,
+  Linkedin,
 } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { ResumeTemplate, resumeApi } from "@/lib/api";
 import {
   buildSectionOrderForExtractedContent,
@@ -50,7 +52,8 @@ const categoryLabels = {
 };
 
 type FilterCategory = "all" | "simple" | "modern" | "creative";
-type Step = "template" | "upload" | "processing";
+type Step = "method" | "template" | "upload" | "linkedin" | "processing";
+type ImportMethod = "new" | "linkedin";
 
 const uploadedResumeProcessingMessages = [...RESUME_IMPORT_PROCESSING_MESSAGES];
 
@@ -69,7 +72,9 @@ export default function NewResumePage() {
   const { user, isLoaded } = useUser();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [step, setStep] = useState<Step>("template");
+  const [step, setStep] = useState<Step>("method");
+  const [importMethod, setImportMethod] = useState<ImportMethod>("new");
+  const [linkedinHandle, setLinkedinHandle] = useState<string>("");
   const [templates, setTemplates] = useState<ResumeTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
@@ -81,9 +86,10 @@ export default function NewResumePage() {
   const [showLimitModal, setShowLimitModal] = useState(false);
   const [processingMessageIndex, setProcessingMessageIndex] = useState(0);
 
-  const processingMessages = uploadedFile
-    ? uploadedResumeProcessingMessages
-    : defaultResumeProcessingMessages;
+  const processingMessages =
+    uploadedFile || importMethod === "linkedin"
+      ? uploadedResumeProcessingMessages
+      : defaultResumeProcessingMessages;
 
   useEffect(() => {
     if (step !== "processing") {
@@ -225,6 +231,11 @@ export default function NewResumePage() {
 
   const useTemplateAndGoToUpload = (templateId: string) => {
     setSelectedTemplate(templateId);
+    if (importMethod === "linkedin") {
+      setStep("processing");
+      handleCreateResumeFromLinkedIn(templateId);
+      return;
+    }
     setStep("upload");
   };
 
@@ -451,6 +462,105 @@ export default function NewResumePage() {
     }
   };
 
+  const handleCreateResumeFromLinkedIn = async (templateId: string) => {
+    if (!templateId || !user) return;
+
+    const handle = linkedinHandle.trim();
+    if (!handle) {
+      setStep("linkedin");
+      alert("Please enter your LinkedIn profile URL or username.");
+      return;
+    }
+
+    try {
+      setCreating(true);
+      setStep("processing");
+
+      console.log("🔗 Importing resume data from LinkedIn...");
+
+      const { resumeDataExtractionApi } = await import("@/lib/api");
+      const extractedData = await resumeDataExtractionApi.importLinkedInProfile(
+        handle,
+        templateId,
+      );
+
+      console.log("✅ LinkedIn data imported and enhanced via LLM");
+
+      const { TemplateLoader } = await import("@/lib/templateLoader");
+      const templateConfig = await TemplateLoader.loadTemplate(templateId);
+      const extended = templateConfig.extended;
+
+      const renderingLayout = extended.rendering?.layout;
+      const initialLayout = {
+        type: (renderingLayout?.type === "header-plus-columns"
+          ? "double"
+          : renderingLayout?.type || "single") as "single" | "double",
+        columnWidths: renderingLayout?.columnWidths || { left: 60, right: 40 },
+        padding: extended.style?.padding || {
+          top: 10,
+          bottom: 10,
+          left: 10,
+          right: 10,
+        },
+      };
+
+      const content = mapExtractedSectionsToContent(extractedData.sections);
+      const sectionOrder = buildSectionOrderForExtractedContent(
+        extended,
+        content,
+        initialLayout.type,
+      );
+
+      const resume = await resumeApi.create(user.id, {
+        templateId,
+        title: "My Resume",
+        content,
+        profileSummary:
+          typeof content.profileSummary === "string"
+            ? content.profileSummary
+            : undefined,
+        sectionOrder,
+        layout: initialLayout,
+      });
+
+      console.log("✅ Resume created from LinkedIn:", resume.resumeId);
+      router.push(`/dashboard/resumes/${resume.resumeId}/edit`);
+    } catch (error: any) {
+      console.error("❌ Error creating resume from LinkedIn:", error);
+
+      // Reset back to the LinkedIn input so the user can correct and retry.
+      setStep("linkedin");
+
+      const isLimitError =
+        error?.response?.status === 403 &&
+        (error?.response?.data?.message || error?.message || "")
+          .toLowerCase()
+          .includes("resume limit");
+
+      if (isLimitError) {
+        setShowLimitModal(true);
+      } else if (
+        error?.code === "ECONNABORTED" ||
+        error?.message?.includes("timeout") ||
+        error?.message?.includes("Request timeout")
+      ) {
+        alert(
+          "Importing your LinkedIn profile is taking longer than expected. Please try again.",
+        );
+      } else {
+        alert(
+          `Failed to import from LinkedIn: ${
+            error?.response?.data?.message ||
+            error?.message ||
+            "Please try again."
+          }`,
+        );
+      }
+    } finally {
+      setCreating(false);
+    }
+  };
+
   if (!isLoaded || loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -490,11 +600,17 @@ export default function NewResumePage() {
         </Link>
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
+            {step === "method" && "Create a Resume"}
+            {step === "linkedin" && "Import from LinkedIn"}
             {step === "template" && "Choose a Template"}
             {step === "upload" && "Upload Your Resume (Optional)"}
             {step === "processing" && "Creating Your Resume"}
           </h1>
           <p className="text-gray-600 mt-1">
+            {step === "method" &&
+              "Start from scratch or import your details from LinkedIn"}
+            {step === "linkedin" &&
+              "Enter your LinkedIn profile and we'll build an ATS-optimized resume"}
             {step === "template" &&
               "Select an ATS-friendly template to get started"}
             {step === "upload" &&
@@ -505,9 +621,144 @@ export default function NewResumePage() {
         </div>
       </div>
 
+      {/* Step 0: Choose creation method */}
+      {step === "method" && (
+        <div className="grid gap-4 sm:grid-cols-2 sm:gap-6">
+          <Card
+            className="group cursor-pointer border-2 border-gray-200 transition-all hover:border-purple-400 hover:shadow-xl"
+            onClick={() => {
+              setImportMethod("new");
+              setStep("template");
+            }}
+          >
+            <CardContent className="flex h-full flex-col p-6">
+              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-gradient-to-r from-purple-600 to-primary">
+                <FileEdit className="h-6 w-6 text-white" />
+              </div>
+              <h3 className="mb-2 text-lg font-bold text-gray-900">
+                Create New
+              </h3>
+              <p className="flex-1 text-sm text-gray-600">
+                Start from scratch with a template, or upload an existing resume
+                PDF to auto-fill your details.
+              </p>
+              <div className="mt-4 flex items-center text-sm font-semibold text-purple-600">
+                Get started
+                <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card
+            className="group cursor-pointer border-2 border-gray-200 transition-all hover:border-purple-400 hover:shadow-xl"
+            onClick={() => {
+              setImportMethod("linkedin");
+              setStep("linkedin");
+            }}
+          >
+            <CardContent className="flex h-full flex-col p-6">
+              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-[#0A66C2]">
+                <Linkedin className="h-6 w-6 text-white" />
+              </div>
+              <h3 className="mb-2 text-lg font-bold text-gray-900">
+                Import from LinkedIn
+              </h3>
+              <p className="flex-1 text-sm text-gray-600">
+                Bring in your LinkedIn profile and let AI organize and enhance it
+                into an ATS-optimized resume.
+              </p>
+              <div className="mt-4 flex items-center text-sm font-semibold text-purple-600">
+                Connect LinkedIn
+                <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Step: LinkedIn handle input */}
+      {step === "linkedin" && (
+        <div className="space-y-6">
+          <Card className="border-2 border-border bg-muted/30">
+            <CardContent className="p-6">
+              <div className="flex items-start gap-4">
+                <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg bg-[#0A66C2]">
+                  <Linkedin className="h-6 w-6 text-white" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="mb-2 font-bold text-gray-900">
+                    Import your LinkedIn profile
+                  </h3>
+                  <p className="text-sm text-gray-600">
+                    Paste your public LinkedIn profile URL or username. We&apos;ll
+                    fetch your experience, education, skills and more, then use AI
+                    to organize and enhance it for ATS.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-2 border-gray-200">
+            <CardContent className="space-y-3 p-6">
+              <label
+                htmlFor="linkedin-handle"
+                className="block text-sm font-medium text-gray-900"
+              >
+                LinkedIn profile URL or username
+              </label>
+              <Input
+                id="linkedin-handle"
+                value={linkedinHandle}
+                onChange={(e) => setLinkedinHandle(e.target.value)}
+                placeholder="https://www.linkedin.com/in/your-username  or  your-username"
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && linkedinHandle.trim()) {
+                    setStep("template");
+                  }
+                }}
+              />
+              <p className="text-xs text-gray-500">
+                Example: https://www.linkedin.com/in/john-doe or just john-doe
+              </p>
+            </CardContent>
+          </Card>
+
+          <div className="flex items-center justify-between">
+            <Button variant="outline" onClick={() => setStep("method")}>
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back
+            </Button>
+            <Button
+              onClick={() => setStep("template")}
+              disabled={!linkedinHandle.trim()}
+              className="bg-gradient-to-r from-purple-600 to-primary text-white hover:bg-slate-900"
+            >
+              Continue
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Step 1: Template Selection */}
       {step === "template" && (
         <>
+          {/* Back to method / linkedin */}
+          <div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() =>
+                setStep(importMethod === "linkedin" ? "linkedin" : "method")
+              }
+            >
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back
+            </Button>
+          </div>
+
           {/* Selected Template Actions */}
           {selectedTemplate && (
             <Card className="sticky top-20 z-20 border-2 border-purple-200 bg-purple-50/95 backdrop-blur supports-[backdrop-filter]:bg-purple-50/80 shadow-sm">

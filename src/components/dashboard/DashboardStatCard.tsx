@@ -48,8 +48,11 @@ function HeroStatFooter({ progress }: { progress?: number }) {
 
   return (
     <div className="mt-2.5 flex gap-1">
-      {dashboardHeroStatPalette.footerBars.map((bar) => (
-        <span key={bar} className={cn("h-1.5 flex-1 rounded-full", bar)} />
+      {dashboardHeroStatPalette.footerBars.map((bar, index) => (
+        <span
+          key={`footer-bar-${index}`}
+          className={cn("h-1.5 flex-1 rounded-full", bar)}
+        />
       ))}
     </div>
   );

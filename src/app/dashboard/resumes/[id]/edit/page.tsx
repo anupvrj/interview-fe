@@ -45,6 +45,10 @@ import {
   Redo2,
 } from "lucide-react";
 import { Resume, ResumeTemplate, resumeApi, apiClient } from "@/lib/api";
+import {
+  normalizeExperienceList,
+} from "@/lib/resume-date-utils";
+import { ensureResumePersonalInfo } from "@/lib/resume-data-import";
 import { isATSReportV3 } from "@/types/atsReport";
 import { ResumePreview, type ResumePreviewHandle } from "@/components/ResumePreview";
 import { RichTextEditor } from "@/components/RichTextEditor";
@@ -103,10 +107,7 @@ import {
   isEmptyResumePageBand,
 } from "@/lib/resume-page-delete";
 import type { ResumePaginationSnapshot } from "@/components/PaginatedPreview";
-import {
-  buildLayoutForTemplateSwitch,
-  buildSectionsForTemplateSwitch,
-} from "@/lib/resume-template-switch";
+import { buildResumeTemplateApplication } from "@/lib/applyResumeTemplate";
 import { debugResumePagination } from "@/lib/debug-resume-pagination";
 import { waitForResumePaginationSettled } from "@/lib/wait-for-resume-pagination";
 import { useResumeEditorHistory } from "@/hooks/useResumeEditorHistory";
@@ -731,6 +732,16 @@ export default function EditResumePage() {
         resumeData.content.customSections = [];
       }
 
+      if (Array.isArray(resumeData.content.experience)) {
+        resumeData.content.experience = normalizeExperienceList(
+          resumeData.content.experience,
+        ) as Resume["content"]["experience"];
+      }
+
+      ensureResumePersonalInfo(
+        resumeData.content as unknown as Record<string, unknown>,
+      );
+
       setResumeState(resumeData);
       syncAtsScoreDisplayFromResume(resumeData);
 
@@ -783,6 +794,48 @@ export default function EditResumePage() {
       // Set template immediately so it's available when sections are initialized
       if (foundTemplate) {
         setTemplate(foundTemplate);
+      }
+
+      // Repair layout/section columns when saved data doesn't match the template
+      // (e.g. clean-slate incorrectly persisted as single-column).
+      if (foundTemplate) {
+        try {
+          const expected = await buildResumeTemplateApplication(
+            resumeData.templateId,
+            {
+              content: resumeData.content,
+              sectionOrder: resumeData.sectionOrder,
+            },
+          );
+          const savedLayoutType = resumeData.layout?.type ?? "single";
+          const expectedLayoutType = expected.layout.type;
+          const sectionsMissingColumns =
+            expectedLayoutType === "double" &&
+            (resumeData.sectionOrder ?? []).some(
+              (section) =>
+                section.type !== "personalInfo" &&
+                section.visible !== false &&
+                !section.column,
+            );
+
+          if (
+            savedLayoutType !== expectedLayoutType ||
+            sectionsMissingColumns
+          ) {
+            resumeData.layout = expected.layout;
+            resumeData.sectionOrder = expected.sectionOrder;
+            void resumeApi
+              .update(resumeId, {
+                layout: expected.layout,
+                sectionOrder: expected.sectionOrder,
+              })
+              .catch((error) => {
+                console.error("Error repairing template layout:", error);
+              });
+          }
+        } catch (error) {
+          console.error("Could not verify template layout:", error);
+        }
       }
 
       // Load layout from database or use default
@@ -1140,17 +1193,38 @@ export default function EditResumePage() {
       const { TemplateLoader } = await import("@/lib/templateLoader");
       await TemplateLoader.loadTemplate(newTemplateId);
 
-      const nextLayout = buildLayoutForTemplateSwitch(newTemplate);
-      const nextSections = buildSectionsForTemplateSwitch(
-        newTemplate,
-        sections,
+      const templateApplication = await buildResumeTemplateApplication(
+        newTemplateId,
+        { content: resume.content, sectionOrder: resume.sectionOrder },
       );
 
-      const sectionOrderData = toSectionOrderPayload(nextSections);
+      const nextLayout = templateApplication.layout;
+      const sectionOrderData = templateApplication.sectionOrder;
+
+      const byId = new Map(sections.map((s) => [s.id, s]));
+      const byType = new Map<string, Section>();
+      for (const s of sections) {
+        if (!byType.has(s.type)) {
+          byType.set(s.type, s);
+        }
+      }
+
+      const nextSections = withFirstVisibleExpanded(
+        (sectionOrderData || []).map((s) => {
+          const match = byId.get(s.id) ?? byType.get(s.type);
+          return {
+            ...s,
+            visible: match?.visible ?? s.visible,
+            expanded: match?.expanded ?? false,
+          } as Section;
+        }),
+      );
+
       const updatedResume: Resume = {
         ...resume,
         templateId: newTemplateId,
         layout: nextLayout,
+        sectionOrder: sectionOrderData,
         pdfS3Key: undefined,
       };
 
@@ -1164,24 +1238,43 @@ export default function EditResumePage() {
         pdfS3Key: "",
       });
 
-      recordImmediateHistory();
+      // History snapshotting is best-effort — never let it fail the (already
+      // persisted) template change.
+      try {
+        recordImmediateHistory();
+      } catch (historyError) {
+        console.warn(
+          "Skipped history snapshot during template change:",
+          historyError,
+        );
+      }
       suppressHistoryRef.current = true;
 
       setTemplate(newTemplate);
-      setLayoutState(nextLayout);
+      setLayoutState(nextLayout as typeof layout);
       setSectionsState(nextSections);
       setResumeState(updatedResume);
       suppressHistoryRef.current = false;
       resumeRef.current = updatedResume;
-      layoutRef.current = nextLayout;
+      layoutRef.current = nextLayout as typeof layout;
       sectionsRef.current = nextSections;
 
       setChangeTemplateOpen(false);
       setLastSaved(new Date());
       bumpPreviewKey("templateChange");
-    } catch (error) {
-      console.error("Error changing template:", error);
-      alert("Failed to change template. Please try again.");
+    } catch (error: any) {
+      const serverMessage = error?.response?.data?.message;
+      console.error("Error changing template:", {
+        newTemplateId,
+        status: error?.response?.status,
+        serverMessage,
+        error,
+      });
+      alert(
+        serverMessage
+          ? `Failed to change template: ${serverMessage}`
+          : "Failed to change template. Please try again.",
+      );
     } finally {
       setChangingTemplate(false);
     }
@@ -1190,6 +1283,16 @@ export default function EditResumePage() {
   const handleResumeImported = (updatedResume: Resume) => {
     recordImmediateHistory();
     suppressHistoryRef.current = true;
+
+    if (Array.isArray(updatedResume.content.experience)) {
+      updatedResume.content.experience = normalizeExperienceList(
+        updatedResume.content.experience,
+      ) as Resume["content"]["experience"];
+    }
+
+    ensureResumePersonalInfo(
+      updatedResume.content as unknown as Record<string, unknown>,
+    );
 
     setResumeState(updatedResume);
     resumeRef.current = updatedResume;
@@ -2111,7 +2214,7 @@ export default function EditResumePage() {
                 <IconTooltipButton
                   onClick={() => setImportResumeOpen(true)}
                   variant="outline"
-                  label="Import from resume PDF"
+                  label="Import resume data"
                   disabled={
                     refreshingATS || autoSaving || saving || changingTemplate
                   }
@@ -2827,7 +2930,16 @@ export default function EditResumePage() {
                 .map((section) => {
                   // Personal Information Section - Compact view with expandable edit
                   if (section.type === "personalInfo") {
-                    const personalInfo = resume.content.personalInfo;
+                    const personalInfo =
+                      resume.content.personalInfo ?? {
+                        fullName: "",
+                        email: "",
+                        phone: "",
+                        location: "",
+                        linkedin: "",
+                        github: "",
+                        portfolio: "",
+                      };
 
                     return (
                       <Card
