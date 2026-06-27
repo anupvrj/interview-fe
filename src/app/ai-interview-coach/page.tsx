@@ -633,15 +633,16 @@ export default function InterviewCoachPage() {
                   {/* Left Side - Image */}
                   <div className="relative flex w-full items-center justify-center bg-white p-4 sm:p-5 md:p-6">
                     <div className="relative flex w-full items-center justify-center overflow-hidden rounded-lg">
-                      <Image
-                        src="/image-candidate-ai-interview.jpg"
-                        alt="Candidate practicing a live AI voice interview"
-                        width={700}
-                        height={444}
+                      <video
+                        src="/interview_trix_ai_interview.mp4"
+                        poster="/image-candidate-ai-interview.jpg"
                         className="h-auto w-full rounded-lg object-contain"
-                        priority
-                        unoptimized
-                        style={{ objectPosition: "center" }}
+                        autoPlay
+                        loop
+                        muted
+                        playsInline
+                        preload="metadata"
+                        aria-label="Candidate practicing a live AI voice interview"
                       />
                     </div>
                     <div className="absolute right-3 top-3 z-10 flex items-center gap-1.5 rounded-md bg-green-500 px-3 py-1.5 text-xs font-semibold text-white shadow-lg sm:text-sm">
