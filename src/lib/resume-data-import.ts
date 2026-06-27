@@ -224,9 +224,9 @@ export function normalizePersonalInfoRecord(
 }
 
 /** Guarantee `content.personalInfo` exists so editor/renderer never crash on import. */
-export function ensureResumePersonalInfo<T extends Record<string, unknown>>(
-  content: T,
-): T {
+export function ensureResumePersonalInfo<
+  T extends Record<string, unknown> & { personalInfo?: unknown },
+>(content: T): T {
   content.personalInfo = normalizePersonalInfoRecord(content.personalInfo);
   return content;
 }
