@@ -1,0 +1,213 @@
+/**
+ * Ember Timeline Template Styles
+ * Date-on-left timeline with navy headers, orange accents and boxed skill tags.
+ */
+
+.ember-timeline-template {
+  font-family: Arial, Helvetica, sans-serif;
+  color: #1f2937;
+  background-color: #ffffff;
+  padding: 10px;
+  line-height: 1.5;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+  color-adjust: exact !important;
+}
+
+.ember-timeline-name {
+  font-size: 28px;
+  font-weight: 700;
+  color: #1f2a66 !important;
+  letter-spacing: 0.3px;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+}
+
+.ember-timeline-job-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #e8632a !important;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+}
+
+.ember-timeline-contact {
+  font-size: 10.5px;
+  color: #1f2937;
+}
+
+.ember-timeline-contact-item,
+.ember-timeline-contact-item span {
+  color: #1f2937 !important;
+}
+
+.ember-timeline-contact-item svg {
+  color: #e8632a !important;
+  stroke: #e8632a !important;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+}
+
+.ember-timeline-section-header,
+.ember-timeline-template h2 {
+  font-size: 13px !important;
+  font-weight: 700;
+  text-transform: uppercase;
+  text-align: left;
+  letter-spacing: 0.4px;
+  color: #1f2a66 !important;
+  border-bottom: 1.5px solid #1f2a66 !important;
+  border-top: none !important;
+  padding-bottom: 4px !important;
+  margin-bottom: 10px !important;
+  margin-top: 14px !important;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+  color-adjust: exact !important;
+}
+
+.ember-timeline-summary {
+  font-size: 11px;
+  line-height: 1.5;
+  color: #1f2937;
+}
+
+/* Date-on-left timeline */
+.ember-timeline-experience-item {
+  margin-bottom: 14px;
+  page-break-inside: avoid;
+}
+
+.ember-timeline-date-location-column {
+  padding-right: 12px;
+}
+
+.ember-timeline-date {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #1f2a66;
+}
+
+.ember-timeline-location {
+  font-size: 10px;
+  color: #5b6472;
+}
+
+.ember-timeline-job-title-exp,
+.ember-timeline-job-content .ember-timeline-job-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: #1f2a66;
+}
+
+.ember-timeline-company {
+  font-size: 11px;
+  color: #e8632a !important;
+  font-weight: 600;
+  margin-bottom: 3px;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+}
+
+.ember-timeline-description {
+  font-size: 11px;
+  line-height: 1.5;
+  color: #1f2937;
+}
+
+.ember-timeline-description ul {
+  margin: 2px 0;
+  padding-left: 16px;
+}
+
+.ember-timeline-description li {
+  margin-bottom: 3px;
+}
+
+.ember-timeline-degree {
+  font-size: 12px;
+  font-weight: 700;
+  color: #1f2a66;
+}
+
+.ember-timeline-institution {
+  font-size: 11px;
+  color: #e8632a !important;
+  font-weight: 600;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+}
+
+.ember-timeline-education-date {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #1f2a66;
+}
+
+/* Boxed skill tags */
+.ember-timeline-skill-item {
+  font-size: 10.5px;
+  color: #1f2937;
+  border: 1px solid #cfd4de;
+  border-radius: 3px;
+  padding: 3px 8px !important;
+  margin-bottom: 6px !important;
+  margin-right: 6px;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+}
+
+/* Two-column Key Achievements footer */
+.ember-timeline-award-item {
+  display: inline-block;
+  width: 48%;
+  vertical-align: top;
+  padding-right: 2%;
+  box-sizing: border-box;
+}
+
+.ember-timeline-award-title {
+  font-weight: 700;
+  color: #1f2a66;
+}
+
+@media print {
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+
+  .ember-timeline-template {
+    padding: 0;
+  }
+
+  .ember-timeline-job-title,
+  .ember-timeline-company,
+  .ember-timeline-institution,
+  .ember-timeline-contact-item svg {
+    color: #e8632a !important;
+  }
+
+  .ember-timeline-name,
+  .ember-timeline-section-header,
+  .ember-timeline-template h2 {
+    color: #1f2a66 !important;
+  }
+
+  .ember-timeline-section-header,
+  .ember-timeline-template h2 {
+    border-bottom-color: #1f2a66 !important;
+    border-bottom-style: solid !important;
+  }
+
+  .ember-timeline-skill-item {
+    border-color: #cfd4de !important;
+  }
+
+  .ember-timeline-experience-item,
+  .ember-timeline-education-item,
+  .ember-timeline-section {
+    page-break-inside: avoid;
+  }
+}

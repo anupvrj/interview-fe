@@ -1,0 +1,191 @@
+/**
+ * Confident Grid Template Styles
+ * Two-column resume: tinted sidebar (identity/skills/languages) + white main column.
+ */
+
+.confident-grid-template {
+  font-family: 'Helvetica Neue', Arial, sans-serif;
+  color: #1f2d3d;
+  background-color: #ffffff;
+  line-height: 1.45;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+  color-adjust: exact !important;
+}
+
+/* Identity (sidebar) */
+.confident-grid-name {
+  font-size: 24px;
+  font-weight: 700;
+  color: #1f2d3d !important;
+  letter-spacing: 0.2px;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+}
+
+.confident-grid-job-title {
+  font-size: 14px;
+  color: #41566b !important;
+  font-weight: 500;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+}
+
+.confident-grid-contact {
+  font-size: 10px;
+}
+
+.confident-grid-contact-item,
+.confident-grid-contact-item span {
+  color: #1f2d3d !important;
+}
+
+.confident-grid-contact-item svg {
+  color: #2f5fa6 !important;
+  stroke: #2f5fa6 !important;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+}
+
+/* Section headers (both columns) */
+.confident-grid-section-header,
+.confident-grid-template h2 {
+  font-size: 12px !important;
+  font-weight: 700;
+  text-transform: none;
+  text-align: left;
+  letter-spacing: 0.2px;
+  color: #1f2d3d !important;
+  border-bottom: 1px solid #c2d2ea !important;
+  border-top: none !important;
+  padding-bottom: 4px !important;
+  margin-bottom: 10px !important;
+  margin-top: 6px !important;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+  color-adjust: exact !important;
+}
+
+.confident-grid-summary {
+  font-size: 11px;
+  line-height: 1.5;
+  color: #1f2d3d;
+}
+
+/* Experience (main column) */
+.confident-grid-experience-item {
+  margin-bottom: 14px;
+  page-break-inside: avoid;
+}
+
+.confident-grid-job-title-exp {
+  font-size: 12px;
+  font-weight: 700;
+  color: #1f2d3d;
+}
+
+.confident-grid-company {
+  font-size: 11px;
+  color: #2f5fa6 !important;
+  font-weight: 500;
+  margin-bottom: 3px;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+}
+
+.confident-grid-job-date,
+.confident-grid-job-location,
+.confident-grid-job-meta {
+  font-size: 10px;
+  color: #41566b;
+  line-height: 1.3;
+}
+
+.confident-grid-description {
+  font-size: 11px;
+  line-height: 1.5;
+  color: #1f2d3d;
+}
+
+.confident-grid-description ul {
+  margin: 2px 0;
+  padding-left: 16px;
+}
+
+.confident-grid-description li {
+  margin-bottom: 3px;
+}
+
+/* Education */
+.confident-grid-degree {
+  font-size: 12px;
+  font-weight: 700;
+  color: #1f2d3d;
+}
+
+.confident-grid-institution {
+  font-size: 11px;
+  color: #41566b;
+  font-style: italic;
+}
+
+.confident-grid-education-date {
+  font-size: 10px;
+  color: #41566b;
+}
+
+/* Skills (sidebar) */
+.confident-grid-skill-item {
+  font-size: 11px;
+  color: #1f2d3d;
+  position: relative;
+  padding-left: 12px;
+  margin-bottom: 5px !important;
+}
+
+.confident-grid-skill-item::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 7px;
+  width: 4px;
+  height: 4px;
+  background-color: #2f5fa6;
+  border-radius: 50%;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+}
+
+@media print {
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+
+  .confident-grid-name,
+  .confident-grid-section-header,
+  .confident-grid-template h2 {
+    color: #1f2d3d !important;
+  }
+
+  .confident-grid-company {
+    color: #2f5fa6 !important;
+  }
+
+  .confident-grid-section-header,
+  .confident-grid-template h2 {
+    border-bottom-color: #c2d2ea !important;
+    border-bottom-style: solid !important;
+  }
+
+  .confident-grid-skill-item::before {
+    background-color: #2f5fa6 !important;
+  }
+
+  .confident-grid-experience-item,
+  .confident-grid-education-item,
+  .confident-grid-section {
+    page-break-inside: avoid;
+  }
+}

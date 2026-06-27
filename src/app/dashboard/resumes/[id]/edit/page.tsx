@@ -56,6 +56,7 @@ import { getExtendedTemplate } from "@/lib/templateConfigs";
 import { getTemplateStyle } from "@/lib/templateRenderer";
 import { ExecutiveSkills } from "@/components/resume-editor/ExecutiveSkills";
 import { LayoutTypographyControls } from "@/components/resume-editor/LayoutTypographyControls";
+import { LayoutPaddingControls } from "@/components/resume-editor/LayoutPaddingControls";
 import { RESUME_FIELD_INPUT_CLASS } from "@/components/resume-editor/resumeFieldStyles";
 import {
   resumeAddSectionButton,
@@ -2152,16 +2153,20 @@ export default function EditResumePage() {
                   className="h-auto max-w-xs min-w-0 border-0 bg-transparent p-0 text-lg font-semibold focus-visible:ring-0"
                   placeholder="Resume Title"
                 />
-                {autoSaving ? (
-                  <p className="mt-0.5 flex items-center text-xs text-muted-foreground">
-                    <Loader2 className="mr-1 h-3 w-3 shrink-0 animate-spin" />
-                    Auto-saving...
-                  </p>
-                ) : lastSaved && !hasChanges ? (
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    Saved at {new Date(lastSaved).toLocaleTimeString()}
-                  </p>
-                ) : null}
+                <p className="mt-0.5 flex min-h-[1.1rem] items-center text-xs text-muted-foreground">
+                  {autoSaving ? (
+                    <>
+                      <Loader2 className="mr-1 h-3 w-3 shrink-0 animate-spin" />
+                      Auto-saving...
+                    </>
+                  ) : hasChanges ? (
+                    "Unsaved changes"
+                  ) : lastSaved ? (
+                    `Saved at ${new Date(lastSaved).toLocaleTimeString()}`
+                  ) : (
+                    "\u00A0"
+                  )}
+                </p>
               </div>
             </div>
 
@@ -2572,330 +2577,18 @@ export default function EditResumePage() {
                       </div>
                     )}
 
-                    {/* Padding Controls */}
-                    <div className="space-y-2 pt-2 border-t">
-                      <Label className="text-xs text-gray-600 font-semibold">
-                        Padding (mm)
-                      </Label>
-                      <div className="grid grid-cols-2 gap-2">
-                        <div className="space-y-1">
-                          <Label className="block text-xs text-gray-500">
-                            Top
-                          </Label>
-                          <div className="flex items-center gap-1">
-                            <Button
-                              variant="outline"
-                              size="icon"
-                              className="h-7 w-7"
-                              onClick={() => {
-                                const newTop = Math.max(
-                                  0,
-                                  (layout.padding?.top || 5) - 1,
-                                );
-                                setLayout({
-                                  ...layout,
-                                  padding: {
-                                    ...layout.padding,
-                                    top: newTop,
-                                    bottom: layout.padding?.bottom || 5,
-                                    left: layout.padding?.left || 8,
-                                    right: layout.padding?.right || 8,
-                                  },
-                                });
-                                setHasChanges(true);
-                              }}
-                            >
-                              -
-                            </Button>
-                            <Input
-                              type="number"
-                              min="0"
-                              max="50"
-                              value={layout.padding?.top || 5}
-                              onChange={(e) => {
-                                const value = Math.max(
-                                  0,
-                                  Math.min(50, Number(e.target.value)),
-                                );
-                                setLayout({
-                                  ...layout,
-                                  padding: {
-                                    ...layout.padding,
-                                    top: value,
-                                    bottom: layout.padding?.bottom || 5,
-                                    left: layout.padding?.left || 8,
-                                    right: layout.padding?.right || 8,
-                                  },
-                                });
-                                setHasChanges(true);
-                              }}
-                              className="h-7 w-[4.25rem] shrink-0 !h-7 !px-1.5 text-center text-xs tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                            />
-                            <Button
-                              variant="outline"
-                              size="icon"
-                              className="h-7 w-7"
-                              onClick={() => {
-                                const newTop = Math.min(
-                                  50,
-                                  (layout.padding?.top || 5) + 1,
-                                );
-                                setLayout({
-                                  ...layout,
-                                  padding: {
-                                    ...layout.padding,
-                                    top: newTop,
-                                    bottom: layout.padding?.bottom || 5,
-                                    left: layout.padding?.left || 8,
-                                    right: layout.padding?.right || 8,
-                                  },
-                                });
-                                setHasChanges(true);
-                              }}
-                            >
-                              +
-                            </Button>
-                          </div>
-                        </div>
-                        <div className="space-y-1">
-                          <Label className="block text-xs text-gray-500">
-                            Bottom
-                          </Label>
-                          <div className="flex items-center gap-1">
-                            <Button
-                              variant="outline"
-                              size="icon"
-                              className="h-7 w-7"
-                              onClick={() => {
-                                const newBottom = Math.max(
-                                  0,
-                                  (layout.padding?.bottom || 5) - 1,
-                                );
-                                setLayout({
-                                  ...layout,
-                                  padding: {
-                                    ...layout.padding,
-                                    top: layout.padding?.top || 20,
-                                    bottom: newBottom,
-                                    left: layout.padding?.left || 20,
-                                    right: layout.padding?.right || 20,
-                                  },
-                                });
-                                setHasChanges(true);
-                              }}
-                            >
-                              -
-                            </Button>
-                            <Input
-                              type="number"
-                              min="0"
-                              max="50"
-                              value={layout.padding?.bottom || 5}
-                              onChange={(e) => {
-                                const value = Math.max(
-                                  0,
-                                  Math.min(50, Number(e.target.value)),
-                                );
-                                setLayout({
-                                  ...layout,
-                                  padding: {
-                                    ...layout.padding,
-                                    top: layout.padding?.top || 20,
-                                    bottom: value,
-                                    left: layout.padding?.left || 20,
-                                    right: layout.padding?.right || 20,
-                                  },
-                                });
-                                setHasChanges(true);
-                              }}
-                              className="h-7 w-[4.25rem] shrink-0 !h-7 !px-1.5 text-center text-xs tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                            />
-                            <Button
-                              variant="outline"
-                              size="icon"
-                              className="h-7 w-7"
-                              onClick={() => {
-                                const newBottom = Math.min(
-                                  50,
-                                  (layout.padding?.bottom || 5) + 1,
-                                );
-                                setLayout({
-                                  ...layout,
-                                  padding: {
-                                    ...layout.padding,
-                                    top: layout.padding?.top || 20,
-                                    bottom: newBottom,
-                                    left: layout.padding?.left || 20,
-                                    right: layout.padding?.right || 20,
-                                  },
-                                });
-                                setHasChanges(true);
-                              }}
-                            >
-                              +
-                            </Button>
-                          </div>
-                        </div>
-                        <div className="space-y-1">
-                          <Label className="block text-xs text-gray-500">
-                            Left
-                          </Label>
-                          <div className="flex items-center gap-1">
-                            <Button
-                              variant="outline"
-                              size="icon"
-                              className="h-7 w-7"
-                              onClick={() => {
-                                const newLeft = Math.max(
-                                  0,
-                                  (layout.padding?.left || 20) - 5,
-                                );
-                                setLayout({
-                                  ...layout,
-                                  padding: {
-                                    ...layout.padding,
-                                    top: layout.padding?.top || 20,
-                                    bottom: layout.padding?.bottom || 20,
-                                    left: newLeft,
-                                    right: layout.padding?.right || 20,
-                                  },
-                                });
-                                setHasChanges(true);
-                              }}
-                            >
-                              -
-                            </Button>
-                            <Input
-                              type="number"
-                              min="0"
-                              max="50"
-                              value={layout.padding?.left || 20}
-                              onChange={(e) => {
-                                const value = Math.max(
-                                  0,
-                                  Math.min(50, Number(e.target.value)),
-                                );
-                                setLayout({
-                                  ...layout,
-                                  padding: {
-                                    ...layout.padding,
-                                    top: layout.padding?.top || 20,
-                                    bottom: layout.padding?.bottom || 20,
-                                    left: value,
-                                    right: layout.padding?.right || 20,
-                                  },
-                                });
-                                setHasChanges(true);
-                              }}
-                              className="h-7 w-[4.25rem] shrink-0 !h-7 !px-1.5 text-center text-xs tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                            />
-                            <Button
-                              variant="outline"
-                              size="icon"
-                              className="h-7 w-7"
-                              onClick={() => {
-                                const newLeft = Math.min(
-                                  50,
-                                  (layout.padding?.left || 20) + 5,
-                                );
-                                setLayout({
-                                  ...layout,
-                                  padding: {
-                                    ...layout.padding,
-                                    top: layout.padding?.top || 20,
-                                    bottom: layout.padding?.bottom || 20,
-                                    left: newLeft,
-                                    right: layout.padding?.right || 20,
-                                  },
-                                });
-                                setHasChanges(true);
-                              }}
-                            >
-                              +
-                            </Button>
-                          </div>
-                        </div>
-                        <div className="space-y-1">
-                          <Label className="block text-xs text-gray-500">
-                            Right
-                          </Label>
-                          <div className="flex items-center gap-1">
-                            <Button
-                              variant="outline"
-                              size="icon"
-                              className="h-7 w-7"
-                              onClick={() => {
-                                const newRight = Math.max(
-                                  0,
-                                  (layout.padding?.right || 20) - 5,
-                                );
-                                setLayout({
-                                  ...layout,
-                                  padding: {
-                                    ...layout.padding,
-                                    top: layout.padding?.top || 20,
-                                    bottom: layout.padding?.bottom || 20,
-                                    left: layout.padding?.left || 20,
-                                    right: newRight,
-                                  },
-                                });
-                                setHasChanges(true);
-                              }}
-                            >
-                              -
-                            </Button>
-                            <Input
-                              type="number"
-                              min="0"
-                              max="50"
-                              value={layout.padding?.right || 20}
-                              onChange={(e) => {
-                                const value = Math.max(
-                                  0,
-                                  Math.min(50, Number(e.target.value)),
-                                );
-                                setLayout({
-                                  ...layout,
-                                  padding: {
-                                    ...layout.padding,
-                                    top: layout.padding?.top || 20,
-                                    bottom: layout.padding?.bottom || 20,
-                                    left: layout.padding?.left || 20,
-                                    right: value,
-                                  },
-                                });
-                                setHasChanges(true);
-                              }}
-                              className="h-7 w-[4.25rem] shrink-0 !h-7 !px-1.5 text-center text-xs tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                            />
-                            <Button
-                              variant="outline"
-                              size="icon"
-                              className="h-7 w-7"
-                              onClick={() => {
-                                const newRight = Math.min(
-                                  50,
-                                  (layout.padding?.right || 20) + 5,
-                                );
-                                setLayout({
-                                  ...layout,
-                                  padding: {
-                                    ...layout.padding,
-                                    top: layout.padding?.top || 20,
-                                    bottom: layout.padding?.bottom || 20,
-                                    left: layout.padding?.left || 20,
-                                    right: newRight,
-                                  },
-                                });
-                                setHasChanges(true);
-                              }}
-                            >
-                              +
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
+                    {layout && (
+                      <LayoutPaddingControls
+                        padding={resolveLayoutPaddingMm(layout.padding)}
+                        onChange={(padding) => {
+                          setLayout({
+                            ...layout,
+                            padding,
+                          });
+                          setHasChanges(true);
+                        }}
+                      />
+                    )}
 
                     {effectiveTypography && layout && (
                       <LayoutTypographyControls

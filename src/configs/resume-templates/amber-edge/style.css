@@ -1,0 +1,194 @@
+/**
+ * Amber Edge Template Styles
+ * Single-column resume with amber rules and a two-column skills block.
+ */
+
+.amber-edge-template {
+  font-family: 'Helvetica Neue', Arial, sans-serif;
+  color: #1f1f1f;
+  background-color: #ffffff;
+  padding: 10px;
+  line-height: 1.5;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+  color-adjust: exact !important;
+}
+
+.amber-edge-name {
+  font-size: 28px;
+  font-weight: 700;
+  color: #1f1f1f !important;
+  letter-spacing: 0.5px;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+}
+
+.amber-edge-job-title {
+  font-size: 14px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: #b07d2b !important;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+}
+
+.amber-edge-contact {
+  font-size: 10.5px;
+  color: #1f1f1f;
+  border-top: 1.5px solid #d9b877;
+  padding-top: 6px;
+  margin-top: 8px;
+}
+
+.amber-edge-contact a,
+.amber-edge-contact a:visited {
+  color: #1f1f1f;
+  text-decoration: none;
+}
+
+.amber-edge-section-header,
+.amber-edge-template h2 {
+  font-size: 12px !important;
+  font-weight: 700;
+  text-transform: uppercase;
+  text-align: left;
+  letter-spacing: 0.6px;
+  color: #1f1f1f !important;
+  border-bottom: 1.5px solid #d9b877 !important;
+  border-top: none !important;
+  padding-bottom: 4px !important;
+  margin-bottom: 10px !important;
+  margin-top: 14px !important;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+  color-adjust: exact !important;
+}
+
+.amber-edge-summary {
+  font-size: 11px;
+  line-height: 1.5;
+  color: #1f1f1f;
+}
+
+.amber-edge-experience-item {
+  margin-bottom: 12px;
+  page-break-inside: avoid;
+}
+
+.amber-edge-job-title-exp {
+  font-size: 12px;
+  font-weight: 700;
+  color: #1f1f1f;
+}
+
+.amber-edge-company {
+  font-size: 11px;
+  color: #5a5a5a;
+  margin-bottom: 3px;
+}
+
+.amber-edge-job-date,
+.amber-edge-job-location,
+.amber-edge-job-meta {
+  font-size: 11px;
+  font-weight: 700;
+  color: #1f1f1f;
+  line-height: 1.3;
+}
+
+.amber-edge-description {
+  font-size: 11px;
+  line-height: 1.5;
+  color: #1f1f1f;
+}
+
+.amber-edge-description ul {
+  margin: 2px 0;
+  padding-left: 18px;
+}
+
+.amber-edge-description li {
+  margin-bottom: 3px;
+}
+
+.amber-edge-degree {
+  font-size: 12px;
+  font-weight: 700;
+  color: #1f1f1f;
+}
+
+.amber-edge-institution {
+  font-size: 11px;
+  color: #5a5a5a;
+}
+
+.amber-edge-education-date {
+  font-size: 11px;
+  font-weight: 700;
+  color: #1f1f1f;
+}
+
+/* Two-column skills block */
+.amber-edge-skill-item {
+  font-size: 11px;
+  color: #1f1f1f;
+  position: relative;
+  padding-left: 12px;
+  margin-bottom: 4px !important;
+}
+
+.amber-edge-skill-item::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 7px;
+  width: 4px;
+  height: 4px;
+  background-color: #b07d2b;
+  border-radius: 50%;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+}
+
+@media print {
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+
+  .amber-edge-template {
+    padding: 0;
+  }
+
+  .amber-edge-job-title {
+    color: #b07d2b !important;
+  }
+
+  .amber-edge-name,
+  .amber-edge-section-header,
+  .amber-edge-template h2 {
+    color: #1f1f1f !important;
+  }
+
+  .amber-edge-section-header,
+  .amber-edge-template h2 {
+    border-bottom-color: #d9b877 !important;
+    border-bottom-style: solid !important;
+  }
+
+  .amber-edge-contact {
+    border-top-color: #d9b877 !important;
+  }
+
+  .amber-edge-skill-item::before {
+    background-color: #b07d2b !important;
+  }
+
+  .amber-edge-experience-item,
+  .amber-edge-education-item,
+  .amber-edge-section {
+    page-break-inside: avoid;
+  }
+}
