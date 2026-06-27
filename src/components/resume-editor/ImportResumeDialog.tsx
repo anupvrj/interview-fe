@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useDropzone, type FileRejection } from "react-dropzone";
-import { FileText, Linkedin, Loader2, Upload, X } from "lucide-react";
 import type { Resume } from "@/lib/api";
 import { extractTextFromPDF } from "@/lib/pdf-utils";
 import {
@@ -16,7 +15,6 @@ import {
   RESUME_IMPORT_PROCESSING_MESSAGES,
 } from "@/lib/resume-data-import";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
@@ -24,9 +22,18 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { appPrimaryButton } from "@/lib/app-theme";
+import { ResumeBuilderImportMethodToggle } from "@/components/resume-builder/ResumeBuilderImportMethodToggle";
+import { ResumeBuilderLinkedInForm } from "@/components/resume-builder/ResumeBuilderLinkedInForm";
+import { ResumeBuilderPdfDropzone } from "@/components/resume-builder/ResumeBuilderPdfDropzone";
+import { ResumeBuilderProcessingView } from "@/components/resume-builder/ResumeBuilderProcessingView";
+import {
+  resumeBuilderErrorBanner,
+  resumeBuilderFooterActions,
+  resumeBuilderOutlineButton,
+  resumeBuilderPrimaryButton,
+} from "@/components/resume-builder/resumeBuilderStyles";
+import { appCard } from "@/lib/app-theme";
 import { cn } from "@/lib/utils";
-import { ResumeImportProcessingView } from "@/components/resume-editor/ResumeImportProcessingView";
 
 type ImportMethod = "pdf" | "linkedin";
 type ImportPhase = "upload" | "processing" | "error";
@@ -38,10 +45,6 @@ interface ImportResumeDialogProps {
   templateId: string;
   layout: Resume["layout"] | null | undefined;
   onImported: (resume: Resume) => void;
-}
-
-function formatFileSize(bytes: number): string {
-  return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
 }
 
 export function ImportResumeDialog({
@@ -96,31 +99,34 @@ export function ImportResumeDialog({
     return () => clearInterval(interval);
   }, [phase]);
 
-  const resolveImportError = useCallback((error: unknown, source: ImportMethod) => {
-    const err = error as {
-      response?: { data?: { message?: string } };
-      message?: string;
-      code?: string;
-    };
+  const resolveImportError = useCallback(
+    (error: unknown, source: ImportMethod) => {
+      const err = error as {
+        response?: { data?: { message?: string } };
+        message?: string;
+        code?: string;
+      };
 
-    if (
-      err?.code === "ECONNABORTED" ||
-      err?.message?.includes("timeout") ||
-      err?.message?.includes("Request timeout")
-    ) {
-      return source === "linkedin"
-        ? "Importing your LinkedIn profile is taking longer than expected. Please try again."
-        : "Import is taking longer than expected. Try a smaller PDF or check your connection.";
-    }
+      if (
+        err?.code === "ECONNABORTED" ||
+        err?.message?.includes("timeout") ||
+        err?.message?.includes("Request timeout")
+      ) {
+        return source === "linkedin"
+          ? "Importing your LinkedIn profile is taking longer than expected. Please try again."
+          : "Import is taking longer than expected. Try a smaller PDF or check your connection.";
+      }
 
-    return (
-      err?.response?.data?.message ||
-      err?.message ||
-      (source === "linkedin"
-        ? "Failed to import from LinkedIn. Please try again."
-        : "Failed to import resume. Please try again.")
-    );
-  }, []);
+      return (
+        err?.response?.data?.message ||
+        err?.message ||
+        (source === "linkedin"
+          ? "Failed to import from LinkedIn. Please try again."
+          : "Failed to import resume. Please try again.")
+      );
+    },
+    [],
+  );
 
   const runPdfImport = useCallback(
     async (text: string, fileName: string) => {
@@ -143,7 +149,14 @@ export function ImportResumeDialog({
         setPhase("error");
       }
     },
-    [layout, onImported, onOpenChange, resolveImportError, resumeId, templateId],
+    [
+      layout,
+      onImported,
+      onOpenChange,
+      resolveImportError,
+      resumeId,
+      templateId,
+    ],
   );
 
   const runLinkedInImport = useCallback(async () => {
@@ -253,198 +266,121 @@ export function ImportResumeDialog({
     setPhase("upload");
   };
 
+  const maxSizeLabel = `${(RESUME_IMPORT_MAX_BYTES / 1024 / 1024).toFixed(0)} MB`;
+
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Import resume data</DialogTitle>
-          <DialogDescription>
+      <DialogContent
+        className={cn(
+          appCard,
+          "gap-0 overflow-hidden border-primary/15 p-0",
+          phase === "processing" ? "sm:max-w-4xl" : "sm:max-w-lg",
+        )}
+      >
+        <DialogHeader className="space-y-2 border-b border-border/60 bg-gradient-to-br from-[#7367F0]/[0.05] via-card to-transparent px-6 pb-5 pt-6">
+          <DialogTitle className="text-xl font-semibold text-foreground">
+            Import resume data
+          </DialogTitle>
+          <DialogDescription className="text-left text-sm leading-relaxed text-muted-foreground">
             Replace your current editor content with AI-mapped sections from a
             PDF resume or your LinkedIn profile.
           </DialogDescription>
         </DialogHeader>
 
-        {phase === "processing" && processingLabel ? (
-          <ResumeImportProcessingView
-            fileName={processingLabel}
-            messageIndex={processingMessageIndex}
-          />
-        ) : (
-          <div className="space-y-4">
-            <div className="flex gap-2 rounded-lg border border-border/80 bg-muted/30 p-1">
-              <button
-                type="button"
-                className={cn(
-                  "flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-                  importMethod === "pdf"
-                    ? "bg-background text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground",
-                )}
-                onClick={() => switchImportMethod("pdf")}
-              >
-                <FileText className="h-4 w-4" />
-                PDF
-              </button>
-              <button
-                type="button"
-                className={cn(
-                  "flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-                  importMethod === "linkedin"
-                    ? "bg-background text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground",
-                )}
-                onClick={() => switchImportMethod("linkedin")}
-              >
-                <Linkedin className="h-4 w-4 text-[#0A66C2]" />
-                LinkedIn
-              </button>
-            </div>
+        <div className="px-6 py-5">
+          {phase === "processing" && processingLabel ? (
+            <ResumeBuilderProcessingView
+              label={processingLabel}
+              messageIndex={processingMessageIndex}
+              messages={RESUME_IMPORT_PROCESSING_MESSAGES}
+            />
+          ) : (
+            <div className="space-y-5">
+              <ResumeBuilderImportMethodToggle
+                value={importMethod}
+                onChange={switchImportMethod}
+              />
 
-            {phase === "error" && errorMessage ? (
-              <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
-                {errorMessage}
-              </div>
-            ) : null}
+              {phase === "error" && errorMessage ? (
+                <div className={resumeBuilderErrorBanner}>{errorMessage}</div>
+              ) : null}
 
-            {importMethod === "pdf" ? (
-              <>
-                {!uploadedFile ? (
-                  <div
-                    {...getRootProps()}
-                    className={cn(
-                      "cursor-pointer rounded-xl border-2 border-dashed border-[#7367F0]/30 bg-gradient-to-br from-[#7367F0]/[0.04] via-card to-[#7367F0]/[0.08] p-8 text-center transition-colors",
-                      isDragActive && "border-primary/50 bg-primary/[0.06]",
-                      extractingText && "pointer-events-none opacity-70",
-                    )}
-                  >
-                    <input {...getInputProps()} />
-                    <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
-                      {extractingText ? (
-                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              {importMethod === "pdf" ? (
+                <ResumeBuilderPdfDropzone
+                  compact
+                  uploadedFile={uploadedFile}
+                  extracting={extractingText}
+                  isDragActive={isDragActive}
+                  maxSizeLabel={maxSizeLabel}
+                  getRootProps={getRootProps}
+                  getInputProps={getInputProps}
+                  onRemoveFile={() => {
+                    setUploadedFile(null);
+                    setResumeText("");
+                    setPhase("upload");
+                    setErrorMessage(null);
+                  }}
+                  footer={
+                    uploadedFile && resumeText && phase === "upload" ? (
+                      <Button
+                        type="button"
+                        className={cn("w-full", resumeBuilderPrimaryButton)}
+                        onClick={() =>
+                          runPdfImport(resumeText, uploadedFile.name)
+                        }
+                        disabled={extractingText}
+                      >
+                        Import resume data
+                      </Button>
+                    ) : null
+                  }
+                />
+              ) : (
+                <ResumeBuilderLinkedInForm
+                  id="edit-linkedin-handle"
+                  value={linkedinHandle}
+                  onChange={setLinkedinHandle}
+                  onSubmit={() => void runLinkedInImport()}
+                  footer={
+                    <div className={resumeBuilderFooterActions}>
+                      {phase === "error" ? (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className={cn("w-full sm:w-auto", resumeBuilderOutlineButton)}
+                          onClick={resetState}
+                        >
+                          Try again
+                        </Button>
                       ) : (
-                        <Upload className="h-8 w-8 text-primary" />
+                        <span className="hidden sm:block" />
                       )}
-                    </div>
-                    <h3 className="mb-2 text-base font-semibold text-foreground">
-                      {extractingText
-                        ? "Reading your PDF…"
-                        : isDragActive
-                          ? "Drop your resume here"
-                          : "Select or drag your resume PDF"}
-                    </h3>
-                    <p className="mb-3 text-sm text-muted-foreground">
-                      We&apos;ll extract and map sections to your current
-                      template
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      PDF only · max {formatFileSize(RESUME_IMPORT_MAX_BYTES)}
-                    </p>
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-between rounded-lg border border-emerald-500/25 bg-emerald-500/5 p-4">
-                    <div className="flex min-w-0 items-center gap-3">
-                      <FileText className="h-8 w-8 shrink-0 text-emerald-600" />
-                      <div className="min-w-0">
-                        <p className="truncate font-semibold text-foreground">
-                          {uploadedFile.name}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          {formatFileSize(uploadedFile.size)}
-                        </p>
-                      </div>
-                    </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setUploadedFile(null);
-                        setResumeText("");
-                        setPhase("upload");
-                        setErrorMessage(null);
-                      }}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                )}
-
-                {uploadedFile && resumeText && phase === "upload" ? (
-                  <Button
-                    type="button"
-                    className={cn("w-full", appPrimaryButton)}
-                    onClick={() => runPdfImport(resumeText, uploadedFile.name)}
-                    disabled={extractingText}
-                  >
-                    Import resume data
-                  </Button>
-                ) : null}
-              </>
-            ) : (
-              <div className="space-y-4">
-                <div className="rounded-xl border border-[#0A66C2]/20 bg-[#0A66C2]/[0.04] p-4">
-                  <div className="flex items-start gap-3">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#0A66C2]">
-                      <Linkedin className="h-5 w-5 text-white" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold text-foreground">
+                      <Button
+                        type="button"
+                        className={cn("w-full sm:w-auto", resumeBuilderPrimaryButton)}
+                        onClick={() => void runLinkedInImport()}
+                        disabled={!linkedinHandle.trim()}
+                      >
                         Import from LinkedIn
-                      </p>
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        We&apos;ll fetch your public profile, enhance it for
-                        ATS, and replace your current resume sections.
-                      </p>
+                      </Button>
                     </div>
-                  </div>
-                </div>
+                  }
+                />
+              )}
 
-                <div className="space-y-2">
-                  <label
-                    htmlFor="edit-linkedin-handle"
-                    className="block text-sm font-medium text-foreground"
-                  >
-                    LinkedIn profile URL or username
-                  </label>
-                  <Input
-                    id="edit-linkedin-handle"
-                    value={linkedinHandle}
-                    onChange={(e) => setLinkedinHandle(e.target.value)}
-                    placeholder="https://www.linkedin.com/in/your-username  or  your-username"
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && linkedinHandle.trim()) {
-                        void runLinkedInImport();
-                      }
-                    }}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Example: https://www.linkedin.com/in/john-doe or john-doe
-                  </p>
-                </div>
-
+              {importMethod === "pdf" && phase === "error" ? (
                 <Button
                   type="button"
-                  className={cn("w-full", appPrimaryButton)}
-                  onClick={() => void runLinkedInImport()}
-                  disabled={!linkedinHandle.trim()}
+                  variant="outline"
+                  className={cn("w-full", resumeBuilderOutlineButton)}
+                  onClick={resetState}
                 >
-                  Import from LinkedIn
+                  Try again
                 </Button>
-              </div>
-            )}
-
-            {phase === "error" ? (
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full"
-                onClick={resetState}
-              >
-                Try again
-              </Button>
-            ) : null}
-          </div>
-        )}
+              ) : null}
+            </div>
+          )}
+        </div>
       </DialogContent>
     </Dialog>
   );
