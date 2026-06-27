@@ -17,7 +17,6 @@ import {
   Bot,
   UserCircle,
   Building2,
-  Languages,
   FileText,
   Check,
   type LucideIcon,
@@ -76,13 +75,6 @@ const features: Feature[] = [
     gradient: "from-violet-500 to-violet-700",
   },
   {
-    title: "English & Hindi",
-    tagline: "Practice in your language.",
-    body: "Run fluent, natural mock interviews in English or Hindi with human-like voice interaction.",
-    icon: Languages,
-    gradient: "from-emerald-500 to-teal-600",
-  },
-  {
     title: "Resume-Aware Follow-ups",
     tagline: "Built around your story.",
     body: "Use your saved resume or upload a PDF—the AI digs into your real projects and pushes for specifics.",
@@ -95,6 +87,13 @@ const features: Feature[] = [
     body: "Get a full transcript plus Technical, Behavioral, Communication, and Confidence scores with clear next steps.",
     icon: BarChart3,
     gradient: "from-amber-500 to-orange-600",
+  },
+  {
+    title: "Adaptive Difficulty Scaling",
+    tagline: "Push harder as you improve.",
+    body: "The AI ramps question difficulty in real time based on how you answer—so every session stays challenging.",
+    icon: Brain,
+    gradient: "from-emerald-500 to-teal-600",
   },
 ];
 
@@ -381,9 +380,12 @@ export default function InterviewCoachPage() {
                   <span>AI Voice Interview Practice</span>
                 </div>
 
-                <h1 className="text-3xl font-bold leading-tight tracking-tight text-slate-900 sm:text-4xl md:text-5xl lg:text-[3.25rem] lg:leading-[1.1]">
-                  Practice Real Interviews with Your{" "}
-                  <span className="text-primary">AI Interview Coach</span>
+                <h1 className="mb-4 text-[1.22rem] font-bold leading-tight tracking-tight text-slate-900 sm:mb-6 sm:text-[1.46rem] md:text-[1.625rem] lg:text-[2.15rem] xl:text-[2.28rem]">
+                  <span className="block">Practice Real Interviews with</span>
+                  <span className="block">
+                    Your{" "}
+                    <span className="text-primary">AI Interview Coach</span>
+                  </span>
                 </h1>
 
                 <p className="mx-auto max-w-xl px-2 text-base leading-relaxed text-gray-600 sm:px-0 sm:text-lg lg:text-xl">
@@ -423,10 +425,6 @@ export default function InterviewCoachPage() {
                   <div className="flex items-center gap-2">
                     <Check className="h-4 w-4 text-primary" />
                     <span>No credit card required</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Check className="h-4 w-4 text-primary" />
-                    <span>English &amp; Hindi</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <Check className="h-4 w-4 text-primary" />
@@ -531,8 +529,8 @@ export default function InterviewCoachPage() {
                 <span>How It Works</span>
               </div>
               <h2 className="mb-4 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl lg:text-5xl">
-                Go from nervous to{" "}
-                <span className="text-primary">interview-ready</span>
+                Complete real-time{" "}
+                <span className="text-primary">AI interview</span>
               </h2>
               <p className="mx-auto max-w-2xl text-lg leading-relaxed text-gray-600">
                 Set up, speak, get scored, and iterate—four simple steps to a
@@ -916,7 +914,7 @@ export default function InterviewCoachPage() {
               </Button>
             </Link>
             <p className="mt-4 text-sm font-medium text-gray-500">
-              No credit card required · English &amp; Hindi · Instant feedback
+              No credit card required · Instant feedback
             </p>
           </div>
         </section>

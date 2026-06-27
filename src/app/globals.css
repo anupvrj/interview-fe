@@ -1064,3 +1064,302 @@
   will-change: transform;
 }
 
+/* Stacked feature scroll — card layering on homepage */
+.stacked-feature-track {
+  position: relative;
+}
+
+.stacked-feature-scroll-anchor {
+  position: absolute;
+  left: 0;
+  width: 1px;
+  height: 1px;
+  pointer-events: none;
+  scroll-margin-top: 6rem;
+}
+
+.stacked-feature-sticky {
+  position: sticky;
+  top: 0;
+  display: flex;
+  min-height: 100vh;
+  flex-direction: column;
+  overflow: hidden;
+  background: hsl(var(--background));
+}
+
+.stacked-feature-heading {
+  z-index: 40;
+  flex-shrink: 0;
+  padding: 5.5rem 1rem 1rem;
+  text-align: center;
+  background: linear-gradient(
+    to bottom,
+    hsl(var(--background)) 0%,
+    hsl(var(--background)) 78%,
+    transparent 100%
+  );
+}
+
+.stacked-feature-progress {
+  position: absolute;
+  right: 0.75rem;
+  top: 58%;
+  z-index: 45;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.875rem;
+  margin: 0;
+  padding: 0.875rem 0.625rem;
+  border: 1px solid hsl(var(--border) / 0.75);
+  border-radius: 9999px;
+  background: hsl(var(--background) / 0.88);
+  box-shadow:
+    0 10px 40px -16px rgb(15 23 42 / 0.22),
+    0 0 0 1px rgb(255 255 255 / 0.55) inset;
+  backdrop-filter: blur(12px);
+  transform: translateY(-50%);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.stacked-feature-progress-track {
+  position: absolute;
+  top: 1.125rem;
+  bottom: 1.125rem;
+  left: 50%;
+  width: 2px;
+  border-radius: 9999px;
+  background: linear-gradient(
+    to bottom,
+    hsl(var(--border) / 0.35),
+    hsl(var(--border)),
+    hsl(var(--border) / 0.35)
+  );
+  pointer-events: none;
+  transform: translateX(-50%);
+}
+
+.stacked-feature-progress-dot {
+  position: relative;
+  z-index: 1;
+  flex-shrink: 0;
+  width: 0.75rem;
+  height: 0.75rem;
+  padding: 0;
+  border: none;
+  border-radius: 9999px;
+  background: hsl(var(--border));
+  cursor: pointer;
+  transition:
+    height 0.5s cubic-bezier(0.22, 1, 0.36, 1),
+    width 0.5s cubic-bezier(0.22, 1, 0.36, 1),
+    background-color 0.35s ease,
+    box-shadow 0.35s ease,
+    transform 0.35s ease;
+}
+
+.stacked-feature-progress-dot:hover:not(.is-active) {
+  background: hsl(var(--primary) / 0.45);
+  transform: scale(1.12);
+}
+
+.stacked-feature-progress-dot.is-active {
+  width: 0.875rem;
+  height: 2.75rem;
+  background: hsl(var(--primary));
+  box-shadow: 0 0 0 4px hsl(var(--primary) / 0.16);
+}
+
+@media (min-width: 640px) {
+  .stacked-feature-heading {
+    padding-top: 6rem;
+    padding-bottom: 1.25rem;
+  }
+
+  .stacked-feature-progress {
+    right: 1rem;
+    gap: 1rem;
+    padding: 1rem 0.75rem;
+  }
+
+  .stacked-feature-progress-dot {
+    width: 0.875rem;
+    height: 0.875rem;
+  }
+
+  .stacked-feature-progress-dot.is-active {
+    width: 1rem;
+    height: 3.25rem;
+  }
+}
+
+@media (max-width: 767px) {
+  .stacked-feature-simple-list article .grid.lg\:grid-cols-2 {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+
+  .stacked-feature-simple-list article .grid.lg\:grid-cols-2 > .order-1 {
+    order: 1;
+  }
+
+  .stacked-feature-simple-list article .grid.lg\:grid-cols-2 > .order-2 {
+    order: 2;
+  }
+}
+
+.stacked-feature-stage {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  padding: 0.5rem;
+  display: flex;
+  align-items: flex-start;
+}
+
+.stacked-feature-panel {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  bottom: auto;
+  width: 100%;
+  height: fit-content;
+  max-height: 100%;
+  overflow: hidden;
+  border-radius: 1.25rem;
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--background));
+  box-shadow:
+    0 24px 60px -28px rgb(15 23 42 / 0.35),
+    0 0 0 1px rgb(255 255 255 / 0.04);
+  will-change: transform, opacity;
+  transition:
+    transform 120ms linear,
+    opacity 120ms linear;
+}
+
+.stacked-feature-panel-inner {
+  height: auto;
+  max-height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+  padding: 0.75rem;
+  pointer-events: none;
+}
+
+.stacked-feature-panel-inner a,
+.stacked-feature-panel-inner button,
+.stacked-feature-panel-inner input,
+.stacked-feature-panel-inner select,
+.stacked-feature-panel-inner textarea,
+.stacked-feature-panel-inner [role="button"],
+.stacked-feature-panel-inner [tabindex]:not([tabindex="-1"]) {
+  pointer-events: auto;
+}
+
+/* Compact layout so cards fit without inner scroll */
+.stacked-feature-panel-inner .space-y-6 > :not([hidden]) ~ :not([hidden]) {
+  margin-top: 1rem;
+}
+
+@media (min-width: 640px) {
+  .stacked-feature-panel-inner .space-y-6 > :not([hidden]) ~ :not([hidden]) {
+    margin-top: 1.25rem;
+  }
+}
+
+.stacked-feature-panel-inner h2 {
+  font-size: clamp(1.35rem, 2.4vw, 2.25rem);
+  line-height: 1.15;
+}
+
+.stacked-feature-panel-inner .gap-16 {
+  gap: 0.75rem;
+}
+
+.stacked-feature-panel-inner .container {
+  padding: 0;
+}
+
+.stacked-feature-panel-inner .grid.items-center,
+.stacked-feature-panel-inner .lg\:grid-cols-2.items-center {
+  align-items: start;
+}
+
+.stacked-feature-panel-inner .pt-4 {
+  padding-top: 0.75rem;
+  padding-bottom: 0;
+}
+
+.stacked-feature-panel-inner .flex.pt-4,
+.stacked-feature-panel-inner .flex.flex-col.pt-4,
+.stacked-feature-panel-inner .flex.flex-col.sm\:flex-row.pt-4 {
+  padding-top: 0.75rem;
+  padding-bottom: 0;
+  margin-bottom: 0;
+}
+
+.stacked-feature-panel-inner .space-y-6 > :last-child {
+  margin-bottom: 0;
+}
+
+@media (min-width: 640px) {
+  .stacked-feature-stage {
+    padding: 0.625rem;
+  }
+
+  .stacked-feature-panel-inner {
+    padding: 1rem;
+  }
+}
+
+@media (min-width: 768px) {
+  .stacked-feature-stage {
+    padding-right: 4.5rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .stacked-feature-stage {
+    margin: 0 auto;
+    width: 100%;
+    max-width: 80rem;
+    padding: 2rem;
+    padding-right: 5rem;
+  }
+
+  .stacked-feature-progress {
+    right: 1.5rem;
+    top: 56%;
+    gap: 1.125rem;
+    padding: 1.125rem 0.875rem;
+  }
+
+  .stacked-feature-progress-dot {
+    width: 1rem;
+    height: 1rem;
+  }
+
+  .stacked-feature-progress-dot.is-active {
+    width: 1.125rem;
+    height: 3.5rem;
+    box-shadow: 0 0 0 5px hsl(var(--primary) / 0.14);
+  }
+
+  .stacked-feature-panel-inner {
+    padding: 2.5rem;
+  }
+
+  .stacked-feature-panel-inner .gap-16 {
+    gap: 1.5rem;
+  }
+
+  .stacked-feature-panel-inner .lg\:grid-cols-2 {
+    align-items: start;
+  }
+}
+
+

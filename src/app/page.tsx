@@ -40,7 +40,12 @@ import { ScrollSection } from "@/components/ScrollSection";
 import { SiteHeader } from "@/components/SiteHeader";
 import { MarketingFooter } from "@/components/MarketingFooter";
 import { WhyFeatureCardsMarquee } from "@/components/marketing/WhyFeatureCardsMarquee";
+import { MarketingAutoplayVideo } from "@/components/marketing/MarketingAutoplayVideo";
+import {
+  StackedFeatureScroll,
+} from "@/components/marketing/StackedFeatureScroll";
 import { CodingRoundHeroPreview } from "@/components/coding-interviews/CodingRoundHeroPreview";
+import { InterviewPracticeHeroPreview } from "@/components/marketing/InterviewPracticeHeroPreview";
 import { SystemDesignHeroPreview } from "@/components/system-design/SystemDesignHeroPreview";
 import { AiJobSearchNotifyButton } from "@/components/AiJobSearchNotifyButton";
 import { appMarketingSection, appMarketingSectionAlt, appMarketingSectionPurple, appMarketingSectionLight } from "@/lib/app-theme";
@@ -110,6 +115,30 @@ const trustedCompanies = [
   { name: "BCE Global Tech", file: "bce-global-tech.png" },
 ];
 
+function renderHighlightedText(
+  text: string,
+  highlightStart: number,
+  highlightEnd: number,
+  highlightClass = "text-primary",
+) {
+  if (!text) return null;
+
+  const safeStart = Math.min(highlightStart, text.length);
+  const safeEnd = Math.min(highlightEnd, text.length);
+
+  if (safeStart >= safeEnd) {
+    return <>{text}</>;
+  }
+
+  return (
+    <>
+      {text.slice(0, safeStart)}
+      <span className={highlightClass}>{text.slice(safeStart, safeEnd)}</span>
+      {text.slice(safeEnd)}
+    </>
+  );
+}
+
 export default function LandingPage() {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [displayedText, setDisplayedText] = useState("");
@@ -136,15 +165,15 @@ export default function LandingPage() {
     "/resume-template-images/clean-slate-preview.webp",
   ];
 
-  const firstLine = "Land Your Dream Job Faster";
-  const secondLine = "With Data-Driven AI Mock Interview";
+  const firstLine = "Master Your Interview with AI";
+  const secondLine = "Before Real one happens";
   const fullText = firstLine + " " + secondLine;
-  const highlightStart = 10; // "Dream Job" in first line
+  const highlightStart = 12; // "Interview" in first line
   const highlightEnd = highlightStart + 9;
-  // Highlight "AI Mock Interview" at end of second line (local index 17 in secondLine)
-  const allyLocalStart = 17;
+  // Highlight "Real one" in second line (local index 7 in secondLine)
+  const allyLocalStart = 7;
   const happensStart = firstLine.length + 1 + allyLocalStart;
-  const happensEnd = happensStart + 18;
+  const happensEnd = happensStart + 8;
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -287,137 +316,68 @@ export default function LandingPage() {
         )}
       >
         <div className="container mx-auto max-w-7xl">
-          <div className="grid lg:grid-cols-2 gap-8 sm:gap-12 lg:gap-16 items-center">
+          <div className="grid lg:grid-cols-2 gap-8 sm:gap-12 lg:gap-16 items-start lg:items-center">
             {/* Left Side - Marketing Content */}
             <div className="space-y-4 sm:space-y-5 md:space-y-6 text-center lg:text-left order-2 lg:order-1">
-              <h1 className="text-2xl leading-snug sm:text-3xl sm:leading-[1.15] lg:text-[2.5rem] lg:leading-[1.2] xl:text-[2.75rem] xl:leading-[1.18] font-bold tracking-tight text-slate-900 min-h-[4.5em] sm:min-h-[2.4em] mb-4 sm:mb-6">
-                {/* First Line */}
-                <div className="block">
-                  {displayedText.length > 0 && displayedText.length <= firstLine.length ? (
-                    <>
-                      {displayedText.split("").map((char, index) => {
-                        const isHighlight = index >= highlightStart && index < highlightEnd;
-                        return (
-                          <span
-                            key={index}
-                            className={`inline-block ${
-                              isHighlight 
-                                ? 'text-primary' 
-                                : 'text-slate-900'
-                            }`}
-                            style={{
-                              animation: `fadeInUp 0.4s ease-out ${index * 0.05}s both`
-                            }}
-                          >
-                            {char === " " ? "\u00A0" : char}
-                          </span>
-                        );
-                      })}
-                      {displayedText.length <= firstLine.length && (
-                        <span 
-                          className={`inline-block w-0.5 h-[1em] bg-primary ml-1 align-middle ${
-                            showCursor ? 'opacity-100' : 'opacity-0'
+              <h1 className="relative mb-4 sm:mb-6 text-[1.22rem] leading-tight sm:text-[1.46rem] md:text-[1.625rem] lg:text-[2.15rem] xl:text-[2.28rem] font-bold tracking-tight text-slate-900">
+                {/* Invisible sizer locks hero headline to exactly two lines */}
+                <span
+                  className="invisible block select-none pointer-events-none"
+                  aria-hidden="true"
+                >
+                  <span className="block whitespace-nowrap">{firstLine}</span>
+                  <span className="block whitespace-nowrap">{secondLine}</span>
+                </span>
+
+                <span className="absolute inset-0">
+                  <span className="block whitespace-nowrap">
+                    {displayedText.length > 0 &&
+                      renderHighlightedText(
+                        displayedText.length <= firstLine.length
+                          ? displayedText
+                          : firstLine,
+                        highlightStart,
+                        highlightEnd,
+                      )}
+                    {displayedText.length > 0 &&
+                      displayedText.length <= firstLine.length && (
+                        <span
+                          className={`inline-block w-0.5 h-[1em] bg-primary ml-0.5 align-middle ${
+                            showCursor ? "opacity-100" : "opacity-0"
                           }`}
-                          style={{
-                            transition: 'opacity 0.1s ease-in-out',
-                            animation: 'fadeInUp 0.3s ease-out'
-                          }}
+                          style={{ transition: "opacity 0.1s ease-in-out" }}
                         />
                       )}
-                    </>
-                  ) : displayedText.length > firstLine.length ? (
-                    <>
-                      {firstLine.split("").map((char, index) => {
-                        const isHighlight = index >= highlightStart && index < highlightEnd;
-                        return (
-                          <span
-                            key={index}
-                            className={`inline-block ${
-                              isHighlight 
-                                ? 'text-primary' 
-                                : 'text-slate-900'
-                            }`}
-                          >
-                            {char === " " ? "\u00A0" : char}
-                          </span>
-                        );
-                      })}
-                    </>
-                  ) : null}
-                </div>
-                
-                {/* Second Line - Always rendered to prevent height jump */}
-                <div className="block" style={{ minHeight: '1.3em' }}>
-                  {displayedText.length > firstLine.length + 1 ? (
-                    <>
-                      {(() => {
-                        const secondLineText = displayedText.slice(firstLine.length + 1);
-                        const beforeHappens = secondLineText.slice(0, happensStart - firstLine.length - 1);
-                        const happensText = secondLineText.slice(happensStart - firstLine.length - 1, happensEnd - firstLine.length - 1);
-                        const afterHappens = secondLineText.slice(happensEnd - firstLine.length - 1);
-                        
-                        return (
-                          <>
-                            {beforeHappens.split("").map((char, index) => {
-                              const actualIndex = firstLine.length + 1 + index;
-                              return (
-                                <span
-                                  key={actualIndex}
-                                  className="inline-block text-slate-900"
-                                  style={{
-                                    animation: `fadeInUp 0.4s ease-out ${index * 0.05}s both`
-                                  }}
-                                >
-                                  {char === " " ? "\u00A0" : char}
-                                </span>
-                              );
-                            })}
-                            {happensText && (
-                              <span
-                                className="inline-block text-primary whitespace-nowrap"
-                                style={{
-                                  animation: `fadeInUp 0.4s ease-out ${beforeHappens.length * 0.05}s both`
-                                }}
-                              >
-                                {happensText}
-                              </span>
-                            )}
-                            {afterHappens.split("").map((char, index) => {
-                              const actualIndex = happensEnd + index;
-                              return (
-                                <span
-                                  key={actualIndex}
-                                  className="inline-block text-slate-900"
-                                  style={{
-                                    animation: `fadeInUp 0.4s ease-out ${(beforeHappens.length + happensText.length + index) * 0.05}s both`
-                                  }}
-                                >
-                                  {char === " " ? "\u00A0" : char}
-                                </span>
-                              );
-                            })}
-                          </>
-                        );
-                      })()}
-                      {displayedText.length === fullText.length && (
-                        <span 
-                          className={`inline-block w-0.5 h-[1em] bg-primary ml-1 align-middle ${
-                            showCursor ? 'opacity-100' : 'opacity-0'
+                  </span>
+                  <span className="block whitespace-nowrap">
+                    {displayedText.length > firstLine.length + 1 &&
+                      renderHighlightedText(
+                        displayedText.slice(firstLine.length + 1),
+                        happensStart - firstLine.length - 1,
+                        happensEnd - firstLine.length - 1,
+                      )}
+                    {displayedText.length > firstLine.length + 1 &&
+                      displayedText.length < fullText.length && (
+                        <span
+                          className={`inline-block w-0.5 h-[1em] bg-primary ml-0.5 align-middle ${
+                            showCursor ? "opacity-100" : "opacity-0"
                           }`}
-                          style={{
-                            transition: 'opacity 0.1s ease-in-out',
-                            animation: 'fadeInUp 0.3s ease-out'
-                          }}
+                          style={{ transition: "opacity 0.1s ease-in-out" }}
                         />
                       )}
-                    </>
-                  ) : (
-                    <span className="invisible">{secondLine}</span>
-                  )}
-                </div>
+                    {displayedText.length === fullText.length && (
+                      <span
+                        className={`inline-block w-0.5 h-[1em] bg-primary ml-0.5 align-middle ${
+                          showCursor ? "opacity-100" : "opacity-0"
+                        }`}
+                        style={{ transition: "opacity 0.1s ease-in-out" }}
+                      />
+                    )}
+                  </span>
+                </span>
               </h1>
               <p className="text-sm sm:text-base lg:text-xl text-gray-600 leading-relaxed max-w-xl mx-auto lg:mx-0 px-2 sm:px-0">
-                Build an ATS-proof resume, master live mock interviews, and apply to roles with measurable hire probabilities. Practice smarter with a unified AI career engine that learns your weaknesses.
+                Practice AI voice interviews with company-specific questions and instant feedback—plus ATS resumes and hire scores. One platform to get you offer-ready before the real interview.
               </p>
               
               <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-3 sm:gap-4 pt-2 px-2 sm:px-0">
@@ -456,17 +416,12 @@ export default function LandingPage() {
             {/* Right Section - Interview Preview */}
             <div className="relative flex justify-center lg:justify-start order-1 lg:order-2">
               <div className="relative rounded-lg sm:rounded-xl shadow-2xl overflow-hidden bg-white w-full max-w-[600px] sm:max-w-[700px] border-2 sm:border-4 border-border">
-                <video
-                  src="/interview_trix_ai_interview.mp4"
-                  poster="/mock-interview-previewiew.png"
-                  className="w-full h-auto object-contain"
-                  autoPlay
-                  loop
-                  muted
-                  playsInline
-                  preload="metadata"
-                  aria-label="AI Interview Practice demo"
-                />
+                <MarketingAutoplayVideo
+                  asset="ai-interview-demo"
+                  poster="/ai_interview_thumbnail.png"
+                  className="w-full"
+                  ariaLabel="AI Interview Practice demo"
+                >
                 {/* Overlay Badges */}
                 <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 bg-green-500 text-white px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-md shadow-lg flex items-center gap-1 sm:gap-1.5 animate-bounce" style={{ animationDuration: '2s' }}>
                   <div className="w-5 h-5 sm:w-6 sm:h-6 bg-white text-green-600 rounded-full flex items-center justify-center font-bold text-[9px] sm:text-[10px] animate-pulse">
@@ -492,6 +447,7 @@ export default function LandingPage() {
                     <span className="sm:hidden">Start</span>
                   </Button>
                 </div>
+                </MarketingAutoplayVideo>
               </div>
             </div>
           </div>
@@ -657,31 +613,31 @@ export default function LandingPage() {
         </div>
       </ScrollSection>
 
-      {/* Resume Builder Section */}
-      <ScrollSection
+      {/* Stacked feature scroll — resume, interview, coding, system design */}
+      <StackedFeatureScroll heading="Get Hired In a Week with">
+      <StackedFeatureScroll.Step
         id="build-resume"
-        className={cn(
-          appMarketingSection,
-          "scroll-mt-20 border-t border-border px-4 py-12 sm:px-6 sm:py-16",
-        )}
+        stepTitle="Build an ATS-Proof Resume using AI"
+        className={appMarketingSection}
       >
         <div className="container mx-auto max-w-7xl">
           <div className="grid lg:grid-cols-2 gap-16 items-center">
             {/* Left Section - Marketing Content */}
-            <div className="space-y-6">
+            <div className="space-y-6 lg:order-1">
               {/* Badge */}
               <div className="inline-flex items-center gap-2 px-3 py-1 bg-muted rounded-full text-primary font-medium text-sm">
                 <span>AI-Powered Writing • Live ATS Analysis</span>
               </div>
 
               {/* Headline */}
-              <h2 className="text-3xl sm:text-4xl md:text-5xl font-semibold tracking-tight text-slate-900 leading-tight">
+              <h2 id="build-resume-heading" className="text-3xl sm:text-4xl md:text-5xl font-semibold tracking-tight text-slate-900 leading-tight">
                 Build an <span className="text-primary">ATS-Proof Resume</span> using AI
               </h2>
 
               {/* Sub-headline */}
               <p className="text-base sm:text-lg text-gray-600 leading-relaxed">
-                Stop getting rejected by tracking software. Import your current CV and let our AI resume builder instantly generate quantified achievements, patch keywords, and craft a flawless resume.
+                Import your CV, patch ATS keywords, and AI-quantify your impact—build
+                the resume that clears screening and wins interviews.
               </p>
 
               {/* AI-Powered Features */}
@@ -708,7 +664,7 @@ export default function LandingPage() {
                       Live ATS Scoring
                     </h3>
                     <p className="mt-0.5 text-xs sm:text-sm leading-snug text-gray-500">
-                      Watch your exact match rate update in real-time as you tweak your profile.
+                      See your match rate update live as you edit your profile.
                     </p>
                   </div>
                 </div>
@@ -721,7 +677,7 @@ export default function LandingPage() {
                       One-Click AI Rewrites
                     </h3>
                     <p className="mt-0.5 text-xs sm:text-sm leading-snug text-gray-500">
-                      Highlight weak bullets and let the AI instantly rewrite them with powerful metrics.
+                      Highlight weak bullets and let AI rewrite them with strong metrics.
                     </p>
                   </div>
                 </div>
@@ -734,7 +690,7 @@ export default function LandingPage() {
                       Frictionless Import
                     </h3>
                     <p className="mt-0.5 text-xs sm:text-sm leading-snug text-gray-500">
-                      Never stare at a blank page. Pull data straight from LinkedIn or an old PDF.
+                      Skip the blank page—import from LinkedIn or an old PDF.
                     </p>
                   </div>
                 </div>
@@ -764,8 +720,8 @@ export default function LandingPage() {
             </div>
 
             {/* Right Section - Resume Preview */}
-            <div className="relative flex justify-center min-w-0 w-full">
-              <div className="relative isolate rounded-lg shadow-2xl overflow-hidden bg-white w-full max-w-[280px] sm:max-w-[320px] lg:max-w-[400px]">
+            <div className="relative flex justify-center min-w-0 w-full lg:order-2">
+              <div className="relative isolate rounded-lg shadow-2xl overflow-hidden bg-white w-full max-w-[220px] sm:max-w-[260px] lg:max-w-[300px]">
                 {/* Layered carousel avoids iOS Safari flex+transform sizing glitches */}
                 <div className="relative w-full min-w-0 overflow-hidden aspect-[210/297]">
                   {resumeTemplates.map((template, index) => (
@@ -781,8 +737,8 @@ export default function LandingPage() {
                       <Image
                         src={template}
                         alt={`Resume Template ${index + 1}`}
-                        width={400}
-                        height={500}
+                        width={300}
+                        height={424}
                         className="h-full w-full max-h-full object-contain object-center"
                         priority={index === 0}
                       />
@@ -836,33 +792,31 @@ export default function LandingPage() {
             </div>
           </div>
         </div>
-      </ScrollSection>
+      </StackedFeatureScroll.Step>
 
-      {/* AI Interview Practice hero */}
-      <ScrollSection
+      <StackedFeatureScroll.Step
         id="start-interview"
-        className={cn(
-          appMarketingSectionAlt,
-          "scroll-mt-20 border-t border-border px-4 py-12 sm:px-6 sm:py-16",
-        )}
+        stepTitle="Master AI Interview Practice"
+        className={appMarketingSectionAlt}
       >
         <div className="container mx-auto max-w-7xl">
           <div className="grid lg:grid-cols-2 gap-16 items-center">
             {/* Left Section - Marketing Content */}
-            <div className="space-y-6">
+            <div className="space-y-6 lg:order-1">
               {/* Badge */}
               <div className="inline-flex items-center gap-2 px-3 py-1 bg-muted rounded-full text-primary font-medium text-sm">
                 <span>Live AI Mock Interviews • Advanced Proctoring</span>
               </div>
 
               {/* Headline */}
-              <h2 className="text-3xl sm:text-4xl md:text-5xl font-semibold tracking-tight text-slate-900 leading-tight">
+              <h2 id="start-interview-heading" className="text-3xl sm:text-4xl md:text-5xl font-semibold tracking-tight text-slate-900 leading-tight">
                 Master <span className="text-primary">AI Interview Practice</span>
               </h2>
 
               {/* Sub-headline */}
               <p className="text-base sm:text-lg text-gray-600 leading-relaxed">
-                Get 100% prepared before real one happens. Practice with tailored, company-specific questions, adapt to real-time difficulty changes, and get instant feedback on your delivery.
+                Company-tailored voice mocks, adaptive difficulty, and instant delivery
+                feedback—rehearse the interview that wins offers.
               </p>
 
               {/* AI-Powered Features */}
@@ -945,106 +899,20 @@ export default function LandingPage() {
             </div>
 
             {/* Right Side - Product UI Demo */}
-            <div id="sample-analytics-preview" className="relative lg:pl-8 shake-vertical scroll-mt-24">
-              <div className="relative">
-                {/* Background Shape */}
-                <div className="absolute inset-0 bg-primary rounded-3xl transform rotate-3 opacity-10"></div>
-                
-                {/* Floating UI Card */}
-                <div className="relative bg-card rounded-2xl shadow-2xl border-2 border-border overflow-hidden">
-                  {/* Animated Background Icons */}
-                  <div className="absolute inset-0 pointer-events-none overflow-hidden">
-                    {[...Array(6)].map((_, i) => (
-                      <div
-                        key={i}
-                        className="absolute opacity-10"
-                        style={{
-                          left: `${(i * 18) % 100}%`,
-                          top: `${(i * 20) % 100}%`,
-                          animation: `float-${i % 3} ${6 + (i % 3) * 2}s ease-in-out infinite`,
-                          animationDelay: `${i * 0.5}s`,
-                        }}
-                      >
-                        {i % 3 === 0 ? (
-                          <Mic className="w-8 h-8 text-primary/70" />
-                        ) : i % 3 === 1 ? (
-                          <Brain className="w-8 h-8 text-primary/70" />
-                        ) : (
-                          <MessageSquare className="w-8 h-8 text-primary/70" />
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                  {/* AI Interview Practice interface */}
-                  <div className="p-6 relative z-10">
-                    {/* Top Bar */}
-                    <div className="flex items-center justify-between mb-6 pb-4 border-b border-border">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center mic-animated shadow-lg">
-                          <Mic className="w-4 h-4 text-white" />
-                        </div>
-                        <div>
-                          <div className="font-semibold text-sm text-slate-900">AI Interview Session</div>
-                          <div className="text-xs text-primary">Live • Technical Round</div>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-                        <span className="text-xs text-primary font-medium">Recording</span>
-                      </div>
-                    </div>
-
-                    {/* Question Section */}
-                    <div className="mb-6">
-                      <div className="bg-white/80 backdrop-blur-sm rounded-lg p-4 mb-4 border border-border">
-                        <p className="text-sm text-primary font-medium mb-2">Question 3 of 10</p>
-                        <p className="text-base text-slate-900">
-                          "Explain the difference between REST and GraphQL APIs. When would you choose one over the other?"
-                        </p>
-                      </div>
-                      
-                      {/* Answer Section */}
-                      <div className="bg-white/60 backdrop-blur-sm rounded-lg p-4 border border-border">
-                        <div className="flex items-center gap-2 mb-2">
-                          <div className="w-2 h-2 rounded-full bg-primary animate-pulse"></div>
-                          <span className="text-xs text-primary font-medium">Your Response</span>
-                        </div>
-                        <p className="text-sm text-slate-700 italic">
-                          "REST is a stateless architectural style that uses standard HTTP methods..."
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Metrics */}
-                    <div className="grid grid-cols-3 gap-4 pt-4 border-t border-border">
-                      <div className="text-center">
-                        <div className="text-2xl font-bold text-primary">8.5</div>
-                        <div className="text-xs text-primary">Confidence</div>
-                      </div>
-                      <div className="text-center">
-                        <div className="text-2xl font-bold text-green-600">92%</div>
-                        <div className="text-xs text-primary">Accuracy</div>
-                      </div>
-                      <div className="text-center">
-                        <div className="text-2xl font-bold text-primary">2:34</div>
-                        <div className="text-xs text-primary">Time</div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
+            <div
+              id="sample-analytics-preview"
+              className="relative scroll-mt-24 lg:order-2 lg:pl-8"
+            >
+              <InterviewPracticeHeroPreview />
             </div>
           </div>
         </div>
-      </ScrollSection>
+      </StackedFeatureScroll.Step>
 
-      {/* Practice Coding Round hero */}
-      <ScrollSection
+      <StackedFeatureScroll.Step
         id="practice-coding"
-        className={cn(
-          appMarketingSection,
-          "scroll-mt-20 border-t border-border px-4 py-12 sm:px-6 sm:py-16",
-        )}
+        stepTitle="Practice the Coding Round"
+        className={appMarketingSection}
       >
         <div className="container mx-auto max-w-7xl">
           <div className="grid lg:grid-cols-2 gap-16 items-center">
@@ -1059,14 +927,13 @@ export default function LandingPage() {
                 <span>Live IDE • Public + Hidden Tests</span>
               </div>
 
-              <h2 className="text-3xl sm:text-4xl md:text-5xl font-semibold tracking-tight text-slate-900 leading-tight">
+              <h2 id="practice-coding-heading" className="text-3xl sm:text-4xl md:text-5xl font-semibold tracking-tight text-slate-900 leading-tight">
                 Practice the <span className="text-primary">Coding Round</span>
               </h2>
 
               <p className="text-base sm:text-lg text-gray-600 leading-relaxed">
-                Solve real DSA problems in a live editor while an AI interviewer
-                cross-examines your logic. Run public tests, submit against hidden
-                cases, and defend your time and space complexity out loud.
+                Live IDE, hidden test cases, and AI cross-examination on your logic
+                and complexity—rehearse the coding round that wins offers.
               </p>
 
               <div className="flex flex-col sm:grid sm:grid-cols-2 gap-4 sm:gap-6 pt-4">
@@ -1138,32 +1005,28 @@ export default function LandingPage() {
             </div>
           </div>
         </div>
-      </ScrollSection>
+      </StackedFeatureScroll.Step>
 
-      {/* Practice System Design hero */}
-      <ScrollSection
+      <StackedFeatureScroll.Step
         id="practice-system-design"
-        className={cn(
-          appMarketingSectionAlt,
-          "scroll-mt-20 border-t border-border px-4 py-12 sm:px-6 sm:py-16",
-        )}
+        stepTitle="Practice Live System Design"
+        className={appMarketingSectionAlt}
       >
         <div className="container mx-auto max-w-7xl">
           <div className="grid lg:grid-cols-2 gap-16 items-center">
             {/* Left Side - Marketing Content */}
-            <div className="space-y-6">
+            <div className="space-y-6 lg:order-1">
               <div className="inline-flex items-center gap-2 px-3 py-1 bg-muted rounded-full text-primary font-medium text-sm">
                 <span>Live Whiteboard • Voice-Driven</span>
               </div>
 
-              <h2 className="text-3xl sm:text-4xl md:text-5xl font-semibold tracking-tight text-slate-900 leading-tight">
+              <h2 id="practice-system-design-heading" className="text-3xl sm:text-4xl md:text-5xl font-semibold tracking-tight text-slate-900 leading-tight">
                 Practice Live <span className="text-primary">System Design</span>
               </h2>
 
               <p className="text-base sm:text-lg text-gray-600 leading-relaxed">
-                Architect scalable systems on a live canvas and debate trade-offs
-                through a realistic, voice-driven conversation. Think like a
-                Principal Engineer before you face the panel.
+                Live canvas, voice-driven trade-offs, and senior-level probing—rehearse
+                the system design round that wins offers.
               </p>
 
               <div className="flex flex-col sm:grid sm:grid-cols-2 gap-4 sm:gap-6 pt-4">
@@ -1235,12 +1098,13 @@ export default function LandingPage() {
             </div>
 
             {/* Right Side - Animated Preview */}
-            <div className="relative flex justify-center lg:justify-end shake-vertical">
+            <div className="relative flex justify-center shake-vertical lg:order-2 lg:justify-end">
               <SystemDesignHeroPreview />
             </div>
           </div>
         </div>
-      </ScrollSection>
+      </StackedFeatureScroll.Step>
+      </StackedFeatureScroll>
 
       {/* AI Job Search Hero Section */}
       {false && (
@@ -1531,8 +1395,10 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Plans Section */}
-      <PlansSection />
+      {/* Plans Section — hidden on mobile */}
+      <div className="hidden sm:block">
+        <PlansSection />
+      </div>
 
       {/* Reviews/Testimonials Section */}
       <section
