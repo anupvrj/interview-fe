@@ -1,6 +1,7 @@
 import type { ExtendedResumeTemplate } from "@/configs/resume-templates/template-types";
 import type { Resume } from "@/lib/api";
 import { resumeApi, resumeDataExtractionApi } from "@/lib/api";
+import { normalizeExperienceList } from "@/lib/resume-date-utils";
 import { getExtendedTemplate } from "@/lib/templateConfigs";
 
 export type ExtractedSectionPayload = {
@@ -129,6 +130,122 @@ const RESUME_STRING_CONTENT_FIELDS = new Set([
   "declaration",
 ]);
 
+const EMPTY_PERSONAL_INFO: Record<string, string> = {
+  fullName: "",
+  email: "",
+  phone: "",
+  location: "",
+  linkedin: "",
+  github: "",
+  portfolio: "",
+};
+
+export const RESUME_DISPLAY_PLACEHOLDERS = {
+  fullName: "Your Name",
+  portfolio: "Your Title",
+  profileSummary:
+    "Write a brief professional summary that highlights your experience, skills, and career goals.",
+} as const;
+
+/** Map LLM/LinkedIn field aliases onto the resume personalInfo schema. */
+function unwrapPersonalInfoRecord(info: unknown): Record<string, unknown> {
+  if (!info || typeof info !== "object" || Array.isArray(info)) {
+    return {};
+  }
+
+  const record = info as Record<string, unknown>;
+  const nested = record.content;
+  if (
+    nested &&
+    typeof nested === "object" &&
+    !Array.isArray(nested) &&
+    (record.sectionType === "personalInfo" || record.format != null)
+  ) {
+    return nested as Record<string, unknown>;
+  }
+
+  return record;
+}
+
+function firstNonEmpty(...values: unknown[]): string {
+  for (const value of values) {
+    if (value == null) continue;
+    const str = String(value).trim();
+    if (str) return str;
+  }
+  return "";
+}
+
+/** Map LLM/LinkedIn field aliases onto the resume personalInfo schema. */
+export function normalizePersonalInfoRecord(
+  info: unknown,
+): Record<string, string> {
+  const record = unwrapPersonalInfoRecord(info);
+  const asString = (value: unknown) =>
+    value == null ? "" : String(value).trim();
+
+  const normalized: Record<string, string> = {
+    ...EMPTY_PERSONAL_INFO,
+    fullName: firstNonEmpty(
+      record.fullName,
+      record.name,
+      record.full_name,
+      record.fullname,
+    ),
+    email: asString(record.email),
+    phone: asString(record.phone),
+    location: asString(record.location ?? record.city),
+    linkedin: asString(record.linkedin ?? record.linkedIn),
+    github: asString(record.github),
+    portfolio: firstNonEmpty(
+      record.portfolio,
+      record.jobTitle,
+      record.job_title,
+      record.headline,
+      record.role,
+    ),
+    yearsOfExperience: asString(record.yearsOfExperience),
+    profilePicture: asString(
+      record.profilePicture ??
+        record.profile_picture ??
+        record.photo ??
+        record.avatar,
+    ),
+    website: asString(record.website),
+  };
+
+  for (const [key, value] of Object.entries(record)) {
+    if (typeof value === "string" && !(key in normalized)) {
+      normalized[key] = value.trim();
+    }
+  }
+
+  return normalized;
+}
+
+/** Guarantee `content.personalInfo` exists so editor/renderer never crash on import. */
+export function ensureResumePersonalInfo<
+  T extends Record<string, unknown> & { personalInfo?: unknown },
+>(content: T): T {
+  content.personalInfo = normalizePersonalInfoRecord(content.personalInfo);
+  return content;
+}
+
+/** Preview-only label when a personalInfo field is empty. */
+export function personalInfoDisplayText(
+  value: string | undefined,
+  placeholder: string,
+): string {
+  return value?.trim() ? value.trim() : placeholder;
+}
+
+/** @deprecated Use normalizePersonalInfoRecord + personalInfoDisplayText instead. */
+export function resolveResumePersonalInfoForDisplay(
+  content: Partial<Resume["content"]> | undefined,
+): NonNullable<Resume["content"]["personalInfo"]> {
+  return normalizePersonalInfoRecord(content?.personalInfo);
+}
+
 /** Coerce LLM/import values into resume string fields (schema expects strings, not arrays). */
 export function coerceToResumeString(value: unknown): string {
   if (value == null) return "";
@@ -195,18 +312,14 @@ export function mapExtractedSectionsToContent(
 
   for (const [sectionType, sectionData] of Object.entries(sections)) {
     if (sectionType === "personalInfo") {
-      if (
-        sectionData.format === "structured" &&
+      const rawPersonal =
+        sectionData.content &&
         typeof sectionData.content === "object" &&
-        sectionData.content !== null &&
         !Array.isArray(sectionData.content)
-      ) {
-        content.personalInfo = sectionData.content;
-      } else if (
-        typeof sectionData.content === "object" &&
-        sectionData.content !== null
-      ) {
-        content.personalInfo = sectionData.content;
+          ? sectionData.content
+          : undefined;
+      if (rawPersonal) {
+        content.personalInfo = normalizePersonalInfoRecord(rawPersonal);
       }
       continue;
     }
@@ -246,6 +359,26 @@ export function mapExtractedSectionsToContent(
 
   if (!content.customSections) {
     content.customSections = [];
+  }
+
+  if (Array.isArray(content.experience)) {
+    content.experience = normalizeExperienceList(content.experience);
+  }
+
+  ensureResumePersonalInfo(content);
+
+  if (
+    typeof content.profileSummary !== "string" ||
+    !content.profileSummary.trim()
+  ) {
+    content.profileSummary = "";
+  }
+
+  if (!Array.isArray(content.experience)) {
+    content.experience = [];
+  }
+  if (!Array.isArray(content.education)) {
+    content.education = [];
   }
 
   return sanitizeResumeStringFields(content);
@@ -357,6 +490,49 @@ export async function importResumeFromExtractedText(
 
   return resumeApi.update(resumeId, {
     content: content as Partial<Resume["content"]>,
+    profileSummary:
+      typeof content.profileSummary === "string"
+        ? content.profileSummary
+        : undefined,
+    sectionOrder,
+  });
+}
+
+/** Import LinkedIn profile into an existing resume — same replace logic as PDF import. */
+export async function importResumeFromLinkedIn(
+  resumeId: string,
+  templateId: string,
+  handle: string,
+  options?: {
+    layout?: Resume["layout"];
+  },
+): Promise<Resume> {
+  const template = await resumeApi.getTemplate(templateId);
+  const extended = getExtendedTemplate(template);
+  const extracted = await resumeDataExtractionApi.importLinkedInProfile(
+    handle.trim(),
+    templateId,
+  );
+  const content = mapExtractedSectionsToContent(extracted.sections);
+  const layoutType =
+    options?.layout?.type ??
+    (extended.rendering?.layout?.type === "header-plus-columns" ||
+    extended.rendering?.layout?.type === "double"
+      ? "double"
+      : "single");
+
+  const sectionOrder = buildSectionOrderForExtractedContent(
+    extended,
+    content,
+    layoutType,
+  );
+
+  return resumeApi.update(resumeId, {
+    content: content as Partial<Resume["content"]>,
+    profileSummary:
+      typeof content.profileSummary === "string"
+        ? content.profileSummary
+        : undefined,
     sectionOrder,
   });
 }

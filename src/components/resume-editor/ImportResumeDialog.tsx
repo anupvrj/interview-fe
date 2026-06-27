@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useDropzone, type FileRejection } from "react-dropzone";
-import { FileText, Loader2, Upload, X } from "lucide-react";
 import type { Resume } from "@/lib/api";
 import { extractTextFromPDF } from "@/lib/pdf-utils";
 import {
@@ -12,6 +11,7 @@ import {
 } from "@/lib/pdf-dropzone";
 import {
   importResumeFromExtractedText,
+  importResumeFromLinkedIn,
   RESUME_IMPORT_PROCESSING_MESSAGES,
 } from "@/lib/resume-data-import";
 import { Button } from "@/components/ui/button";
@@ -22,10 +22,20 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { appPrimaryButton } from "@/lib/app-theme";
+import { ResumeBuilderImportMethodToggle } from "@/components/resume-builder/ResumeBuilderImportMethodToggle";
+import { ResumeBuilderLinkedInForm } from "@/components/resume-builder/ResumeBuilderLinkedInForm";
+import { ResumeBuilderPdfDropzone } from "@/components/resume-builder/ResumeBuilderPdfDropzone";
+import { ResumeBuilderProcessingView } from "@/components/resume-builder/ResumeBuilderProcessingView";
+import {
+  resumeBuilderErrorBanner,
+  resumeBuilderFooterActions,
+  resumeBuilderOutlineButton,
+  resumeBuilderPrimaryButton,
+} from "@/components/resume-builder/resumeBuilderStyles";
+import { appCard } from "@/lib/app-theme";
 import { cn } from "@/lib/utils";
-import { ResumeImportProcessingView } from "@/components/resume-editor/ResumeImportProcessingView";
 
+type ImportMethod = "pdf" | "linkedin";
 type ImportPhase = "upload" | "processing" | "error";
 
 interface ImportResumeDialogProps {
@@ -37,10 +47,6 @@ interface ImportResumeDialogProps {
   onImported: (resume: Resume) => void;
 }
 
-function formatFileSize(bytes: number): string {
-  return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
-}
-
 export function ImportResumeDialog({
   open,
   onOpenChange,
@@ -49,19 +55,25 @@ export function ImportResumeDialog({
   layout,
   onImported,
 }: ImportResumeDialogProps) {
+  const [importMethod, setImportMethod] = useState<ImportMethod>("pdf");
   const [phase, setPhase] = useState<ImportPhase>("upload");
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [resumeText, setResumeText] = useState("");
+  const [linkedinHandle, setLinkedinHandle] = useState("");
   const [extractingText, setExtractingText] = useState(false);
   const [processingMessageIndex, setProcessingMessageIndex] = useState(0);
+  const [processingLabel, setProcessingLabel] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const resetState = useCallback(() => {
+    setImportMethod("pdf");
     setPhase("upload");
     setUploadedFile(null);
     setResumeText("");
+    setLinkedinHandle("");
     setExtractingText(false);
     setProcessingMessageIndex(0);
+    setProcessingLabel("");
     setErrorMessage(null);
   }, []);
 
@@ -87,9 +99,39 @@ export function ImportResumeDialog({
     return () => clearInterval(interval);
   }, [phase]);
 
-  const runImport = useCallback(
-    async (text: string) => {
+  const resolveImportError = useCallback(
+    (error: unknown, source: ImportMethod) => {
+      const err = error as {
+        response?: { data?: { message?: string } };
+        message?: string;
+        code?: string;
+      };
+
+      if (
+        err?.code === "ECONNABORTED" ||
+        err?.message?.includes("timeout") ||
+        err?.message?.includes("Request timeout")
+      ) {
+        return source === "linkedin"
+          ? "Importing your LinkedIn profile is taking longer than expected. Please try again."
+          : "Import is taking longer than expected. Try a smaller PDF or check your connection.";
+      }
+
+      return (
+        err?.response?.data?.message ||
+        err?.message ||
+        (source === "linkedin"
+          ? "Failed to import from LinkedIn. Please try again."
+          : "Failed to import resume. Please try again.")
+      );
+    },
+    [],
+  );
+
+  const runPdfImport = useCallback(
+    async (text: string, fileName: string) => {
       setPhase("processing");
+      setProcessingLabel(fileName);
       setErrorMessage(null);
 
       try {
@@ -102,33 +144,56 @@ export function ImportResumeDialog({
         onImported(updated);
         onOpenChange(false);
       } catch (error: unknown) {
-        console.error("Resume import failed:", error);
-        const err = error as {
-          response?: { data?: { message?: string } };
-          message?: string;
-          code?: string;
-        };
-
-        if (
-          err?.code === "ECONNABORTED" ||
-          err?.message?.includes("timeout") ||
-          err?.message?.includes("Request timeout")
-        ) {
-          setErrorMessage(
-            "Import is taking longer than expected. Try a smaller PDF or check your connection.",
-          );
-        } else {
-          setErrorMessage(
-            err?.response?.data?.message ||
-              err?.message ||
-              "Failed to import resume. Please try again.",
-          );
-        }
+        console.error("Resume PDF import failed:", error);
+        setErrorMessage(resolveImportError(error, "pdf"));
         setPhase("error");
       }
     },
-    [layout, onImported, onOpenChange, resumeId, templateId],
+    [
+      layout,
+      onImported,
+      onOpenChange,
+      resolveImportError,
+      resumeId,
+      templateId,
+    ],
   );
+
+  const runLinkedInImport = useCallback(async () => {
+    const handle = linkedinHandle.trim();
+    if (!handle) {
+      setErrorMessage("Please enter your LinkedIn profile URL or username.");
+      setPhase("error");
+      return;
+    }
+
+    setPhase("processing");
+    setProcessingLabel(handle);
+    setErrorMessage(null);
+
+    try {
+      const updated = await importResumeFromLinkedIn(
+        resumeId,
+        templateId,
+        handle,
+        { layout: layout ?? undefined },
+      );
+      onImported(updated);
+      onOpenChange(false);
+    } catch (error: unknown) {
+      console.error("Resume LinkedIn import failed:", error);
+      setErrorMessage(resolveImportError(error, "linkedin"));
+      setPhase("error");
+    }
+  }, [
+    layout,
+    linkedinHandle,
+    onImported,
+    onOpenChange,
+    resolveImportError,
+    resumeId,
+    templateId,
+  ]);
 
   const onDrop = useCallback(
     async (acceptedFiles: File[], fileRejections: FileRejection[]) => {
@@ -160,7 +225,7 @@ export function ImportResumeDialog({
         }
         setResumeText(text);
         setExtractingText(false);
-        await runImport(text);
+        await runPdfImport(text, file.name);
       } catch (error: unknown) {
         console.error("PDF text extraction failed:", error);
         setExtractingText(false);
@@ -174,7 +239,7 @@ export function ImportResumeDialog({
         setPhase("error");
       }
     },
-    [runImport],
+    [runPdfImport],
   );
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -191,113 +256,131 @@ export function ImportResumeDialog({
     onOpenChange(next);
   };
 
+  const switchImportMethod = (method: ImportMethod) => {
+    if (method === importMethod || phase === "processing") return;
+    setImportMethod(method);
+    setUploadedFile(null);
+    setResumeText("");
+    setLinkedinHandle("");
+    setErrorMessage(null);
+    setPhase("upload");
+  };
+
+  const maxSizeLabel = `${(RESUME_IMPORT_MAX_BYTES / 1024 / 1024).toFixed(0)} MB`;
+
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Import from resume</DialogTitle>
-          <DialogDescription>
-            Upload your existing PDF resume to replace editor content with
-            AI-extracted sections mapped to your current template.
+      <DialogContent
+        className={cn(
+          appCard,
+          "gap-0 overflow-hidden border-primary/15 p-0",
+          phase === "processing" ? "sm:max-w-4xl" : "sm:max-w-lg",
+        )}
+      >
+        <DialogHeader className="space-y-2 border-b border-border/60 bg-gradient-to-br from-[#7367F0]/[0.05] via-card to-transparent px-6 pb-5 pt-6">
+          <DialogTitle className="text-xl font-semibold text-foreground">
+            Import resume data
+          </DialogTitle>
+          <DialogDescription className="text-left text-sm leading-relaxed text-muted-foreground">
+            Replace your current editor content with AI-mapped sections from a
+            PDF resume or your LinkedIn profile.
           </DialogDescription>
         </DialogHeader>
 
-        {phase === "processing" && uploadedFile ? (
-          <ResumeImportProcessingView
-            fileName={uploadedFile.name}
-            messageIndex={processingMessageIndex}
-          />
-        ) : (
-          <div className="space-y-4">
-            {phase === "error" && errorMessage ? (
-              <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
-                {errorMessage}
-              </div>
-            ) : null}
+        <div className="px-6 py-5">
+          {phase === "processing" && processingLabel ? (
+            <ResumeBuilderProcessingView
+              label={processingLabel}
+              messageIndex={processingMessageIndex}
+              messages={RESUME_IMPORT_PROCESSING_MESSAGES}
+            />
+          ) : (
+            <div className="space-y-5">
+              <ResumeBuilderImportMethodToggle
+                value={importMethod}
+                onChange={switchImportMethod}
+              />
 
-            {!uploadedFile ? (
-              <div
-                {...getRootProps()}
-                className={cn(
-                  "cursor-pointer rounded-xl border-2 border-dashed border-[#7367F0]/30 bg-gradient-to-br from-[#7367F0]/[0.04] via-card to-[#7367F0]/[0.08] p-8 text-center transition-colors",
-                  isDragActive && "border-primary/50 bg-primary/[0.06]",
-                  extractingText && "pointer-events-none opacity-70",
-                )}
-              >
-                <input {...getInputProps()} />
-                <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
-                  {extractingText ? (
-                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                  ) : (
-                    <Upload className="h-8 w-8 text-primary" />
-                  )}
-                </div>
-                <h3 className="mb-2 text-base font-semibold text-foreground">
-                  {extractingText
-                    ? "Reading your PDF…"
-                    : isDragActive
-                      ? "Drop your resume here"
-                      : "Select or drag your resume PDF"}
-                </h3>
-                <p className="mb-3 text-sm text-muted-foreground">
-                  We&apos;ll extract and map sections to your current template
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  PDF only · max {formatFileSize(RESUME_IMPORT_MAX_BYTES)}
-                </p>
-              </div>
-            ) : (
-              <div className="flex items-center justify-between rounded-lg border border-emerald-500/25 bg-emerald-500/5 p-4">
-                <div className="flex min-w-0 items-center gap-3">
-                  <FileText className="h-8 w-8 shrink-0 text-emerald-600" />
-                  <div className="min-w-0">
-                    <p className="truncate font-semibold text-foreground">
-                      {uploadedFile.name}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      {formatFileSize(uploadedFile.size)}
-                    </p>
-                  </div>
-                </div>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
+              {phase === "error" && errorMessage ? (
+                <div className={resumeBuilderErrorBanner}>{errorMessage}</div>
+              ) : null}
+
+              {importMethod === "pdf" ? (
+                <ResumeBuilderPdfDropzone
+                  compact
+                  uploadedFile={uploadedFile}
+                  extracting={extractingText}
+                  isDragActive={isDragActive}
+                  maxSizeLabel={maxSizeLabel}
+                  getRootProps={getRootProps}
+                  getInputProps={getInputProps}
+                  onRemoveFile={() => {
                     setUploadedFile(null);
                     setResumeText("");
                     setPhase("upload");
                     setErrorMessage(null);
                   }}
+                  footer={
+                    uploadedFile && resumeText && phase === "upload" ? (
+                      <Button
+                        type="button"
+                        className={cn("w-full", resumeBuilderPrimaryButton)}
+                        onClick={() =>
+                          runPdfImport(resumeText, uploadedFile.name)
+                        }
+                        disabled={extractingText}
+                      >
+                        Import resume data
+                      </Button>
+                    ) : null
+                  }
+                />
+              ) : (
+                <ResumeBuilderLinkedInForm
+                  id="edit-linkedin-handle"
+                  value={linkedinHandle}
+                  onChange={setLinkedinHandle}
+                  onSubmit={() => void runLinkedInImport()}
+                  footer={
+                    <div className={resumeBuilderFooterActions}>
+                      {phase === "error" ? (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className={cn("w-full sm:w-auto", resumeBuilderOutlineButton)}
+                          onClick={resetState}
+                        >
+                          Try again
+                        </Button>
+                      ) : (
+                        <span className="hidden sm:block" />
+                      )}
+                      <Button
+                        type="button"
+                        className={cn("w-full sm:w-auto", resumeBuilderPrimaryButton)}
+                        onClick={() => void runLinkedInImport()}
+                        disabled={!linkedinHandle.trim()}
+                      >
+                        Import from LinkedIn
+                      </Button>
+                    </div>
+                  }
+                />
+              )}
+
+              {importMethod === "pdf" && phase === "error" ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className={cn("w-full", resumeBuilderOutlineButton)}
+                  onClick={resetState}
                 >
-                  <X className="h-4 w-4" />
+                  Try again
                 </Button>
-              </div>
-            )}
-
-            {uploadedFile && resumeText && phase === "upload" ? (
-              <Button
-                type="button"
-                className={cn("w-full", appPrimaryButton)}
-                onClick={() => runImport(resumeText)}
-                disabled={extractingText}
-              >
-                Import resume data
-              </Button>
-            ) : null}
-
-            {phase === "error" ? (
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full"
-                onClick={resetState}
-              >
-                Try again
-              </Button>
-            ) : null}
-          </div>
-        )}
+              ) : null}
+            </div>
+          )}
+        </div>
       </DialogContent>
     </Dialog>
   );
