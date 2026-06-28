@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -31,8 +32,27 @@ function LayoutNumberField({
   step = 0.5,
   onChange,
 }: LayoutNumberFieldProps) {
-  const clamp = (next: number) =>
-    Math.max(min, Math.min(max, Number(next.toFixed(1))));
+  const [draft, setDraft] = useState<string | null>(null);
+
+  const clamp = (next: number) => {
+    const bounded = Math.max(min, Math.min(max, next));
+    return Number.isInteger(step) ? Math.round(bounded) : Number(bounded.toFixed(1));
+  };
+
+  const commitDraft = (raw: string) => {
+    if (raw.trim() === "" || raw === "-") {
+      onChange(min);
+      return;
+    }
+
+    const parsed = Number(raw);
+    if (Number.isNaN(parsed)) {
+      onChange(value);
+      return;
+    }
+
+    onChange(clamp(parsed));
+  };
 
   return (
     <div className="space-y-1">
@@ -53,8 +73,26 @@ function LayoutNumberField({
           min={min}
           max={max}
           step={step}
-          value={value}
-          onChange={(e) => onChange(clamp(Number(e.target.value) || min))}
+          value={draft ?? value}
+          onChange={(e) => {
+            const raw = e.target.value;
+            setDraft(raw);
+
+            if (raw.trim() === "" || raw === "-") {
+              return;
+            }
+
+            const parsed = Number(raw);
+            if (!Number.isNaN(parsed)) {
+              onChange(clamp(parsed));
+            }
+          }}
+          onBlur={() => {
+            if (draft !== null) {
+              commitDraft(draft);
+              setDraft(null);
+            }
+          }}
           className={INPUT_CLASS}
           aria-label={label}
         />
@@ -72,6 +110,8 @@ function LayoutNumberField({
     </div>
   );
 }
+
+export { LayoutNumberField };
 
 export interface LayoutTypographyValues {
   fontSize: {

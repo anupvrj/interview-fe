@@ -63,9 +63,22 @@ const SHOW_RECONNECT_ATTEMPT_DEBUG =
   process.env.NEXT_PUBLIC_VERCEL_ENV === "preview" ||
   process.env.NEXT_PUBLIC_APP_ENV === "staging";
 
-/** Voice provider for realtime: "gemini" (default) or "chatgpt". Set via NEXT_PUBLIC_VOICE_PROVIDER. */
-const VOICE_PROVIDER: "chatgpt" | "gemini" =
-  (process.env.NEXT_PUBLIC_VOICE_PROVIDER as "chatgpt" | "gemini") || "gemini";
+/** Voice provider for realtime interviews. Valid: `gemini` (default) or `chatgpt`. */
+function resolveVoiceProvider(
+  raw: string | undefined,
+): "chatgpt" | "gemini" {
+  if (raw === "chatgpt" || raw === "gemini") return raw;
+  if (raw) {
+    console.warn(
+      `[Voice] Invalid NEXT_PUBLIC_VOICE_PROVIDER="${raw}". Use "gemini" or "chatgpt". Defaulting to gemini.`,
+    );
+  }
+  return "gemini";
+}
+
+const VOICE_PROVIDER = resolveVoiceProvider(
+  process.env.NEXT_PUBLIC_VOICE_PROVIDER,
+);
 
 const RECORDING_OPT_IN_STORAGE_PREFIX = "interviewRecordingOptIn_";
 
@@ -657,11 +670,8 @@ export function RealtimeInterviewClient({
       websocketRef.current = ws;
 
       ws.onopen = () => {
-        // For Gemini, wait for the backend "connected" message (Gemini session ready)
-        // before enabling the Start button. For ChatGPT, enable immediately on WS open.
-        if (voiceProviderRef.current !== "gemini") {
-          setConnected(true);
-        } else {
+        // Wait for backend "connected" once upstream AI session is ready (Gemini + ChatGPT).
+        if (voiceProviderRef.current === "gemini") {
           // App-level keepalive from first byte of session (covers long AI prep on Railway).
           startClientWsHeartbeat();
         }
@@ -718,8 +728,9 @@ export function RealtimeInterviewClient({
             setConnected(true);
           } else if (data.type === "connected") {
             if (data.provider) voiceProviderRef.current = data.provider;
-            // Gemini session is ready — enable the Start Interview button
+            // Upstream AI session is ready — enable Start Interview
             setConnected(true);
+            setError("");
           } else if (data.type === "openai_event") {
             handleOpenAIEvent(data.event);
           } else if (data.type === "audio_response") {

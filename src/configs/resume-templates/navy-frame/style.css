@@ -1,0 +1,214 @@
+/**
+ * Navy Frame Template Styles
+ * Single-column resume with a soft-grey profile header band and navy section headers.
+ */
+
+.navy-frame-template {
+  font-family: 'Helvetica Neue', Arial, sans-serif;
+  color: #1f2937;
+  background-color: #ffffff;
+  line-height: 1.5;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+  color-adjust: exact !important;
+}
+
+/* Header band */
+.navy-frame-header-section {
+  background-color: #eef1f4 !important;
+  padding: 18px 22px !important;
+  gap: 22px !important;
+  align-items: center !important;
+  margin-bottom: 16px !important;
+  border-radius: 4px;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+  color-adjust: exact !important;
+}
+
+.navy-frame-profile-picture {
+  width: 96px !important;
+  height: 96px !important;
+  border-radius: 6px !important;
+  object-fit: cover;
+}
+
+.navy-frame-profile-placeholder {
+  width: 96px !important;
+  height: 96px !important;
+  border-radius: 6px !important;
+  background-color: #d6dbe2 !important;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+}
+
+.navy-frame-name {
+  font-size: 26px;
+  font-weight: 700;
+  color: #1f3a5f !important;
+  letter-spacing: 0.5px;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+}
+
+.navy-frame-job-title {
+  font-size: 14px;
+  color: #5a6b7d !important;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+}
+
+.navy-frame-contact-item,
+.navy-frame-contact-item span {
+  color: #1f2937 !important;
+}
+
+.navy-frame-contact-item svg {
+  color: #1f3a5f !important;
+  stroke: #1f3a5f !important;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+}
+
+/* Section headers */
+.navy-frame-section-header,
+.navy-frame-template h2 {
+  font-size: 12px !important;
+  font-weight: 700;
+  text-transform: uppercase;
+  text-align: left;
+  letter-spacing: 0.5px;
+  color: #1f3a5f !important;
+  border-bottom: 1.5px solid #1f3a5f !important;
+  border-top: none !important;
+  padding-bottom: 4px !important;
+  margin-bottom: 10px !important;
+  margin-top: 14px !important;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+  color-adjust: exact !important;
+}
+
+.navy-frame-summary {
+  font-size: 11px;
+  line-height: 1.5;
+  color: #1f2937;
+}
+
+.navy-frame-experience-item {
+  margin-bottom: 12px;
+  page-break-inside: avoid;
+}
+
+.navy-frame-job-title-exp {
+  font-size: 12px;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.navy-frame-company {
+  font-size: 11px;
+  color: #5a6b7d;
+  margin-bottom: 3px;
+}
+
+.navy-frame-job-date,
+.navy-frame-job-location,
+.navy-frame-job-meta {
+  font-size: 11px;
+  font-weight: 700;
+  color: #1f2937;
+  line-height: 1.3;
+}
+
+.navy-frame-description {
+  font-size: 11px;
+  line-height: 1.5;
+  color: #1f2937;
+}
+
+.navy-frame-description ul {
+  margin: 2px 0;
+  padding-left: 18px;
+}
+
+.navy-frame-description li {
+  margin-bottom: 3px;
+}
+
+.navy-frame-degree {
+  font-size: 12px;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.navy-frame-institution {
+  font-size: 11px;
+  color: #5a6b7d;
+}
+
+.navy-frame-education-date {
+  font-size: 11px;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.navy-frame-skill-item {
+  font-size: 11px;
+  color: #1f2937;
+  position: relative;
+  padding-left: 12px;
+  margin-bottom: 4px !important;
+}
+
+.navy-frame-skill-item::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 7px;
+  width: 4px;
+  height: 4px;
+  background-color: #1f3a5f;
+  border-radius: 50%;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+}
+
+@media print {
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+
+  .navy-frame-header-section {
+    background-color: #eef1f4 !important;
+  }
+
+  .navy-frame-profile-placeholder {
+    background-color: #d6dbe2 !important;
+  }
+
+  .navy-frame-name,
+  .navy-frame-section-header,
+  .navy-frame-template h2,
+  .navy-frame-contact-item svg {
+    color: #1f3a5f !important;
+  }
+
+  .navy-frame-section-header,
+  .navy-frame-template h2 {
+    border-bottom-color: #1f3a5f !important;
+    border-bottom-style: solid !important;
+  }
+
+  .navy-frame-skill-item::before {
+    background-color: #1f3a5f !important;
+  }
+
+  .navy-frame-experience-item,
+  .navy-frame-education-item,
+  .navy-frame-section {
+    page-break-inside: avoid;
+  }
+}

@@ -1,0 +1,196 @@
+/**
+ * Saffron Line Template Styles
+ * Two-column resume with serif headings, saffron rules and a thin column divider.
+ */
+
+.saffron-line-template {
+  font-family: Georgia, 'Times New Roman', serif;
+  color: #2b2b2b;
+  background-color: #ffffff;
+  line-height: 1.45;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+  color-adjust: exact !important;
+}
+
+/* Thin saffron divider between the two columns (scoped to this template) */
+.saffron-line-template [data-resume-left-column] {
+  border-right: 1.5px solid #e3cfa6;
+}
+
+/* Identity */
+.saffron-line-name {
+  font-size: 26px;
+  font-weight: 700;
+  color: #2b2b2b !important;
+  letter-spacing: 0.3px;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+}
+
+.saffron-line-job-title {
+  font-size: 15px;
+  font-style: italic;
+  color: #c0871f !important;
+  font-weight: 400;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+}
+
+.saffron-line-contact {
+  font-size: 10px;
+}
+
+.saffron-line-contact-item,
+.saffron-line-contact-item span {
+  color: #2b2b2b !important;
+}
+
+.saffron-line-contact-item svg {
+  color: #c0871f !important;
+  stroke: #c0871f !important;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+}
+
+/* Section headers */
+.saffron-line-section-header,
+.saffron-line-template h2 {
+  font-size: 12px !important;
+  font-weight: 700;
+  text-transform: uppercase;
+  text-align: left;
+  letter-spacing: 0.6px;
+  color: #2b2b2b !important;
+  border-bottom: 1.5px solid #c0871f !important;
+  border-top: none !important;
+  padding-bottom: 4px !important;
+  margin-bottom: 10px !important;
+  margin-top: 6px !important;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+  color-adjust: exact !important;
+}
+
+.saffron-line-summary {
+  font-size: 11px;
+  line-height: 1.5;
+  color: #2b2b2b;
+}
+
+/* Experience */
+.saffron-line-experience-item {
+  margin-bottom: 14px;
+  page-break-inside: avoid;
+}
+
+.saffron-line-job-title-exp {
+  font-size: 12px;
+  font-weight: 700;
+  color: #2b2b2b;
+}
+
+.saffron-line-company {
+  font-size: 11px;
+  font-style: italic;
+  color: #6a6a6a;
+  margin-bottom: 3px;
+}
+
+.saffron-line-job-date,
+.saffron-line-job-location,
+.saffron-line-job-meta {
+  font-size: 10px;
+  color: #6a6a6a;
+  line-height: 1.3;
+}
+
+.saffron-line-description {
+  font-size: 11px;
+  line-height: 1.5;
+  color: #2b2b2b;
+}
+
+.saffron-line-description ul {
+  margin: 2px 0;
+  padding-left: 16px;
+}
+
+.saffron-line-description li {
+  margin-bottom: 3px;
+}
+
+/* Education */
+.saffron-line-degree {
+  font-size: 12px;
+  font-weight: 700;
+  color: #2b2b2b;
+}
+
+.saffron-line-institution {
+  font-size: 11px;
+  color: #6a6a6a;
+  font-style: italic;
+}
+
+.saffron-line-education-date {
+  font-size: 10px;
+  color: #6a6a6a;
+}
+
+/* Skills (sidebar) */
+.saffron-line-skill-item {
+  font-size: 11px;
+  color: #2b2b2b;
+  position: relative;
+  padding-left: 12px;
+  margin-bottom: 5px !important;
+}
+
+.saffron-line-skill-item::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 7px;
+  width: 4px;
+  height: 4px;
+  background-color: #c0871f;
+  border-radius: 50%;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+}
+
+@media print {
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+
+  .saffron-line-template [data-resume-left-column] {
+    border-right-color: #e3cfa6 !important;
+    border-right-style: solid !important;
+  }
+
+  .saffron-line-job-title,
+  .saffron-line-contact-item svg {
+    color: #c0871f !important;
+  }
+
+  .saffron-line-section-header,
+  .saffron-line-template h2 {
+    color: #2b2b2b !important;
+    border-bottom-color: #c0871f !important;
+    border-bottom-style: solid !important;
+  }
+
+  .saffron-line-skill-item::before {
+    background-color: #c0871f !important;
+  }
+
+  .saffron-line-experience-item,
+  .saffron-line-education-item,
+  .saffron-line-section {
+    page-break-inside: avoid;
+  }
+}
