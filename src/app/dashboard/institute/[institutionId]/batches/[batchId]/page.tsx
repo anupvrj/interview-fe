@@ -1304,7 +1304,7 @@ export default function BatchDetailPage() {
             <div className="min-w-0">
               <Label>Language</Label>
               <select
-                className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="app-control mt-1 w-full bg-card"
                 value={schLang}
                 onChange={(e) => setSchLang(e.target.value as "en" | "hi")}
               >
@@ -1315,7 +1315,7 @@ export default function BatchDetailPage() {
             <div className="min-w-0">
               <Label>Duration</Label>
               <select
-                className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="app-control mt-1 w-full bg-card"
                 value={schDur}
                 onChange={(e) => setSchDur(e.target.value as "15" | "30")}
               >

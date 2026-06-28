@@ -623,7 +623,7 @@ export default function InstituteSchedulesPage() {
               <Label htmlFor="edit-sch-lang">Language</Label>
               <select
                 id="edit-sch-lang"
-                className="mt-1 w-full rounded-md border px-3 py-2"
+                className="app-control mt-1 w-full bg-card"
                 value={editLang}
                 onChange={(e) => setEditLang(e.target.value as "en" | "hi")}
               >
@@ -660,7 +660,7 @@ export default function InstituteSchedulesPage() {
               <Label htmlFor="edit-sch-dur">Duration</Label>
               <select
                 id="edit-sch-dur"
-                className="mt-1 w-full rounded-md border px-3 py-2"
+                className="app-control mt-1 w-full bg-card"
                 value={editDuration}
                 onChange={(e) => setEditDuration(e.target.value as "15" | "30")}
               >
@@ -841,7 +841,7 @@ export default function InstituteSchedulesPage() {
               <Label htmlFor="inst-sch-lang">Language</Label>
               <select
                 id="inst-sch-lang"
-                className="mt-1 w-full rounded-md border px-3 py-2"
+                className="app-control mt-1 w-full bg-card"
                 value={scheduleLang}
                 onChange={(e) => setScheduleLang(e.target.value as "en" | "hi")}
               >
@@ -878,7 +878,7 @@ export default function InstituteSchedulesPage() {
               <Label htmlFor="inst-sch-dur">Duration</Label>
               <select
                 id="inst-sch-dur"
-                className="mt-1 w-full rounded-md border px-3 py-2"
+                className="app-control mt-1 w-full bg-card"
                 value={scheduleDuration}
                 onChange={(e) => setScheduleDuration(e.target.value as "15" | "30")}
               >

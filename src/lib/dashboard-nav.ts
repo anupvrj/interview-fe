@@ -18,8 +18,10 @@ import {
   Code2,
   Network,
   BarChart2,
+  UserPlus,
 } from "lucide-react";
-import type { AccessRole } from "@/lib/api";
+import type { AccessRole, User as ApiUser } from "@/lib/api";
+import { isPathAllowedForRole, type ActiveRole } from "@/lib/roles";
 
 export type DashboardNavAccent = {
   iconBg: string;
@@ -124,7 +126,12 @@ const baseMenuItems: DashboardNavItem[] = [
     href: "/dashboard/peer-interviews",
     icon: UsersRound,
     accent: accent.violet,
-    locked: true,
+  },
+  {
+    title: "Interviewer Dashboard",
+    href: "/dashboard/peer-interviews/interviewer",
+    icon: CalendarClock,
+    accent: accent.cyan,
   },
   {
     title: "Job Board",
@@ -151,6 +158,10 @@ const baseMenuItems: DashboardNavItem[] = [
     accent: accent.slate,
   },
 ];
+
+export function isPlatformAdmin(accessRole: AccessRole | null): boolean {
+  return accessRole === "super_admin";
+}
 
 export function getDashboardNavItems(
   accessRole: AccessRole | null,
@@ -232,15 +243,24 @@ export function getDashboardNavItems(
   let items = [...baseMenuItems];
 
   if (accessRole !== "super_admin") {
-    items = items.filter(
-      (item) =>
-        item.href !== "/dashboard/peer-interviews" &&
-        item.href !== "/dashboard/job-board",
-    );
+    // Peer Interviews is now open to all users; Job Board remains gated.
+    items = items.filter((item) => item.href !== "/dashboard/job-board");
   }
 
-  if (accessRole === "super_admin") {
+  if (isPlatformAdmin(accessRole)) {
     items.push(
+      {
+        title: "Peer — Interviewers",
+        href: "/dashboard/super-admin/peer-interviewers",
+        icon: Users,
+        accent: accent.emerald,
+      },
+      {
+        title: "Peer — Bookings",
+        href: "/dashboard/super-admin/peer-bookings",
+        icon: Receipt,
+        accent: accent.amber,
+      },
       {
         title: "Institution Admin",
         href: "/dashboard/institute",
@@ -257,4 +277,71 @@ export function getDashboardNavItems(
   }
 
   return items;
+}
+
+const PEER_APPLY_NAV_ITEM: DashboardNavItem = {
+  title: "Become an interviewer",
+  href: "/dashboard/peer-interviews/interviewer/apply",
+  icon: UserPlus,
+  accent: accent.emerald,
+};
+
+const PEER_EARNINGS_NAV_ITEM: DashboardNavItem = {
+  title: "Peer — Earnings",
+  href: "/dashboard/peer-interviews/interviewer/earnings",
+  icon: Receipt,
+  accent: accent.violet,
+};
+
+/** Hide interviewer dashboard until applied; show apply link for new candidates. */
+export function withPeerNavItems(
+  items: DashboardNavItem[],
+  peer: ApiUser["peer"] | null | undefined,
+): DashboardNavItem[] {
+  const hasInterviewerProfile = Boolean(peer?.interviewerStatus);
+
+  let next = items.filter(
+    (item) =>
+      item.href !== "/dashboard/peer-interviews/interviewer" || hasInterviewerProfile,
+  );
+
+  if (hasInterviewerProfile) {
+    const hubIdx = next.findIndex(
+      (item) => item.href === "/dashboard/peer-interviews/interviewer",
+    );
+    if (hubIdx !== -1 && !next.some((item) => item.href === PEER_EARNINGS_NAV_ITEM.href)) {
+      next = [
+        ...next.slice(0, hubIdx + 1),
+        PEER_EARNINGS_NAV_ITEM,
+        ...next.slice(hubIdx + 1),
+      ];
+    }
+  }
+
+  const shouldShowApply = peer && !peer.isInterviewer && !peer.interviewerStatus;
+  if (!shouldShowApply) return next;
+
+  const profileIdx = next.findIndex((item) => item.href === "/dashboard/profile");
+  if (profileIdx === -1) return [...next, PEER_APPLY_NAV_ITEM];
+
+  return [
+    ...next.slice(0, profileIdx + 1),
+    PEER_APPLY_NAV_ITEM,
+    ...next.slice(profileIdx + 1),
+  ];
+}
+
+/**
+ * Scope the sidebar to the active role. super_admin (and a null/unknown role)
+ * sees every item; other roles only keep items they're allowed to open.
+ */
+export function filterNavByActiveRole(
+  items: DashboardNavItem[],
+  activeRole: ActiveRole | null,
+  profile: Pick<ApiUser, "institutionId"> | null | undefined,
+): DashboardNavItem[] {
+  if (!activeRole || activeRole === "super_admin") return items;
+  return items.filter((item) =>
+    isPathAllowedForRole(activeRole, item.href, profile),
+  );
 }

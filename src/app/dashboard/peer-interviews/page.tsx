@@ -1,356 +1,450 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useUser } from "@clerk/nextjs";
-import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useUser } from "@clerk/nextjs";
+import { CalendarCheck, Loader2, Search, SlidersHorizontal, UsersRound } from "lucide-react";
+import { toast } from "sonner";
+import { PageHeader } from "@/components/app/PageHeader";
 import { Button } from "@/components/ui/button";
-import { Interview, interviewApi, userApi } from "@/lib/api";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { AppSelect } from "@/components/ui/app-select";
+import { InterviewerCard } from "@/components/peer/InterviewerCard";
+import { appCard, appFilterBar } from "@/lib/app-theme";
 import {
-  getPeerInterviewUnlockStatus,
-  PEER_INTERVIEW_UNLOCK_MIN_AVG_SCORE,
-  PEER_INTERVIEW_UNLOCK_MIN_COUNT,
-} from "@/lib/peer-interviews";
-import { cn, getScoreColor } from "@/lib/utils";
-import {
-  ArrowRight,
-  CheckCircle,
-  Loader2,
-  Lock,
-  PlayCircle,
-  Sparkles,
-} from "lucide-react";
+  peerApi,
+  type PeerIndustry,
+  type PeerInterviewType,
+  type PeerInterviewerCard,
+} from "@/lib/api";
+import { cn } from "@/lib/utils";
 
-/** Frosted glass: blur + saturation read as “real” glass in WebKit/Blink */
-const glassBackdrop = {
-  backdropFilter: "blur(22px) saturate(180%)",
-  WebkitBackdropFilter: "blur(22px) saturate(180%)",
-} as const;
+const PAGE_SIZE = 15;
 
-/** Cancel `DashboardLayout` main padding (`p-3 sm:p-4 lg:p-8`) so the route background is edge-to-edge */
-const dashboardContentBleed =
-  "-mx-3 -mt-3 -mb-3 sm:-mx-4 sm:-mt-4 sm:-mb-4 lg:-mx-8 lg:-mt-8 lg:-mb-8";
+type SortOption = "rating_desc" | "rating_asc" | "price_asc" | "price_desc";
 
-/** Fill the viewport below dashboard chrome (header + padding fudge) */
-const dashboardRouteMinH =
-  "min-h-[calc(100dvh-6.5rem)] sm:min-h-[calc(100dvh-6rem)] lg:min-h-[calc(100dvh-5.5rem)]";
+function parseSort(option: SortOption): { sortBy: "rating" | "price"; sortOrder: "asc" | "desc" } {
+  switch (option) {
+    case "rating_asc":
+      return { sortBy: "rating", sortOrder: "asc" };
+    case "price_asc":
+      return { sortBy: "price", sortOrder: "asc" };
+    case "price_desc":
+      return { sortBy: "price", sortOrder: "desc" };
+    default:
+      return { sortBy: "rating", sortOrder: "desc" };
+  }
+}
 
-export default function PeerInterviewsPage() {
-  const { user, isLoaded } = useUser();
-  const router = useRouter();
-  const [interviews, setInterviews] = useState<Interview[]>([]);
+export default function PeerInterviewsDirectoryPage() {
+  const { isLoaded, user } = useUser();
+  const [types, setTypes] = useState<PeerInterviewType[]>([]);
+  const [industries, setIndustries] = useState<PeerIndustry[]>([]);
+  const [items, setItems] = useState<PeerInterviewerCard[]>([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
+
+  // filters
+  const [searchName, setSearchName] = useState("");
+  const [searchCompany, setSearchCompany] = useState("");
+  const [appliedName, setAppliedName] = useState("");
+  const [appliedCompany, setAppliedCompany] = useState("");
+  const [type, setType] = useState("");
+  const [minExperience, setMinExperience] = useState("");
+  const [industry, setIndustry] = useState("");
+  const [role, setRole] = useState("");
+  const [sort, setSort] = useState<SortOption>("rating_desc");
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+
+  const hasActiveSearch = Boolean(appliedName || appliedCompany);
+
+  const hasActiveFilters = Boolean(
+    appliedName ||
+      appliedCompany ||
+      searchName.trim() ||
+      searchCompany.trim() ||
+      type ||
+      minExperience ||
+      industry.trim() ||
+      role.trim() ||
+      sort !== "rating_desc",
+  );
+
+  const typeNames = useMemo(() => {
+    const m: Record<string, string> = {};
+    for (const t of types) m[t.key] = t.name;
+    return m;
+  }, [types]);
+
+  const roleOptions = useMemo(() => {
+    if (industry) {
+      return industries.find((item) => item.name === industry)?.roles ?? [];
+    }
+    const all = new Set<string>();
+    for (const item of industries) {
+      for (const r of item.roles) all.add(r);
+    }
+    return [...all].sort((a, b) => a.localeCompare(b));
+  }, [industries, industry]);
 
   useEffect(() => {
-    if (!isLoaded || !user) return;
+    peerApi.listInterviewTypes().then(setTypes).catch(() => undefined);
+    peerApi.listIndustries().then(setIndustries).catch(() => undefined);
+  }, []);
 
-    (async () => {
+  useEffect(() => {
+    if (role && !roleOptions.includes(role)) {
+      setRole("");
+    }
+  }, [role, roleOptions]);
+
+  useEffect(() => {
+    if (!type && (sort === "price_asc" || sort === "price_desc")) {
+      setSort("rating_desc");
+    }
+  }, [type, sort]);
+
+  const fetchInterviewers = useCallback(
+    async (targetPage: number) => {
+      const { sortBy, sortOrder } = parseSort(sort);
+      if (sortBy === "price" && !type) {
+        toast.error("Select an interview type to sort by price");
+        return;
+      }
+
+      setLoading(true);
       try {
-        const profile = await userApi.getMyProfile();
-        if (
-          profile.accessRole === "institution_admin" &&
-          profile.institutionId
-        ) {
-          router.replace(
-            `/dashboard/institute/${String(profile.institutionId)}`,
-          );
-          return;
-        }
-        const list = await interviewApi.list(user.id);
-        setInterviews(list);
-      } catch {
-        setInterviews([]);
+        const res = await peerApi.listInterviewers({
+          name: appliedName || undefined,
+          company: appliedCompany || undefined,
+          type: type || undefined,
+          minExperience: minExperience || undefined,
+          industry: industry || undefined,
+          role: role || undefined,
+          sortBy,
+          sortOrder,
+          page: targetPage,
+          pageSize: PAGE_SIZE,
+        });
+        setItems(res.items);
+        setTotalPages(res.totalPages || 1);
+        setTotal(res.total);
+        setPage(res.page);
+      } catch (e: any) {
+        toast.error(e?.response?.data?.message || "Could not load interviewers");
       } finally {
         setLoading(false);
       }
-    })();
-  }, [isLoaded, user, router]);
-
-  if (!isLoaded || loading) {
-    return (
-      <div className="flex min-h-[400px] items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="mx-auto mb-4 h-12 w-12 animate-spin text-primary" />
-          <p className="text-gray-600">Loading peer interviews…</p>
-        </div>
-      </div>
-    );
-  }
-
-  const unlock = getPeerInterviewUnlockStatus(interviews);
-  const progressScores = unlock.last10Scores.slice(
-    0,
-    PEER_INTERVIEW_UNLOCK_MIN_COUNT,
+    },
+    [appliedName, appliedCompany, type, minExperience, industry, role, sort],
   );
-  const slotFillPercent =
-    (progressScores.length / PEER_INTERVIEW_UNLOCK_MIN_COUNT) * 100;
 
-  if (unlock.unlocked) {
-    return (
-      <div
-        className={`relative flex ${dashboardRouteMinH} flex-col overflow-hidden ${dashboardContentBleed}`}
-      >
-        <div
-          className="pointer-events-none absolute inset-0 bg-gradient-to-br from-sky-200/50 via-muted/40 to-indigo-200/45"
-          aria-hidden
-        />
-        <div
-          className="pointer-events-none absolute -left-24 top-1/4 h-72 w-72 rounded-full bg-primary/80/25 blur-3xl"
-          aria-hidden
-        />
-        <div
-          className="pointer-events-none absolute -right-20 bottom-0 h-80 w-80 rounded-full bg-indigo-300/20 blur-3xl"
-          aria-hidden
-        />
+  useEffect(() => {
+    if (!isLoaded || !user) return;
+    void fetchInterviewers(1);
+  }, [isLoaded, user, fetchInterviewers]);
 
-        <div className="relative z-10 flex flex-1 flex-col items-center justify-center px-4 py-10 sm:px-6 lg:px-8">
-          <article
-            className="relative w-full max-w-2xl overflow-hidden rounded-2xl border border-white/[0.72] bg-gradient-to-br from-white/[0.42] via-white/[0.22] to-white/[0.12] p-8 shadow-[0_8px_32px_rgba(37,99,235,0.14),0_32px_64px_-24px_rgba(99,102,241,0.12)] ring-1 ring-white/30 sm:p-10 lg:p-12"
-            style={glassBackdrop}
-          >
-            <div
-              className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/90 to-transparent"
-              aria-hidden
-            />
-            <div className="relative mb-5 flex h-14 w-14 items-center justify-center rounded-xl bg-primary shadow-lg shadow-primary/30 sm:h-16 sm:w-16">
-              <CheckCircle className="h-7 w-7 text-white sm:h-8 sm:w-8" />
-            </div>
-            <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl">
-              Peer interviews unlocked
-            </h1>
-            <p className="mt-3 text-base leading-relaxed text-slate-600 sm:text-lg">
-              You beat the warmup wall—your last{" "}
-              {PEER_INTERVIEW_UNLOCK_MIN_COUNT} scored sessions average{" "}
-              <span className="font-semibold text-emerald-700">
-                {unlock.averageLast10}%
-              </span>
-              {". Matching with practicing engineers plus structured feedback rolls out here soon."}
-            </p>
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <Link href="/dashboard" className="flex-1">
-                <Button
-                  variant="outline"
-                  className="h-14 min-h-[3.5rem] w-full border border-white/50 bg-white/20 text-base font-semibold text-primary shadow-[inset_0_1px_0_0_rgba(255,255,255,0.55)] hover:bg-white/35 sm:text-lg"
-                  style={glassBackdrop}
-                >
-                  Back to dashboard
-                </Button>
-              </Link>
-            </div>
-          </article>
-        </div>
-      </div>
-    );
-  }
+  const runSearch = () => {
+    const name = searchName.trim();
+    const company = searchCompany.trim();
+    if (!name && !company) {
+      toast.error("Enter an interviewer name or company to search");
+      return;
+    }
+    setAppliedName(name);
+    setAppliedCompany(company);
+  };
+
+  const clearSearch = () => {
+    setSearchName("");
+    setSearchCompany("");
+    setAppliedName("");
+    setAppliedCompany("");
+  };
+
+  const toggleSearch = () => setSearchOpen((open) => !open);
+
+  const clearFilters = () => {
+    setSearchName("");
+    setSearchCompany("");
+    setAppliedName("");
+    setAppliedCompany("");
+    setType("");
+    setMinExperience("");
+    setIndustry("");
+    setRole("");
+    setSort("rating_desc");
+  };
+
+  const onIndustryChange = (value: string) => {
+    setIndustry(value);
+    if (value && role && !industries.find((item) => item.name === value)?.roles.includes(role)) {
+      setRole("");
+    }
+  };
 
   return (
-    <div
-      className={`relative flex ${dashboardRouteMinH} flex-col overflow-hidden ${dashboardContentBleed}`}
-    >
-      {/* Backdrop so glass reads clearly */}
-      <div
-        className="pointer-events-none absolute inset-0 bg-gradient-to-br from-sky-300/65 via-violet-200/50 to-muted/55"
-        aria-hidden
-      />
-      <div
-        className="pointer-events-none absolute -left-32 top-16 h-[28rem] w-[28rem] rounded-full bg-primary/35 blur-3xl"
-        aria-hidden
-      />
-      <div
-        className="pointer-events-none absolute -right-28 bottom-12 h-96 w-96 rounded-full bg-fuchsia-400/30 blur-3xl"
-        aria-hidden
-      />
-      <div
-        className="pointer-events-none absolute left-1/4 top-1/2 h-72 w-72 -translate-y-1/2 rounded-full bg-cyan-300/35 blur-3xl"
-        aria-hidden
-      />
-
-      <div className="relative z-10 mx-auto flex w-full max-w-7xl flex-1 flex-col items-stretch gap-8 px-4 py-10 sm:px-6 lg:flex-row lg:items-center lg:gap-10 lg:px-8 lg:py-12 xl:gap-12">
-        {/* Left: main glass content */}
-        <article
-          className="relative min-w-0 flex-1 overflow-hidden rounded-2xl border border-white/[0.72] bg-gradient-to-br from-white/[0.38] via-white/[0.2] to-white/[0.08] p-6 shadow-[0_8px_32px_rgba(37,99,235,0.12),0_32px_64px_-20px_rgba(79,70,229,0.14)] ring-1 ring-inset ring-white/25 sm:p-8 lg:max-w-[64%] lg:p-10 xl:max-w-[62%]"
-          style={glassBackdrop}
-        >
-          <div
-            className="pointer-events-none absolute inset-x-4 top-0 h-px bg-gradient-to-r from-transparent via-white to-transparent opacity-90 sm:inset-x-6 lg:inset-x-8"
-            aria-hidden
-          />
-          <header className="relative flex items-start gap-3 sm:gap-4">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary shadow-md shadow-primary/25 ring-1 ring-white/50 sm:h-12 sm:w-12">
-              <Sparkles
-                className="h-5 w-5 sm:h-6 sm:w-6"
-                strokeWidth={2}
-              />
-            </div>
-            <div className="min-w-0">
-              <h1 className="text-lg font-bold text-slate-900 sm:text-xl lg:text-2xl">
-                Your progress toward Peer interviews
-              </h1>
-              <p className="mt-1.5 text-sm leading-relaxed text-slate-600 sm:text-base">
-                Graduate from solo AI rehearsals to timed sessions with real
-                engineers who comment like hiring panels—earn it by averaging{" "}
-                {PEER_INTERVIEW_UNLOCK_MIN_AVG_SCORE}% across your last{" "}
-                {PEER_INTERVIEW_UNLOCK_MIN_COUNT} completed AI Interview Practice
-                sessions.
-              </p>
-            </div>
-          </header>
-
-          {/* Score row */}
-          <section className="relative mt-6">
-            <p className="mb-3 text-sm font-semibold text-slate-800 sm:text-base">
-              Last {PEER_INTERVIEW_UNLOCK_MIN_COUNT} scores (newest first)
-            </p>
-            <div
-              className="flex flex-wrap gap-2 sm:gap-2.5"
-              role="list"
-              aria-label="Recent interview scores"
-            >
-              {Array.from({ length: PEER_INTERVIEW_UNLOCK_MIN_COUNT }).map(
-                (_, i) => {
-                  const s = progressScores[i];
-                  return (
-                    <div
-                      key={i}
-                      role="listitem"
-                      className={cn(
-                        "flex h-10 min-w-[2.75rem] items-center justify-center rounded-lg border text-sm font-bold tabular-nums shadow-[inset_0_1px_0_0_rgba(255,255,255,0.45)] sm:h-11 sm:min-w-[3rem] sm:text-base",
-                        s != null
-                          ? cn(
-                              "border-white/55 bg-white/18 backdrop-blur-[8px]",
-                              getScoreColor(s),
-                            )
-                          : "border-dashed border-white/45 bg-white/[0.08] text-slate-500/90 backdrop-blur-[6px]",
-                      )}
-                      style={
-                        s != null
-                          ? {
-                              backdropFilter: "blur(8px) saturate(160%)",
-                              WebkitBackdropFilter: "blur(8px) saturate(160%)",
-                            }
-                          : {
-                              backdropFilter: "blur(6px) saturate(150%)",
-                              WebkitBackdropFilter: "blur(6px) saturate(150%)",
-                            }
-                      }
-                    >
-                      {s != null ? s : "—"}
-                    </div>
-                  );
-                },
+    <div className="space-y-6">
+      <PageHeader
+        title="Peer Interviews"
+        badge="Mock interviews with real engineers"
+        description="Book a live mock interview with verified engineers from top companies. Filter by round, experience, industry and role."
+        actions={
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={toggleSearch}
+              aria-expanded={searchOpen}
+              className={cn(
+                "relative",
+                searchOpen && "border-[#7367F0]/40 bg-[#7367F0]/5 text-[#7367F0]",
               )}
-            </div>
-          </section>
+            >
+              <Search className="mr-2 h-4 w-4" />
+              Search Interviewer
+              {hasActiveSearch ? (
+                <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-[#7367F0]" />
+              ) : null}
+            </Button>
+            <Link href="/dashboard/peer-interviews/bookings">
+              <Button variant="outline">
+                <CalendarCheck className="mr-2 h-4 w-4" /> My bookings
+              </Button>
+            </Link>
+          </div>
+        }
+      />
 
-          {/* Inner glass progress panel */}
-          <section
-            className="relative mt-6 overflow-hidden rounded-xl border border-white/50 bg-gradient-to-br from-white/[0.22] to-white/[0.06] p-5 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.55),0_1px_2px_rgba(15,23,42,0.04)] sm:p-6"
-            style={{
-              backdropFilter: "blur(14px) saturate(170%)",
-              WebkitBackdropFilter: "blur(14px) saturate(170%)",
-            }}
-          >
-            <div
-              className="pointer-events-none absolute inset-x-0 top-0 h-px bg-white/50"
-              aria-hidden
-            />
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-sm sm:text-base">
-              <span className="font-semibold text-slate-800">
-                Overall progress
-              </span>
-              <span className="text-slate-600">
-                {progressScores.length} of {PEER_INTERVIEW_UNLOCK_MIN_COUNT}{" "}
-                slots filled
-              </span>
+      {searchOpen ? (
+        <div className={cn(appFilterBar, "space-y-3")}>
+          <p className="text-sm text-muted-foreground">
+            Search by name, company, or both. Leave name blank to see all interviewers from a company.
+          </p>
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
+            <div className="grid min-w-0 flex-1 grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="flex min-w-0 flex-col gap-1.5">
+                <Label htmlFor="peer-search-name" className="block text-xs font-medium text-muted-foreground">
+                  Interviewer name <span className="font-normal text-muted-foreground/80">(optional)</span>
+                </Label>
+                <Input
+                  id="peer-search-name"
+                  value={searchName}
+                  onChange={(e) => setSearchName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") runSearch();
+                  }}
+                  placeholder="Search by name"
+                  className="h-11 bg-card"
+                  autoFocus
+                />
+              </div>
+
+              <div className="flex min-w-0 flex-col gap-1.5">
+                <Label htmlFor="peer-search-company" className="block text-xs font-medium text-muted-foreground">
+                  Company
+                </Label>
+                <Input
+                  id="peer-search-company"
+                  value={searchCompany}
+                  onChange={(e) => setSearchCompany(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") runSearch();
+                  }}
+                  placeholder="e.g. Google — all interviewers from that company"
+                  className="h-11 bg-card"
+                />
+              </div>
             </div>
-            <div className="h-3 w-full overflow-hidden rounded-full bg-white/35 ring-1 ring-white/40 sm:h-3.5">
-              <div
-                className="h-full rounded-full bg-primary shadow-sm transition-[width] duration-500 ease-out"
-                style={{ width: `${slotFillPercent}%` }}
+
+            <div className="flex shrink-0 items-center gap-2 self-end">
+              <Button
+                type="button"
+                onClick={runSearch}
+                className="h-11 bg-[#7367F0] text-white hover:bg-[#6e62e5]"
+              >
+                <Search className="mr-2 h-4 w-4" />
+                Search
+              </Button>
+              {searchName.trim() || searchCompany.trim() || hasActiveSearch ? (
+                <Button type="button" variant="ghost" onClick={clearSearch} className="h-11">
+                  Clear
+                </Button>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      <div className={cn(appFilterBar, "space-y-4")}>
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
+          <div className="grid min-w-0 flex-1 grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="flex min-w-0 flex-col gap-1.5">
+              <Label htmlFor="peer-filter-type" className="block text-xs font-medium text-muted-foreground">
+                Interview type
+              </Label>
+              <AppSelect
+                id="peer-filter-type"
+                value={type}
+                onChange={setType}
+                allowEmpty
+                emptyLabel="All rounds"
+                options={types.map((t) => ({ value: t.key, label: t.name }))}
               />
             </div>
-            {unlock.scoredCompletedCount < PEER_INTERVIEW_UNLOCK_MIN_COUNT ? (
-              <p className="mt-3 text-sm leading-relaxed text-slate-600 sm:text-base">
-                You have{" "}
-                <strong className="font-semibold text-slate-800">
-                  {unlock.scoredCompletedCount}
-                </strong>{" "}
-                scored wrap-up
-                {unlock.scoredCompletedCount === 1 ? "" : "s"} on the books.
-                Keep closing AI Interview Practice sessions so reviewers can judge consistent
-                pacing, STAR depth, and how you synthesize AI feedback mid-loop.
-              </p>
-            ) : (
-              <p className="mt-3 text-sm leading-relaxed text-slate-600 sm:text-base">
-                Your rolling average is{" "}
-                <strong
-                  className={cn(
-                    "font-semibold",
-                    getScoreColor(unlock.averageLast10 ?? 0),
-                  )}
-                >
-                  {unlock.averageLast10}%
-                </strong>
-                . Hit{" "}
-                <strong className="font-semibold text-slate-800">
-                  {PEER_INTERVIEW_UNLOCK_MIN_AVG_SCORE}%
-                </strong>{" "}
-                and we unlock live peer mocks—same scoring rigor with human
-                nuance layered on top.
-              </p>
-            )}
-          </section>
 
-          {/* Actions */}
-          <div className="relative mt-6 flex flex-col gap-2.5 sm:flex-row sm:gap-3">
-            <Link href="/dashboard/interviews/new" className="flex-1">
-              <Button
-                size="lg"
-                className="h-12 min-h-[3rem] w-full rounded-xl !bg-primary px-5 text-sm font-semibold text-white shadow-md shadow-primary/25 transition-all hover:!bg-slate-900 hover:shadow-lg sm:text-base"
-              >
-                <PlayCircle className="mr-2 h-5 w-5 shrink-0" />
-                Start AI Interview Practice
-                <ArrowRight className="ml-2 h-4 w-4 shrink-0 opacity-90" />
-              </Button>
-            </Link>
-            <Link href="/dashboard/interviews" className="flex-1">
-              <Button
-                size="lg"
-                variant="outline"
-                className="h-12 min-h-[3rem] w-full rounded-xl border border-white/60 bg-white/15 px-5 text-sm font-semibold text-primary shadow-[inset_0_1px_0_0_rgba(255,255,255,0.55)] hover:bg-white/28 sm:text-base"
-                style={glassBackdrop}
-              >
-                View interview history
-              </Button>
-            </Link>
-          </div>
-        </article>
+            <div className="flex min-w-0 flex-col gap-1.5">
+              <Label htmlFor="peer-filter-role" className="block text-xs font-medium text-muted-foreground">
+                Role
+              </Label>
+              <AppSelect
+                id="peer-filter-role"
+                value={role}
+                onChange={setRole}
+                allowEmpty
+                emptyLabel="All roles"
+                options={roleOptions.map((item) => ({ value: item, label: item }))}
+              />
+            </div>
 
-        {/* Right: large lock — full side, no square frame */}
-        <aside className="relative flex min-h-[280px] flex-1 flex-col items-center justify-center px-4 py-6 lg:min-h-0 lg:max-w-[36%] lg:items-center lg:justify-center lg:px-5 xl:px-6">
-          <div
-            className="pointer-events-none absolute left-1/2 top-1/2 h-[min(100%,28rem)] w-[min(100%,28rem)] -translate-x-1/2 -translate-y-1/2 rounded-full bg-gradient-to-br from-primary/80/25 via-indigo-400/20 to-violet-400/25 blur-3xl"
-            aria-hidden
-          />
-          <div className="relative flex flex-col items-center text-center lg:items-center">
-            <Lock
-              className="h-36 w-36 text-slate-700/85 drop-shadow-[0_4px_24px_rgba(37,99,235,0.15)] sm:h-44 sm:w-44 lg:h-52 lg:w-52 xl:h-60 xl:w-60"
-              strokeWidth={1.35}
-              aria-hidden
-            />
-            <p className="mt-8 text-xs font-bold uppercase tracking-[0.28em] text-slate-500 sm:text-sm">
-              Locked
-            </p>
-            <p className="mt-3 max-w-sm text-xl font-bold leading-snug text-slate-900 sm:text-2xl lg:text-3xl">
-              Peer-to-peer interviews
-            </p>
-            <p className="mt-3 max-w-xs text-sm leading-relaxed text-slate-600 sm:text-base">
-              Beat the jitters solo first—once those rolling scores clear the bar,
-              real engineers step in with candid debriefs you can trust.
-            </p>
+            <div className="flex min-w-0 flex-col gap-1.5">
+              <Label htmlFor="peer-filter-experience" className="block text-xs font-medium text-muted-foreground">
+                Total Exp.
+              </Label>
+              <AppSelect
+                id="peer-filter-experience"
+                value={minExperience}
+                onChange={setMinExperience}
+                allowEmpty
+                emptyLabel="Any"
+                options={[
+                  { value: "2", label: "2+ yrs" },
+                  { value: "5", label: "5+ yrs" },
+                  { value: "8", label: "8+ yrs" },
+                  { value: "12", label: "12+ yrs" },
+                ]}
+              />
+            </div>
+
+            <div className="flex min-w-0 flex-col gap-1.5">
+              <Label htmlFor="peer-filter-industry" className="block text-xs font-medium text-muted-foreground">
+                Industry
+              </Label>
+              <AppSelect
+                id="peer-filter-industry"
+                value={industry}
+                onChange={onIndustryChange}
+                allowEmpty
+                emptyLabel="All industries"
+                options={industries.map((item) => ({ value: item.name, label: item.name }))}
+              />
+            </div>
           </div>
-        </aside>
+
+          <div className="flex shrink-0 items-center gap-2 self-end">
+            <Button
+              type="button"
+              size="icon"
+              variant="outline"
+              onClick={() => setFiltersOpen((open) => !open)}
+              aria-label={filtersOpen ? "Hide sort options" : "Show sort options"}
+              aria-expanded={filtersOpen}
+              className={cn(
+                "relative h-11 w-11",
+                filtersOpen && "border-[#7367F0]/40 bg-[#7367F0]/5 text-[#7367F0]",
+              )}
+            >
+              <SlidersHorizontal className="h-4 w-4" />
+              {sort !== "rating_desc" ? (
+                <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-[#7367F0]" />
+              ) : null}
+            </Button>
+          </div>
+        </div>
+
+        {filtersOpen ? (
+          <div className="flex flex-col gap-3 border-t border-border/60 pt-4 sm:flex-row sm:flex-wrap sm:items-end">
+            <div className="flex min-w-0 w-full flex-col gap-1.5 sm:max-w-xs">
+              <Label htmlFor="peer-filter-sort" className="block text-xs font-medium text-muted-foreground">
+                Sort by
+              </Label>
+              <AppSelect
+                id="peer-filter-sort"
+                value={sort}
+                onChange={(v) => setSort(v as SortOption)}
+                options={[
+                  { value: "rating_desc", label: "Rating: highest first" },
+                  { value: "rating_asc", label: "Rating: lowest first" },
+                  {
+                    value: "price_asc",
+                    label: `Price: low to high${!type ? " (select interview type)" : ""}`,
+                    disabled: !type,
+                  },
+                  {
+                    value: "price_desc",
+                    label: `Price: high to low${!type ? " (select interview type)" : ""}`,
+                    disabled: !type,
+                  },
+                ]}
+              />
+            </div>
+            {type && (sort === "price_asc" || sort === "price_desc") ? (
+              <p className="pb-3 text-xs text-muted-foreground sm:pb-0">
+                Sorting by price for{" "}
+                <span className="font-medium text-foreground">{typeNames[type] || type}</span>
+              </p>
+            ) : null}
+            {hasActiveFilters ? (
+              <Button type="button" variant="ghost" size="sm" onClick={clearFilters} className="h-11 px-3">
+                Clear filters
+              </Button>
+            ) : null}
+          </div>
+        ) : null}
       </div>
+
+      {loading ? (
+        <div className="flex h-64 items-center justify-center">
+          <Loader2 className="h-6 w-6 animate-spin text-[#7367F0]" />
+        </div>
+      ) : items.length === 0 ? (
+        <div className={cn(appCard, "flex flex-col items-center gap-3 px-6 py-16 text-center")}>
+          <span className="flex h-16 w-16 items-center justify-center rounded-xl bg-primary-muted text-primary">
+            <UsersRound className="h-8 w-8" />
+          </span>
+          <p className="text-lg font-semibold">No interviewers match your filters</p>
+          <p className="max-w-md text-sm text-muted-foreground">
+            Try widening your filters. New interviewers are onboarding regularly.
+          </p>
+        </div>
+      ) : (
+        <>
+          <p className="text-sm text-muted-foreground">{total} interviewer{total === 1 ? "" : "s"} available</p>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {items.map((i) => (
+              <InterviewerCard key={i.id} interviewer={i} typeNames={typeNames} />
+            ))}
+          </div>
+
+          {totalPages > 1 ? (
+            <div className="flex items-center justify-center gap-3 pt-2">
+              <Button variant="outline" disabled={page <= 1} onClick={() => void fetchInterviewers(page - 1)}>
+                Previous
+              </Button>
+              <span className="text-sm text-muted-foreground">
+                Page {page} of {totalPages}
+              </span>
+              <Button variant="outline" disabled={page >= totalPages} onClick={() => void fetchInterviewers(page + 1)}>
+                Next
+              </Button>
+            </div>
+          ) : null}
+        </>
+      )}
     </div>
   );
 }

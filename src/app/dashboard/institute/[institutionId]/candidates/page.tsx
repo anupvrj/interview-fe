@@ -627,7 +627,7 @@ export default function InstituteCandidatesPage() {
                                 <Coins className="h-3.5 w-3.5" />
                               </Button>
                               <select
-                                className="h-8 w-[104px] shrink-0 cursor-pointer rounded-lg border border-slate-200 bg-white px-2 text-xs font-medium text-slate-800 shadow-sm outline-none transition hover:border-slate-300 focus:ring-2 focus:ring-primary/20"
+                                className="app-control h-8 w-[104px] shrink-0 cursor-pointer px-2 text-xs font-medium shadow-sm"
                                 value={uiPlanValue}
                                 onChange={(e) =>
                                   handleUpdatePlan(
@@ -762,7 +762,7 @@ export default function InstituteCandidatesPage() {
               <Label htmlFor="sch-lang">Language</Label>
               <select
                 id="sch-lang"
-                className="mt-1 w-full rounded-md border px-3 py-2"
+                className="app-control mt-1 w-full bg-card"
                 value={scheduleLang}
                 onChange={(e) => setScheduleLang(e.target.value as "en" | "hi")}
               >
@@ -799,7 +799,7 @@ export default function InstituteCandidatesPage() {
               <Label htmlFor="sch-dur">Duration</Label>
               <select
                 id="sch-dur"
-                className="mt-1 w-full rounded-md border px-3 py-2"
+                className="app-control mt-1 w-full bg-card"
                 value={scheduleDuration}
                 onChange={(e) => setScheduleDuration(e.target.value as "15" | "30")}
               >
@@ -885,7 +885,7 @@ export default function InstituteCandidatesPage() {
               <Label htmlFor="credits-mode">Action</Label>
               <select
                 id="credits-mode"
-                className="mt-2 w-full rounded-md border px-3 py-2"
+                className="app-control mt-2 w-full bg-card"
                 value={creditsMode}
                 onChange={(e) => {
                   setCreditsMode(e.target.value as "add" | "set");
@@ -968,7 +968,7 @@ export default function InstituteCandidatesPage() {
               <Label htmlFor="plan">Plan</Label>
               <select
                 id="plan"
-                className="mt-1 h-11 w-full rounded-md border border-slate-200 bg-background px-3 text-sm shadow-sm"
+                className="app-control mt-1 h-11 w-full bg-card"
                 value={addPlan}
                 onChange={(e) =>
                   setAddPlan(e.target.value as InstitutionUiPlan)

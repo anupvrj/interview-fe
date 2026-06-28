@@ -73,6 +73,7 @@ export function DashboardThemeProvider({
   return (
     <DashboardThemeContext.Provider value={value}>
       <div
+        id="dashboard-theme-root"
         className={
           theme === "dark"
             ? "dark min-h-screen bg-background text-foreground"

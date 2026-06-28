@@ -7,6 +7,7 @@
     /* Vuexy-inspired palette (#7367F0 primary, #F8F7FA canvas) */
     --background: 240 20% 98%;
     --foreground: 254 16% 21%;
+    color-scheme: light;
 
     --card: 0 0% 100%;
     --card-foreground: 254 16% 21%;
@@ -64,6 +65,7 @@
 
     --popover: 254 14% 12%;
     --popover-foreground: 240 6% 96%;
+    color-scheme: dark;
 
     --primary: 247 75% 67%;
     --primary-foreground: 0 0% 100%;
@@ -482,7 +484,28 @@
   }
 
   .app-control {
-    @apply h-11 rounded-[0.625rem] border border-input bg-card px-4 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-50;
+    @apply h-11 rounded-[0.625rem] border border-input bg-card px-4 text-sm text-foreground shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  select.app-control {
+    @apply cursor-pointer bg-card text-foreground;
+  }
+
+  #dashboard-theme-root select {
+    background-color: hsl(var(--card));
+    color: hsl(var(--card-foreground));
+    color-scheme: inherit;
+  }
+
+  #dashboard-theme-root.dark select {
+    color-scheme: dark;
+  }
+
+  select.app-control option,
+  select option,
+  #dashboard-theme-root select option {
+    background-color: hsl(var(--card));
+    color: hsl(var(--card-foreground));
   }
 
   /* Resume editor sidebar — compact fields with label above input */

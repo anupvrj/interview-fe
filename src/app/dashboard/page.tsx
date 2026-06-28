@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
+import { readStoredRole } from "@/lib/roles";
 import Link from "next/link";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
@@ -154,7 +155,7 @@ export default function DashboardPage() {
       try {
         profile = await userApi.getMyProfile();
         if (
-          profile.accessRole === "institution_admin" &&
+          readStoredRole(user.id) === "institution_admin" &&
           profile.institutionId
         ) {
           router.replace(

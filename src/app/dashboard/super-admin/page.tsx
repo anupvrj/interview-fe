@@ -906,7 +906,7 @@ export default function SuperAdminPage() {
                     </TableCell>
                     <TableCell>
                       <select
-                        className="text-xs border rounded px-2 py-1"
+                        className="app-control text-xs"
                         value={(u as any).subscription?.plan || "free"}
                         onChange={(e) =>
                           handleUpdatePlan(
@@ -1085,7 +1085,7 @@ export default function SuperAdminPage() {
               <Label htmlFor="sa-sch-lang">Language</Label>
               <select
                 id="sa-sch-lang"
-                className="mt-1 w-full rounded-md border px-3 py-2"
+                className="app-control mt-1 w-full bg-card"
                 value={scheduleLang}
                 onChange={(e) => setScheduleLang(e.target.value as "en" | "hi")}
               >
@@ -1106,7 +1106,7 @@ export default function SuperAdminPage() {
               <Label htmlFor="sa-sch-dur">Duration</Label>
               <select
                 id="sa-sch-dur"
-                className="mt-1 w-full rounded-md border px-3 py-2"
+                className="app-control mt-1 w-full bg-card"
                 value={scheduleDuration}
                 onChange={(e) => setScheduleDuration(e.target.value as "15" | "30")}
               >
@@ -1393,7 +1393,7 @@ export default function SuperAdminPage() {
               <Label htmlFor="add-plan">Plan</Label>
               <select
                 id="add-plan"
-                className="w-full border rounded px-3 py-2"
+                className="app-control w-full bg-card"
                 value={addPlan}
                 onChange={(e) => setAddPlan(e.target.value as any)}
               >
@@ -1406,7 +1406,7 @@ export default function SuperAdminPage() {
               <Label htmlFor="add-institution">Institution (optional)</Label>
               <select
                 id="add-institution"
-                className="w-full border rounded px-3 py-2"
+                className="app-control w-full bg-card"
                 value={addInstitutionId}
                 onChange={(e) => setAddInstitutionId(e.target.value)}
               >

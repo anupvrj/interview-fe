@@ -8,9 +8,12 @@ import { useUser } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
 import { Menu, X, Lock, Bell, LayoutGrid } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { userApi, interviewApi, AccessRole } from "@/lib/api";
+import { interviewApi, type AccessRole } from "@/lib/api";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { ProfileMenu } from "@/components/app/ProfileMenu";
+import { useActiveRole } from "@/components/roles/ActiveRoleProvider";
+import { RoleSwitcher } from "@/components/roles/RoleSwitcher";
+import { isPathAllowedForRole, roleHome } from "@/lib/roles";
 import {
   appNavIconWrap,
   appNavItemActive,
@@ -19,7 +22,9 @@ import {
   appTopBar,
 } from "@/lib/app-theme";
 import {
+  filterNavByActiveRole,
   getDashboardNavItems,
+  withPeerNavItems,
   type DashboardNavItem,
 } from "@/lib/dashboard-nav";
 import { SubscriptionExpiredBanner } from "@/components/SubscriptionExpiredBanner";
@@ -27,6 +32,38 @@ import { SubscriptionPendingBanner } from "@/components/SubscriptionPendingBanne
 
 interface DashboardLayoutProps {
   children: ReactNode;
+}
+
+function isInterviewerHubNavPath(pathname: string | null): boolean {
+  if (!pathname) return false;
+  if (pathname === "/dashboard/peer-interviews/interviewer/apply") return false;
+  if (pathname === "/dashboard/peer-interviews/interviewer") return true;
+  return (
+    pathname.startsWith("/dashboard/peer-interviews/interviewer/slots") ||
+    pathname.startsWith("/dashboard/peer-interviews/interviewer/bookings")
+  );
+}
+
+function isPeerInterviewsNavPath(pathname: string | null): boolean {
+  if (!pathname?.startsWith("/dashboard/peer-interviews")) return false;
+  if (pathname === "/dashboard/peer-interviews/interviewer/apply") return false;
+  return !isInterviewerHubNavPath(pathname);
+}
+
+function isSuperAdminPeerInterviewersPath(pathname: string | null): boolean {
+  return pathname?.startsWith("/dashboard/super-admin/peer-interviewers") ?? false;
+}
+
+function isSuperAdminPeerBookingsPath(pathname: string | null): boolean {
+  return pathname?.startsWith("/dashboard/super-admin/peer-bookings") ?? false;
+}
+
+function isSuperAdminHomePath(pathname: string | null): boolean {
+  if (!pathname) return false;
+  if (isSuperAdminPeerInterviewersPath(pathname) || isSuperAdminPeerBookingsPath(pathname)) {
+    return false;
+  }
+  return pathname === "/dashboard/super-admin" || pathname.startsWith("/dashboard/super-admin/");
 }
 
 function resolveNavActive(
@@ -60,6 +97,24 @@ function resolveNavActive(
       isActive = false;
     }
   }
+  if (item.href === "/dashboard/peer-interviews") {
+    isActive = isPeerInterviewsNavPath(pathname);
+  }
+  if (item.href === "/dashboard/peer-interviews/interviewer") {
+    isActive = isInterviewerHubNavPath(pathname);
+  }
+  if (item.href === "/dashboard/peer-interviews/interviewer/apply") {
+    isActive = pathname === "/dashboard/peer-interviews/interviewer/apply";
+  }
+  if (item.href === "/dashboard/super-admin") {
+    isActive = isSuperAdminHomePath(pathname);
+  }
+  if (item.href === "/dashboard/super-admin/peer-interviewers") {
+    isActive = isSuperAdminPeerInterviewersPath(pathname);
+  }
+  if (item.href === "/dashboard/super-admin/peer-bookings") {
+    isActive = isSuperAdminPeerBookingsPath(pathname);
+  }
   return isActive;
 }
 
@@ -67,10 +122,18 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { user, isLoaded } = useUser();
+  const roleCtx = useActiveRole();
+  const profile = roleCtx?.profile ?? null;
+  const accessRole: AccessRole | null = profile?.accessRole ?? null;
+  const institutionId = profile?.institutionId
+    ? String(profile.institutionId)
+    : null;
+  const peerNav = profile?.peer ?? null;
+  const activeRole = roleCtx?.activeRole ?? null;
+  const availableRoles = roleCtx?.availableRoles ?? [];
+  const roleReady = roleCtx?.ready ?? false;
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [accessRole, setAccessRole] = useState<AccessRole | null>(null);
-  const [institutionId, setInstitutionId] = useState<string | null>(null);
   const [interviewsSubpathKind, setInterviewsSubpathKind] = useState<
     "general" | "coding_practice" | null
   >(null);
@@ -83,23 +146,6 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       interviewsPathSegment !== "new" &&
       pathname !== "/dashboard/interviews",
   );
-
-  useEffect(() => {
-    if (isLoaded && user) {
-      userApi
-        .getMyProfile()
-        .then((profile) => {
-          setAccessRole(profile.accessRole || "user");
-          setInstitutionId(
-            profile.institutionId ? String(profile.institutionId) : null,
-          );
-        })
-        .catch(() => {
-          setAccessRole("user");
-          setInstitutionId(null);
-        });
-    }
-  }, [isLoaded, user]);
 
   useEffect(() => {
     if (!isDashboardInterviewsDetailPath || !interviewsPathSegment || !user) {
@@ -125,30 +171,37 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     };
   }, [isDashboardInterviewsDetailPath, interviewsPathSegment, user]);
 
-  const isInstitutionAdmin = accessRole === "institution_admin";
+  const isInstitutionView = activeRole === "institution_admin";
 
+  // Send multi-role users without a chosen role to the role chooser.
   useEffect(() => {
-    if (!isInstitutionAdmin || !institutionId || !pathname) return;
-    const base = `/dashboard/institute/${institutionId}`;
-    const allowed =
-      pathname === base ||
-      pathname.startsWith(`${base}/`) ||
-      pathname === "/dashboard/profile" ||
-      pathname.startsWith("/dashboard/profile/") ||
-      pathname === "/dashboard/coding-interviews" ||
-      pathname.startsWith("/dashboard/coding-interviews/");
-    if (!allowed && pathname.startsWith("/dashboard")) {
-      router.replace(base);
+    if (!roleReady) return;
+    if (!activeRole && availableRoles.length > 1) {
+      router.replace("/select-role");
     }
-  }, [isInstitutionAdmin, institutionId, pathname, router]);
+  }, [roleReady, activeRole, availableRoles.length, router]);
+
+  // Keep navigation within the active role's allowed area.
+  useEffect(() => {
+    if (!roleReady || !activeRole || !pathname) return;
+    if (!pathname.startsWith("/dashboard")) return;
+    if (!isPathAllowedForRole(activeRole, pathname, profile)) {
+      router.replace(roleHome(activeRole, profile));
+    }
+  }, [roleReady, activeRole, pathname, profile, router]);
 
   const menuItems = useMemo(
-    () => getDashboardNavItems(accessRole, institutionId),
-    [accessRole, institutionId],
+    () =>
+      filterNavByActiveRole(
+        withPeerNavItems(getDashboardNavItems(accessRole, institutionId), peerNav),
+        activeRole,
+        profile,
+      ),
+    [accessRole, institutionId, peerNav, activeRole, profile],
   );
 
   const institutionBase =
-    isInstitutionAdmin && institutionId
+    isInstitutionView && institutionId
       ? `/dashboard/institute/${institutionId}`
       : null;
 
@@ -250,7 +303,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           </div>
           <Link
             href={
-              isInstitutionAdmin && institutionId
+              isInstitutionView && institutionId
                 ? `/dashboard/institute/${institutionId}`
                 : "/dashboard"
             }
@@ -265,7 +318,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               className="hidden h-7 w-auto dark:block"
             />
           </Link>
-          <div className="justify-self-end">
+          <div className="flex items-center gap-1.5 justify-self-end">
+            <RoleSwitcher />
             <ProfileMenu placement="bottom-end" />
           </div>
         </div>
@@ -289,7 +343,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             <div className="hidden border-b border-sidebar-border/80 px-4 py-5 lg:block">
               <Link
                 href={
-                  isInstitutionAdmin && institutionId
+                  isInstitutionView && institutionId
                     ? `/dashboard/institute/${institutionId}`
                     : "/"
                 }
@@ -368,6 +422,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 </Button>
               </div>
               <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+                <RoleSwitcher />
                 <ThemeToggle />
                 <Button
                   variant="ghost"

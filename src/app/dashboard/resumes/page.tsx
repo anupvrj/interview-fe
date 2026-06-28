@@ -400,7 +400,7 @@ export default function ResumesPage() {
               </div>
 
               <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-3 sm:gap-4 pt-2 px-2 sm:px-0">
-                <Link href="/ats-checker" className="w-full sm:w-auto">
+                <Link href="/dashboard/ats-checker" className="w-full sm:w-auto">
                   <Button
                     size="lg"
                     variant="outline"
