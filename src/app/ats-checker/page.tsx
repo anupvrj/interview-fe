@@ -9,6 +9,7 @@ import { ATSUploadHero } from "@/components/ats-checker/ATSUploadHero";
 import {
   ATSChecksGrid,
   ATSHowItWorks,
+  ATSSeeItInAction,
   ATSLandingCTA,
   ATSFAQ,
 } from "@/components/ats-checker/landing/ATSLandingSections";
@@ -93,6 +94,7 @@ function ATSCheckerPageContent() {
       <ATSReadySection />
       <ATSChecksGrid />
       <ATSHowItWorks />
+      <ATSSeeItInAction />
       <ATSLandingCTA />
       <ATSFAQ />
 

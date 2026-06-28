@@ -26,7 +26,8 @@ import {
 import { SiteHeader } from "@/components/SiteHeader";
 import { MarketingFooter } from "@/components/MarketingFooter";
 import { ResumeBuilderHeroPreview } from "@/components/marketing/ResumeBuilderHeroPreview";
-import { MarketingAutoplayVideo } from "@/components/marketing/MarketingAutoplayVideo";
+import { SeoVideoSection } from "@/components/seo/SeoVideoSection";
+import { resumeBuilderDemoVideo } from "@/lib/seo/marketing-video-content";
 import { TEMPLATES_CATALOG } from "@/configs/resume-templates/templates-catalog";
 import {
   appMarketingSection,
@@ -447,19 +448,23 @@ export default function ResumeBuilderPage() {
               </p>
             </div>
 
-            <div className="relative mx-auto w-full max-w-4xl overflow-hidden rounded-lg border border-border bg-white shadow-2xl sm:rounded-xl sm:border-2 md:border-4">
-              <MarketingAutoplayVideo
-                asset="best-ai-resume-builder"
-                poster={heroTemplate.thumbnail}
-                className="w-full"
-                ariaLabel="AI Resume Builder demo"
-              >
+            <SeoVideoSection
+              content={{
+                ...resumeBuilderDemoVideo,
+                thumbnailUrl: heroTemplate.thumbnail,
+              }}
+              variant="feature"
+              className="relative mx-auto w-full max-w-4xl"
+              playerClassName="overflow-hidden rounded-lg border border-border bg-white shadow-2xl sm:rounded-xl sm:border-2 md:border-4"
+              autoPlay
+              loop
+              muted
+            >
               <div className="absolute right-3 top-3 z-10 flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-white shadow-lg sm:text-sm">
                 <Sparkles className="h-3.5 w-3.5" />
                 Live Builder
               </div>
-              </MarketingAutoplayVideo>
-            </div>
+            </SeoVideoSection>
 
             {/* Template Carousel */}
             <div className="mt-12 sm:mt-16">
