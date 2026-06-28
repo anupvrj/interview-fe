@@ -845,7 +845,7 @@ export default function EditResumePage() {
         const defaultPadding =
           resumeData.templateId === "mercury"
             ? { top: 20, bottom: 20, left: 20, right: 20 }
-            : { top: 10, bottom: 10, left: 10, right: 10 };
+            : { top: 8, bottom: 8, left: 8, right: 8 };
 
         setLayout({
           type: resumeData.layout.type || "single",
@@ -903,12 +903,56 @@ export default function EditResumePage() {
             })();
           }
         }
+
+        // Saffron Line: enforce double-column layout (padding stays user-controlled)
+        if (resumeData.templateId === "saffron-line" && resumeData.layout) {
+          const needsLayoutRepair =
+            resumeData.layout.type !== "double" ||
+            resumeData.layout.columnWidths?.left !== 36 ||
+            resumeData.layout.columnWidths?.right !== 64;
+
+          if (needsLayoutRepair) {
+            const updatedLayout = {
+              ...resumeData.layout,
+              type: "double" as const,
+              columnWidths: { left: 36, right: 64 },
+            };
+            setLayout(updatedLayout as typeof layout);
+            void resumeApi
+              .update(resumeId, { layout: updatedLayout })
+              .catch((error) => {
+                console.error("Error updating saffron-line layout:", error);
+              });
+          }
+        }
+
+        // Confident Grid: enforce header + 50/50 body layout
+        if (resumeData.templateId === "confident-grid" && resumeData.layout) {
+          const needsLayoutRepair =
+            resumeData.layout.type !== "double" ||
+            resumeData.layout.columnWidths?.left !== 50 ||
+            resumeData.layout.columnWidths?.right !== 50;
+
+          if (needsLayoutRepair) {
+            const updatedLayout = {
+              ...resumeData.layout,
+              type: "double" as const,
+              columnWidths: { left: 50, right: 50 },
+            };
+            setLayout(updatedLayout as typeof layout);
+            void resumeApi
+              .update(resumeId, { layout: updatedLayout })
+              .catch((error) => {
+                console.error("Error updating confident-grid layout:", error);
+              });
+          }
+        }
       } else {
         // Set default layout if not provided
         const defaultPadding =
           resumeData.templateId === "mercury"
             ? { top: 20, bottom: 20, left: 20, right: 20 }
-            : { top: 5, bottom: 5, left: 8, right: 8 };
+            : { top: 8, bottom: 8, left: 8, right: 8 };
 
         setLayout({
           type: "single",

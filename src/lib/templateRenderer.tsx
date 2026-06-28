@@ -116,10 +116,8 @@ export function getTemplateStyle(
           ...template.style.languageDisplay,
         },
       }),
-      // Merge useCSSClassesForHeader if exists
-      ...(template.style.useCSSClassesForHeader !== undefined && {
-        useCSSClassesForHeader: template.style.useCSSClassesForHeader,
-      }),
+      // CSS files define header typography; inline styles only handle layout unless opted out
+      useCSSClassesForHeader: template.style.useCSSClassesForHeader ?? true,
     };
   }
 

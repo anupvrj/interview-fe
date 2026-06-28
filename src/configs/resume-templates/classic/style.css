@@ -10,8 +10,7 @@
 .classic-template {
   font-family: 'Zilla Slab', serif;
   color: #000000;
-  background-color: #ffffff;
-  padding: 8mm; /* Standard print padding */
+  background-color: #ffffff; /* Standard print padding */
   line-height: 1.4;
 }
 
@@ -31,10 +30,11 @@
 }
 
 .classic-job-title {
-  font-size: 14px;
+  font-style: italic !important;
+  font-size: 14px !important;
+
   color: #000000;
   margin-bottom: 12px;
-  font-style: italic;
   font-weight: 400;
 }
 
@@ -211,6 +211,5 @@
 /* Print Styles */
 @media print {
   .classic-template {
-    padding: 0;
   }
 }
