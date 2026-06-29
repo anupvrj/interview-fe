@@ -18,6 +18,7 @@ import {
   Code2,
   Network,
   BarChart2,
+  FlaskConical,
 } from "lucide-react";
 import type { AccessRole } from "@/lib/api";
 
@@ -237,6 +238,22 @@ export function getDashboardNavItems(
         item.href !== "/dashboard/peer-interviews" &&
         item.href !== "/dashboard/job-board",
     );
+  }
+
+  const labNavItem: DashboardNavItem = {
+    title: "Agent Lab",
+    href: "/dashboard/lab",
+    icon: FlaskConical,
+    accent: accent.violet,
+  };
+
+  const showLabInNav =
+    accessRole === "super_admin" ||
+    process.env.NEXT_PUBLIC_ENABLE_LAB === "true" ||
+    process.env.NEXT_PUBLIC_APP_ENV === "development";
+
+  if (showLabInNav && !items.some((i) => i.href === labNavItem.href)) {
+    items.push(labNavItem);
   }
 
   if (accessRole === "super_admin") {
