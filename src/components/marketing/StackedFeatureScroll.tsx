@@ -115,7 +115,31 @@ function getPanelStyle(index: number, progress: number): CSSProperties {
   };
 }
 
-const MOBILE_LAYOUT_MAX_WIDTH = 767;
+const TABLET_LAYOUT_MAX_WIDTH = 1024;
+const TOUCH_TABLET_LAYOUT_MAX_WIDTH = 1366;
+
+function shouldUseSimpleStackedLayout(): boolean {
+  if (typeof window === "undefined") return false;
+
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    return true;
+  }
+
+  if (
+    window.matchMedia(`(max-width: ${TABLET_LAYOUT_MAX_WIDTH}px)`).matches
+  ) {
+    return true;
+  }
+
+  if (
+    window.matchMedia("(pointer: coarse)").matches &&
+    window.matchMedia(`(max-width: ${TOUCH_TABLET_LAYOUT_MAX_WIDTH}px)`).matches
+  ) {
+    return true;
+  }
+
+  return false;
+}
 
 function SimpleStackedFeatureLayout({
   heading,
@@ -164,14 +188,9 @@ export function StackedFeatureScroll({
   const stepsRef = useRef(steps);
   const initialHashHandledRef = useRef(false);
   const [progress, setProgress] = useState(0);
-  const [useSimpleLayout, setUseSimpleLayout] = useState(() => {
-    if (typeof window === "undefined") return false;
-
-    return (
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches ||
-      window.matchMedia(`(max-width: ${MOBILE_LAYOUT_MAX_WIDTH}px)`).matches
-    );
-  });
+  const [useSimpleLayout, setUseSimpleLayout] = useState(() =>
+    shouldUseSimpleStackedLayout(),
+  );
 
   stepsRef.current = steps;
 
@@ -219,21 +238,28 @@ export function StackedFeatureScroll({
 
   useEffect(() => {
     const motionMedia = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const mobileMedia = window.matchMedia(
-      `(max-width: ${MOBILE_LAYOUT_MAX_WIDTH}px)`,
+    const tabletMedia = window.matchMedia(
+      `(max-width: ${TABLET_LAYOUT_MAX_WIDTH}px)`,
+    );
+    const touchTabletMedia = window.matchMedia(
+      `(pointer: coarse) and (max-width: ${TOUCH_TABLET_LAYOUT_MAX_WIDTH}px)`,
     );
 
     const updateLayout = () => {
-      setUseSimpleLayout(motionMedia.matches || mobileMedia.matches);
+      setUseSimpleLayout(shouldUseSimpleStackedLayout());
     };
 
     updateLayout();
     motionMedia.addEventListener("change", updateLayout);
-    mobileMedia.addEventListener("change", updateLayout);
+    tabletMedia.addEventListener("change", updateLayout);
+    touchTabletMedia.addEventListener("change", updateLayout);
+    window.addEventListener("resize", updateLayout);
 
     return () => {
       motionMedia.removeEventListener("change", updateLayout);
-      mobileMedia.removeEventListener("change", updateLayout);
+      tabletMedia.removeEventListener("change", updateLayout);
+      touchTabletMedia.removeEventListener("change", updateLayout);
+      window.removeEventListener("resize", updateLayout);
     };
   }, []);
 

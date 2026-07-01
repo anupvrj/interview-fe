@@ -40,7 +40,8 @@ import { ScrollSection } from "@/components/ScrollSection";
 import { SiteHeader } from "@/components/SiteHeader";
 import { MarketingFooter } from "@/components/MarketingFooter";
 import { WhyFeatureCardsMarquee } from "@/components/marketing/WhyFeatureCardsMarquee";
-import { MarketingAutoplayVideo } from "@/components/marketing/MarketingAutoplayVideo";
+import { SeoVideoSection } from "@/components/seo/SeoVideoSection";
+import { aiInterviewDemoVideo } from "@/lib/seo/marketing-video-content";
 import {
   StackedFeatureScroll,
 } from "@/components/marketing/StackedFeatureScroll";
@@ -416,11 +417,13 @@ export default function LandingPage() {
             {/* Right Section - Interview Preview */}
             <div className="relative flex justify-center lg:justify-start order-1 lg:order-2">
               <div className="relative rounded-lg sm:rounded-xl shadow-2xl overflow-hidden bg-white w-full max-w-[600px] sm:max-w-[700px] border-2 sm:border-4 border-border">
-                <MarketingAutoplayVideo
-                  asset="ai-interview-demo"
-                  poster="/ai_interview_thumbnail.png"
-                  className="w-full"
-                  ariaLabel="AI Interview Practice demo"
+                <SeoVideoSection
+                  content={aiInterviewDemoVideo}
+                  variant="hero"
+                  playerClassName="w-full"
+                  autoPlay
+                  loop
+                  muted
                 >
                 {/* Overlay Badges */}
                 <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 bg-green-500 text-white px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-md shadow-lg flex items-center gap-1 sm:gap-1.5 animate-bounce" style={{ animationDuration: '2s' }}>
@@ -447,7 +450,7 @@ export default function LandingPage() {
                     <span className="sm:hidden">Start</span>
                   </Button>
                 </div>
-                </MarketingAutoplayVideo>
+                </SeoVideoSection>
               </div>
             </div>
           </div>
