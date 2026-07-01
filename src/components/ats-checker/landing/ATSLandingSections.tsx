@@ -10,9 +10,14 @@ import {
   Users,
   Scale,
   TrendingUp,
+  Upload,
+  Sparkles,
+  type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { appMarketingSection, appMarketingSectionLight } from "@/lib/app-theme";
+import { SeoVideoSection } from "@/components/seo/SeoVideoSection";
+import { atsCheckerDemoVideo } from "@/lib/seo/marketing-video-content";
 
 const CHECK_CATEGORIES = [
   {
@@ -311,66 +316,175 @@ export function ATSChecksGrid() {
   );
 }
 
-const HOW_STEPS = [
-  { icon: Upload, title: "Upload", desc: "Drop your PDF resume — optionally paste a job description." },
-  { icon: FileSearch, title: "Parse", desc: "We extract structured data and measure ATS parse rate." },
-  { icon: Users, title: "Analyze", desc: "27 checks across content, sections, red flags, and seniority." },
-  { icon: Target, title: "Improve", desc: "Get issue-level fixes and one-click access to our resume builder." },
+const HOW_STEPS: { title: string; body: string; icon: LucideIcon }[] = [
+  {
+    title: "Upload Resume",
+    body: "Drop your PDF — optionally paste a job description for tailoring checks.",
+    icon: Upload,
+  },
+  {
+    title: "Parse & Score",
+    body: "We extract structured data and measure ATS parse rate instantly.",
+    icon: FileSearch,
+  },
+  {
+    title: "Run 27 Checks",
+    body: "Content, sections, red flags, seniority, and keyword fit — all in one report.",
+    icon: Users,
+  },
+  {
+    title: "Fix & Apply",
+    body: "Get issue-level fixes and jump into our AI resume builder to improve fast.",
+    icon: Target,
+  },
 ];
-
-function Upload(props: React.SVGProps<SVGSVGElement>) {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-      <polyline points="17 8 12 3 7 8" />
-      <line x1="12" x2="12" y1="3" y2="15" />
-    </svg>
-  );
-}
 
 export function ATSHowItWorks() {
   const ref = useRef<HTMLDivElement>(null);
-  const [active, setActive] = useState(0);
-  const [inView, setInView] = useState(false);
+  const [visible, setVisible] = useState(false);
 
   useEffect(() => {
+    const node = ref.current;
     const observer = new IntersectionObserver(
-      ([e]) => setInView(e.isIntersecting),
-      { threshold: 0.3 },
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) setVisible(true);
+        });
+      },
+      { threshold: 0.2 },
     );
-    if (ref.current) observer.observe(ref.current);
-    return () => observer.disconnect();
+
+    if (node) observer.observe(node);
+    return () => {
+      if (node) observer.unobserve(node);
+    };
   }, []);
 
-  useEffect(() => {
-    if (!inView) return;
-    const interval = setInterval(() => {
-      setActive((a) => (a + 1) % HOW_STEPS.length);
-    }, 2500);
-    return () => clearInterval(interval);
-  }, [inView]);
-
   return (
-    <section ref={ref} className={cn(appMarketingSection, "py-20")}>
-      <div className="container mx-auto px-4 max-w-4xl text-center">
-        <h2 className="text-3xl font-bold text-foreground mb-12">How it works</h2>
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {HOW_STEPS.map((step, idx) => (
-            <div
-              key={step.title}
-              className={cn(
-                "rounded-xl border p-6 transition-all duration-500",
-                active === idx
-                  ? "border-primary bg-primary/5 shadow-card scale-105"
-                  : "border-border bg-card",
-              )}
-            >
-              <step.icon className="h-8 w-8 text-primary mx-auto mb-3" />
-              <h3 className="font-bold text-foreground">{step.title}</h3>
-              <p className="text-sm text-muted-foreground mt-2">{step.desc}</p>
-            </div>
-          ))}
+    <section
+      ref={ref}
+      className={cn(
+        appMarketingSectionLight,
+        "px-4 py-16 sm:px-6 sm:py-20 lg:py-24",
+      )}
+    >
+      <div className="container mx-auto max-w-7xl">
+        <div
+          className={cn(
+            "mb-12 text-center transition-all duration-700 sm:mb-16",
+            visible ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0",
+          )}
+        >
+          <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-muted px-3 py-1 text-sm font-medium text-primary">
+            <span>How It Works</span>
+          </div>
+          <h2 className="mb-4 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl lg:text-5xl">
+            Know your score before you{" "}
+            <span className="text-primary">apply</span>
+          </h2>
+          <p className="mx-auto max-w-2xl text-lg leading-relaxed text-gray-600">
+            Upload your resume, run 27 checks, review issues, and fix with
+            AI—four simple steps to beat the bots and reach recruiters.
+          </p>
         </div>
+
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 sm:gap-8 lg:grid-cols-4">
+          {HOW_STEPS.map((step, index) => {
+            const Icon = step.icon;
+            return (
+              <div
+                key={step.title}
+                className={cn(
+                  "group relative flex flex-col rounded-xl border border-border/80 bg-card p-6 text-left shadow-card transition-all duration-500 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-xl",
+                  visible ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0",
+                )}
+                style={{
+                  transitionDelay: visible ? `${0.1 + index * 0.1}s` : "0s",
+                }}
+              >
+                <div className="mb-4 flex items-center justify-between">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary shadow-md transition-transform group-hover:scale-105">
+                    <Icon className="h-7 w-7 text-white" />
+                  </div>
+                  <span className="text-4xl font-bold text-primary/15">
+                    {index + 1}
+                  </span>
+                </div>
+                <h3 className="mb-2 text-lg font-bold text-slate-900">
+                  {step.title}
+                </h3>
+                <p className="text-sm leading-relaxed text-gray-600">
+                  {step.body}
+                </p>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+export function ATSSeeItInAction() {
+  return (
+    <section
+      className={cn(
+        appMarketingSection,
+        "relative overflow-hidden px-4 py-16 sm:px-6 sm:py-20 lg:py-24",
+      )}
+    >
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        {[...Array(6)].map((_, i) => (
+          <div
+            key={`ats-action-float-${i}`}
+            className="absolute"
+            style={{
+              left: `${(i * 16 + 4) % 92}%`,
+              top: `${(i * 21 + 6) % 88}%`,
+              opacity: 0.07,
+              animation: `float-${i % 3} ${6 + (i % 3) * 2}s ease-in-out infinite`,
+              animationDelay: `${i * 0.5}s`,
+            }}
+          >
+            {i % 3 === 0 ? (
+              <FileSearch className="h-9 w-9 text-primary sm:h-12 sm:w-12" />
+            ) : i % 3 === 1 ? (
+              <Shield className="h-8 w-8 text-primary sm:h-11 sm:w-11" />
+            ) : (
+              <Target className="h-8 w-8 text-primary sm:h-10 sm:w-10" />
+            )}
+          </div>
+        ))}
+      </div>
+
+      <div className="container relative z-10 mx-auto max-w-7xl">
+        <div className="mb-10 text-center sm:mb-12">
+          <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-muted px-3 py-1 text-sm font-medium text-primary">
+            <span>See It In Action</span>
+          </div>
+          <h2 className="mb-3 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl lg:text-5xl">
+            From upload to{" "}
+            <span className="text-primary">optimized ATS score</span>
+          </h2>
+          <p className="mx-auto max-w-2xl text-lg leading-relaxed text-gray-600">
+            Watch your resume get scanned, scored, and improved—the way ATS
+            filters and recruiters really decide who moves forward.
+          </p>
+        </div>
+
+        <SeoVideoSection
+          content={atsCheckerDemoVideo}
+          className="relative mx-auto w-full max-w-4xl"
+          playerClassName="overflow-hidden rounded-lg border border-border bg-white shadow-2xl sm:rounded-xl sm:border-2 md:border-4"
+          autoPlay
+          loop
+          muted
+        >
+          <div className="absolute right-3 top-3 z-10 flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-white shadow-lg sm:text-sm">
+            <Sparkles className="h-3.5 w-3.5" />
+            Live ATS Scan
+          </div>
+        </SeoVideoSection>
       </div>
     </section>
   );
