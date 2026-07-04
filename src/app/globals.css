@@ -9,6 +9,9 @@
     --foreground: 254 16% 21%;
     color-scheme: light;
 
+    --shadow-card: 0 2px 8px 0 rgba(47, 43, 61, 0.08);
+    --shadow-header: 0 4px 18px 0 rgba(47, 43, 61, 0.1);
+
     --card: 0 0% 100%;
     --card-foreground: 254 16% 21%;
 
@@ -97,6 +100,9 @@
     --success-muted: 142 40% 16%;
     --warning-muted: 32 40% 16%;
     --info-muted: 221 40% 16%;
+
+    --shadow-card: 0 2px 8px 0 rgba(0, 0, 0, 0.35);
+    --shadow-header: 0 4px 18px 0 rgba(0, 0, 0, 0.4);
   }
 }
 
@@ -381,6 +387,40 @@
     66% {
       transform: translate(-20px, -20px) rotate(180deg);
     }
+  }
+
+  @keyframes peer-booking-progress-flow {
+    0% {
+      background-position: 0% 0%;
+    }
+    100% {
+      background-position: 0% 200%;
+    }
+  }
+
+  @keyframes peer-booking-step-pulse {
+    0%,
+    100% {
+      box-shadow: 0 0 0 0 rgba(115, 103, 240, 0.35);
+    }
+    50% {
+      box-shadow: 0 0 0 8px rgba(115, 103, 240, 0);
+    }
+  }
+
+  .peer-booking-progress-line {
+    background: linear-gradient(
+      180deg,
+      #7367f0 0%,
+      #a59bf3 45%,
+      rgba(115, 103, 240, 0.15) 100%
+    );
+    background-size: 100% 200%;
+    animation: peer-booking-progress-flow 2.4s ease-in-out infinite;
+  }
+
+  .peer-booking-step-current {
+    animation: peer-booking-step-pulse 2s ease-in-out infinite;
   }
 
   @keyframes dashboard-hero-shimmer {

@@ -276,7 +276,7 @@ export const CATEGORY_ORDER: ATSCategoryId[] = [
 export function getScoreColor(score: number): string {
   if (score >= 80) return "text-green-600";
   if (score >= 60) return "text-amber-600";
-  return "text-red-600";
+  return "text-red-600 dark:text-[#fd7070]";
 }
 
 export function getScoreBgColor(score: number): string {

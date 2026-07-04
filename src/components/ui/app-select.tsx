@@ -46,6 +46,7 @@ export function AppSelect({
 
   return (
     <Select
+      modal={false}
       value={selectValue}
       onValueChange={(next) => onChange(next === APP_SELECT_EMPTY ? "" : next)}
       disabled={disabled}

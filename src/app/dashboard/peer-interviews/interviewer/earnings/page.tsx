@@ -145,7 +145,7 @@ export default function InterviewerEarningsPage() {
         <div className={cn(appCard, "px-6 py-16 text-center")}>
           <p className="text-lg font-semibold">No earnings yet</p>
           <p className="mt-2 text-sm text-muted-foreground">
-            Mark interviews done after the scheduled end time to record your earning.
+            Mark interviews done to record your earning.
           </p>
         </div>
       ) : (

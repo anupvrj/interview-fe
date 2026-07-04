@@ -10,6 +10,7 @@ import {
   Clock,
   IndianRupee,
   Loader2,
+  Plus,
   Video,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -29,6 +30,7 @@ import { usePeerTimezone } from "@/components/peer/usePeerTimezone";
 import { formatPeerSchedule } from "@/components/peer/peerSlotTime";
 import { DashboardStatCard } from "@/components/dashboard/DashboardStatCard";
 import { appCard } from "@/lib/app-theme";
+import { isPeerInterviewExpired } from "@/lib/peer-booking-expiry";
 import { cn } from "@/lib/utils";
 import {
   peerApi,
@@ -49,7 +51,7 @@ function computeStats(bookings: PeerBooking[]) {
   let completed = 0;
 
   for (const b of bookings) {
-    if (b.status === "accepted_unpaid") paymentDue += 1;
+    if (b.status === "accepted_unpaid" && !isPeerInterviewExpired(b)) paymentDue += 1;
     if (b.status === "paid_confirmed" && new Date(b.start).getTime() >= now) upcoming += 1;
     if (b.status === "completed") completed += 1;
   }
@@ -107,6 +109,10 @@ export default function CandidateBookingsPage() {
   }, [isLoaded, user]);
 
   const handlePay = async (booking: PeerBooking) => {
+    if (isPeerInterviewExpired(booking)) {
+      toast.error("This interview has expired.");
+      return;
+    }
     if (!razorpayLoaded || !window.Razorpay) {
       toast.error("Payment is still loading, please try again.");
       return;
@@ -146,7 +152,7 @@ export default function CandidateBookingsPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="w-full max-w-full min-w-0 overflow-x-hidden space-y-4 sm:space-y-6">
       <Script
         src="https://checkout.razorpay.com/v1/checkout.js"
         onLoad={() => setRazorpayLoaded(true)}
@@ -155,12 +161,25 @@ export default function CandidateBookingsPage() {
         title="My peer interviews"
         badge="Bookings"
         description="Track your booking requests, pay once accepted, and join your interviews."
+        className="min-w-0"
         actions={
-          <Link href="/dashboard/peer-interviews">
-            <Button className="bg-[#7367F0] text-white hover:bg-[#6e62e5]">
-              Book new interview
-            </Button>
-          </Link>
+          <>
+            <Link href="/dashboard/peer-interviews" className="lg:hidden">
+              <Button
+                size="icon"
+                variant="outline"
+                className="h-10 w-10 shrink-0"
+                aria-label="Book new interview"
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
+            </Link>
+            <Link href="/dashboard/peer-interviews" className="hidden lg:block">
+              <Button className="h-10 bg-[#7367F0] text-white hover:bg-[#6e62e5]">
+                Book new interview
+              </Button>
+            </Link>
+          </>
         }
       />
 
@@ -183,19 +202,19 @@ export default function CandidateBookingsPage() {
         </div>
       ) : (
         <>
-          <div className={cn(appCard, "p-4")}>
+          <div className={cn(appCard, "min-w-0 overflow-hidden p-3 sm:p-4")}>
             <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
               <PeerTimezoneSelect
                 timezone={timezone}
                 onChange={setTimezone}
                 disabled={tzLoading || savingTimezone}
-                className="max-w-md flex-1"
+                className="w-full min-w-0 flex-1 lg:max-w-md"
               />
-              <PeerTimezoneBadge label={timezoneLabel} />
+              <PeerTimezoneBadge label={timezoneLabel} className="self-start lg:self-auto" />
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4">
+          <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4">
             <DashboardStatCard
               theme="purple"
               label="Total bookings"
@@ -247,7 +266,12 @@ export default function CandidateBookingsPage() {
           </div>
 
           {nextUpcoming ? (
-            <div className={cn(appCard, "flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between")}>
+            <div
+              className={cn(
+                appCard,
+                "flex min-w-0 flex-col gap-3 p-3 sm:flex-row sm:items-center sm:justify-between sm:p-4",
+              )}
+            >
               <div className="min-w-0">
                 <p className="text-xs font-semibold uppercase tracking-wide text-[#7367F0]">
                   Next interview
@@ -256,25 +280,29 @@ export default function CandidateBookingsPage() {
                   {typeNames[nextUpcoming.interviewType] || nextUpcoming.interviewType}
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  {formatPeerSchedule(nextUpcoming.start, timezone)}{" "}
-                  · Ref {nextUpcoming.bookingRef}
+                  {formatPeerSchedule(nextUpcoming.start, timezone)} · Ref{" "}
+                  {nextUpcoming.bookingRef}
                 </p>
               </div>
-              <div className="flex shrink-0 flex-wrap items-center gap-2">
+              <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center">
                 {nextUpcoming.videoLink ? (
                   <PeerMeetingJoinButton
+                    bookingId={nextUpcoming.id}
                     videoLink={nextUpcoming.videoLink}
                     start={nextUpcoming.start}
                     end={nextUpcoming.end}
                     timezone={timezone}
-                    label="Join meeting"
+                    label="Join meeting room"
                     size="default"
                     variant="default"
-                    className="bg-[#7367F0] text-white hover:bg-[#6e62e5] disabled:opacity-60"
+                    className="w-full bg-[#7367F0] text-white hover:bg-[#6e62e5] disabled:opacity-60 sm:w-auto"
                   />
                 ) : null}
-                <Link href={`/dashboard/peer-interviews/bookings/${nextUpcoming.id}`}>
-                  <Button variant="outline">
+                <Link
+                  href={`/dashboard/peer-interviews/bookings/${nextUpcoming.id}`}
+                  className="w-full sm:w-auto"
+                >
+                  <Button variant="outline" className="w-full sm:w-auto">
                     <Clock className="mr-2 h-4 w-4" /> View details
                   </Button>
                 </Link>
@@ -282,17 +310,17 @@ export default function CandidateBookingsPage() {
             </div>
           ) : null}
 
-          <Card className="overflow-hidden rounded-xl border border-border/60 bg-card shadow-card">
-            <CardHeader className="border-b border-border/60 px-5 py-4">
-              <div>
-                <CardTitle className="text-lg font-semibold text-foreground">Bookings</CardTitle>
-                <CardDescription className="mt-1 text-sm">
+          <Card className="min-w-0 max-w-full overflow-hidden rounded-xl border border-border/60 bg-card shadow-card">
+            <CardHeader className="border-b border-border/60 px-4 py-4 sm:px-5">
+              <div className="min-w-0">
+                <CardTitle className="text-base font-semibold text-foreground sm:text-lg">Bookings</CardTitle>
+                <CardDescription className="mt-1 text-xs sm:text-sm">
                   Filter by status or interview round. Pay once accepted, then join from here when
                   it&apos;s time.
                 </CardDescription>
               </div>
             </CardHeader>
-            <CardContent className="p-0 pb-4">
+            <CardContent className="min-w-0 max-w-full overflow-hidden p-0 pb-4">
               <CandidateBookingsTable
                 bookings={bookings}
                 types={types}

@@ -103,8 +103,10 @@ export function RescheduleBookingDialog({
           <DialogTitle>Reschedule interview</DialogTitle>
           <DialogDescription>
             Pick another open slot with {booking.interviewer?.name || "your interviewer"}.{" "}
-            {RESCHEDULE_ONCE_NOTE} Reschedule is available only more than 24 hours before your
-            current interview time.
+            {RESCHEDULE_ONCE_NOTE}{" "}
+            {booking.status === "paid_confirmed"
+              ? "Reschedule is available only more than 24 hours before your current interview time."
+              : "You can pick any future open slot with the same interviewer while this booking is pending or awaiting payment."}
           </DialogDescription>
         </DialogHeader>
 

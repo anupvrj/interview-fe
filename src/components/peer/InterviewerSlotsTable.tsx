@@ -10,6 +10,11 @@ import { formatPeerSchedule, formatPeerTimeInTimezone } from "@/components/peer/
 import { instituteSecondaryClass } from "@/components/institute/InstituteChrome";
 import { appFilterBar } from "@/lib/app-theme";
 import type { PeerInterviewType, PeerSlot } from "@/lib/api";
+import {
+  canDeleteInterviewerSlot,
+  canEditInterviewerSlot,
+  isPastPeerSlot,
+} from "@/lib/peer-slot-guards";
 import { cn } from "@/lib/utils";
 
 export type SlotStatusFilter = "all" | "open" | "booked" | "past";
@@ -22,15 +27,15 @@ const STATUS_OPTIONS: { value: SlotStatusFilter; label: string }[] = [
 ];
 
 export function isPastSlot(slot: PeerSlot) {
-  return new Date(slot.end).getTime() < Date.now() || slot.status === "expired";
+  return isPastPeerSlot(slot);
 }
 
 function matchesFilter(slot: PeerSlot, filter: SlotStatusFilter) {
   switch (filter) {
     case "open":
-      return slot.status === "open" && !isPastSlot(slot);
+      return slot.status === "open" && !slot.bookingId && !isPastSlot(slot);
     case "booked":
-      return slot.status === "booked";
+      return slot.status === "booked" || Boolean(slot.bookingId);
     case "past":
       return isPastSlot(slot);
     default:
@@ -39,7 +44,7 @@ function matchesFilter(slot: PeerSlot, filter: SlotStatusFilter) {
 }
 
 function canDeleteSlot(slot: PeerSlot) {
-  return slot.status === "open" && !isPastSlot(slot);
+  return canDeleteInterviewerSlot(slot);
 }
 
 export function computeSlotStats(slots: PeerSlot[]) {
@@ -48,8 +53,8 @@ export function computeSlotStats(slots: PeerSlot[]) {
   let past = 0;
   for (const slot of slots) {
     if (isPastSlot(slot)) past += 1;
-    else if (slot.status === "open") open += 1;
-    else if (slot.status === "booked") booked += 1;
+    else if (slot.status === "open" && !slot.bookingId) open += 1;
+    else if (slot.status === "booked" || slot.bookingId) booked += 1;
   }
   return { total: slots.length, open, booked, past };
 }
@@ -238,7 +243,7 @@ export function InterviewerSlotsTable({
             <tbody>
               {filteredSlots.map((slot) => {
                 const deletable = canDeleteSlot(slot);
-                const editable = slot.status === "open" && !isPastSlot(slot);
+                const editable = canEditInterviewerSlot(slot);
                 return (
                   <tr
                     key={slot.id}
@@ -269,7 +274,7 @@ export function InterviewerSlotsTable({
                       <RoundsCell keys={slot.availableForTypes} typeNames={typeNames} />
                     </td>
                     <td className="px-5 py-3.5 align-top">
-                      <SlotStatusBadge status={slot.status} />
+                      <SlotStatusBadge slot={slot} />
                     </td>
                     <td className="px-5 py-3.5 align-top">
                       <div className="flex flex-wrap items-center justify-end gap-2">

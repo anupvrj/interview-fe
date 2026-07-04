@@ -20,7 +20,8 @@ const MAP: Record<PeerSlot["status"], { label: string; className: string }> = {
   },
 };
 
-export function SlotStatusBadge({ status }: { status: PeerSlot["status"] }) {
+export function SlotStatusBadge({ slot }: { slot: PeerSlot }) {
+  const status = slot.bookingId ? "booked" : slot.status;
   const cfg = MAP[status] ?? MAP.open;
   return (
     <span

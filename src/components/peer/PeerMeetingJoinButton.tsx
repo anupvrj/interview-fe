@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { Video } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -12,22 +13,26 @@ import {
 } from "@/components/peer/peerSlotTime";
 
 type PeerMeetingJoinButtonProps = {
+  bookingId: string;
   videoLink: string;
   start: string;
   end?: string;
   timezone?: string;
   label?: string;
+  iconOnly?: boolean;
   size?: "default" | "sm" | "lg" | "icon";
   variant?: "default" | "outline" | "secondary" | "ghost" | "link" | "destructive";
   className?: string;
 };
 
 export function PeerMeetingJoinButton({
+  bookingId,
   videoLink,
   start,
   end,
   timezone = DEFAULT_PEER_TIMEZONE,
-  label = "Join",
+  label = "Join meeting room",
+  iconOnly = false,
   size = "sm",
   variant = "outline",
   className,
@@ -52,16 +57,20 @@ export function PeerMeetingJoinButton({
 
   const joinable = canJoinPeerMeeting(start, end, nowMs);
   const tooltip = peerJoinDisabledTooltip(start, timezone);
+  const roomHref = `/dashboard/peer-interviews/bookings/${bookingId}/room`;
+  const resolvedSize = iconOnly ? "icon" : size;
+  const iconClass = iconOnly || resolvedSize === "icon" ? "h-4 w-4" : size === "sm" ? "h-3.5 w-3.5" : "h-4 w-4";
 
   const button = (
     <Button
-      size={size}
+      size={resolvedSize}
       variant={variant}
       disabled={!joinable}
-      className={cn("gap-1", className)}
+      aria-label={iconOnly ? label : undefined}
+      className={cn(iconOnly ? "" : "gap-1", className)}
     >
-      <Video className={size === "sm" ? "h-3.5 w-3.5" : "h-4 w-4"} />
-      {label}
+      <Video className={iconClass} />
+      {iconOnly ? null : label}
     </Button>
   );
 
@@ -69,14 +78,15 @@ export function PeerMeetingJoinButton({
     return (
       <Button
         asChild
-        size={size}
+        size={resolvedSize}
         variant={variant}
-        className={cn("gap-1", className)}
+        aria-label={iconOnly ? label : undefined}
+        className={cn(iconOnly ? "" : "gap-1", className)}
       >
-        <a href={videoLink} target="_blank" rel="noreferrer">
-          <Video className={size === "sm" ? "h-3.5 w-3.5" : "h-4 w-4"} />
-          {label}
-        </a>
+        <Link href={roomHref} aria-label={iconOnly ? label : undefined}>
+          <Video className={iconClass} />
+          {iconOnly ? null : label}
+        </Link>
       </Button>
     );
   }
@@ -91,5 +101,22 @@ export function PeerMeetingJoinButton({
         {tooltip}
       </span>
     </span>
+  );
+}
+
+/** @deprecated Use room flow; kept for direct Meet fallback if needed */
+export function PeerMeetingExternalLink({
+  videoLink,
+  className,
+}: {
+  videoLink: string;
+  className?: string;
+}) {
+  return (
+    <Button asChild variant="ghost" size="sm" className={className}>
+      <a href={videoLink} target="_blank" rel="noreferrer">
+        Open Meet directly
+      </a>
+    </Button>
   );
 }

@@ -45,6 +45,7 @@ import {
 import { PeerTimezoneBadge, PeerTimezoneSelect } from "@/components/peer/PeerTimezoneSelect";
 import { usePeerTimezone } from "@/components/peer/usePeerTimezone";
 import { formatPeerSchedule } from "@/components/peer/peerSlotTime";
+import { canDeleteInterviewerSlot } from "@/lib/peer-slot-guards";
 import { appCard } from "@/lib/app-theme";
 import { cn } from "@/lib/utils";
 import {
@@ -81,7 +82,7 @@ export default function InterviewerSlotsListPage() {
   const nextOpenSlot = useMemo(() => {
     const now = Date.now();
     return slots
-      .filter((s) => s.status === "open" && !isPastSlot(s) && new Date(s.start).getTime() >= now)
+      .filter((s) => s.status === "open" && !s.bookingId && !isPastSlot(s) && new Date(s.start).getTime() >= now)
       .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime())[0];
   }, [slots]);
 
@@ -364,7 +365,9 @@ export default function InterviewerSlotsListPage() {
                 onSelectedIdsChange={setSelectedIds}
                 onView={setViewSlot}
                 onEdit={openEdit}
-                onDelete={setSlotToDelete}
+                onDelete={(slot) => {
+                  if (canDeleteInterviewerSlot(slot)) setSlotToDelete(slot);
+                }}
                 bulkDeleting={deleting}
               />
             </CardContent>

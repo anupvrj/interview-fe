@@ -19,6 +19,7 @@ import {
   Network,
   BarChart2,
   UserPlus,
+  ClipboardList,
 } from "lucide-react";
 import type { AccessRole, User as ApiUser } from "@/lib/api";
 import { isPathAllowedForRole, type ActiveRole } from "@/lib/roles";
@@ -286,11 +287,25 @@ const PEER_APPLY_NAV_ITEM: DashboardNavItem = {
   accent: accent.emerald,
 };
 
+const PEER_MY_BOOKINGS_NAV_ITEM: DashboardNavItem = {
+  title: "My Peer Bookings",
+  href: "/dashboard/peer-interviews/bookings",
+  icon: ClipboardList,
+  accent: accent.blue,
+};
+
 const PEER_EARNINGS_NAV_ITEM: DashboardNavItem = {
   title: "Peer — Earnings",
   href: "/dashboard/peer-interviews/interviewer/earnings",
   icon: Receipt,
   accent: accent.violet,
+};
+
+const PEER_BOOKINGS_NAV_ITEM: DashboardNavItem = {
+  title: "Peer — Bookings",
+  href: "/dashboard/peer-interviews/interviewer/bookings",
+  icon: ClipboardList,
+  accent: accent.blue,
 };
 
 /** Hide interviewer dashboard until applied; show apply link for new candidates. */
@@ -305,16 +320,42 @@ export function withPeerNavItems(
       item.href !== "/dashboard/peer-interviews/interviewer" || hasInterviewerProfile,
   );
 
+  const peerInterviewsIdx = next.findIndex(
+    (item) => item.href === "/dashboard/peer-interviews",
+  );
+  if (peerInterviewsIdx !== -1) {
+    const candidateExtras: DashboardNavItem[] = [];
+    if (!next.some((item) => item.href === PEER_MY_BOOKINGS_NAV_ITEM.href)) {
+      candidateExtras.push(PEER_MY_BOOKINGS_NAV_ITEM);
+    }
+    if (candidateExtras.length > 0) {
+      next = [
+        ...next.slice(0, peerInterviewsIdx + 1),
+        ...candidateExtras,
+        ...next.slice(peerInterviewsIdx + 1),
+      ];
+    }
+  }
+
   if (hasInterviewerProfile) {
     const hubIdx = next.findIndex(
       (item) => item.href === "/dashboard/peer-interviews/interviewer",
     );
-    if (hubIdx !== -1 && !next.some((item) => item.href === PEER_EARNINGS_NAV_ITEM.href)) {
-      next = [
-        ...next.slice(0, hubIdx + 1),
-        PEER_EARNINGS_NAV_ITEM,
-        ...next.slice(hubIdx + 1),
-      ];
+    if (hubIdx !== -1) {
+      const peerExtras: DashboardNavItem[] = [];
+      if (!next.some((item) => item.href === PEER_BOOKINGS_NAV_ITEM.href)) {
+        peerExtras.push(PEER_BOOKINGS_NAV_ITEM);
+      }
+      if (!next.some((item) => item.href === PEER_EARNINGS_NAV_ITEM.href)) {
+        peerExtras.push(PEER_EARNINGS_NAV_ITEM);
+      }
+      if (peerExtras.length > 0) {
+        next = [
+          ...next.slice(0, hubIdx + 1),
+          ...peerExtras,
+          ...next.slice(hubIdx + 1),
+        ];
+      }
     }
   }
 

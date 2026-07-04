@@ -79,7 +79,7 @@ export function ConfirmationDialog({
             <AlertDialogTitle className="text-xl font-bold mt-2">
               {title}
             </AlertDialogTitle>
-            <AlertDialogDescription className="text-base mt-2 text-gray-600">
+            <AlertDialogDescription className="text-base mt-2 text-muted-foreground">
               {description}
             </AlertDialogDescription>
           </div>

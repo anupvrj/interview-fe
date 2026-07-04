@@ -66,6 +66,11 @@ export function setAuthTokenGetter(getter: () => Promise<string | null>) {
   tokenGetter = getter;
 }
 
+export async function getAuthToken(): Promise<string | null> {
+  if (!tokenGetter) return null;
+  return tokenGetter();
+}
+
 // Request interceptor to add auth token and userId
 apiClient.interceptors.request.use(
   async (config) => {
@@ -2717,6 +2722,12 @@ export interface PeerInterviewerCard {
   timezone?: string;
 }
 
+export interface PeerMeetCoHostInfo {
+  email: string;
+  assigned: boolean;
+  error?: string;
+}
+
 export interface PeerSlot {
   id: string;
   start: string;
@@ -2725,7 +2736,13 @@ export interface PeerSlot {
   availableForTypes: string[];
   prices: Record<string, number>;
   videoLink?: string;
+  googleMeetSpaceName?: string;
+  videoLinkSource?: "google_meet_api" | "manual";
+  meetCoHostEmail?: string;
+  meetCoHostAssigned?: boolean;
+  meetCoHost?: PeerMeetCoHostInfo;
   status: "open" | "booked" | "blocked" | "expired";
+  bookingId?: string;
 }
 
 export type PeerBookingStatus =
@@ -2741,6 +2758,35 @@ export interface PeerFeedback {
   rating: number;
   comments?: string;
   at?: string;
+}
+
+export type PeerChatPresence = "online" | "away" | "offline";
+
+export type PeerChatSenderRole = "candidate" | "interviewer";
+
+export interface PeerChatMessage {
+  id: string;
+  bookingId: string;
+  senderClerkId: string;
+  senderRole: PeerChatSenderRole;
+  body: string;
+  clientMessageId?: string;
+  createdAt: string;
+}
+
+export interface PeerChatPartner {
+  clerkId: string;
+  displayName: string;
+  presence: PeerChatPresence;
+}
+
+export interface PeerInterviewerCandidateScore {
+  technical: number;
+  behaviour: number;
+  communication: number;
+  overall: number;
+  comments?: string;
+  submittedAt?: string;
 }
 
 export interface PeerBookingCandidatePreview {
@@ -2774,6 +2820,77 @@ export interface PeerBookingCancelPolicy {
   message: string;
 }
 
+export interface PeerMeetArtifactsPreview {
+  transcriptAvailable?: boolean;
+  recordingAvailable?: boolean;
+  meetRecordingS3Status?: "pending" | "complete" | "failed" | "skipped";
+  fetchedAt?: string;
+}
+
+export interface PeerSessionRecording {
+  s3Key?: string;
+  uploadedAt?: string;
+  uploadedByClerkId?: string;
+  durationSec?: number;
+}
+
+export type PeerReportStatus =
+  | "none"
+  | "pending"
+  | "processing"
+  | "completed"
+  | "failed";
+
+export type PeerArtifactsStatus =
+  | "none"
+  | "waiting"
+  | "processing"
+  | "complete"
+  | "failed";
+
+export interface PeerInterviewReport {
+  reportId: string;
+  bookingRef: string;
+  interviewType: string;
+  overallScore: number;
+  categoryScores: {
+    technical: number;
+    behavioral: number;
+    communication: number;
+    confidence: number;
+  };
+  qaAnalysis: Array<{
+    question: string;
+    candidateAnswer: string;
+    suggestedAnswer: string;
+    correctnessScore: number;
+    clarityScore: number;
+    completenessScore: number;
+    answerQuality?: "strong" | "partial" | "weak" | "avoided";
+    questionType: "technical" | "behavioral" | "system-design" | "hr";
+    questionDifficulty: "easy" | "medium" | "hard";
+    feedback: string;
+    strengths: string[];
+    improvements: string[];
+  }>;
+  strengths: string[];
+  improvements: string[];
+  behavioral: {
+    confidence: number;
+    clarity: number;
+    fluency: number;
+    fillersPerMinute: number;
+  };
+  pass2Analysis?: {
+    overallSummary?: string;
+    topStrengths?: string[];
+    topImprovements?: string[];
+    communicationScore?: number;
+  };
+  transcriptSource?: "google_meet" | "manual" | "interviewer_score";
+  createdAt?: string;
+}
+
 export interface PeerBooking {
   id: string;
   bookingRef: string;
@@ -2791,9 +2908,19 @@ export interface PeerBooking {
   videoLink?: string;
   candidateFeedback?: PeerFeedback;
   interviewerFeedback?: PeerFeedback;
+  interviewerCandidateScore?: PeerInterviewerCandidateScore;
   candidateMarkedDone: boolean;
   interviewerMarkedDone: boolean;
   rescheduleCount?: number;
+  googleMeetSpaceName?: string;
+  meetCoHostEmail?: string;
+  meetCoHostAssigned?: boolean;
+  sessionRecording?: PeerSessionRecording;
+  meetArtifacts?: PeerMeetArtifactsPreview;
+  conferenceEndedAt?: string;
+  artifactsStatus?: PeerArtifactsStatus;
+  reportStatus?: PeerReportStatus;
+  peerReportId?: string;
   adminPayout?: { status: string; amount?: number; decidedBy?: string; at?: string };
   refund?: { type?: string; amount?: number; status: string; reason?: string; at?: string };
   razorpayOrderId?: string;
@@ -2965,7 +3092,19 @@ export const peerApi = {
     end: string;
     availableForTypes: string[];
     videoLink: string;
+    googleMeetSpaceName?: string;
+    videoLinkSource?: "google_meet_api" | "manual";
   }) => unwrap<PeerSlot>(apiClient.post("/peer/slots", body)),
+  createSlotsBulk: (body: {
+    slots: { start: string; end: string }[];
+    availableForTypes: string[];
+  }) =>
+    unwrap<{
+      created: PeerSlot[];
+      skippedPast: number;
+      skippedOverlap: number;
+      skippedMeet: number;
+    }>(apiClient.post("/peer/slots/bulk", body)),
   listMySlots: () => unwrap<PeerSlot[]>(apiClient.get("/peer/slots/me")),
   updateSlot: (
     id: string,
@@ -2974,8 +3113,20 @@ export const peerApi = {
       end: string;
       availableForTypes: string[];
       videoLink: string;
+      googleMeetSpaceName?: string;
+      videoLinkSource?: "google_meet_api" | "manual";
     },
   ) => unwrap<PeerSlot>(apiClient.patch(`/peer/slots/${id}`, body)),
+  createMeetSpace: () =>
+    unwrap<{
+      videoLink: string;
+      googleMeetSpaceName: string;
+      meetingCode: string;
+      videoLinkSource: "google_meet_api";
+      meetCoHost?: PeerMeetCoHostInfo;
+    }>(apiClient.post("/peer/meet/create-space")),
+  generateMeetLink: (slotId: string) =>
+    unwrap<PeerSlot>(apiClient.post(`/peer/slots/${slotId}/generate-meet-link`)),
   deleteSlot: (id: string) =>
     unwrap<{ deleted: boolean }>(apiClient.delete(`/peer/slots/${id}`)),
   bulkDeleteSlots: (ids: string[]) =>
@@ -3001,6 +3152,13 @@ export const peerApi = {
     unwrap<PeerBooking[]>(apiClient.get("/peer/bookings/interviewer")),
   getBooking: (id: string) =>
     unwrap<PeerBooking>(apiClient.get(`/peer/bookings/${id}`)),
+  listChatMessages: (
+    id: string,
+    params?: { limit?: number; before?: string },
+  ) =>
+    unwrap<{ messages: PeerChatMessage[]; hasMore: boolean }>(
+      apiClient.get(`/peer/bookings/${id}/chat/messages`, { params }),
+    ),
   acceptBooking: (id: string) =>
     unwrap<PeerBooking>(apiClient.post(`/peer/bookings/${id}/accept`)),
   rejectBooking: (id: string, reason: string) =>
@@ -3021,8 +3179,33 @@ export const peerApi = {
   ) => unwrap<PeerBooking>(apiClient.post(`/peer/bookings/${id}/verify-payment`, body)),
   submitFeedback: (id: string, body: { rating: number; comments?: string }) =>
     unwrap<PeerBooking>(apiClient.post(`/peer/bookings/${id}/feedback`, body)),
+  submitInterviewerCandidateScore: (
+    id: string,
+    body: { technical: number; behaviour: number; communication: number; comments?: string },
+  ) =>
+    unwrap<PeerBooking>(
+      apiClient.post(`/peer/bookings/${id}/candidate-score`, body),
+    ),
   markDone: (id: string) =>
     unwrap<PeerBooking>(apiClient.post(`/peer/bookings/${id}/mark-done`)),
+  getRecordingUploadUrl: (id: string) =>
+    unwrap<{ uploadUrl: string; s3Key: string; expiresIn: number; bookingRef: string }>(
+      apiClient.get(`/peer/bookings/${id}/recording/upload-url`),
+    ),
+  saveRecordingKey: (id: string, body: { s3Key: string; durationSec?: number }) =>
+    unwrap<PeerBooking>(apiClient.post(`/peer/bookings/${id}/recording/save-key`, body)),
+  markRecordingStarted: (id: string) =>
+    unwrap<{ started: boolean }>(apiClient.post(`/peer/bookings/${id}/recording/start`)),
+  getRecordingVideoUrl: (id: string) =>
+    unwrap<{ url: string; expiresIn: number | null; source?: string }>(
+      apiClient.get(`/peer/bookings/${id}/recording/video-url`),
+    ),
+  getPeerReport: (id: string) =>
+    unwrap<PeerInterviewReport | null>(apiClient.get(`/peer/bookings/${id}/report`)),
+  generatePeerReport: (id: string) =>
+    unwrap<{ report: PeerInterviewReport; generated: boolean }>(
+      apiClient.post(`/peer/bookings/${id}/report/generate`),
+    ),
 
   // Admin
   admin: {

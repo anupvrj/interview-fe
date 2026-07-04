@@ -27,7 +27,7 @@ const CHECK_CATEGORIES = [
       "Bullets Consistency",
     ],
     iconClass: "bg-primary",
-    cardTint: "from-[#7367F0]/[0.06] to-white",
+    cardTint: "from-[#7367F0]/[0.06] to-card",
   },
   {
     icon: Layers,
@@ -35,7 +35,7 @@ const CHECK_CATEGORIES = [
     tagline: "Structure recruiters expect",
     checks: ["Essential Sections", "Contact Information", "Section Order"],
     iconClass: "bg-gradient-to-br from-indigo-500 to-indigo-600",
-    cardTint: "from-indigo-500/[0.06] to-white",
+    cardTint: "from-indigo-500/[0.06] to-card",
   },
   {
     icon: Shield,
@@ -50,7 +50,7 @@ const CHECK_CATEGORIES = [
       "Dates & Links",
     ],
     iconClass: "bg-gradient-to-br from-sky-500 to-sky-600",
-    cardTint: "from-sky-500/[0.06] to-white",
+    cardTint: "from-sky-500/[0.06] to-card",
   },
   {
     icon: AlertTriangle,
@@ -62,7 +62,7 @@ const CHECK_CATEGORIES = [
       "Peer Benchmarking",
     ],
     iconClass: "bg-gradient-to-br from-amber-500 to-amber-600",
-    cardTint: "from-amber-500/[0.06] to-white",
+    cardTint: "from-amber-500/[0.06] to-card",
   },
   {
     icon: Scale,
@@ -70,7 +70,7 @@ const CHECK_CATEGORIES = [
     tagline: "Bias signals to remove early",
     checks: ["Ageism & Date Bias", "Employment Gaps"],
     iconClass: "bg-gradient-to-br from-rose-500 to-rose-600",
-    cardTint: "from-rose-500/[0.06] to-white",
+    cardTint: "from-rose-500/[0.06] to-card",
   },
   {
     icon: TrendingUp,
@@ -78,7 +78,7 @@ const CHECK_CATEGORIES = [
     tagline: "Level fit beyond years of experience",
     checks: ["Career Progression", "Skill Evidence", "Leadership Signals"],
     iconClass: "bg-gradient-to-br from-emerald-500 to-emerald-600",
-    cardTint: "from-emerald-500/[0.06] to-white",
+    cardTint: "from-emerald-500/[0.06] to-card",
   },
   {
     icon: Target,
@@ -86,7 +86,7 @@ const CHECK_CATEGORIES = [
     tagline: "Keyword match for the role you want",
     checks: ["Hard Skills", "Soft Skills", "Action Verbs", "Title Match"],
     iconClass: "bg-gradient-to-br from-violet-500 to-violet-600",
-    cardTint: "from-violet-500/[0.06] to-white",
+    cardTint: "from-violet-500/[0.06] to-card",
   },
 ];
 
@@ -199,7 +199,7 @@ function CategoryCard({
               <Icon className="h-5 w-5 text-white" />
             </div>
             <div className="min-w-0">
-              <h3 className="text-base font-bold leading-tight text-slate-900">{cat.title}</h3>
+              <h3 className="text-base font-bold leading-tight text-foreground">{cat.title}</h3>
               <p className="mt-0.5 line-clamp-1 text-xs font-semibold text-gray-700">{cat.tagline}</p>
             </div>
           </div>
@@ -208,7 +208,7 @@ function CategoryCard({
             {cat.checks.map((check) => (
               <li
                 key={check}
-                className="inline-flex items-center gap-1.5 rounded-md border border-border/50 bg-white/75 px-2 py-1 text-[11px] text-gray-600 backdrop-blur-sm sm:text-xs"
+                className="inline-flex items-center gap-1.5 rounded-md border border-border/50 bg-card/75 px-2 py-1 text-[11px] text-gray-600 backdrop-blur-sm sm:text-xs"
               >
                 <span className="h-1 w-1 shrink-0 rounded-full bg-primary/70" />
                 {check}

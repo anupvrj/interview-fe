@@ -20,6 +20,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { BookingStatusBadge } from "@/components/peer/BookingStatusBadge";
 import { DEFAULT_PEER_TIMEZONE, formatPeerSchedule } from "@/components/peer/peerSlotTime";
 import { peerApi, type PeerBooking } from "@/lib/api";
+import { isPeerInterviewExpired } from "@/lib/peer-booking-expiry";
 
 function formatScheduleRange(start: string, end: string, timezone: string) {
   const startLabel = formatPeerSchedule(start, timezone);
@@ -100,7 +101,8 @@ export function PendingBookingDetailsDialog({
 
   const candidate = booking?.candidate;
   const interviewLabel = typeLabel || booking?.interviewType || "Interview";
-  const canRespond = booking?.status === "pending_acceptance";
+  const interviewExpired = booking ? isPeerInterviewExpired(booking) : false;
+  const canRespond = booking?.status === "pending_acceptance" && !interviewExpired;
   const busy = !!bookingId && busyBookingId === bookingId;
 
   const handleAccept = () => {
@@ -233,12 +235,17 @@ export function PendingBookingDetailsDialog({
                     </div>
                     <div className="mt-4 flex items-center gap-2 border-t border-border/60 pt-4">
                       <span className="text-xs font-medium text-muted-foreground">Status</span>
-                      <BookingStatusBadge status={booking.status} />
+                      <BookingStatusBadge status={booking.status} start={booking.start} />
                     </div>
                   </div>
                 </section>
 
-                {canRespond ? (
+                {interviewExpired ? (
+                  <div className="rounded-xl border border-border/60 bg-muted/20 px-4 py-3 text-xs text-muted-foreground">
+                    This interview has expired because payment was not completed before the scheduled
+                    time.
+                  </div>
+                ) : canRespond ? (
                   <div className="flex items-start gap-2 rounded-xl border border-border/60 bg-muted/20 px-4 py-3 text-xs text-muted-foreground">
                     <IndianRupee className="mt-0.5 h-4 w-4 shrink-0 text-[#7367F0]" />
                     <span>

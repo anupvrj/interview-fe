@@ -82,6 +82,13 @@ const SUPER_ADMIN_PREFIXES = ["/dashboard/super-admin"];
 const INSTITUTE_PREFIXES = ["/dashboard/institute"];
 const INTERVIEWER_HUB = "/dashboard/peer-interviews/interviewer";
 const INTERVIEWER_APPLY = "/dashboard/peer-interviews/interviewer/apply";
+const PEER_CANDIDATE_HUB = "/dashboard/peer-interviews";
+const PEER_CANDIDATE_BOOKINGS = "/dashboard/peer-interviews/bookings";
+
+/** Candidate marketplace and booking list — not for the interviewer role view. */
+function isCandidatePeerMarketplacePath(pathname: string): boolean {
+  return pathname === PEER_CANDIDATE_HUB || pathname === PEER_CANDIDATE_BOOKINGS;
+}
 
 /** Candidate booking page: /dashboard/peer-interviews/interviewer/:interviewerId */
 function isPublicPeerInterviewerProfilePath(pathname: string): boolean {
@@ -130,7 +137,7 @@ export function isPathAllowedForRole(
   }
 
   if (role === "interviewer") {
-    // Interviewers stay within the peer interview area (incl. the apply page).
+    if (isCandidatePeerMarketplacePath(pathname)) return false;
     return pathname.startsWith("/dashboard/peer-interviews");
   }
 

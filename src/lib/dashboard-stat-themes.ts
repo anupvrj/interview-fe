@@ -1,7 +1,7 @@
 /** Shared hero purple — light tinted stat cards (one primary colour) */
 export const dashboardHeroStatPalette = {
   shell:
-    "border-[#7367F0]/15 bg-gradient-to-br from-[#7367F0]/[0.07] via-white to-[#7367F0]/[0.12] shadow-card",
+    "border-[#7367F0]/15 bg-gradient-to-br from-[#7367F0]/[0.07] via-card to-[#7367F0]/[0.12] shadow-card",
   label: "text-[#7367F0]",
   value: "text-foreground",
   hint: "text-muted-foreground",
@@ -44,37 +44,37 @@ export const dashboardInsightThemes = {
   },
   emerald: {
     card: "border-emerald-500/20 bg-card shadow-card",
-    icon: "bg-emerald-500/12 text-emerald-600",
-    label: "text-emerald-600",
+    icon: "bg-emerald-500/12 text-emerald-600 dark:text-emerald-400",
+    label: "text-emerald-600 dark:text-emerald-400",
   },
   cyan: {
     card: "border-cyan-500/20 bg-card shadow-card",
-    icon: "bg-cyan-500/12 text-cyan-600",
-    label: "text-cyan-600",
+    icon: "bg-cyan-500/12 text-cyan-600 dark:text-cyan-400",
+    label: "text-cyan-600 dark:text-cyan-400",
   },
   amber: {
     card: "border-amber-500/20 bg-card shadow-card",
-    icon: "bg-amber-500/12 text-amber-600",
-    label: "text-amber-600",
+    icon: "bg-amber-500/12 text-amber-600 dark:text-amber-400",
+    label: "text-amber-600 dark:text-amber-400",
   },
   rose: {
     card: "border-rose-500/20 bg-card shadow-card",
-    icon: "bg-rose-500/12 text-rose-600",
-    label: "text-rose-600",
+    icon: "bg-rose-500/12 text-rose-600 dark:text-rose-400",
+    label: "text-rose-600 dark:text-rose-400",
   },
   sky: {
     card: "border-sky-500/20 bg-card shadow-card",
-    icon: "bg-sky-500/12 text-sky-600",
-    label: "text-sky-600",
+    icon: "bg-sky-500/12 text-sky-600 dark:text-sky-400",
+    label: "text-sky-600 dark:text-sky-400",
   },
   violet: {
     card: "border-violet-500/20 bg-card shadow-card",
-    icon: "bg-violet-500/12 text-violet-600",
-    label: "text-violet-600",
+    icon: "bg-violet-500/12 text-violet-600 dark:text-violet-400",
+    label: "text-violet-600 dark:text-violet-400",
   },
   orange: {
     card: "border-orange-500/20 bg-card shadow-card",
-    icon: "bg-orange-500/12 text-orange-600",
-    label: "text-orange-600",
+    icon: "bg-orange-500/12 text-orange-600 dark:text-orange-400",
+    label: "text-orange-600 dark:text-orange-400",
   },
 } as const satisfies Record<DashboardStatThemeKey, DashboardInsightTheme>;

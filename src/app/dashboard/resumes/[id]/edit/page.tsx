@@ -2321,9 +2321,9 @@ export default function EditResumePage() {
 
           {viewMode === "ats" ? (
             resume.atsFeedback ? (
-              <div className="min-w-0 overflow-x-hidden p-3 sm:p-4">
+              <div className="min-w-0 bg-card p-3 sm:p-4">
                 {showImprovedBanner && (
-                  <div className="mb-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800 break-words">
+                  <div className="mb-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800 break-words dark:border-green-900/40 dark:bg-green-950/25 dark:text-green-200">
                     Resume improved from ATS feedback. Issues addressed by AI
                     are hidden here; re-run ATS check anytime to see a fresh
                     full report.
@@ -2429,12 +2429,12 @@ export default function EditResumePage() {
                     {/* Column Width Controls (only for double column) */}
                     {layout.type === "double" && (
                       <div className="space-y-2 pt-2 border-t">
-                        <Label className="text-xs text-gray-600">
+                        <Label className="text-xs text-muted-foreground">
                           Column Widths
                         </Label>
                         <div className="flex items-center gap-2">
                           <div className="flex-1 space-y-1">
-                            <Label className="block text-xs text-gray-500">
+                            <Label className="block text-xs text-muted-foreground">
                               Left: {layout.columnWidths.left}%
                             </Label>
                             <div className="flex items-center gap-1">
@@ -2504,7 +2504,7 @@ export default function EditResumePage() {
                             </div>
                           </div>
                           <div className="flex-1 space-y-1">
-                            <Label className="block text-xs text-gray-500">
+                            <Label className="block text-xs text-muted-foreground">
                               Right: {layout.columnWidths.right}%
                             </Label>
                             <div className="flex items-center gap-1">
@@ -2692,10 +2692,10 @@ export default function EditResumePage() {
                                 <h4 className="font-semibold text-base mb-1">
                                   {personalInfo.fullName || "Your Name"}
                                 </h4>
-                                <p className="text-sm text-gray-600 mb-3">
+                                <p className="text-sm text-muted-foreground mb-3">
                                   {personalInfo.portfolio || "Your Title"}
                                 </p>
-                                <div className="flex flex-wrap gap-3 text-sm text-gray-600">
+                                <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
                                   {personalInfo.email && (
                                     <span>{personalInfo.email}</span>
                                   )}
@@ -2728,7 +2728,7 @@ export default function EditResumePage() {
                                     <img
                                       src={personalInfo.profilePicture}
                                       alt="Profile"
-                                      className="w-24 h-24 rounded-full object-cover border-2 border-gray-200"
+                                      className="w-24 h-24 rounded-full object-cover border-2 border-border"
                                     />
                                     <button
                                       type="button"
@@ -2753,7 +2753,7 @@ export default function EditResumePage() {
                                     </button>
                                   </>
                                 ) : (
-                                  <div className="w-24 h-24 rounded-full bg-gray-200 flex items-center justify-center border-2 border-gray-300">
+                                  <div className="w-24 h-24 rounded-full bg-muted flex items-center justify-center border-2 border-border">
                                     <span className="text-3xl">👤</span>
                                   </div>
                                 )}
@@ -2826,12 +2826,12 @@ export default function EditResumePage() {
                                   </div>
                                 )}
                                 {profilePictureFileName && (
-                                  <p className="text-xs text-gray-500 mt-1">
+                                  <p className="text-xs text-muted-foreground mt-1">
                                     {profilePictureFileName}
                                   </p>
                                 )}
                                 {!personalInfo.profilePicture && (
-                                  <p className="text-xs text-gray-500 mt-1">
+                                  <p className="text-xs text-muted-foreground mt-1">
                                     Upload a professional headshot (JPG, PNG)
                                   </p>
                                 )}
@@ -3691,7 +3691,7 @@ export default function EditResumePage() {
                             <Button
                               size="icon"
                               variant="ghost"
-                              className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-50"
+                              className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-950/30"
                               onClick={() => deleteSection(section.id)}
                               title="Delete Section"
                             >
@@ -3819,7 +3819,7 @@ export default function EditResumePage() {
                             <Button
                               size="icon"
                               variant="ghost"
-                              className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-50"
+                              className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-950/30"
                               onClick={() => deleteSection(section.id)}
                               title="Delete Section"
                             >
@@ -3962,7 +3962,7 @@ export default function EditResumePage() {
                                       );
                                     updateContent({ experience: updated });
                                   }}
-                                  className="w-full border-red-300 text-red-700 hover:bg-red-50"
+                                  className="w-full border-red-300 text-red-700 hover:bg-red-950/30"
                                 >
                                   <Trash2 className="w-4 h-4 mr-2" />
                                   Remove
@@ -4080,7 +4080,7 @@ export default function EditResumePage() {
                             <Button
                               size="icon"
                               variant="ghost"
-                              className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-50"
+                              className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-950/30"
                               onClick={() => deleteSection(section.id)}
                               title="Delete Section"
                             >
@@ -4251,7 +4251,7 @@ export default function EditResumePage() {
                                       );
                                     updateContent({ education: updated });
                                   }}
-                                  className="w-full border-red-300 text-red-700 hover:bg-red-50"
+                                  className="w-full border-red-300 text-red-700 hover:bg-red-950/30"
                                 >
                                   <Trash2 className="w-4 h-4 mr-2" />
                                   Remove
@@ -4421,7 +4421,7 @@ export default function EditResumePage() {
                             <Button
                               size="icon"
                               variant="ghost"
-                              className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-50"
+                              className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-950/30"
                               onClick={() => deleteSection(section.id)}
                               title="Delete Section"
                             >
@@ -4584,7 +4584,7 @@ export default function EditResumePage() {
                             <Button
                               size="icon"
                               variant="ghost"
-                              className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-50"
+                              className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-950/30"
                               onClick={() => deleteSection(section.id)}
                               title="Delete Section"
                             >
@@ -4753,7 +4753,7 @@ export default function EditResumePage() {
                                       ).filter((_, i) => i !== index);
                                       updateContent({ projects: updated });
                                     }}
-                                    className="w-full border-red-300 text-red-700 hover:bg-red-50"
+                                    className="w-full border-red-300 text-red-700 hover:bg-red-950/30"
                                   >
                                     <Trash2 className="w-4 h-4 mr-2" />
                                     Remove Project
@@ -4866,7 +4866,7 @@ export default function EditResumePage() {
                             <Button
                               size="icon"
                               variant="ghost"
-                              className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-50"
+                              className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-950/30"
                               onClick={() => deleteSection(section.id)}
                               title="Delete Section"
                             >
@@ -4896,7 +4896,7 @@ export default function EditResumePage() {
                                 return (
                                   <div
                                     key={cert.id}
-                                    className="border p-3 rounded-md bg-gray-50"
+                                    className="border p-3 rounded-md bg-muted/20"
                                   >
                                     <div className="space-y-3">
                                       <div>
@@ -5114,7 +5114,7 @@ export default function EditResumePage() {
                                         );
                                         setHasChanges(true);
                                       }}
-                                      className="w-full mt-3 border-red-300 text-red-700 hover:bg-red-50"
+                                      className="w-full mt-3 border-red-300 text-red-700 hover:bg-red-950/30"
                                     >
                                       <Trash2 className="w-4 h-4 mr-2" />
                                       Remove
@@ -5237,7 +5237,7 @@ export default function EditResumePage() {
                             <Button
                               size="icon"
                               variant="ghost"
-                              className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-50"
+                              className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-950/30"
                               onClick={() => deleteSection(section.id)}
                               title="Delete Section"
                             >
@@ -5369,7 +5369,7 @@ export default function EditResumePage() {
                             <Button
                               size="icon"
                               variant="ghost"
-                              className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-50"
+                              className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-950/30"
                               onClick={() => deleteSection(section.id)}
                               title="Delete Section"
                             >
@@ -5452,14 +5452,14 @@ export default function EditResumePage() {
                         onDragLeave={handleDragLeave}
                         onDrop={(e) => handleDrop(e, section.id)}
                       >
-                        <div className="flex items-center justify-between p-2 border-b bg-gray-50">
+                        <div className="flex items-center justify-between p-2 border-b bg-muted/20">
                           <div className="flex items-center gap-2 flex-1">
                             <ResumeSectionDragHandle
                               sectionId={section.id}
                               onDragStart={handleDragStart}
                               onDragEnd={handleDragEnd}
                             />
-                            <h3 className="font-semibold text-sm text-gray-500">
+                            <h3 className="font-semibold text-sm text-muted-foreground">
                               {section.title}
                             </h3>
                           </div>
@@ -5478,7 +5478,7 @@ export default function EditResumePage() {
                           <Button
                             size="icon"
                             variant="ghost"
-                            className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-50"
+                            className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-950/30"
                             onClick={() => deleteSection(section.id)}
                             title="Delete Section"
                           >
@@ -5487,12 +5487,12 @@ export default function EditResumePage() {
                         </div>
                         {section.expanded && (
                           <CardContent className="p-2">
-                            <div className="text-xs text-gray-500 text-center py-1">
+                            <div className="text-xs text-muted-foreground text-center py-1">
                               <p>
                                 Column Placeholder for column alignment (5px
                                 margin)
                               </p>
-                              <p className="text-xs text-gray-400 mt-1">
+                              <p className="text-xs text-muted-foreground/80 mt-1">
                                 Use this to evenly distribute sections in
                                 columns
                               </p>
@@ -5577,7 +5577,7 @@ export default function EditResumePage() {
                             <Button
                               size="icon"
                               variant="ghost"
-                              className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-50"
+                              className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-950/30"
                               onClick={() => deleteSection(section.id)}
                               title="Delete Section"
                             >
@@ -5699,7 +5699,7 @@ export default function EditResumePage() {
                             <Button
                               size="icon"
                               variant="ghost"
-                              className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-50"
+                              className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-950/30"
                               onClick={() => deleteSection(section.id)}
                               title="Delete Section"
                             >
@@ -5824,7 +5824,7 @@ export default function EditResumePage() {
                             <Button
                               size="icon"
                               variant="ghost"
-                              className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-50"
+                              className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-950/30"
                               onClick={() => deleteSection(section.id)}
                               title="Delete Section"
                             >
@@ -5850,7 +5850,7 @@ export default function EditResumePage() {
                               (award, index) => (
                                 <div
                                   key={award.id}
-                                  className="border p-3 rounded-md bg-gray-50"
+                                  className="border p-3 rounded-md bg-muted/20"
                                 >
                                   <div className="grid grid-cols-2 gap-3">
                                     <div className="col-span-2">
@@ -5996,7 +5996,7 @@ export default function EditResumePage() {
                                       );
                                       setHasChanges(true);
                                     }}
-                                    className="w-full mt-3 border-red-300 text-red-700 hover:bg-red-50"
+                                    className="w-full mt-3 border-red-300 text-red-700 hover:bg-red-950/30"
                                   >
                                     <Trash2 className="w-4 h-4 mr-2" />
                                     Remove
@@ -6115,7 +6115,7 @@ export default function EditResumePage() {
                             <Button
                               size="icon"
                               variant="ghost"
-                              className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-50"
+                              className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-950/30"
                               onClick={() => deleteSection(section.id)}
                               title="Delete Section"
                             >
@@ -6141,7 +6141,7 @@ export default function EditResumePage() {
                               (ref, index) => (
                                 <div
                                   key={ref.id}
-                                  className="border p-3 rounded-md bg-gray-50"
+                                  className="border p-3 rounded-md bg-muted/20"
                                 >
                                   <div className="grid grid-cols-2 gap-3">
                                     <div className="col-span-2">
@@ -6321,7 +6321,7 @@ export default function EditResumePage() {
                                       );
                                       setHasChanges(true);
                                     }}
-                                    className="w-full mt-3 border-red-300 text-red-700 hover:bg-red-50"
+                                    className="w-full mt-3 border-red-300 text-red-700 hover:bg-red-950/30"
                                   >
                                     <Trash2 className="w-4 h-4 mr-2" />
                                     Remove
@@ -6441,7 +6441,7 @@ export default function EditResumePage() {
                             <Button
                               size="icon"
                               variant="ghost"
-                              className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-50"
+                              className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-950/30"
                               onClick={() => deleteSection(section.id)}
                               title="Delete Section"
                             >
@@ -6690,7 +6690,7 @@ export default function EditResumePage() {
                             <Button
                               size="icon"
                               variant="ghost"
-                              className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-50"
+                              className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-950/30"
                               onClick={() => deleteSection(section.id)}
                               title="Delete Section"
                             >
@@ -6970,7 +6970,7 @@ export default function EditResumePage() {
                             <Button
                               size="icon"
                               variant="ghost"
-                              className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-50"
+                              className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-950/30"
                               onClick={() => deleteSection(section.id)}
                               title="Delete Section"
                             >

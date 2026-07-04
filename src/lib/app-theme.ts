@@ -29,7 +29,14 @@ export const appFilterBar =
 export const appPageBackground = "bg-background text-foreground";
 
 export const appSidebar =
-  "border-r border-sidebar-border/80 bg-sidebar text-sidebar-foreground lg:shadow-[2px_0_8px_rgba(47,43,61,0.04)]";
+  "border-r border-sidebar-border/80 bg-sidebar text-sidebar-foreground lg:shadow-[2px_0_8px_rgba(47,43,61,0.04)] dark:lg:shadow-none";
+
+export const appSurfaceMuted = "rounded-lg border border-border/60 bg-muted/20";
+
+export const appTableHeaderRow = "border-b border-border bg-muted/30 hover:bg-muted/30";
+
+export const appGradientCard =
+  "bg-gradient-to-br from-muted/30 via-card to-muted/20 border border-border/60";
 
 export const appTopBar =
   "rounded-xl border border-border/60 bg-header px-4 py-2.5 shadow-header";
@@ -89,7 +96,26 @@ export const appMarketingSectionPurple =
 
 /** Light purple-tinted marketing band — floating icon backdrop on soft gradient */
 export const appMarketingSectionLight =
-  "relative overflow-hidden border-y border-[#7367F0]/10 bg-gradient-to-br from-[#7367F0]/[0.07] via-white to-[#7367F0]/[0.12]";
+  "relative overflow-hidden border-y border-[#7367F0]/10 bg-gradient-to-br from-[#7367F0]/[0.07] via-card to-[#7367F0]/[0.12]";
+
+/** Product hub hero — bullet list items */
+export const appHeroBullet = "text-xs text-muted-foreground sm:text-sm";
+
+/** Product hub hero — body paragraph */
+export const appHeroBody =
+  "text-sm leading-relaxed text-muted-foreground sm:text-base";
+
+/** Product hub hero — captions / ratings */
+export const appHeroCaption =
+  "text-xs font-medium text-muted-foreground sm:text-sm";
+
+/** ATS resume feedback — danger text (readable on dark dashboard) */
+export const appAtsDangerText = "text-red-700 dark:text-[#fd7070]";
+export const appAtsDangerTextSm = "text-red-600 dark:text-[#fd7070]";
+export const appAtsDangerTextBody = "text-red-900 dark:text-[#fd7070]";
+export const appAtsDangerTextHeading = "text-red-800 dark:text-[#fd7070]";
+export const appAtsDangerBadge =
+  "bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-[#fd7070]";
 
 /** @deprecated use appPrimaryButton */
 export const institutePrimaryClass = `${appPrimaryButton} !bg-[#7367F0] hover:!bg-[#6e62e5]`;

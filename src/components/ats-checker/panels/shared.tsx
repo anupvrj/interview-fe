@@ -56,10 +56,10 @@ export function ATSIssueHero({
 
   const styles =
     variant === "success"
-      ? "border-green-200 bg-green-50"
+      ? "border-green-200 bg-green-50 dark:border-green-900/40 dark:bg-green-950/25"
       : variant === "info"
-        ? "border-blue-200 bg-blue-50"
-        : "border-red-200 bg-red-50";
+        ? "border-blue-200 bg-blue-50 dark:border-blue-900/40 dark:bg-blue-950/25"
+        : "border-red-200 bg-red-50 dark:border-red-900/40 dark:bg-red-950/25";
 
   return (
     <div className={cn("overflow-hidden rounded-xl border p-4 sm:p-5", styles)}>
@@ -68,10 +68,10 @@ export function ATSIssueHero({
           className={cn(
             "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-base font-bold sm:h-12 sm:w-12 sm:text-lg",
             variant === "success"
-              ? "bg-green-100 text-green-700"
+              ? "bg-green-100 text-green-700 dark:bg-green-950/40 dark:text-green-300"
               : variant === "info"
-                ? "bg-blue-100 text-blue-700"
-                : "bg-red-100 text-red-700",
+                ? "bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300"
+                : "bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-[#fd7070]",
           )}
         >
           {variant === "success" ? (
@@ -88,7 +88,7 @@ export function ATSIssueHero({
                 : "No issues found")}
           </p>
           {summary?.badge && (
-            <span className="mt-2 inline-block max-w-full break-words rounded-full bg-white/80 px-3 py-1 text-xs font-semibold text-amber-700">
+            <span className="mt-2 inline-block max-w-full break-words rounded-full bg-card/80 px-3 py-1 text-xs font-semibold text-amber-700 dark:text-amber-300">
               {summary.badge}
             </span>
           )}
@@ -232,8 +232,8 @@ export function ATSSpellingRow({
     <div className="rounded-xl border border-border bg-card p-4 space-y-3">
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <X className="h-4 w-4 text-red-600" />
-          <span className="font-semibold text-red-800">{issue.title}</span>
+          <X className="h-4 w-4 text-red-600 dark:text-[#fd7070]" />
+          <span className="font-semibold text-red-800 dark:text-[#fd7070]">{issue.title}</span>
         </div>
         {check && (
           <ATSIssueActionButtons
@@ -251,7 +251,7 @@ export function ATSSpellingRow({
           {issue.alternatives.map((alt) => (
             <span
               key={alt}
-              className="rounded-md border border-green-200 bg-green-50 px-2 py-1 text-xs font-medium text-green-800"
+              className="rounded-md border border-green-200 bg-green-50 px-2 py-1 text-xs font-medium text-green-800 dark:text-green-200"
             >
               {alt}
             </span>
@@ -276,9 +276,9 @@ export function ATSRewritePair({
   return (
     <div className="min-w-0 space-y-3 rounded-xl border border-border bg-card p-4">
       {issue.excerpt && (
-        <div className="flex gap-2 overflow-hidden rounded-lg border border-red-100 bg-red-50 px-3 py-2">
-          <X className="mt-0.5 h-4 w-4 shrink-0 text-red-600" />
-          <p className="min-w-0 flex-1 break-words text-sm leading-relaxed text-red-900 [overflow-wrap:anywhere]">
+        <div className="flex gap-2 overflow-hidden rounded-lg border border-red-100 bg-red-50 dark:border-red-900/40 dark:bg-red-950/25 px-3 py-2">
+          <X className="mt-0.5 h-4 w-4 shrink-0 text-red-600 dark:text-[#fd7070]" />
+          <p className="min-w-0 flex-1 break-words text-sm leading-relaxed text-red-900 dark:text-[#fd7070] [overflow-wrap:anywhere]">
             &ldquo;{issue.excerpt}&rdquo;
           </p>
         </div>
@@ -342,14 +342,14 @@ export function ATSCredibilitySplit({
     >
       {positive.length > 0 && (
         <div className="space-y-3">
-          <p className="text-xs font-bold uppercase tracking-wide text-green-700">
+          <p className="text-xs font-bold uppercase tracking-wide text-green-700 dark:text-green-300">
             What looks credible
           </p>
           <div className="space-y-3">
             {positive.map((issue, idx) => (
               <div
                 key={idx}
-                className="flex gap-3 rounded-xl border border-green-100 bg-green-50/50 p-4"
+                className="flex gap-3 rounded-xl border border-green-200/70 bg-green-50 dark:border-green-900/40 dark:bg-green-950/20 p-4"
               >
                 <Check className="mt-0.5 h-4 w-4 shrink-0 text-green-600" />
                 <div className="min-w-0 flex-1 space-y-1">
@@ -365,7 +365,7 @@ export function ATSCredibilitySplit({
       )}
       {risks.length > 0 && (
         <div className="space-y-3">
-          <p className="text-xs font-bold uppercase tracking-wide text-red-700">
+          <p className="text-xs font-bold uppercase tracking-wide text-red-700 dark:text-[#fd7070]">
             Hiring managers may question
           </p>
           <div className="space-y-3">
@@ -376,7 +376,7 @@ export function ATSCredibilitySplit({
               >
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div className="flex min-w-0 flex-1 gap-3">
-                    <X className="mt-0.5 h-4 w-4 shrink-0 text-red-600" />
+                    <X className="mt-0.5 h-4 w-4 shrink-0 text-red-600 dark:text-[#fd7070]" />
                     <div className="min-w-0 flex-1 space-y-1">
                       <p className="font-semibold text-foreground">
                         {issue.title}
@@ -398,15 +398,15 @@ export function ATSCredibilitySplit({
                 </div>
 
                 {issue.excerpt && (
-                  <div className="rounded-lg border border-red-100 bg-red-50 px-3 py-2.5">
-                    <p className="text-sm leading-relaxed text-red-900">
+                  <div className="rounded-lg border border-red-100 bg-red-50 dark:border-red-900/40 dark:bg-red-950/25 px-3 py-2.5">
+                    <p className="text-sm leading-relaxed text-red-900 dark:text-[#fd7070]">
                       &ldquo;{issue.excerpt}&rdquo;
                     </p>
                   </div>
                 )}
 
                 {(issue.fixBody || issue.suggestion) && (
-                  <div className="rounded-lg border border-purple-100 bg-purple-50/60 px-3 py-3">
+                  <div className="rounded-lg border border-purple-100 bg-purple-50 dark:border-purple-900/40 dark:bg-purple-950/25 px-3 py-3">
                     <p className="text-xs font-bold uppercase tracking-wide text-primary">
                       {issue.fixTitle || "How to fix it"}
                     </p>
@@ -436,7 +436,7 @@ export function ATSRiskCard({
   return (
     <div className="space-y-3 rounded-xl border border-border bg-card p-4">
       <div className="flex gap-2">
-        <X className="mt-0.5 h-4 w-4 shrink-0 text-red-600" />
+        <X className="mt-0.5 h-4 w-4 shrink-0 text-red-600 dark:text-[#fd7070]" />
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
             <p className="font-semibold text-foreground">{issue.title}</p>
@@ -449,27 +449,27 @@ export function ATSRiskCard({
             )}
           </div>
           {issue.excerpt && (
-            <p className="mt-2 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-900">
+            <p className="mt-2 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-900 dark:text-[#fd7070]">
               {issue.excerpt}
             </p>
           )}
         </div>
       </div>
       {issue.interviewQuestion && (
-        <div className="flex gap-2 rounded-lg border border-purple-100 bg-purple-50 px-3 py-2">
+        <div className="flex gap-2 rounded-lg border border-purple-100 bg-purple-50 dark:border-purple-900/40 dark:bg-purple-950/25 px-3 py-2">
           <MessageCircle className="mt-0.5 h-4 w-4 shrink-0 text-purple-600" />
           <div>
-            <p className="text-xs font-bold text-purple-800">Q</p>
-            <p className="text-sm text-purple-900">{issue.interviewQuestion}</p>
+            <p className="text-xs font-bold text-purple-800 dark:text-purple-200">Q</p>
+            <p className="text-sm text-purple-900 dark:text-purple-100">{issue.interviewQuestion}</p>
           </div>
         </div>
       )}
       {(issue.fixBody || issue.suggestion || issue.rewriteSuggestion) && (
-        <div className="flex gap-2 rounded-lg border border-amber-100 bg-amber-50 px-3 py-2">
+        <div className="flex gap-2 rounded-lg border border-amber-100 bg-amber-50 dark:border-amber-900/40 dark:bg-amber-950/25 px-3 py-2">
           <Lightbulb className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
           <div>
-            <p className="text-xs font-bold text-amber-800">Fix</p>
-            <p className="text-sm text-amber-900">
+            <p className="text-xs font-bold text-amber-800 dark:text-amber-200">Fix</p>
+            <p className="text-sm text-amber-900 dark:text-amber-100">
               {issue.fixBody || issue.rewriteSuggestion || issue.suggestion}
             </p>
           </div>
@@ -496,8 +496,8 @@ export function ATSSkillBenchmarkGrid({ issues }: { issues: ATSIssue[] }) {
             className={cn(
               "flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium",
               present
-                ? "border-green-200 bg-green-50 text-green-800"
-                : "border-red-200 bg-red-50 text-red-800",
+                ? "border-green-200 bg-green-50 text-green-800 dark:text-green-200"
+                : "border-red-200 bg-red-50 text-red-800 dark:text-[#fd7070]",
             )}
           >
             {present ? (
@@ -531,15 +531,15 @@ export function ATSSectionChecklist({
   if (found.length === 0) return null;
 
   return (
-    <div className="rounded-xl border border-green-200 bg-green-50/50 p-5">
-      <p className="mb-3 font-semibold text-green-900">
+    <div className="rounded-xl border border-green-200 bg-green-50/50 dark:border-green-900/40 dark:bg-green-950/20 p-5">
+      <p className="mb-3 font-semibold text-green-900 dark:text-green-100">
         Essential sections found
       </p>
       <ul className="space-y-2">
         {found.map((title) => (
           <li
             key={title}
-            className="flex items-center gap-2 text-sm text-green-800"
+            className="flex items-center gap-2 text-sm text-green-800 dark:text-green-200"
           >
             <Check className="h-4 w-4" />
             {title}
@@ -593,7 +593,7 @@ export function ATSGenericIssueList({
             </div>
           </div>
           {issue.excerpt && (
-            <div className="overflow-hidden rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-sm leading-relaxed text-red-900 break-words [overflow-wrap:anywhere]">
+            <div className="overflow-hidden rounded-lg border border-red-100 bg-red-50 dark:border-red-900/40 dark:bg-red-950/25 px-3 py-2 text-sm leading-relaxed text-red-900 dark:text-[#fd7070] break-words [overflow-wrap:anywhere]">
               &ldquo;{issue.excerpt}&rdquo;
             </div>
           )}

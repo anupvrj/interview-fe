@@ -81,17 +81,17 @@ export function LanguageRating({ languages, onChange }: LanguageRatingProps) {
       {languages.map((lang, index) => (
         <div
           key={lang.id}
-          className="border border-gray-200 rounded-lg p-4 bg-white hover:border-purple-300 transition-colors"
+          className="border border-border rounded-lg p-4 bg-card hover:border-purple-300 transition-colors"
         >
           {/* Language Header */}
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2 flex-1">
-              <GripVertical className="w-4 h-4 text-gray-400 cursor-move" />
+              <GripVertical className="w-4 h-4 text-muted-foreground/80 cursor-move" />
               <div className="flex-1">
                 {lang.name ? (
-                  <span className="font-medium text-gray-900">{lang.name}</span>
+                  <span className="font-medium text-foreground">{lang.name}</span>
                 ) : (
-                  <span className="text-gray-400 italic">New Language</span>
+                  <span className="text-muted-foreground/80 italic">New Language</span>
                 )}
               </div>
               {/* Rating Display (Dots) */}
@@ -100,12 +100,12 @@ export function LanguageRating({ languages, onChange }: LanguageRatingProps) {
                   <div
                     key={i}
                     className={`w-2 h-2 rounded-full ${
-                      i < lang.level ? "bg-primary" : "bg-gray-300"
+                      i < lang.level ? "bg-primary" : "bg-muted"
                     }`}
                   />
                 ))}
               </div>
-              <span className="text-xs text-gray-500 ml-2">
+              <span className="text-xs text-muted-foreground ml-2">
                 {getProficiencyLabel(lang.level)}
               </span>
             </div>
@@ -114,7 +114,7 @@ export function LanguageRating({ languages, onChange }: LanguageRatingProps) {
                 variant="ghost"
                 size="sm"
                 onClick={() => toggleExpanded(lang.id)}
-                className="h-8 px-2 text-gray-600 hover:text-primary"
+                className="h-8 px-2 text-muted-foreground hover:text-primary"
               >
                 {expandedLanguages.has(lang.id) ? "▼" : "▶"}
               </Button>
@@ -122,7 +122,7 @@ export function LanguageRating({ languages, onChange }: LanguageRatingProps) {
                 variant="ghost"
                 size="sm"
                 onClick={() => removeLanguage(lang.id)}
-                className="h-8 px-2 text-red-600 hover:text-red-700 hover:bg-red-50"
+                className="h-8 px-2 text-red-600 hover:text-red-700 hover:bg-red-950/30"
               >
                 <Trash2 className="w-4 h-4" />
               </Button>
@@ -131,7 +131,7 @@ export function LanguageRating({ languages, onChange }: LanguageRatingProps) {
 
           {/* Language Edit Form */}
           {expandedLanguages.has(lang.id) && (
-            <div className="space-y-4 pt-3 border-t border-gray-100">
+            <div className="space-y-4 pt-3 border-t border-border">
               {/* Language Name */}
               <div>
                 <Label
@@ -168,17 +168,17 @@ export function LanguageRating({ languages, onChange }: LanguageRatingProps) {
                         className={`w-8 h-8 rounded-full border-2 transition-all ${
                           i < lang.level
                             ? "bg-primary border-purple-600"
-                            : "bg-white border-gray-300 hover:border-purple-400"
+                            : "bg-card border-border hover:border-purple-400"
                         }`}
                         title={`Level ${i + 1}: ${getProficiencyLabel(i + 1)}`}
                       />
                     ))}
                   </div>
-                  <span className="text-sm text-gray-600 font-medium">
+                  <span className="text-sm text-muted-foreground font-medium">
                     {lang.level} / 5 - {getProficiencyLabel(lang.level)}
                   </span>
                 </div>
-                <p className="text-xs text-gray-500 mt-2">
+                <p className="text-xs text-muted-foreground mt-2">
                   Click on the dots to set proficiency level
                 </p>
               </div>
@@ -199,7 +199,7 @@ export function LanguageRating({ languages, onChange }: LanguageRatingProps) {
       </Button>
 
       {languages.length === 0 && (
-        <p className="text-sm text-gray-500 text-center py-4">
+        <p className="text-sm text-muted-foreground text-center py-4">
           No languages added yet. Click "Add Language" to get started.
         </p>
       )}

@@ -43,7 +43,7 @@ export function InterviewerSlotViewDialog({
           <DialogHeader className="space-y-2">
             <DialogTitle className="text-xl font-semibold">Slot details</DialogTitle>
             <div className="flex flex-wrap items-center gap-2">
-              <SlotStatusBadge status={slot.status} />
+              <SlotStatusBadge slot={slot} />
               <PeerTimezoneBadge label={timezoneLabel} />
             </div>
           </DialogHeader>

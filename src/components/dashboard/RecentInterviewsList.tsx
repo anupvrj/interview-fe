@@ -21,7 +21,10 @@ import {
   getInterviewCreditsUsed,
   getScoreColor,
 } from "@/lib/utils";
-import { institutePrimaryClass, instituteSecondaryClass } from "@/components/institute/InstituteChrome";
+import {
+  institutePrimaryClass,
+  instituteSecondaryClass,
+} from "@/components/institute/InstituteChrome";
 
 const TABLE_HEADERS = [
   "Interview",
@@ -50,7 +53,7 @@ function statusBadgeClass(status: string): string {
     completed: "bg-emerald-50 text-emerald-700",
     processing: "bg-sky-50 text-sky-700",
     active: "bg-amber-50 text-amber-700",
-    draft: "bg-slate-100 text-slate-600",
+    draft: "bg-slate-100 text-muted-foreground",
     failed: "bg-rose-50 text-rose-700",
   };
   return badges[status] ?? badges.draft;
@@ -262,24 +265,55 @@ export function RecentInterviewsList({
 
                   <td className="px-5 py-3.5 align-top">
                     <div className="flex flex-wrap items-center gap-0.5">
-                    {interview.status === "completed" && (
-                      <>
-                        <IconActionButton
-                          title="Play recording"
-                          onClick={() => playVideo(interview.interviewId)}
-                        >
-                          <PlayCircle className="h-4 w-4" strokeWidth={1.75} />
-                        </IconActionButton>
-                        <IconActionButton
-                          title="View report"
-                          href={`/dashboard/interviews/${interview.interviewId}/report`}
-                        >
-                          <Eye className="h-4 w-4" strokeWidth={1.75} />
-                        </IconActionButton>
-                        {!interview.report && (
+                      {interview.status === "completed" && (
+                        <>
+                          <IconActionButton
+                            title="Play recording"
+                            onClick={() => playVideo(interview.interviewId)}
+                          >
+                            <PlayCircle
+                              className="h-4 w-4"
+                              strokeWidth={1.75}
+                            />
+                          </IconActionButton>
+                          <IconActionButton
+                            title="View report"
+                            href={`/dashboard/interviews/${interview.interviewId}/report`}
+                          >
+                            <Eye className="h-4 w-4" strokeWidth={1.75} />
+                          </IconActionButton>
+                          {!interview.report && (
+                            <Link
+                              href={`/dashboard/interviews/${interview.interviewId}/report`}
+                              title="Generate Report"
+                              className={cn(
+                                buttonVariants({
+                                  variant: "ghost",
+                                  size: "sm",
+                                }),
+                                "h-8 px-2 text-xs text-[#7367F0] hover:bg-[#7367F0]/10 hover:text-[#7367F0]",
+                              )}
+                            >
+                              <Sparkles className="mr-1 h-3.5 w-3.5" />
+                              Report
+                            </Link>
+                          )}
+                        </>
+                      )}
+                      {interview.status === "failed" && (
+                        <>
+                          <IconActionButton
+                            title="Play recording"
+                            onClick={() => playVideo(interview.interviewId)}
+                          >
+                            <PlayCircle
+                              className="h-4 w-4"
+                              strokeWidth={1.75}
+                            />
+                          </IconActionButton>
                           <Link
                             href={`/dashboard/interviews/${interview.interviewId}/report`}
-                            title="Generate report"
+                            title="Generate Report"
                             className={cn(
                               buttonVariants({ variant: "ghost", size: "sm" }),
                               "h-8 px-2 text-xs text-[#7367F0] hover:bg-[#7367F0]/10 hover:text-[#7367F0]",
@@ -288,68 +322,9 @@ export function RecentInterviewsList({
                             <Sparkles className="mr-1 h-3.5 w-3.5" />
                             Report
                           </Link>
-                        )}
-                      </>
-                    )}
-                    {interview.status === "failed" && (
-                      <>
-                        <IconActionButton
-                          title="Play recording"
-                          onClick={() => playVideo(interview.interviewId)}
-                        >
-                          <PlayCircle className="h-4 w-4" strokeWidth={1.75} />
-                        </IconActionButton>
-                        <Link
-                          href={`/dashboard/interviews/${interview.interviewId}/report`}
-                          title="Generate report"
-                          className={cn(
-                            buttonVariants({ variant: "ghost", size: "sm" }),
-                            "h-8 px-2 text-xs text-[#7367F0] hover:bg-[#7367F0]/10 hover:text-[#7367F0]",
-                          )}
-                        >
-                          <Sparkles className="mr-1 h-3.5 w-3.5" />
-                          Report
-                        </Link>
-                      </>
-                    )}
-                    {interview.status === "draft" && (
-                      <Link
-                        href={
-                          getDraftActiveHref?.(interview.interviewId) ??
-                          `/interview/${interview.interviewId}/realtime`
-                        }
-                        className={cn(
-                          buttonVariants({ size: "sm" }),
-                          institutePrimaryClass,
-                          "h-8 gap-1 px-3 text-xs",
-                        )}
-                      >
-                        <PlayCircle className="h-3.5 w-3.5" />
-                        Start
-                      </Link>
-                    )}
-                    {interview.status === "processing" &&
-                      (onDelete ? (
-                        <Link
-                          href={`/dashboard/interviews/${interview.interviewId}/processing`}
-                          className={cn(
-                            buttonVariants({ variant: "ghost", size: "sm" }),
-                            "h-8 gap-1 px-2 text-xs text-[#7367F0] hover:bg-[#7367F0]/10 hover:text-[#7367F0]",
-                          )}
-                        >
-                          <Clock className="h-3.5 w-3.5" />
-                          Processing
-                        </Link>
-                      ) : (
-                        <IconActionButton
-                          title="View interview"
-                          href={`/dashboard/interviews/${interview.interviewId}/report`}
-                        >
-                          <Eye className="h-4 w-4" strokeWidth={1.75} />
-                        </IconActionButton>
-                      ))}
-                    {interview.status === "active" &&
-                      (onDelete ? (
+                        </>
+                      )}
+                      {interview.status === "draft" && (
                         <Link
                           href={
                             getDraftActiveHref?.(interview.interviewId) ??
@@ -362,27 +337,64 @@ export function RecentInterviewsList({
                           )}
                         >
                           <PlayCircle className="h-3.5 w-3.5" />
-                          Continue
+                          Start
                         </Link>
-                      ) : (
-                        <IconActionButton
-                          title="View interview"
-                          href={`/dashboard/interviews/${interview.interviewId}/report`}
-                        >
-                          <Eye className="h-4 w-4" strokeWidth={1.75} />
-                        </IconActionButton>
-                      ))}
-                    {(interview.status === "draft" ||
-                      interview.status === "active") &&
-                      onDelete && (
-                        <IconActionButton
-                          title="Delete interview"
-                          onClick={() => onDelete(interview.interviewId)}
-                          destructive
-                        >
-                          <Trash2 className="h-4 w-4" strokeWidth={1.75} />
-                        </IconActionButton>
                       )}
+                      {interview.status === "processing" &&
+                        (onDelete ? (
+                          <Link
+                            href={`/dashboard/interviews/${interview.interviewId}/processing`}
+                            className={cn(
+                              buttonVariants({ variant: "ghost", size: "sm" }),
+                              "h-8 gap-1 px-2 text-xs text-[#7367F0] hover:bg-[#7367F0]/10 hover:text-[#7367F0]",
+                            )}
+                          >
+                            <Clock className="h-3.5 w-3.5" />
+                            Processing
+                          </Link>
+                        ) : (
+                          <IconActionButton
+                            title="View interview"
+                            href={`/dashboard/interviews/${interview.interviewId}/report`}
+                          >
+                            <Eye className="h-4 w-4" strokeWidth={1.75} />
+                          </IconActionButton>
+                        ))}
+                      {interview.status === "active" &&
+                        (onDelete ? (
+                          <Link
+                            href={
+                              getDraftActiveHref?.(interview.interviewId) ??
+                              `/interview/${interview.interviewId}/realtime`
+                            }
+                            className={cn(
+                              buttonVariants({ size: "sm" }),
+                              institutePrimaryClass,
+                              "h-8 gap-1 px-3 text-xs",
+                            )}
+                          >
+                            <PlayCircle className="h-3.5 w-3.5" />
+                            Continue
+                          </Link>
+                        ) : (
+                          <IconActionButton
+                            title="View interview"
+                            href={`/dashboard/interviews/${interview.interviewId}/report`}
+                          >
+                            <Eye className="h-4 w-4" strokeWidth={1.75} />
+                          </IconActionButton>
+                        ))}
+                      {(interview.status === "draft" ||
+                        interview.status === "active") &&
+                        onDelete && (
+                          <IconActionButton
+                            title="Delete interview"
+                            onClick={() => onDelete(interview.interviewId)}
+                            destructive
+                          >
+                            <Trash2 className="h-4 w-4" strokeWidth={1.75} />
+                          </IconActionButton>
+                        )}
                     </div>
                   </td>
                 </tr>

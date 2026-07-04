@@ -24,7 +24,7 @@ export function LayoutPaddingControls({
 
   return (
     <div className="space-y-2 border-t pt-2">
-      <Label className="text-xs font-semibold text-gray-600">Padding (mm)</Label>
+      <Label className="text-xs font-semibold text-muted-foreground">Padding (mm)</Label>
       <div className="grid grid-cols-2 gap-2">
         <LayoutNumberField
           label="Top"

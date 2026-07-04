@@ -277,7 +277,7 @@ export default function NewCodingInterviewPage() {
   return (
     <div className="mx-auto w-full max-w-6xl space-y-4 lg:space-y-6">
       <div className="flex items-center">
-        <Button variant="ghost" asChild className="-ml-2 text-slate-600">
+        <Button variant="ghost" asChild className="-ml-2 text-muted-foreground">
           <Link href="/dashboard/coding-interviews">
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back
@@ -296,7 +296,7 @@ export default function NewCodingInterviewPage() {
           <CardContent className="pt-6">
             <div className="flex items-center justify-center gap-3 py-4">
               <Loader2 className="h-6 w-6 animate-spin text-primary" />
-              <p className="font-medium text-gray-700">
+              <p className="font-medium text-muted-foreground">
                 Checking your interview limit...
               </p>
             </div>
@@ -312,30 +312,30 @@ export default function NewCodingInterviewPage() {
                 </div>
               </div>
               <div className="flex-1">
-                <h3 className="mb-3 text-2xl font-bold text-gray-900">
+                <h3 className="mb-3 text-2xl font-bold text-foreground">
                   Upgrade Your Free Tier
                 </h3>
-                <p className="mb-4 text-lg text-gray-700">
+                <p className="mb-4 text-lg text-muted-foreground">
                   {limitCheck.reason ||
                     "Insufficient credits. Purchase more credits to continue!"}
                 </p>
                 {limitCheck.creditsAvailable !== undefined &&
                   limitCheck.minimumRequired !== undefined && (
-                    <div className="mb-6 rounded-xl bg-white/60 p-4 backdrop-blur-sm">
-                      <p className="mb-2 text-sm text-gray-700">
+                    <div className="mb-6 rounded-xl bg-card/60 p-4 backdrop-blur-sm">
+                      <p className="mb-2 text-sm text-muted-foreground">
                         <span className="font-semibold">Available Credits: </span>
                         <span className="text-lg font-bold text-orange-600">
                           {limitCheck.creditsAvailable}
                         </span>
                       </p>
-                      <p className="text-sm text-gray-700">
+                      <p className="text-sm text-muted-foreground">
                         <span className="font-semibold">Required: </span>
                         <span className="text-lg font-bold text-red-600">
                           {limitCheck.minimumRequired}
                         </span>{" "}
                         credits (session)
                       </p>
-                      <p className="mt-2 text-xs text-gray-600">
+                      <p className="mt-2 text-xs text-muted-foreground">
                         💡 Same credit rules as practice interviews • Purchase
                         credits to continue
                       </p>
@@ -372,14 +372,14 @@ export default function NewCodingInterviewPage() {
                 <CheckCircle className="h-6 w-6 text-white" />
               </div>
               <div>
-                <p className="text-lg font-semibold text-gray-800">
+                <p className="text-lg font-semibold text-foreground">
                   You have{" "}
                   <span className="text-xl font-bold text-green-600">
                     {limitCheck.creditsAvailable || 0}
                   </span>{" "}
                   credits available
                 </p>
-                <p className="mt-1 text-sm text-gray-600">
+                <p className="mt-1 text-sm text-muted-foreground">
                   Ready to start your coding round (same credits as AI Interview
                   Practice)
                 </p>
@@ -415,7 +415,7 @@ export default function NewCodingInterviewPage() {
                   <div className="space-y-2">
                     <Label
                       htmlFor="role"
-                      className="flex items-center gap-2 text-sm font-semibold text-gray-700"
+                      className="flex items-center gap-2 text-sm font-semibold text-foreground"
                     >
                       <Target className="h-4 w-4 flex-shrink-0 text-primary" />
                       Role You&apos;re Preparing For
@@ -431,7 +431,7 @@ export default function NewCodingInterviewPage() {
                       className={`h-11 w-full text-sm sm:h-12 sm:text-base ${
                         errors.role
                           ? "border-red-500 focus:ring-red-500"
-                          : "border-gray-300 focus:border-primary focus:ring-primary"
+                          : "border-border focus:border-primary focus:ring-primary"
                       } transition-all`}
                     />
                     {errors.role && (
@@ -446,7 +446,7 @@ export default function NewCodingInterviewPage() {
                     <div className="space-y-2">
                       <Label
                         htmlFor="experience"
-                        className="flex items-center gap-2 text-sm font-semibold text-gray-700"
+                        className="flex items-center gap-2 text-sm font-semibold text-foreground"
                       >
                         <Clock className="h-4 w-4 text-primary" />
                         Years of Experience
@@ -474,7 +474,7 @@ export default function NewCodingInterviewPage() {
                     <div className="space-y-2">
                       <Label
                         htmlFor="language"
-                        className="flex items-center gap-2 text-sm font-semibold text-gray-700"
+                        className="flex items-center gap-2 text-sm font-semibold text-foreground"
                       >
                         <Globe className="h-4 w-4 text-green-600" />
                         Interview Language
@@ -500,7 +500,7 @@ export default function NewCodingInterviewPage() {
                     <div className="space-y-2">
                       <Label
                         htmlFor="department"
-                        className="flex items-center gap-2 text-sm font-semibold text-gray-700"
+                        className="flex items-center gap-2 text-sm font-semibold text-foreground"
                       >
                         <Briefcase className="h-4 w-4 text-indigo-600" />
                         Department (Optional)
@@ -541,7 +541,7 @@ export default function NewCodingInterviewPage() {
                     <div className="space-y-2">
                       <Label
                         htmlFor="discipline"
-                        className="flex items-center gap-2 text-sm font-semibold text-gray-700"
+                        className="flex items-center gap-2 text-sm font-semibold text-foreground"
                       >
                         <Building2 className="h-4 w-4 text-teal-600" />
                         Discipline (Optional)
@@ -575,7 +575,7 @@ export default function NewCodingInterviewPage() {
                   <div className="space-y-2">
                     <Label
                       htmlFor="targetCompany"
-                      className="flex items-center gap-2 text-sm font-semibold text-gray-700"
+                      className="flex items-center gap-2 text-sm font-semibold text-foreground"
                     >
                       <Building2 className="h-4 w-4 flex-shrink-0 text-pink-600" />
                       Target Company (Optional)
@@ -590,16 +590,16 @@ export default function NewCodingInterviewPage() {
                           targetCompany: e.target.value,
                         })
                       }
-                      className="h-11 w-full border-gray-300 text-sm transition-all focus:border-primary focus:ring-primary sm:h-12 sm:text-base"
+                      className="h-11 w-full border-border text-sm transition-all focus:border-primary focus:ring-primary sm:h-12 sm:text-base"
                     />
-                    <p className="flex items-center gap-1 text-xs text-gray-500">
+                    <p className="flex items-center gap-1 text-xs text-muted-foreground">
                       <Zap className="h-3 w-3" />
                       Helps match problem difficulty to company tier
                     </p>
                   </div>
 
                   <div className="space-y-2 sm:space-y-3">
-                    <Label className="flex items-center gap-1.5 text-xs font-semibold text-gray-700 sm:text-sm">
+                    <Label className="flex items-center gap-1.5 text-xs font-semibold text-foreground sm:text-sm">
                       <FileText className="h-3.5 w-3.5 flex-shrink-0 text-primary sm:h-4 sm:w-4" />
                       Resume
                       <span className="text-red-500">*</span>
@@ -633,21 +633,21 @@ export default function NewCodingInterviewPage() {
                               className={`flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full border-2 sm:h-5 sm:w-5 ${
                                 useSavedResume
                                   ? "border-primary bg-primary"
-                                  : "border-gray-300"
+                                  : "border-border"
                               }`}
                             >
                               {useSavedResume && (
-                                <div className="h-1.5 w-1.5 rounded-full bg-white sm:h-2 sm:w-2" />
+                                <div className="h-1.5 w-1.5 rounded-full bg-card sm:h-2 sm:w-2" />
                               )}
                             </div>
                             <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-primary sm:h-10 sm:w-10">
                               <FileText className="h-4 w-4 text-white sm:h-5 sm:w-5" />
                             </div>
                             <div className="min-w-0 flex-1">
-                              <p className="truncate text-xs font-semibold text-gray-900 sm:text-sm">
+                              <p className="truncate text-xs font-semibold text-foreground sm:text-sm">
                                 {userProfile.resume.filename}
                               </p>
-                              <p className="truncate text-xs text-gray-500">
+                              <p className="truncate text-xs text-muted-foreground">
                                 {new Date(
                                   userProfile.resume.uploadedAt,
                                 ).toLocaleDateString("en-IN", {
@@ -662,7 +662,7 @@ export default function NewCodingInterviewPage() {
                             )}
                           </div>
                         </div>
-                        <p className="pl-11 text-xs text-gray-500 sm:pl-12">
+                        <p className="pl-11 text-xs text-muted-foreground sm:pl-12">
                           Or upload new below
                         </p>
                       </div>
@@ -690,17 +690,17 @@ export default function NewCodingInterviewPage() {
                           className={`flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full border-2 sm:h-5 sm:w-5 ${
                             !useSavedResume
                               ? "border-primary bg-primary"
-                              : "border-gray-300"
+                              : "border-border"
                           }`}
                         >
                           {!useSavedResume && (
-                            <div className="h-1.5 w-1.5 rounded-full bg-white sm:h-2 sm:w-2" />
+                            <div className="h-1.5 w-1.5 rounded-full bg-card sm:h-2 sm:w-2" />
                           )}
                         </div>
                         <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-primary sm:h-10 sm:w-10">
                           <Upload className="h-4 w-4 text-white sm:h-5 sm:w-5" />
                         </div>
-                        <span className="flex-1 text-xs font-semibold text-gray-900 sm:text-sm">
+                        <span className="flex-1 text-xs font-semibold text-foreground sm:text-sm">
                           Upload new resume
                         </span>
                         {!useSavedResume && (
@@ -719,7 +719,7 @@ export default function NewCodingInterviewPage() {
                                 ? "border-primary bg-primary-muted/30"
                                 : errors.resume
                                   ? "border-red-400 bg-red-50"
-                                  : "border-gray-300 bg-gray-50/50"
+                                  : "border-border bg-muted/20"
                             }`}
                           >
                             <input {...getInputProps()} />
@@ -728,10 +728,10 @@ export default function NewCodingInterviewPage() {
                                 <Upload className="h-6 w-6 text-white sm:h-7 sm:w-7" />
                               </div>
                               <div>
-                                <p className="mb-1 text-xs font-semibold text-gray-700 sm:text-sm">
+                                <p className="mb-1 text-xs font-semibold text-foreground sm:text-sm">
                                   {isDragActive ? "Drop here" : "Tap to upload"}
                                 </p>
-                                <p className="text-xs text-gray-400">
+                                <p className="text-xs text-muted-foreground/80">
                                   PDF only • Max 5 MB
                                 </p>
                               </div>
@@ -744,10 +744,10 @@ export default function NewCodingInterviewPage() {
                                 <FileText className="h-5 w-5 sm:h-6 sm:w-6" />
                               </div>
                               <div className="min-w-0 flex-1">
-                                <p className="truncate text-xs font-semibold text-gray-900 sm:text-sm">
+                                <p className="truncate text-xs font-semibold text-foreground sm:text-sm">
                                   {uploadedFile.name}
                                 </p>
-                                <p className="text-xs text-gray-600">
+                                <p className="text-xs text-muted-foreground">
                                   {(uploadedFile.size / 1024 / 1024).toFixed(2)}{" "}
                                   MB
                                 </p>
@@ -823,10 +823,10 @@ export default function NewCodingInterviewPage() {
                       <FileText className="h-4 w-4 text-white" />
                     </div>
                     <div>
-                      <p className="mb-1 text-sm font-semibold text-gray-900">
+                      <p className="mb-1 text-sm font-semibold text-foreground">
                         Problem mix
                       </p>
-                      <p className="text-xs text-gray-600">
+                      <p className="text-xs text-muted-foreground">
                         Three problems matched to your resume, role, and target
                         company tier
                       </p>
@@ -837,10 +837,10 @@ export default function NewCodingInterviewPage() {
                       <Code2 className="h-4 w-4 text-white" />
                     </div>
                     <div>
-                      <p className="mb-1 text-sm font-semibold text-gray-900">
+                      <p className="mb-1 text-sm font-semibold text-foreground">
                         Code & test
                       </p>
-                      <p className="text-xs text-gray-600">
+                      <p className="text-xs text-muted-foreground">
                         Monaco editor — run public tests, then submit for hidden
                         cases
                       </p>
@@ -851,10 +851,10 @@ export default function NewCodingInterviewPage() {
                       <Mic className="h-4 w-4 text-white" />
                     </div>
                     <div>
-                      <p className="mb-1 text-sm font-semibold text-gray-900">
+                      <p className="mb-1 text-sm font-semibold text-foreground">
                         AI Interview Practice discussion
                       </p>
-                      <p className="text-xs text-gray-600">
+                      <p className="text-xs text-muted-foreground">
                         Discuss your approach with AI (microphone required)
                       </p>
                     </div>
@@ -864,10 +864,10 @@ export default function NewCodingInterviewPage() {
                       <BarChart3 className="h-4 w-4 text-white" />
                     </div>
                     <div>
-                      <p className="mb-1 text-sm font-semibold text-gray-900">
+                      <p className="mb-1 text-sm font-semibold text-foreground">
                         Full report
                       </p>
-                      <p className="text-xs text-gray-600">
+                      <p className="text-xs text-muted-foreground">
                         Coding and discussion scores in your dashboard
                       </p>
                     </div>

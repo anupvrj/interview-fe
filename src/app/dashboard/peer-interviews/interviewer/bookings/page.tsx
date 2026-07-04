@@ -3,36 +3,102 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { ArrowLeft, CheckCircle2, Eye, Loader2, Star, Video } from "lucide-react";
+import {
+  CalendarClock,
+  CheckCircle2,
+  Clock,
+  Loader2,
+  Star,
+  BarChart3,
+  Video,
+} from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/app/PageHeader";
 import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { BookingStatusBadge } from "@/components/peer/BookingStatusBadge";
-import { PendingBookingDetailsDialog } from "@/components/peer/PendingBookingDetailsDialog";
+import { DashboardStatCard } from "@/components/dashboard/DashboardStatCard";
+import { InterviewerBookingsTable } from "@/components/peer/InterviewerDashboardBookingLists";
+import { PeerMeetingJoinButton } from "@/components/peer/PeerMeetingJoinButton";
+import { initialScoreFormValues } from "@/components/peer/PeerInterviewerCompletionDialog";
+import { PeerInterviewerMarkDoneFlow } from "@/components/peer/PeerInterviewerMarkDoneFlow";
+import {
+  candidateScoreFormToPayload,
+  PeerInterviewerCandidateScoreForm,
+  validateCandidateScoreForm,
+  type PeerCandidateScoreFormValues,
+} from "@/components/peer/PeerInterviewerCandidateScoreForm";
+import { PeerTimezoneBadge, PeerTimezoneSelect } from "@/components/peer/PeerTimezoneSelect";
+import { usePeerTimezone } from "@/components/peer/usePeerTimezone";
+import { formatPeerSchedule } from "@/components/peer/peerSlotTime";
 import { appCard } from "@/lib/app-theme";
+import { isPeerInterviewExpired } from "@/lib/peer-booking-expiry";
 import { cn } from "@/lib/utils";
 import { peerApi, type PeerBooking, type PeerInterviewType } from "@/lib/api";
 
+function computeStats(bookings: PeerBooking[]) {
+  const now = Date.now();
+  let pending = 0;
+  let upcoming = 0;
+  let completed = 0;
+
+  for (const b of bookings) {
+    if (
+      (b.status === "pending_acceptance" || b.status === "accepted_unpaid") &&
+      !isPeerInterviewExpired(b)
+    ) {
+      pending += 1;
+    }
+    if (b.status === "paid_confirmed" && new Date(b.start).getTime() >= now) upcoming += 1;
+    if (b.status === "completed") completed += 1;
+  }
+
+  return {
+    total: bookings.length,
+    pending,
+    upcoming,
+    completed,
+  };
+}
+
 export default function InterviewerBookingsPage() {
+  const {
+    timezone,
+    setTimezone,
+    saving: savingTimezone,
+    timezoneLabel,
+    loading: tzLoading,
+  } = usePeerTimezone();
   const searchParams = useSearchParams();
   const showPendingOnly = searchParams.get("filter") === "pending";
+
   const [bookings, setBookings] = useState<PeerBooking[]>([]);
   const [types, setTypes] = useState<PeerInterviewType[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
 
   const [feedbackFor, setFeedbackFor] = useState<PeerBooking | null>(null);
+  const [scoreFor, setScoreFor] = useState<PeerBooking | null>(null);
+  const [markDoneFlowBooking, setMarkDoneFlowBooking] = useState<PeerBooking | null>(null);
   const [rating, setRating] = useState(0);
   const [comments, setComments] = useState("");
-  const [detailsBookingId, setDetailsBookingId] = useState<string | null>(null);
-  const [detailsTypeLabel, setDetailsTypeLabel] = useState<string | undefined>();
+  const [scoreValues, setScoreValues] = useState<PeerCandidateScoreFormValues>(
+    initialScoreFormValues(),
+  );
 
   const typeNames = useMemo(() => {
     const m: Record<string, string> = {};
@@ -40,12 +106,19 @@ export default function InterviewerBookingsPage() {
     return m;
   }, [types]);
 
-  const visibleBookings = useMemo(() => {
-    if (!showPendingOnly) return bookings;
-    return bookings.filter(
-      (b) => b.status === "pending_acceptance" || b.status === "accepted_unpaid",
-    );
-  }, [bookings, showPendingOnly]);
+  const stats = useMemo(() => computeStats(bookings), [bookings]);
+
+  const nextUpcoming = useMemo(() => {
+    const now = Date.now();
+    return bookings
+      .filter(
+        (b) =>
+          b.status === "paid_confirmed" &&
+          !b.interviewerMarkedDone &&
+          new Date(b.start).getTime() >= now,
+      )
+      .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime())[0];
+  }, [bookings]);
 
   const load = async () => {
     setLoading(true);
@@ -70,8 +143,6 @@ export default function InterviewerBookingsPage() {
     try {
       await peerApi.acceptBooking(bookingId);
       toast.success("Booking accepted. The candidate can now pay.");
-      setDetailsBookingId(null);
-      setDetailsTypeLabel(undefined);
       await load();
     } catch (e: any) {
       toast.error(e?.response?.data?.message || "Could not accept");
@@ -86,8 +157,6 @@ export default function InterviewerBookingsPage() {
     try {
       await peerApi.rejectBooking(bookingId, reason);
       toast.success("Booking rejected");
-      setDetailsBookingId(null);
-      setDetailsTypeLabel(undefined);
       await load();
     } catch (e: any) {
       toast.error(e?.response?.data?.message || "Could not reject");
@@ -101,6 +170,34 @@ export default function InterviewerBookingsPage() {
     setFeedbackFor(b);
     setRating(b.interviewerFeedback?.rating || 0);
     setComments(b.interviewerFeedback?.comments || "");
+  };
+
+  const openCandidateScore = (b: PeerBooking) => {
+    setScoreFor(b);
+    setScoreValues(initialScoreFormValues(b));
+  };
+
+  const submitCandidateScore = async () => {
+    if (!scoreFor) return;
+    const validationError = validateCandidateScoreForm(scoreValues);
+    if (validationError) {
+      toast.error(validationError);
+      return;
+    }
+    setBusyId(scoreFor.id);
+    try {
+      await peerApi.submitInterviewerCandidateScore(
+        scoreFor.id,
+        candidateScoreFormToPayload(scoreValues),
+      );
+      toast.success(scoreFor.interviewerCandidateScore ? "Scores updated" : "Scores submitted");
+      setScoreFor(null);
+      await load();
+    } catch (e: any) {
+      toast.error(e?.response?.data?.message || "Could not save scores");
+    } finally {
+      setBusyId(null);
+    }
   };
 
   const submitFeedback = async () => {
@@ -121,129 +218,205 @@ export default function InterviewerBookingsPage() {
     }
   };
 
-  const markDone = async (b: PeerBooking) => {
-    setBusyId(b.id);
-    try {
-      await peerApi.markDone(b.id);
-      toast.success("Marked done");
-      await load();
-    } catch (e: any) {
-      toast.error(e?.response?.data?.message || "Could not mark done");
-    } finally {
-      setBusyId(null);
-    }
+  const requestMarkDone = (b: PeerBooking) => {
+    setMarkDoneFlowBooking(b);
   };
 
   return (
     <div className="space-y-6">
-      <Link href="/dashboard/peer-interviews/interviewer">
-        <Button variant="ghost" className="w-fit">
-          <ArrowLeft className="mr-2 h-4 w-4" /> Back
-        </Button>
-      </Link>
       <PageHeader
         title={showPendingOnly ? "Pending bookings" : "Booking requests"}
         badge="Interviewer"
         description={
           showPendingOnly
             ? "Requests awaiting your acceptance or candidate payment."
-            : "Accept or decline requests, then run the interview and leave feedback."
+            : "Accept or decline requests, run interviews, leave feedback, and mark sessions done."
         }
         actions={
-          showPendingOnly ? (
-            <Link href="/dashboard/peer-interviews/interviewer/bookings">
-              <Button variant="outline">View all bookings</Button>
+          <div className="flex flex-wrap items-center gap-2">
+            {showPendingOnly ? (
+              <Link href="/dashboard/peer-interviews/interviewer/bookings">
+                <Button variant="outline">View all bookings</Button>
+              </Link>
+            ) : (
+              <Link href="/dashboard/peer-interviews/interviewer/bookings?filter=pending">
+                <Button variant="outline">
+                  <Clock className="mr-2 h-4 w-4" /> Pending only
+                </Button>
+              </Link>
+            )}
+            <Link href="/dashboard/peer-interviews/interviewer">
+              <Button variant="outline">Interviewer dashboard</Button>
             </Link>
-          ) : undefined
+          </div>
         }
       />
 
       {loading ? (
-        <div className="flex h-64 items-center justify-center">
-          <Loader2 className="h-6 w-6 animate-spin text-[#7367F0]" />
+        <div className={cn(appCard, "flex h-64 items-center justify-center")}>
+          <Loader2 className="h-7 w-7 animate-spin text-[#7367F0]" />
         </div>
-      ) : visibleBookings.length === 0 ? (
-        <p className="text-muted-foreground">
-          {showPendingOnly ? "No pending bookings." : "No bookings yet."}
-        </p>
+      ) : bookings.length === 0 ? (
+        <div className={cn(appCard, "flex flex-col items-center gap-3 px-6 py-16 text-center")}>
+          <span className="flex h-16 w-16 items-center justify-center rounded-xl bg-[#7367F0]/10 text-[#7367F0]">
+            <CalendarClock className="h-8 w-8" />
+          </span>
+          <p className="text-lg font-semibold">No bookings yet</p>
+          <p className="max-w-md text-sm text-muted-foreground">
+            When candidates book your slots, requests will appear here for you to accept or decline.
+          </p>
+          <Link href="/dashboard/peer-interviews/interviewer/slots">
+            <Button className="bg-[#7367F0] text-white hover:bg-[#6e62e5]">Manage availability</Button>
+          </Link>
+        </div>
       ) : (
-        <div className="space-y-3">
-          {visibleBookings.map((b) => {
-            const canInteract = b.status === "paid_confirmed" || b.status === "completed";
-            return (
-              <div key={b.id} className={cn(appCard, "flex flex-col gap-3 p-4 lg:flex-row lg:items-center lg:justify-between")}>
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="font-semibold">{typeNames[b.interviewType] || b.interviewType}</span>
-                    <BookingStatusBadge status={b.status} />
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    {new Date(b.start).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })} · ₹{b.amount} · Ref {b.bookingRef}
-                  </p>
-                </div>
-                <div className="flex shrink-0 flex-wrap items-center gap-2">
-                  {b.status === "pending_acceptance" || b.status === "accepted_unpaid" ? (
-                    <Button
-                      variant="outline"
-                      onClick={() => {
-                        setDetailsTypeLabel(typeNames[b.interviewType] || b.interviewType);
-                        setDetailsBookingId(b.id);
-                      }}
-                    >
-                      <Eye className="mr-1 h-4 w-4" /> View details
-                    </Button>
-                  ) : null}
-                  {b.videoLink && b.status === "paid_confirmed" ? (
-                    <a href={b.videoLink} target="_blank" rel="noreferrer">
-                      <Button variant="outline">
-                        <Video className="mr-2 h-4 w-4" /> Join
-                      </Button>
-                    </a>
-                  ) : null}
-                  {canInteract ? (
-                    <>
-                      <Button variant="outline" onClick={() => openFeedback(b)}>
-                        <Star className="mr-2 h-4 w-4" />
-                        {b.interviewerFeedback ? "Edit feedback" : "Feedback"}
-                      </Button>
-                      {!b.interviewerMarkedDone ? (
-                        <Button variant="outline" onClick={() => void markDone(b)} disabled={busyId === b.id}>
-                          <CheckCircle2 className="mr-2 h-4 w-4" /> Mark done
-                        </Button>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 text-sm text-emerald-600">
-                          <CheckCircle2 className="h-4 w-4" /> Done
-                        </span>
-                      )}
-                    </>
-                  ) : null}
-                </div>
+        <>
+          <div className={cn(appCard, "p-4")}>
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+              <PeerTimezoneSelect
+                timezone={timezone}
+                onChange={setTimezone}
+                disabled={tzLoading || savingTimezone}
+                className="max-w-md flex-1"
+              />
+              <PeerTimezoneBadge label={timezoneLabel} />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4">
+            <DashboardStatCard
+              theme="purple"
+              label="Total bookings"
+              value={stats.total}
+              icon={CalendarClock}
+              hint={
+                <>
+                  <CalendarClock className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
+                  <span>All interview requests</span>
+                </>
+              }
+            />
+            <DashboardStatCard
+              theme="amber"
+              label="Pending"
+              value={stats.pending}
+              icon={Clock}
+              hint={
+                <>
+                  <Clock className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
+                  <span>Awaiting acceptance or payment</span>
+                </>
+              }
+            />
+            <DashboardStatCard
+              theme="emerald"
+              label="Upcoming"
+              value={stats.upcoming}
+              icon={Video}
+              hint={
+                <>
+                  <Video className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
+                  <span>Confirmed &amp; scheduled</span>
+                </>
+              }
+            />
+            <DashboardStatCard
+              theme="violet"
+              label="Completed"
+              value={stats.completed}
+              icon={CheckCircle2}
+              hint={
+                <>
+                  <CheckCircle2 className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
+                  <span>Finished sessions</span>
+                </>
+              }
+            />
+          </div>
+
+          {nextUpcoming ? (
+            <div
+              className={cn(
+                appCard,
+                "flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between",
+              )}
+            >
+              <div className="min-w-0">
+                <p className="text-xs font-semibold uppercase tracking-wide text-[#7367F0]">
+                  Next interview
+                </p>
+                <p className="mt-0.5 text-sm font-semibold text-foreground">
+                  {typeNames[nextUpcoming.interviewType] || nextUpcoming.interviewType}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  {formatPeerSchedule(nextUpcoming.start, timezone)} · Ref {nextUpcoming.bookingRef}
+                </p>
               </div>
-            );
-          })}
-        </div>
+              <div className="flex shrink-0 flex-wrap items-center gap-2">
+                {nextUpcoming.videoLink ? (
+                  <PeerMeetingJoinButton
+                    bookingId={nextUpcoming.id}
+                    videoLink={nextUpcoming.videoLink}
+                    start={nextUpcoming.start}
+                    end={nextUpcoming.end}
+                    timezone={timezone}
+                    label="Join meeting room"
+                    size="default"
+                    variant="default"
+                    className="bg-[#7367F0] text-white hover:bg-[#6e62e5] disabled:opacity-60"
+                  />
+                ) : null}
+                <Link href={`/dashboard/peer-interviews/bookings/${nextUpcoming.id}`}>
+                  <Button variant="outline">
+                    <Clock className="mr-2 h-4 w-4" /> View details
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          ) : null}
+
+          <Card className="overflow-hidden rounded-xl border border-border/60 bg-card shadow-card">
+            <CardHeader className="border-b border-border/60 px-5 py-4">
+              <div>
+                <CardTitle className="text-lg font-semibold text-foreground">Bookings</CardTitle>
+                <CardDescription className="mt-1 text-sm">
+                  Filter by status or interview round. Accept pending requests, join confirmed
+                  interviews from the meeting room, then leave feedback and mark done.
+                </CardDescription>
+              </div>
+            </CardHeader>
+            <CardContent className="p-0 pb-4">
+              <InterviewerBookingsTable
+                bookings={bookings}
+                types={types}
+                typeNames={typeNames}
+                timezone={timezone}
+                busyBookingId={busyId}
+                onAccept={acceptBooking}
+                onDecline={declineBooking}
+                onOpenFeedback={openFeedback}
+                onOpenCandidateScore={openCandidateScore}
+                onMarkDone={requestMarkDone}
+                initialStatusFilter={showPendingOnly ? "pending" : "all"}
+              />
+            </CardContent>
+          </Card>
+        </>
       )}
 
-      <PendingBookingDetailsDialog
-        bookingId={detailsBookingId}
-        typeLabel={detailsTypeLabel}
-        open={!!detailsBookingId}
-        busyBookingId={busyId}
-        onAccept={acceptBooking}
-        onDecline={declineBooking}
-        onOpenChange={(open) => {
-          if (!open) {
-            setDetailsBookingId(null);
-            setDetailsTypeLabel(undefined);
-          }
+      <Dialog
+        open={!!feedbackFor}
+        onOpenChange={(o) => {
+          if (!o) setFeedbackFor(null);
         }}
-      />
-
-      {/* Feedback dialog */}
-      <Dialog open={!!feedbackFor} onOpenChange={(o) => !o && setFeedbackFor(null)}>
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Interview feedback</DialogTitle>
+            <DialogDescription>
+              Share a star rating for this candidate. Dimensional scores are submitted when you mark
+              the interview done.
+            </DialogDescription>
           </DialogHeader>
           <div className="flex items-center gap-1">
             {[1, 2, 3, 4, 5].map((n) => (
@@ -272,11 +445,77 @@ export default function InterviewerBookingsPage() {
               disabled={busyId === feedbackFor?.id}
               className="bg-[#7367F0] text-white hover:bg-[#6e62e5]"
             >
-              Submit
+              {busyId === feedbackFor?.id ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Saving…
+                </>
+              ) : (
+                "Submit"
+              )}
             </Button>
           </div>
         </DialogContent>
       </Dialog>
+
+      <Dialog
+        open={!!scoreFor}
+        onOpenChange={(o) => {
+          if (!o) setScoreFor(null);
+        }}
+      >
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>
+              {scoreFor?.interviewerCandidateScore ? "Update candidate scores" : "Score the candidate"}
+            </DialogTitle>
+            <DialogDescription>
+              Rate technical skills, behaviour, and communication out of 100 each.
+            </DialogDescription>
+          </DialogHeader>
+          <PeerInterviewerCandidateScoreForm
+            values={scoreValues}
+            onChange={setScoreValues}
+            disabled={busyId === scoreFor?.id}
+          />
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setScoreFor(null)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => void submitCandidateScore()}
+              disabled={busyId === scoreFor?.id}
+              className="bg-[#7367F0] text-white hover:bg-[#6e62e5]"
+            >
+              {busyId === scoreFor?.id ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Saving…
+                </>
+              ) : scoreFor?.interviewerCandidateScore ? (
+                "Update"
+              ) : (
+                "Submit"
+              )}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {markDoneFlowBooking ? (
+        <PeerInterviewerMarkDoneFlow
+          booking={markDoneFlowBooking}
+          open={!!markDoneFlowBooking}
+          onOpenChange={(open) => {
+            if (!open) setMarkDoneFlowBooking(null);
+          }}
+          timezone={timezone}
+          interviewLabel={
+            typeNames[markDoneFlowBooking.interviewType] || markDoneFlowBooking.interviewType
+          }
+          onSuccess={() => void load()}
+        />
+      ) : null}
     </div>
   );
 }

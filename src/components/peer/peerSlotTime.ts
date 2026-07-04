@@ -87,8 +87,66 @@ export function formatPeerTimezoneLabel(timeZone: string): string {
 /** Calendar date for `<input type="date">` in a specific timezone. */
 export function toDateInputValueInTimezone(d: Date, timeZone: string): string {
   const p = getZonedParts(d, timeZone);
-  return `${p.year}-${String(p.month).padStart(2, "0")}-${String(p.day).padStart(2, "0")}`;
+  return dateInputFromParts(p.year, p.month, p.day);
 }
+
+export function parseDateInput(date: string): { year: number; month: number; day: number } {
+  const [year, month, day] = date.split("-").map(Number);
+  return { year, month, day };
+}
+
+export function dateInputFromParts(year: number, month: number, day: number): string {
+  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+export function daysInMonth(year: number, month: number): number {
+  return new Date(year, month, 0).getDate();
+}
+
+export function weekdayOfDateParts(year: number, month: number, day: number): number {
+  return new Date(year, month - 1, day).getDay();
+}
+
+export type DateInputCell = {
+  year: number;
+  month: number;
+  day: number;
+  inMonth: boolean;
+};
+
+/** Six-row month grid (Sun-first) using calendar date parts, not browser-local midnight. */
+export function buildDateInputMonthGrid(year: number, month: number): DateInputCell[] {
+  const firstDow = weekdayOfDateParts(year, month, 1);
+  const dim = daysInMonth(year, month);
+  const prevMonth = month === 1 ? 12 : month - 1;
+  const prevYear = month === 1 ? year - 1 : year;
+  const prevDim = daysInMonth(prevYear, prevMonth);
+  const cells: DateInputCell[] = [];
+
+  for (let i = firstDow - 1; i >= 0; i--) {
+    cells.push({ year: prevYear, month: prevMonth, day: prevDim - i, inMonth: false });
+  }
+  for (let d = 1; d <= dim; d++) {
+    cells.push({ year, month, day: d, inMonth: true });
+  }
+
+  const nextMonth = month === 12 ? 1 : month + 1;
+  const nextYear = month === 12 ? year + 1 : year;
+  let trailing = 1;
+  while (cells.length < 42) {
+    cells.push({ year: nextYear, month: nextMonth, day: trailing++, inMonth: false });
+  }
+
+  return cells;
+}
+
+export const PEER_SLOT_TIME_OPTIONS = (() => {
+  const slots: string[] = [];
+  for (let hour = 7; hour <= 21; hour++) {
+    slots.push(`${String(hour).padStart(2, "0")}:00`, `${String(hour).padStart(2, "0")}:30`);
+  }
+  return slots;
+})();
 
 /** Time for `<input type="time">` in a specific timezone. */
 export function toTimeInputValueInTimezone(d: Date, timeZone: string): string {
@@ -143,11 +201,127 @@ export function formatPeerTimeInTimezone(date: string | Date, timeZone: string):
   });
 }
 
+/** e.g. "5 days 4 hrs", "17 hrs 25 mins", "45 mins", "Less than 1 min" */
+export function formatHumanDuration(totalSeconds: number): string {
+  const sec = Math.max(0, Math.floor(totalSeconds));
+  if (sec < 60) return "Less than 1 min";
+
+  const days = Math.floor(sec / 86400);
+  const hours = Math.floor((sec % 86400) / 3600);
+  const minutes = Math.floor((sec % 3600) / 60);
+
+  const parts: string[] = [];
+
+  if (days > 0) {
+    parts.push(days === 1 ? "1 day" : `${days} days`);
+    if (hours > 0) {
+      parts.push(hours === 1 ? "1 hr" : `${hours} hrs`);
+    }
+    if (minutes > 0) {
+      parts.push(minutes === 1 ? "1 min" : `${minutes} mins`);
+    }
+    return parts.join(" ");
+  }
+
+  if (hours > 0) {
+    parts.push(hours === 1 ? "1 hr" : `${hours} hrs`);
+  }
+  if (minutes > 0) {
+    parts.push(minutes === 1 ? "1 min" : `${minutes} mins`);
+  }
+
+  return parts.length > 0 ? parts.join(" ") : "Less than 1 min";
+}
+
 export function isSlotStartInPast(start: string | Date): boolean {
   return new Date(start).getTime() < Date.now();
 }
 
-export const PEER_JOIN_EARLY_MS = 10 * 60 * 1000;
+export function isTimeOptionInPast(date: string, time: string, timeZone: string): boolean {
+  if (!date || !time) return false;
+  return isSlotStartInPast(buildSlotStartInTimezone(date, time, timeZone));
+}
+
+/** Sun → Sat single-letter labels (Google Calendar style). */
+export const PEER_WEEKDAY_LETTERS = ["S", "M", "T", "W", "T", "F", "S"] as const;
+
+export const PEER_WEEKDAY_NAMES = [
+  "Sunday",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+] as const;
+
+export const PEER_RECURRING_WEEK_OPTIONS = [4, 8, 12] as const;
+
+export const DEFAULT_PEER_RECURRING_WEEKS = 8;
+
+export type PeerSlotScheduleMode = "once" | "weekly";
+
+function addDaysToDateParts(
+  year: number,
+  month: number,
+  day: number,
+  days: number,
+): { year: number; month: number; day: number } {
+  const dt = new Date(year, month - 1, day);
+  dt.setDate(dt.getDate() + days);
+  return { year: dt.getFullYear(), month: dt.getMonth() + 1, day: dt.getDate() };
+}
+
+/** Weekly recurrence: every selected weekday for `weeks` calendar weeks starting at `fromDate`. */
+export function expandWeeklyRecurringDates(opts: {
+  fromDate: string;
+  weekdays: number[];
+  weeks: number;
+}): string[] {
+  const { fromDate, weeks } = opts;
+  const weekdays = [...new Set(opts.weekdays)].sort((a, b) => a - b);
+  if (!fromDate || weekdays.length === 0 || weeks < 1) return [];
+
+  const { year, month, day } = parseDateInput(fromDate);
+  const results: string[] = [];
+  const totalDays = weeks * 7;
+
+  for (let offset = 0; offset < totalDays; offset++) {
+    const parts = addDaysToDateParts(year, month, day, offset);
+    const dow = weekdayOfDateParts(parts.year, parts.month, parts.day);
+    if (weekdays.includes(dow)) {
+      results.push(dateInputFromParts(parts.year, parts.month, parts.day));
+    }
+  }
+
+  return results;
+}
+
+export function formatRecurringWeekdaySummary(weekdays: number[]): string {
+  const sorted = [...new Set(weekdays)].sort((a, b) => a - b);
+  if (sorted.length === 0) return "";
+  return sorted.map((d) => PEER_WEEKDAY_NAMES[d].slice(0, 3)).join(", ");
+}
+
+export function countFutureRecurringSlots(opts: {
+  fromDate: string;
+  time: string;
+  timezone: string;
+  weekdays: number[];
+  weeks: number;
+}): number {
+  const dates = expandWeeklyRecurringDates({
+    fromDate: opts.fromDate,
+    weekdays: opts.weekdays,
+    weeks: opts.weeks,
+  });
+  return dates.filter(
+    (d) => !isSlotStartInPast(buildSlotStartInTimezone(d, opts.time, opts.timezone)),
+  ).length;
+}
+
+/** TEMP (testing): set back to `10 * 60 * 1000` before production. */
+export const PEER_JOIN_EARLY_MS = 0;
 
 function meetingStartMs(start: string | Date): number {
   return new Date(start).getTime();
@@ -162,15 +336,14 @@ export function canJoinPeerMeeting(
   end?: string | Date,
   nowMs: number = Date.now(),
 ): boolean {
-  const opensAt = peerJoinOpensAtMs(start);
   const endAt = end ? new Date(end).getTime() : meetingStartMs(start) + 60 * 60 * 1000;
-  return nowMs >= opensAt && nowMs < endAt;
+  // TEMP (testing): join anytime before end — restore early-window check for production
+  return nowMs < endAt;
 }
 
 export function peerJoinDisabledTooltip(start: string | Date, timeZone: string): string {
-  const opensAt = new Date(peerJoinOpensAtMs(start));
   const label = formatPeerTimezoneLabel(timeZone);
-  return `Join opens 10 minutes before the meeting starts (${formatPeerTimeInTimezone(opensAt, timeZone)} · ${label})`;
+  return `Join is available until the meeting ends (${formatPeerTimeInTimezone(start, timeZone)} · ${label})`;
 }
 
 export function peerTimezoneOptionsIncluding(timeZone: string) {

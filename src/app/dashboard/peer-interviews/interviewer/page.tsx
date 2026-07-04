@@ -12,7 +12,6 @@ import {
   IndianRupee,
   Loader2,
   Lock,
-  Star,
   TriangleAlert,
   Users,
 } from "lucide-react";
@@ -34,12 +33,17 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { InterviewerOnboardingForm } from "@/components/peer/InterviewerOnboardingForm";
+import {
+  buildInterviewerCandidateReviews,
+  InterviewerRatingReviewsButton,
+} from "@/components/peer/InterviewerRatingReviewsButton";
 import { InterviewerBookingsTable } from "@/components/peer/InterviewerDashboardBookingLists";
-import { PeerTimezoneBadge, PeerTimezoneSelect } from "@/components/peer/PeerTimezoneSelect";
+import { PeerTimezoneSettingsButton } from "@/components/peer/PeerTimezoneSelect";
 import { usePeerTimezone } from "@/components/peer/usePeerTimezone";
 import { DashboardStatCard } from "@/components/dashboard/DashboardStatCard";
-import { appCard, appStatIcon } from "@/lib/app-theme";
+import { appCard } from "@/lib/app-theme";
 import { cn } from "@/lib/utils";
+import { isPeerInterviewExpired, isUnpaidPeerBookingStatus } from "@/lib/peer-booking-expiry";
 import {
   peerApi,
   type PeerAvailability,
@@ -67,6 +71,19 @@ export default function InterviewerHubPage() {
     for (const t of types) m[t.key] = t.name;
     return m;
   }, [types]);
+
+  const pendingCount = useMemo(
+    () =>
+      bookings.filter(
+        (b) => isUnpaidPeerBookingStatus(b.status) && !isPeerInterviewExpired(b),
+      ).length,
+    [bookings],
+  );
+
+  const candidateReviews = useMemo(
+    () => buildInterviewerCandidateReviews(bookings, typeNames),
+    [bookings, typeNames],
+  );
 
   const load = async () => {
     setLoading(true);
@@ -199,10 +216,24 @@ export default function InterviewerHubPage() {
     <div className="space-y-6">
       <PageHeader
         title="Interviewer Dashboard"
-        badge="Approved interviewer"
         description="Manage your availability, slots and bookings."
         actions={
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
+            <InterviewerRatingReviewsButton
+              ratingAvg={analytics?.ratingAvg ?? profile.ratingAvg ?? 0}
+              ratingCount={analytics?.ratingCount ?? profile.ratingCount ?? 0}
+              reviews={candidateReviews}
+              className="min-w-0 flex-1 shrink basis-0 sm:flex-none sm:basis-auto"
+            />
+            <PeerTimezoneSettingsButton
+              timezone={timezone}
+              timezoneLabel={timezoneLabel}
+              onChange={setTimezone}
+              disabled={tzLoading}
+              saving={savingTimezone}
+              compact
+              className="min-w-0 flex-1 shrink basis-0 px-2 sm:flex-none sm:basis-auto sm:px-3"
+            />
             <Select
               value={profile.availabilityStatus}
               disabled={savingAvail}
@@ -270,7 +301,7 @@ export default function InterviewerHubPage() {
         <DashboardStatCard
           theme="amber"
           label="Pending requests"
-          value={analytics?.pending ?? 0}
+          value={pendingCount}
           icon={Clock}
           hint={
             <>
@@ -291,57 +322,6 @@ export default function InterviewerHubPage() {
             </>
           }
         />
-      </div>
-
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
-        <DashboardStatCard
-          theme="amber"
-          label="Pending earning"
-          value={`₹${analytics?.pendingEarnings ?? 0}`}
-          icon={Clock}
-          hint={
-            <>
-              <Clock className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
-              <span>Awaiting admin review</span>
-            </>
-          }
-        />
-        <DashboardStatCard
-          theme="cyan"
-          label="Approved earning"
-          value={`₹${analytics?.approvedEarnings ?? 0}`}
-          icon={IndianRupee}
-          hint={
-            <>
-              <IndianRupee className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
-              <span>Ready for payout</span>
-            </>
-          }
-        />
-        <DashboardStatCard
-          theme="emerald"
-          label="Paid out"
-          value={`₹${analytics?.paidOutEarnings ?? 0}`}
-          icon={CheckCircle2}
-          hint={
-            <>
-              <CheckCircle2 className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
-              <span>Transferred off-platform</span>
-            </>
-          }
-        />
-      </div>
-
-      <div className={cn(appCard, "p-4")}>
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-          <PeerTimezoneSelect
-            timezone={timezone}
-            onChange={setTimezone}
-            disabled={tzLoading || savingTimezone}
-            className="max-w-md flex-1"
-          />
-          <PeerTimezoneBadge label={timezoneLabel} />
-        </div>
       </div>
 
       <Card className="overflow-hidden rounded-xl border border-border/60 bg-card shadow-card">
@@ -366,18 +346,6 @@ export default function InterviewerHubPage() {
           />
         </CardContent>
       </Card>
-
-      <div className={cn(appCard, "flex items-center gap-3 p-4")}>
-        <span className={cn(appStatIcon, "bg-primary-muted text-primary")}>
-          <Star className="h-5 w-5" />
-        </span>
-        <div>
-          <p className="text-xs text-muted-foreground">Your rating</p>
-          <p className="text-xl font-semibold">
-            {analytics && analytics.ratingCount > 0 ? analytics.ratingAvg.toFixed(1) : "New"}
-          </p>
-        </div>
-      </div>
     </div>
   );
 }

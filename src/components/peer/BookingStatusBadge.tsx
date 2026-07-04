@@ -1,5 +1,6 @@
 import { cn } from "@/lib/utils";
 import type { PeerBookingStatus } from "@/lib/api";
+import { isPeerInterviewExpired } from "@/lib/peer-booking-expiry";
 
 const MAP: Record<PeerBookingStatus, { label: string; className: string }> = {
   pending_acceptance: {
@@ -32,13 +33,36 @@ const MAP: Record<PeerBookingStatus, { label: string; className: string }> = {
   },
 };
 
-export function BookingStatusBadge({ status }: { status: PeerBookingStatus }) {
+export function BookingStatusBadge({
+  status,
+  start,
+  className,
+}: {
+  status: PeerBookingStatus;
+  start?: string;
+  className?: string;
+}) {
+  if (start && isPeerInterviewExpired({ start, status })) {
+    return (
+      <span
+        className={cn(
+          "inline-flex max-w-full items-center rounded-md px-2 py-0.5 text-[11px] font-medium leading-snug sm:text-xs",
+          "bg-muted text-muted-foreground",
+          className,
+        )}
+      >
+        Interview expired
+      </span>
+    );
+  }
+
   const cfg = MAP[status] ?? MAP.pending_acceptance;
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium",
+        "inline-flex max-w-full items-center rounded-md px-2 py-0.5 text-[11px] font-medium leading-snug sm:text-xs",
         cfg.className,
+        className,
       )}
     >
       {cfg.label}

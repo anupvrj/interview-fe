@@ -22,7 +22,7 @@ import { AdminPeerBookingRefundDialog } from "@/components/peer/AdminPeerBooking
 import { appCard } from "@/lib/app-theme";
 import { isPlatformAdmin } from "@/lib/dashboard-nav";
 import { cn } from "@/lib/utils";
-import { userApi, peerApi } from "@/lib/api";
+import { userApi, peerApi, type PeerInterviewerCandidateScore } from "@/lib/api";
 
 type AdminPeerBookingDetail = Awaited<ReturnType<typeof peerApi.admin.getBooking>>;
 
@@ -38,6 +38,40 @@ function FeedbackBox({
           <p className="mt-1 text-sm font-semibold text-foreground">{fb.rating}/5</p>
           {fb.comments ? <p className="mt-1 text-sm text-muted-foreground">{fb.comments}</p> : null}
         </>
+      ) : (
+        <p className="mt-1 text-sm text-muted-foreground">Not submitted</p>
+      )}
+    </div>
+  );
+}
+
+function CandidateScoreBox({
+  score,
+}: Readonly<{ score?: PeerInterviewerCandidateScore }>) {
+  return (
+    <div className="rounded-xl border border-border/60 bg-muted/20 p-4 sm:col-span-2">
+      <p className="text-xs font-medium text-muted-foreground">Interviewer candidate scores</p>
+      {score ? (
+        <div className="mt-2 space-y-2">
+          <p className="text-sm font-semibold text-foreground">
+            Overall {score.overall}/100
+          </p>
+          <div className="grid gap-2 text-sm sm:grid-cols-3">
+            <p className="text-muted-foreground">
+              Technical: <span className="font-medium text-foreground">{score.technical}/100</span>
+            </p>
+            <p className="text-muted-foreground">
+              Behavioural: <span className="font-medium text-foreground">{score.behaviour}/100</span>
+            </p>
+            <p className="text-muted-foreground">
+              Communication:{" "}
+              <span className="font-medium text-foreground">{score.communication}/100</span>
+            </p>
+          </div>
+          {score.comments ? (
+            <p className="text-sm text-muted-foreground">{score.comments}</p>
+          ) : null}
+        </div>
       ) : (
         <p className="mt-1 text-sm text-muted-foreground">Not submitted</p>
       )}
@@ -223,6 +257,7 @@ export default function AdminPeerBookingDetailPage() {
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <FeedbackBox title="Candidate feedback" fb={detail.candidateFeedback} />
             <FeedbackBox title="Interviewer feedback" fb={detail.interviewerFeedback} />
+            <CandidateScoreBox score={detail.interviewerCandidateScore} />
           </div>
 
           {detail.refund?.status && detail.refund.status !== "none" ? (
@@ -237,8 +272,7 @@ export default function AdminPeerBookingDetailPage() {
         <CardHeader className="border-b border-border/60 px-5 py-4">
           <CardTitle className="text-base font-semibold">Interviewer earning</CardTitle>
           <CardDescription className="text-sm">
-            Net payout after 15% platform fee. Created when the interviewer marks the session done
-            after the scheduled end.
+            Net payout after 15% platform fee. Created when the interviewer marks the session done.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4 p-5">
@@ -277,7 +311,7 @@ export default function AdminPeerBookingDetailPage() {
             </>
           ) : (
             <p className="text-sm text-muted-foreground">
-              Waiting for the interviewer to mark this interview done after the scheduled end time.
+              Waiting for the interviewer to mark this interview done.
             </p>
           )}
         </CardContent>

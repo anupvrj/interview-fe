@@ -89,6 +89,7 @@ export function PeerTimezoneSettingsButton({
   disabled,
   saving,
   className,
+  compact,
 }: {
   timezone: string;
   timezoneLabel: string;
@@ -96,6 +97,8 @@ export function PeerTimezoneSettingsButton({
   disabled?: boolean;
   saving?: boolean;
   className?: string;
+  /** Compact label for grouped header actions (icon + "Timezone" on all breakpoints). */
+  compact?: boolean;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -106,13 +109,25 @@ export function PeerTimezoneSettingsButton({
         variant="outline"
         disabled={disabled}
         onClick={() => setOpen(true)}
-        className={cn("gap-2", className)}
+        aria-label={`Timezone: ${timezoneLabel}`}
+        className={cn("h-10 gap-1.5", className)}
       >
         <Globe2 className="h-4 w-4 shrink-0 text-[#7367F0]" />
-        <span className="hidden sm:inline">Timezone</span>
-        <span className="max-w-[8rem] truncate text-muted-foreground sm:max-w-[10rem]">
-          {timezoneLabel}
-        </span>
+        {compact ? (
+          <>
+            <span className="truncate text-xs font-semibold sm:text-sm">Timezone</span>
+            <span className="hidden min-w-0 truncate text-muted-foreground sm:inline sm:max-w-[10rem]">
+              {timezoneLabel}
+            </span>
+          </>
+        ) : (
+          <>
+            <span className="hidden sm:inline">Timezone</span>
+            <span className="max-w-[8rem] truncate text-muted-foreground sm:max-w-[10rem]">
+              {timezoneLabel}
+            </span>
+          </>
+        )}
       </Button>
 
       <Dialog open={open} onOpenChange={setOpen}>

@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { CalendarClock, Eye } from "lucide-react";
+import { CalendarClock, CheckCircle2, Eye, Loader2, Star, BarChart3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { AppSelect } from "@/components/ui/app-select";
@@ -11,6 +11,7 @@ import { PendingBookingDetailsDialog } from "@/components/peer/PendingBookingDet
 import { instituteSecondaryClass } from "@/components/institute/InstituteChrome";
 import { appFilterBar } from "@/lib/app-theme";
 import type { PeerBooking, PeerInterviewType } from "@/lib/api";
+import { isPeerInterviewExpired } from "@/lib/peer-booking-expiry";
 import { formatPeerSchedule } from "@/components/peer/peerSlotTime";
 import { cn } from "@/lib/utils";
 
@@ -34,15 +35,25 @@ function formatSchedule(start: string, timezone: string) {
 }
 
 function matchesStatusFilter(booking: PeerBooking, filter: InterviewerBookingStatusFilter) {
+  const expired = isPeerInterviewExpired(booking);
+
   switch (filter) {
     case "pending":
-      return booking.status === "pending_acceptance" || booking.status === "accepted_unpaid";
+      return (
+        (booking.status === "pending_acceptance" || booking.status === "accepted_unpaid") &&
+        !expired
+      );
     case "upcoming":
       return booking.status === "paid_confirmed" && new Date(booking.start) >= new Date();
     case "completed":
       return booking.status === "completed";
     case "closed":
-      return booking.status === "rejected" || booking.status === "cancelled" || booking.status === "refunded";
+      return (
+        booking.status === "rejected" ||
+        booking.status === "cancelled" ||
+        booking.status === "refunded" ||
+        expired
+      );
     default:
       return true;
   }
@@ -99,6 +110,10 @@ export function InterviewerBookingsTable({
   busyBookingId,
   onAccept,
   onDecline,
+  onOpenFeedback,
+  onOpenCandidateScore,
+  onMarkDone,
+  initialStatusFilter = "all",
 }: {
   bookings: PeerBooking[];
   types: PeerInterviewType[];
@@ -107,11 +122,19 @@ export function InterviewerBookingsTable({
   busyBookingId: string | null;
   onAccept: (bookingId: string) => void | Promise<void>;
   onDecline: (bookingId: string, reason: string) => void | Promise<void>;
+  onOpenFeedback?: (booking: PeerBooking) => void;
+  onOpenCandidateScore?: (booking: PeerBooking) => void;
+  onMarkDone?: (booking: PeerBooking) => void | Promise<void>;
+  initialStatusFilter?: InterviewerBookingStatusFilter;
 }) {
-  const [statusFilter, setStatusFilter] = useState<InterviewerBookingStatusFilter>("all");
+  const [statusFilter, setStatusFilter] = useState<InterviewerBookingStatusFilter>(initialStatusFilter);
   const [typeFilter, setTypeFilter] = useState("");
   const [detailsBookingId, setDetailsBookingId] = useState<string | null>(null);
   const [detailsTypeLabel, setDetailsTypeLabel] = useState<string | undefined>();
+
+  useEffect(() => {
+    setStatusFilter(initialStatusFilter);
+  }, [initialStatusFilter]);
 
   const filteredBookings = useMemo(() => {
     return bookings
@@ -210,6 +233,13 @@ export function InterviewerBookingsTable({
         <TableShell headers={["Interview", "Schedule", "Amount", "Status", "Actions"]}>
           {filteredBookings.map((booking) => {
             const typeLabel = typeNames[booking.interviewType] || booking.interviewType;
+            const isBusy = busyBookingId === booking.id;
+            const expired = isPeerInterviewExpired(booking);
+            const canInteract =
+              booking.status === "paid_confirmed" || booking.status === "completed";
+            const isPending =
+              !expired &&
+              (booking.status === "pending_acceptance" || booking.status === "accepted_unpaid");
 
             return (
               <tr
@@ -219,6 +249,11 @@ export function InterviewerBookingsTable({
                 <td className="px-5 py-3.5 align-top">
                   <p className="truncate text-sm font-semibold text-foreground">{typeLabel}</p>
                   <p className="truncate text-xs text-muted-foreground">Ref {booking.bookingRef}</p>
+                  {booking.status === "rejected" && booking.rejectionReason ? (
+                    <p className="mt-1 line-clamp-2 text-xs text-red-600">
+                      Declined: {booking.rejectionReason}
+                    </p>
+                  ) : null}
                 </td>
                 <td className="px-5 py-3.5 align-top">
                   <p className="text-sm font-medium text-foreground">
@@ -229,30 +264,101 @@ export function InterviewerBookingsTable({
                   <p className="text-sm font-semibold tabular-nums text-foreground">₹{booking.amount}</p>
                 </td>
                 <td className="px-5 py-3.5 align-top">
-                  <BookingStatusBadge status={booking.status} />
+                  <BookingStatusBadge status={booking.status} start={booking.start} />
                 </td>
                 <td className="px-5 py-3.5 align-top">
                   <div className="flex flex-wrap items-center justify-end gap-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      asChild
-                      className={cn(instituteSecondaryClass, "h-8 gap-1 px-3 text-xs")}
-                    >
-                      <Link href={`/dashboard/peer-interviews/bookings/${booking.id}`}>
-                        <CalendarClock className="h-3.5 w-3.5" />
-                        Open booking
-                      </Link>
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => openDetails(booking)}
-                      className={cn(instituteSecondaryClass, "h-8 gap-1 px-3 text-xs")}
-                    >
-                      <Eye className="h-3.5 w-3.5" />
-                      Quick view
-                    </Button>
+                    {expired ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        asChild
+                        className={cn(instituteSecondaryClass, "h-8 gap-1 px-3 text-xs")}
+                      >
+                        <Link href={`/dashboard/peer-interviews/bookings/${booking.id}`}>
+                          <Eye className="h-3.5 w-3.5" />
+                          View details
+                        </Link>
+                      </Button>
+                    ) : null}
+                    {isPending ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => openDetails(booking)}
+                        className={cn(instituteSecondaryClass, "h-8 gap-1 px-3 text-xs")}
+                      >
+                        <Eye className="h-3.5 w-3.5" />
+                        View details
+                      </Button>
+                    ) : null}
+                    {canInteract && onOpenFeedback ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => onOpenFeedback(booking)}
+                        aria-label={
+                          booking.interviewerFeedback ? "Edit feedback" : "Leave feedback"
+                        }
+                        className={cn(instituteSecondaryClass, "h-8 w-8 p-0")}
+                      >
+                        <Star
+                          className={cn(
+                            "h-3.5 w-3.5",
+                            booking.interviewerFeedback
+                              ? "fill-amber-400 text-amber-400"
+                              : undefined,
+                          )}
+                        />
+                      </Button>
+                    ) : null}
+                    {canInteract && onOpenCandidateScore ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => onOpenCandidateScore(booking)}
+                        aria-label={
+                          booking.interviewerCandidateScore ? "Edit candidate scores" : "Score candidate"
+                        }
+                        className={cn(instituteSecondaryClass, "h-8 w-8 p-0")}
+                      >
+                        <BarChart3
+                          className={cn(
+                            "h-3.5 w-3.5",
+                            booking.interviewerCandidateScore ? "text-[#7367F0]" : undefined,
+                          )}
+                        />
+                      </Button>
+                    ) : null}
+                    {canInteract && onMarkDone && !booking.interviewerMarkedDone ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => onMarkDone(booking)}
+                        disabled={isBusy}
+                        aria-label="Mark interview done"
+                        className={cn(instituteSecondaryClass, "h-8 w-8 p-0")}
+                      >
+                        {isBusy ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <CheckCircle2 className="h-3.5 w-3.5" />
+                        )}
+                      </Button>
+                    ) : null}
+                    {!isPending && !expired ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        asChild
+                        className={cn(instituteSecondaryClass, "h-8 gap-1 px-3 text-xs")}
+                      >
+                        <Link href={`/dashboard/peer-interviews/bookings/${booking.id}`}>
+                          <Eye className="h-3.5 w-3.5" />
+                          View details
+                        </Link>
+                      </Button>
+                    ) : null}
                   </div>
                 </td>
               </tr>

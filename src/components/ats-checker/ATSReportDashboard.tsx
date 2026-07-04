@@ -67,15 +67,15 @@ function ReportSummary({ report }: { report: ATSReportV3 }) {
       id: "strengths",
       label: "Strengths",
       items: report.strengths.slice(0, 4),
-      labelClass: "text-green-700",
-      countClass: "bg-green-100 text-green-700",
+      labelClass: "text-green-700 dark:text-green-300",
+      countClass: "bg-green-100 text-green-700 dark:bg-green-950/40 dark:text-green-300",
     },
     {
       id: "weaknesses",
       label: "Weaknesses",
       items: report.weaknesses.slice(0, 4),
-      labelClass: "text-red-700",
-      countClass: "bg-red-100 text-red-700",
+      labelClass: "text-red-700 dark:text-[#fd7070]",
+      countClass: "bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-[#fd7070]",
     },
     {
       id: "suggestions",
@@ -154,16 +154,16 @@ function JobMatchBanner({ report }: { report: ATSReportV3 }) {
 
   const verdictStyle =
     jm.verdict === "strong"
-      ? "border-green-200 bg-green-50"
+      ? "border-green-200 bg-green-50 dark:border-green-900/40 dark:bg-green-950/25"
       : jm.verdict === "partial"
-        ? "border-amber-200 bg-amber-50"
-        : "border-red-200 bg-red-50";
+        ? "border-amber-200 bg-amber-50 dark:border-amber-900/40 dark:bg-amber-950/25"
+        : "border-red-200 bg-red-50 dark:border-red-900/40 dark:bg-red-950/25";
   const pctColor =
     jm.overallMatch >= 75
-      ? "text-green-600"
+      ? "text-green-600 dark:text-green-400"
       : jm.overallMatch >= 50
-        ? "text-amber-600"
-        : "text-red-600";
+        ? "text-amber-600 dark:text-amber-400"
+        : "text-red-600 dark:text-[#fd7070]";
 
   const stats: Array<{ label: string; value: string }> = [];
   if (jm.candidateYears !== undefined) {
@@ -189,7 +189,7 @@ function JobMatchBanner({ report }: { report: ATSReportV3 }) {
     <div className={cn("rounded-xl border p-5 sm:p-6", verdictStyle)}>
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white shadow-sm">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-card shadow-sm">
             <Target className="h-6 w-6 text-primary" />
           </div>
           <div>
@@ -214,7 +214,7 @@ function JobMatchBanner({ report }: { report: ATSReportV3 }) {
           {stats.map((s) => (
             <div
               key={s.label}
-              className="rounded-lg border border-white/70 bg-white/70 px-3 py-2"
+              className="rounded-lg border border-white/70 bg-card/70 px-3 py-2"
             >
               <p className="text-xs text-muted-foreground">{s.label}</p>
               <p className="text-sm font-bold text-foreground">{s.value}</p>
@@ -267,7 +267,28 @@ export function ATSReportDashboard({
     shouldScrollToDetailRef.current = false;
 
     const scrollToDetail = () => {
-      detailPanelRef.current?.scrollIntoView({
+      const el = detailPanelRef.current;
+      if (!el) return;
+
+      if (embedded) {
+        let parent: HTMLElement | null = el.parentElement;
+        while (parent) {
+          const { overflowY } = getComputedStyle(parent);
+          if (/(auto|scroll|overlay)/.test(overflowY)) {
+            const parentRect = parent.getBoundingClientRect();
+            const elRect = el.getBoundingClientRect();
+            parent.scrollTo({
+              top: parent.scrollTop + (elRect.top - parentRect.top) - 12,
+              behavior: "smooth",
+            });
+            return;
+          }
+          parent = parent.parentElement;
+        }
+        return;
+      }
+
+      el.scrollIntoView({
         behavior: "smooth",
         block: "start",
       });
@@ -276,7 +297,7 @@ export function ATSReportDashboard({
     requestAnimationFrame(() => {
       requestAnimationFrame(scrollToDetail);
     });
-  }, [selectedCheckId, selectedCheck]);
+  }, [embedded, selectedCheckId, selectedCheck]);
 
   const handleSelectCheck = (check: ATSCheckResult, label: string) => {
     shouldScrollToDetailRef.current = true;
@@ -322,7 +343,7 @@ export function ATSReportDashboard({
           className={cn(
             "min-w-0 overflow-hidden rounded-xl border border-border bg-card shadow-card scroll-mt-4",
             embedded ? "p-4 sm:p-5" : "p-4 sm:p-6 lg:p-8",
-            "min-h-[320px] sm:min-h-[400px]",
+            embedded ? "min-h-0" : "min-h-[320px] sm:min-h-[400px]",
           )}
         >
           <ATSCheckDetailPanel

@@ -2,7 +2,16 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, List, Loader2, Plus } from "lucide-react";
+import {
+  ArrowLeft,
+  CalendarClock,
+  CheckCircle2,
+  Clock,
+  List,
+  Loader2,
+  Plus,
+  Video,
+} from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/app/PageHeader";
 import { Button } from "@/components/ui/button";
@@ -16,11 +25,23 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { DashboardStatCard } from "@/components/dashboard/DashboardStatCard";
 import { PeerCalendarGrid } from "@/components/peer/PeerCalendarGrid";
 import { InterviewerSlotFormDialog } from "@/components/peer/InterviewerSlotFormDialog";
+import { computeSlotStats } from "@/components/peer/InterviewerSlotsTable";
 import { PeerTimezoneSettingsButton } from "@/components/peer/PeerTimezoneSelect";
 import { usePeerTimezone } from "@/components/peer/usePeerTimezone";
 import { formatPeerSchedule } from "@/components/peer/peerSlotTime";
+import { canDeleteInterviewerSlot } from "@/lib/peer-slot-guards";
+import { appCard } from "@/lib/app-theme";
+import { cn } from "@/lib/utils";
 import {
   peerApi,
   type PeerInterviewType,
@@ -48,6 +69,8 @@ export default function InterviewerSlotsPage() {
     return m;
   }, [types]);
 
+  const stats = useMemo(() => computeSlotStats(slots), [slots]);
+
   const load = async () => {
     setLoading(true);
     try {
@@ -68,7 +91,7 @@ export default function InterviewerSlotsPage() {
     void load();
   }, []);
 
-  const openCreate = (day: Date) => {
+  const openCreate = (day?: Date) => {
     setEditingSlot(null);
     setCreateDay(day);
     setFormOpen(true);
@@ -112,14 +135,16 @@ export default function InterviewerSlotsPage() {
 
   if (profile?.status !== "approved") {
     return (
-      <div className="space-y-4">
+      <div className="space-y-6">
         <PageHeader title="Availability slots" />
-        <p className="text-muted-foreground">
-          Slot creation unlocks once your interviewer profile is approved.
-        </p>
-        <Link href="/dashboard/peer-interviews/interviewer">
-          <Button variant="outline">Back</Button>
-        </Link>
+        <div className={cn(appCard, "flex flex-col items-center gap-3 px-6 py-12 text-center")}>
+          <p className="text-sm text-muted-foreground">
+            Slot creation unlocks once your interviewer profile is approved.
+          </p>
+          <Link href="/dashboard/peer-interviews/interviewer">
+            <Button variant="outline">Back to dashboard</Button>
+          </Link>
+        </div>
       </div>
     );
   }
@@ -127,46 +152,122 @@ export default function InterviewerSlotsPage() {
   return (
     <div className="space-y-6">
       <Link href="/dashboard/peer-interviews/interviewer">
-        <Button variant="ghost" className="w-fit">
+        <Button variant="ghost" className="-ml-2 w-fit px-2">
           <ArrowLeft className="mr-2 h-4 w-4" /> Back
         </Button>
       </Link>
+
       <PageHeader
         title="Availability slots"
-        badge="Calendar"
-        description="Click the + on any day to create a 30–60 minute slot. Green slots are open; orange are booked."
+        description="Create 30–60 minute windows for candidates to book. Green slots are open; orange are booked."
         actions={
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex w-full items-center gap-2 sm:w-auto sm:flex-wrap">
             <PeerTimezoneSettingsButton
               timezone={timezone}
               timezoneLabel={timezoneLabel}
               onChange={setTimezone}
               disabled={tzLoading}
               saving={savingTimezone}
+              compact
+              className="min-w-0 flex-1 shrink basis-0 px-2 sm:flex-none sm:basis-auto sm:px-3"
             />
-            <Link href="/dashboard/peer-interviews/interviewer/slots/list">
-              <Button variant="outline">
-                <List className="mr-2 h-4 w-4" /> View slots
+            <Link
+              href="/dashboard/peer-interviews/interviewer/slots/list"
+              className="min-w-0 flex-1 sm:flex-none"
+            >
+              <Button
+                variant="outline"
+                className="h-10 w-full gap-2 px-3 font-semibold shadow-sm sm:w-auto"
+              >
+                <List className="h-4 w-4 shrink-0" />
+                <span className="truncate">View all slots</span>
               </Button>
             </Link>
             <Button
               onClick={() => openCreate(new Date())}
-              className="bg-[#7367F0] text-white hover:bg-[#6e62e5]"
+              className="h-10 min-w-0 flex-1 gap-2 bg-[#7367F0] px-3 font-semibold text-white hover:bg-[#6e62e5] sm:flex-none"
             >
-              <Plus className="mr-2 h-4 w-4" /> New slot
+              <Plus className="h-4 w-4 shrink-0" /> New slot
             </Button>
           </div>
         }
       />
 
-      <PeerCalendarGrid
-        mode="interviewer"
-        slots={slots}
-        timezone={timezone}
-        onCreate={openCreate}
-        onEditSlot={openEdit}
-        onDeleteSlot={setSlotToDelete}
-      />
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4">
+        <DashboardStatCard
+          theme="purple"
+          label="Total slots"
+          value={stats.total}
+          icon={CalendarClock}
+          hint={
+            <>
+              <CalendarClock className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
+              <span>All availability windows</span>
+            </>
+          }
+        />
+        <DashboardStatCard
+          theme="emerald"
+          label="Open"
+          value={stats.open}
+          icon={CheckCircle2}
+          hint={
+            <>
+              <CheckCircle2 className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
+              <span>Available to book</span>
+            </>
+          }
+        />
+        <DashboardStatCard
+          theme="amber"
+          label="Booked"
+          value={stats.booked}
+          icon={Video}
+          hint={
+            <>
+              <Video className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
+              <span>Candidate reserved</span>
+            </>
+          }
+        />
+        <DashboardStatCard
+          theme="violet"
+          label="Past"
+          value={stats.past}
+          icon={Clock}
+          hint={
+            <>
+              <Clock className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
+              <span>Expired or ended</span>
+            </>
+          }
+        />
+      </div>
+
+      <Card className="overflow-hidden rounded-xl border border-border/60 bg-card shadow-card">
+        <CardHeader className="border-b border-border/60 px-5 py-4">
+          <div>
+            <CardTitle className="text-lg font-semibold text-foreground">Calendar</CardTitle>
+            <CardDescription className="mt-1 text-sm">
+              Switch day, week, or month view. Click + on any day to add a slot, or use the toolbar
+              to jump between dates.
+            </CardDescription>
+          </div>
+        </CardHeader>
+        <CardContent className="p-0">
+          <PeerCalendarGrid
+            embedded
+            mode="interviewer"
+            slots={slots}
+            timezone={timezone}
+            onCreate={openCreate}
+            onEditSlot={openEdit}
+            onDeleteSlot={(slot) => {
+              if (canDeleteInterviewerSlot(slot)) setSlotToDelete(slot);
+            }}
+          />
+        </CardContent>
+      </Card>
 
       {profile ? (
         <InterviewerSlotFormDialog
