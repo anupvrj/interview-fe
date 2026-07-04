@@ -90,7 +90,7 @@ export default function InstituteBillingPage() {
         {Object.keys(planCounts).length === 0 && (
           <Card className={cn(institutePanelClass, "sm:col-span-2")}>
             <CardContent className="pt-6">
-              <p className="text-sm text-slate-600">No plan breakdown yet.</p>
+              <p className="text-sm text-muted-foreground">No plan breakdown yet.</p>
             </CardContent>
           </Card>
         )}
@@ -98,7 +98,7 @@ export default function InstituteBillingPage() {
 
       {inst?.stripeCustomerId && (
         <Card className={cn(institutePanelClass, "overflow-hidden shadow-xl")}>
-          <CardHeader className="border-b border-border/60 bg-gradient-to-r from-muted/50 to-white">
+          <CardHeader className="border-b border-border/60 bg-gradient-to-r from-muted/40 to-card">
             <CardTitle className="flex items-center gap-2 text-base">
               <CreditCard className="h-4 w-4 text-primary" />
               Billing account
@@ -106,10 +106,10 @@ export default function InstituteBillingPage() {
             <CardDescription>Stripe customer linked to this institution</CardDescription>
           </CardHeader>
           <CardContent className="pt-6">
-            <code className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
+            <code className="rounded-lg border border-border bg-muted/20 px-3 py-2 text-sm">
               {inst.stripeCustomerId}
             </code>
-            <p className="mt-2 text-xs text-slate-500">
+            <p className="mt-2 text-xs text-muted-foreground">
               Full invoices and subscription management may be available in your Stripe dashboard.
             </p>
           </CardContent>
@@ -117,7 +117,7 @@ export default function InstituteBillingPage() {
       )}
 
       <Card className={cn(institutePanelClass, "overflow-hidden shadow-xl")}>
-        <CardHeader className="border-b border-border/60 bg-gradient-to-r from-muted/50 to-white">
+        <CardHeader className="border-b border-border/60 bg-gradient-to-r from-muted/40 to-card">
           <CardTitle>Recent payments</CardTitle>
           <CardDescription>
             Charges to this institution’s billing account (plans and credit purchases from your
@@ -127,7 +127,7 @@ export default function InstituteBillingPage() {
         </CardHeader>
         <CardContent className="p-0 sm:p-0">
           {payments.length === 0 ? (
-            <p className="px-6 py-10 text-center text-sm text-slate-600">
+            <p className="px-6 py-10 text-center text-sm text-muted-foreground">
               No institute payments recorded yet. When an institution admin completes checkout for a
               plan or credits, it will appear here.
             </p>
@@ -135,15 +135,15 @@ export default function InstituteBillingPage() {
             <InstituteTableShell>
               <Table>
                 <TableHeader>
-                  <TableRow className="border-b border-slate-200/80 bg-slate-50/90 hover:bg-slate-50/90">
-                    <TableHead className="font-semibold text-slate-700">Date</TableHead>
-                    <TableHead className="hidden font-semibold text-slate-700 sm:table-cell">
+                  <TableRow className="border-b border-border/80 bg-muted/30 hover:bg-muted/30">
+                    <TableHead className="font-semibold text-foreground">Date</TableHead>
+                    <TableHead className="hidden font-semibold text-foreground sm:table-cell">
                       Type
                     </TableHead>
-                    <TableHead className="font-semibold text-slate-700">Amount</TableHead>
-                    <TableHead className="font-semibold text-slate-700">Status</TableHead>
-                    <TableHead className="font-semibold text-slate-700">Paid by</TableHead>
-                    <TableHead className="text-right font-semibold text-slate-700">Receipt</TableHead>
+                    <TableHead className="font-semibold text-foreground">Amount</TableHead>
+                    <TableHead className="font-semibold text-foreground">Status</TableHead>
+                    <TableHead className="font-semibold text-foreground">Paid by</TableHead>
+                    <TableHead className="text-right font-semibold text-foreground">Receipt</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -168,15 +168,15 @@ export default function InstituteBillingPage() {
                     return (
                       <TableRow
                         key={row._id || row.id}
-                        className="border-slate-100 hover:bg-muted/40"
+                        className="border-border hover:bg-muted/40"
                       >
-                        <TableCell className="whitespace-nowrap text-slate-800">
+                        <TableCell className="whitespace-nowrap text-foreground">
                           {row.createdAt ? new Date(row.createdAt).toLocaleString() : "—"}
                         </TableCell>
-                        <TableCell className="hidden text-sm text-slate-700 sm:table-cell">
+                        <TableCell className="hidden text-sm text-foreground sm:table-cell">
                           {typeLabel}
                         </TableCell>
-                        <TableCell className="font-medium tabular-nums text-slate-900">
+                        <TableCell className="font-medium tabular-nums text-foreground">
                           {row.amount != null && row.currency
                             ? `${Number(row.amount).toLocaleString(undefined, {
                                 minimumFractionDigits: 2,
@@ -186,7 +186,7 @@ export default function InstituteBillingPage() {
                               ? String(row.amount)
                               : "—"}
                         </TableCell>
-                        <TableCell className="capitalize text-slate-700">{row.status || "—"}</TableCell>
+                        <TableCell className="capitalize text-foreground">{row.status || "—"}</TableCell>
                         <TableCell className="max-w-[200px] truncate text-sm" title={String(payer)}>
                           {payer}
                         </TableCell>
@@ -202,7 +202,7 @@ export default function InstituteBillingPage() {
                               <ExternalLink className="h-3.5 w-3.5" />
                             </a>
                           ) : (
-                            <span className="text-xs text-slate-400">—</span>
+                            <span className="text-xs text-muted-foreground">—</span>
                           )}
                         </TableCell>
                       </TableRow>

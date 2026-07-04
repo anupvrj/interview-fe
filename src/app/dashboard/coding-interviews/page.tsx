@@ -37,6 +37,7 @@ import { toast } from "sonner";
 import { codingInterviewApi, interviewApi, Interview } from "@/lib/api";
 import { cn, sumInterviewCreditsUsed } from "@/lib/utils";
 import { institutePrimaryClass } from "@/components/institute/InstituteChrome";
+import { appHeroBullet, appHeroCaption } from "@/lib/app-theme";
 import { CodingRoundHeroPreview } from "@/components/coding-interviews/CodingRoundHeroPreview";
 import { DashboardStatCard } from "@/components/dashboard/DashboardStatCard";
 import { RecentInterviewsList } from "@/components/dashboard/RecentInterviewsList";
@@ -174,32 +175,32 @@ export default function CodingInterviewsPage() {
                 <Sparkles className="h-3 w-3" />
                 <span>Practice coding rounds</span>
               </div>
-              <h1 className="mb-4 text-2xl font-bold leading-[1.25] tracking-tight text-slate-900 sm:mb-6 sm:text-3xl sm:leading-[1.15] md:text-4xl lg:text-[34px] lg:leading-[42px]">
-                <span className="text-slate-900">Code</span>{" "}
+              <h1 className="mb-4 text-2xl font-bold leading-[1.25] tracking-tight text-foreground sm:mb-6 sm:text-3xl sm:leading-[1.15] md:text-4xl lg:text-[34px] lg:leading-[42px]">
+                <span className="text-foreground">Code</span>{" "}
                 <span className="text-[#7367F0]">Interview-Style</span>{" "}
-                <span className="text-slate-900">Problems</span>
+                <span className="text-foreground">Problems</span>
                 <br />
-                <span className="text-slate-900">Then</span>{" "}
+                <span className="text-foreground">Then</span>{" "}
                 <span className="text-[#7367F0]">Discuss</span>{" "}
-                <span className="text-slate-900">With AI</span>
+                <span className="text-foreground">With AI</span>
               </h1>
 
               <div className="space-y-3 px-2 pt-4 sm:px-0 sm:pt-6">
                 <div className="flex items-start gap-3">
                   <CheckCircle className="mt-0.5 h-5 w-5 shrink-0 text-[#7367F0]" />
-                  <span className="text-xs text-gray-700 sm:text-sm">
+                  <span className={appHeroBullet}>
                     Three problems matched to your target company tier
                   </span>
                 </div>
                 <div className="flex items-start gap-3">
                   <CheckCircle className="mt-0.5 h-5 w-5 shrink-0 text-[#7367F0]" />
-                  <span className="text-xs text-gray-700 sm:text-sm">
+                  <span className={appHeroBullet}>
                     Monaco editor, run tests, then AI Interview Practice discussion
                   </span>
                 </div>
                 <div className="flex items-start gap-3">
                   <CheckCircle className="mt-0.5 h-5 w-5 shrink-0 text-[#7367F0]" />
-                  <span className="text-xs text-gray-700 sm:text-sm">
+                  <span className={appHeroBullet}>
                     Full report with coding + discussion scores
                   </span>
                 </div>
@@ -233,7 +234,7 @@ export default function CodingInterviewsPage() {
                       />
                     ))}
                   </div>
-                  <span className="text-xs font-medium text-gray-600 sm:text-sm">
+                  <span className={appHeroCaption}>
                     4.9/5
                   </span>
                 </div>

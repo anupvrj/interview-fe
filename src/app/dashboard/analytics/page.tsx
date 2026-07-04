@@ -269,7 +269,7 @@ export default function AnalyticsPage() {
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
         <Card className="overflow-hidden rounded-xl border border-border/60 bg-card shadow-card xl:col-span-2">
           <CardHeader className="pb-2">
-            <CardTitle className="text-lg text-slate-900">
+            <CardTitle className="text-lg text-foreground">
               Daily interviews and score trend
             </CardTitle>
             <CardDescription>
@@ -320,35 +320,35 @@ export default function AnalyticsPage() {
 
         <Card className="overflow-hidden rounded-xl border border-border/60 bg-card shadow-card">
           <CardHeader className="pb-2">
-            <CardTitle className="text-lg text-slate-900">Insights</CardTitle>
+            <CardTitle className="text-lg text-foreground">Insights</CardTitle>
             <CardDescription>Quick performance summary</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
-              <p className="text-xs font-semibold text-slate-500">Total token spend</p>
-              <p className="text-xl font-bold tabular-nums text-slate-900">
+            <div className="rounded-md border border-border bg-muted/20 p-3">
+              <p className="text-xs font-semibold text-muted-foreground">Total token spend</p>
+              <p className="text-xl font-bold tabular-nums text-foreground">
                 {totalTokensSpent}
               </p>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-muted-foreground">
                 Approximated from billed interview credits
               </p>
             </div>
-            <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
-              <p className="text-xs font-semibold text-slate-500">Active days</p>
-              <p className="text-xl font-bold tabular-nums text-slate-900">
+            <div className="rounded-md border border-border bg-muted/20 p-3">
+              <p className="text-xs font-semibold text-muted-foreground">Active days</p>
+              <p className="text-xl font-bold tabular-nums text-foreground">
                 {activeDays}/14
               </p>
-              <p className="text-xs text-slate-500">Days with at least one interview</p>
+              <p className="text-xs text-muted-foreground">Days with at least one interview</p>
             </div>
-            <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
-              <p className="text-xs font-semibold text-slate-500">Completed ratio</p>
-              <p className="text-xl font-bold tabular-nums text-slate-900">
+            <div className="rounded-md border border-border bg-muted/20 p-3">
+              <p className="text-xs font-semibold text-muted-foreground">Completed ratio</p>
+              <p className="text-xl font-bold tabular-nums text-foreground">
                 {stats.totalInterviews > 0
                   ? Math.round((stats.completedInterviews / stats.totalInterviews) * 100)
                   : 0}
                 %
               </p>
-              <p className="text-xs text-slate-500">Completed out of all interviews</p>
+              <p className="text-xs text-muted-foreground">Completed out of all interviews</p>
             </div>
           </CardContent>
         </Card>
@@ -357,7 +357,7 @@ export default function AnalyticsPage() {
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
         <Card className="overflow-hidden rounded-xl border border-border/60 bg-card shadow-card">
           <CardHeader className="pb-2">
-            <CardTitle className="text-lg text-slate-900">
+            <CardTitle className="text-lg text-foreground">
               Daily token spend
             </CardTitle>
             <CardDescription>
@@ -385,7 +385,7 @@ export default function AnalyticsPage() {
         <Card className="overflow-hidden rounded-xl border border-border/60 bg-card shadow-card">
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between gap-2">
-              <CardTitle className="text-lg text-slate-900">
+              <CardTitle className="text-lg text-foreground">
                 Improvement trend
               </CardTitle>
               <div

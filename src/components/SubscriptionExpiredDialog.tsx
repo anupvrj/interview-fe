@@ -26,12 +26,12 @@ export function SubscriptionExpiredDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="border border-[#7367F0]/20 bg-white shadow-xl sm:max-w-md">
+      <DialogContent className="border border-[#7367F0]/20 bg-card shadow-xl sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-xl font-bold text-gray-900">
+          <DialogTitle className="text-xl font-bold text-foreground">
             Subscription expired
           </DialogTitle>
-          <DialogDescription className="pt-1 text-left text-gray-600">
+          <DialogDescription className="pt-1 text-left text-muted-foreground">
             Your billing period ended and auto-renewal did not complete. Renew
             your plan to start new interview sessions and restore monthly
             credits.
@@ -41,7 +41,7 @@ export function SubscriptionExpiredDialog({
           <Button
             variant="outline"
             onClick={() => onOpenChange(false)}
-            className="border-gray-300"
+            className="border-border"
           >
             Cancel
           </Button>

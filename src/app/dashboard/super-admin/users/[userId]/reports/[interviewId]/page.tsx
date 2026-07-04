@@ -95,8 +95,8 @@ export default function SuperAdminUserInterviewReportPage() {
       </div>
 
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">Interview report</h1>
-        <p className="mt-1 text-slate-600">
+        <h1 className="text-2xl font-bold text-foreground">Interview report</h1>
+        <p className="mt-1 text-muted-foreground">
           {nameQ || "User"}
           {emailQ ? ` · ${emailQ}` : ""}
           {interviewMeta?.metadata?.interviewKind === "coding_practice" ? " · Coding practice" : ""}

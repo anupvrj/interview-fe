@@ -18,7 +18,7 @@ function CredibilityRiskCard({
   return (
     <div className="space-y-3 rounded-xl border border-border bg-card p-4 sm:p-5 shadow-sm">
       <div className="flex gap-3">
-        <X className="mt-0.5 h-4 w-4 shrink-0 text-red-600" />
+        <X className="mt-0.5 h-4 w-4 shrink-0 text-red-600 dark:text-[#fd7070]" />
         <div className="min-w-0 flex-1 space-y-1">
           <p className="font-semibold leading-snug text-foreground">
             {issue.title}
@@ -41,16 +41,16 @@ function CredibilityRiskCard({
       </div>
 
       {issue.excerpt && (
-        <div className="rounded-lg border border-red-100 bg-red-50/80 px-3 py-2.5">
-          <p className="break-words text-sm leading-relaxed text-red-900">
+        <div className="rounded-lg border border-red-100 bg-red-50 dark:border-red-900/40 dark:bg-red-950/25 px-3 py-2.5">
+          <p className="break-words text-sm leading-relaxed text-red-900 dark:text-[#fd7070]">
             &ldquo;{issue.excerpt}&rdquo;
           </p>
         </div>
       )}
 
       {(issue.fixBody || issue.suggestion) && (
-        <div className="rounded-lg border border-violet-100 bg-violet-50/60 px-3 py-3">
-          <p className="text-xs font-bold uppercase tracking-wide text-violet-800">
+        <div className="rounded-lg border border-violet-100 bg-violet-50/60 px-3 py-3 dark:border-violet-900/40 dark:bg-violet-950/25">
+          <p className="text-xs font-bold uppercase tracking-wide text-violet-800 dark:text-violet-200">
             {issue.fixTitle || "How to fix it"}
           </p>
           <p className="mt-1.5 break-words text-sm leading-relaxed text-foreground">
@@ -117,10 +117,10 @@ export function CredibilityPanel({
                     className="mt-[0.45rem] h-1.5 w-1.5 shrink-0 rounded-full bg-green-600"
                   />
                   <span className="min-w-0 flex-1">
-                    <span className="block text-xs font-bold uppercase tracking-wide text-green-800">
+                    <span className="block text-xs font-bold uppercase tracking-wide text-green-800 dark:text-green-200">
                       Strong trust signal
                     </span>
-                    <span className="mt-1 block text-green-950">
+                    <span className="mt-1 block text-green-950 dark:text-green-100">
                       {strongTrustSignal}
                     </span>
                   </span>
@@ -133,10 +133,10 @@ export function CredibilityPanel({
                     className="mt-[0.45rem] h-1.5 w-1.5 shrink-0 rounded-full bg-amber-600"
                   />
                   <span className="min-w-0 flex-1">
-                    <span className="block text-xs font-bold uppercase tracking-wide text-amber-800">
+                    <span className="block text-xs font-bold uppercase tracking-wide text-amber-800 dark:text-amber-200">
                       Main credibility risk
                     </span>
-                    <span className="mt-1 block text-amber-950">
+                    <span className="mt-1 block text-amber-950 dark:text-amber-100">
                       {mainCredibilityRisk}
                     </span>
                   </span>
@@ -148,9 +148,9 @@ export function CredibilityPanel({
       )}
 
       {positive.length === 0 && risks.length === 0 && (
-        <div className="rounded-xl border border-green-200 bg-green-50 p-6 text-center">
+        <div className="rounded-xl border border-green-200 bg-green-50 p-6 text-center dark:border-green-900/40 dark:bg-green-950/25">
           <Check className="mx-auto mb-2 h-8 w-8 text-green-600" />
-          <p className="font-medium text-green-800">
+          <p className="font-medium text-green-800 dark:text-green-200">
             Your resume reads as credible and trustworthy.
           </p>
         </div>
@@ -159,10 +159,10 @@ export function CredibilityPanel({
       <div className="space-y-8">
         {positive.length > 0 && (
           <div className="space-y-3">
-            <p className="text-xs font-bold uppercase tracking-wide text-green-700">
+            <p className="text-xs font-bold uppercase tracking-wide text-green-700 dark:text-green-300">
               What looks credible
             </p>
-            <div className="rounded-xl border border-green-200 bg-green-50/50 p-5 sm:p-6">
+            <div className="rounded-xl border border-green-200 bg-green-50/50 dark:border-green-900/40 dark:bg-green-950/20 p-5 sm:p-6">
               <ul className="space-y-3">
                 {positive.map((issue, idx) => {
                   const text = issue.description || issue.title;
@@ -175,7 +175,7 @@ export function CredibilityPanel({
                   return (
                     <li
                       key={idx}
-                      className="flex gap-3 text-sm leading-relaxed text-green-900"
+                      className="flex gap-3 text-sm leading-relaxed text-green-900 dark:text-green-100"
                     >
                       <span
                         aria-hidden
@@ -184,10 +184,10 @@ export function CredibilityPanel({
                       <span className="min-w-0 flex-1">
                         {showTitle ? (
                           <>
-                            <span className="font-semibold text-green-950">
+                            <span className="font-semibold text-green-950 dark:text-green-100">
                               {issue.title}
                             </span>
-                            <span className="text-green-900">
+                            <span className="text-green-900 dark:text-green-100">
                               {" "}
                               — {issue.description}
                             </span>
@@ -206,7 +206,7 @@ export function CredibilityPanel({
 
         {risks.length > 0 && (
           <div className="space-y-3">
-            <p className="text-xs font-bold uppercase tracking-wide text-red-700">
+            <p className="text-xs font-bold uppercase tracking-wide text-red-700 dark:text-[#fd7070]">
               Hiring managers may question
             </p>
             <div className="space-y-3">

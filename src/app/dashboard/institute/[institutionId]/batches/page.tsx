@@ -170,11 +170,11 @@ export default function InstituteBatchesPage() {
                 {loading ? (
                   <div className="h-11 w-20 animate-pulse rounded-lg bg-slate-200/90" aria-hidden />
                 ) : (
-                  <span className="text-4xl font-bold tabular-nums leading-none tracking-tight text-slate-900 sm:text-5xl">
+                  <span className="text-4xl font-bold tabular-nums leading-none tracking-tight text-foreground sm:text-5xl">
                     {batchCount}
                   </span>
                 )}
-                <span className="pb-1 text-sm font-medium text-slate-600">
+                <span className="pb-1 text-sm font-medium text-muted-foreground">
                   {loading
                     ? ""
                     : batchCount === 1
@@ -183,7 +183,7 @@ export default function InstituteBatchesPage() {
                 </span>
               </div>
             </div>
-            <p className="max-w-2xl text-sm leading-relaxed text-slate-600">
+            <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground">
               Group candidates by cohort or class, add members, then bulk-schedule interviews for the
               whole group. Each batch has its own members and scheduled rounds — open one to manage
               people and schedules.
@@ -193,7 +193,7 @@ export default function InstituteBatchesPage() {
       </section>
 
       <Card className={cn(institutePanelClass, "overflow-hidden shadow-xl")}>
-        <CardHeader className="border-b border-border/60 bg-gradient-to-r from-muted/50 via-white to-indigo-50/30">
+        <CardHeader className="border-b border-border/60 bg-gradient-to-r from-muted/50 via-card to-indigo-50/30">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div className="flex gap-4">
               <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary shadow-md shadow-primary/25 ring-2 ring-border/40">
@@ -204,7 +204,7 @@ export default function InstituteBatchesPage() {
                 <CardDescription>
                   {!loading && batchCount > 0 ? (
                     <span>
-                      <span className="font-semibold text-slate-800">{batchCount}</span>{" "}
+                      <span className="font-semibold text-foreground">{batchCount}</span>{" "}
                       {batchCount === 1 ? "batch" : "batches"} — open one to manage members and
                       schedules
                     </span>
@@ -215,7 +215,7 @@ export default function InstituteBatchesPage() {
               </div>
             </div>
             {!loading && batchCount > 0 ? (
-              <span className="inline-flex w-fit shrink-0 items-center gap-1.5 self-start rounded-full border border-border/80 bg-white/90 px-3 py-1.5 text-xs font-medium text-primary shadow-sm sm:mt-1">
+              <span className="inline-flex w-fit shrink-0 items-center gap-1.5 self-start rounded-full border border-border/80 bg-card/90 px-3 py-1.5 text-xs font-medium text-primary shadow-sm sm:mt-1">
                 <Sparkles className="h-3.5 w-3.5" />
                 Cohort list
               </span>
@@ -248,13 +248,13 @@ export default function InstituteBatchesPage() {
             <InstituteTableShell>
               <Table className="w-full min-w-[640px]">
                 <TableHeader>
-                  <TableRow className="border-b border-slate-200/80 bg-slate-50/90 hover:bg-slate-50/90">
-                    <TableHead className="pl-6 text-left align-middle font-semibold text-slate-700">
+                  <TableRow className="border-b border-border/80 bg-muted/30 hover:bg-muted/30">
+                    <TableHead className="pl-6 text-left align-middle font-semibold text-foreground">
                       Batch
                     </TableHead>
-                    <TableHead className="align-middle font-semibold text-slate-700">Members</TableHead>
-                    <TableHead className="align-middle font-semibold text-slate-700">Updated</TableHead>
-                    <TableHead className="w-[120px] min-w-[120px] pr-6 text-right align-middle font-semibold text-slate-700">
+                    <TableHead className="align-middle font-semibold text-foreground">Members</TableHead>
+                    <TableHead className="align-middle font-semibold text-foreground">Updated</TableHead>
+                    <TableHead className="w-[120px] min-w-[120px] pr-6 text-right align-middle font-semibold text-foreground">
                       Open
                     </TableHead>
                   </TableRow>
@@ -265,7 +265,7 @@ export default function InstituteBatchesPage() {
                     return (
                       <TableRow
                         key={b._id}
-                        className="group border-slate-100 align-middle transition-colors hover:bg-gradient-to-r hover:bg-muted/50 hover:to-transparent"
+                        className="group border-border align-middle transition-colors hover:bg-gradient-to-r hover:bg-muted/50 hover:to-transparent"
                       >
                         <TableCell className="pl-6 align-middle">
                           <div className="flex items-center gap-3 py-1">
@@ -275,16 +275,16 @@ export default function InstituteBatchesPage() {
                             >
                               <Layers className="h-5 w-5" />
                             </div>
-                            <span className="font-semibold text-slate-900">{b.name}</span>
+                            <span className="font-semibold text-foreground">{b.name}</span>
                           </div>
                         </TableCell>
                         <TableCell className="align-middle">
-                          <span className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50/90 px-2.5 py-1 text-sm font-semibold tabular-nums text-slate-800">
-                            <Users className="h-3.5 w-3.5 text-slate-500" />
+                          <span className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-muted/30 px-2.5 py-1 text-sm font-semibold tabular-nums text-foreground">
+                            <Users className="h-3.5 w-3.5 text-muted-foreground" />
                             {n}
                           </span>
                         </TableCell>
-                        <TableCell className="align-middle text-sm text-slate-600 whitespace-nowrap">
+                        <TableCell className="align-middle text-sm text-muted-foreground whitespace-nowrap">
                           {b.updatedAt ? formatDate(b.updatedAt) : "—"}
                         </TableCell>
                         <TableCell className="w-[120px] min-w-[120px] pr-6 text-right align-middle">
@@ -327,7 +327,7 @@ export default function InstituteBatchesPage() {
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               placeholder="e.g. Placement batch Jan 2026"
-              className="h-11 border-slate-200 shadow-sm"
+              className="h-11 border-border shadow-sm"
               onKeyDown={(e) => e.key === "Enter" && handleCreate()}
             />
           </div>

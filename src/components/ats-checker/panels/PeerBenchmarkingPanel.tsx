@@ -92,7 +92,7 @@ export function PeerBenchmarkingPanel({
 
       <div className="rounded-xl border border-border bg-muted/20 p-5 sm:p-6">
         <div className="flex items-start gap-4">
-          <div className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-white shadow-sm">
+          <div className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-card shadow-sm">
             <Users className="h-7 w-7 text-primary" />
             {missingCount > 0 && (
               <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">
@@ -120,14 +120,14 @@ export function PeerBenchmarkingPanel({
                 className={cn(
                   "flex items-center gap-3 rounded-xl border px-4 py-3 text-sm font-medium",
                   skill.present
-                    ? "border-green-200 bg-green-50/80 text-green-900"
-                    : "border-red-200 bg-red-50/80 text-red-900",
+                    ? "border-green-200 bg-green-50/80 text-green-900 dark:text-green-100"
+                    : "border-red-200 bg-red-50/80 text-red-900 dark:text-[#fd7070]",
                 )}
               >
                 {skill.present ? (
                   <Check className="h-4 w-4 shrink-0 text-green-600" />
                 ) : (
-                  <X className="h-4 w-4 shrink-0 text-red-600" />
+                  <X className="h-4 w-4 shrink-0 text-red-600 dark:text-[#fd7070]" />
                 )}
                 <span>{skill.name}</span>
               </div>
@@ -156,7 +156,7 @@ export function PeerBenchmarkingPanel({
           )}
         </div>
       ) : missingCount > 0 ? (
-        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 dark:text-amber-100">
           Skill details are unavailable in this cached report. Re-run the ATS
           check to see the full peer skills breakdown.
         </div>

@@ -50,7 +50,7 @@ export function JobMatchPromoBanner({
     <div className="rounded-xl border border-dashed border-primary/30 bg-primary/5 p-5 sm:p-6">
       <div className="flex flex-col gap-4">
         <div className="flex items-start gap-3">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white shadow-sm">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-card shadow-sm">
             <Target className="h-5 w-5 text-primary" />
           </div>
           <div className="min-w-0 flex-1">
@@ -96,7 +96,7 @@ export function JobMatchPromoBanner({
               placeholder="Paste the job description here to unlock Job Match analysis..."
               className="w-full min-h-[140px] resize-y rounded-xl border border-border bg-background p-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
             />
-            {error && <p className="text-sm text-red-600">{error}</p>}
+            {error && <p className="text-sm text-red-600 dark:text-[#fd7070]">{error}</p>}
             <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
               <Button
                 type="button"

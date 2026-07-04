@@ -368,10 +368,10 @@ export default function ResumesPage() {
                 <span>ATS-optimized templates</span>
               </div>
               <h2 className="mb-4 text-2xl font-bold leading-[1.25] tracking-tight sm:mb-6 sm:text-3xl sm:leading-[1.15] md:text-4xl lg:text-[34px] lg:leading-[42px]">
-                <span className="text-slate-900">Pass the bots with a </span>
+                <span className="text-foreground">Pass the bots with a </span>
                 <span className="text-[#7367F0]">stronger resume</span>
               </h2>
-              <p className="mx-auto max-w-xl px-2 text-sm leading-relaxed text-gray-600 sm:px-0 sm:text-base lg:mx-0">
+              <p className="mx-auto max-w-xl px-2 text-sm leading-relaxed text-muted-foreground sm:px-0 sm:text-base lg:mx-0">
                 Fresher or pro—our model analyzes your resume in real time,
                 suggests instant improvements, and surfaces a Smart ATS Score so
                 you escape the ATS black hole.
@@ -381,26 +381,26 @@ export default function ResumesPage() {
               <div className="space-y-3 pt-4 sm:pt-6 px-2 sm:px-0">
                 <div className="flex items-start gap-3">
                   <CheckCircle className="mt-0.5 h-5 w-5 shrink-0 text-[#7367F0]" />
-                  <span className="text-xs text-gray-700 sm:text-sm">
+                  <span className="text-xs text-muted-foreground sm:text-sm">
                     ATS-optimized templates and parsing-friendly layouts
                   </span>
                 </div>
                 <div className="flex items-start gap-3">
                   <CheckCircle className="mt-0.5 h-5 w-5 shrink-0 text-[#7367F0]" />
-                  <span className="text-xs text-gray-700 sm:text-sm">
+                  <span className="text-xs text-muted-foreground sm:text-sm">
                     Real-time suggestions and Smart ATS Score
                   </span>
                 </div>
                 <div className="flex items-start gap-3">
                   <CheckCircle className="mt-0.5 h-5 w-5 shrink-0 text-[#7367F0]" />
-                  <span className="text-xs text-gray-700 sm:text-sm">
+                  <span className="text-xs text-muted-foreground sm:text-sm">
                     Export when you&apos;re ready—PDF, Word, and more
                   </span>
                 </div>
               </div>
 
               <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-3 sm:gap-4 pt-2 px-2 sm:px-0">
-                <Link href="/ats-checker" className="w-full sm:w-auto">
+                <Link href="/dashboard/ats-checker" className="w-full sm:w-auto">
                   <Button
                     size="lg"
                     variant="outline"
@@ -435,9 +435,9 @@ export default function ResumesPage() {
             <div className="relative flex justify-center lg:justify-start">
               <div className="relative w-full max-w-[600px] overflow-hidden rounded-md border border-border bg-card shadow-lg sm:max-w-[700px]">
                 {/* Resume Builder Header */}
-                <div className="border-b border-gray-200 bg-gradient-to-br from-[#7367F0]/5 to-violet-50/80 p-4 sm:p-6">
+                <div className="border-b border-border bg-gradient-to-br from-[#7367F0]/5 via-card to-muted/30 p-4 sm:p-6">
                   <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-sm sm:text-base font-bold text-slate-900">
+                    <h3 className="text-sm sm:text-base font-bold text-foreground">
                       Resume Builder
                     </h3>
                     {showDownload && (
@@ -447,20 +447,20 @@ export default function ResumesPage() {
                       </div>
                     )}
                   </div>
-                  <div className="flex items-center gap-2 bg-white rounded-lg px-3 py-2 shadow-sm border border-gray-200">
-                    <FileText className="w-4 h-4 text-gray-400" />
+                  <div className="flex items-center gap-2 bg-card rounded-lg px-3 py-2 shadow-sm border border-border">
+                    <FileText className="w-4 h-4 text-muted-foreground/80" />
                     <input
                       type="text"
                       value={resumeText ? "Professional Summary" : ""}
                       readOnly
                       placeholder="Building your resume..."
-                      className="flex-1 outline-none text-xs sm:text-sm text-gray-700 bg-transparent"
+                      className="flex-1 outline-none text-xs sm:text-sm text-foreground bg-transparent"
                     />
                   </div>
                 </div>
 
                 {/* Resume Content Preview */}
-                <div className="p-4 sm:p-6 bg-white max-h-[400px] overflow-y-auto relative">
+                <div className="p-4 sm:p-6 bg-card max-h-[400px] overflow-y-auto relative">
                   <div className="space-y-4 h-[300px] relative flex items-center justify-center">
                     {/* Professional Summary - Step 1 */}
                     {currentStep === 1 && (
@@ -468,10 +468,10 @@ export default function ResumesPage() {
                         className="animate-fadeInUp w-full"
                         style={{ animation: "fadeInUp 0.6s ease-out" }}
                       >
-                        <h4 className="text-xs sm:text-sm font-bold text-slate-900 mb-2">
+                        <h4 className="text-xs sm:text-sm font-bold text-foreground mb-2">
                           PROFESSIONAL SUMMARY
                         </h4>
-                        <p className="text-xs sm:text-sm text-gray-700 leading-relaxed">
+                        <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
                           Experienced software engineer with 5+ years developing
                           scalable web applications. Proficient in React,
                           Node.js, and cloud technologies. Led teams of 5+
@@ -508,7 +508,7 @@ export default function ResumesPage() {
                         className="animate-fadeInUp w-full"
                         style={{ animation: "fadeInUp 0.6s ease-out" }}
                       >
-                        <h4 className="text-xs sm:text-sm font-bold text-slate-900 mb-2 flex items-center gap-2">
+                        <h4 className="text-xs sm:text-sm font-bold text-foreground mb-2 flex items-center gap-2">
                           <GripVertical className="h-3 w-3 text-[#7367F0]" />
                           SKILLS
                         </h4>
@@ -543,7 +543,7 @@ export default function ResumesPage() {
                         className="animate-fadeInUp w-full"
                         style={{ animation: "fadeInUp 0.6s ease-out" }}
                       >
-                        <h4 className="text-xs sm:text-sm font-bold text-slate-900 mb-2 flex items-center gap-2">
+                        <h4 className="text-xs sm:text-sm font-bold text-foreground mb-2 flex items-center gap-2">
                           <GripVertical className="h-3 w-3 text-[#7367F0]" />
                           PROJECTS
                         </h4>
@@ -573,10 +573,10 @@ export default function ResumesPage() {
                                 animation: `fadeInUp 0.6s ease-out ${index * 0.12}s both`,
                               }}
                             >
-                              <p className="text-xs font-semibold text-slate-900">
+                              <p className="text-xs font-semibold text-foreground">
                                 {project.title}
                               </p>
-                              <p className="text-xs text-gray-600">
+                              <p className="text-xs text-muted-foreground">
                                 {project.desc}
                               </p>
                             </div>
@@ -591,7 +591,7 @@ export default function ResumesPage() {
                         className="animate-fadeInUp w-full"
                         style={{ animation: "fadeInUp 0.6s ease-out" }}
                       >
-                        <h4 className="text-xs sm:text-sm font-bold text-slate-900 mb-2 flex items-center gap-2">
+                        <h4 className="text-xs sm:text-sm font-bold text-foreground mb-2 flex items-center gap-2">
                           <GripVertical className="h-3 w-3 text-[#7367F0]" />
                           EDUCATION
                         </h4>
@@ -618,10 +618,10 @@ export default function ResumesPage() {
                                 animation: `fadeInUp 0.6s ease-out ${index * 0.12}s both`,
                               }}
                             >
-                              <p className="text-xs font-semibold text-slate-900">
+                              <p className="text-xs font-semibold text-foreground">
                                 {edu.degree}
                               </p>
-                              <p className="text-xs text-gray-600">
+                              <p className="text-xs text-muted-foreground">
                                 {edu.details}
                               </p>
                             </div>
@@ -638,7 +638,7 @@ export default function ResumesPage() {
                       >
                         <div className="w-full max-w-md rounded-lg border-2 border-[#7367F0]/20 bg-gradient-to-br from-[#7367F0]/5 to-violet-50/80 p-4">
                           <div className="flex items-center justify-center mb-3">
-                            <div className="relative w-full max-w-[180px] aspect-[210/297] bg-white rounded shadow-lg overflow-hidden">
+                            <div className="relative w-full max-w-[180px] aspect-[210/297] bg-card rounded shadow-lg overflow-hidden">
                               <Image
                                 src="/resume-template-images/clean-slate-preview.webp"
                                 alt="Resume Preview"
@@ -649,10 +649,10 @@ export default function ResumesPage() {
                             </div>
                           </div>
                           <div className="text-center">
-                            <h4 className="text-sm font-bold text-slate-900 mb-1">
+                            <h4 className="text-sm font-bold text-foreground mb-1">
                               Resume Ready!
                             </h4>
-                            <p className="text-xs text-gray-600">
+                            <p className="text-xs text-muted-foreground">
                               Your professional resume is complete
                             </p>
                           </div>
@@ -836,12 +836,12 @@ export default function ResumesPage() {
 
       {/* Resume limit reached – upgrade plan modal */}
       <Dialog open={showLimitModal} onOpenChange={setShowLimitModal}>
-        <DialogContent className="border border-[#7367F0]/20 bg-white shadow-xl sm:max-w-md">
+        <DialogContent className="border border-[#7367F0]/20 bg-card shadow-xl sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-xl font-bold text-gray-900">
+            <DialogTitle className="text-xl font-bold text-foreground">
               Resume limit reached
             </DialogTitle>
-            <DialogDescription className="text-left text-gray-600 pt-1">
+            <DialogDescription className="text-left text-muted-foreground pt-1">
               You&apos;ve used all the resumes included in your current plan.
               Upgrade your plan to create more resumes and keep building.
             </DialogDescription>
@@ -850,7 +850,7 @@ export default function ResumesPage() {
             <Button
               variant="outline"
               onClick={() => setShowLimitModal(false)}
-              className="border-gray-300"
+              className="border-border"
             >
               Cancel
             </Button>

@@ -40,7 +40,7 @@ function resumeStatusBadge(resume: Resume): {
   if (resume.pdfS3Key) {
     return { label: "PDF ready", className: "bg-sky-50 text-sky-700" };
   }
-  return { label: "In progress", className: "bg-slate-100 text-slate-600" };
+  return { label: "In progress", className: "bg-slate-100 text-muted-foreground" };
 }
 
 function IconActionButton({

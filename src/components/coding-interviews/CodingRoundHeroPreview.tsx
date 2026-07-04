@@ -46,31 +46,31 @@ function HighlightedTwoSumCode() {
         <span className="text-amber-200">nums</span>,{" "}
         <span className="text-amber-200">target</span>) {"{"}
       </p>
-      <p className="m-0 pl-4 text-slate-500">
+      <p className="m-0 pl-4 text-muted-foreground">
         <span className="text-purple-400">const</span> map ={" "}
         <span className="text-purple-400">new</span> Map();
       </p>
-      <p className="m-0 pl-4 text-slate-500">
+      <p className="m-0 pl-4 text-muted-foreground">
         <span className="text-purple-400">for</span> (
         <span className="text-purple-400">let</span> i ={" "}
         <span className="text-sky-300">0</span>; i {"<"} nums.length; i++) {"{"}
       </p>
-      <p className="m-0 pl-8 text-slate-500">
+      <p className="m-0 pl-8 text-muted-foreground">
         <span className="text-purple-400">const</span> complement = target - nums[i];
       </p>
-      <p className="m-0 pl-8 text-slate-500">
+      <p className="m-0 pl-8 text-muted-foreground">
         <span className="text-purple-400">if</span> (map.has(complement)) {"{"}
       </p>
-      <p className="m-0 pl-12 text-slate-500">
+      <p className="m-0 pl-12 text-muted-foreground">
         <span className="text-purple-400">return</span> [map.get(complement), i];
       </p>
-      <p className="m-0 pl-8 text-slate-500">{"}"}</p>
-      <p className="m-0 pl-8 text-slate-500">map.set(nums[i], i);</p>
-      <p className="m-0 pl-4 text-slate-500">{"}"}</p>
-      <p className="m-0 pl-4 text-slate-500">
+      <p className="m-0 pl-8 text-muted-foreground">{"}"}</p>
+      <p className="m-0 pl-8 text-muted-foreground">map.set(nums[i], i);</p>
+      <p className="m-0 pl-4 text-muted-foreground">{"}"}</p>
+      <p className="m-0 pl-4 text-muted-foreground">
         <span className="text-purple-400">return</span> [];
       </p>
-      <p className="m-0 pl-4 text-slate-500">{"}"}</p>
+      <p className="m-0 pl-4 text-muted-foreground">{"}"}</p>
     </div>
   );
 }
@@ -92,7 +92,7 @@ function TerminalSizer() {
 
 function TerminalOutput({ phase }: { phase: Phase }) {
   return (
-    <div className="mt-3 space-y-1.5 border-t border-slate-700/80 pt-2 font-mono text-[10px] text-slate-400 sm:text-[11px]">
+    <div className="mt-3 space-y-1.5 border-t border-slate-700/80 pt-2 font-mono text-[10px] text-muted-foreground/80 sm:text-[11px]">
       {phase === "run_public" && (
         <div className="flex items-center gap-2 text-sky-300">
           <Loader2 className="h-3 w-3 shrink-0 animate-spin text-sky-400" />
@@ -201,7 +201,7 @@ export function CodingRoundHeroPreview() {
           <span className="h-3 w-3 rounded-full bg-amber-400/90" />
           <span className="h-3 w-3 rounded-full bg-emerald-500/90" />
         </div>
-        <span className="ml-2 font-mono text-[10px] text-slate-400 sm:text-xs">
+        <span className="ml-2 font-mono text-[10px] text-muted-foreground/80 sm:text-xs">
           solution.ts · Practice Coding Round
         </span>
       </div>
@@ -214,7 +214,7 @@ export function CodingRoundHeroPreview() {
 
         <div className="absolute inset-0 overflow-hidden p-3 sm:p-4">
           {!codeDone ? (
-            <pre className="m-0 whitespace-pre-wrap break-all text-slate-300 leading-snug">
+            <pre className="m-0 whitespace-pre-wrap break-all text-foreground/70 leading-snug">
               {typedSlice}
               {showCursor ? (
                 <span className="ml-0.5 inline-block h-3 w-2 animate-pulse bg-sky-400 align-middle sm:h-3.5" />
@@ -230,7 +230,7 @@ export function CodingRoundHeroPreview() {
       </div>
 
       <div className="flex items-center justify-between border-t border-slate-700 bg-slate-800/80 px-3 py-1.5">
-        <span className="text-[10px] text-slate-500">
+        <span className="text-[10px] text-muted-foreground">
           Tests · Public + hidden on submit
         </span>
         <span
@@ -240,7 +240,7 @@ export function CodingRoundHeroPreview() {
               ? "bg-emerald-600/90 text-white shadow-[0_0_14px_rgba(52,211,153,0.5)]"
               : footerLabel.text === "Testing…" || footerLabel.text === "Starting tests…"
                 ? "bg-amber-600/85 text-white"
-                : "bg-slate-700 text-slate-400",
+                : "bg-slate-700 text-muted-foreground/80",
           )}
         >
           {footerLabel.text}

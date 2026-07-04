@@ -161,10 +161,10 @@ export default function InstituteOverviewPage() {
               <p className="text-xs font-bold uppercase tracking-wide text-primary">
                 Admin overview
               </p>
-              <p className="mt-2 text-base leading-relaxed text-slate-600 sm:text-lg">
-                Invite candidates, organize <span className="font-semibold text-slate-800">batches</span>
+              <p className="mt-2 text-base leading-relaxed text-muted-foreground sm:text-lg">
+                Invite candidates, organize <span className="font-semibold text-foreground">batches</span>
                 , schedule interviews, and track{" "}
-                <span className="font-semibold text-slate-800">plans &amp; credits</span> from one
+                <span className="font-semibold text-foreground">plans &amp; credits</span> from one
                 place.
               </p>
             </div>
@@ -247,7 +247,7 @@ export default function InstituteOverviewPage() {
         <section
           className={cn(
             institutePanelClass,
-            "overflow-hidden border-border bg-gradient-to-br from-white to-slate-50/80"
+            "overflow-hidden border-border bg-gradient-to-br from-card to-slate-50/80"
           )}
         >
           <div className="flex gap-4 border-b border-border/60 bg-gradient-to-r from-muted/40 to-transparent p-5">
@@ -255,8 +255,8 @@ export default function InstituteOverviewPage() {
               <BarChart2 className="h-5 w-5" strokeWidth={1.75} />
             </div>
             <div className="min-w-0 space-y-1">
-              <h2 className="text-base font-bold text-slate-900">Schedule activity</h2>
-              <p className="text-xs text-slate-600">
+              <h2 className="text-base font-bold text-foreground">Schedule activity</h2>
+              <p className="text-xs text-muted-foreground">
                 Pipeline for institution-wide interview schedules (not batch-only).
               </p>
             </div>
@@ -264,24 +264,24 @@ export default function InstituteOverviewPage() {
           <div className="p-5">
             <div className="grid grid-cols-3 gap-2 text-center sm:gap-4">
               <div className="rounded-xl border border-border bg-card p-3 shadow-sm">
-                <div className="flex items-center justify-center gap-1 text-slate-500">
+                <div className="flex items-center justify-center gap-1 text-muted-foreground">
                   <Clock className="h-3.5 w-3.5" />
                   <span className="text-[10px] font-bold uppercase tracking-wide">Scheduled</span>
                 </div>
-                <p className="mt-2 text-2xl font-bold tabular-nums text-slate-900">{sc.scheduled}</p>
+                <p className="mt-2 text-2xl font-bold tabular-nums text-foreground">{sc.scheduled}</p>
               </div>
               <div className="rounded-xl border border-border/60 bg-muted/30 p-3 shadow-sm">
                 <div className="flex items-center justify-center gap-1 text-primary">
                   <PlayCircle className="h-3.5 w-3.5" />
                   <span className="text-[10px] font-bold uppercase tracking-wide">Started</span>
                 </div>
-                <p className="mt-2 text-2xl font-bold tabular-nums text-slate-900">{sc.started}</p>
+                <p className="mt-2 text-2xl font-bold tabular-nums text-foreground">{sc.started}</p>
               </div>
               <div className="rounded-xl border border-border bg-card p-3 shadow-sm">
-                <div className="flex items-center justify-center gap-1 text-slate-500">
+                <div className="flex items-center justify-center gap-1 text-muted-foreground">
                   <span className="text-[10px] font-bold uppercase tracking-wide">Cancelled</span>
                 </div>
-                <p className="mt-2 text-2xl font-bold tabular-nums text-slate-700">{sc.cancelled}</p>
+                <p className="mt-2 text-2xl font-bold tabular-nums text-foreground">{sc.cancelled}</p>
               </div>
             </div>
             {scheduleTotal > 0 ? (
@@ -305,7 +305,7 @@ export default function InstituteOverviewPage() {
                 </div>
               </div>
             ) : (
-              <p className="mt-4 text-center text-sm text-slate-500">No schedules yet.</p>
+              <p className="mt-4 text-center text-sm text-muted-foreground">No schedules yet.</p>
             )}
             <Button
               variant="link"
@@ -322,7 +322,7 @@ export default function InstituteOverviewPage() {
         <section
           className={cn(
             institutePanelClass,
-            "overflow-hidden border-border bg-gradient-to-br from-white to-slate-50/80"
+            "overflow-hidden border-border bg-gradient-to-br from-card to-slate-50/80"
           )}
         >
           <div className="flex gap-4 border-b border-border/60 bg-gradient-to-r from-muted/40 to-transparent p-5">
@@ -330,8 +330,8 @@ export default function InstituteOverviewPage() {
               <Sparkles className="h-5 w-5" strokeWidth={1.75} />
             </div>
             <div className="min-w-0 space-y-1">
-              <h2 className="text-base font-bold text-slate-900">Plans (candidates)</h2>
-              <p className="text-xs text-slate-600">
+              <h2 className="text-base font-bold text-foreground">Plans (candidates)</h2>
+              <p className="text-xs text-muted-foreground">
                 Distribution across member accounts{planTotal > 0 ? ` · ${planTotal} total` : ""}.
               </p>
             </div>
@@ -343,9 +343,9 @@ export default function InstituteOverviewPage() {
               return (
                 <div key={plan}>
                   <div className="mb-1 flex items-center justify-between text-xs">
-                    <span className="font-semibold capitalize text-slate-800">{plan}</span>
-                    <span className="tabular-nums text-slate-600">
-                      {n} <span className="text-slate-400">({pct}%)</span>
+                    <span className="font-semibold capitalize text-foreground">{plan}</span>
+                    <span className="tabular-nums text-muted-foreground">
+                      {n} <span className="text-muted-foreground">({pct}%)</span>
                     </span>
                   </div>
                   <div className="h-2 overflow-hidden rounded-full bg-slate-100">
@@ -365,11 +365,11 @@ export default function InstituteOverviewPage() {
         <>
           <div className="grid gap-4 xl:grid-cols-3">
             <section className={cn(institutePanelClass, "xl:col-span-2")}>
-              <div className="border-b border-slate-200 p-4">
-                <h3 className="text-sm font-bold text-slate-900">
+              <div className="border-b border-border p-4">
+                <h3 className="text-sm font-bold text-foreground">
                   Day wise interviews and score trend
                 </h3>
-                <p className="text-xs text-slate-600">
+                <p className="text-xs text-muted-foreground">
                   Last 14 days: bar = interviews, line = average score
                 </p>
               </div>
@@ -409,32 +409,32 @@ export default function InstituteOverviewPage() {
             </section>
 
             <section className={cn(institutePanelClass)}>
-              <div className="border-b border-slate-200 p-4">
-                <h3 className="text-sm font-bold text-slate-900">Insights</h3>
-                <p className="text-xs text-slate-600">Quick institution snapshot</p>
+              <div className="border-b border-border p-4">
+                <h3 className="text-sm font-bold text-foreground">Insights</h3>
+                <p className="text-xs text-muted-foreground">Quick institution snapshot</p>
               </div>
               <div className="space-y-3 p-4">
-                <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
-                  <p className="text-xs font-semibold text-slate-500">Users invited</p>
-                  <p className="text-xl font-bold tabular-nums text-slate-900">
+                <div className="rounded-md border border-border bg-muted/20 p-3">
+                  <p className="text-xs font-semibold text-muted-foreground">Users invited</p>
+                  <p className="text-xl font-bold tabular-nums text-foreground">
                     {analytics.totals.usersInvited}
                   </p>
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs text-muted-foreground">
                     Pending onboarding: {analytics.totals.usersPendingOnboarding}
                   </p>
                 </div>
-                <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
-                  <p className="text-xs font-semibold text-slate-500">Token spend (credits)</p>
-                  <p className="text-xl font-bold tabular-nums text-slate-900">
+                <div className="rounded-md border border-border bg-muted/20 p-3">
+                  <p className="text-xs font-semibold text-muted-foreground">Token spend (credits)</p>
+                  <p className="text-xl font-bold tabular-nums text-foreground">
                     {analytics.totals.totalCreditsSpent}
                   </p>
                 </div>
-                <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
-                  <p className="text-xs font-semibold text-slate-500">Schedules</p>
-                  <p className="text-xl font-bold tabular-nums text-slate-900">
+                <div className="rounded-md border border-border bg-muted/20 p-3">
+                  <p className="text-xs font-semibold text-muted-foreground">Schedules</p>
+                  <p className="text-xl font-bold tabular-nums text-foreground">
                     {analytics.totals.schedulesCount}
                   </p>
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs text-muted-foreground">
                     {analytics.totals.schedulesStarted} started · {analytics.totals.schedulesCompleted} completed
                   </p>
                 </div>
@@ -449,9 +449,9 @@ export default function InstituteOverviewPage() {
 
           <div className="grid gap-4 xl:grid-cols-2">
             <section className={cn(institutePanelClass)}>
-              <div className="border-b border-slate-200 p-4">
-                <h3 className="text-sm font-bold text-slate-900">Day wise resume creation & credit spend</h3>
-                <p className="text-xs text-slate-600">Resumes vs daily credit consumption</p>
+              <div className="border-b border-border p-4">
+                <h3 className="text-sm font-bold text-foreground">Day wise resume creation & credit spend</h3>
+                <p className="text-xs text-muted-foreground">Resumes vs daily credit consumption</p>
               </div>
               <div className="h-[260px] p-3">
                 <ResponsiveContainer width="100%" height="100%">
@@ -484,9 +484,9 @@ export default function InstituteOverviewPage() {
             </section>
 
             <section className={cn(institutePanelClass)}>
-              <div className="border-b border-slate-200 p-4">
-                <h3 className="text-sm font-bold text-slate-900">Top performing batches</h3>
-                <p className="text-xs text-slate-600">Average score and completed reports</p>
+              <div className="border-b border-border p-4">
+                <h3 className="text-sm font-bold text-foreground">Top performing batches</h3>
+                <p className="text-xs text-muted-foreground">Average score and completed reports</p>
               </div>
               <div className="h-[260px] p-3">
                 <ResponsiveContainer width="100%" height="100%">
@@ -520,7 +520,7 @@ export default function InstituteOverviewPage() {
         </>
       )}
 
-      <div className="flex flex-wrap items-center gap-3 border-t border-slate-200/80 pt-6">
+      <div className="flex flex-wrap items-center gap-3 border-t border-border/80 pt-6">
         <Button asChild className={cn(institutePrimaryClass, "gap-2 shadow-md")}>
           <Link href={`/dashboard/institute/${institutionId}/candidates`}>
             <Users className="h-4 w-4" />
