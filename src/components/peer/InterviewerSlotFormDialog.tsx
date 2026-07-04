@@ -180,15 +180,10 @@ export function InterviewerSlotFormDialog({
       }
     }
     const end = new Date(start.getTime() + duration * 60000);
-    const sharedBody = {
-      availableForTypes: selectedTypes,
-      ...(requiresMeetUpfront
-        ? {
-            videoLink: videoLink.trim(),
-            googleMeetSpaceName: googleMeetSpaceName.trim(),
-            videoLinkSource: "google_meet_api" as const,
-          }
-        : {}),
+    const meetPayload = {
+      videoLink: videoLink.trim(),
+      googleMeetSpaceName: googleMeetSpaceName.trim(),
+      videoLinkSource: "google_meet_api" as const,
     };
     setSaving(true);
     try {
@@ -196,7 +191,8 @@ export function InterviewerSlotFormDialog({
         await peerApi.updateSlot(slot.id, {
           start: start.toISOString(),
           end: end.toISOString(),
-          ...sharedBody,
+          availableForTypes: selectedTypes,
+          ...meetPayload,
         });
         toast.success("Slot updated");
       } else if (scheduleMode === "weekly") {
@@ -233,7 +229,8 @@ export function InterviewerSlotFormDialog({
         await peerApi.createSlot({
           start: start.toISOString(),
           end: end.toISOString(),
-          ...sharedBody,
+          availableForTypes: selectedTypes,
+          ...meetPayload,
         });
         toast.success("Slot created");
       }

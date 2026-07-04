@@ -180,10 +180,10 @@ export function PendingBookingDetailsDialog({
                     </p>
                     <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
                       {candidate?.role ? <span>{candidate.role}</span> : null}
-                      {candidate?.role && candidate.experienceYears != null ? (
+                      {candidate?.role && candidate?.experienceYears != null ? (
                         <span aria-hidden>·</span>
                       ) : null}
-                      {candidate.experienceYears != null ? (
+                      {candidate?.experienceYears != null ? (
                         <span>
                           {candidate.experienceYears}{" "}
                           {candidate.experienceYears === 1 ? "year" : "years"} experience

@@ -42,7 +42,7 @@ function computeStatusCounts(items: PeerInterviewerProfile[]) {
   };
   for (const item of items) {
     const key = item.status as Exclude<AdminInterviewerStatusTab, "all">;
-    if (key in counts && key !== "all") {
+    if (key in counts) {
       counts[key] += 1;
     }
   }
