@@ -280,12 +280,36 @@ export function getDashboardNavItems(
   return items;
 }
 
+const INTERVIEWER_DASHBOARD_NAV_ITEM: DashboardNavItem = {
+  title: "Interviewer Dashboard",
+  href: "/dashboard/peer-interviews/interviewer",
+  icon: CalendarClock,
+  accent: accent.cyan,
+};
+
+const PEER_APPLICATION_NAV_ITEM: DashboardNavItem = {
+  title: "Interviewer application",
+  href: "/dashboard/peer-interviews/interviewer",
+  icon: CalendarClock,
+  accent: accent.amber,
+};
+
 const PEER_APPLY_NAV_ITEM: DashboardNavItem = {
   title: "Become an interviewer",
   href: "/dashboard/peer-interviews/interviewer/apply",
   icon: UserPlus,
   accent: accent.emerald,
 };
+
+function insertAfterPeerInterviews(
+  items: DashboardNavItem[],
+  ...extras: DashboardNavItem[]
+): DashboardNavItem[] {
+  if (extras.length === 0) return items;
+  const peerIdx = items.findIndex((item) => item.href === "/dashboard/peer-interviews");
+  const insertAt = peerIdx === -1 ? items.length : peerIdx + 1;
+  return [...items.slice(0, insertAt), ...extras, ...items.slice(insertAt)];
+}
 
 const PEER_MY_BOOKINGS_NAV_ITEM: DashboardNavItem = {
   title: "My Peer Bookings",
@@ -308,38 +332,30 @@ const PEER_BOOKINGS_NAV_ITEM: DashboardNavItem = {
   accent: accent.blue,
 };
 
-/** Hide interviewer dashboard until applied; show apply link for new candidates. */
+/** Scope peer nav: approved interviewers get the hub; pending users get application status only. */
 export function withPeerNavItems(
   items: DashboardNavItem[],
   peer: ApiUser["peer"] | null | undefined,
 ): DashboardNavItem[] {
-  const hasInterviewerProfile = Boolean(peer?.interviewerStatus);
+  const status = peer?.interviewerStatus;
+  const isApprovedInterviewer = peer?.isInterviewer === true;
 
   let next = items.filter(
-    (item) =>
-      item.href !== "/dashboard/peer-interviews/interviewer" || hasInterviewerProfile,
+    (item) => item.href !== "/dashboard/peer-interviews/interviewer",
   );
 
-  const peerInterviewsIdx = next.findIndex(
-    (item) => item.href === "/dashboard/peer-interviews",
-  );
-  if (peerInterviewsIdx !== -1) {
-    const candidateExtras: DashboardNavItem[] = [];
-    if (!next.some((item) => item.href === PEER_MY_BOOKINGS_NAV_ITEM.href)) {
-      candidateExtras.push(PEER_MY_BOOKINGS_NAV_ITEM);
-    }
-    if (candidateExtras.length > 0) {
-      next = [
-        ...next.slice(0, peerInterviewsIdx + 1),
-        ...candidateExtras,
-        ...next.slice(peerInterviewsIdx + 1),
-      ];
-    }
+  const candidateExtras: DashboardNavItem[] = [];
+  if (!next.some((item) => item.href === PEER_MY_BOOKINGS_NAV_ITEM.href)) {
+    candidateExtras.push(PEER_MY_BOOKINGS_NAV_ITEM);
+  }
+  if (candidateExtras.length > 0) {
+    next = insertAfterPeerInterviews(next, ...candidateExtras);
   }
 
-  if (hasInterviewerProfile) {
+  if (isApprovedInterviewer) {
+    next = insertAfterPeerInterviews(next, INTERVIEWER_DASHBOARD_NAV_ITEM);
     const hubIdx = next.findIndex(
-      (item) => item.href === "/dashboard/peer-interviews/interviewer",
+      (item) => item.href === INTERVIEWER_DASHBOARD_NAV_ITEM.href,
     );
     if (hubIdx !== -1) {
       const peerExtras: DashboardNavItem[] = [];
@@ -357,6 +373,8 @@ export function withPeerNavItems(
         ];
       }
     }
+  } else if (status === "pending" || status === "suspended") {
+    next = insertAfterPeerInterviews(next, PEER_APPLICATION_NAV_ITEM);
   }
 
   const shouldShowApply = peer && !peer.isInterviewer && !peer.interviewerStatus;
@@ -379,7 +397,7 @@ export function withPeerNavItems(
 export function filterNavByActiveRole(
   items: DashboardNavItem[],
   activeRole: ActiveRole | null,
-  profile: Pick<ApiUser, "institutionId"> | null | undefined,
+  profile: Pick<ApiUser, "institutionId" | "peer"> | null | undefined,
 ): DashboardNavItem[] {
   if (!activeRole || activeRole === "super_admin") return items;
   return items.filter((item) =>

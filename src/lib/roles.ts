@@ -107,10 +107,12 @@ function matchesPrefix(pathname: string, prefixes: string[]): boolean {
  * Whether the given dashboard path is viewable under the active role.
  * super_admin can view everything. Non-dashboard paths are always allowed.
  */
+type RoleProfile = Pick<User, "institutionId" | "peer"> | null | undefined;
+
 export function isPathAllowedForRole(
   role: ActiveRole,
   pathname: string | null,
-  profile: Pick<User, "institutionId"> | null | undefined,
+  profile: RoleProfile,
 ): boolean {
   if (!pathname || !pathname.startsWith("/dashboard")) return true;
   if (role === "super_admin") return true;
@@ -141,20 +143,26 @@ export function isPathAllowedForRole(
     return pathname.startsWith("/dashboard/peer-interviews");
   }
 
-  // candidate: everything except admin, institute and interviewer management pages.
+  // candidate: peer marketplace + apply; interviewer hub only while application is in review.
   if (matchesPrefix(pathname, SUPER_ADMIN_PREFIXES)) return false;
   if (matchesPrefix(pathname, INSTITUTE_PREFIXES)) return false;
-  // Allow interviewer onboarding entry (hub redirects to apply when no profile).
+
   if (
-    pathname === INTERVIEWER_HUB ||
     pathname === INTERVIEWER_APPLY ||
     pathname.startsWith(`${INTERVIEWER_APPLY}/`)
   ) {
     return true;
   }
+
+  const interviewerStatus = profile?.peer?.interviewerStatus;
+  if (pathname === INTERVIEWER_HUB) {
+    return interviewerStatus === "pending" || interviewerStatus === "suspended";
+  }
+
   if (pathname.startsWith(`${INTERVIEWER_HUB}/`)) {
     return isPublicPeerInterviewerProfilePath(pathname);
   }
+
   return true;
 }
 
