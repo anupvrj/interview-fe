@@ -88,7 +88,7 @@ function SectionBox({
         onDrop(section.id);
       }}
       className={cn(
-        "relative flex min-h-[52px] items-center justify-center rounded-md border px-3 py-2 text-center text-sm font-semibold text-slate-700 transition-all",
+        "relative flex min-h-[52px] items-center justify-center rounded-md border px-3 py-2 text-center text-sm font-semibold text-foreground transition-all",
         locked
           ? "cursor-not-allowed border-slate-300 bg-slate-100"
           : "cursor-grab border-sky-200 bg-sky-100 hover:border-sky-300 hover:bg-sky-50 active:cursor-grabbing",
@@ -97,7 +97,7 @@ function SectionBox({
         deletable && "pr-10",
       )}
     >
-      <span className="absolute left-2 top-2 text-slate-400">
+      <span className="absolute left-2 top-2 text-muted-foreground/80">
         {locked ? (
           <Lock className="h-3.5 w-3.5" aria-hidden />
         ) : (
@@ -110,7 +110,7 @@ function SectionBox({
           type="button"
           aria-label={`Remove ${getSectionBoxLabel(section)} section`}
           title="Remove section from resume"
-          className="absolute right-2 top-2 rounded-md p-1 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600"
+          className="absolute right-2 top-2 rounded-md p-1 text-muted-foreground/80 transition-colors hover:bg-red-950/30 hover:text-red-600"
           onClick={(event) => {
             event.preventDefault();
             event.stopPropagation();
@@ -159,7 +159,7 @@ function ColumnDropZone({
       }}
     >
       {sections.length === 0 ? (
-        <div className="flex flex-1 items-center justify-center rounded-md border border-dashed border-slate-200 bg-slate-50/80 px-2 py-6 text-xs text-muted-foreground">
+        <div className="flex flex-1 items-center justify-center rounded-md border border-dashed border-border bg-muted/25 px-2 py-6 text-xs text-muted-foreground">
           Drop sections here
         </div>
       ) : (
@@ -286,7 +286,7 @@ export function RearrangeSectionsDialog({
               No visible sections to rearrange.
             </p>
           ) : (
-            <div className="overflow-hidden rounded-xl border border-border/80 bg-white shadow-card">
+            <div className="overflow-hidden rounded-xl border border-border/80 bg-card shadow-card">
               <div className="space-y-3 p-4">
                 {partition.lockedHeader ? (
                   <SectionBox

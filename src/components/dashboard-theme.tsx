@@ -73,10 +73,11 @@ export function DashboardThemeProvider({
   return (
     <DashboardThemeContext.Provider value={value}>
       <div
+        id="dashboard-theme-root"
         className={
           theme === "dark"
-            ? "dark min-h-screen bg-background text-foreground"
-            : "min-h-screen bg-background text-foreground"
+            ? "dark min-h-screen w-full max-w-full overflow-x-hidden bg-background text-foreground"
+            : "min-h-screen w-full max-w-full overflow-x-hidden bg-background text-foreground"
         }
         suppressHydrationWarning
       >

@@ -46,10 +46,10 @@ export default function PostInterviewFeedbackPage() {
           <div className="flex h-12 w-14 items-center justify-center rounded-xl bg-muted/30 text-primary">
             <MessageSquareHeart className="h-6 w-6" aria-hidden />
           </div>
-          <CardTitle className="text-2xl font-bold tracking-tight text-gray-900">
+          <CardTitle className="text-2xl font-bold tracking-tight text-foreground">
             Quick feedback
           </CardTitle>
-          <CardDescription className="text-base text-gray-600 leading-relaxed">
+          <CardDescription className="text-base text-muted-foreground leading-relaxed">
             Please fill the feedback form to continue. Once submitted, we&apos;ll
             generate your interview report.
           </CardDescription>

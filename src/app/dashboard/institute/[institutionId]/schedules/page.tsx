@@ -391,13 +391,13 @@ export default function InstituteSchedulesPage() {
       />
 
       <Card className={cn(institutePanelClass, "overflow-hidden shadow-xl")}>
-        <CardHeader className="border-b border-border/60 bg-gradient-to-r from-muted/50 to-white">
+        <CardHeader className="border-b border-border/60 bg-gradient-to-r from-muted/40 to-card">
           <CardTitle className="flex items-center gap-2 text-lg">
             <CalendarClock className="h-5 w-5 text-primary" />
             Upcoming & pending
           </CardTitle>
           <CardDescription>
-            Use <span className="font-medium text-slate-800">Schedule interview</span> above to pick
+            Use <span className="font-medium text-foreground">Schedule interview</span> above to pick
             a candidate and set time and details, or use the calendar on each row on the Candidates
             tab. Edit time, role, and details here anytime before the interview starts.
           </CardDescription>
@@ -408,7 +408,7 @@ export default function InstituteSchedulesPage() {
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
           ) : pending.length === 0 ? (
-            <p className="rounded-xl border border-dashed border-border/60 bg-muted/20 px-4 py-8 text-center text-sm text-slate-600">
+            <p className="rounded-xl border border-dashed border-border/60 bg-muted/20 px-4 py-8 text-center text-sm text-muted-foreground">
               No pending schedules.
             </p>
           ) : (
@@ -420,11 +420,11 @@ export default function InstituteSchedulesPage() {
                 )}
               >
                 <div className="min-w-[200px] flex-1">
-                  <Label htmlFor="sch-filter-candidate" className="text-xs text-slate-600">
+                  <Label htmlFor="sch-filter-candidate" className="text-xs text-muted-foreground">
                     Candidate (name or email)
                   </Label>
                   <div className="relative mt-1">
-                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                     <Input
                       id="sch-filter-candidate"
                       placeholder="Search…"
@@ -435,7 +435,7 @@ export default function InstituteSchedulesPage() {
                   </div>
                 </div>
                 <div className="min-w-[180px]">
-                  <Label htmlFor="sch-filter-from" className="text-xs text-slate-600">
+                  <Label htmlFor="sch-filter-from" className="text-xs text-muted-foreground">
                     Scheduled from
                   </Label>
                   <Input
@@ -447,7 +447,7 @@ export default function InstituteSchedulesPage() {
                   />
                 </div>
                 <div className="min-w-[180px]">
-                  <Label htmlFor="sch-filter-to" className="text-xs text-slate-600">
+                  <Label htmlFor="sch-filter-to" className="text-xs text-muted-foreground">
                     Scheduled to
                   </Label>
                   <Input
@@ -475,52 +475,52 @@ export default function InstituteSchedulesPage() {
                 ) : null}
               </div>
 
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-muted-foreground">
                 Showing {filteredPending.length} of {pending.length} schedule
                 {pending.length === 1 ? "" : "s"}
               </p>
 
               {filteredPending.length === 0 ? (
-                <p className="text-sm text-slate-500">
+                <p className="text-sm text-muted-foreground">
                   No schedules match your filters. Try adjusting search or date range.
                 </p>
               ) : (
                 <InstituteTableShell>
               <Table>
                 <TableHeader>
-                  <TableRow className="border-b border-slate-200/80 bg-slate-50/90 hover:bg-slate-50/90">
-                    <TableHead className="font-semibold text-slate-700">When</TableHead>
-                    <TableHead className="font-semibold text-slate-700">Expire by</TableHead>
-                    <TableHead className="font-semibold text-slate-700">Candidate</TableHead>
-                    <TableHead className="font-semibold text-slate-700">Role</TableHead>
-                    <TableHead className="text-right font-semibold text-slate-700">Actions</TableHead>
+                  <TableRow className="border-b border-border/80 bg-muted/30 hover:bg-muted/30">
+                    <TableHead className="font-semibold text-foreground">When</TableHead>
+                    <TableHead className="font-semibold text-foreground">Expire by</TableHead>
+                    <TableHead className="font-semibold text-foreground">Candidate</TableHead>
+                    <TableHead className="font-semibold text-foreground">Role</TableHead>
+                    <TableHead className="text-right font-semibold text-foreground">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredPending.map((s) => (
-                    <TableRow key={s._id} className="border-slate-100 hover:bg-muted/40">
+                    <TableRow key={s._id} className="border-border hover:bg-muted/40">
                       <TableCell className="whitespace-nowrap">
                         {new Date(s.scheduledAt).toLocaleString()}
                       </TableCell>
-                      <TableCell className="whitespace-nowrap text-sm text-slate-600">
+                      <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
                         {s.expiresAt
                           ? new Date(s.expiresAt).toLocaleString()
                           : "—"}
                       </TableCell>
                       <TableCell>
                         <div className="flex min-w-[10rem] max-w-[18rem] flex-col gap-0.5">
-                          <span className="font-medium text-slate-900">
+                          <span className="font-medium text-foreground">
                             {s.candidateName?.trim()
                               ? s.candidateName.trim()
                               : "—"}
                           </span>
-                          <span className="break-all text-sm text-slate-600">
+                          <span className="break-all text-sm text-muted-foreground">
                             {s.candidateEmail?.trim()
                               ? s.candidateEmail.trim()
                               : "—"}
                           </span>
                           {!s.candidateName?.trim() && !s.candidateEmail?.trim() ? (
-                            <span className="font-mono text-[11px] text-slate-400">
+                            <span className="font-mono text-[11px] text-muted-foreground">
                               {s.candidateClerkId}
                             </span>
                           ) : null}
@@ -594,7 +594,7 @@ export default function InstituteSchedulesPage() {
                 onChange={(e) => setEditExpiresAt(e.target.value)}
                 className="mt-1"
               />
-              <p className="mt-1 text-xs text-slate-500">
+              <p className="mt-1 text-xs text-muted-foreground">
                 Latest time the candidate can start. Clear to remove the deadline. Must be on or
                 after 24 hours before the scheduled time.
               </p>
@@ -623,7 +623,7 @@ export default function InstituteSchedulesPage() {
               <Label htmlFor="edit-sch-lang">Language</Label>
               <select
                 id="edit-sch-lang"
-                className="mt-1 w-full rounded-md border px-3 py-2"
+                className="app-control mt-1 w-full bg-card"
                 value={editLang}
                 onChange={(e) => setEditLang(e.target.value as "en" | "hi")}
               >
@@ -651,7 +651,7 @@ export default function InstituteSchedulesPage() {
                 disabled={editSubmitting}
                 maxLength={MAX_JOB_DESCRIPTION_CHARS}
               />
-              <p className="mt-1 text-xs text-slate-500">
+              <p className="mt-1 text-xs text-muted-foreground">
                 Stored on this schedule and passed into the interview context (max{" "}
                 {MAX_JOB_DESCRIPTION_CHARS.toLocaleString()} characters).
               </p>
@@ -660,7 +660,7 @@ export default function InstituteSchedulesPage() {
               <Label htmlFor="edit-sch-dur">Duration</Label>
               <select
                 id="edit-sch-dur"
-                className="mt-1 w-full rounded-md border px-3 py-2"
+                className="app-control mt-1 w-full bg-card"
                 value={editDuration}
                 onChange={(e) => setEditDuration(e.target.value as "15" | "30")}
               >
@@ -746,39 +746,39 @@ export default function InstituteSchedulesPage() {
                 autoComplete="off"
               />
               {scheduleSearching ? (
-                <p className="mt-2 flex items-center gap-2 text-xs text-slate-500">
+                <p className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
                   Searching…
                 </p>
               ) : scheduleSearch.trim().length >= 2 && scheduleSearchResults.length === 0 ? (
-                <p className="mt-2 text-xs text-slate-500">No users match.</p>
+                <p className="mt-2 text-xs text-muted-foreground">No users match.</p>
               ) : null}
               {scheduleSearchResults.length > 0 ? (
-                <ul className="mt-2 max-h-40 overflow-y-auto rounded-md border border-slate-200 bg-white">
+                <ul className="mt-2 max-h-40 overflow-y-auto rounded-md border border-border bg-card">
                   {scheduleSearchResults.map((u) => (
                     <li key={u._id}>
                       <button
                         type="button"
-                        className={`flex w-full flex-col items-start gap-0.5 px-3 py-2 text-left text-sm hover:bg-slate-50 ${
+                        className={`flex w-full flex-col items-start gap-0.5 px-3 py-2 text-left text-sm hover:bg-muted/20 ${
                           scheduleSelectedUser?.clerkId === u.clerkId ? "bg-muted/30" : ""
                         }`}
                         onClick={() => setScheduleSelectedUser(u)}
                       >
-                        <span className="font-medium text-slate-900">{u.name || "—"}</span>
-                        <span className="text-xs text-slate-600">{u.email}</span>
+                        <span className="font-medium text-foreground">{u.name || "—"}</span>
+                        <span className="text-xs text-muted-foreground">{u.email}</span>
                       </button>
                     </li>
                   ))}
                 </ul>
               ) : null}
               {scheduleSelectedUser ? (
-                <p className="mt-2 rounded-md bg-slate-50 px-3 py-2 text-sm text-slate-800">
+                <p className="mt-2 rounded-md bg-muted/20 px-3 py-2 text-sm text-foreground">
                   Scheduling for:{" "}
                   <span className="font-medium">
                     {scheduleSelectedUser.name ?? scheduleSelectedUser.email}
                   </span>
                   {scheduleSelectedUser.email && scheduleSelectedUser.name ? (
-                    <span className="text-slate-600"> ({scheduleSelectedUser.email})</span>
+                    <span className="text-muted-foreground"> ({scheduleSelectedUser.email})</span>
                   ) : null}
                 </p>
               ) : scheduleSearch.trim().length >= 2 ? (
@@ -786,7 +786,7 @@ export default function InstituteSchedulesPage() {
                   Select a candidate from the search results to continue.
                 </p>
               ) : (
-                <p className="mt-2 text-xs text-slate-500">
+                <p className="mt-2 text-xs text-muted-foreground">
                   Type at least 2 characters to search your institution.
                 </p>
               )}
@@ -810,7 +810,7 @@ export default function InstituteSchedulesPage() {
                 onChange={(e) => setScheduleExpiresAt(e.target.value)}
                 className="mt-1"
               />
-              <p className="mt-1 text-xs text-slate-500">
+              <p className="mt-1 text-xs text-muted-foreground">
                 Latest time the candidate can start. Must be on or after 24 hours before the
                 scheduled time above. Clear to allow starting anytime after the window opens (no
                 upper limit).
@@ -841,7 +841,7 @@ export default function InstituteSchedulesPage() {
               <Label htmlFor="inst-sch-lang">Language</Label>
               <select
                 id="inst-sch-lang"
-                className="mt-1 w-full rounded-md border px-3 py-2"
+                className="app-control mt-1 w-full bg-card"
                 value={scheduleLang}
                 onChange={(e) => setScheduleLang(e.target.value as "en" | "hi")}
               >
@@ -869,7 +869,7 @@ export default function InstituteSchedulesPage() {
                 disabled={scheduleSubmitting}
                 maxLength={MAX_JOB_DESCRIPTION_CHARS}
               />
-              <p className="mt-1 text-xs text-slate-500">
+              <p className="mt-1 text-xs text-muted-foreground">
                 Stored on this schedule and passed into the interview context (max{" "}
                 {MAX_JOB_DESCRIPTION_CHARS.toLocaleString()} characters).
               </p>
@@ -878,7 +878,7 @@ export default function InstituteSchedulesPage() {
               <Label htmlFor="inst-sch-dur">Duration</Label>
               <select
                 id="inst-sch-dur"
-                className="mt-1 w-full rounded-md border px-3 py-2"
+                className="app-control mt-1 w-full bg-card"
                 value={scheduleDuration}
                 onChange={(e) => setScheduleDuration(e.target.value as "15" | "30")}
               >

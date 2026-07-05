@@ -117,7 +117,7 @@ export function ATSReadySection() {
             visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4",
           )}
         >
-          <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/15 px-3 py-1 text-sm font-medium text-white/95">
+          <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/25 bg-card/15 px-3 py-1 text-sm font-medium text-white/95">
             <ScanLine className="h-3 w-3" />
             <span>ATS Resume Checker</span>
           </div>
@@ -158,7 +158,7 @@ export function ATSReadySection() {
                   >
                     <Icon className="h-7 w-7 text-white" />
                   </div>
-                  <h3 className="mb-2 text-xl font-bold text-slate-900">{item.title}</h3>
+                  <h3 className="mb-2 text-xl font-bold text-foreground">{item.title}</h3>
                   <p className="mb-2 text-sm font-semibold text-gray-800">{item.tagline}</p>
                   <p className="text-sm leading-relaxed text-gray-600">{item.description}</p>
                 </div>

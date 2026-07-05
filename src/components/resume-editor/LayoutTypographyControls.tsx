@@ -190,7 +190,7 @@ export function LayoutTypographyControls({
       </div>
 
       <div className="space-y-1 pt-1">
-        <Label className="block text-xs font-normal text-gray-500">
+        <Label className="block text-xs font-normal text-muted-foreground">
           Font family
         </Label>
         <Select value={selectedFontFamily} onValueChange={onFontFamilyChange}>

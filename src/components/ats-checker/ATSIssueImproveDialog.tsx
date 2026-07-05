@@ -165,11 +165,11 @@ export function ATSIssueImproveDialog({
           </div>
 
           {(sourceContent || issue.excerpt) && (
-            <div className="rounded-lg border border-red-100 bg-red-50 p-3">
-              <p className="text-xs font-semibold uppercase tracking-wide text-red-700">
+            <div className="rounded-lg border border-red-100 bg-red-50 dark:border-red-900/40 dark:bg-red-950/25 p-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-red-700 dark:text-[#fd7070]">
                 Current content
               </p>
-              <p className="mt-1 text-sm text-red-900">
+              <p className="mt-1 text-sm text-red-900 dark:text-[#fd7070]">
                 {sourceContent || issue.excerpt}
               </p>
             </div>
@@ -182,8 +182,8 @@ export function ATSIssueImproveDialog({
             disabled={loading}
           />
 
-          <div className="rounded-lg border border-green-200 bg-green-50 p-3">
-            <p className="text-xs font-semibold uppercase tracking-wide text-green-700">
+          <div className="rounded-lg border border-green-200 bg-green-50 p-3 dark:border-green-900/40 dark:bg-green-950/25">
+            <p className="text-xs font-semibold uppercase tracking-wide text-green-700 dark:text-green-300">
               AI suggestion
             </p>
             {loading ? (
@@ -192,7 +192,7 @@ export function ATSIssueImproveDialog({
                 Generating improved content…
               </div>
             ) : improvedContent ? (
-              <p className="mt-2 whitespace-pre-wrap text-sm text-green-900">
+              <p className="mt-2 whitespace-pre-wrap text-sm text-green-900 dark:text-green-100">
                 {improvedContent}
               </p>
             ) : (

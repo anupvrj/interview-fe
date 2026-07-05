@@ -9,6 +9,7 @@ import {
 import { createPortal } from "react-dom";
 import { Button, type ButtonProps } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useDashboardDarkClass } from "@/lib/dashboard-portal";
 
 export interface IconTooltipButtonProps extends ButtonProps {
   label: string;
@@ -26,6 +27,7 @@ export function IconTooltipButton({
   ...props
 }: IconTooltipButtonProps) {
   const buttonRef = useRef<HTMLButtonElement>(null);
+  const dashboardDark = useDashboardDarkClass();
   const [tooltipVisible, setTooltipVisible] = useState(false);
   const [tooltipPos, setTooltipPos] = useState({ top: 0, left: 0 });
 
@@ -83,7 +85,10 @@ export function IconTooltipButton({
         createPortal(
           <span
             role="tooltip"
-            className="pointer-events-none fixed z-[10050] max-w-[min(90vw,16rem)] -translate-x-1/2 whitespace-nowrap rounded-md border border-border bg-popover px-2.5 py-1.5 text-center text-xs font-medium text-foreground shadow-lg"
+            className={cn(
+              dashboardDark,
+              "pointer-events-none fixed z-[10050] max-w-[min(90vw,16rem)] -translate-x-1/2 whitespace-nowrap rounded-md border border-border bg-popover px-2.5 py-1.5 text-center text-xs font-medium text-popover-foreground shadow-lg",
+            )}
             style={{ top: tooltipPos.top, left: tooltipPos.left }}
           >
             {label}

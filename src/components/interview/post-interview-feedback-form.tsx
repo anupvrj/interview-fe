@@ -225,7 +225,7 @@ export function PostInterviewFeedbackForm({
         >
           <SelectTrigger
             id="interview-feedback-challenge"
-            className="border-gray-200 bg-white text-gray-900 h-11"
+            className="border-gray-200 bg-card text-gray-900 h-11"
           >
             <SelectValue placeholder="Select an option" />
           </SelectTrigger>
@@ -252,7 +252,7 @@ export function PostInterviewFeedbackForm({
           placeholder="Comments, suggestions, or issues you noticed…"
           value={comment}
           onChange={(e) => setComment(e.target.value)}
-          className="min-h-[100px] resize-y border-gray-200 bg-white text-gray-900 placeholder:text-gray-400"
+          className="min-h-[100px] resize-y border-gray-200 bg-card text-gray-900 placeholder:text-gray-400"
           maxLength={2000}
         />
         <p className="text-xs text-gray-500 text-right">{comment.length} / 2000</p>

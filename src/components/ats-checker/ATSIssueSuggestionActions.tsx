@@ -84,12 +84,12 @@ export function ATSIssueSuggestionActions({
   };
 
   return (
-    <div className="min-w-0 space-y-3 overflow-hidden rounded-lg border border-green-100 bg-green-50 px-3 py-3">
+    <div className="min-w-0 space-y-3 overflow-hidden rounded-lg border border-green-200/70 bg-green-50 px-3 py-3 dark:border-green-900/40 dark:bg-green-950/25">
       <div className="relative z-10 flex flex-wrap items-center justify-end gap-0.5 overflow-visible">
         <ATSIconActionButton
           label={copied ? "Copied" : "Copy"}
           variant="outline"
-          className="border-green-200 bg-white/80 text-green-900 hover:bg-green-100"
+          className="border-border bg-card text-foreground hover:bg-muted"
           onClick={() => void handleCopy()}
           disabled={!editedContent.trim()}
         >
@@ -103,7 +103,7 @@ export function ATSIssueSuggestionActions({
         <ATSIconActionButton
           label={isEditing ? "Done editing" : "Edit"}
           variant="outline"
-          className="border-green-200 bg-white/80 text-green-900 hover:bg-green-100"
+          className="border-border bg-card text-foreground hover:bg-muted"
           onClick={() => setIsEditing((prev) => !prev)}
         >
           {isEditing ? (
@@ -117,7 +117,7 @@ export function ATSIssueSuggestionActions({
           <ATSIconActionButton
             label="Insert into resume"
             variant="default"
-            className="bg-green-700 text-white hover:bg-green-800"
+            className="bg-green-700 text-white hover:bg-green-800 dark:bg-green-600 dark:hover:bg-green-500"
             onClick={handleInsert}
             disabled={!editedContent.trim()}
           >
@@ -153,11 +153,11 @@ export function ATSIssueSuggestionActions({
           <Textarea
             value={editedContent}
             onChange={(e) => setEditedContent(e.target.value)}
-            className="min-h-[72px] min-w-0 flex-1 border-green-200 bg-white text-sm text-green-900"
+            className="min-h-[72px] min-w-0 flex-1 border-border bg-card text-sm text-foreground"
             rows={3}
           />
         ) : (
-          <p className="min-w-0 flex-1 break-words whitespace-pre-wrap text-sm leading-relaxed text-green-900 [overflow-wrap:anywhere]">
+          <p className="min-w-0 flex-1 break-words whitespace-pre-wrap text-sm leading-relaxed text-green-900 dark:text-green-100 [overflow-wrap:anywhere]">
             {editedContent}
           </p>
         )}

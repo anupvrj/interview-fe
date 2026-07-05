@@ -36,7 +36,7 @@ interface ATSProcessingViewProps {
 function ResumeScanMock({ active }: { active: boolean }) {
   return (
     <div className="relative mx-auto w-full max-w-[240px]">
-      <div className="relative overflow-hidden rounded-xl border border-border/80 bg-white shadow-lg">
+      <div className="relative overflow-hidden rounded-xl border border-border/80 bg-card shadow-lg">
         <div className="h-2 bg-gradient-to-r from-primary/30 via-primary/50 to-primary/30" />
         <div className="space-y-2.5 p-4">
           <div className="h-3 w-3/4 rounded-md bg-foreground/12" />
@@ -232,7 +232,7 @@ export function ATSProcessingView({
                     done
                       ? "bg-primary text-white shadow-md shadow-primary/25"
                       : active
-                        ? "border-2 border-primary bg-white text-primary ring-4 ring-primary/15"
+                        ? "border-2 border-primary bg-card text-primary ring-4 ring-primary/15"
                         : "border-2 border-muted-foreground/20 bg-muted/30 text-muted-foreground",
                   )}
                 >

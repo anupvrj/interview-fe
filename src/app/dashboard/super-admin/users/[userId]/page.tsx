@@ -182,11 +182,11 @@ export default function SuperAdminUserViewPage() {
       </div>
 
       <div>
-        <h1 className="flex flex-wrap items-center gap-2 text-2xl font-bold text-slate-900">
+        <h1 className="flex flex-wrap items-center gap-2 text-2xl font-bold text-foreground">
           <BarChart3 className="h-7 w-7 text-primary" />
           User — {displayName}
         </h1>
-        <p className="mt-1 text-slate-600">
+        <p className="mt-1 text-muted-foreground">
           {emailQ || "—"} · Resumes, practice interviews, and coding practice sessions
         </p>
       </div>
@@ -197,46 +197,46 @@ export default function SuperAdminUserViewPage() {
         </div>
       ) : (
         <div className="space-y-6">
-          <div className="grid gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-3 rounded-xl border border-border bg-muted/20 p-4 sm:grid-cols-2 lg:grid-cols-4">
             <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 Avg. interview score
               </p>
               <p
                 className={`text-2xl font-bold ${
                   performanceSummary.avg != null
                     ? getScoreColor(performanceSummary.avg)
-                    : "text-slate-400"
+                    : "text-muted-foreground"
                 }`}
               >
                 {performanceSummary.avg != null ? performanceSummary.avg : "—"}
               </p>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-muted-foreground">
                 Across {performanceSummary.scoredCount} scored session
                 {performanceSummary.scoredCount === 1 ? "" : "s"}
               </p>
             </div>
             <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 Total sessions
               </p>
-              <p className="text-2xl font-bold text-slate-900">
+              <p className="text-2xl font-bold text-foreground">
                 {performanceSummary.totalInterviews}
               </p>
             </div>
             <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 Completed
               </p>
-              <p className="text-2xl font-bold text-slate-900">
+              <p className="text-2xl font-bold text-foreground">
                 {performanceSummary.completed}
               </p>
             </div>
             <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 Resumes on file
               </p>
-              <p className="text-2xl font-bold text-slate-900">{resumes.length}</p>
+              <p className="text-2xl font-bold text-foreground">{resumes.length}</p>
             </div>
           </div>
 
@@ -247,7 +247,7 @@ export default function SuperAdminUserViewPage() {
             </CardHeader>
             <CardContent>
               {resumes.length === 0 ? (
-                <p className="text-sm text-slate-500">No resumes yet</p>
+                <p className="text-sm text-muted-foreground">No resumes yet</p>
               ) : (
                 <div className="overflow-x-auto rounded-lg border">
                   <Table>
@@ -262,7 +262,7 @@ export default function SuperAdminUserViewPage() {
                       {resumes.map((r: any) => (
                         <TableRow key={r.resumeId}>
                           <TableCell className="font-medium">{r.title}</TableCell>
-                          <TableCell className="text-slate-600">
+                          <TableCell className="text-muted-foreground">
                             {formatDate(r.updatedAt)}
                           </TableCell>
                           <TableCell className="text-right">
@@ -293,7 +293,7 @@ export default function SuperAdminUserViewPage() {
             </CardHeader>
             <CardContent>
               {practiceInterviews.length === 0 ? (
-                <p className="text-sm text-slate-500">No practice interviews yet</p>
+                <p className="text-sm text-muted-foreground">No practice interviews yet</p>
               ) : (
                 <div className="overflow-x-auto rounded-lg border">
                   <Table>
@@ -310,11 +310,11 @@ export default function SuperAdminUserViewPage() {
                     <TableBody>
                       {practiceInterviews.map((inv: any) => (
                         <TableRow key={inv.interviewId}>
-                          <TableCell className="whitespace-nowrap text-slate-600">
+                          <TableCell className="whitespace-nowrap text-muted-foreground">
                             {formatDate(inv.createdAt)}
                           </TableCell>
                           <TableCell>{inv.metadata?.role ?? "—"}</TableCell>
-                          <TableCell className="max-w-[140px] truncate text-slate-600">
+                          <TableCell className="max-w-[140px] truncate text-muted-foreground">
                             {inv.metadata?.targetCompany ?? "—"}
                           </TableCell>
                           <TableCell>
@@ -326,7 +326,7 @@ export default function SuperAdminUserViewPage() {
                               {inv.report?.overallScore ?? "—"}
                             </span>
                           </TableCell>
-                          <TableCell className="text-xs capitalize text-slate-600">
+                          <TableCell className="text-xs capitalize text-muted-foreground">
                             {inv.status}
                           </TableCell>
                           <TableCell className="text-right">
@@ -356,7 +356,7 @@ export default function SuperAdminUserViewPage() {
                                   <Video className="h-3 w-3" />
                                 </Button>
                               ) : (
-                                <span className="px-2 text-xs text-slate-400">No video</span>
+                                <span className="px-2 text-xs text-muted-foreground">No video</span>
                               )}
                             </div>
                           </TableCell>
@@ -379,7 +379,7 @@ export default function SuperAdminUserViewPage() {
             </CardHeader>
             <CardContent>
               {codingInterviews.length === 0 ? (
-                <p className="text-sm text-slate-500">No coding practice sessions yet</p>
+                <p className="text-sm text-muted-foreground">No coding practice sessions yet</p>
               ) : (
                 <div className="overflow-x-auto rounded-lg border">
                   <Table>
@@ -396,11 +396,11 @@ export default function SuperAdminUserViewPage() {
                     <TableBody>
                       {codingInterviews.map((inv: any) => (
                         <TableRow key={inv.interviewId}>
-                          <TableCell className="whitespace-nowrap text-slate-600">
+                          <TableCell className="whitespace-nowrap text-muted-foreground">
                             {formatDate(inv.createdAt)}
                           </TableCell>
                           <TableCell>{inv.metadata?.role ?? "—"}</TableCell>
-                          <TableCell className="max-w-[140px] truncate text-slate-600">
+                          <TableCell className="max-w-[140px] truncate text-muted-foreground">
                             {inv.metadata?.targetCompany ?? "—"}
                           </TableCell>
                           <TableCell>
@@ -412,7 +412,7 @@ export default function SuperAdminUserViewPage() {
                               {inv.report?.overallScore ?? "—"}
                             </span>
                           </TableCell>
-                          <TableCell className="text-xs capitalize text-slate-600">
+                          <TableCell className="text-xs capitalize text-muted-foreground">
                             {inv.status}
                           </TableCell>
                           <TableCell className="text-right">
@@ -442,7 +442,7 @@ export default function SuperAdminUserViewPage() {
                                   <Video className="h-3 w-3" />
                                 </Button>
                               ) : (
-                                <span className="px-2 text-xs text-slate-400">No video</span>
+                                <span className="px-2 text-xs text-muted-foreground">No video</span>
                               )}
                             </div>
                           </TableCell>
@@ -468,7 +468,7 @@ export default function SuperAdminUserViewPage() {
           {interviewPreview && (
             <dl className="space-y-2 text-sm">
               <div className="flex justify-between gap-4">
-                <dt className="text-slate-500">Type</dt>
+                <dt className="text-muted-foreground">Type</dt>
                 <dd>
                   {isCodingPractice(interviewPreview)
                     ? "Coding practice"
@@ -476,23 +476,23 @@ export default function SuperAdminUserViewPage() {
                 </dd>
               </div>
               <div className="flex justify-between gap-4">
-                <dt className="text-slate-500">Interview ID</dt>
+                <dt className="text-muted-foreground">Interview ID</dt>
                 <dd className="font-mono text-xs">{interviewPreview.interviewId}</dd>
               </div>
               <div className="flex justify-between gap-4">
-                <dt className="text-slate-500">Role</dt>
+                <dt className="text-muted-foreground">Role</dt>
                 <dd>{interviewPreview.metadata?.role ?? "—"}</dd>
               </div>
               <div className="flex justify-between gap-4">
-                <dt className="text-slate-500">Target company</dt>
+                <dt className="text-muted-foreground">Target company</dt>
                 <dd>{interviewPreview.metadata?.targetCompany ?? "—"}</dd>
               </div>
               <div className="flex justify-between gap-4">
-                <dt className="text-slate-500">Experience (years)</dt>
+                <dt className="text-muted-foreground">Experience (years)</dt>
                 <dd>{interviewPreview.metadata?.experience ?? "—"}</dd>
               </div>
               <div className="flex justify-between gap-4">
-                <dt className="text-slate-500">Duration</dt>
+                <dt className="text-muted-foreground">Duration</dt>
                 <dd>
                   {interviewPreview.metadata?.interviewDuration != null
                     ? `${interviewPreview.metadata.interviewDuration} min`
@@ -500,20 +500,20 @@ export default function SuperAdminUserViewPage() {
                 </dd>
               </div>
               <div className="flex justify-between gap-4">
-                <dt className="text-slate-500">Language</dt>
+                <dt className="text-muted-foreground">Language</dt>
                 <dd>{interviewPreview.metadata?.language ?? "—"}</dd>
               </div>
               <div className="flex justify-between gap-4">
-                <dt className="text-slate-500">Status</dt>
+                <dt className="text-muted-foreground">Status</dt>
                 <dd className="capitalize">{interviewPreview.status}</dd>
               </div>
               <div className="flex justify-between gap-4">
-                <dt className="text-slate-500">Created</dt>
+                <dt className="text-muted-foreground">Created</dt>
                 <dd>{formatDate(interviewPreview.createdAt)}</dd>
               </div>
               {interviewPreview.report?.overallScore != null && (
                 <div className="flex justify-between gap-4">
-                  <dt className="text-slate-500">Overall score</dt>
+                  <dt className="text-muted-foreground">Overall score</dt>
                   <dd
                     className={`font-bold ${getScoreColor(
                       interviewPreview.report.overallScore,
@@ -551,11 +551,11 @@ export default function SuperAdminUserViewPage() {
           )}
           {resumePreview && !resumePreviewLoading && (
             <div className="space-y-4 text-sm">
-              <div className="rounded-lg border bg-slate-50 p-3">
-                <p className="font-semibold text-slate-900">
+              <div className="rounded-lg border bg-muted/20 p-3">
+                <p className="font-semibold text-foreground">
                   {resumePreview.content?.personalInfo?.fullName ?? "—"}
                 </p>
-                <p className="text-slate-600">
+                <p className="text-muted-foreground">
                   {resumePreview.content?.personalInfo?.email ?? ""}{" "}
                   {resumePreview.content?.personalInfo?.phone
                     ? ` · ${resumePreview.content.personalInfo.phone}`
@@ -564,8 +564,8 @@ export default function SuperAdminUserViewPage() {
               </div>
               {resumePreview.profileSummary && (
                 <div>
-                  <h5 className="mb-1 font-medium text-slate-800">Summary</h5>
-                  <p className="whitespace-pre-wrap text-slate-700">
+                  <h5 className="mb-1 font-medium text-foreground">Summary</h5>
+                  <p className="whitespace-pre-wrap text-foreground">
                     {typeof resumePreview.profileSummary === "string"
                       ? resumePreview.profileSummary.replace(/<[^>]+>/g, " ")
                       : ""}
@@ -575,8 +575,8 @@ export default function SuperAdminUserViewPage() {
               {Array.isArray(resumePreview.content?.experience) &&
                 resumePreview.content.experience.length > 0 && (
                   <div>
-                    <h5 className="mb-1 font-medium text-slate-800">Experience</h5>
-                    <ul className="list-inside list-disc space-y-1 text-slate-700">
+                    <h5 className="mb-1 font-medium text-foreground">Experience</h5>
+                    <ul className="list-inside list-disc space-y-1 text-foreground">
                       {resumePreview.content.experience.slice(0, 8).map((ex: any) => (
                         <li key={ex.id}>
                           {ex.position} at {ex.company}{" "}
@@ -591,8 +591,8 @@ export default function SuperAdminUserViewPage() {
               {Array.isArray(resumePreview.content?.education) &&
                 resumePreview.content.education.length > 0 && (
                   <div>
-                    <h5 className="mb-1 font-medium text-slate-800">Education</h5>
-                    <ul className="list-inside list-disc text-slate-700">
+                    <h5 className="mb-1 font-medium text-foreground">Education</h5>
+                    <ul className="list-inside list-disc text-foreground">
                       {resumePreview.content.education.slice(0, 5).map((ed: any) => (
                         <li key={ed.id}>
                           {ed.degree} — {ed.institution}

@@ -563,7 +563,7 @@ export default function SystemDesignPracticeReportPage() {
                 />
               </div>
             ) : (
-              <div className="flex h-[min(240px,28vh)] items-center justify-center rounded-lg border border-dashed border-border bg-muted/30 text-center text-sm text-gray-600 dark:border-border dark:bg-muted/20 dark:text-gray-400">
+              <div className="flex h-[min(240px,28vh)] items-center justify-center rounded-lg border border-dashed border-border bg-muted/30 text-center text-sm text-muted-foreground dark:border-border dark:bg-muted/20 ">
                 No whiteboard snapshot was saved for this session.
               </div>
             )}

@@ -104,9 +104,9 @@ export default function InstituteAnalyticsPage() {
       </div>
 
       <section className={cn(institutePanelClass)}>
-        <div className="border-b border-slate-200 p-4">
-          <h2 className="text-sm font-bold text-slate-900">Day wise interviews, resumes and score</h2>
-          <p className="text-xs text-slate-600">Last 30 days performance trend</p>
+        <div className="border-b border-border p-4">
+          <h2 className="text-sm font-bold text-foreground">Day wise interviews, resumes and score</h2>
+          <p className="text-xs text-muted-foreground">Last 30 days performance trend</p>
         </div>
         <div className="h-[330px] p-3">
           <ResponsiveContainer width="100%" height="100%">
@@ -147,9 +147,9 @@ export default function InstituteAnalyticsPage() {
 
       <div className="grid gap-4 xl:grid-cols-2">
         <section className={cn(institutePanelClass)}>
-          <div className="border-b border-slate-200 p-4">
-            <h2 className="text-sm font-bold text-slate-900">Day wise credit spend</h2>
-            <p className="text-xs text-slate-600">Credits consumed per day</p>
+          <div className="border-b border-border p-4">
+            <h2 className="text-sm font-bold text-foreground">Day wise credit spend</h2>
+            <p className="text-xs text-muted-foreground">Credits consumed per day</p>
           </div>
           <div className="h-[280px] p-3">
             <ResponsiveContainer width="100%" height="100%">
@@ -165,32 +165,32 @@ export default function InstituteAnalyticsPage() {
         </section>
 
         <section className={cn(institutePanelClass)}>
-          <div className="border-b border-slate-200 p-4">
-            <h2 className="text-sm font-bold text-slate-900">Schedule outcomes</h2>
-            <p className="text-xs text-slate-600">Scheduled, started, completed and cancelled</p>
+          <div className="border-b border-border p-4">
+            <h2 className="text-sm font-bold text-foreground">Schedule outcomes</h2>
+            <p className="text-xs text-muted-foreground">Scheduled, started, completed and cancelled</p>
           </div>
           <div className="grid grid-cols-2 gap-3 p-4">
-            <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
-              <p className="text-xs font-semibold text-slate-500">Scheduled pending</p>
-              <p className="text-2xl font-bold tabular-nums text-slate-900">
+            <div className="rounded-md border border-border bg-muted/20 p-3">
+              <p className="text-xs font-semibold text-muted-foreground">Scheduled pending</p>
+              <p className="text-2xl font-bold tabular-nums text-foreground">
                 {data.totals.schedulesPending}
               </p>
             </div>
             <div className="rounded-md border border-border bg-muted/30 p-3">
               <p className="text-xs font-semibold text-primary">Started</p>
-              <p className="text-2xl font-bold tabular-nums text-slate-900">
+              <p className="text-2xl font-bold tabular-nums text-foreground">
                 {data.totals.schedulesStarted}
               </p>
             </div>
             <div className="rounded-md border border-emerald-200 bg-emerald-50 p-3">
               <p className="text-xs font-semibold text-emerald-700">Completed</p>
-              <p className="text-2xl font-bold tabular-nums text-slate-900">
+              <p className="text-2xl font-bold tabular-nums text-foreground">
                 {data.totals.schedulesCompleted}
               </p>
             </div>
             <div className="rounded-md border border-rose-200 bg-rose-50 p-3">
               <p className="text-xs font-semibold text-rose-700">Cancelled</p>
-              <p className="text-2xl font-bold tabular-nums text-slate-900">
+              <p className="text-2xl font-bold tabular-nums text-foreground">
                 {data.totals.schedulesCancelled}
               </p>
             </div>
@@ -200,9 +200,9 @@ export default function InstituteAnalyticsPage() {
 
       <div className="grid gap-4 xl:grid-cols-2">
         <section className={cn(institutePanelClass)}>
-          <div className="border-b border-slate-200 p-4">
-            <h2 className="text-sm font-bold text-slate-900">Top performing batches</h2>
-            <p className="text-xs text-slate-600">Ranked by average report score</p>
+          <div className="border-b border-border p-4">
+            <h2 className="text-sm font-bold text-foreground">Top performing batches</h2>
+            <p className="text-xs text-muted-foreground">Ranked by average report score</p>
           </div>
           <div className="h-[280px] p-3">
             <ResponsiveContainer width="100%" height="100%">
@@ -224,9 +224,9 @@ export default function InstituteAnalyticsPage() {
         </section>
 
         <section className={cn(institutePanelClass)}>
-          <div className="border-b border-slate-200 p-4">
-            <h2 className="text-sm font-bold text-slate-900">Batch wise performance</h2>
-            <p className="text-xs text-slate-600">Interviews started and reports completed</p>
+          <div className="border-b border-border p-4">
+            <h2 className="text-sm font-bold text-foreground">Batch wise performance</h2>
+            <p className="text-xs text-muted-foreground">Interviews started and reports completed</p>
           </div>
           <div className="h-[280px] p-3">
             <ResponsiveContainer width="100%" height="100%">
@@ -245,14 +245,14 @@ export default function InstituteAnalyticsPage() {
       </div>
 
       <section className={cn(institutePanelClass)}>
-        <div className="border-b border-slate-200 p-4">
-          <h2 className="text-sm font-bold text-slate-900">Top performing users</h2>
-          <p className="text-xs text-slate-600">Best interview scores from batch runs</p>
+        <div className="border-b border-border p-4">
+          <h2 className="text-sm font-bold text-foreground">Top performing users</h2>
+          <p className="text-xs text-muted-foreground">Best interview scores from batch runs</p>
         </div>
         <div className="overflow-x-auto p-4">
           <table className="min-w-full text-sm">
             <thead>
-              <tr className="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-500">
+              <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
                 <th className="px-2 py-2">Name</th>
                 <th className="px-2 py-2">Email</th>
                 <th className="px-2 py-2">Batch</th>
@@ -262,17 +262,17 @@ export default function InstituteAnalyticsPage() {
             <tbody>
               {data.topPerformers.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="px-2 py-5 text-center text-slate-500">
+                  <td colSpan={4} className="px-2 py-5 text-center text-muted-foreground">
                     No performance data yet.
                   </td>
                 </tr>
               ) : (
                 data.topPerformers.map((row, idx) => (
-                  <tr key={`${row.clerkId}-${row.interviewId}-${idx}`} className="border-b border-slate-100">
-                    <td className="px-2 py-2 font-medium text-slate-900">{row.name || "Candidate"}</td>
-                    <td className="px-2 py-2 text-slate-600">{row.email || "—"}</td>
-                    <td className="px-2 py-2 text-slate-600">{row.sourceBatch}</td>
-                    <td className="px-2 py-2 text-right font-semibold tabular-nums text-slate-900">
+                  <tr key={`${row.clerkId}-${row.interviewId}-${idx}`} className="border-b border-border">
+                    <td className="px-2 py-2 font-medium text-foreground">{row.name || "Candidate"}</td>
+                    <td className="px-2 py-2 text-muted-foreground">{row.email || "—"}</td>
+                    <td className="px-2 py-2 text-muted-foreground">{row.sourceBatch}</td>
+                    <td className="px-2 py-2 text-right font-semibold tabular-nums text-foreground">
                       {Math.round(row.score)}
                     </td>
                   </tr>

@@ -54,7 +54,7 @@ function MatchMeta({ meta }: { meta: ATSMatchMeta }) {
                   ? "text-green-600"
                   : pct >= 50
                     ? "text-amber-600"
-                    : "text-red-600",
+                    : "text-red-600 dark:text-[#fd7070]",
               )}
             >
               {pct}%
@@ -80,10 +80,10 @@ function MatchMeta({ meta }: { meta: ATSMatchMeta }) {
           className={cn(
             "inline-block rounded-full px-2 py-0.5 text-xs font-semibold capitalize",
             meta.verdict === "strong"
-              ? "bg-green-100 text-green-800"
+              ? "bg-green-100 text-green-800 dark:text-green-200"
               : meta.verdict === "partial"
-                ? "bg-amber-100 text-amber-800"
-                : "bg-red-100 text-red-800",
+                ? "bg-amber-100 text-amber-800 dark:text-amber-200"
+                : "bg-red-100 text-red-800 dark:text-[#fd7070]",
           )}
         >
           {meta.verdict} fit
@@ -93,14 +93,14 @@ function MatchMeta({ meta }: { meta: ATSMatchMeta }) {
         <div className="space-y-3">
           {(meta.matched?.length ?? 0) > 0 && (
             <div>
-              <p className="mb-1.5 text-xs font-semibold uppercase text-green-700">
+              <p className="mb-1.5 text-xs font-semibold uppercase text-green-700 dark:text-green-300">
                 Matched ({meta.matched!.length})
               </p>
               <div className="flex flex-wrap gap-1.5">
                 {meta.matched!.map((item) => (
                   <span
                     key={item}
-                    className="rounded-md border border-green-200 bg-green-50 px-2 py-1 text-xs font-medium text-green-800"
+                    className="rounded-md border border-green-200 bg-green-50 px-2 py-1 text-xs font-medium text-green-800 dark:text-green-200"
                   >
                     {item}
                   </span>
@@ -110,14 +110,14 @@ function MatchMeta({ meta }: { meta: ATSMatchMeta }) {
           )}
           {(meta.missing?.length ?? 0) > 0 && (
             <div>
-              <p className="mb-1.5 text-xs font-semibold uppercase text-red-700">
+              <p className="mb-1.5 text-xs font-semibold uppercase text-red-700 dark:text-[#fd7070]">
                 Missing ({meta.missing!.length})
               </p>
               <div className="flex flex-wrap gap-1.5">
                 {meta.missing!.map((item) => (
                   <span
                     key={item}
-                    className="rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs font-medium text-red-800"
+                    className="rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs font-medium text-red-800 dark:text-[#fd7070]"
                   >
                     {item}
                   </span>
@@ -258,9 +258,9 @@ export function CheckPanelRouter({
       case "bulletsConsistency":
         if (check.issueCount === 0) {
           return (
-            <div className="rounded-xl border border-green-100 bg-green-50 p-6 text-center">
+            <div className="rounded-xl border border-green-200/70 bg-green-50 dark:border-green-900/40 dark:bg-green-950/25 p-6 text-center">
               <Check className="mx-auto mb-2 h-8 w-8 text-green-600" />
-              <p className="font-medium text-green-800">No issues found</p>
+              <p className="font-medium text-green-800 dark:text-green-200">No issues found</p>
             </div>
           );
         }
