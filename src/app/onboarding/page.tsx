@@ -81,7 +81,117 @@ export default function OnboardingPage() {
       router.replace("/dashboard/peer-interviews/interviewer");
       return;
     }
-    setOnboardingPath("candidate");
+
+    if (!user) {
+      setError("User not found. Please sign in again.");
+      return;
+    }
+
+    try {
+      setExtracting(true);
+      setError("");
+
+      // Ensure MongoDB user exists before authenticated resume extract
+      await userApi.createOrGetUser(
+        user.id,
+        user.primaryEmailAddress?.emailAddress || "",
+        user.fullName || user.firstName || "User",
+      );
+
+      // Extract data from resume
+      const result = await userApi.extractResumeData(resumeFile);
+      setExtractedData(result.extracted);
+
+      // Pre-fill review data with extracted data
+      setReviewData({
+        overallExperience: result.extracted.experience || 0,
+        experience: result.extracted.experience || 0,
+        currentJob: {
+          company: result.extracted.currentJob?.company || "",
+          role: result.extracted.currentJob?.role || "",
+          industry: result.extracted.currentJob?.industry || "",
+        },
+        industries: result.extracted.skills?.slice(0, 5) || [],
+      });
+
+      setCurrentStep(2);
+    } catch (error: any) {
+      console.error("Error extracting resume data:", error);
+      setError(
+        error.response?.data?.message ||
+          "Failed to extract data from resume. Please try again.",
+      );
+    } finally {
+      setExtracting(false);
+    }
+  };
+
+  const toggleIndustry = (industry: string) => {
+    setReviewData((prev) => ({
+      ...prev,
+      industries: prev.industries.includes(industry)
+        ? prev.industries.filter((i) => i !== industry)
+        : [...prev.industries, industry],
+    }));
+  };
+
+  const handleComplete = async () => {
+    try {
+      setLoading(true);
+      setError("");
+
+      if (!user) {
+        setError("User not found. Please sign in again.");
+        return;
+      }
+
+      // Complete onboarding
+      await userApi.completeOnboarding({
+        userType: userType as "student" | "fresher" | "experienced",
+        experience:
+          reviewData.overallExperience > 0
+            ? reviewData.overallExperience
+            : userType === "experienced"
+              ? reviewData.experience
+              : undefined,
+        currentJob:
+          userType === "experienced" && reviewData.currentJob.company
+            ? reviewData.currentJob
+            : undefined,
+        industries:
+          reviewData.industries.length > 0 ? reviewData.industries : undefined,
+        ...toOnboardingAffiliationPayload(affiliation),
+      });
+
+      // Check if there's a return URL from resume builder
+      const returnUrl = localStorage.getItem("resumeBuilderReturnUrl");
+      if (returnUrl) {
+        localStorage.removeItem("resumeBuilderReturnUrl");
+        router.push(returnUrl);
+        return;
+      }
+
+      // Check if there's a pending plan from homepage
+      const pendingPlan = localStorage.getItem("pendingPlan");
+      if (pendingPlan === "enterprise") {
+        localStorage.removeItem("pendingPlan");
+        router.push("/contact");
+      } else if (pendingPlan && isPaidPlanId(pendingPlan)) {
+        localStorage.removeItem("pendingPlan");
+        router.push(`/checkout?plan=${pendingPlan}&cycle=monthly`);
+      } else {
+        if (pendingPlan) localStorage.removeItem("pendingPlan");
+        router.push("/dashboard");
+      }
+    } catch (error: any) {
+      console.error("Error completing onboarding:", error);
+      setError(
+        error.response?.data?.message ||
+          "Failed to complete onboarding. Please try again.",
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (!isLoaded || checkingStatus) {
