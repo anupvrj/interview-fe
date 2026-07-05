@@ -90,19 +90,31 @@ export const confidentgridDummyContent = {
   ],
 
   skills: [
-    "Business Transformation",
-    "Operating Model Design",
-    "Strategic Planning",
-    "Stakeholder Management",
-    "Performance Improvement",
-    "Change Management",
-    "Financial Analysis",
-    "Executive Communication",
-    "Client Relationship Management",
-    "Project Governance",
+    "Enterprise Sales — Led national and regional sales teams across complex medical device portfolios with consistent quota attainment.",
+    "Territory Planning — Built data-driven territory models that improved coverage, pipeline quality, and account prioritization.",
+    "Clinical Solution Selling — Partnered with physicians and hospital stakeholders to align product value with patient outcomes.",
+    "Contract Negotiation — Managed multi-million dollar agreements with IDNs, GPOs, and regional hospital systems.",
+    "Cross-Functional Leadership — Coordinated marketing, clinical affairs, and operations to support launches and adoption.",
   ],
 
-  projects: [],
+  projects: [
+    {
+      name: "Enterprise Transformation Program",
+      description:
+        "Led a multi-year operating model redesign for a Fortune 500 client, delivering €12M in annual savings.",
+      technologies: "Strategy, Change Management",
+      startDate: "2022",
+      endDate: "2023",
+    },
+    {
+      name: "Performance Analytics Platform",
+      description:
+        "Built executive dashboards and KPI frameworks that improved decision speed across regional leadership teams.",
+      technologies: "Analytics, Power BI",
+      startDate: "2020",
+      endDate: "2021",
+    },
+  ],
   certificates: [],
   achievements: [],
   languages: [

@@ -62,7 +62,7 @@ function getDifficultyStyles(difficulty: string) {
     case "hard":
       return "bg-rose-50 text-rose-700 border border-rose-100";
     default:
-      return "bg-slate-50 text-slate-700 border border-slate-100";
+      return "bg-muted/20 text-foreground border border-border";
   }
 }
 
@@ -80,7 +80,7 @@ function getValidationStyles(match: string | boolean) {
     case "below":
       return "bg-orange-50 text-orange-700 border border-orange-100";
     default:
-      return "bg-slate-50 text-slate-700 border border-slate-100";
+      return "bg-muted/20 text-foreground border border-border";
   }
 }
 

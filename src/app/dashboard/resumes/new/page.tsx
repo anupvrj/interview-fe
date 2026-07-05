@@ -718,7 +718,7 @@ export default function NewResumePage() {
                     className={cn(
                       "ml-2 rounded-full px-2 py-0.5 text-xs",
                       isActive
-                        ? "bg-white/20 text-white"
+                        ? "bg-card/20 text-white"
                         : "bg-muted text-muted-foreground",
                     )}
                   >

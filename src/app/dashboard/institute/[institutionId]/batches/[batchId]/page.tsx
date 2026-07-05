@@ -508,7 +508,7 @@ export default function BatchDetailPage() {
           asChild
           className={cn(
             instituteSecondaryClass,
-            "-ml-1 h-9 gap-2 rounded-full border-slate-200 px-4 shadow-sm transition-all hover:border-border/80"
+            "-ml-1 h-9 gap-2 rounded-full border-border px-4 shadow-sm transition-all hover:border-border/80"
           )}
         >
           <Link href={`/dashboard/institute/${institutionId}/batches`}>
@@ -545,7 +545,7 @@ export default function BatchDetailPage() {
         asChild
         className={cn(
           instituteSecondaryClass,
-          "-ml-1 h-9 gap-2 rounded-full border-slate-200 px-4 shadow-sm transition-all hover:border-border/80"
+          "-ml-1 h-9 gap-2 rounded-full border-border px-4 shadow-sm transition-all hover:border-border/80"
         )}
       >
         <Link href={`/dashboard/institute/${institutionId}/batches`}>
@@ -633,7 +633,7 @@ export default function BatchDetailPage() {
       </div>
 
       <Card className={cn(institutePanelClass, "overflow-hidden shadow-xl")}>
-        <CardHeader className="border-b border-border/60 bg-gradient-to-r from-muted/50 via-white to-indigo-50/30">
+        <CardHeader className="border-b border-border/60 bg-gradient-to-r from-muted/50 via-card to-indigo-50/30">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <CardTitle className="flex items-center gap-2 text-lg">
@@ -648,7 +648,7 @@ export default function BatchDetailPage() {
               </CardDescription>
             </div>
             {!runsLoading && scheduleRuns.length > 0 ? (
-              <span className="inline-flex w-fit items-center gap-1.5 rounded-full border border-border/80 bg-white/90 px-3 py-1 text-xs font-medium text-primary shadow-sm">
+              <span className="inline-flex w-fit items-center gap-1.5 rounded-full border border-border/80 bg-card/90 px-3 py-1 text-xs font-medium text-primary shadow-sm">
                 <Sparkles className="h-3.5 w-3.5" />
                 {scheduleRuns.length} round{scheduleRuns.length === 1 ? "" : "s"}
               </span>
@@ -667,7 +667,7 @@ export default function BatchDetailPage() {
                 title="No rounds yet"
                 description={
                   <>
-                    Use <span className="font-semibold text-slate-800">Schedule for batch</span> to
+                    Use <span className="font-semibold text-foreground">Schedule for batch</span> to
                     create the first interview round for everyone in this cohort.
                   </>
                 }
@@ -688,20 +688,20 @@ export default function BatchDetailPage() {
             <InstituteTableShell>
               <Table className="w-full min-w-[720px]">
                 <TableHeader>
-                  <TableRow className="border-b border-slate-200/80 bg-slate-50/90 hover:bg-slate-50/90">
-                    <TableHead className="pl-6 align-middle font-semibold text-slate-700">
+                  <TableRow className="border-b border-border/80 bg-muted/30 hover:bg-muted/30">
+                    <TableHead className="pl-6 align-middle font-semibold text-foreground">
                       Role
                     </TableHead>
-                    <TableHead className="hidden align-middle font-semibold text-slate-700 sm:table-cell">
+                    <TableHead className="hidden align-middle font-semibold text-foreground sm:table-cell">
                       Scheduled for
                     </TableHead>
-                    <TableHead className="align-middle font-semibold text-slate-700">
+                    <TableHead className="align-middle font-semibold text-foreground">
                       Candidates
                     </TableHead>
-                    <TableHead className="hidden text-right align-middle font-semibold text-slate-700 md:table-cell">
+                    <TableHead className="hidden text-right align-middle font-semibold text-foreground md:table-cell">
                       Pass at
                     </TableHead>
-                    <TableHead className="w-[128px] min-w-[128px] pr-6 text-right align-middle font-semibold text-slate-700">
+                    <TableHead className="w-[128px] min-w-[128px] pr-6 text-right align-middle font-semibold text-foreground">
                       Open
                     </TableHead>
                   </TableRow>
@@ -710,18 +710,18 @@ export default function BatchDetailPage() {
                   {scheduleRuns.map((run) => (
                     <TableRow
                       key={run.runId}
-                      className="group cursor-pointer border-slate-100 align-middle transition-colors hover:bg-gradient-to-r hover:bg-muted/50 hover:to-transparent"
+                      className="group cursor-pointer border-border align-middle transition-colors hover:bg-gradient-to-r hover:bg-muted/50 hover:to-transparent"
                       onClick={() => router.push(runDetailHref(run.runId))}
                     >
                       <TableCell className="pl-6 align-middle">
-                        <span className="font-semibold text-slate-900">{run.role}</span>
+                        <span className="font-semibold text-foreground">{run.role}</span>
                       </TableCell>
-                      <TableCell className="hidden align-middle text-sm text-slate-600 sm:table-cell whitespace-nowrap">
+                      <TableCell className="hidden align-middle text-sm text-muted-foreground sm:table-cell whitespace-nowrap">
                         {new Date(run.scheduledAt).toLocaleString()}
                       </TableCell>
                       <TableCell className="align-middle">
-                        <span className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50/90 px-2.5 py-1 text-sm font-semibold tabular-nums text-slate-800">
-                          <Users className="h-3.5 w-3.5 text-slate-500" />
+                        <span className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-muted/30 px-2.5 py-1 text-sm font-semibold tabular-nums text-foreground">
+                          <Users className="h-3.5 w-3.5 text-muted-foreground" />
                           {run.candidateCount}
                         </span>
                       </TableCell>
@@ -757,7 +757,7 @@ export default function BatchDetailPage() {
       </Card>
 
       <Card className={cn(institutePanelClass, "overflow-hidden shadow-xl")}>
-        <CardHeader className="border-b border-border/60 bg-gradient-to-r from-muted/50 via-white to-indigo-50/30">
+        <CardHeader className="border-b border-border/60 bg-gradient-to-r from-muted/50 via-card to-indigo-50/30">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <CardTitle className="flex items-center gap-2 text-lg">
@@ -767,10 +767,10 @@ export default function BatchDetailPage() {
                 Performance &amp; leaderboard
               </CardTitle>
               <CardDescription className="mt-1.5 max-w-3xl">
-                Scores reflect <span className="font-medium text-slate-700">bulk-scheduled</span>{" "}
+                Scores reflect <span className="font-medium text-foreground">bulk-scheduled</span>{" "}
                 interviews for this batch. At interview start we use each candidate&apos;s{" "}
-                <span className="font-medium text-slate-700">resume</span> and{" "}
-                <span className="font-medium text-slate-700">profile experience</span>. Rankings
+                <span className="font-medium text-foreground">resume</span> and{" "}
+                <span className="font-medium text-foreground">profile experience</span>. Rankings
                 update when reports are ready.
               </CardDescription>
             </div>
@@ -801,12 +801,12 @@ export default function BatchDetailPage() {
                   <p className="text-xs font-semibold uppercase tracking-wide text-primary">
                     Average score
                   </p>
-                  <p className="mt-1 text-2xl font-bold tabular-nums text-slate-900">
+                  <p className="mt-1 text-2xl font-bold tabular-nums text-foreground">
                     {performance.averageScore != null
                       ? performance.averageScore.toFixed(1)
                       : "—"}
                     {performance.averageScore != null ? (
-                      <span className="text-base font-semibold text-slate-500"> /100</span>
+                      <span className="text-base font-semibold text-muted-foreground"> /100</span>
                     ) : null}
                   </p>
                 </div>
@@ -814,36 +814,36 @@ export default function BatchDetailPage() {
                   <p className="text-xs font-semibold uppercase tracking-wide text-primary">
                     Highest score
                   </p>
-                  <p className="mt-1 text-2xl font-bold tabular-nums text-slate-900">
+                  <p className="mt-1 text-2xl font-bold tabular-nums text-foreground">
                     {performance.highestScore != null ? performance.highestScore : "—"}
                     {performance.highestScore != null ? (
-                      <span className="text-base font-semibold text-slate-500"> /100</span>
+                      <span className="text-base font-semibold text-muted-foreground"> /100</span>
                     ) : null}
                   </p>
                 </div>
-                <div className="rounded-xl border border-slate-200/90 bg-gradient-to-br from-slate-50/90 to-white p-4 shadow-sm transition hover:border-slate-300/60 hover:shadow-md">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                <div className="rounded-xl border border-border/90 bg-gradient-to-br from-slate-50/90 to-card p-4 shadow-sm transition hover:border-slate-300/60 hover:shadow-md">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                     Reports ready
                   </p>
-                  <p className="mt-1 text-2xl font-bold tabular-nums text-slate-900">
+                  <p className="mt-1 text-2xl font-bold tabular-nums text-foreground">
                     {performance.reportsCompleted}
                   </p>
-                  <p className="text-xs text-slate-500">of {performance.interviewsStarted} started</p>
+                  <p className="text-xs text-muted-foreground">of {performance.interviewsStarted} started</p>
                 </div>
-                <div className="rounded-xl border border-slate-200/90 bg-gradient-to-br from-slate-50/90 to-white p-4 shadow-sm transition hover:border-slate-300/60 hover:shadow-md">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                <div className="rounded-xl border border-border/90 bg-gradient-to-br from-slate-50/90 to-card p-4 shadow-sm transition hover:border-slate-300/60 hover:shadow-md">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                     Awaiting report
                   </p>
-                  <p className="mt-1 text-2xl font-bold tabular-nums text-slate-900">
+                  <p className="mt-1 text-2xl font-bold tabular-nums text-foreground">
                     {performance.inProgress.length}
                   </p>
-                  <p className="text-xs text-slate-500">started, not ready yet</p>
+                  <p className="text-xs text-muted-foreground">started, not ready yet</p>
                 </div>
               </div>
 
               {performance.gradedWithThreshold > 0 ? (
                 <div className="grid gap-3 sm:grid-cols-2">
-                  <div className="rounded-xl border border-emerald-200/80 bg-gradient-to-br from-emerald-50/90 to-white p-4 shadow-sm transition hover:shadow-md">
+                  <div className="rounded-xl border border-emerald-200/80 bg-gradient-to-br from-emerald-50/90 to-card p-4 shadow-sm transition hover:shadow-md">
                     <p className="text-xs font-semibold uppercase tracking-wide text-emerald-800">
                       Passed (threshold)
                     </p>
@@ -854,7 +854,7 @@ export default function BatchDetailPage() {
                       of {performance.gradedWithThreshold} graded with pass line
                     </p>
                   </div>
-                  <div className="rounded-xl border border-rose-200/80 bg-gradient-to-br from-rose-50/90 to-white p-4 shadow-sm transition hover:shadow-md">
+                  <div className="rounded-xl border border-rose-200/80 bg-gradient-to-br from-rose-50/90 to-card p-4 shadow-sm transition hover:shadow-md">
                     <p className="text-xs font-semibold uppercase tracking-wide text-rose-800">
                       Did not pass
                     </p>
@@ -870,21 +870,21 @@ export default function BatchDetailPage() {
 
               {performance.topPerformers.length > 0 ? (
                 <div className="space-y-3">
-                  <h3 className="flex items-center gap-2 text-sm font-bold text-slate-900">
+                  <h3 className="flex items-center gap-2 text-sm font-bold text-foreground">
                     <Trophy className="h-4 w-4 text-amber-600" />
                     Top performers
                   </h3>
                   <InstituteTableShell className="rounded-lg">
                     <Table className="w-full min-w-[640px]">
                       <TableHeader>
-                        <TableRow className="border-b border-slate-200/80 bg-slate-50/90 hover:bg-slate-50/90">
-                          <TableHead className="w-14 pl-4 font-semibold text-slate-700">#</TableHead>
-                          <TableHead className="font-semibold text-slate-700">Candidate</TableHead>
-                          <TableHead className="text-right font-semibold text-slate-700">Score</TableHead>
-                          <TableHead className="hidden font-semibold text-slate-700 sm:table-cell">
+                        <TableRow className="border-b border-border/80 bg-muted/30 hover:bg-muted/30">
+                          <TableHead className="w-14 pl-4 font-semibold text-foreground">#</TableHead>
+                          <TableHead className="font-semibold text-foreground">Candidate</TableHead>
+                          <TableHead className="text-right font-semibold text-foreground">Score</TableHead>
+                          <TableHead className="hidden font-semibold text-foreground sm:table-cell">
                             Scheduled
                           </TableHead>
-                          <TableHead className="w-[100px] min-w-[100px] pr-4 text-right font-semibold text-slate-700">
+                          <TableHead className="w-[100px] min-w-[100px] pr-4 text-right font-semibold text-foreground">
                             Report
                           </TableHead>
                         </TableRow>
@@ -893,10 +893,10 @@ export default function BatchDetailPage() {
                         {performance.topPerformers.map((row) => (
                           <TableRow
                             key={`${row.interviewId}-${row.rank}`}
-                            className="group border-slate-100 transition-colors hover:bg-gradient-to-r hover:from-muted/40 hover:to-transparent"
+                            className="group border-border transition-colors hover:bg-gradient-to-r hover:from-muted/40 hover:to-transparent"
                           >
                             <TableCell className="pl-4 align-middle">
-                              <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-sm font-bold text-slate-600">
+                              <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-sm font-bold text-muted-foreground">
                                 {row.rank}
                               </span>
                             </TableCell>
@@ -912,11 +912,11 @@ export default function BatchDetailPage() {
                                   )}
                                 </div>
                                 <div className="min-w-0">
-                                  <div className="truncate font-semibold text-slate-900">
+                                  <div className="truncate font-semibold text-foreground">
                                     {row.name || row.email || row.clerkId}
                                   </div>
                                   {row.name && row.email ? (
-                                    <div className="truncate text-xs text-slate-500">{row.email}</div>
+                                    <div className="truncate text-xs text-muted-foreground">{row.email}</div>
                                   ) : null}
                                 </div>
                               </div>
@@ -926,7 +926,7 @@ export default function BatchDetailPage() {
                                 {row.overallScore}
                               </span>
                             </TableCell>
-                            <TableCell className="hidden align-middle text-sm text-slate-600 sm:table-cell whitespace-nowrap">
+                            <TableCell className="hidden align-middle text-sm text-muted-foreground sm:table-cell whitespace-nowrap">
                               {new Date(row.scheduledAt).toLocaleString()}
                             </TableCell>
                             <TableCell className="pr-4 text-right align-middle">
@@ -951,12 +951,12 @@ export default function BatchDetailPage() {
                   </InstituteTableShell>
                 </div>
               ) : performance.schedulesWithBatchTag > 0 && performance.interviewsStarted === 0 ? (
-                <p className="rounded-lg border border-slate-200/80 bg-slate-50/50 px-4 py-3 text-sm text-slate-600">
+                <p className="rounded-lg border border-border/80 bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
                   Interviews are scheduled — candidates have not started yet. Scores appear after they
                   finish and the report is generated.
                 </p>
               ) : performance.interviewsStarted > 0 && performance.reportsCompleted === 0 ? (
-                <p className="rounded-lg border border-slate-200/80 bg-slate-50/50 px-4 py-3 text-sm text-slate-600">
+                <p className="rounded-lg border border-border/80 bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
                   {performance.inProgress.length} interview
                   {performance.inProgress.length === 1 ? " has" : "s have"} started; overall scores
                   appear when processing finishes.
@@ -964,7 +964,7 @@ export default function BatchDetailPage() {
               ) : null}
             </div>
           ) : (
-            <div className="px-6 py-10 text-center text-sm text-slate-500">
+            <div className="px-6 py-10 text-center text-sm text-muted-foreground">
               Could not load performance data.
             </div>
           )}
@@ -980,14 +980,14 @@ export default function BatchDetailPage() {
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-6 py-2 sm:grid-cols-2">
-            <div className="rounded-xl border border-slate-200/80 bg-slate-50/40 p-4">
-              <h4 className="text-sm font-bold text-slate-900">Add by email</h4>
-              <p className="mt-1 text-xs text-slate-500">
+            <div className="rounded-xl border border-border/80 bg-muted/20/40 p-4">
+              <h4 className="text-sm font-bold text-foreground">Add by email</h4>
+              <p className="mt-1 text-xs text-muted-foreground">
                 Paste one or many emails (comma, space, or newline). Only users already in your
                 institution are added.
               </p>
               <textarea
-                className="mt-2 min-h-[88px] w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+                className="mt-2 min-h-[88px] w-full rounded-lg border border-border bg-card px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
                 placeholder="a@x.com, b@y.com"
                 value={emailInput}
                 onChange={(e) => setEmailInput(e.target.value)}
@@ -1005,15 +1005,15 @@ export default function BatchDetailPage() {
                 Add to batch
               </Button>
             </div>
-            <div className="rounded-xl border border-slate-200/80 bg-slate-50/40 p-4 sm:border-l-0">
-              <h4 className="text-sm font-bold text-slate-900">Import CSV</h4>
-              <p className="mt-1 text-xs text-slate-500">
+            <div className="rounded-xl border border-border/80 bg-muted/20/40 p-4 sm:border-l-0">
+              <h4 className="text-sm font-bold text-foreground">Import CSV</h4>
+              <p className="mt-1 text-xs text-muted-foreground">
                 Any column with email addresses works — we extract all addresses from the file.
               </p>
-              <label className="mt-2 flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-border/60 bg-white px-4 py-8 transition hover:border-border hover:bg-muted/30">
+              <label className="mt-2 flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-border/60 bg-card px-4 py-8 transition hover:border-border hover:bg-muted/30">
                 <Upload className="mb-2 h-8 w-8 text-primary/70" />
-                <span className="text-sm font-semibold text-slate-800">Choose CSV file</span>
-                <span className="mt-1 text-xs text-slate-500">Drop or click to upload</span>
+                <span className="text-sm font-semibold text-foreground">Choose CSV file</span>
+                <span className="mt-1 text-xs text-muted-foreground">Drop or click to upload</span>
                 <input
                   type="file"
                   accept=".csv,text/csv,text/plain"
@@ -1023,16 +1023,16 @@ export default function BatchDetailPage() {
               </label>
             </div>
             <div className="sm:col-span-2">
-              <div className="rounded-xl border border-border bg-gradient-to-br from-muted/50 to-white p-4">
-                <h4 className="flex items-center gap-2 text-sm font-bold text-slate-900">
+              <div className="rounded-xl border border-border bg-gradient-to-br from-muted/40 to-card p-4">
+                <h4 className="flex items-center gap-2 text-sm font-bold text-foreground">
                   <Search className="h-4 w-4 text-primary" />
                   Search candidates
                 </h4>
-                <p className="mt-1 text-xs text-slate-500">
+                <p className="mt-1 text-xs text-muted-foreground">
                   Find users in your institution by name or email and add them to this batch
                 </p>
                 <Input
-                  className="mt-2 h-11 border-slate-200 shadow-sm"
+                  className="mt-2 h-11 border-border shadow-sm"
                   placeholder="Search by name or email…"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
@@ -1049,8 +1049,8 @@ export default function BatchDetailPage() {
                         className="flex items-center justify-between gap-2 rounded-lg px-2 py-2 text-sm transition hover:bg-muted/60"
                       >
                         <span className="min-w-0">
-                          <span className="font-semibold text-slate-900">{u.name}</span>
-                          <span className="text-slate-500"> · {u.email}</span>
+                          <span className="font-semibold text-foreground">{u.name}</span>
+                          <span className="text-muted-foreground"> · {u.email}</span>
                         </span>
                         <Button
                           size="sm"
@@ -1063,7 +1063,7 @@ export default function BatchDetailPage() {
                     ))}
                   </ul>
                 ) : search.trim() ? (
-                  <p className="mt-3 text-sm text-slate-500">No matches (or already in batch)</p>
+                  <p className="mt-3 text-sm text-muted-foreground">No matches (or already in batch)</p>
                 ) : null}
               </div>
             </div>
@@ -1102,7 +1102,7 @@ export default function BatchDetailPage() {
                 id="dlg-bn"
                 value={editName}
                 onChange={(e) => setEditName(e.target.value)}
-                className="mt-1 h-11 border-slate-200 shadow-sm"
+                className="mt-1 h-11 border-border shadow-sm"
                 placeholder="Batch name"
               />
             </div>
@@ -1133,7 +1133,7 @@ export default function BatchDetailPage() {
       </Dialog>
 
       <Card className={cn(institutePanelClass, "overflow-hidden shadow-xl")}>
-        <CardHeader className="border-b border-border/60 bg-gradient-to-r from-muted/50 via-white to-indigo-50/30">
+        <CardHeader className="border-b border-border/60 bg-gradient-to-r from-muted/50 via-card to-indigo-50/30">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <CardTitle className="flex items-center gap-2 text-lg">
@@ -1143,7 +1143,7 @@ export default function BatchDetailPage() {
                 Members
               </CardTitle>
               <CardDescription className="mt-1.5">
-                <span className="font-semibold text-slate-800">{members.length}</span>{" "}
+                <span className="font-semibold text-foreground">{members.length}</span>{" "}
                 {members.length === 1 ? "person" : "people"} in this cohort — open reports or remove
                 from the batch.
               </CardDescription>
@@ -1184,14 +1184,14 @@ export default function BatchDetailPage() {
             <InstituteTableShell>
               <Table className="w-full min-w-[560px]">
                 <TableHeader>
-                  <TableRow className="border-b border-slate-200/80 bg-slate-50/90 hover:bg-slate-50/90">
-                    <TableHead className="pl-6 align-middle font-semibold text-slate-700">
+                  <TableRow className="border-b border-border/80 bg-muted/30 hover:bg-muted/30">
+                    <TableHead className="pl-6 align-middle font-semibold text-foreground">
                       Candidate
                     </TableHead>
-                    <TableHead className="w-[120px] min-w-[120px] text-right align-middle font-semibold text-slate-700">
+                    <TableHead className="w-[120px] min-w-[120px] text-right align-middle font-semibold text-foreground">
                       Reports
                     </TableHead>
-                    <TableHead className="w-[100px] min-w-[100px] pr-6 text-right align-middle font-semibold text-slate-700">
+                    <TableHead className="w-[100px] min-w-[100px] pr-6 text-right align-middle font-semibold text-foreground">
                       Remove
                     </TableHead>
                   </TableRow>
@@ -1200,7 +1200,7 @@ export default function BatchDetailPage() {
                   {members.map((m) => (
                     <TableRow
                       key={m.clerkId}
-                      className="group border-slate-100 align-middle transition-colors hover:bg-gradient-to-r hover:bg-muted/50 hover:to-transparent"
+                      className="group border-border align-middle transition-colors hover:bg-gradient-to-r hover:bg-muted/50 hover:to-transparent"
                     >
                       <TableCell className="pl-6 align-middle">
                         <div className="flex items-center gap-3 py-0.5">
@@ -1211,8 +1211,8 @@ export default function BatchDetailPage() {
                             {memberInitials(m.name, m.email)}
                           </div>
                           <div className="min-w-0">
-                            <div className="truncate font-semibold text-slate-900">{m.name}</div>
-                            <div className="truncate text-xs text-slate-500">{m.email}</div>
+                            <div className="truncate font-semibold text-foreground">{m.name}</div>
+                            <div className="truncate text-xs text-muted-foreground">{m.email}</div>
                           </div>
                         </div>
                       </TableCell>
@@ -1304,7 +1304,7 @@ export default function BatchDetailPage() {
             <div className="min-w-0">
               <Label>Language</Label>
               <select
-                className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="app-control mt-1 w-full bg-card"
                 value={schLang}
                 onChange={(e) => setSchLang(e.target.value as "en" | "hi")}
               >
@@ -1315,7 +1315,7 @@ export default function BatchDetailPage() {
             <div className="min-w-0">
               <Label>Duration</Label>
               <select
-                className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="app-control mt-1 w-full bg-card"
                 value={schDur}
                 onChange={(e) => setSchDur(e.target.value as "15" | "30")}
               >
@@ -1357,7 +1357,7 @@ export default function BatchDetailPage() {
                 disabled={bulkSubmitting}
                 maxLength={MAX_JOB_DESCRIPTION_CHARS}
               />
-              <p className="mt-1 text-xs text-slate-500">
+              <p className="mt-1 text-xs text-muted-foreground">
                 Stored on each schedule and passed into the interview context (max{" "}
                 {MAX_JOB_DESCRIPTION_CHARS.toLocaleString()} characters).
               </p>

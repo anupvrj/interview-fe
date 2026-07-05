@@ -122,10 +122,10 @@ export function ATSScoreSidebar({
                     typeof displayScore === "string" && displayScore === "??"
                       ? "bg-muted text-muted-foreground"
                       : cat.score >= 80
-                        ? "bg-green-100 text-green-700"
+                        ? "bg-green-100 text-green-700 dark:bg-green-950/40 dark:text-green-300"
                         : cat.score >= 60
-                          ? "bg-amber-100 text-amber-700"
-                          : "bg-red-100 text-red-700",
+                          ? "bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300"
+                          : "bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-[#fd7070]",
                   )}
                 >
                   {displayScore}

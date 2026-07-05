@@ -3,8 +3,10 @@
 import { useEffect, useId, useRef, useState } from "react";
 import Link from "next/link";
 import { useClerk, useUser } from "@clerk/nextjs";
-import { LayoutDashboard, LogOut, UserRound } from "lucide-react";
+import { Check, LayoutDashboard, LogOut, UserRound } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useActiveRole } from "@/components/roles/ActiveRoleProvider";
+import { ROLE_META } from "@/lib/roles";
 
 const menuItemClass =
   "flex w-full items-center gap-3 rounded-[0.625rem] px-3 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-muted/50";
@@ -34,8 +36,12 @@ export function ProfileMenu({
   const rootRef = useRef<HTMLDivElement>(null);
   const { user, isLoaded } = useUser();
   const { signOut } = useClerk();
+  const roleCtx = useActiveRole();
   const [open, setOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
+
+  const canSwitchRole =
+    Boolean(roleCtx?.activeRole) && (roleCtx?.availableRoles.length ?? 0) > 1;
 
   const displayName =
     user?.fullName?.trim() ||
@@ -165,6 +171,43 @@ export function ProfileMenu({
                 My Profile
               </Link>
             </div>
+
+            {canSwitchRole && roleCtx ? (
+              <div className="border-t border-border p-2">
+                <p className="px-3 pb-1 pt-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Continue as
+                </p>
+                {roleCtx.availableRoles.map((role) => {
+                  const meta = ROLE_META[role];
+                  const RoleIcon = meta.icon;
+                  const isActiveRole = role === roleCtx.activeRole;
+                  return (
+                    <button
+                      key={role}
+                      type="button"
+                      role="menuitemradio"
+                      aria-checked={isActiveRole}
+                      onClick={() => {
+                        setOpen(false);
+                        if (!isActiveRole) roleCtx.setActiveRole(role);
+                      }}
+                      className={cn(
+                        menuItemClass,
+                        isActiveRole && "bg-muted/40",
+                      )}
+                    >
+                      <RoleIcon className="h-4 w-4 shrink-0 text-[#7367F0]" />
+                      <span className="min-w-0 flex-1 truncate text-left">
+                        {meta.label}
+                      </span>
+                      {isActiveRole ? (
+                        <Check className="h-4 w-4 shrink-0 text-[#7367F0]" />
+                      ) : null}
+                    </button>
+                  );
+                })}
+              </div>
+            ) : null}
 
             <div className="border-t border-border p-2">
               <button

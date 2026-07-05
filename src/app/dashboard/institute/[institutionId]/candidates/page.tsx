@@ -421,17 +421,17 @@ export default function InstituteCandidatesPage() {
               <p className="text-xs font-bold uppercase tracking-wide text-primary">
                 Candidate directory
               </p>
-              <p className="mt-2 text-sm leading-relaxed text-slate-600 sm:text-base">
-                Invite people, assign <span className="font-semibold text-slate-800">plans</span> and{" "}
-                <span className="font-semibold text-slate-800">credits</span>, open{" "}
-                <span className="font-semibold text-slate-800">reports</span>, and schedule interviews
+              <p className="mt-2 text-sm leading-relaxed text-muted-foreground sm:text-base">
+                Invite people, assign <span className="font-semibold text-foreground">plans</span> and{" "}
+                <span className="font-semibold text-foreground">credits</span>, open{" "}
+                <span className="font-semibold text-foreground">reports</span>, and schedule interviews
                 — all in one place.
               </p>
             </div>
             {!loading ? (
-              <p className="text-2xl font-bold tabular-nums tracking-tight text-slate-900 sm:text-3xl">
+              <p className="text-2xl font-bold tabular-nums tracking-tight text-foreground sm:text-3xl">
                 {total.toLocaleString()}{" "}
-                <span className="text-base font-semibold text-slate-600 sm:text-lg">
+                <span className="text-base font-semibold text-muted-foreground sm:text-lg">
                   {total === 1 ? "member" : "members"}
                 </span>
               </p>
@@ -442,18 +442,18 @@ export default function InstituteCandidatesPage() {
           <div className="w-full shrink-0 lg:max-w-sm">
             <Label
               htmlFor="cand-search"
-              className="text-xs font-bold uppercase tracking-wide text-slate-500"
+              className="text-xs font-bold uppercase tracking-wide text-muted-foreground"
             >
               Search
             </Label>
             <div className="relative mt-2">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 id="cand-search"
                 placeholder="Name or email…"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="h-11 border-slate-200 bg-white pl-10 shadow-sm transition-shadow focus-visible:ring-2 focus-visible:ring-primary/25"
+                className="h-11 border-border bg-card pl-10 shadow-sm transition-shadow focus-visible:ring-2 focus-visible:ring-primary/25"
               />
             </div>
           </div>
@@ -461,7 +461,7 @@ export default function InstituteCandidatesPage() {
       </section>
 
       <Card className={cn(institutePanelClass, "overflow-hidden shadow-xl")}>
-        <CardHeader className="border-b border-border/60 bg-gradient-to-r from-muted/50 via-white to-indigo-50/30">
+        <CardHeader className="border-b border-border/60 bg-gradient-to-r from-muted/50 via-card to-indigo-50/30">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div className="flex gap-4">
               <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary shadow-md shadow-primary/25 ring-2 ring-border/40">
@@ -473,10 +473,10 @@ export default function InstituteCandidatesPage() {
                   {!loading && total > 0 ? (
                     <span>
                       Showing{" "}
-                      <span className="font-semibold text-slate-800">
+                      <span className="font-semibold text-foreground">
                         {rangeStart}–{rangeEnd}
                       </span>{" "}
-                      of <span className="font-semibold text-slate-800">{total}</span>
+                      of <span className="font-semibold text-foreground">{total}</span>
                     </span>
                   ) : (
                     "Everyone enrolled under your institution"
@@ -485,7 +485,7 @@ export default function InstituteCandidatesPage() {
               </div>
             </div>
             {!loading && total > 0 ? (
-              <span className="inline-flex w-fit shrink-0 items-center gap-1.5 self-start rounded-full border border-border/80 bg-white/90 px-3 py-1.5 text-xs font-medium text-primary shadow-sm sm:mt-1">
+              <span className="inline-flex w-fit shrink-0 items-center gap-1.5 self-start rounded-full border border-border/80 bg-card/90 px-3 py-1.5 text-xs font-medium text-primary shadow-sm sm:mt-1">
                 <Sparkles className="h-3.5 w-3.5" />
                 Live directory
               </span>
@@ -529,14 +529,14 @@ export default function InstituteCandidatesPage() {
               <InstituteTableShell>
                 <Table className="w-full min-w-[860px]">
                   <TableHeader>
-                    <TableRow className="border-b border-slate-200/80 bg-slate-50/90 hover:bg-slate-50/90">
-                      <TableHead className="pl-6 text-left align-middle font-semibold text-slate-700">
+                    <TableRow className="border-b border-border/80 bg-muted/30 hover:bg-muted/30">
+                      <TableHead className="pl-6 text-left align-middle font-semibold text-foreground">
                         Candidate
                       </TableHead>
-                      <TableHead className="align-middle font-semibold text-slate-700">Plan</TableHead>
-                      <TableHead className="align-middle font-semibold text-slate-700">Credits</TableHead>
-                      <TableHead className="align-middle font-semibold text-slate-700">Joined</TableHead>
-                      <TableHead className="w-[272px] min-w-[272px] pr-6 text-right align-middle font-semibold text-slate-700">
+                      <TableHead className="align-middle font-semibold text-foreground">Plan</TableHead>
+                      <TableHead className="align-middle font-semibold text-foreground">Credits</TableHead>
+                      <TableHead className="align-middle font-semibold text-foreground">Joined</TableHead>
+                      <TableHead className="w-[272px] min-w-[272px] pr-6 text-right align-middle font-semibold text-foreground">
                         Actions
                       </TableHead>
                     </TableRow>
@@ -548,7 +548,7 @@ export default function InstituteCandidatesPage() {
                       return (
                         <TableRow
                           key={u._id}
-                          className="group border-slate-100 align-middle transition-colors hover:bg-gradient-to-r hover:bg-muted/50 hover:to-transparent"
+                          className="group border-border align-middle transition-colors hover:bg-gradient-to-r hover:bg-muted/50 hover:to-transparent"
                         >
                           <TableCell className="pl-6 align-middle">
                             <div className="flex items-center gap-3 py-2">
@@ -559,10 +559,10 @@ export default function InstituteCandidatesPage() {
                                 {candidateInitials(u.name, u.email)}
                               </div>
                               <div className="min-w-0">
-                                <p className="truncate font-semibold text-slate-900">
+                                <p className="truncate font-semibold text-foreground">
                                   {u.name?.trim() || "—"}
                                 </p>
-                                <p className="truncate text-sm text-slate-500">{u.email}</p>
+                                <p className="truncate text-sm text-muted-foreground">{u.email}</p>
                               </div>
                             </div>
                           </TableCell>
@@ -573,18 +573,18 @@ export default function InstituteCandidatesPage() {
                                 apiPlan === "enterprise" &&
                                   "border-amber-200 bg-amber-50 text-amber-900",
                                 apiPlan === "premium" && "border-purple-200 bg-purple-50 text-purple-900",
-                                apiPlan === "free" && "border-slate-200 bg-slate-50 text-slate-700",
+                                apiPlan === "free" && "border-border bg-muted/20 text-foreground",
                               )}
                             >
                               {planBadgeLabel(apiPlan)}
                             </span>
                           </TableCell>
                           <TableCell className="align-middle">
-                            <span className="inline-flex min-w-[2.5rem] items-center justify-center rounded-lg bg-slate-100/90 px-2 py-1 text-sm font-semibold tabular-nums text-slate-900">
+                            <span className="inline-flex min-w-[2.5rem] items-center justify-center rounded-lg bg-slate-100/90 px-2 py-1 text-sm font-semibold tabular-nums text-foreground">
                               {u.credits?.total ?? 0}
                             </span>
                           </TableCell>
-                          <TableCell className="align-middle text-sm text-slate-600 whitespace-nowrap">
+                          <TableCell className="align-middle text-sm text-muted-foreground whitespace-nowrap">
                             {formatDate(u.createdAt)}
                           </TableCell>
                           <TableCell className="w-[272px] min-w-[272px] pr-6 align-middle">
@@ -627,7 +627,7 @@ export default function InstituteCandidatesPage() {
                                 <Coins className="h-3.5 w-3.5" />
                               </Button>
                               <select
-                                className="h-8 w-[104px] shrink-0 cursor-pointer rounded-lg border border-slate-200 bg-white px-2 text-xs font-medium text-slate-800 shadow-sm outline-none transition hover:border-slate-300 focus:ring-2 focus:ring-primary/20"
+                                className="app-control h-8 w-[104px] shrink-0 cursor-pointer px-2 text-xs font-medium shadow-sm"
                                 value={uiPlanValue}
                                 onChange={(e) =>
                                   handleUpdatePlan(
@@ -662,9 +662,9 @@ export default function InstituteCandidatesPage() {
               </InstituteTableShell>
 
               {total > limit && (
-                <div className="flex flex-col items-center justify-between gap-3 border-t border-slate-200/80 bg-gradient-to-r from-slate-50/60 to-white px-4 py-4 sm:flex-row sm:px-6">
-                  <p className="text-sm text-slate-600">
-                    Page <span className="font-semibold text-slate-900">{page + 1}</span> ·{" "}
+                <div className="flex flex-col items-center justify-between gap-3 border-t border-border/80 bg-gradient-to-r from-slate-50/60 to-card px-4 py-4 sm:flex-row sm:px-6">
+                  <p className="text-sm text-muted-foreground">
+                    Page <span className="font-semibold text-foreground">{page + 1}</span> ·{" "}
                     {rangeStart}–{rangeEnd} of {total}
                   </p>
                   <div className="flex items-center gap-2">
@@ -731,7 +731,7 @@ export default function InstituteCandidatesPage() {
                 onChange={(e) => setScheduleExpiresAt(e.target.value)}
                 className="mt-1"
               />
-              <p className="mt-1 text-xs text-slate-500">
+              <p className="mt-1 text-xs text-muted-foreground">
                 Latest time the candidate can start. Must be on or after 24 hours before the
                 scheduled time above. Clear to allow starting anytime after the window opens
                 (no upper limit).
@@ -762,7 +762,7 @@ export default function InstituteCandidatesPage() {
               <Label htmlFor="sch-lang">Language</Label>
               <select
                 id="sch-lang"
-                className="mt-1 w-full rounded-md border px-3 py-2"
+                className="app-control mt-1 w-full bg-card"
                 value={scheduleLang}
                 onChange={(e) => setScheduleLang(e.target.value as "en" | "hi")}
               >
@@ -790,7 +790,7 @@ export default function InstituteCandidatesPage() {
                 disabled={scheduleSubmitting}
                 maxLength={MAX_JOB_DESCRIPTION_CHARS}
               />
-              <p className="mt-1 text-xs text-slate-500">
+              <p className="mt-1 text-xs text-muted-foreground">
                 Stored on this schedule and passed into the interview context (max{" "}
                 {MAX_JOB_DESCRIPTION_CHARS.toLocaleString()} characters).
               </p>
@@ -799,7 +799,7 @@ export default function InstituteCandidatesPage() {
               <Label htmlFor="sch-dur">Duration</Label>
               <select
                 id="sch-dur"
-                className="mt-1 w-full rounded-md border px-3 py-2"
+                className="app-control mt-1 w-full bg-card"
                 value={scheduleDuration}
                 onChange={(e) => setScheduleDuration(e.target.value as "15" | "30")}
               >
@@ -873,7 +873,7 @@ export default function InstituteCandidatesPage() {
               {creditsUser ? (
                 <>
                   {creditsUser.name ?? creditsUser.email} — current balance:{" "}
-                  <span className="font-semibold text-slate-900">
+                  <span className="font-semibold text-foreground">
                     {creditsUser.credits?.total ?? 0}
                   </span>
                 </>
@@ -885,7 +885,7 @@ export default function InstituteCandidatesPage() {
               <Label htmlFor="credits-mode">Action</Label>
               <select
                 id="credits-mode"
-                className="mt-2 w-full rounded-md border px-3 py-2"
+                className="app-control mt-2 w-full bg-card"
                 value={creditsMode}
                 onChange={(e) => {
                   setCreditsMode(e.target.value as "add" | "set");
@@ -911,7 +911,7 @@ export default function InstituteCandidatesPage() {
                 className="mt-2"
               />
               {creditsMode === "set" && creditsUser != null && (
-                <p className="mt-2 text-xs text-slate-500">
+                <p className="mt-2 text-xs text-muted-foreground">
                   Change from current ({creditsUser.credits?.total ?? 0}) to the value above.
                   Reducing balance is allowed if it does not go below zero.
                 </p>
@@ -961,14 +961,14 @@ export default function InstituteCandidatesPage() {
                 value={addEmail}
                 onChange={(e) => setAddEmail(e.target.value)}
                 placeholder="user@example.com"
-                className="mt-1 h-11 border-slate-200 shadow-sm"
+                className="mt-1 h-11 border-border shadow-sm"
               />
             </div>
             <div>
               <Label htmlFor="plan">Plan</Label>
               <select
                 id="plan"
-                className="mt-1 h-11 w-full rounded-md border border-slate-200 bg-background px-3 text-sm shadow-sm"
+                className="app-control mt-1 h-11 w-full bg-card"
                 value={addPlan}
                 onChange={(e) =>
                   setAddPlan(e.target.value as InstitutionUiPlan)

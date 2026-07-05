@@ -127,7 +127,7 @@ function ChatBubble({ msg }: { msg: SystemDesignChatMessage }) {
       <div
         className={cn(
           "flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold",
-          isUser ? "bg-violet-600/80 text-white" : "bg-white/10 text-gray-300",
+          isUser ? "bg-violet-600/80 text-white" : "bg-card/10 text-gray-300",
         )}
       >
         {isUser ? "You" : "AI"}
@@ -137,7 +137,7 @@ function ChatBubble({ msg }: { msg: SystemDesignChatMessage }) {
           "max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed",
           isUser
             ? "rounded-tr-none bg-violet-600/80 text-white"
-            : "rounded-tl-none bg-white/[0.08] text-gray-200",
+            : "rounded-tl-none bg-card/[0.08] text-gray-200",
         )}
       >
         {msg.content.split("\n").map((line, i) => {
@@ -612,7 +612,7 @@ export default function SystemDesignSessionPage() {
             </button>
           )}
           <span
-            className="hidden h-4 w-px shrink-0 bg-white/15 sm:block"
+            className="hidden h-4 w-px shrink-0 bg-card/15 sm:block"
             aria-hidden
           />
           <span className="min-w-0 truncate text-sm font-semibold tracking-tight text-white sm:text-sm">
@@ -693,7 +693,7 @@ export default function SystemDesignSessionPage() {
       {/* ─── Workspace ──────────────────────────────────────────── */}
       <div className="flex min-h-0 flex-1 overflow-hidden">
         {/* ── Left panel: camera + problem fill height; score when finalized ── */}
-        <aside className="flex min-h-0 w-[clamp(300px,min(420px,40vw),440px)] shrink-0 flex-col overflow-hidden border-r border-white/10 bg-white/[0.03]">
+        <aside className="flex min-h-0 w-[clamp(300px,min(420px,40vw),440px)] shrink-0 flex-col overflow-hidden border-r border-white/10 bg-card/[0.03]">
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
             {!finalized && !recordingStarted ? (
               <div className="shrink-0 space-y-2 border-b border-violet-500/35 bg-violet-950/35 px-3 py-3">
@@ -722,7 +722,7 @@ export default function SystemDesignSessionPage() {
             <div className="shrink-0 border-b border-white/10 px-2.5 py-1.5 sm:px-3">
               {/* Camera + AI Interviewer side by side */}
               <div className="flex flex-row items-stretch gap-2.5 sm:gap-3">
-                <section className="flex min-h-0 min-w-0 flex-1 flex-col rounded-xl border border-white/10 bg-white/[0.02] px-2 py-1.5 sm:px-2">
+                <section className="flex min-h-0 min-w-0 flex-1 flex-col rounded-xl border border-white/10 bg-card/[0.02] px-2 py-1.5 sm:px-2">
                   <h3 className="shrink-0 text-center text-[10px] font-semibold uppercase tracking-wider text-gray-300/90 sm:text-[11px]">
                     Your camera
                   </h3>
@@ -856,7 +856,7 @@ export default function SystemDesignSessionPage() {
             <div className="flex min-h-0 flex-1 flex-col overflow-hidden border-b border-white/10">
               <button
                 type="button"
-                className="flex w-full shrink-0 items-center justify-between px-4 py-2.5 text-left hover:bg-white/[0.03]"
+                className="flex w-full shrink-0 items-center justify-between px-4 py-2.5 text-left hover:bg-card/[0.03]"
                 onClick={() => setProblemOpen((o) => !o)}
               >
                 <span className="text-xs font-semibold uppercase tracking-wider text-gray-300/90">
@@ -869,7 +869,7 @@ export default function SystemDesignSessionPage() {
                 )}
               </button>
               {problemOpen && problem && (
-                <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain border-t border-white/[0.06] px-4 pb-3 pt-3 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-white/[0.12] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent">
+                <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain border-t border-white/[0.06] px-4 pb-3 pt-3 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-card/[0.12] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent">
                   <div className="space-y-3">
                     <p className="text-xs leading-relaxed text-gray-300">
                       {problem.scenario}
@@ -1038,13 +1038,13 @@ export default function SystemDesignSessionPage() {
                       <button
                         type="button"
                         aria-label="Close"
-                        className="rounded-lg p-1 text-gray-400 transition-colors hover:bg-white/10 hover:text-white"
+                        className="rounded-lg p-1 text-gray-400 transition-colors hover:bg-card/10 hover:text-white"
                         onClick={() => setTextChatPanelOpen(false)}
                       >
                         <X className="h-4 w-4" aria-hidden />
                       </button>
                     </div>
-                    <div className="min-h-[120px] flex-1 overflow-y-auto overscroll-contain px-3 py-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-white/[0.12] [&::-webkit-scrollbar]:w-1.5">
+                    <div className="min-h-[120px] flex-1 overflow-y-auto overscroll-contain px-3 py-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-card/[0.12] [&::-webkit-scrollbar]:w-1.5">
                       <div className="space-y-3 py-1">
                         {messages.map((m, i) => (
                           <ChatBubble key={i} msg={m} />
@@ -1065,14 +1065,14 @@ export default function SystemDesignSessionPage() {
                           type="button"
                           disabled={chatBusy}
                           onClick={() => void sendMessage(p)}
-                          className="w-full rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-1.5 text-left text-[11px] text-gray-300 transition-colors hover:bg-white/[0.08] disabled:opacity-50"
+                          className="w-full rounded-lg border border-white/10 bg-card/[0.04] px-2.5 py-1.5 text-left text-[11px] text-gray-300 transition-colors hover:bg-card/[0.08] disabled:opacity-50"
                         >
                           {p}
                         </button>
                       ))}
                     </div>
                     <div className="shrink-0 border-t border-white/10 px-3 py-2.5">
-                      <div className="flex items-end gap-2 rounded-xl border border-white/10 bg-white/[0.05] px-2.5 py-2 focus-within:border-violet-500/50">
+                      <div className="flex items-end gap-2 rounded-xl border border-white/10 bg-card/[0.05] px-2.5 py-2 focus-within:border-violet-500/50">
                         <textarea
                           className="max-h-24 min-h-[2.5rem] flex-1 resize-none bg-transparent text-sm text-white placeholder-gray-500 focus:outline-none"
                           placeholder="Message the AI interviewer…"
@@ -1096,7 +1096,7 @@ export default function SystemDesignSessionPage() {
                           <Send className="h-4 w-4" />
                         </button>
                       </div>
-                      <p className="mt-1 text-[10px] text-gray-600">
+                      <p className="mt-1 text-[10px] text-gray-400">
                         Enter sends · Shift+Enter newline
                       </p>
                     </div>
@@ -1114,7 +1114,7 @@ export default function SystemDesignSessionPage() {
               <Button
                 size="sm"
                 variant="outline"
-                className="border-white/15 bg-white/[0.05] text-gray-200 hover:bg-white/10"
+                className="border-white/15 bg-card/[0.05] text-gray-200 hover:bg-card/10"
                 onClick={() => router.push(reportHref)}
               >
                 View report
@@ -1156,7 +1156,7 @@ export default function SystemDesignSessionPage() {
           <AlertDialogFooter className="gap-2 sm:justify-end">
             <AlertDialogCancel
               disabled={finalizing}
-              className="border-white/20 bg-white/5 text-white hover:bg-white/10 hover:text-white"
+              className="border-white/20 bg-card/5 text-white hover:bg-card/10 hover:text-white"
             >
               Stay
             </AlertDialogCancel>
@@ -1206,13 +1206,13 @@ export default function SystemDesignSessionPage() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="gap-2 sm:justify-end">
-            <AlertDialogCancel className="border-white/20 bg-white/5 text-white hover:bg-white/10 hover:text-white">
+            <AlertDialogCancel className="border-white/20 bg-card/5 text-white hover:bg-card/10 hover:text-white">
               Stay
             </AlertDialogCancel>
             <Button
               type="button"
               variant="outline"
-              className="rounded-xl border-white/20 bg-transparent text-white hover:bg-white/10 hover:text-white"
+              className="rounded-xl border-white/20 bg-transparent text-white hover:bg-card/10 hover:text-white"
               onClick={() => {
                 setLeavePageConfirmOpen(false);
                 leaveToSessions();
@@ -1243,13 +1243,13 @@ export default function SystemDesignSessionPage() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="gap-2 sm:justify-end">
-            <AlertDialogCancel className="border-white/20 bg-white/5 text-white hover:bg-white/10 hover:text-white">
+            <AlertDialogCancel className="border-white/20 bg-card/5 text-white hover:bg-card/10 hover:text-white">
               Stay
             </AlertDialogCancel>
             <Button
               type="button"
               variant="outline"
-              className="rounded-xl border-white/20 bg-transparent text-white hover:bg-white/10 hover:text-white"
+              className="rounded-xl border-white/20 bg-transparent text-white hover:bg-card/10 hover:text-white"
               onClick={() => {
                 setPreStartLeaveOpen(false);
                 router.push("/dashboard/system-design");

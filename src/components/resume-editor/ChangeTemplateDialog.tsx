@@ -126,7 +126,7 @@ export function ChangeTemplateDialog({
                       "group relative flex h-full flex-col overflow-hidden border-2 transition-all hover:shadow-lg",
                       isCurrent
                         ? "border-purple-500 ring-2 ring-purple-200"
-                        : "border-gray-200 hover:border-purple-300",
+                        : "border-border hover:border-purple-300",
                       applying && "pointer-events-none opacity-60",
                     )}
                   >
@@ -141,15 +141,15 @@ export function ChangeTemplateDialog({
                           template={template}
                           isSelected={isCurrent}
                         />
-                        <div className="flex flex-1 flex-col bg-white p-4">
-                          <h3 className="mb-1 font-bold text-gray-900">
+                        <div className="flex flex-1 flex-col bg-card p-4">
+                          <h3 className="mb-1 font-bold text-foreground">
                             {template.name}
                           </h3>
-                          <p className="mb-3 line-clamp-2 text-sm text-gray-600">
+                          <p className="mb-3 line-clamp-2 text-sm text-muted-foreground">
                             {template.description}
                           </p>
                           <div className="mt-auto flex items-center justify-between gap-2">
-                            <span className="text-xs capitalize text-gray-500">
+                            <span className="text-xs capitalize text-muted-foreground">
                               {categoryLabels[template.category]}
                             </span>
                             {isCurrent ? (

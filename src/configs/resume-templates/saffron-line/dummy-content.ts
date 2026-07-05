@@ -1,118 +1,79 @@
 /**
  * Saffron Line Template - Dummy Content
- * Operations leadership sample.
+ * Matches saffron-line-preview.webp sample.
  */
 
 export const saffronlineDummyContent = {
   personalInfo: {
-    fullName: "Matteo Ricci",
-    email: "matteo.ricci@email.com",
-    phone: "+39 347 618 2504",
-    location: "Milan, Italy",
-    linkedin: "linkedin.com/in/matteo-ricci",
-    portfolio: "Head of Operations",
+    fullName: "Arif Ansari",
+    email: "arif.ansari@email.com",
+    phone: "+91 98765 43210",
+    location: "Mumbai, India",
+    linkedin: "linkedin.com/in/arif-ansari",
+    github: "github.com/arifansari",
+    portfolio: "Full Stack Developer",
     profilePicture: "",
   },
 
   profileSummary:
-    "Operations leader with 12+ years of experience building efficient, scalable processes across logistics, customer operations, and service delivery. Strong background in process optimization, team leadership, vendor management, and KPI-driven performance improvement. Well suited to senior operations roles requiring strategic oversight, structured execution, and people-focused leadership.",
+    "Full Stack Developer with 5+ years of experience building scalable web applications using React, Node.js, and cloud technologies. Strong background in REST APIs, database design, and agile delivery. Passionate about clean code, performance optimization, and mentoring junior developers.",
 
   experience: [
     {
-      position: "Head of Operations",
-      company: "LogiVera Solutions",
-      location: "Milan, Italy",
+      position: "Senior Full Stack Developer",
+      company: "TechNova Solutions",
+      location: "Mumbai, India",
       startDate: "2021-01",
       endDate: "",
       current: true,
       description: [
-        "Directed multi-site operations strategy across Italy, improving service consistency and reducing process bottlenecks across regional teams.",
-        "Oversaw workforce planning, vendor performance, and budget allocation for daily operations supporting more than 150 employees.",
-        "Drove continuous improvement initiatives that increased operational efficiency by 18% and strengthened customer service delivery metrics.",
-        "Partnered with finance, HR, and product leaders to scale operational processes during two major business expansion phases.",
+        "Led development of customer-facing web platform serving 50K+ monthly active users with React and Node.js.",
+        "Designed and implemented RESTful APIs and PostgreSQL schemas, improving query performance by 35%.",
+        "Mentored a team of 4 junior developers and established code review and CI/CD best practices.",
       ],
     },
     {
-      position: "Operations Manager",
-      company: "Spedita Italia",
-      location: "Bologna, Italy",
-      startDate: "2017-01",
-      endDate: "2021-01",
+      position: "Full Stack Developer",
+      company: "DigitalCraft Labs",
+      location: "Pune, India",
+      startDate: "2018-06",
+      endDate: "2020-12",
       current: false,
       description: [
-        "Led end-to-end warehouse and last-mile operations, improving fulfillment accuracy and reducing average delivery delays.",
-        "Implemented performance dashboards and SOP updates that increased team accountability and streamlined reporting across departments.",
-        "Managed third-party logistics relationships, negotiated service expectations, and improved contract compliance across key regional partners.",
-      ],
-    },
-    {
-      position: "Senior Operations Lead",
-      company: "TransitOne Services",
-      location: "Turin, Italy",
-      startDate: "2014-01",
-      endDate: "2017-01",
-      current: false,
-      description: [
-        "Supervised daily service operations and coordinated cross-functional teams to maintain delivery targets and operational quality standards.",
-        "Optimized scheduling workflows and resource allocation, helping reduce overtime costs and improve shift coverage reliability.",
-        "Supported senior leadership with operational analysis, improvement plans, and rollout of standardized service procedures.",
+        "Built responsive dashboards and admin tools using React, Redux, and Express.js.",
+        "Integrated third-party payment and analytics services, reducing checkout failures by 20%.",
+        "Collaborated with UX designers to deliver accessible, mobile-first interfaces.",
       ],
     },
   ],
 
   education: [
     {
-      degree: "Executive Certificate in Supply Chain Strategy",
-      institution: "SDA Bocconi School of Management",
-      location: "Milan, Italy",
-      startDate: "2016",
-      endDate: "2016",
-      gpa: "",
-      description: "",
-    },
-    {
-      degree: "Master of Science in Operations Management",
-      institution: "Politecnico di Milano",
-      location: "Milan, Italy",
-      startDate: "2009",
-      endDate: "2011",
-      gpa: "",
-      description: "",
-    },
-    {
-      degree: "Bachelor of Science in Business Administration",
-      institution: "University of Bologna",
-      location: "Bologna, Italy",
-      startDate: "2005",
-      endDate: "2008",
+      degree: "Bachelor of Technology in Computer Science",
+      institution: "Indian Institute of Technology",
+      location: "Mumbai, India",
+      startDate: "2014",
+      endDate: "2018",
       gpa: "",
       description: "",
     },
   ],
 
   skills: [
-    "Operations Strategy",
-    "Process Optimization",
-    "KPI Management",
-    "Vendor Management",
-    "Budget Planning",
-    "Team Leadership",
-    "Change Management",
-    "Cross-Functional Collaboration",
-    "Workforce Planning",
+    "JavaScript / TypeScript",
+    "React & Next.js",
+    "Node.js & Express",
+    "PostgreSQL & MongoDB",
+    "REST APIs & GraphQL",
+    "AWS & Docker",
+    "Git & CI/CD",
+    "Agile / Scrum",
   ],
 
   projects: [],
-  certificates: [
-    { name: "Lean Six Sigma Green Belt", issuer: "ASQ" },
-    { name: "Certified Supply Chain Professional (CSCP)", issuer: "APICS" },
-  ],
+  certificates: [],
   achievements: [],
-  languages: [
-    { name: "Italian", level: 5 },
-    { name: "English", level: 4 },
-    { name: "French", level: 3 },
-  ],
+  languages: [],
   interests: "",
 };
 

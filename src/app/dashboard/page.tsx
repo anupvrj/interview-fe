@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
+import { readStoredRole } from "@/lib/roles";
 import Link from "next/link";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
@@ -154,7 +155,7 @@ export default function DashboardPage() {
       try {
         profile = await userApi.getMyProfile();
         if (
-          profile.accessRole === "institution_admin" &&
+          readStoredRole(user.id) === "institution_admin" &&
           profile.institutionId
         ) {
           router.replace(
@@ -232,7 +233,7 @@ export default function DashboardPage() {
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
           <Loader2 className="mx-auto mb-4 h-12 w-12 animate-spin text-primary" />
-          <p className="text-gray-600">Loading your dashboard...</p>
+          <p className="text-muted-foreground">Loading your dashboard...</p>
         </div>
       </div>
     );
@@ -333,10 +334,10 @@ export default function DashboardPage() {
       <DashboardWelcomeHero firstName={user?.firstName || "User"} />
 
       {scheduledInterviews.length > 0 && (
-        <Card className="rounded-md border-2 border-amber-200 bg-gradient-to-br from-amber-50/80 to-white shadow-lg">
+        <Card className="rounded-md border-2 border-amber-200 bg-gradient-to-br from-amber-50/80 to-card shadow-lg dark:border-amber-900/40 dark:from-amber-950/30 dark:to-card">
           <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-lg text-amber-950">
-              <CalendarClock className="h-5 w-5 text-amber-700" />
+            <CardTitle className="flex items-center gap-2 text-lg text-amber-950 dark:text-amber-100">
+              <CalendarClock className="h-5 w-5 text-amber-700 dark:text-amber-400" />
               Scheduled interviews
             </CardTitle>
             <CardDescription>
@@ -356,24 +357,24 @@ export default function DashboardPage() {
               return (
                 <div
                   key={s._id}
-                  className="flex flex-col gap-2 rounded-md border border-amber-100 bg-white/90 p-4 sm:flex-row sm:items-center sm:justify-between"
+                  className="flex flex-col gap-2 rounded-md border border-amber-100 bg-card/90 p-4 dark:border-amber-900/30 sm:flex-row sm:items-center sm:justify-between"
                 >
                   <div>
-                    <p className="font-semibold text-slate-900">{s.role}</p>
-                    <p className="text-sm text-slate-600">
+                    <p className="font-semibold text-foreground">{s.role}</p>
+                    <p className="text-sm text-muted-foreground">
                       {new Date(s.scheduledAt).toLocaleString()}
                       {s.targetCompany ? ` · ${s.targetCompany}` : ""}
                     </p>
                     {s.expiresAt ? (
-                      <p className="mt-1 text-xs text-amber-800">
+                      <p className="mt-1 text-xs text-amber-800 dark:text-amber-300">
                         Start by {new Date(s.expiresAt).toLocaleString()}
                       </p>
                     ) : null}
                     {s.notes ? (
-                      <p className="mt-1 text-xs text-slate-500">{s.notes}</p>
+                      <p className="mt-1 text-xs text-muted-foreground">{s.notes}</p>
                     ) : null}
                     {!canStart && reason === "too_early" ? (
-                      <p className="mt-1 text-xs text-slate-500">
+                      <p className="mt-1 text-xs text-muted-foreground">
                         Opens{" "}
                         {new Date(
                           new Date(s.scheduledAt).getTime() -
@@ -407,9 +408,9 @@ export default function DashboardPage() {
       )}
 
       {profileCompletion < 100 && onboardingBannerDismissed === false && (
-        <div className="flex items-center gap-2 rounded-md border border-amber-200/70 bg-amber-50/50 px-3 py-2 text-sm text-slate-800">
+        <div className="flex items-center gap-2 rounded-md border border-amber-200/70 bg-amber-50/50 px-3 py-2 text-sm text-foreground">
           <p className="min-w-0 flex-1 leading-snug">
-            <span className="text-slate-700">
+            <span className="text-foreground">
               Complete your profile ({profileCompletion}% done) — it unlocks your
               full loop (resume polish → AI Interview Practice & coding mocks → interviews &
               offers) —{" "}
@@ -424,7 +425,7 @@ export default function DashboardPage() {
           <button
             type="button"
             aria-label="Dismiss reminder"
-            className="shrink-0 rounded-md p-1 text-slate-500 transition-colors hover:bg-amber-100/80 hover:text-slate-800"
+            className="shrink-0 rounded-md p-1 text-muted-foreground transition-colors hover:bg-amber-100/80 hover:text-foreground"
             onClick={() => {
               try {
                 sessionStorage.setItem(ONBOARDING_BANNER_DISMISSED_KEY, "1");
@@ -504,7 +505,7 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
         <Card className="rounded-xl border border-border/80 bg-card shadow-card xl:col-span-2">
           <CardHeader className="pb-2">
-            <CardTitle className="text-lg text-slate-900">
+            <CardTitle className="text-lg text-foreground">
               Daily interviews and score trend
             </CardTitle>
             <CardDescription>

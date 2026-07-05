@@ -77,7 +77,7 @@ export default function ProcessingPage() {
               <h2 className="mb-4 text-3xl font-bold text-primary">
                 Processing Your Interview{dots}
               </h2>
-              <p className="text-gray-600 mb-8 text-lg">
+              <p className="text-muted-foreground mb-8 text-lg">
                 Our AI is analyzing your responses and generating detailed
                 feedback. This usually takes 30-60 seconds.
               </p>
@@ -86,10 +86,10 @@ export default function ProcessingPage() {
                 <div className="flex items-start gap-3 p-4 bg-purple-50 rounded-lg">
                   <CheckCircle className="w-5 h-5 text-purple-600 mt-0.5 flex-shrink-0" />
                   <div>
-                    <div className="font-semibold text-gray-900">
+                    <div className="font-semibold text-foreground">
                       Analyzing Audio
                     </div>
-                    <div className="text-sm text-gray-600">
+                    <div className="text-sm text-muted-foreground">
                       Transcribing your responses and detecting speech patterns
                     </div>
                   </div>
@@ -98,10 +98,10 @@ export default function ProcessingPage() {
                 <div className="flex items-start gap-3 p-4 bg-muted/30 rounded-lg">
                   <CheckCircle className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
                   <div>
-                    <div className="font-semibold text-gray-900">
+                    <div className="font-semibold text-foreground">
                       Evaluating Content
                     </div>
-                    <div className="text-sm text-gray-600">
+                    <div className="text-sm text-muted-foreground">
                       Assessing technical accuracy and communication skills
                     </div>
                   </div>
@@ -110,10 +110,10 @@ export default function ProcessingPage() {
                 <div className="flex items-start gap-3 p-4 bg-pink-50 rounded-lg">
                   <Loader2 className="w-5 h-5 text-pink-600 mt-0.5 flex-shrink-0 animate-spin" />
                   <div>
-                    <div className="font-semibold text-gray-900">
+                    <div className="font-semibold text-foreground">
                       Generating Report
                     </div>
-                    <div className="text-sm text-gray-600">
+                    <div className="text-sm text-muted-foreground">
                       Creating your personalized feedback and improvement tips
                     </div>
                   </div>
@@ -137,7 +137,7 @@ export default function ProcessingPage() {
               <h2 className="text-3xl font-bold mb-4 text-green-600">
                 Analysis Complete!
               </h2>
-              <p className="text-gray-600 mb-8 text-lg">
+              <p className="text-muted-foreground mb-8 text-lg">
                 Your interview report is ready. Redirecting you now...
               </p>
               <div className="animate-pulse">
@@ -151,10 +151,10 @@ export default function ProcessingPage() {
               <div className="w-20 h-20 mx-auto mb-6 bg-gradient-to-r from-red-500 to-pink-500 rounded-full flex items-center justify-center">
                 <AlertCircle className="w-10 h-10 text-white" />
               </div>
-              <h2 className="text-3xl font-bold mb-4 text-slate-800">
+              <h2 className="text-3xl font-bold mb-4 text-foreground">
                 Ooops...
               </h2>
-              <p className="mb-8 text-lg text-gray-600">
+              <p className="mb-8 text-lg text-muted-foreground">
                 We encountered an error while analyzing your interview. Please
                 try again or contact support if the issue persists.
               </p>

@@ -85,7 +85,7 @@ function ScoreGauge({
 
 function ResumeMock({ scanning }: { scanning: boolean }) {
   return (
-    <div className="relative mx-auto w-full max-w-[200px] rounded-lg border border-border bg-white shadow-md overflow-hidden">
+    <div className="relative mx-auto w-full max-w-[200px] rounded-lg border border-border bg-card shadow-md overflow-hidden">
       <div className="h-2 bg-primary/20" />
       <div className="p-3 space-y-2">
         <div className="h-2.5 w-3/4 rounded bg-foreground/15" />

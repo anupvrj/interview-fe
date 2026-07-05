@@ -113,8 +113,8 @@ export default function InstitutionInterviewReportPage() {
       </div>
 
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">Interview report</h1>
-        <p className="mt-1 text-slate-600">
+        <h1 className="text-2xl font-bold text-foreground">Interview report</h1>
+        <p className="mt-1 text-muted-foreground">
           {nameQ || "Candidate"}
           {emailQ ? ` · ${emailQ}` : ""}
           {interviewMeta?.metadata?.role ? ` · ${interviewMeta.metadata.role}` : ""}

@@ -158,7 +158,7 @@ const postedWithinLabel: Record<JobBoardPostedWithin, string> = {
 
 /** Lighter than default `secondary` so chips don’t look heavy. */
 const jobBoardTagClassName =
-  "border-0 bg-slate-100/50 font-medium text-slate-600 shadow-none hover:bg-slate-100/70 dark:bg-slate-800/30 dark:text-slate-200 dark:hover:bg-slate-800/45";
+  "border-0 bg-muted/30 font-medium text-muted-foreground shadow-none hover:bg-muted/50 dark:bg-muted/20 dark:text-muted-foreground dark:hover:bg-muted/40";
 
 function jobListingSnapshot(job: JobListing): Record<string, unknown> {
   return { ...job };
@@ -173,7 +173,7 @@ function formatJSearchInlineBold(text: string): ReactNode {
       return (
         <strong
           key={i}
-          className="font-semibold text-slate-900 dark:text-slate-100"
+          className="font-semibold text-foreground"
         >
           {m[1]}
         </strong>
@@ -186,7 +186,7 @@ function formatJSearchInlineBold(text: string): ReactNode {
 function JSearchDescriptionBody({ text }: { text: string }) {
   const blocks = text.replace(/\r\n/g, "\n").trim().split(/\n\n+/);
   return (
-    <div className="space-y-3 text-sm leading-relaxed text-slate-700 dark:text-slate-300">
+    <div className="space-y-3 text-sm leading-relaxed text-muted-foreground">
       {blocks.map((block, i) => (
         <div key={i} className="whitespace-pre-wrap break-words">
           {formatJSearchInlineBold(block.trim())}
@@ -706,7 +706,7 @@ export default function JobBoardPage() {
 
   if (!user) {
     return (
-      <div className="p-6 text-center text-sm text-slate-600">
+      <div className="p-6 text-center text-sm text-muted-foreground">
         Sign in to use the job board.
       </div>
     );
@@ -740,11 +740,11 @@ export default function JobBoardPage() {
           </span>
           <h1
             id="job-board-heading"
-            className="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl"
+            className="text-xl font-bold tracking-tight text-foreground sm:text-2xl"
           >
             Job board
           </h1>
-          <p className="max-w-xl text-sm font-medium leading-snug text-slate-700 dark:text-slate-300">
+          <p className="max-w-xl text-sm font-medium leading-snug text-muted-foreground">
             Your next big role is one search away—dial in what you want and go
             get it.
           </p>
@@ -752,7 +752,7 @@ export default function JobBoardPage() {
       </section>
 
       {/* Tab strip */}
-      <div className="mb-1 flex flex-wrap items-end gap-1 border-b border-slate-200/90 pb-0 dark:border-border">
+      <div className="mb-1 flex flex-wrap items-end gap-1 border-b border-border/90 pb-0 dark:border-border">
         {TABS.map((t) => {
           const active = tab === t.id;
           return (
@@ -764,7 +764,7 @@ export default function JobBoardPage() {
                 "relative -mb-px border-b-2 px-3 py-2.5 text-sm font-medium transition-colors",
                 active
                   ? "border-[#7367F0] text-[#7367F0]"
-                  : "border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-foreground/90",
+                  : "border-transparent text-muted-foreground hover:text-foreground dark:hover:text-foreground/90",
               )}
             >
               <span className="inline-flex items-center gap-1.5">
@@ -785,7 +785,7 @@ export default function JobBoardPage() {
         <>
           <div
             className={cn(
-              "mb-0 rounded-xl border border-slate-200/90 bg-white px-2 py-2 shadow-sm dark:border-border dark:bg-card sm:px-3",
+              "mb-0 rounded-xl border border-border/90 bg-card px-2 py-2 shadow-sm dark:border-border dark:bg-card sm:px-3",
               instituteFilterBarClass,
             )}
           >
@@ -796,7 +796,7 @@ export default function JobBoardPage() {
                 </Label>
                 <Input
                   id="jb-keywords-bar"
-                  className="h-9 w-full min-w-0 border-slate-200 bg-white text-sm dark:border-border"
+                  className="h-9 w-full min-w-0 border-border bg-card text-sm dark:border-border"
                   placeholder="Role, keywords, or company (e.g. SDE 2 at Amazon)"
                   value={searchKeywords}
                   onChange={(e) => setSearchKeywords(e.target.value)}
@@ -816,7 +816,7 @@ export default function JobBoardPage() {
                 >
                   <SelectTrigger
                     id="jb-experience-bar"
-                    className="h-9 w-full border-slate-200 bg-white text-sm dark:border-border"
+                    className="h-9 w-full border-border bg-card text-sm dark:border-border"
                   >
                     <SelectValue placeholder="Experience" />
                   </SelectTrigger>
@@ -841,7 +841,7 @@ export default function JobBoardPage() {
                   🇮🇳
                 </span>
                 <Input
-                  className="h-9 w-full min-w-0 border-slate-200 bg-white pl-8 text-sm dark:border-border"
+                  className="h-9 w-full min-w-0 border-border bg-card pl-8 text-sm dark:border-border"
                   placeholder="City or region"
                   value={location}
                   onChange={(e) => setLocation(e.target.value)}
@@ -861,7 +861,7 @@ export default function JobBoardPage() {
                 >
                   <SelectTrigger
                     id="jb-posted-bar"
-                    className="h-9 w-full border-slate-200 bg-white text-sm dark:border-border"
+                    className="h-9 w-full border-border bg-card text-sm dark:border-border"
                   >
                     <SelectValue placeholder="Posted" />
                   </SelectTrigger>
@@ -896,7 +896,7 @@ export default function JobBoardPage() {
                     type="button"
                     variant="outline"
                     size="icon"
-                    className="relative h-9 w-9 shrink-0 overflow-visible border-slate-200 bg-white dark:border-border"
+                    className="relative h-9 w-9 shrink-0 overflow-visible border-border bg-card dark:border-border"
                     onClick={() => setFiltersDialogOpen(true)}
                     aria-label={`Filters${activeFilterCount ? `, ${activeFilterCount} active` : ""}`}
                     aria-expanded={filtersDialogOpen}
@@ -920,7 +920,7 @@ export default function JobBoardPage() {
                 "max-sm:fixed max-sm:inset-x-0 max-sm:bottom-0 max-sm:left-0 max-sm:right-0 max-sm:top-auto max-sm:max-h-[88dvh] max-sm:translate-x-0 max-sm:translate-y-0 max-sm:rounded-b-none max-sm:rounded-t-2xl max-sm:border-x-0 max-sm:border-b-0",
               )}
             >
-              <DialogHeader className="space-y-1 border-b border-slate-100 px-4 pb-3 pt-4 text-left dark:border-border sm:px-5">
+              <DialogHeader className="space-y-1 border-b border-border px-4 pb-3 pt-4 text-left dark:border-border sm:px-5">
                 <DialogTitle className="text-base sm:text-lg">
                   Advanced filters
                 </DialogTitle>
@@ -933,13 +933,13 @@ export default function JobBoardPage() {
 
               <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-4 py-4 sm:px-5">
                 <div className="space-y-2">
-                  <Label className="text-xs text-slate-600">
+                  <Label className="text-xs text-muted-foreground">
                     Work arrangement
                   </Label>
                   <p className="text-[11px] text-muted-foreground">
                     {workModeSummary}
                   </p>
-                  <div className="flex flex-col gap-2 rounded-lg border border-slate-100 bg-slate-50/50 p-3 dark:border-border dark:bg-muted/20">
+                  <div className="flex flex-col gap-2 rounded-lg border border-border bg-muted/20 p-3 dark:border-border dark:bg-muted/20">
                     {ALL_WORK_MODES.map((m) => (
                       <label
                         key={m}
@@ -958,7 +958,7 @@ export default function JobBoardPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-xs text-slate-600">
+                  <Label className="text-xs text-muted-foreground">
                     Minimum CTC (INR)
                   </Label>
                   <p className="text-sm font-medium tabular-nums">
@@ -978,7 +978,7 @@ export default function JobBoardPage() {
                 <div className="space-y-1.5">
                   <Label
                     htmlFor="jb-employment"
-                    className="text-xs text-slate-600"
+                    className="text-xs text-muted-foreground"
                   >
                     Employment
                   </Label>
@@ -990,7 +990,7 @@ export default function JobBoardPage() {
                   >
                     <SelectTrigger
                       id="jb-employment"
-                      className="h-9 border-slate-200 bg-white text-sm dark:border-border"
+                      className="h-9 border-border bg-card text-sm dark:border-border"
                     >
                       <SelectValue />
                     </SelectTrigger>
@@ -1007,12 +1007,12 @@ export default function JobBoardPage() {
                 </div>
               </div>
 
-              <DialogFooter className="flex-shrink-0 flex-col gap-2 border-t border-slate-100 bg-slate-50/90 px-4 py-3 dark:border-border dark:bg-muted/25 sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:px-5">
+              <DialogFooter className="flex-shrink-0 flex-col gap-2 border-t border-border bg-muted/30 px-4 py-3 dark:border-border dark:bg-muted/25 sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:px-5">
                 <Button
                   type="button"
                   variant="ghost"
                   size="sm"
-                  className="w-full justify-center text-slate-600 sm:w-auto"
+                  className="w-full justify-center text-muted-foreground sm:w-auto"
                   onClick={resetFiltersToDefaults}
                 >
                   Reset all
@@ -1046,7 +1046,7 @@ export default function JobBoardPage() {
         </>
       )}
 
-      <div className="mb-2 flex items-center gap-1.5 text-sm text-slate-600">
+      <div className="mb-2 flex items-center gap-1.5 text-sm text-muted-foreground">
         <Clock className="h-4 w-4 text-[#7367F0]" />
         {tab === "for_you" && <span>Top jobs for you</span>}
         {tab === "search" && <span>Search results</span>}
@@ -1065,13 +1065,13 @@ export default function JobBoardPage() {
             role="list"
           >
             {listLoading && !isAppendingJobs && (
-              <div className="flex items-center justify-center gap-2 py-6 text-sm text-slate-600">
+              <div className="flex items-center justify-center gap-2 py-6 text-sm text-muted-foreground">
                 <Loader2 className="h-6 w-6 shrink-0 animate-spin text-[#7367F0]" />
                 <span>Loading…</span>
               </div>
             )}
             {!listLoading && jobs.length === 0 && (
-              <p className="py-8 text-center text-sm text-slate-600">
+              <p className="py-8 text-center text-sm text-muted-foreground">
                 No jobs in this view. Try another tab or adjust filters.
               </p>
             )}
@@ -1086,18 +1086,18 @@ export default function JobBoardPage() {
                     role="listitem"
                     onClick={() => setSelectedId(job.id)}
                     className={cn(
-                      "w-full rounded-lg border bg-white p-4 text-left text-sm shadow-sm transition-shadow dark:bg-card",
+                      "w-full rounded-lg border bg-card p-4 text-left text-sm shadow-sm transition-shadow dark:bg-card",
                       isSel
                         ? "border-2 border-[#7367F0] shadow-md ring-1 ring-[#7367F0]/20 dark:border-[#7367F0]"
-                        : "border border-slate-200/90 shadow-sm hover:border-[#7367F0]/30 hover:bg-muted/30 dark:border-border",
+                        : "border border-border/90 shadow-sm hover:border-[#7367F0]/30 hover:bg-muted/30 dark:border-border",
                     )}
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div>
-                        <h3 className="font-semibold text-slate-900">
+                        <h3 className="font-semibold text-foreground">
                           {job.title}
                         </h3>
-                        <p className="mt-0.5 text-xs text-slate-600">
+                        <p className="mt-0.5 text-xs text-muted-foreground">
                           {job.company}
                         </p>
                         {job.isPremium && (
@@ -1122,7 +1122,7 @@ export default function JobBoardPage() {
                                 void onEngage(job.id, "bookmark");
                             }
                           }}
-                          className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-zinc-200 bg-white hover:bg-zinc-50 dark:border-border"
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-zinc-200 bg-card hover:bg-zinc-50 dark:border-border"
                           title="Bookmark"
                         >
                           <Bookmark
@@ -1130,7 +1130,7 @@ export default function JobBoardPage() {
                               "h-4 w-4",
                               e?.bookmarked
                                 ? "fill-[#7367F0] text-[#7367F0]"
-                                : "text-slate-500",
+                                : "text-muted-foreground",
                             )}
                           />
                         </span>
@@ -1149,7 +1149,7 @@ export default function JobBoardPage() {
                                 void onEngage(job.id, "dismiss");
                             }
                           }}
-                          className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-zinc-200 bg-white hover:bg-zinc-50 dark:border-border"
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-zinc-200 bg-card hover:bg-zinc-50 dark:border-border"
                           title="Not interested"
                         >
                           <Ban
@@ -1216,7 +1216,7 @@ export default function JobBoardPage() {
                   <Button
                     type="button"
                     variant="outline"
-                    className="w-full max-w-xs border-slate-200 bg-white dark:border-border"
+                    className="w-full max-w-xs border-border bg-card dark:border-border"
                     disabled={listLoading}
                     onClick={() => void loadMoreJobs()}
                   >
@@ -1243,19 +1243,19 @@ export default function JobBoardPage() {
                 institutePanelClass,
               )}
             >
-              <div className="border-b border-slate-100/90 p-5 dark:border-border">
+              <div className="border-b border-border/90 p-5 dark:border-border">
                 <div className="flex w-full min-w-0 items-center gap-2 sm:gap-3">
                   <div className="min-w-0 flex-1 pr-1">
                     <h2
-                      className="truncate text-base font-semibold leading-tight text-slate-900 sm:text-lg"
+                      className="truncate text-base font-semibold leading-tight text-foreground sm:text-lg"
                       title={selected.title}
                     >
                       {selected.title}
                     </h2>
-                    <p className="mt-0.5 truncate text-sm text-slate-700">
+                    <p className="mt-0.5 truncate text-sm text-foreground">
                       {selected.company}
                     </p>
-                    <div className="mt-1 flex flex-wrap items-baseline gap-x-2 text-xs text-slate-600">
+                    <div className="mt-1 flex flex-wrap items-baseline gap-x-2 text-xs text-muted-foreground">
                       {selected.isPremium && (
                         <span>For Premium Members only</span>
                       )}
@@ -1268,7 +1268,7 @@ export default function JobBoardPage() {
                     </div>
                   </div>
                   <div className="flex shrink-0 flex-nowrap items-center gap-1.5 sm:gap-2">
-                    <label className="flex cursor-pointer items-center gap-1.5 whitespace-nowrap text-xs text-slate-800">
+                    <label className="flex cursor-pointer items-center gap-1.5 whitespace-nowrap text-xs text-foreground">
                       <input
                         type="checkbox"
                         className="h-3.5 w-3.5 shrink-0 rounded border-zinc-300"
@@ -1290,7 +1290,7 @@ export default function JobBoardPage() {
                       type="button"
                       size="icon"
                       variant="outline"
-                      className="h-8 w-8 shrink-0 rounded-full border-slate-200 bg-white p-0"
+                      className="h-8 w-8 shrink-0 rounded-full border-border bg-card p-0"
                       onClick={() => onEngage(selected.id, "bookmark")}
                       disabled={actionJobId === selected.id}
                       title="Bookmark"
@@ -1300,7 +1300,7 @@ export default function JobBoardPage() {
                           "h-3.5 w-3.5",
                           eng?.bookmarked
                             ? "fill-[#7367F0] text-[#7367F0]"
-                            : "text-slate-500",
+                            : "text-muted-foreground",
                         )}
                       />
                     </Button>
@@ -1308,7 +1308,7 @@ export default function JobBoardPage() {
                       type="button"
                       size="icon"
                       variant="outline"
-                      className="h-8 w-8 shrink-0 rounded-full border-slate-200 bg-white p-0"
+                      className="h-8 w-8 shrink-0 rounded-full border-border bg-card p-0"
                       onClick={() => onEngage(selected.id, "dismiss")}
                       disabled={actionJobId === selected.id}
                       title="Not interested"
@@ -1369,7 +1369,7 @@ export default function JobBoardPage() {
                 </div>
 
                 <div className="mt-4 flex flex-col gap-2 rounded-xl border border-[#7367F0]/15 bg-[#7367F0]/[0.04] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-                  <p className="text-sm text-slate-700 dark:text-slate-200">
+                  <p className="text-sm text-muted-foreground">
                     Need a strong resume? Generate one tailored to this job in
                     minutes.
                   </p>
@@ -1377,7 +1377,7 @@ export default function JobBoardPage() {
                     <Button
                       asChild
                       size="sm"
-                      className="border border-slate-200 bg-white text-slate-800 shadow-sm hover:bg-slate-50"
+                      className="border border-border bg-card text-foreground shadow-sm hover:bg-muted/20"
                     >
                       <Link href="/dashboard/resumes/new">
                         Generate a resume
@@ -1391,20 +1391,20 @@ export default function JobBoardPage() {
                 {selected.fullDescription ? (
                   <>
                     <div>
-                      <h3 className="mb-2 text-sm font-semibold text-slate-900 dark:text-slate-100">
+                      <h3 className="mb-2 text-sm font-semibold text-foreground">
                         Job description
                       </h3>
                       <JSearchDescriptionBody text={selected.fullDescription} />
                     </div>
                     {selected.jsearchHighlightSections &&
                       selected.jsearchHighlightSections.length > 0 && (
-                        <div className="space-y-4 border-t border-slate-100 pt-4 dark:border-border">
+                        <div className="space-y-4 border-t border-border pt-4 dark:border-border">
                           {selected.jsearchHighlightSections.map((sec) => (
                             <div key={sec.heading}>
-                              <h3 className="mb-2 text-sm font-semibold text-slate-900 dark:text-slate-100">
+                              <h3 className="mb-2 text-sm font-semibold text-foreground">
                                 {sec.heading}
                               </h3>
-                              <ul className="list-inside list-disc space-y-1 text-sm text-slate-600 dark:text-slate-400">
+                              <ul className="list-inside list-disc space-y-1 text-sm text-muted-foreground dark:text-muted-foreground">
                                 {sec.items.map((item, i) => (
                                   <li
                                     key={`${sec.heading}-${i}-${item.slice(0, 40)}`}
@@ -1421,28 +1421,28 @@ export default function JobBoardPage() {
                 ) : (
                   <>
                     <div>
-                      <h3 className="mb-2 text-sm font-semibold text-slate-900">
+                      <h3 className="mb-2 text-sm font-semibold text-foreground">
                         Job summary
                       </h3>
-                      <p className="text-sm leading-relaxed text-slate-600">
+                      <p className="text-sm leading-relaxed text-muted-foreground">
                         {selected.summary}
                       </p>
                     </div>
                     <div>
-                      <h3 className="mb-2 text-sm font-semibold text-slate-900">
+                      <h3 className="mb-2 text-sm font-semibold text-foreground">
                         Qualifications
                       </h3>
-                      <ul className="list-inside list-disc space-y-1 text-sm text-slate-600">
+                      <ul className="list-inside list-disc space-y-1 text-sm text-muted-foreground">
                         {selected.qualifications.map((q, i) => (
                           <li key={`q-${i}-${q.slice(0, 48)}`}>{q}</li>
                         ))}
                       </ul>
                     </div>
                     <div>
-                      <h3 className="mb-2 text-sm font-semibold text-slate-900">
+                      <h3 className="mb-2 text-sm font-semibold text-foreground">
                         Responsibilities
                       </h3>
-                      <ul className="list-inside list-disc space-y-1 text-sm text-slate-600">
+                      <ul className="list-inside list-disc space-y-1 text-sm text-muted-foreground">
                         {selected.responsibilities.map((r, i) => (
                           <li key={`r-${i}-${r.slice(0, 48)}`}>{r}</li>
                         ))}
@@ -1452,7 +1452,7 @@ export default function JobBoardPage() {
                 )}
                 {selected.skills.length > 0 && (
                   <div>
-                    <h3 className="mb-3 text-sm font-semibold text-slate-900">
+                    <h3 className="mb-3 text-sm font-semibold text-foreground">
                       Skills
                     </h3>
                     <div className="flex flex-wrap gap-1.5">
@@ -1470,7 +1470,7 @@ export default function JobBoardPage() {
                 )}
                 {selected.tools.length > 0 && (
                   <div>
-                    <h3 className="mb-3 text-sm font-semibold text-slate-900">
+                    <h3 className="mb-3 text-sm font-semibold text-foreground">
                       Tools
                     </h3>
                     <div className="flex flex-wrap gap-1.5">
@@ -1489,7 +1489,7 @@ export default function JobBoardPage() {
               </div>
             </Card>
           ) : (
-            <div className="flex h-64 items-center justify-center rounded-xl border border-dashed border-slate-200/90 bg-slate-50/50 text-sm text-slate-600">
+            <div className="flex h-64 items-center justify-center rounded-xl border border-dashed border-border/90 bg-muted/20 text-sm text-muted-foreground">
               Select a job to see details
             </div>
           )}
@@ -1497,12 +1497,12 @@ export default function JobBoardPage() {
       </div>
 
       <Dialog open={applyConfirmOpen} onOpenChange={setApplyConfirmOpen}>
-        <DialogContent className="max-w-sm border-slate-200 sm:max-w-md dark:border-slate-700">
+        <DialogContent className="max-w-sm border-border sm:max-w-md dark:border-slate-700">
           <DialogHeader>
-            <DialogTitle className="text-base text-slate-900">
+            <DialogTitle className="text-base text-foreground">
               Application status
             </DialogTitle>
-            <DialogDescription className="text-left text-slate-600">
+            <DialogDescription className="text-left text-muted-foreground">
               Have you applied on the main job page?
             </DialogDescription>
           </DialogHeader>

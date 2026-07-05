@@ -123,7 +123,7 @@ export interface TemplateStyleConfig {
   };
   headerLayout?: {
     type: "standard" | "name-title-split" | "with-profile-picture";
-    titlePosition?: "below" | "right" | "left";
+    titlePosition?: "below" | "right" | "left" | "inline";
     padding?: { top: number; bottom: number; left: number; right: number };
   };
   /**

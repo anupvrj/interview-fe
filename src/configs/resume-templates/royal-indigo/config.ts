@@ -54,7 +54,7 @@ export const royalindigoExtendedConfig: Partial<ExtendedResumeTemplate> = {
     },
     headerStyle: "centered",
     sectionSpacing: 11,
-    padding: { top: 10, bottom: 10, left: 12, right: 12 },
+    padding: { top: 6, bottom: 10, left: 14, right: 14 },
     sectionHeader: {
       style: "border-bottom",
       borderWidth: 1,
@@ -70,6 +70,7 @@ export const royalindigoExtendedConfig: Partial<ExtendedResumeTemplate> = {
     skillsDisplay: { type: "list", showRatings: false },
     timelineLayout: { type: "vertical", datePosition: "right" },
     contactDisplay: { type: "text", layout: "horizontal" },
+    useCSSClassesForHeader: true,
   },
   rendering: {
     pageBreak: { enabled: true, calculateDynamically: true },
@@ -85,9 +86,11 @@ export const royalindigoExtendedConfig: Partial<ExtendedResumeTemplate> = {
     { id: "profileSummary", type: "profileSummary", title: "Summary", visible: true },
     { id: "experience", type: "experience", title: "Work Experience", visible: true },
     { id: "education", type: "education", title: "Education", visible: true },
+    { id: "projects", type: "projects", title: "Projects", visible: true },
     { id: "skills", type: "skills", title: "Skills", visible: true },
-    { id: "interests", type: "interests", title: "Additional Information", visible: false },
+    { id: "languages", type: "languages", title: "Languages", visible: true },
     { id: "certificates", type: "certificates", title: "Certificates", visible: false },
+    { id: "interests", type: "interests", title: "Additional Information", visible: false },
   ],
 };
 

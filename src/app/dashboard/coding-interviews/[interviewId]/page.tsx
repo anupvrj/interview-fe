@@ -141,13 +141,13 @@ function CodingRunResultsPanel({
               allPass && "border-emerald-500/40 bg-emerald-500/10",
               !allPass && !allFail && total > 0 && "border-amber-500/35 bg-amber-500/10",
               allFail && "border-red-500/40 bg-red-500/10",
-              total === 0 && "border-white/10 bg-white/[0.04]",
+              total === 0 && "border-white/10 bg-card/[0.04]",
             )
           : cn(
               allPass && "border-emerald-200 bg-emerald-50/40",
               !allPass && !allFail && total > 0 && "border-amber-200 bg-amber-50/30",
               allFail && "border-red-200 bg-red-50/30",
-              total === 0 && "border-slate-200 bg-slate-50",
+              total === 0 && "border-border bg-muted/20",
             ),
       )}
     >
@@ -159,13 +159,13 @@ function CodingRunResultsPanel({
                 allPass && "border-emerald-500/30 bg-emerald-500/15",
                 !allPass && !allFail && total > 0 && "border-amber-500/25 bg-amber-500/10",
                 allFail && "border-red-500/30 bg-red-500/15",
-                total === 0 && "border-white/10 bg-white/[0.06]",
+                total === 0 && "border-white/10 bg-card/[0.06]",
               )
             : cn(
                 allPass && "border-emerald-200/80 bg-emerald-50/80",
                 !allPass && !allFail && total > 0 && "border-amber-200/80 bg-amber-50/60",
                 allFail && "border-red-200/80 bg-red-50/60",
-                total === 0 && "border-slate-200 bg-slate-100/80",
+                total === 0 && "border-border bg-slate-100/80",
               ),
         )}
       >
@@ -173,7 +173,7 @@ function CodingRunResultsPanel({
           <span
             className={cn(
               "font-medium",
-              dark ? "text-gray-400" : "text-slate-700",
+              dark ? "text-gray-400" : "text-foreground",
             )}
           >
             No tests were run.
@@ -189,7 +189,7 @@ function CodingRunResultsPanel({
                     : "text-white"
                   : allPass
                     ? "text-emerald-800"
-                    : "text-slate-900",
+                    : "text-foreground",
               )}
             >
               {passed} / {total} passed
@@ -230,11 +230,11 @@ function CodingRunResultsPanel({
               "px-3 py-3 space-y-2",
               dark
                 ? r.passed
-                  ? "bg-white/[0.03]"
-                  : "bg-white/[0.06]"
+                  ? "bg-card/[0.03]"
+                  : "bg-card/[0.06]"
                 : r.passed
-                  ? "bg-white/60"
-                  : "bg-white/80",
+                  ? "bg-card/60"
+                  : "bg-card/80",
             )}
           >
             <div className="flex flex-wrap items-center gap-2">
@@ -258,7 +258,7 @@ function CodingRunResultsPanel({
               <span
                 className={cn(
                   "text-sm font-medium",
-                  dark ? "text-white" : "text-slate-900",
+                  dark ? "text-white" : "text-foreground",
                 )}
               >
                 Test {r.index + 1}
@@ -283,7 +283,7 @@ function CodingRunResultsPanel({
                   className={cn(
                     "text-xs font-normal",
                     dark &&
-                      "border-white/20 bg-white/[0.06] text-gray-200",
+                      "border-white/20 bg-card/[0.06] text-gray-200",
                   )}
                 >
                   {r.status}
@@ -297,7 +297,7 @@ function CodingRunResultsPanel({
                   <div
                     className={cn(
                       "font-sans text-xs font-medium mb-0.5",
-                      dark ? "text-gray-400" : "text-slate-500",
+                      dark ? "text-gray-400" : "text-muted-foreground",
                     )}
                   >
                     Expected
@@ -311,7 +311,7 @@ function CodingRunResultsPanel({
                           : "border-white/15 bg-black/35 text-gray-200"
                         : r.passed
                           ? "border-emerald-200 bg-emerald-50/80 text-emerald-900"
-                          : "border-slate-200 bg-slate-50 text-slate-800",
+                          : "border-border bg-muted/20 text-foreground",
                     )}
                   >
                     {displayOut(r.expected)}
@@ -321,7 +321,7 @@ function CodingRunResultsPanel({
                   <div
                     className={cn(
                       "font-sans text-xs font-medium mb-0.5",
-                      dark ? "text-gray-400" : "text-slate-500",
+                      dark ? "text-gray-400" : "text-muted-foreground",
                     )}
                   >
                     Your output
@@ -369,7 +369,7 @@ function CodingRunResultsPanel({
                 <div
                   className={cn(
                     "font-sans font-medium text-xs mb-0.5",
-                    dark ? "text-gray-400" : "text-slate-500",
+                    dark ? "text-gray-400" : "text-muted-foreground",
                   )}
                 >
                   stderr
@@ -391,7 +391,7 @@ function CodingRunResultsPanel({
                 <div
                   className={cn(
                     "font-sans font-medium text-xs mb-0.5",
-                    dark ? "text-gray-400" : "text-slate-500",
+                    dark ? "text-gray-400" : "text-muted-foreground",
                   )}
                 >
                   Compiler output
@@ -401,7 +401,7 @@ function CodingRunResultsPanel({
                     "whitespace-pre-wrap break-words rounded border px-2 py-1.5 font-mono text-xs max-h-24 overflow-y-auto",
                     dark
                       ? "border-white/15 bg-black/35 text-gray-300"
-                      : "border-slate-200 bg-slate-100 text-slate-900",
+                      : "border-border bg-slate-100 text-foreground",
                   )}
                 >
                   {r.compileOutput.trim() || "(empty)"}
@@ -427,7 +427,7 @@ function ProblemDescriptionDark({
             {problem.title}
           </h2>
         </div>
-        <span className="shrink-0 rounded-full border border-white/15 bg-white/[0.06] px-2.5 py-0.5 text-xs font-medium uppercase tracking-wide text-gray-300">
+        <span className="shrink-0 rounded-full border border-white/15 bg-card/[0.06] px-2.5 py-0.5 text-xs font-medium uppercase tracking-wide text-gray-300">
           {problem.difficulty}
         </span>
       </div>
@@ -436,7 +436,7 @@ function ProblemDescriptionDark({
         <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-300/90">
           Problem description
         </h3>
-        <div className="rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm leading-relaxed text-gray-200 whitespace-pre-wrap shadow-lg shadow-black/20">
+        <div className="rounded-xl border border-white/10 bg-card/[0.04] px-4 py-3 text-sm leading-relaxed text-gray-200 whitespace-pre-wrap shadow-lg shadow-black/20">
           {problem.statement}
         </div>
         <p className="mt-2 text-xs leading-snug text-gray-400">
@@ -455,7 +455,7 @@ function ProblemDescriptionDark({
             {problem.publicTests.map((t, i) => (
               <div
                 key={`${i}-${t.input.slice(0, 20)}`}
-                className="space-y-2 rounded-xl border border-white/10 bg-white/[0.04] p-3 shadow-lg shadow-black/20"
+                className="space-y-2 rounded-xl border border-white/10 bg-card/[0.04] p-3 shadow-lg shadow-black/20"
               >
                 <div className="text-xs font-semibold text-gray-300">
                   Example {i + 1}
@@ -509,7 +509,7 @@ function CodingPhaseStepper({
         )}
         Live session
       </li>
-      <li className="select-none text-gray-600" aria-hidden>
+      <li className="select-none text-gray-500" aria-hidden>
         →
       </li>
       <li
@@ -522,14 +522,14 @@ function CodingPhaseStepper({
       >
         Code & test
       </li>
-      <li className="select-none text-gray-600" aria-hidden>
+      <li className="select-none text-gray-500" aria-hidden>
         →
       </li>
       <li
         className={cn(
           "flex items-center gap-1.5 rounded-full border px-2.5 py-1",
           allSubmitted
-            ? "border-white/20 bg-white/[0.08] text-gray-100"
+            ? "border-white/20 bg-card/[0.08] text-gray-100"
             : "border-white/10 text-gray-500",
         )}
       >
@@ -1292,7 +1292,7 @@ export default function CodingInterviewSessionPage() {
         <AlertDialogFooter className="gap-2 sm:justify-end">
           <AlertDialogCancel
             disabled={exitBusy}
-            className="border-white/20 bg-white/5 text-white hover:bg-white/10 hover:text-white"
+            className="border-white/20 bg-card/5 text-white hover:bg-card/10 hover:text-white"
           >
             Stay
           </AlertDialogCancel>
@@ -1359,7 +1359,7 @@ export default function CodingInterviewSessionPage() {
                 ← Exit
               </button>
               <span
-                className="hidden h-4 w-px bg-white/15 sm:block"
+                className="hidden h-4 w-px bg-card/15 sm:block"
                 aria-hidden
               />
               <span className="truncate text-sm font-semibold tracking-tight text-white sm:text-sm">
@@ -1409,7 +1409,7 @@ export default function CodingInterviewSessionPage() {
           <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto overflow-x-hidden xl:flex-row xl:overflow-hidden">
           <aside
             className={cn(
-              "flex shrink-0 flex-col border-white/10 bg-white/[0.04] shadow-lg shadow-black/20 xl:h-auto xl:border-r",
+              "flex shrink-0 flex-col border-white/10 bg-card/[0.04] shadow-lg shadow-black/20 xl:h-auto xl:border-r",
               voiceEmbedOpen
                 ? "min-h-0 xl:h-full xl:w-80 xl:max-h-none xl:self-stretch"
                 : "max-h-[38vh] xl:max-h-none xl:w-64",
@@ -1484,7 +1484,7 @@ export default function CodingInterviewSessionPage() {
                           "flex w-full flex-col rounded-xl border px-2.5 py-2 text-left text-xs transition-colors",
                           active
                             ? "border-violet-400/45 bg-violet-600/20 text-white shadow-[0_0_0_1px_rgba(139,92,246,0.2)]"
-                            : "border-white/10 bg-white/[0.04] text-gray-300 hover:border-white/20 hover:bg-white/[0.07]",
+                            : "border-white/10 bg-card/[0.04] text-gray-300 hover:border-white/20 hover:bg-card/[0.07]",
                         )}
                       >
                         <span className="line-clamp-2 font-medium text-white">
@@ -1504,7 +1504,7 @@ export default function CodingInterviewSessionPage() {
                   );
                 })}
               </ul>
-              <div className="rounded-xl border border-white/10 bg-white/[0.04] p-2.5 text-[11px] leading-relaxed text-gray-400 shadow-md shadow-black/20 sm:text-xs">
+              <div className="rounded-xl border border-white/10 bg-card/[0.04] p-2.5 text-[11px] leading-relaxed text-gray-400 shadow-md shadow-black/20 sm:text-xs">
                 <p className="font-medium text-gray-300">Tips</p>
                 <ul className="mt-1.5 list-disc space-y-1 pl-3.5">
                   <li>Run checks public samples only.</li>
@@ -1516,7 +1516,7 @@ export default function CodingInterviewSessionPage() {
 
           <main
             className={cn(
-              "flex min-h-0 min-w-0 w-full flex-1 flex-col border-white/10 bg-white/[0.04] shadow-lg shadow-black/20",
+              "flex min-h-0 min-w-0 w-full flex-1 flex-col border-white/10 bg-card/[0.04] shadow-lg shadow-black/20",
               isXlWorkspaceRow
                 ? "xl:w-auto xl:max-w-none xl:flex-none xl:shrink-0 xl:border-r"
                 : "xl:flex-1 xl:border-r",
@@ -1539,7 +1539,7 @@ export default function CodingInterviewSessionPage() {
                       "shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
                       activeId === p.problemId
                         ? "border-violet-400/45 bg-violet-600/20 text-white shadow-[0_0_0_1px_rgba(139,92,246,0.2)]"
-                        : "border-white/10 bg-white/[0.04] text-gray-400 hover:border-white/20 hover:text-gray-200",
+                        : "border-white/10 bg-card/[0.04] text-gray-400 hover:border-white/20 hover:text-gray-200",
                     )}
                   >
                     {p.title}
@@ -1559,7 +1559,7 @@ export default function CodingInterviewSessionPage() {
           <button
             type="button"
             aria-label="Drag to resize problem and editor panels"
-            className="hidden min-h-0 w-2 shrink-0 cursor-col-resize touch-none flex-col items-center justify-center border-x border-white/10 bg-white/[0.06] hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 xl:flex"
+            className="hidden min-h-0 w-2 shrink-0 cursor-col-resize touch-none flex-col items-center justify-center border-x border-white/10 bg-card/[0.06] hover:bg-card/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 xl:flex"
             onPointerDown={onColSplitPointerDown}
             onPointerMove={onColSplitPointerMove}
             onPointerUp={onColSplitPointerUp}
@@ -1571,7 +1571,7 @@ export default function CodingInterviewSessionPage() {
             />
           </button>
 
-          <section className="flex min-h-0 w-full min-w-0 shrink-0 flex-col border-t border-white/10 bg-white/[0.04] shadow-lg shadow-black/20 xl:h-full xl:min-h-0 xl:min-w-[400px] xl:flex-1 xl:max-w-none xl:self-stretch xl:border-l xl:border-t-0">
+          <section className="flex min-h-0 w-full min-w-0 shrink-0 flex-col border-t border-white/10 bg-card/[0.04] shadow-lg shadow-black/20 xl:h-full xl:min-h-0 xl:min-w-[400px] xl:flex-1 xl:max-w-none xl:self-stretch xl:border-l xl:border-t-0">
             <div className="flex min-h-0 flex-1 flex-col p-3 sm:p-4">
               <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                 <h3 className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-gray-300/90">
@@ -1588,7 +1588,7 @@ export default function CodingInterviewSessionPage() {
                     setLanguage(v);
                   }}
                 >
-                  <SelectTrigger className="h-9 w-[150px] rounded-xl border-white/15 bg-white/[0.06] text-xs text-white shadow-md shadow-black/20 focus:ring-primary/40 sm:text-sm">
+                  <SelectTrigger className="h-9 w-[150px] rounded-xl border-white/15 bg-card/[0.06] text-xs text-white shadow-md shadow-black/20 focus:ring-primary/40 sm:text-sm">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="z-[200] rounded-xl border-white/10 bg-[#0b1220] text-white shadow-xl">
@@ -1596,7 +1596,7 @@ export default function CodingInterviewSessionPage() {
                       <SelectItem
                         key={o.id}
                         value={o.id}
-                        className="focus:bg-white/10 focus:text-white"
+                        className="focus:bg-card/10 focus:text-white"
                       >
                         {o.label}
                       </SelectItem>
@@ -1620,7 +1620,7 @@ export default function CodingInterviewSessionPage() {
                   variant="outline"
                   onClick={handleRun}
                   disabled={running}
-                  className="rounded-xl border-white/20 bg-white/[0.06] text-xs text-white shadow-md shadow-black/15 hover:bg-white/10 hover:text-white sm:h-10 sm:text-sm"
+                  className="rounded-xl border-white/20 bg-card/[0.06] text-xs text-white shadow-md shadow-black/15 hover:bg-card/10 hover:text-white sm:h-10 sm:text-sm"
                 >
                   {running ? (
                     <Loader2 className="mr-1 h-4 w-4 animate-spin" />
@@ -1693,7 +1693,7 @@ export default function CodingInterviewSessionPage() {
             <AlertDialogFooter className="gap-2 sm:justify-end">
               <AlertDialogCancel
                 disabled={discussBusy}
-                className="border-white/20 bg-white/5 text-white hover:bg-white/10 hover:text-white"
+                className="border-white/20 bg-card/5 text-white hover:bg-card/10 hover:text-white"
               >
                 Not now
               </AlertDialogCancel>
@@ -1740,7 +1740,7 @@ export default function CodingInterviewSessionPage() {
             >
               ← Exit
             </button>
-            <span className="hidden h-4 w-px bg-white/15 sm:block" aria-hidden />
+            <span className="hidden h-4 w-px bg-card/15 sm:block" aria-hidden />
             <span className="truncate text-sm font-semibold tracking-tight text-white sm:text-sm">
               InterviewTrix · Coding
             </span>
@@ -1787,7 +1787,7 @@ export default function CodingInterviewSessionPage() {
                 <AlertDialogFooter className="gap-2 sm:justify-end">
                   <AlertDialogCancel
                     disabled={starting}
-                    className="border-white/20 bg-white/5 text-white hover:bg-white/10 hover:text-white"
+                    className="border-white/20 bg-card/5 text-white hover:bg-card/10 hover:text-white"
                   >
                     Cancel
                   </AlertDialogCancel>

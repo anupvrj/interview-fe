@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 import { appPrimaryButton } from "@/lib/app-theme";
 
 export const resumeEditorPage =
-  "flex h-[calc(100dvh-4.5rem)] min-h-0 flex-col bg-background text-foreground sm:h-[calc(100dvh-5rem)]";
+  "flex h-full min-h-0 flex-col overflow-hidden bg-background text-foreground";
 
 export const resumeEditorToolbar =
   "sticky top-0 z-20 border-b border-border/60 bg-header/95 shadow-header backdrop-blur-md";
@@ -13,7 +13,7 @@ export const resumeEditorToolbar =
 export const resumeEditorToolbarInner = "mx-auto max-w-full px-4 py-3";
 
 export const resumeEditorPanel =
-  "resume-editor-fields order-2 flex min-h-0 min-w-0 w-full flex-1 flex-col overflow-y-auto bg-card md:order-none md:w-1/2 md:border-r md:border-border/80";
+  "resume-editor-fields order-2 flex min-h-0 min-w-0 w-full flex-1 flex-col overflow-y-auto overscroll-y-contain bg-card md:order-none md:w-1/2 md:border-r md:border-border/80";
 
 export const resumeEditorTabsRow =
   "border-b border-border/60 bg-gradient-to-r from-[#7367F0]/[0.05] via-card to-[#7367F0]/[0.08]";
@@ -57,7 +57,7 @@ export const resumeAddSectionButton =
   "justify-start text-xs hover:border-primary/30 hover:bg-primary/[0.06] hover:text-primary";
 
 export const resumePreviewPanel =
-  "order-1 flex min-h-0 w-full flex-1 flex-col overflow-auto border-b border-border/60 bg-muted/20 md:order-none md:w-1/2 md:border-b-0";
+  "order-1 flex min-h-0 w-full flex-1 flex-col overflow-auto overscroll-y-contain border-b border-border/60 bg-muted/20 md:order-none md:w-1/2 md:border-b-0";
 
 export const resumePreviewHeader =
   "sticky top-0 z-10 flex items-center justify-between border-b border-border/60 bg-header/95 p-4 backdrop-blur-md";
@@ -79,12 +79,12 @@ export function resumeAtsScoreTone(score: number | null): string {
     return "border-border/80 bg-muted/40 text-muted-foreground";
   }
   if (score >= 80) {
-    return "border-emerald-500/25 bg-gradient-to-br from-emerald-500/10 via-card to-emerald-500/5 text-emerald-700";
+    return "border-emerald-500/25 bg-gradient-to-br from-emerald-500/10 via-card to-emerald-500/5 text-emerald-700 dark:text-emerald-300";
   }
   if (score >= 60) {
-    return "border-amber-500/25 bg-gradient-to-br from-amber-500/10 via-card to-amber-500/5 text-amber-700";
+    return "border-amber-500/25 bg-gradient-to-br from-amber-500/10 via-card to-amber-500/5 text-amber-700 dark:text-amber-300";
   }
-  return "border-red-500/25 bg-gradient-to-br from-red-500/10 via-card to-red-500/5 text-red-700";
+  return "border-red-500/25 bg-gradient-to-br from-red-500/10 via-card to-red-500/5 text-red-700 dark:text-red-300";
 }
 
 export function resumeSectionCardClass(

@@ -10,7 +10,8 @@ export const navyframeDummyContent = {
     phone: "123-456-7890",
     location: "Any City",
     linkedin: "www.reallygreatsite.com",
-    portfolio: "Mechatronics Engineer",
+    website: "www.reallygreatsite.com",
+    portfolio: "",
     profilePicture: "",
   },
 
