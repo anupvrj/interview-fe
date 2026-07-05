@@ -246,9 +246,21 @@ export default function OnboardingPage() {
       return;
     }
 
+    if (!user) {
+      setError("User not found. Please sign in again.");
+      return;
+    }
+
     try {
       setExtracting(true);
       setError("");
+
+      // Ensure MongoDB user exists before authenticated resume extract
+      await userApi.createOrGetUser(
+        user.id,
+        user.primaryEmailAddress?.emailAddress || "",
+        user.fullName || user.firstName || "User",
+      );
 
       // Extract data from resume
       const result = await userApi.extractResumeData(resumeFile);
