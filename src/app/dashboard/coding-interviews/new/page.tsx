@@ -46,13 +46,20 @@ import {
   paymentApi,
   userApi,
   User,
+  type Resume,
 } from "@/lib/api";
+import {
+  getActiveSavedResumeDisplay,
+  hasActiveSavedResume,
+  loadDefaultDesignedResume,
+} from "@/lib/active-saved-resume";
 import {
   PDF_RESUME_MAX_BYTES,
   pdfResumeDropzoneAccept,
   pdfResumeFileValidator,
 } from "@/lib/pdf-dropzone";
 import { PageHeader } from "@/components/app/PageHeader";
+import { JobRoleSelect } from "@/components/career/JobRoleSelect";
 import { appCard } from "@/lib/app-theme";
 import { cn } from "@/lib/utils";
 
@@ -77,6 +84,8 @@ export default function NewCodingInterviewPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [userProfile, setUserProfile] = useState<User | null>(null);
+  const [defaultDesignedResume, setDefaultDesignedResume] =
+    useState<Resume | null>(null);
   const [useSavedResume, setUseSavedResume] = useState(true);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [limitCheck, setLimitCheck] = useState<any>(null);
@@ -94,9 +103,13 @@ export default function NewCodingInterviewPage() {
   const loadUserProfile = async () => {
     if (!user) return;
     try {
-      const profile = await userApi.getMyProfile();
+      const [profile, designedDefault] = await Promise.all([
+        userApi.getMyProfile(),
+        loadDefaultDesignedResume(user.id),
+      ]);
       setUserProfile(profile);
-      if (profile.resume) {
+      setDefaultDesignedResume(designedDefault);
+      if (hasActiveSavedResume(profile, designedDefault)) {
         setUseSavedResume(true);
       } else {
         setUseSavedResume(false);
@@ -105,6 +118,15 @@ export default function NewCodingInterviewPage() {
       console.error("Error loading profile:", error);
     }
   };
+
+  const activeSavedResume = getActiveSavedResumeDisplay(
+    userProfile,
+    defaultDesignedResume,
+  );
+  const savedResumeAvailable = hasActiveSavedResume(
+    userProfile,
+    defaultDesignedResume,
+  );
 
   const checkInterviewLimit = async () => {
     if (!user) return;
@@ -206,8 +228,9 @@ export default function NewCodingInterviewPage() {
     if (!useSavedResume && !uploadedFile) {
       newErrors.resume = "Please upload your resume or use saved resume";
     }
-    if (useSavedResume && !userProfile?.resume) {
-      newErrors.resume = "No saved resume — upload a file below";
+    if (useSavedResume && !savedResumeAvailable) {
+      newErrors.resume =
+        "No saved resume found. Set a default on your profile or upload a PDF.";
     }
 
     if (Object.keys(newErrors).length > 0) {
@@ -244,7 +267,7 @@ export default function NewCodingInterviewPage() {
         targetCompany: formData.targetCompany.trim() || undefined,
         resume: useSavedResume ? undefined : uploadedFile || undefined,
         useSavedResume:
-          useSavedResume && userProfile?.resume ? true : undefined,
+          useSavedResume && savedResumeAvailable ? true : undefined,
       });
       router.push(
         `/dashboard/coding-interviews/${res.data.interviewId}?autostart=1`,
@@ -323,7 +346,9 @@ export default function NewCodingInterviewPage() {
                   limitCheck.minimumRequired !== undefined && (
                     <div className="mb-6 rounded-xl bg-card/60 p-4 backdrop-blur-sm">
                       <p className="mb-2 text-sm text-muted-foreground">
-                        <span className="font-semibold">Available Credits: </span>
+                        <span className="font-semibold">
+                          Available Credits:{" "}
+                        </span>
                         <span className="text-lg font-bold text-orange-600">
                           {limitCheck.creditsAvailable}
                         </span>
@@ -421,14 +446,14 @@ export default function NewCodingInterviewPage() {
                       Role You&apos;re Preparing For
                       <span className="text-red-500">*</span>
                     </Label>
-                    <Input
+                    <JobRoleSelect
                       id="role"
-                      placeholder="e.g., Software Developer"
                       value={formData.role}
-                      onChange={(e) =>
-                        setFormData({ ...formData, role: e.target.value })
+                      onChange={(value) =>
+                        setFormData({ ...formData, role: value })
                       }
-                      className={`h-11 w-full text-sm sm:h-12 sm:text-base ${
+                      placeholder="Type or select a role"
+                      inputClassName={`h-11 w-full text-sm sm:h-12 sm:text-base ${
                         errors.role
                           ? "border-red-500 focus:ring-red-500"
                           : "border-border focus:border-primary focus:ring-primary"
@@ -511,12 +536,13 @@ export default function NewCodingInterviewPage() {
                           setFormData((prev) => ({
                             ...prev,
                             department: value,
-                            discipline:
-                              disciplineOptionsByDepartment[value]?.some(
-                                (option) => option.value === prev.discipline,
-                              )
-                                ? prev.discipline
-                                : "",
+                            discipline: disciplineOptionsByDepartment[
+                              value
+                            ]?.some(
+                              (option) => option.value === prev.discipline,
+                            )
+                              ? prev.discipline
+                              : "",
                           }));
                         }}
                       >
@@ -524,7 +550,9 @@ export default function NewCodingInterviewPage() {
                           <SelectValue placeholder="Select department" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="engineering">Engineering</SelectItem>
+                          <SelectItem value="engineering">
+                            Engineering
+                          </SelectItem>
                           <SelectItem value="management">Management</SelectItem>
                           <SelectItem value="commerce_finance">
                             Commerce & Finance
@@ -549,7 +577,10 @@ export default function NewCodingInterviewPage() {
                       <Select
                         value={formData.discipline}
                         onValueChange={(value) =>
-                          setFormData((prev) => ({ ...prev, discipline: value }))
+                          setFormData((prev) => ({
+                            ...prev,
+                            discipline: value,
+                          }))
                         }
                         disabled={
                           !disciplineOptionsByDepartment[formData.department]
@@ -560,8 +591,9 @@ export default function NewCodingInterviewPage() {
                         </SelectTrigger>
                         <SelectContent>
                           {(
-                            disciplineOptionsByDepartment[formData.department] ??
-                            []
+                            disciplineOptionsByDepartment[
+                              formData.department
+                            ] ?? []
                           ).map((option) => (
                             <SelectItem key={option.value} value={option.value}>
                               {option.label}
@@ -605,7 +637,7 @@ export default function NewCodingInterviewPage() {
                       <span className="text-red-500">*</span>
                     </Label>
 
-                    {userProfile?.resume && (
+                    {savedResumeAvailable && activeSavedResume && (
                       <div className="space-y-2">
                         <div
                           className={`relative cursor-pointer rounded-lg border-2 p-2.5 transition-all sm:p-3 ${
@@ -645,16 +677,10 @@ export default function NewCodingInterviewPage() {
                             </div>
                             <div className="min-w-0 flex-1">
                               <p className="truncate text-xs font-semibold text-foreground sm:text-sm">
-                                {userProfile.resume.filename}
+                                {activeSavedResume.title}
                               </p>
                               <p className="truncate text-xs text-muted-foreground">
-                                {new Date(
-                                  userProfile.resume.uploadedAt,
-                                ).toLocaleDateString("en-IN", {
-                                  day: "numeric",
-                                  month: "short",
-                                  year: "numeric",
-                                })}
+                                {activeSavedResume.subtitle}
                               </p>
                             </div>
                             {useSavedResume && (

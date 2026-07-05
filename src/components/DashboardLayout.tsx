@@ -25,6 +25,7 @@ import {
   filterNavByActiveRole,
   getDashboardNavItems,
   withPeerNavItems,
+  withRecruiterNavItems,
   type DashboardNavItem,
 } from "@/lib/dashboard-nav";
 import { SubscriptionExpiredBanner } from "@/components/SubscriptionExpiredBanner";
@@ -60,7 +61,8 @@ function isCandidateBookingsNavPath(pathname: string | null): boolean {
 function isInterviewerHubNavPath(pathname: string | null): boolean {
   if (!pathname) return false;
   if (pathname === "/dashboard/peer-interviews/interviewer/apply") return false;
-  if (pathname === "/dashboard/peer-interviews/interviewer/earnings") return false;
+  if (pathname === "/dashboard/peer-interviews/interviewer/earnings")
+    return false;
   if (pathname.startsWith("/dashboard/peer-interviews/interviewer/earnings/")) {
     return false;
   }
@@ -73,7 +75,8 @@ function isPeerInterviewsNavPath(pathname: string | null): boolean {
   if (!pathname?.startsWith("/dashboard/peer-interviews")) return false;
   if (isCandidateBookingsNavPath(pathname)) return false;
   if (pathname === "/dashboard/peer-interviews/interviewer/apply") return false;
-  if (pathname === "/dashboard/peer-interviews/interviewer/earnings") return false;
+  if (pathname === "/dashboard/peer-interviews/interviewer/earnings")
+    return false;
   if (pathname.startsWith("/dashboard/peer-interviews/interviewer/earnings/")) {
     return false;
   }
@@ -89,19 +92,52 @@ function isPeerInterviewsNavPath(pathname: string | null): boolean {
 }
 
 function isSuperAdminPeerInterviewersPath(pathname: string | null): boolean {
-  return pathname?.startsWith("/dashboard/super-admin/peer-interviewers") ?? false;
+  return (
+    pathname?.startsWith("/dashboard/super-admin/peer-interviewers") ?? false
+  );
 }
 
 function isSuperAdminPeerBookingsPath(pathname: string | null): boolean {
   return pathname?.startsWith("/dashboard/super-admin/peer-bookings") ?? false;
 }
 
+function isSuperAdminIxRecruitersPath(pathname: string | null): boolean {
+  return pathname?.startsWith("/dashboard/super-admin/ix-recruiters") ?? false;
+}
+
+function isRecruiterDashboardNavPath(pathname: string | null): boolean {
+  return pathname === "/dashboard/ix-recruiter";
+}
+
+function isHireTalentNavPath(pathname: string | null): boolean {
+  return pathname?.startsWith("/dashboard/ix-recruiter/candidates") ?? false;
+}
+
+function isShortlistedTalentsNavPath(pathname: string | null): boolean {
+  return pathname?.startsWith("/dashboard/ix-recruiter/shortlisted") ?? false;
+}
+
+function isRecruiterApplyNavPath(pathname: string | null): boolean {
+  if (!pathname) return false;
+  return (
+    pathname === "/dashboard/ix-recruiter/apply" ||
+    pathname.startsWith("/dashboard/ix-recruiter/apply/")
+  );
+}
+
 function isSuperAdminHomePath(pathname: string | null): boolean {
   if (!pathname) return false;
-  if (isSuperAdminPeerInterviewersPath(pathname) || isSuperAdminPeerBookingsPath(pathname)) {
+  if (
+    isSuperAdminPeerInterviewersPath(pathname) ||
+    isSuperAdminPeerBookingsPath(pathname) ||
+    isSuperAdminIxRecruitersPath(pathname)
+  ) {
     return false;
   }
-  return pathname === "/dashboard/super-admin" || pathname.startsWith("/dashboard/super-admin/");
+  return (
+    pathname === "/dashboard/super-admin" ||
+    pathname.startsWith("/dashboard/super-admin/")
+  );
 }
 
 function resolveNavActive(
@@ -152,13 +188,17 @@ function resolveNavActive(
   if (item.href === "/dashboard/peer-interviews/interviewer/earnings") {
     isActive =
       pathname === "/dashboard/peer-interviews/interviewer/earnings" ||
-      (pathname?.startsWith("/dashboard/peer-interviews/interviewer/earnings/") ?? false);
+      (pathname?.startsWith(
+        "/dashboard/peer-interviews/interviewer/earnings/",
+      ) ??
+        false);
   }
   if (item.href === "/dashboard/peer-interviews/interviewer/bookings") {
     isActive =
       isInterviewerBookingsNavPath(pathname) ||
       (activeRole === "interviewer" &&
-        (pathname?.startsWith("/dashboard/peer-interviews/bookings/") ?? false));
+        (pathname?.startsWith("/dashboard/peer-interviews/bookings/") ??
+          false));
   }
   if (item.href === "/dashboard/super-admin") {
     isActive = isSuperAdminHomePath(pathname);
@@ -168,6 +208,21 @@ function resolveNavActive(
   }
   if (item.href === "/dashboard/super-admin/peer-bookings") {
     isActive = isSuperAdminPeerBookingsPath(pathname);
+  }
+  if (item.href === "/dashboard/super-admin/ix-recruiters") {
+    isActive = isSuperAdminIxRecruitersPath(pathname);
+  }
+  if (item.href === "/dashboard/ix-recruiter") {
+    isActive = isRecruiterDashboardNavPath(pathname);
+  }
+  if (item.href === "/dashboard/ix-recruiter/candidates") {
+    isActive = isHireTalentNavPath(pathname);
+  }
+  if (item.href === "/dashboard/ix-recruiter/shortlisted") {
+    isActive = isShortlistedTalentsNavPath(pathname);
+  }
+  if (item.href === "/dashboard/ix-recruiter/apply") {
+    isActive = isRecruiterApplyNavPath(pathname);
   }
   return isActive;
 }
@@ -183,6 +238,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     ? String(profile.institutionId)
     : null;
   const peerNav = profile?.peer ?? null;
+  const recruiterNav = profile?.recruiter ?? null;
   const activeRole = roleCtx?.activeRole ?? null;
   const availableRoles = roleCtx?.availableRoles ?? [];
   const roleReady = roleCtx?.ready ?? false;
@@ -193,12 +249,13 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   >(null);
 
   const interviewsDetailMatch =
-    /^\/dashboard\/interviews\/([^/]+)(?:\/|$)/.exec(pathname ?? "") ?? undefined;
+    /^\/dashboard\/interviews\/([^/]+)(?:\/|$)/.exec(pathname ?? "") ??
+    undefined;
   const interviewsPathSegment = interviewsDetailMatch?.[1];
   const isDashboardInterviewsDetailPath = Boolean(
     interviewsPathSegment &&
-      interviewsPathSegment !== "new" &&
-      pathname !== "/dashboard/interviews",
+    interviewsPathSegment !== "new" &&
+    pathname !== "/dashboard/interviews",
   );
 
   useEffect(() => {
@@ -247,11 +304,17 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const menuItems = useMemo(
     () =>
       filterNavByActiveRole(
-        withPeerNavItems(getDashboardNavItems(accessRole, institutionId), peerNav),
+        withRecruiterNavItems(
+          withPeerNavItems(
+            getDashboardNavItems(accessRole, institutionId),
+            peerNav,
+          ),
+          recruiterNav,
+        ),
         activeRole,
         profile,
       ),
-    [accessRole, institutionId, peerNav, activeRole, profile],
+    [accessRole, institutionId, peerNav, recruiterNav, activeRole, profile],
   );
 
   const institutionBase =
@@ -301,10 +364,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           )}
         >
           <Icon
-            className={cn(
-              "h-4 w-4",
-              isActive && "text-white",
-            )}
+            className={cn("h-4 w-4", isActive && "text-white")}
             strokeWidth={2}
           />
         </span>

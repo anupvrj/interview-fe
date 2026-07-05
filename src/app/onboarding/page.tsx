@@ -81,6 +81,10 @@ export default function OnboardingPage() {
       router.replace("/dashboard/peer-interviews/interviewer");
       return;
     }
+    if (path === "recruiter") {
+      router.replace("/dashboard/ix-recruiter/apply");
+      return;
+    }
     setOnboardingPath("candidate");
   };
 

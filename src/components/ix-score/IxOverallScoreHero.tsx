@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 
 type IxOverallScoreHeroProps = {
   snapshot: IxScoreSnapshot;
+  viewerMode?: "self" | "candidate";
 };
 
 function gradeBand(score: number): { label: string; className: string } {
@@ -35,16 +36,27 @@ function gradeBand(score: number): { label: string; className: string } {
   }
   return {
     label: "Needs work",
-    className:
-      "border-rose-500/30 bg-card text-rose-700 dark:text-rose-300",
+    className: "border-rose-500/30 bg-card text-rose-700 dark:text-rose-300",
   };
 }
 
-export function IxOverallScoreHero({ snapshot }: IxOverallScoreHeroProps) {
+export function IxOverallScoreHero({
+  snapshot,
+  viewerMode = "self",
+}: IxOverallScoreHeroProps) {
   const { overall } = snapshot;
   const hasOverall = overall.average != null;
   const grade = hasOverall ? gradeBand(overall.average!) : null;
-  const optedCategories = IX_CATEGORY_KEYS.filter((key) => snapshot.optIns[key]);
+  const optedCategories = IX_CATEGORY_KEYS.filter(
+    (key) => snapshot.optIns[key],
+  );
+  const overallDescription = hasOverall
+    ? viewerMode === "candidate"
+      ? "Composite average across opted-in interview categories"
+      : "Your composite average across opted-in interview categories"
+    : viewerMode === "candidate"
+      ? "Complete scored sessions to calculate the overall iX Score"
+      : "Complete scored sessions to calculate your overall iX Score";
 
   return (
     <div
@@ -55,7 +67,7 @@ export function IxOverallScoreHero({ snapshot }: IxOverallScoreHeroProps) {
     >
       <div className="flex flex-col gap-6 lg:flex-row lg:items-stretch lg:gap-8">
         {/* Left — overall score */}
-        <div className="flex shrink-0 flex-col items-start gap-4 lg:w-[min(100%,17.5rem)] lg:pr-2">
+        <div className="flex shrink-0 flex-col items-center gap-4 text-center lg:w-[min(100%,17.5rem)] lg:items-start lg:text-left lg:pr-2">
           <IxScoreRing
             score={overall.average}
             size="md"
@@ -65,25 +77,19 @@ export function IxOverallScoreHero({ snapshot }: IxOverallScoreHeroProps) {
 
           <div className="w-full space-y-3">
             <div>
-              <p className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.1em] text-[#7367F0]">
+              <p className="inline-flex items-center justify-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.1em] text-[#7367F0] lg:justify-start">
                 <TrendingUp className="h-3.5 w-3.5 shrink-0" />
                 Overall iX Score
               </p>
-              {hasOverall ? (
-                <p className="mt-2 text-sm text-muted-foreground">
-                  Your composite average across opted-in interview categories
-                </p>
-              ) : (
-                <p className="mt-2 text-sm text-muted-foreground">
-                  Complete scored sessions to calculate your overall iX Score
-                </p>
-              )}
+              <p className="mt-2 text-sm text-muted-foreground">
+                {overallDescription}
+              </p>
             </div>
 
             {grade ? (
               <div
                 className={cn(
-                  "w-full rounded-xl border-2 px-4 py-3 text-left",
+                  "w-full rounded-xl border-2 px-4 py-3 text-center lg:text-left",
                   grade.className,
                 )}
               >
@@ -98,7 +104,7 @@ export function IxOverallScoreHero({ snapshot }: IxOverallScoreHeroProps) {
 
             {hasOverall && overall.maxRaw > 100 && overall.rawSum > 0 && (
               <div className="w-full rounded-xl border border-border/60 bg-card p-3.5">
-                <div className="flex items-start gap-2.5">
+                <div className="flex items-start gap-2.5 lg:items-start">
                   <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#7367F0]/10 text-[#7367F0]">
                     <BarChart3 className="h-4 w-4" />
                   </span>

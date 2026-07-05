@@ -9,9 +9,16 @@ import { cn } from "@/lib/utils";
 type IxReportPageHeroProps = {
   score: number | null;
   actions?: ReactNode;
+  title?: string;
+  description?: string;
 };
 
-export function IxReportPageHero({ score, actions }: IxReportPageHeroProps) {
+export function IxReportPageHero({
+  score,
+  actions,
+  title = "iX Report",
+  description = "Your complete performance report card across opted-in interview categories — scores, communication, and session history in one place.",
+}: IxReportPageHeroProps) {
   return (
     <div className={cn(ixReportHeroGradient, "ix-report-enter p-5 sm:p-6")}>
       <div className="relative flex min-w-0 flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -34,12 +41,10 @@ export function IxReportPageHero({ score, actions }: IxReportPageHeroProps) {
           </div>
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-              iX Report
+              {title}
             </h1>
             <p className="mt-1.5 max-w-2xl text-sm text-muted-foreground sm:text-base">
-              Your complete performance report card across opted-in interview
-              categories — scores, communication, and session history in one
-              place.
+              {description}
             </p>
           </div>
         </div>

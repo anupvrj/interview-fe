@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Copy, ExternalLink, Loader2, Mail } from "lucide-react";
+import { ExternalLink, Loader2, Mail } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import type { IxScoreSnapshot } from "@/lib/api";
@@ -14,12 +14,14 @@ type IxReportPdfActionsProps = {
   snapshot: IxScoreSnapshot;
   candidateName: string;
   candidateEmail?: string;
+  showEmailAction?: boolean;
 };
 
 export function IxReportPdfActions({
   snapshot,
   candidateName,
   candidateEmail = "",
+  showEmailAction = true,
 }: IxReportPdfActionsProps) {
   const [openingPdf, setOpeningPdf] = useState(false);
   const [shareBusy, setShareBusy] = useState(false);
@@ -28,7 +30,11 @@ export function IxReportPdfActions({
     const existing = await ixScoreApi.getReportPdfShareUrl();
     if (existing.stored) return;
 
-    await generateIxReportPdfViaServer({ snapshot, candidateName, candidateEmail });
+    await generateIxReportPdfViaServer({
+      snapshot,
+      candidateName,
+      candidateEmail,
+    });
   };
 
   const resolveShareUrl = async (): Promise<string> => {
@@ -51,19 +57,6 @@ export function IxReportPdfActions({
       toast.error(getApiErrorMessage(e, "Failed to open PDF report"));
     } finally {
       setOpeningPdf(false);
-    }
-  };
-
-  const copyLink = async () => {
-    setShareBusy(true);
-    try {
-      const url = await resolveShareUrl();
-      await navigator.clipboard.writeText(url);
-      toast.success("Link copied to clipboard (expires in 7 days)");
-    } catch (e) {
-      toast.error(getApiErrorMessage(e, "Could not prepare share link"));
-    } finally {
-      setShareBusy(false);
     }
   };
 
@@ -94,30 +87,19 @@ export function IxReportPdfActions({
         ) : (
           <ExternalLink className="mr-2 h-4 w-4" />
         )}
-        View PDF
+        Download Report
       </Button>
-      <Button
-        type="button"
-        variant="outline"
-        disabled={shareBusy}
-        onClick={() => void copyLink()}
-      >
-        {shareBusy ? (
-          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-        ) : (
-          <Copy className="mr-2 h-4 w-4" />
-        )}
-        Copy share link
-      </Button>
-      <Button
-        type="button"
-        variant="outline"
-        disabled={shareBusy}
-        onClick={() => void emailShare()}
-      >
-        <Mail className="mr-2 h-4 w-4" />
-        Email report
-      </Button>
+      {showEmailAction ? (
+        <Button
+          type="button"
+          variant="outline"
+          disabled={shareBusy}
+          onClick={() => void emailShare()}
+        >
+          <Mail className="mr-2 h-4 w-4" />
+          Email report
+        </Button>
+      ) : null}
     </div>
   );
 }

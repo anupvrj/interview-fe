@@ -24,6 +24,7 @@ import { IX_CATEGORY_META } from "@/lib/ix-score-constants";
 import { ixScoreColorClass } from "@/lib/ix-score-colors";
 import { cn, formatDate } from "@/lib/utils";
 import { getApiErrorMessage } from "@/lib/api-error-message";
+import { RecruiterSessionRowActions } from "@/components/recruiter/RecruiterSessionRowActions";
 import { toast } from "sonner";
 
 type CategoryFilter = DashboardSessionFilter;
@@ -107,7 +108,12 @@ function SessionHistoryFilterFields({
 }: SessionHistoryFilterFieldsProps) {
   const fields = (
     <>
-      <div className={cn(filterFieldClass, layout === "grid" && "col-span-2 sm:col-span-1")}>
+      <div
+        className={cn(
+          filterFieldClass,
+          layout === "grid" && "col-span-2 sm:col-span-1",
+        )}
+      >
         <Label htmlFor={`${idPrefix}-type-filter`} className={filterLabelClass}>
           Interview
         </Label>
@@ -187,7 +193,37 @@ function SessionHistoryFilterFields({
   );
 }
 
-export function IxSessionHistoryTable() {
+export type IxSessionHistoryFetchParams = {
+  category: CategoryFilter;
+  from?: string;
+  to?: string;
+  minScore?: number;
+  maxScore?: number;
+  page: number;
+  limit: number;
+};
+
+export type IxSessionHistoryTableProps = {
+  title?: string;
+  description?: string;
+  idPrefix?: string;
+  showReportLinks?: boolean;
+  recruiterCandidateClerkId?: string;
+  fetchSessions?: (
+    params: IxSessionHistoryFetchParams,
+  ) => Promise<{ rows: IxSessionRow[]; total: number }>;
+};
+
+export function IxSessionHistoryTable({
+  title = "Session history",
+  description = "All scored sessions included in your iX Report",
+  idPrefix = "ix",
+  showReportLinks = true,
+  recruiterCandidateClerkId,
+  fetchSessions,
+}: IxSessionHistoryTableProps = {}) {
+  const recruiterMode = Boolean(recruiterCandidateClerkId);
+  const showActionsColumn = recruiterMode || showReportLinks;
   const [rows, setRows] = useState<IxSessionRow[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -208,7 +244,7 @@ export function IxSessionHistoryTable() {
   const load = async () => {
     setLoading(true);
     try {
-      const data = await ixScoreApi.listSessions({
+      const params: IxSessionHistoryFetchParams = {
         category,
         from: fromDate || undefined,
         to: toDate || undefined,
@@ -216,7 +252,10 @@ export function IxSessionHistoryTable() {
         maxScore: maxScore ? Number(maxScore) : undefined,
         page,
         limit,
-      });
+      };
+      const data = fetchSessions
+        ? await fetchSessions(params)
+        : await ixScoreApi.listSessions(params);
       setRows(data.rows);
       setTotal(data.total);
     } catch (e) {
@@ -229,7 +268,7 @@ export function IxSessionHistoryTable() {
   useEffect(() => {
     void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [category, fromDate, toDate, minScore, maxScore, page]);
+  }, [category, fromDate, toDate, minScore, maxScore, page, fetchSessions]);
 
   const filterCount = [
     category !== "all",
@@ -285,10 +324,8 @@ export function IxSessionHistoryTable() {
       <div className="border-b border-border/60 bg-card px-4 py-4 sm:px-6">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <h2 className="text-lg font-semibold text-foreground">Session history</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              All scored sessions included in your iX Report
-            </p>
+            <h2 className="text-lg font-semibold text-foreground">{title}</h2>
+            <p className="mt-1 text-sm text-muted-foreground">{description}</p>
           </div>
           <div className="flex shrink-0 items-center gap-2 xl:hidden">
             <ToolbarIconButton
@@ -322,7 +359,7 @@ export function IxSessionHistoryTable() {
 
       <div className={cn(appFilterBar, "mx-4 my-4 hidden sm:mx-6 xl:block")}>
         <SessionHistoryFilterFields
-          idPrefix="ix"
+          idPrefix={idPrefix}
           category={category}
           onCategoryChange={(next) => {
             setCategory(next);
@@ -368,15 +405,18 @@ export function IxSessionHistoryTable() {
       <Dialog open={filtersOpen} onOpenChange={setFiltersOpen}>
         <DialogContent className={filterDialogShell}>
           <DialogHeader className="space-y-1 border-b border-border/60 px-4 pb-3 pt-4 text-center sm:px-5">
-            <DialogTitle className="text-base sm:text-lg">Filter sessions</DialogTitle>
+            <DialogTitle className="text-base sm:text-lg">
+              Filter sessions
+            </DialogTitle>
             <DialogDescription className="text-xs leading-relaxed">
-              Narrow by interview type, date range, and score. Tap Apply when ready.
+              Narrow by interview type, date range, and score. Tap Apply when
+              ready.
             </DialogDescription>
           </DialogHeader>
 
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-5">
             <SessionHistoryFilterFields
-              idPrefix="ix-mobile"
+              idPrefix={`${idPrefix}-mobile`}
               layout="stack"
               category={draftCategory}
               onCategoryChange={setDraftCategory}
@@ -421,7 +461,9 @@ export function IxSessionHistoryTable() {
         </div>
       ) : rows.length === 0 ? (
         <div className="px-6 py-12 text-center">
-          <p className="text-sm text-muted-foreground">No sessions match your filters.</p>
+          <p className="text-sm text-muted-foreground">
+            No sessions match your filters.
+          </p>
         </div>
       ) : (
         <div className="overflow-x-auto">
@@ -443,9 +485,11 @@ export function IxSessionHistoryTable() {
                 <th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-[0.06em] text-[#a8aaae]">
                   Score
                 </th>
-                <th className="px-6 py-3 text-right text-[11px] font-semibold uppercase tracking-[0.06em] text-[#a8aaae]">
-                  Report
-                </th>
+                {showActionsColumn ? (
+                  <th className="px-6 py-3 text-right text-[11px] font-semibold uppercase tracking-[0.06em] text-[#a8aaae]">
+                    {recruiterMode ? "Interview details" : "Report"}
+                  </th>
+                ) : null}
               </tr>
             </thead>
             <tbody>
@@ -485,18 +529,25 @@ export function IxSessionHistoryTable() {
                   >
                     {row.overallScore}/100
                   </td>
-                  <td className="px-6 py-4 text-right">
-                    {row.status === "processing" ? (
-                      <span className="text-sm text-muted-foreground">—</span>
-                    ) : (
-                      <Button asChild variant="ghost" size="sm">
-                        <Link href={row.reportHref}>
-                          <Eye className="mr-1 h-4 w-4" />
-                          View
-                        </Link>
-                      </Button>
-                    )}
-                  </td>
+                  {showActionsColumn ? (
+                    <td className="px-6 py-4 text-right">
+                      {recruiterMode && recruiterCandidateClerkId ? (
+                        <RecruiterSessionRowActions
+                          candidateClerkId={recruiterCandidateClerkId}
+                          row={row}
+                        />
+                      ) : row.status === "processing" ? (
+                        <span className="text-sm text-muted-foreground">—</span>
+                      ) : (
+                        <Button asChild variant="ghost" size="sm">
+                          <Link href={row.reportHref}>
+                            <Eye className="mr-1 h-4 w-4" />
+                            View
+                          </Link>
+                        </Button>
+                      )}
+                    </td>
+                  ) : null}
                 </tr>
               ))}
             </tbody>

@@ -73,6 +73,7 @@ export default function IxReportPage() {
             snapshot={snapshot}
             candidateName={candidateName}
             candidateEmail={candidateEmail}
+            showEmailAction={false}
           />
         }
       />
