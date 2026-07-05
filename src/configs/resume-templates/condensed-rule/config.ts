@@ -57,7 +57,7 @@ export const condensedruleExtendedConfig: Partial<ExtendedResumeTemplate> = {
     },
     headerStyle: "left",
     sectionSpacing: 9,
-    padding: { top: 10, bottom: 10, left: 12, right: 12 },
+    padding: { top: 1.3, bottom: 10, left: 12, right: 12 },
     sectionHeader: {
       style: "border-bottom",
       borderWidth: 1,
@@ -70,12 +70,13 @@ export const condensedruleExtendedConfig: Partial<ExtendedResumeTemplate> = {
       textTransform: "uppercase",
       letterSpacing: "0.6px",
     },
-    skillsDisplay: { type: "bullets", showRatings: false, columns: 3 },
+    skillsDisplay: { type: "list", showRatings: false, columns: 1 },
     timelineLayout: { type: "vertical", datePosition: "right" },
     contactDisplay: { type: "text", layout: "horizontal" },
+    useCSSClassesForHeader: true,
     headerLayout: {
       type: "name-title-split",
-      titlePosition: "right",
+      titlePosition: "inline",
     },
   },
   rendering: {
@@ -92,10 +93,10 @@ export const condensedruleExtendedConfig: Partial<ExtendedResumeTemplate> = {
     { id: "profileSummary", type: "profileSummary", title: "Summary", visible: true },
     { id: "experience", type: "experience", title: "Professional Experience", visible: true },
     { id: "education", type: "education", title: "Education", visible: true },
+    { id: "projects", type: "projects", title: "Projects", visible: true },
     { id: "skills", type: "skills", title: "Skills", visible: true },
     { id: "languages", type: "languages", title: "Languages", visible: true },
     { id: "certificates", type: "certificates", title: "Certificates", visible: true },
-    { id: "projects", type: "projects", title: "Projects", visible: false },
   ],
 };
 

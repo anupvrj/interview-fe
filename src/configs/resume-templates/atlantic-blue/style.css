@@ -115,12 +115,12 @@
 }
 
 .atlantic-blue-left-column .atlantic-blue-job-title {
+  font-style: normal !important;
   font-family: var(--ab-font-body);
-  font-size: 15px;
+  font-size: 15px !important;
   font-weight: 400;
-  font-style: normal;
   color: var(--ab-sidebar-muted) !important;
-  margin: 0 0 0 0;
+  margin: 0;
   line-height: 1.35;
 }
 
@@ -256,8 +256,9 @@
 }
 
 .atlantic-blue-job-title {
-  font-size: 18px;
-  color: #3498db;
+  font-style: normal !important;
+  font-size: 18px !important;
+  color: #3498db !important;
   margin-bottom: 12px;
 }
 

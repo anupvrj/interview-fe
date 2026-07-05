@@ -182,6 +182,10 @@ export async function generatePDFFromPages(
                 flex: 1;
                 min-width: 0;
               }
+              [data-pdf-capture-root] .confident-grid-description li::before,
+              [data-pdf-capture-root] .confident-grid-project-description li::before {
+                content: none !important;
+              }
             `;
             clonedDoc.head.appendChild(style);
 
@@ -194,6 +198,12 @@ export async function generatePDFFromPages(
                 return;
               }
 
+              const usesHyphenBullet = Boolean(
+                li.closest(
+                  ".confident-grid-description, .confident-grid-project-description",
+                ),
+              );
+
               const originalChildren = Array.from(li.childNodes);
               const contentWrapper = clonedDoc.createElement("span");
               contentWrapper.className = "pdf-bullet-content";
@@ -203,7 +213,7 @@ export async function generatePDFFromPages(
 
               const bullet = clonedDoc.createElement("span");
               bullet.className = "pdf-bullet";
-              bullet.textContent = "•";
+              bullet.textContent = usesHyphenBullet ? "-" : "•";
               bullet.setAttribute("aria-hidden", "true");
 
               li.appendChild(bullet);
