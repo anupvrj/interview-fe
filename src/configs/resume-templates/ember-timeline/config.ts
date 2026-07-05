@@ -56,7 +56,7 @@ export const embertimelineExtendedConfig: Partial<ExtendedResumeTemplate> = {
     sectionSpacing: 11,
     padding: { top: 5, bottom: 10, left: 12, right: 12 },
     sectionHeader: {
-      style: "default",
+      style: "none",
       textAlign: "left",
       fontSize: 13,
       fontWeight: "bold",
