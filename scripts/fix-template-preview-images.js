@@ -1,7 +1,10 @@
 #!/usr/bin/env node
 /**
  * Copy template design images to preview paths (Windows-safe; no symlinks).
+ * Removes broken git symlinks whose target was binary WebP data (causes Vercel ENOENT).
+ *
  * Run: node scripts/fix-template-preview-images.js
+ * Or:  npm run fix-template-preview-images
  */
 
 const fs = require("fs");
@@ -23,6 +26,12 @@ const COPY_MAP = {
   "saffron-line-preview.webp": "saffron-line-template-design.webp",
 };
 
+function removeIfExists(filePath) {
+  if (fs.existsSync(filePath)) {
+    fs.unlinkSync(filePath);
+  }
+}
+
 let copied = 0;
 
 for (const [preview, source] of Object.entries(COPY_MAP)) {
@@ -34,9 +43,10 @@ for (const [preview, source] of Object.entries(COPY_MAP)) {
     continue;
   }
 
+  removeIfExists(destPath);
   fs.copyFileSync(srcPath, destPath);
   console.log(`  ✓ ${preview} <- ${source}`);
   copied++;
 }
 
-console.log(`\n✓ Refreshed ${copied} preview images`);
+console.log(`\n✓ Refreshed ${copied} preview images (regular files, no symlinks)`);
