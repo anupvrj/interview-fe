@@ -20,6 +20,7 @@ import {
   BarChart2,
   UserPlus,
   ClipboardList,
+  Award,
 } from "lucide-react";
 import type { AccessRole, User as ApiUser } from "@/lib/api";
 import { isPathAllowedForRole, type ActiveRole } from "@/lib/roles";
@@ -127,6 +128,12 @@ const baseMenuItems: DashboardNavItem[] = [
     href: "/dashboard/peer-interviews",
     icon: UsersRound,
     accent: accent.violet,
+  },
+  {
+    title: "iX Report",
+    href: "/dashboard/ix-report",
+    icon: Award,
+    accent: accent.purple,
   },
   {
     title: "Interviewer Dashboard",

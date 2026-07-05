@@ -52,6 +52,7 @@ import { institutePrimaryClass } from "@/components/institute/InstituteChrome";
 import { appHeroBullet, appHeroCaption } from "@/lib/app-theme";
 import { DashboardStatCard } from "@/components/dashboard/DashboardStatCard";
 import { RecentInterviewsList } from "@/components/dashboard/RecentInterviewsList";
+import { filterInterviewsByType } from "@/lib/interview-kind";
 import { SubscriptionExpiredDialog } from "@/components/SubscriptionExpiredDialog";
 import { useSubscriptionExpiredGate } from "@/hooks/useSubscriptionExpiredGate";
 
@@ -149,18 +150,20 @@ export default function InterviewsPage() {
     );
   }
 
-  const completedCount = interviews.filter(
-    (i) => i.status === "completed"
+  const screeningInterviews = filterInterviewsByType(interviews, "screening");
+
+  const completedCount = screeningInterviews.filter(
+    (i) => i.status === "completed",
   ).length;
-  const scoredInterviews = interviews.filter((i) => i.report?.overallScore);
+  const scoredInterviews = screeningInterviews.filter((i) => i.report?.overallScore);
   const averageScore =
     scoredInterviews.length > 0
       ? scoredInterviews.reduce(
           (sum, i) => sum + (i.report?.overallScore || 0),
-          0
+          0,
         ) / scoredInterviews.length
       : 0;
-  const totalCreditsUsed = sumInterviewCreditsUsed(interviews);
+  const totalCreditsUsed = sumInterviewCreditsUsed(screeningInterviews);
 
   return (
     <div className="w-full max-w-7xl mx-auto space-y-4 lg:space-y-6">
@@ -341,18 +344,18 @@ export default function InterviewsPage() {
         </div>
       </section>
 
-      {/* Quick Stats */}
+      {/* Quick Stats — screening round counts (table below is screening-only) */}
       {interviews.length > 0 && (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-2 xl:grid-cols-4">
           <DashboardStatCard
             theme="emerald"
             label="Total Interviews"
-            value={interviews.length}
+            value={screeningInterviews.length}
             icon={FileText}
             hint={
               <>
                 <Clock className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
-                <span>All time</span>
+                <span>Screening sessions</span>
               </>
             }
           />
@@ -362,11 +365,11 @@ export default function InterviewsPage() {
             value={
               scoredInterviews.length > 0
                 ? `${Math.round(averageScore)}/100`
-                : "—"
+                : "0/100"
             }
             icon={Target}
             progress={
-              scoredInterviews.length > 0 ? Math.round(averageScore) : undefined
+              scoredInterviews.length > 0 ? Math.round(averageScore) : 0
             }
             hint={
               <>
@@ -413,9 +416,9 @@ export default function InterviewsPage() {
               </CardTitle>
               <CardDescription className="mt-1 text-sm">
                 {listTab === "history"
-                  ? interviews.length === 0
+                  ? screeningInterviews.length === 0
                     ? "Spin up AI Interview Practice tailored to role + company to populate this history tab."
-                    : `${interviews.length} interview${interviews.length === 1 ? "" : "s"} in your history`
+                    : `${screeningInterviews.length} screening interview${screeningInterviews.length === 1 ? "" : "s"} in your history`
                   : scheduled.length === 0
                     ? "When your institution schedules an interview, it will appear here."
                     : "Start from 24 hours before the scheduled slot until the expire deadline. Saved resume required."}
@@ -458,8 +461,8 @@ export default function InterviewsPage() {
               )}
             >
               <FileText className="h-4 w-4 shrink-0" />
-              All interviews
-              {interviews.length > 0 ? (
+              Screening history
+              {screeningInterviews.length > 0 ? (
                 <span
                   className={cn(
                     "rounded-full px-2 py-0.5 text-xs font-bold",
@@ -468,7 +471,7 @@ export default function InterviewsPage() {
                       : "bg-card text-foreground",
                   )}
                 >
-                  {interviews.length}
+                  {screeningInterviews.length}
                 </span>
               ) : null}
             </button>
@@ -506,7 +509,7 @@ export default function InterviewsPage() {
         <CardContent className="p-0">
           {listTab === "history" ? (
             <RecentInterviewsList
-              interviews={interviews}
+              interviews={screeningInterviews}
               currentPage={currentPage}
               itemsPerPage={ITEMS_PER_PAGE}
               onPageChange={handlePageChange}

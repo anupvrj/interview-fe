@@ -171,6 +171,57 @@ export interface User {
       | "blocked"
       | null;
   };
+  /** Which interview types count toward the iX Report */
+  interviewOptIns?: InterviewOptIns;
+}
+
+export type InterviewOptIns = {
+  screening: boolean;
+  coding: boolean;
+  systemDesign: boolean;
+  peer: boolean;
+};
+
+export type IxCategoryKey = "screening" | "coding" | "systemDesign" | "peer";
+
+export interface IxCategorySnapshot {
+  score: number | null;
+  sessionCount: number;
+  lastSessionAt: string | null;
+  hasData: boolean;
+}
+
+export interface IxScoreSnapshot {
+  clerkId: string;
+  userId: string;
+  computedAt: string;
+  optIns: InterviewOptIns;
+  categories: Partial<Record<IxCategoryKey, IxCategorySnapshot>>;
+  overall: {
+    average: number | null;
+    rawSum: number;
+    maxRaw: number;
+    optedCount: number;
+    categoriesWithData: number;
+  };
+  communication: {
+    behavioral: number | null;
+    technical: number | null;
+    technicalLabel: string;
+    sessionCount: number;
+  };
+  reportPdfS3Key?: string;
+}
+
+export interface IxSessionRow {
+  id: string;
+  category: IxCategoryKey;
+  title: string;
+  completedAt: string;
+  overallScore: number;
+  reportHref: string;
+  source: "ai" | "coding" | "system_design" | "peer";
+  status: "completed" | "processing";
 }
 
 /** Matches post-interview UX feedback form / API (session issues dropdown). */
@@ -478,6 +529,7 @@ export const userApi = {
     industries?: string[];
     affiliationInstitutionId?: string | null;
     affiliationInstitutionName?: string | null;
+    interviewOptIns?: Partial<InterviewOptIns>;
   }): Promise<User> => {
     const response = await apiClient.post<{ data: User }>(
       "/users/me/onboarding",
@@ -3263,6 +3315,68 @@ export const peerApi = {
     reassign: (id: string, newSlotId: string) =>
       unwrap<PeerBooking>(apiClient.post(`/admin/peer/bookings/${id}/reassign`, { newSlotId })),
   },
+};
+
+export const ixScoreApi = {
+  getSnapshot: (refresh = false) =>
+    unwrap<IxScoreSnapshot>(
+      apiClient.get("/ix-score", { params: refresh ? { refresh: "true" } : {} }),
+    ),
+
+  listSessions: (params?: {
+    category?: IxCategoryKey | "all";
+    from?: string;
+    to?: string;
+    minScore?: number;
+    maxScore?: number;
+    page?: number;
+    limit?: number;
+  }) =>
+    unwrap<{
+      rows: IxSessionRow[];
+      total: number;
+      page: number;
+      limit: number;
+    }>(apiClient.get("/ix-score/sessions", { params })),
+
+  updateInterviewOptIns: (optIns: InterviewOptIns) =>
+    unwrap<IxScoreSnapshot>(
+      apiClient.put("/users/me/interview-opt-ins", optIns),
+    ),
+
+  getReportPdfUploadUrl: () =>
+    unwrap<{ uploadUrl: string; s3Key: string; expiresIn: number }>(
+      apiClient.get("/ix-score/report/pdf-upload-url"),
+    ),
+
+  confirmReportPdfUpload: (s3Key: string) =>
+    unwrap<{ stored: true; shareUrl?: string }>(
+      apiClient.post("/ix-score/report/confirm-pdf-upload", { s3Key }),
+    ),
+
+  getReportPdfShareUrl: () =>
+    unwrap<
+      | { stored: true; shareUrl: string; expiresIn: number }
+      | { stored: false; expiresIn: number }
+    >(apiClient.get("/ix-score/report/pdf-share-url")),
+
+  generateReportPDF: (body: {
+    htmlContent: string;
+    candidateName?: string;
+    padding?: {
+      top: number;
+      bottom: number;
+      left: number;
+      right: number;
+    };
+    templateCSS?: string;
+  }) =>
+    unwrap<{ downloadUrl: string; s3Key: string }>(
+      apiClient.post("/ix-score/report/generate-pdf", body, {
+        headers: { "Content-Type": "application/json" },
+        timeout: 120000,
+      }),
+    ),
 };
 
 export default apiClient;

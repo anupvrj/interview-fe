@@ -42,6 +42,8 @@ import {
 import { userApi, User } from "@/lib/api";
 import { InstitutionAffiliationFields } from "@/components/profile/InstitutionAffiliationFields";
 import { ProfileWelcomeHero } from "@/components/profile/ProfileWelcomeHero";
+import { IxScoreSummaryCard } from "@/components/ix-score/IxScoreSummaryCard";
+import { IxOptInNotice } from "@/components/ix-score/IxOptInNotice";
 import {
   affiliationFromUser,
   toProfileAffiliationPayload,
@@ -155,6 +157,7 @@ export default function ProfilePage() {
   const [fullNameInput, setFullNameInput] = useState("");
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [ixScoreCardKey, setIxScoreCardKey] = useState(0);
   const [profileData, setProfileData] = useState({
     userType: "" as "student" | "fresher" | "experienced" | "",
     experience: 0,
@@ -426,6 +429,8 @@ export default function ProfilePage() {
         </div>
       )}
 
+      <IxOptInNotice onSnapshotUpdated={() => setIxScoreCardKey((k) => k + 1)} />
+
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
         <DashboardStatCard
           theme="violet"
@@ -459,6 +464,8 @@ export default function ProfilePage() {
           progress={profileCompletionScore}
         />
       </div>
+
+      <IxScoreSummaryCard key={ixScoreCardKey} />
 
       <div className="grid gap-4 lg:grid-cols-3 lg:gap-6">
         <div className="space-y-4 lg:col-span-2">

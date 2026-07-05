@@ -49,6 +49,12 @@ import {
 } from "@/lib/pdf-dropzone";
 import { appPrimaryButton } from "@/lib/app-theme";
 import { cn } from "@/lib/utils";
+import {
+  DEFAULT_INTERVIEW_OPT_INS,
+  IX_CATEGORY_KEYS,
+  IX_CATEGORY_META,
+  type InterviewOptIns,
+} from "@/lib/ix-score-constants";
 
 const INDUSTRIES = [
   "IT/Software",
@@ -133,6 +139,9 @@ export function CandidateOnboardingForm({ onBack }: Readonly<CandidateOnboarding
     affiliationInstitutionId: null,
     affiliationInstitutionName: "",
   });
+  const [interviewOptIns, setInterviewOptIns] = useState<InterviewOptIns>(
+    DEFAULT_INTERVIEW_OPT_INS,
+  );
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     accept: pdfResumeDropzoneAccept,
@@ -200,6 +209,7 @@ export function CandidateOnboardingForm({ onBack }: Readonly<CandidateOnboarding
       minimal || reviewData.industries.length === 0
         ? undefined
         : reviewData.industries,
+    interviewOptIns: minimal ? undefined : interviewOptIns,
     ...toOnboardingAffiliationPayload(affiliation),
   });
 
@@ -252,6 +262,19 @@ export function CandidateOnboardingForm({ onBack }: Readonly<CandidateOnboarding
         ? prev.industries.filter((i) => i !== industry)
         : [...prev.industries, industry],
     }));
+  };
+
+  const toggleInterviewOpt = (key: keyof InterviewOptIns) => {
+    setInterviewOptIns((prev) => {
+      const next = { ...prev, [key]: !prev[key] };
+      const enabled = IX_CATEGORY_KEYS.filter((k) => next[k]);
+      if (enabled.length === 0) {
+        setError("At least one interview type must stay selected");
+        return prev;
+      }
+      setError("");
+      return next;
+    });
   };
 
   const completeOnboarding = async (minimal = false) => {
@@ -588,6 +611,51 @@ export function CandidateOnboardingForm({ onBack }: Readonly<CandidateOnboarding
                   </div>
                 </FormSection>
               ) : null}
+
+              <FormSection
+                icon={Eye}
+                title="Which interviews are you practising?"
+                description="Your iX Report is built from the categories you select here. You can change this later from My Profile."
+              >
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  {IX_CATEGORY_KEYS.map((key) => {
+                    const meta = IX_CATEGORY_META[key];
+                    const active = interviewOptIns[key];
+                    return (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => toggleInterviewOpt(key)}
+                        className={cn(
+                          "rounded-xl border p-4 text-left transition-colors",
+                          active
+                            ? "border-[#7367F0] bg-[#7367F0]/5 shadow-sm"
+                            : "border-border/70 bg-card hover:border-[#7367F0]/30",
+                        )}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-sm font-semibold text-foreground">
+                            {meta.label}
+                          </span>
+                          <span
+                            className={cn(
+                              "rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase",
+                              active
+                                ? "bg-[#7367F0] text-white"
+                                : "bg-muted text-muted-foreground",
+                            )}
+                          >
+                            {active ? "On" : "Off"}
+                          </span>
+                        </div>
+                        <p className="mt-2 text-xs text-muted-foreground">
+                          {meta.description}
+                        </p>
+                      </button>
+                    );
+                  })}
+                </div>
+              </FormSection>
 
               <FormSection
                 icon={TrendingUp}
