@@ -35,6 +35,11 @@ export const navLinksBeforePractice = [
 
 export const navLinksAfterPractice = [
   {
+    href: "/hire-ix-talent",
+    label: "Hire iX Talent",
+    match: (path: string) => path.startsWith("/hire-ix-talent"),
+  },
+  {
     href: "/ai-resume-builder",
     label: "Resume Builder",
     match: (path: string) => path.startsWith("/ai-resume-builder"),

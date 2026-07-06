@@ -27,11 +27,12 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AppSelect } from "@/components/ui/app-select";
+import { JobRoleSelect, shouldClearRoleOnIndustryChange } from "@/components/career/JobRoleSelect";
 import { InterviewerCard } from "@/components/peer/InterviewerCard";
 import { appCard, appFilterBar } from "@/lib/app-theme";
+import { toPeerIndustryList } from "@/lib/career-catalog";
 import {
   peerApi,
-  type PeerIndustry,
   type PeerInterviewType,
   type PeerInterviewerCard,
 } from "@/lib/api";
@@ -112,7 +113,7 @@ export default function PeerInterviewsDirectoryPage() {
   const roleCtx = useActiveRole();
   const { isLoaded, user } = useUser();
   const [types, setTypes] = useState<PeerInterviewType[]>([]);
-  const [industries, setIndustries] = useState<PeerIndustry[]>([]);
+  const industries = useMemo(() => toPeerIndustryList(), []);
   const [items, setItems] = useState<PeerInterviewerCard[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -164,27 +165,11 @@ export default function PeerInterviewsDirectoryPage() {
     return m;
   }, [types]);
 
-  const draftRoleOptions = useMemo(() => {
-    if (draftIndustry) {
-      return industries.find((item) => item.name === draftIndustry)?.roles ?? [];
+  useEffect(() => {
+    if (!type && (sort === "price_asc" || sort === "price_desc")) {
+      setSort("rating_desc");
     }
-    const all = new Set<string>();
-    for (const item of industries) {
-      for (const r of item.roles) all.add(r);
-    }
-    return [...all].sort((a, b) => a.localeCompare(b));
-  }, [industries, draftIndustry]);
-
-  const roleOptions = useMemo(() => {
-    if (industry) {
-      return industries.find((item) => item.name === industry)?.roles ?? [];
-    }
-    const all = new Set<string>();
-    for (const item of industries) {
-      for (const r of item.roles) all.add(r);
-    }
-    return [...all].sort((a, b) => a.localeCompare(b));
-  }, [industries, industry]);
+  }, [type, sort]);
 
   useEffect(() => {
     if (!roleCtx?.ready || roleCtx.activeRole !== "interviewer") return;
@@ -193,26 +178,7 @@ export default function PeerInterviewsDirectoryPage() {
 
   useEffect(() => {
     peerApi.listInterviewTypes().then(setTypes).catch(() => undefined);
-    peerApi.listIndustries().then(setIndustries).catch(() => undefined);
   }, []);
-
-  useEffect(() => {
-    if (role && !roleOptions.includes(role)) {
-      setRole("");
-    }
-  }, [role, roleOptions]);
-
-  useEffect(() => {
-    if (!type && (sort === "price_asc" || sort === "price_desc")) {
-      setSort("rating_desc");
-    }
-  }, [type, sort]);
-
-  useEffect(() => {
-    if (draftRole && !draftRoleOptions.includes(draftRole)) {
-      setDraftRole("");
-    }
-  }, [draftRole, draftRoleOptions]);
 
   useEffect(() => {
     if (!draftType && (draftSort === "price_asc" || draftSort === "price_desc")) {
@@ -359,18 +325,14 @@ export default function PeerInterviewsDirectoryPage() {
 
   const onIndustryChange = (value: string) => {
     setIndustry(value);
-    if (value && role && !industries.find((item) => item.name === value)?.roles.includes(role)) {
+    if (shouldClearRoleOnIndustryChange(role, value)) {
       setRole("");
     }
   };
 
   const onDraftIndustryChange = (value: string) => {
     setDraftIndustry(value);
-    if (
-      value &&
-      draftRole &&
-      !industries.find((item) => item.name === value)?.roles.includes(draftRole)
-    ) {
+    if (shouldClearRoleOnIndustryChange(draftRole, value)) {
       setDraftRole("");
     }
   };
@@ -568,13 +530,13 @@ export default function PeerInterviewsDirectoryPage() {
                 <Label htmlFor="peer-filter-role" className="text-xs font-medium text-muted-foreground">
                   Role
                 </Label>
-                <AppSelect
+                <JobRoleSelect
                   id="peer-filter-role"
                   value={role}
                   onChange={setRole}
-                  allowEmpty
-                  emptyLabel="All roles"
-                  options={roleOptions.map((item) => ({ value: item, label: item }))}
+                  industry={industry || undefined}
+                  placeholder="All roles"
+                  inputClassName="h-11 bg-card"
                 />
               </div>
               <div className="flex min-w-0 flex-col gap-1.5">
@@ -823,13 +785,13 @@ export default function PeerInterviewsDirectoryPage() {
 
             <div className="space-y-1.5">
               <Label htmlFor="peer-mobile-filter-role">Role</Label>
-              <AppSelect
+              <JobRoleSelect
                 id="peer-mobile-filter-role"
                 value={draftRole}
                 onChange={setDraftRole}
-                allowEmpty
-                emptyLabel="All roles"
-                options={draftRoleOptions.map((item) => ({ value: item, label: item }))}
+                industry={draftIndustry || undefined}
+                placeholder="All roles"
+                inputClassName="h-11 bg-card"
               />
             </div>
 

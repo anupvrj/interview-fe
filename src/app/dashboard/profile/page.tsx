@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useUser, useClerk } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { useDropzone } from "react-dropzone";
@@ -29,6 +29,8 @@ import {
   Save,
   Trash2,
   AlertTriangle,
+  FileEdit,
+  Star,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -39,9 +41,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { userApi, User } from "@/lib/api";
+import { userApi, User, type CandidateStatus, type Resume } from "@/lib/api";
+import { TEMPLATES_CATALOG } from "@/configs/resume-templates/templates-catalog";
 import { InstitutionAffiliationFields } from "@/components/profile/InstitutionAffiliationFields";
+import { ProfileSkillsEditor } from "@/components/profile/ProfileSkillsEditor";
+import { ProfileDesignedResumePicker, type ProfileDesignedResumePickerHandle } from "@/components/profile/ProfileDesignedResumePicker";
+import { ProfilePhoneFields } from "@/components/profile/ProfilePhoneFields";
 import { ProfileWelcomeHero } from "@/components/profile/ProfileWelcomeHero";
+import { IxScoreSummaryCard } from "@/components/ix-score/IxScoreSummaryCard";
+import { CandidateStatusInlineSelect } from "@/components/recruiter/CandidateStatusInlineSelect";
+import { CANDIDATE_STATUS_LABELS } from "@/lib/recruiter";
+import { IxOptInNotice } from "@/components/ix-score/IxOptInNotice";
 import {
   affiliationFromUser,
   toProfileAffiliationPayload,
@@ -49,6 +59,7 @@ import {
 } from "@/lib/affiliation-payload";
 import { getApiErrorMessage } from "@/lib/api-error-message";
 import { formatDate, cn } from "@/lib/utils";
+import { parseStoredPhone, formatPhoneForStorage, isValidPhoneForStorage } from "@/lib/phone-utils";
 import {
   PDF_RESUME_MAX_BYTES,
   pdfResumeDropzoneAccept,
@@ -73,21 +84,17 @@ const profileSectionLabelClass =
 
 const profileFormLabelClass = "block text-sm font-medium text-foreground";
 
-const INDUSTRIES = [
-  "IT/Software",
-  "Finance",
-  "Healthcare",
-  "Education",
-  "Manufacturing",
-  "Retail",
-  "Consulting",
-  "E-commerce",
-  "Telecommunications",
-  "Automotive",
-  "Real Estate",
-  "Media & Entertainment",
-  "Other",
-];
+import { IndustryRoleFields } from "@/components/career/IndustryRoleFields";
+import { AppSelect } from "@/components/ui/app-select";
+import { industrySelectOptions } from "@/lib/career-catalog";
+import {
+  partitionLegacyProfileSkills,
+  resolveUserIndustry,
+} from "@/lib/user-industry";
+
+function designedResumeTemplateLabel(templateId: string): string {
+  return TEMPLATES_CATALOG.find((t) => t.id === templateId)?.name ?? templateId;
+}
 
 function ProfileField({
   label,
@@ -150,20 +157,27 @@ export default function ProfilePage() {
   const [success, setSuccess] = useState<string>("");
   const [editingProfile, setEditingProfile] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
-  const [editingName, setEditingName] = useState(false);
-  const [savingName, setSavingName] = useState(false);
+  const [editingProfileInfo, setEditingProfileInfo] = useState(false);
+  const [savingProfileInfo, setSavingProfileInfo] = useState(false);
   const [fullNameInput, setFullNameInput] = useState("");
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [ixScoreCardKey, setIxScoreCardKey] = useState(0);
+  const [phoneCountryCode, setPhoneCountryCode] = useState("+91");
+  const [phoneLocal, setPhoneLocal] = useState("");
+  const [savedPhone, setSavedPhone] = useState<string | null>(null);
+  const [candidateStatus, setCandidateStatus] = useState<CandidateStatus>("actively_looking");
+  const [defaultDesignedResume, setDefaultDesignedResume] = useState<Resume | null>(null);
+  const designedResumePickerRef = useRef<ProfileDesignedResumePickerHandle>(null);
   const [profileData, setProfileData] = useState({
     userType: "" as "student" | "fresher" | "experienced" | "",
     experience: 0,
     currentJob: {
       company: "",
       role: "",
-      industry: "",
     },
-    industries: [] as string[],
+    industry: "",
+    skills: [] as string[],
     affiliation: {
       affiliationInstitutionId: null,
       affiliationInstitutionName: "",
@@ -182,16 +196,24 @@ export default function ProfilePage() {
       const profile = await userApi.getMyProfile();
       setUser(profile);
       setFullNameInput(profile.name || "");
-      // Initialize profile data
+      const parsedPhone = parseStoredPhone(profile.phone);
+      setPhoneCountryCode(parsedPhone.countryCode);
+      setPhoneLocal(parsedPhone.localNumber);
+      setSavedPhone(profile.phone?.trim() || null);
+      setCandidateStatus(profile.candidateStatus ?? "actively_looking");
+      const skills = partitionLegacyProfileSkills(
+        profile.industries,
+        profile.skills,
+      );
       setProfileData({
         userType: profile.userType || "",
         experience: profile.experience || 0,
-        currentJob: profile.currentJob || {
-          company: "",
-          role: "",
-          industry: "",
+        currentJob: {
+          company: profile.currentJob?.company || "",
+          role: profile.currentJob?.role || "",
         },
-        industries: profile.industries || [],
+        industry: resolveUserIndustry(profile),
+        skills,
         affiliation: affiliationFromUser(profile),
       });
     } catch (error: any) {
@@ -217,12 +239,13 @@ export default function ProfilePage() {
         currentJob:
           profileData.userType === "experienced" &&
           profileData.currentJob.company
-            ? profileData.currentJob
+            ? {
+                company: profileData.currentJob.company,
+                role: profileData.currentJob.role,
+              }
             : undefined,
-        industries:
-          profileData.industries.length > 0
-            ? profileData.industries
-            : undefined,
+        industry: profileData.industry || undefined,
+        skills: profileData.skills,
         ...toProfileAffiliationPayload(profileData.affiliation),
       });
 
@@ -240,52 +263,78 @@ export default function ProfilePage() {
     }
   };
 
-  const handleSaveName = async () => {
+  const resetProfileInfoForm = () => {
+    setFullNameInput(
+      user?.name ||
+        `${clerkUser?.firstName || ""} ${clerkUser?.lastName || ""}`.trim(),
+    );
+    const parsedPhone = parseStoredPhone(user?.phone);
+    setPhoneCountryCode(parsedPhone.countryCode);
+    setPhoneLocal(parsedPhone.localNumber);
+    setCandidateStatus(user?.candidateStatus ?? "actively_looking");
+  };
+
+  const handleCancelProfileInfo = () => {
+    resetProfileInfoForm();
+    setEditingProfileInfo(false);
+    setError("");
+  };
+
+  const handleSaveProfileInfo = async () => {
     const nextName = fullNameInput.trim();
     if (!nextName) {
       setError("Full name is required");
       return;
     }
+
+    const formattedPhone = formatPhoneForStorage(phoneCountryCode, phoneLocal);
+    if (
+      formattedPhone &&
+      !isValidPhoneForStorage(phoneCountryCode, phoneLocal)
+    ) {
+      setError("Enter a valid phone number (6–15 digits)");
+      return;
+    }
+
     try {
-      setSavingName(true);
+      setSavingProfileInfo(true);
       setError("");
       setSuccess("");
-      await userApi.updateProfile({ name: nextName });
 
-      // Keep Clerk profile display in sync where permitted.
-      if (clerkUser) {
-        const [firstName, ...rest] = nextName.split(/\s+/);
-        const lastName = rest.join(" ") || undefined;
-        try {
-          await clerkUser.update({
-            firstName: firstName || undefined,
-            lastName,
-          });
-        } catch {
-          // Non-blocking: backend profile name is already updated.
+      if (nextName !== (user?.name || "")) {
+        await userApi.updateProfile({ name: nextName });
+
+        if (clerkUser) {
+          const [firstName, ...rest] = nextName.split(/\s+/);
+          const lastName = rest.join(" ") || undefined;
+          try {
+            await clerkUser.update({
+              firstName: firstName || undefined,
+              lastName,
+            });
+          } catch {
+            // Non-blocking: backend profile name is already updated.
+          }
         }
       }
 
-      setSuccess("Name updated successfully!");
-      setEditingName(false);
-      await loadProfile();
-    } catch (error: any) {
-      console.error("Error updating name:", error);
-      setError(
-        error.response?.data?.message || "Failed to update name. Please try again.",
-      );
-    } finally {
-      setSavingName(false);
-    }
-  };
+      if (formattedPhone !== (savedPhone ?? "")) {
+        await userApi.updatePhone(formattedPhone);
+      }
 
-  const toggleIndustry = (industry: string) => {
-    setProfileData((prev) => ({
-      ...prev,
-      industries: prev.industries.includes(industry)
-        ? prev.industries.filter((i) => i !== industry)
-        : [...prev.industries, industry],
-    }));
+      const persistedStatus = user?.candidateStatus ?? null;
+      if (candidateStatus !== persistedStatus) {
+        await userApi.updateCandidateStatus(candidateStatus);
+      }
+
+      setSuccess("Profile updated successfully!");
+      setEditingProfileInfo(false);
+      await loadProfile();
+    } catch (error: unknown) {
+      setError(getApiErrorMessage(error, "Failed to update profile"));
+    } finally {
+      setSavingProfileInfo(false);
+    }
   };
 
   const handleDeleteProfile = async () => {
@@ -352,6 +401,7 @@ export default function ProfilePage() {
 
       setSuccess("Resume uploaded successfully!");
       setUploadedFile(null);
+      setDefaultDesignedResume(null);
 
       await loadProfile();
     } catch (error: unknown) {
@@ -383,14 +433,23 @@ export default function ProfilePage() {
   const displayEmail =
     clerkUser?.primaryEmailAddress?.emailAddress || "—";
 
+  const displaySkills = partitionLegacyProfileSkills(
+    user?.industries,
+    user?.skills,
+  );
+  const displayIndustry = resolveUserIndustry(user);
+
   const profileCompletionScore = (() => {
     let score = 0;
     if (user?.name?.trim()) score += 25;
     if (user?.userType) score += 25;
-    if (user?.resume) score += 30;
-    if (user?.industries?.length || user?.affiliationInstitutionName) score += 20;
+    if (user?.resume || defaultDesignedResume) score += 30;
+    if (displayIndustry || displaySkills.length || user?.affiliationInstitutionName)
+      score += 20;
     return Math.min(100, score);
   })();
+
+  const hasActiveResume = Boolean(user?.resume || defaultDesignedResume);
 
   if (!isLoaded || loading) {
     return (
@@ -426,6 +485,8 @@ export default function ProfilePage() {
         </div>
       )}
 
+      <IxOptInNotice onSnapshotUpdated={() => setIxScoreCardKey((k) => k + 1)} />
+
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
         <DashboardStatCard
           theme="violet"
@@ -437,14 +498,22 @@ export default function ProfilePage() {
         <DashboardStatCard
           theme="emerald"
           label="Resume"
-          value={user?.resume ? "Uploaded" : "Not set"}
+          value={
+            user?.resume
+              ? "Uploaded"
+              : defaultDesignedResume
+                ? "Designed"
+                : "Not set"
+          }
           hint={
             user?.resume
               ? formatFileSize(user.resume.size)
-              : "Add PDF for interviews"
+              : defaultDesignedResume
+                ? defaultDesignedResume.title?.trim() || "Default resume"
+                : "Add PDF or choose designed resume"
           }
           icon={FileText}
-          progress={user?.resume ? 100 : 0}
+          progress={hasActiveResume ? 100 : 0}
         />
         <DashboardStatCard
           theme="sky"
@@ -459,6 +528,8 @@ export default function ProfilePage() {
           progress={profileCompletionScore}
         />
       </div>
+
+      <IxScoreSummaryCard key={ixScoreCardKey} />
 
       <div className="grid gap-4 lg:grid-cols-3 lg:gap-6">
         <div className="space-y-4 lg:col-span-2">
@@ -480,101 +551,153 @@ export default function ProfilePage() {
                     </div>
                   )}
                   <div className="min-w-0 flex-1">
-                    {editingName ? (
-                      <div className="space-y-3">
-                        <Label htmlFor="profile-full-name" className={profileFormLabelClass}>
-                          Full name
-                        </Label>
-                        <Input
-                          id="profile-full-name"
-                          value={fullNameInput}
-                          onChange={(e) => setFullNameInput(e.target.value)}
-                          placeholder="Enter full name"
-                          className={profileInputClass}
-                        />
-                        <div className="flex flex-wrap items-center gap-2">
-                          <Button
-                            size="sm"
-                            onClick={handleSaveName}
-                            disabled={savingName}
-                            className={cn("gap-1.5", institutePrimaryClass)}
-                          >
-                            {savingName ? (
-                              <>
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                                Saving…
-                              </>
-                            ) : (
-                              <>
-                                <Save className="h-4 w-4" />
-                                Save
-                              </>
-                            )}
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => {
-                              setEditingName(false);
-                              setFullNameInput(user?.name || displayName);
-                            }}
-                          >
-                            Cancel
-                          </Button>
-                        </div>
-                      </div>
-                    ) : (
-                      <>
-                        <CardTitle className="truncate text-xl font-bold text-foreground">
-                          {displayName}
-                        </CardTitle>
-                        <CardDescription className="mt-1 truncate text-sm">
-                          {displayEmail}
-                        </CardDescription>
-                        <div className="mt-3 flex flex-wrap items-center gap-2">
-                          <span className="inline-flex items-center rounded-full border border-[#7367F0]/20 bg-[#7367F0]/10 px-2.5 py-0.5 text-xs font-semibold capitalize text-[#7367F0]">
-                            {user?.role || "student"}
-                          </span>
-                          {user?.createdAt && (
-                            <span className="text-xs text-muted-foreground">
-                              Member since {formatDate(user.createdAt)}
-                            </span>
-                          )}
-                        </div>
-                      </>
-                    )}
+                    <CardTitle className="truncate text-xl font-bold text-foreground">
+                      {displayName}
+                    </CardTitle>
+                    <CardDescription className="mt-1 truncate text-sm">
+                      {displayEmail}
+                    </CardDescription>
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      <span className="inline-flex items-center rounded-full border border-[#7367F0]/20 bg-[#7367F0]/10 px-2.5 py-0.5 text-xs font-semibold capitalize text-[#7367F0]">
+                        {user?.role || "student"}
+                      </span>
+                      {user?.createdAt && (
+                        <span className="text-xs text-muted-foreground">
+                          Member since {formatDate(user.createdAt)}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
-                {!editingName && (
+                {!editingProfileInfo && (
                   <Button
                     variant="outline"
                     size="sm"
                     className="shrink-0 gap-1.5"
-                    onClick={() => setEditingName(true)}
+                    onClick={() => {
+                      resetProfileInfoForm();
+                      setEditingProfileInfo(true);
+                    }}
                   >
                     <Edit2 className="h-4 w-4" />
-                    Edit name
+                    Edit
                   </Button>
                 )}
               </div>
             </CardHeader>
             <CardContent className="p-5">
-              <div className="grid gap-3 sm:grid-cols-2">
-                <ProfileField label="Full name" value={displayName} />
-                <ProfileField label="Email" value={displayEmail} />
-                <ProfileField
-                  label="Member since"
-                  value={
-                    user?.createdAt ? formatDate(user.createdAt) : "—"
-                  }
-                />
-                <ProfileField
-                  label="Account type"
-                  value={
-                    <span className="capitalize">{user?.role || "Student"}</span>
-                  }
-                />
-              </div>
+              {editingProfileInfo ? (
+                <div className="space-y-4">
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className={profileFormFieldClass}>
+                      <Label htmlFor="profile-full-name" className={profileFormLabelClass}>
+                        Full name
+                      </Label>
+                      <Input
+                        id="profile-full-name"
+                        value={fullNameInput}
+                        onChange={(e) => setFullNameInput(e.target.value)}
+                        placeholder="Enter full name"
+                        className={profileInputClass}
+                        disabled={savingProfileInfo}
+                      />
+                    </div>
+                    <ProfileField label="Email" value={displayEmail} />
+                    <ProfileField label="Phone number" className="sm:col-span-2">
+                      <ProfilePhoneFields
+                        countryCode={phoneCountryCode}
+                        localNumber={phoneLocal}
+                        savedPhone={savedPhone}
+                        disabled={savingProfileInfo}
+                        showSaveButton={false}
+                        onCountryCodeChange={setPhoneCountryCode}
+                        onLocalNumberChange={setPhoneLocal}
+                        onSave={() => undefined}
+                      />
+                    </ProfileField>
+                    <div className={profileFormFieldClass}>
+                      <Label htmlFor="profile-job-status" className={profileFormLabelClass}>
+                        Job status
+                      </Label>
+                      <CandidateStatusInlineSelect
+                        id="profile-job-status"
+                        value={candidateStatus}
+                        disabled={savingProfileInfo}
+                        onChange={setCandidateStatus}
+                      />
+                    </div>
+                    <ProfileField
+                      label="Member since"
+                      value={
+                        user?.createdAt ? formatDate(user.createdAt) : "—"
+                      }
+                    />
+                    <ProfileField
+                      label="Account type"
+                      value={
+                        <span className="capitalize">{user?.role || "Student"}</span>
+                      }
+                    />
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2 border-t border-border/60 pt-4">
+                    <Button
+                      size="sm"
+                      onClick={() => void handleSaveProfileInfo()}
+                      disabled={savingProfileInfo}
+                      className={cn("gap-1.5", institutePrimaryClass)}
+                    >
+                      {savingProfileInfo ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Saving…
+                        </>
+                      ) : (
+                        <>
+                          <Save className="h-4 w-4" />
+                          Save
+                        </>
+                      )}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={savingProfileInfo}
+                      onClick={handleCancelProfileInfo}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <ProfileField label="Full name" value={displayName} />
+                  <ProfileField label="Email" value={displayEmail} />
+                  <ProfileField
+                    label="Phone number"
+                    value={savedPhone || "—"}
+                  />
+                  <ProfileField
+                    label="Job status"
+                    value={
+                      user?.candidateStatus
+                        ? CANDIDATE_STATUS_LABELS[user.candidateStatus]
+                        : "Not set"
+                    }
+                  />
+                  <ProfileField
+                    label="Member since"
+                    value={
+                      user?.createdAt ? formatDate(user.createdAt) : "—"
+                    }
+                  />
+                  <ProfileField
+                    label="Account type"
+                    value={
+                      <span className="capitalize">{user?.role || "Student"}</span>
+                    }
+                  />
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -589,7 +712,7 @@ export default function ProfilePage() {
                       Professional details
                     </CardTitle>
                     <CardDescription className="mt-0.5 text-sm">
-                      Background, institute, and industry interests
+                      Background, skills, industry, and institute
                     </CardDescription>
                   </div>
                 </div>
@@ -665,8 +788,8 @@ export default function ProfilePage() {
                   {profileData.userType === "experienced" && (
                     <div className="space-y-4 rounded-xl border border-border/60 bg-muted/20 p-4">
                       <p className={profileSectionLabelClass}>Current job</p>
-                      <div className="grid gap-4 md:grid-cols-3">
-                        <div className={profileFormFieldClass}>
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <div className={cn(profileFormFieldClass, "md:col-span-2")}>
                           <Label htmlFor="profile-company" className={profileFormLabelClass}>
                             Company
                           </Label>
@@ -686,60 +809,56 @@ export default function ProfilePage() {
                             placeholder="Google, TCS…"
                           />
                         </div>
-                        <div className={profileFormFieldClass}>
-                          <Label htmlFor="profile-role" className={profileFormLabelClass}>
-                            Role
-                          </Label>
-                          <Input
-                            id="profile-role"
-                            className={profileInputClass}
-                            value={profileData.currentJob.role}
-                            onChange={(e) =>
+                        <div className="md:col-span-2">
+                          <IndustryRoleFields
+                            industryId="profile-industry"
+                            roleId="profile-role"
+                            industry={profileData.industry}
+                            role={profileData.currentJob.role}
+                            onIndustryChange={(value) =>
+                              setProfileData((prev) => ({ ...prev, industry: value }))
+                            }
+                            onRoleChange={(value) =>
                               setProfileData((prev) => ({
                                 ...prev,
-                                currentJob: {
-                                  ...prev.currentJob,
-                                  role: e.target.value,
-                                },
+                                currentJob: { ...prev.currentJob, role: value },
                               }))
                             }
-                            placeholder="Software Engineer"
+                            disabled={savingProfile}
+                            industryLabel="Industry"
+                            roleLabel="Role"
+                            layout="grid"
+                            industryClassName={profileInputClass}
+                            roleClassName={profileInputClass}
                           />
-                        </div>
-                        <div className={profileFormFieldClass}>
-                          <Label htmlFor="profile-job-industry" className={profileFormLabelClass}>
-                            Industry
-                          </Label>
-                          <Select
-                            value={profileData.currentJob.industry}
-                            onValueChange={(value) =>
-                              setProfileData((prev) => ({
-                                ...prev,
-                                currentJob: {
-                                  ...prev.currentJob,
-                                  industry: value,
-                                },
-                              }))
-                            }
-                          >
-                            <SelectTrigger
-                              id="profile-job-industry"
-                              className={profileInputClass}
-                            >
-                              <SelectValue placeholder="Select industry" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {INDUSTRIES.map((industry) => (
-                                <SelectItem key={industry} value={industry}>
-                                  {industry}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
                         </div>
                       </div>
                     </div>
                   )}
+
+                  {profileData.userType !== "experienced" ? (
+                    <div className={profileFormFieldClass}>
+                      <Label htmlFor="profile-industry-only" className={profileFormLabelClass}>
+                        Industry{" "}
+                        <span className="font-normal text-muted-foreground">
+                          (optional)
+                        </span>
+                      </Label>
+                      <AppSelect
+                        id="profile-industry-only"
+                        value={profileData.industry}
+                        onChange={(value) =>
+                          setProfileData((prev) => ({ ...prev, industry: value }))
+                        }
+                        disabled={savingProfile}
+                        allowEmpty
+                        emptyLabel="Not set"
+                        placeholder="Select industry"
+                        options={industrySelectOptions()}
+                        className={profileInputClass}
+                      />
+                    </div>
+                  ) : null}
 
                   <InstitutionAffiliationFields
                     value={profileData.affiliation}
@@ -750,33 +869,16 @@ export default function ProfilePage() {
                   />
 
                   <div className="space-y-3">
-                    <Label className={profileFormLabelClass}>
-                      Industries of interest{" "}
-                      <span className="font-normal text-muted-foreground">
-                        (optional)
-                      </span>
-                    </Label>
-                    <div className="flex flex-wrap gap-2">
-                      {INDUSTRIES.map((industry) => {
-                        const selected = profileData.industries.includes(industry);
-                        return (
-                          <button
-                            key={industry}
-                            type="button"
-                            onClick={() => toggleIndustry(industry)}
-                            className={cn(
-                              "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
-                              selected
-                                ? "border-[#7367F0] bg-[#7367F0]/10 text-[#7367F0]"
-                                : "border-border/60 bg-background text-muted-foreground hover:border-[#7367F0]/40 hover:text-foreground",
-                            )}
-                          >
-                            {industry}
-                            {selected && <CheckCircle className="h-3.5 w-3.5" />}
-                          </button>
-                        );
-                      })}
-                    </div>
+                    <Label className={profileFormLabelClass}>Skills</Label>
+                    <ProfileSkillsEditor
+                      skills={profileData.skills}
+                      industry={profileData.industry}
+                      disabled={savingProfile}
+                      inputClassName={profileInputClass}
+                      onChange={(skills) =>
+                        setProfileData((prev) => ({ ...prev, skills }))
+                      }
+                    />
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2 border-t border-border/60 pt-4">
@@ -807,12 +909,15 @@ export default function ProfilePage() {
                           setProfileData({
                             userType: user.userType || "",
                             experience: user.experience || 0,
-                            currentJob: user.currentJob || {
-                              company: "",
-                              role: "",
-                              industry: "",
+                            currentJob: {
+                              company: user.currentJob?.company || "",
+                              role: user.currentJob?.role || "",
                             },
-                            industries: user.industries || [],
+                            industry: resolveUserIndustry(user),
+                            skills: partitionLegacyProfileSkills(
+                              user.industries,
+                              user.skills,
+                            ),
                             affiliation: affiliationFromUser(user),
                           });
                         }
@@ -861,7 +966,7 @@ export default function ProfilePage() {
                   {user?.userType === "experienced" && (
                     <div className="space-y-3">
                       <p className={profileSectionLabelClass}>Current job</p>
-                      <div className="grid gap-3 md:grid-cols-3">
+                      <div className="grid gap-3 md:grid-cols-2">
                         <ProfileField
                           label="Company"
                           value={user?.currentJob?.company?.trim() || "Not set"}
@@ -870,26 +975,25 @@ export default function ProfilePage() {
                           label="Role"
                           value={user?.currentJob?.role?.trim() || "Not set"}
                         />
-                        <ProfileField
-                          label="Industry"
-                          value={user?.currentJob?.industry?.trim() || "Not set"}
-                        />
                       </div>
                     </div>
                   )}
 
+                  <ProfileField
+                    label="Industry"
+                    value={displayIndustry || "Not set"}
+                  />
+
                   <div>
-                    <p className={profileSectionLabelClass}>
-                      Industries of interest
-                    </p>
-                    {user?.industries && user.industries.length > 0 ? (
+                    <p className={profileSectionLabelClass}>Skills</p>
+                    {displaySkills.length > 0 ? (
                       <div className="mt-3 flex flex-wrap gap-2">
-                        {user.industries.map((industry) => (
+                        {displaySkills.map((skill) => (
                           <span
-                            key={industry}
-                            className="inline-flex items-center rounded-full border border-[#7367F0]/20 bg-[#7367F0]/10 px-2.5 py-0.5 text-xs font-medium text-[#7367F0]"
+                            key={skill}
+                            className="inline-flex items-center rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-0.5 text-xs font-medium text-emerald-700 dark:text-emerald-400"
                           >
-                            {industry}
+                            {skill}
                           </span>
                         ))}
                       </div>
@@ -920,24 +1024,36 @@ export default function ProfilePage() {
                       Resume
                     </CardTitle>
                     <CardDescription className="mt-0.5 text-sm">
-                      PDF used automatically for new interviews
+                      One active resume for interviews and recruiters
                     </CardDescription>
                   </div>
                 </div>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  className="shrink-0 gap-1.5"
-                  onClick={() => open()}
-                >
-                  <Upload className="h-4 w-4" />
-                  Upload
-                </Button>
+                <div className="flex shrink-0 flex-wrap items-center gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="gap-1.5"
+                    onClick={() => designedResumePickerRef.current?.open()}
+                  >
+                    <FileEdit className="h-4 w-4" />
+                    Choose resume
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="gap-1.5"
+                    onClick={() => open()}
+                  >
+                    <Upload className="h-4 w-4" />
+                    Upload
+                  </Button>
+                </div>
               </div>
             </CardHeader>
             <CardContent className="space-y-4 p-5">
-              {user?.resume && (
+              {user?.resume ? (
                 <div className="flex items-center gap-4 rounded-xl border border-emerald-500/25 bg-gradient-to-r from-emerald-500/5 to-transparent p-4">
                   <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-sm">
                     <FileText className="h-5 w-5" />
@@ -947,21 +1063,40 @@ export default function ProfilePage() {
                       {user.resume.filename}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      {formatDate(user.resume.uploadedAt)} ·{" "}
+                      Uploaded PDF · {formatDate(user.resume.uploadedAt)} ·{" "}
                       {formatFileSize(user.resume.size)}
                     </p>
                   </div>
                   <CheckCircle className="h-5 w-5 shrink-0 text-emerald-600" />
                 </div>
-              )}
+              ) : defaultDesignedResume ? (
+                <div className="flex items-center gap-4 rounded-xl border border-[#7367F0]/25 bg-gradient-to-r from-[#7367F0]/5 to-transparent p-4">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#7367F0] text-white shadow-sm">
+                    <FileEdit className="h-5 w-5" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold text-foreground">
+                      {defaultDesignedResume.title?.trim() || "Untitled resume"}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Designed resume ·{" "}
+                      {designedResumeTemplateLabel(defaultDesignedResume.templateId)} ·
+                      Updated {formatDate(defaultDesignedResume.updatedAt)}
+                    </p>
+                  </div>
+                  <Star className="h-5 w-5 shrink-0 fill-[#7367F0] text-[#7367F0]" />
+                </div>
+              ) : null}
 
               <input {...getInputProps()} />
 
-              {!uploadedFile ? (
+              {!uploadedFile && !user?.resume && !defaultDesignedResume ? (
                 <button
                   type="button"
                   onClick={() => open()}
-                  className="flex w-full flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border/80 bg-muted/20 px-4 py-8 text-center transition-colors hover:border-[#7367F0]/40 hover:bg-[#7367F0]/[0.03]"
+                  className={cn(
+                    "flex w-full flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border/80 bg-muted/20 px-4 py-8 text-center transition-colors hover:border-[#7367F0]/40 hover:bg-[#7367F0]/[0.03]",
+                  )}
                 >
                   <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-[#7367F0]/15 bg-[#7367F0]/10 text-[#7367F0]">
                     <Upload className="h-5 w-5" />
@@ -973,7 +1108,7 @@ export default function ProfilePage() {
                     PDF only · max 5 MB
                   </p>
                 </button>
-              ) : (
+              ) : uploadedFile ? (
                 <div className="flex items-center gap-4 rounded-xl border border-border/60 bg-muted/20 p-4">
                   <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-white">
                     <FileText className="h-5 w-5" />
@@ -996,7 +1131,7 @@ export default function ProfilePage() {
                     <X className="h-4 w-4" />
                   </Button>
                 </div>
-              )}
+              ) : null}
 
               {uploadedFile && (
                 <Button
@@ -1017,6 +1152,12 @@ export default function ProfilePage() {
                   )}
                 </Button>
               )}
+
+              <ProfileDesignedResumePicker
+                ref={designedResumePickerRef}
+                onDefaultResumeChange={setDefaultDesignedResume}
+                onDefaultChanged={() => void loadProfile()}
+              />
             </CardContent>
           </Card>
         </div>

@@ -38,17 +38,32 @@ import {
   Mic,
   BarChart3,
 } from "lucide-react";
-import { interviewApi, paymentApi, userApi, User } from "@/lib/api";
+import {
+  interviewApi,
+  paymentApi,
+  userApi,
+  User,
+  type Resume,
+} from "@/lib/api";
+import {
+  getActiveSavedResumeDisplay,
+  hasActiveSavedResume,
+  loadDefaultDesignedResume,
+} from "@/lib/active-saved-resume";
 import {
   PDF_RESUME_MAX_BYTES,
   pdfResumeDropzoneAccept,
   pdfResumeFileValidator,
 } from "@/lib/pdf-dropzone";
 import { PageHeader } from "@/components/app/PageHeader";
+import { JobRoleSelect } from "@/components/career/JobRoleSelect";
 import { appCard } from "@/lib/app-theme";
 import { cn } from "@/lib/utils";
 
-const disciplineOptionsByDepartment: Record<string, Array<{ value: string; label: string }>> = {
+const disciplineOptionsByDepartment: Record<
+  string,
+  Array<{ value: string; label: string }>
+> = {
   engineering: [
     { value: "cse", label: "CSE" },
     { value: "it", label: "IT" },
@@ -67,6 +82,8 @@ export default function NewInterviewPage() {
   const [loading, setLoading] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [userProfile, setUserProfile] = useState<User | null>(null);
+  const [defaultDesignedResume, setDefaultDesignedResume] =
+    useState<Resume | null>(null);
   const [useSavedResume, setUseSavedResume] = useState(true);
   const [formData, setFormData] = useState({
     role: "",
@@ -84,15 +101,28 @@ export default function NewInterviewPage() {
   const loadUserProfile = async () => {
     if (!user) return;
     try {
-      const profile = await userApi.getMyProfile();
+      const [profile, designedDefault] = await Promise.all([
+        userApi.getMyProfile(),
+        loadDefaultDesignedResume(user.id),
+      ]);
       setUserProfile(profile);
-      if (profile.resume) {
+      setDefaultDesignedResume(designedDefault);
+      if (hasActiveSavedResume(profile, designedDefault)) {
         setUseSavedResume(true);
       }
     } catch (error) {
       console.error("Error loading profile:", error);
     }
   };
+
+  const activeSavedResume = getActiveSavedResumeDisplay(
+    userProfile,
+    defaultDesignedResume,
+  );
+  const savedResumeAvailable = hasActiveSavedResume(
+    userProfile,
+    defaultDesignedResume,
+  );
 
   const checkInterviewLimit = async () => {
     if (!user) return;
@@ -194,6 +224,10 @@ export default function NewInterviewPage() {
     if (!useSavedResume && !uploadedFile) {
       newErrors.resume = "Please upload your resume or use saved resume";
     }
+    if (useSavedResume && !savedResumeAvailable) {
+      newErrors.resume =
+        "No saved resume found. Set a default on your profile or upload a PDF.";
+    }
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
@@ -229,7 +263,7 @@ export default function NewInterviewPage() {
         targetCompany: formData.targetCompany,
         resume: useSavedResume ? undefined : uploadedFile || undefined,
         useSavedResume:
-          useSavedResume && userProfile?.resume ? true : undefined,
+          useSavedResume && savedResumeAvailable ? true : undefined,
         duration: parseInt(formData.duration),
       });
 
@@ -334,9 +368,7 @@ export default function NewInterviewPage() {
                 <div className="flex flex-col sm:flex-row gap-3">
                   {limitCheck.isExpired ? (
                     <Button
-                      onClick={() =>
-                        router.push("/dashboard/plan?renew=1")
-                      }
+                      onClick={() => router.push("/dashboard/plan?renew=1")}
                       size="lg"
                       className="!bg-[#7367F0] hover:!bg-[#6358d8] text-white shadow-lg hover:shadow-xl transition-all"
                     >
@@ -385,8 +417,9 @@ export default function NewInterviewPage() {
                   credits available
                 </p>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Enough runway for a full rehearsal at 5 credits/min—reports and
-                  discussion feedback unlock when you wrap the session cleanly.
+                  Enough runway for a full rehearsal at 5 credits/min—reports
+                  and discussion feedback unlock when you wrap the session
+                  cleanly.
                 </p>
               </div>
             </div>
@@ -440,14 +473,14 @@ export default function NewInterviewPage() {
                       Role You're Applying For
                       <span className="text-red-500">*</span>
                     </Label>
-                    <Input
+                    <JobRoleSelect
                       id="role"
-                      placeholder="e.g., Software Developer"
                       value={formData.role}
-                      onChange={(e) =>
-                        setFormData({ ...formData, role: e.target.value })
+                      onChange={(value) =>
+                        setFormData({ ...formData, role: value })
                       }
-                      className={`h-11 sm:h-12 text-sm sm:text-base w-full ${
+                      placeholder="Type or select a role"
+                      inputClassName={`h-11 sm:h-12 text-sm sm:text-base ${
                         errors.role
                           ? "border-red-500 focus:ring-red-500"
                           : "border-border focus:border-primary focus:ring-primary"
@@ -532,12 +565,13 @@ export default function NewInterviewPage() {
                           setFormData((prev) => ({
                             ...prev,
                             department: value,
-                            discipline:
-                              disciplineOptionsByDepartment[value]?.some(
-                                (option) => option.value === prev.discipline,
-                              )
-                                ? prev.discipline
-                                : "",
+                            discipline: disciplineOptionsByDepartment[
+                              value
+                            ]?.some(
+                              (option) => option.value === prev.discipline,
+                            )
+                              ? prev.discipline
+                              : "",
                           }));
                         }}
                       >
@@ -545,7 +579,9 @@ export default function NewInterviewPage() {
                           <SelectValue placeholder="Select department" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="engineering">Engineering</SelectItem>
+                          <SelectItem value="engineering">
+                            Engineering
+                          </SelectItem>
                           <SelectItem value="management">Management</SelectItem>
                           <SelectItem value="commerce_finance">
                             Commerce & Finance
@@ -570,21 +606,28 @@ export default function NewInterviewPage() {
                       <Select
                         value={formData.discipline}
                         onValueChange={(value) =>
-                          setFormData((prev) => ({ ...prev, discipline: value }))
+                          setFormData((prev) => ({
+                            ...prev,
+                            discipline: value,
+                          }))
                         }
-                        disabled={!disciplineOptionsByDepartment[formData.department]}
+                        disabled={
+                          !disciplineOptionsByDepartment[formData.department]
+                        }
                       >
                         <SelectTrigger className="h-11 sm:h-12 text-sm sm:text-base w-full">
                           <SelectValue placeholder="Select discipline" />
                         </SelectTrigger>
                         <SelectContent>
-                          {(disciplineOptionsByDepartment[formData.department] ?? []).map(
-                            (option) => (
-                              <SelectItem key={option.value} value={option.value}>
-                                {option.label}
-                              </SelectItem>
-                            ),
-                          )}
+                          {(
+                            disciplineOptionsByDepartment[
+                              formData.department
+                            ] ?? []
+                          ).map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>
@@ -679,7 +722,7 @@ export default function NewInterviewPage() {
                     </Label>
 
                     {/* Saved Resume Option */}
-                    {userProfile?.resume && (
+                    {savedResumeAvailable && activeSavedResume && (
                       <div className="space-y-2">
                         <div
                           className={`relative border-2 rounded-lg p-2.5 sm:p-3 cursor-pointer transition-all ${
@@ -719,16 +762,10 @@ export default function NewInterviewPage() {
                             </div>
                             <div className="flex-1 min-w-0">
                               <p className="text-xs sm:text-sm font-semibold text-foreground truncate">
-                                {userProfile.resume.filename}
+                                {activeSavedResume.title}
                               </p>
                               <p className="text-xs text-muted-foreground truncate">
-                                {new Date(
-                                  userProfile.resume.uploadedAt,
-                                ).toLocaleDateString("en-IN", {
-                                  day: "numeric",
-                                  month: "short",
-                                  year: "numeric",
-                                })}
+                                {activeSavedResume.subtitle}
                               </p>
                             </div>
                             {useSavedResume && (

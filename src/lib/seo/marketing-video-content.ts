@@ -79,9 +79,32 @@ export const atsCheckerDemoVideo: MarketingVideoContent = {
   ],
 };
 
+export const hireIxTalentDemoVideo: MarketingVideoContent = {
+  id: "hire-ix-talent-demo",
+  name: "Interview Trix Hire iX Talent Demo",
+  description:
+    "See how recruiters search verified iX Talent on Interview Trix: filter by role, industry, skills, and iX Score, then review full interview reports before shortlisting.",
+  thumbnailUrl: "/ai_interview_thumbnail.png",
+  uploadDate: "2026-06-27T19:18:46+00:00",
+  videoUrl: getPublicVideoUrl("ai_interview_demo_interview_trix.mp4"),
+  embedUrl: `${getSiteUrl()}/hire-ix-talent`,
+  pagePath: "/hire-ix-talent",
+  durationSeconds: 10,
+  duration: secondsToIso8601Duration(10),
+  captionsUrl: "/captions/ai-interview-demo.vtt",
+  transcript:
+    "Recruiters on Interview Trix search verified iX Talent who have completed AI mock interviews. Filter candidates by role, industry, skills, and minimum iX Score. Open full iX Reports with category breakdowns, transcripts, and interview context before your first outreach. Shortlist top profiles and track hiring pipeline from search to hired.",
+  keyTakeaways: [
+    "Search iX Talent by role, industry, skills, and verified iX Score.",
+    "Review full iX Reports and interview performance before shortlisting.",
+    "Track candidates from search through shortlisted, interviewing, and hired.",
+  ],
+};
+
 /** All public marketing videos — used by video sitemap and JSON-LD registries. */
 export const marketingVideos: MarketingVideoContent[] = [
   aiInterviewDemoVideo,
   resumeBuilderDemoVideo,
   atsCheckerDemoVideo,
+  hireIxTalentDemoVideo,
 ];
