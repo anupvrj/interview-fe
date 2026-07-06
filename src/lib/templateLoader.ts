@@ -93,6 +93,8 @@ class CSSRegistry {
 
       let css = await response.text();
 
+      css += `\n/* Template parity: page gutters from config.style.padding (ResumeRenderer inline mm) */\n.${templateId}-template { box-sizing: border-box; }\n`;
+
       if (templateId === "mercury") {
         try {
           const overrides = await fetch(

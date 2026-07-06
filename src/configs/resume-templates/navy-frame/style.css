@@ -1,6 +1,6 @@
 /**
  * Navy Frame Template Styles
- * Single-column resume with a soft-grey profile header band and navy section headers.
+ * White header (photo + labeled contact), navy section rules, date-on-right timeline.
  */
 
 .navy-frame-template {
@@ -13,20 +13,26 @@
   color-adjust: exact !important;
 }
 
-/* Header band */
+/* Header: no background band — matches reference image */
 .navy-frame-header-section {
-  background-color: #eef1f4 !important;
-  padding: 18px 22px !important;
+  background-color: transparent !important;
+  background: none !important;
+  padding: 0 !important;
   gap: 22px !important;
-  align-items: center !important;
-  margin-bottom: 16px !important;
-  border-radius: 4px;
+  align-items: flex-start !important;
+  margin-bottom: 18px !important;
+  border-radius: 0 !important;
   -webkit-print-color-adjust: exact !important;
   print-color-adjust: exact !important;
   color-adjust: exact !important;
 }
 
-.navy-frame-profile-picture {
+.navy-frame-header-content {
+  padding-top: 0 !important;
+}
+
+.navy-frame-header-section .navy-frame-profile-picture,
+.navy-frame-header-section .navy-frame-profile-placeholder {
   width: 96px !important;
   height: 96px !important;
   border-radius: 6px !important;
@@ -34,40 +40,60 @@
 }
 
 .navy-frame-profile-placeholder {
-  width: 96px !important;
-  height: 96px !important;
-  border-radius: 6px !important;
-  background-color: #d6dbe2 !important;
+  background-color: #e5e7eb !important;
   -webkit-print-color-adjust: exact !important;
   print-color-adjust: exact !important;
 }
 
 .navy-frame-name {
-  font-size: 26px;
-  font-weight: 700;
+  font-size: 26px !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.5px !important;
   color: #1f3a5f !important;
-  letter-spacing: 0.5px;
+  margin: 0 0 10px 0 !important;
+  line-height: 1.15 !important;
   -webkit-print-color-adjust: exact !important;
   print-color-adjust: exact !important;
 }
 
-.navy-frame-job-title {
-  font-size: 14px;
-  color: #5a6b7d !important;
-  -webkit-print-color-adjust: exact !important;
-  print-color-adjust: exact !important;
+/* Reference design: name + contact only (no job title under name) */
+.navy-frame-header-section .navy-frame-job-title {
+  display: none !important;
 }
 
-.navy-frame-contact-item,
-.navy-frame-contact-item span {
+.navy-frame-contact {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 0;
+}
+
+.navy-frame-contact-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 10px;
+  line-height: 1.45;
   color: #1f2937 !important;
 }
 
-.navy-frame-contact-item svg {
-  color: #1f3a5f !important;
-  stroke: #1f3a5f !important;
-  -webkit-print-color-adjust: exact !important;
-  print-color-adjust: exact !important;
+.navy-frame-contact-label {
+  font-weight: 700;
+  color: #1f2937 !important;
+  min-width: 68px;
+  flex-shrink: 0;
+}
+
+.navy-frame-contact-value {
+  font-weight: 400;
+  color: #1f2937 !important;
+}
+
+.navy-frame-contact-row a,
+.navy-frame-contact-row a:visited {
+  color: #1f2937 !important;
+  text-decoration: none;
 }
 
 /* Section headers */
@@ -182,17 +208,17 @@
   }
 
   .navy-frame-header-section {
-    background-color: #eef1f4 !important;
+    background-color: transparent !important;
+    background: none !important;
   }
 
   .navy-frame-profile-placeholder {
-    background-color: #d6dbe2 !important;
+    background-color: #e5e7eb !important;
   }
 
   .navy-frame-name,
   .navy-frame-section-header,
-  .navy-frame-template h2,
-  .navy-frame-contact-item svg {
+  .navy-frame-template h2 {
     color: #1f3a5f !important;
   }
 

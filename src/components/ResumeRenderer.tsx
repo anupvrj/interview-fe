@@ -49,7 +49,11 @@ interface ResumeRendererProps {
   pageNumber?: number;
 }
 
-import { formatExperienceDateRange } from "@/lib/resume-date-utils";
+import {
+  formatExperienceDateRange,
+  formatProjectDateRange,
+  formatResumeDateForDisplay,
+} from "@/lib/resume-date-utils";
 import {
   RESUME_DISPLAY_PLACEHOLDERS,
   normalizePersonalInfoRecord,
@@ -80,6 +84,47 @@ const ICON_MAP = {
   profileSummary: User,
   quote: FileText,
 };
+
+/** Split "Core Strengths" lines into bold label + regular description (preview format). */
+function parseConfidentGridSkillItem(
+  item: string,
+): { name: string; description?: string } {
+  const trimmed = item.trim();
+  if (!trimmed) return { name: "" };
+
+  const match = trimmed.match(/^(.+?)\s*[—–]\s+(.+)$/);
+  if (match) {
+    return { name: match[1].trim(), description: match[2].trim() };
+  }
+
+  const hyphenMatch = trimmed.match(/^(.+?)\s+-\s+(.+)$/);
+  if (hyphenMatch) {
+    return { name: hyphenMatch[1].trim(), description: hyphenMatch[2].trim() };
+  }
+
+  return { name: trimmed };
+}
+
+function renderCondensedRuleInlineList(
+  items: string[],
+  className: string,
+): React.ReactNode {
+  const filtered = items.map((item) => item.trim()).filter(Boolean);
+  if (filtered.length === 0) return null;
+
+  return (
+    <div className={className}>
+      {filtered.map((item, index) => (
+        <span key={`${item}-${index}`}>
+          {index > 0 && (
+            <span className="condensed-rule-inline-separator"> | </span>
+          )}
+          {item}
+        </span>
+      ))}
+    </div>
+  );
+}
 
 export function ResumeRenderer({
   resume,
@@ -125,6 +170,113 @@ export function ResumeRenderer({
         fontSize: layoutTypo.fontSize.sectionHeader,
       }),
     },
+  };
+
+  /** When true, template style.css controls name/job-title/section-header typography. */
+  const useCssHeaderClasses = templateStyle.useCSSClassesForHeader !== false;
+
+  const isSaffronLine = template.id === "saffron-line";
+  const isEmberTimeline = template.id === "ember-timeline";
+  const isConfidentGrid = template.id === "confident-grid";
+  const isCondensedRule = template.id === "condensed-rule";
+  const isRoyalIndigo = template.id === "royal-indigo";
+  const useCssExpTypography =
+    isEmberTimeline || isConfidentGrid || isCondensedRule || isRoyalIndigo;
+  const useCssBodyTypography =
+    isConfidentGrid || isCondensedRule || isRoyalIndigo;
+  const effectiveResumeLayout =
+    isSaffronLine && extendedTemplate?.rendering?.layout?.type === "double"
+      ? {
+          ...resumeLayout,
+          type: "double" as const,
+          columnWidths: extendedTemplate.rendering.layout.columnWidths ??
+            resumeLayout.columnWidths ?? { left: 36, right: 64 },
+        }
+      : isConfidentGrid && extendedTemplate?.rendering?.layout?.type === "double"
+        ? {
+            ...resumeLayout,
+            type: "double" as const,
+            columnWidths: extendedTemplate.rendering.layout.columnWidths ??
+              resumeLayout.columnWidths ?? { left: 50, right: 50 },
+          }
+        : resumeLayout;
+
+  const stripLeadingBullet = (text: string): string =>
+    text
+      .replace(/^[\s\u2022\u2023\u2043\u2219•●◦·\-*]+\s*/, "")
+      .trim();
+
+  const formatExperienceDescriptionHtml = (description: unknown) => {
+    if (!description) return "";
+
+    if (typeof description === "string") {
+      const trimmed = description.trim();
+      if (!trimmed) return "";
+      // Rich-text editor already outputs list markup — do not wrap again
+      if (/<ul[\s>]/i.test(trimmed) || /<ol[\s>]/i.test(trimmed)) {
+        return trimmed.replace(
+          /(<li[^>]*>)\s*[•●◦·\-*]\s*/gi,
+          "$1",
+        );
+      }
+      return trimmed;
+    }
+
+    if (Array.isArray(description)) {
+      const items = description
+        .map((item) => String(item).trim())
+        .filter(Boolean);
+
+      if (items.length === 0) return "";
+
+      // Single item that is already full list HTML
+      if (
+        items.length === 1 &&
+        (/<ul[\s>]/i.test(items[0]) || /<ol[\s>]/i.test(items[0]))
+      ) {
+        return items[0];
+      }
+
+      const cleanItems = items.map(stripLeadingBullet);
+      if (isSaffronLine || isConfidentGrid || isCondensedRule || isRoyalIndigo) {
+        return `<ul>${cleanItems.map((item) => `<li>${item}</li>`).join("")}</ul>`;
+      }
+      return cleanItems.map((item) => `<p>${item}</p>`).join("");
+    }
+
+    return String(description);
+  };
+
+  const mergeHeaderNameStyle = (
+    layout: React.CSSProperties,
+    color?: string,
+  ): React.CSSProperties => {
+    if (useCssHeaderClasses) {
+      return layout;
+    }
+    return {
+      fontSize: `${templateStyle.fontSize.heading}px`,
+      fontWeight: "bold",
+      ...(color ? { color } : {}),
+      fontFamily: templateStyle.fontFamily,
+      ...layout,
+    };
+  };
+
+  const mergeHeaderJobTitleStyle = (
+    layout: React.CSSProperties,
+    color?: string,
+  ): React.CSSProperties => {
+    if (useCssHeaderClasses) {
+      return layout;
+    }
+    return {
+      fontSize: `${templateStyle.fontSize.subheading}px`,
+      ...(color ? { color } : {}),
+      fontFamily: templateStyle.fontFamily,
+      fontStyle: "italic",
+      ...layout,
+    };
   };
 
   const personalInfo = useMemo(
@@ -209,7 +361,7 @@ export function ResumeRenderer({
   // Memoize the result to ensure it recalculates when visibleSections changes
   const { headerSection, leftColumn, rightColumn } = useMemo(() => {
     const organizeIntoColumns = () => {
-      if (resumeLayout.type === "single") {
+      if (effectiveResumeLayout.type === "single") {
         // Check if template uses profile picture header layout
         if (
           templateStyle.headerLayout?.type === "with-profile-picture" ||
@@ -317,7 +469,8 @@ export function ResumeRenderer({
     // Use visibleSections array directly - React will detect reference changes
     // The key is that visibleSections is recalculated when displaySections order changes
     visibleSections,
-    resumeLayout.type,
+    effectiveResumeLayout.type,
+    effectiveResumeLayout.columnWidths,
     templateStyle.headerLayout,
     templateStyle.headerStyle,
     template.id,
@@ -362,19 +515,21 @@ export function ResumeRenderer({
     // Generate template-specific class name for CSS styling
     const templateClassName = `${template.id}-section-header`;
 
-    const baseStyle: React.CSSProperties = {
-      fontSize: `${headerConfig.fontSize || 13}px`,
-      fontWeight: headerConfig.fontWeight || "bold",
-      textAlign: headerConfig.textAlign || "center",
-      marginBottom: headerConfig.marginBottom || "6px",
-      paddingBottom: headerConfig.paddingBottom || "2px",
-      paddingTop: headerConfig.paddingTop || "2px",
-      textTransform: (headerConfig.textTransform as any) || "none",
-      fontFamily: templateStyle.fontFamily,
-      color: isInSidebar
-        ? templateStyle.colors.sidebarText || "#ffffff"
-        : templateStyle.colors.text,
-    };
+    const baseStyle: React.CSSProperties = useCssHeaderClasses
+      ? {}
+      : {
+          fontSize: `${headerConfig.fontSize || 13}px`,
+          fontWeight: headerConfig.fontWeight || "bold",
+          textAlign: headerConfig.textAlign || "center",
+          marginBottom: headerConfig.marginBottom || "6px",
+          paddingBottom: headerConfig.paddingBottom || "2px",
+          paddingTop: headerConfig.paddingTop || "2px",
+          textTransform: (headerConfig.textTransform as any) || "none",
+          fontFamily: templateStyle.fontFamily,
+          color: isInSidebar
+            ? templateStyle.colors.sidebarText || "#ffffff"
+            : templateStyle.colors.text,
+        };
 
     // Apply style based on configuration
     switch (headerConfig.style) {
@@ -412,11 +567,15 @@ export function ResumeRenderer({
             data-section-header
             data-section-id={sectionId}
             className={templateClassName}
-            style={{
-              ...baseStyle,
-              borderBottom: `${headerConfig.borderWidth || 1}px solid ${headerConfig.borderColor || "#000000"
-                }`,
-            }}
+            style={
+              useCssHeaderClasses && (isCondensedRule || isRoyalIndigo)
+                ? { fontWeight: "bold" }
+                : {
+                    ...baseStyle,
+                    borderBottom: `${headerConfig.borderWidth || 1}px solid ${headerConfig.borderColor || "#000000"
+                      }`,
+                  }
+            }
           >
             {sectionType && templateStyle.headerStyle === "two-column" && (
               <>
@@ -763,6 +922,52 @@ export function ResumeRenderer({
       : templateStyle.colors.text;
 
     if (contactConfig.type === "icons") {
+      if (contactConfig.layout === "grid") {
+        const gridOrder = [
+          "email",
+          "phone",
+          "location",
+          "linkedin",
+          "github",
+          "website",
+        ];
+        const orderedItems = gridOrder
+          .map((type) => contactItems.find((item) => item.type === type))
+          .filter((item): item is (typeof contactItems)[number] => Boolean(item));
+
+        return (
+          <div
+            className={`${template.id}-contact ${template.id}-contact-grid`}
+          >
+            {orderedItems.map((item, index) => {
+              const IconComponent = item.icon;
+              const content = (
+                <div
+                  key={index}
+                  className={`${template.id}-contact-item`}
+                >
+                  <IconComponent size={13} style={{ flexShrink: 0 }} />
+                  <span>{item.value}</span>
+                </div>
+              );
+
+              return item.href ? (
+                <a
+                  key={index}
+                  href={item.href}
+                  className="no-underline"
+                  style={{ textDecoration: "none", color: "inherit" }}
+                >
+                  {content}
+                </a>
+              ) : (
+                content
+              );
+            })}
+          </div>
+        );
+      }
+
       return (
         <div
           className={`${template.id}-contact`}
@@ -824,17 +1029,68 @@ export function ResumeRenderer({
     }
 
     // Text-only contact display
+    const contactSeparator = isCondensedRule
+      ? " | "
+      : isRoyalIndigo
+        ? " • "
+        : " • ";
+
+    if (isRoyalIndigo) {
+      const primaryOrder = ["location", "phone", "email"] as const;
+      const secondaryOrder = ["linkedin", "website", "github"] as const;
+      const primaryItems = primaryOrder
+        .map((type) => contactItems.find((item) => item.type === type))
+        .filter((item): item is (typeof contactItems)[number] => Boolean(item));
+      const secondaryItems = secondaryOrder
+        .map((type) => contactItems.find((item) => item.type === type))
+        .filter((item): item is (typeof contactItems)[number] => Boolean(item));
+
+      const renderLine = (items: typeof contactItems) =>
+        items.map((item, index) => (
+          <span key={`${item.type}-${index}`}>
+            {index > 0 && contactSeparator}
+            {item.href ? (
+              <a href={item.href} className="no-underline">
+                {item.value}
+              </a>
+            ) : (
+              item.value
+            )}
+          </span>
+        ));
+
+      return (
+        <div className={`${template.id}-contact`}>
+          {primaryItems.length > 0 && (
+            <div className={`${template.id}-contact-line`}>
+              {renderLine(primaryItems)}
+            </div>
+          )}
+          {secondaryItems.length > 0 && (
+            <div className={`${template.id}-contact-line`}>
+              {renderLine(secondaryItems)}
+            </div>
+          )}
+        </div>
+      );
+    }
+
     return (
       <div
-        style={{
-          fontSize: `${templateStyle.fontSize.small}px`,
-          textAlign:
-            templateStyle.headerStyle === "centered" ||
-              resume.templateId === "classic"
-              ? "center"
-              : "left",
-          color: textColor,
-        }}
+        className={`${template.id}-contact`}
+        style={
+          isCondensedRule
+            ? undefined
+            : {
+                fontSize: `${templateStyle.fontSize.small}px`,
+                textAlign:
+                  templateStyle.headerStyle === "centered" ||
+                  resume.templateId === "classic"
+                    ? "center"
+                    : "left",
+                color: textColor,
+              }
+        }
       >
         {contactItems.map((item, index) => (
           <span key={index}>
@@ -842,14 +1098,18 @@ export function ResumeRenderer({
               <a
                 href={item.href}
                 className="no-underline"
-                style={{ textDecoration: "none", color: textColor }}
+                style={
+                  isCondensedRule
+                    ? undefined
+                    : { textDecoration: "none", color: textColor }
+                }
               >
                 {item.value}
               </a>
             ) : (
               item.value
             )}
-            {index < contactItems.length - 1 && " • "}
+            {index < contactItems.length - 1 && contactSeparator}
           </span>
         ))}
       </div>
@@ -906,15 +1166,15 @@ export function ResumeRenderer({
               >
                 <h1
                     className={`${template.id}-name`}
-                    style={{
-                      fontSize: `${templateStyle.fontSize.heading}px`,
-                      fontWeight: "bold",
-                      color: templateStyle.colors.sidebarText || "#ffffff",
-                      margin: "0 0 4px 0",
-                      ...(template.id === "atlantic-blue"
-                        ? { fontFamily: "inherit" }
-                        : {}),
-                    }}
+                    style={mergeHeaderNameStyle(
+                      {
+                        margin: "0 0 4px 0",
+                        ...(template.id === "atlantic-blue"
+                          ? { fontFamily: "inherit" }
+                          : {}),
+                      },
+                      templateStyle.colors.sidebarText || "#ffffff",
+                    )}
                   >
                     {personalInfoDisplayText(
                       personalInfo.fullName,
@@ -923,17 +1183,16 @@ export function ResumeRenderer({
                   </h1>
                 <p
                     className={`${template.id}-job-title`}
-                    style={{
-                      fontSize:
-                        template.id === "atlantic-blue"
-                          ? "15px"
-                          : `${templateStyle.fontSize.subheading}px`,
-                      color: templateStyle.colors.sidebarText || "#ffffff",
-                      margin: template.id === "atlantic-blue" ? "0" : "0 0 8px 0",
-                      ...(template.id === "atlantic-blue"
-                        ? { fontFamily: "inherit", fontStyle: "normal" }
-                        : {}),
-                    }}
+                    style={mergeHeaderJobTitleStyle(
+                      {
+                        margin:
+                          template.id === "atlantic-blue" ? "0" : "0 0 8px 0",
+                        ...(template.id === "atlantic-blue"
+                          ? { fontFamily: "inherit" }
+                          : {}),
+                      },
+                      templateStyle.colors.sidebarText || "#ffffff",
+                    )}
                   >
                     {personalInfoDisplayText(
                       personalInfo.portfolio,
@@ -1033,6 +1292,64 @@ export function ResumeRenderer({
           ) {
             return null;
           }
+
+          /* Navy Frame: labeled contact rows (Address / Phone / Email / Website) */
+          if (template.id === "navy-frame") {
+            const websiteValue =
+              personalInfo.website || personalInfo.linkedin || "";
+            const labeledRows: {
+              label: string;
+              value?: string;
+              href?: string;
+            }[] = [
+              { label: "Address:", value: personalInfo.location },
+              { label: "Phone:", value: personalInfo.phone },
+              {
+                label: "Email:",
+                value: personalInfo.email,
+                href: personalInfo.email
+                  ? `mailto:${personalInfo.email}`
+                  : undefined,
+              },
+              {
+                label: "Website:",
+                value: websiteValue,
+                href: websiteValue
+                  ? websiteValue.startsWith("http")
+                    ? websiteValue
+                    : `https://${websiteValue.replace(/^\/\//, "")}`
+                  : undefined,
+              },
+            ].filter((row) => row.value);
+
+            return (
+              <div className={`${template.id}-contact`}>
+                {labeledRows.map((row) => (
+                  <div
+                    key={row.label}
+                    className={`${template.id}-contact-row`}
+                  >
+                    <span className={`${template.id}-contact-label`}>
+                      {row.label}
+                    </span>
+                    {row.href ? (
+                      <a
+                        href={row.href}
+                        className={`${template.id}-contact-value no-underline`}
+                      >
+                        {row.value}
+                      </a>
+                    ) : (
+                      <span className={`${template.id}-contact-value`}>
+                        {row.value}
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            );
+          }
+
           const contactItems = [
             {
               type: "email",
@@ -1331,6 +1648,30 @@ export function ResumeRenderer({
 
         // Special header layout: name and title split (name left, title right)
         if (templateStyle.headerLayout?.type === "name-title-split") {
+          if (isCondensedRule) {
+            return (
+              <div className={`${template.id}-header`}>
+                <div className={`${template.id}-header-top`}>
+                  <h1 className={`${template.id}-name`}>
+                    {personalInfoDisplayText(
+                      personalInfo.fullName,
+                      RESUME_DISPLAY_PLACEHOLDERS.fullName,
+                    )}
+                  </h1>
+                  <span className={`${template.id}-job-title`}>
+                    {personalInfoDisplayText(
+                      personalInfo.portfolio,
+                      RESUME_DISPLAY_PLACEHOLDERS.portfolio,
+                    )}
+                  </span>
+                </div>
+                <div className={`${template.id}-contact`}>
+                  {renderContactInfo(isInSidebar)}
+                </div>
+              </div>
+            );
+          }
+
           return (
             <div
               className={`${template.id}-header`}
@@ -1347,17 +1688,13 @@ export function ResumeRenderer({
               >
                 <h1
                     className={`${template.id}-name`}
-                    style={{
-                      fontSize: `${templateStyle.fontSize.heading}px`,
-                      fontWeight: "bold",
-                      // Use CSS classes for header colors if configured, otherwise use inline styles
-                      ...(templateStyle.useCSSClassesForHeader
-                        ? {}
-                        : { color: templateStyle.colors.text }),
-                      margin: "0",
-                      fontFamily: templateStyle.fontFamily,
-                      flexShrink: 0,
-                    }}
+                    style={mergeHeaderNameStyle(
+                      {
+                        margin: "0",
+                        flexShrink: 0,
+                      },
+                      templateStyle.colors.text,
+                    )}
                   >
                     {personalInfoDisplayText(
                       personalInfo.fullName,
@@ -1366,26 +1703,22 @@ export function ResumeRenderer({
                   </h1>
                 <p
                     className={`${template.id}-job-title`}
-                    style={{
-                      fontSize: `${templateStyle.fontSize.subheading}px`,
-                      // Use CSS classes for header colors if configured, otherwise use inline styles
-                      ...(templateStyle.useCSSClassesForHeader
-                        ? {}
-                        : { color: templateStyle.colors.text }),
-                      margin: "0",
-                      fontFamily: templateStyle.fontFamily,
-                      fontStyle: "italic",
-                      fontWeight: "normal",
-                      textAlign:
-                        templateStyle.headerLayout?.titlePosition === "right"
-                          ? "right"
-                          : "left",
-                      flexGrow: 1,
-                      marginLeft:
-                        templateStyle.headerLayout?.titlePosition === "right"
-                          ? "20px"
-                          : "0",
-                    }}
+                    style={mergeHeaderJobTitleStyle(
+                      {
+                        margin: "0",
+                        fontWeight: "normal",
+                        textAlign:
+                          templateStyle.headerLayout?.titlePosition === "right"
+                            ? "right"
+                            : "left",
+                        flexGrow: 1,
+                        marginLeft:
+                          templateStyle.headerLayout?.titlePosition === "right"
+                            ? "20px"
+                            : "0",
+                      },
+                      templateStyle.colors.text,
+                    )}
                   >
                     {personalInfoDisplayText(
                       personalInfo.portfolio,
@@ -1408,7 +1741,15 @@ export function ResumeRenderer({
         ) {
           const headerBackground =
             templateStyle.colors.headerBackground ||
-            (template.id === "mercury" ? "#f5f5f5" : "transparent");
+            (template.id === "mercury"
+              ? "#f5f5f5"
+              : template.id === "confident-grid"
+                ? "#deeef7"
+                : "transparent");
+          const usesCssHeaderBand =
+            template.id === "saffron-line" ||
+            template.id === "navy-frame" ||
+            template.id === "confident-grid";
 
           return (
             <div
@@ -1416,10 +1757,15 @@ export function ResumeRenderer({
               style={{
                 margin: 0,
                 backgroundColor: headerBackground,
-                padding: "40px 55px",
+                ...(usesCssHeaderBand ? {} : { padding: "40px 55px" }),
                 display: "flex",
-                alignItems: "flex-start",
-                gap: "30px",
+                flexWrap: isConfidentGrid ? "nowrap" : "wrap",
+                alignItems: isConfidentGrid ? "center" : "flex-start",
+                gap: isConfidentGrid
+                  ? "28px"
+                  : template.id === "saffron-line"
+                    ? "20px"
+                    : "30px",
               }}
             >
               {/* Profile Picture on Left */}
@@ -1429,23 +1775,31 @@ export function ResumeRenderer({
                     src={personalInfo.profilePicture}
                     alt="Profile"
                     className={`${template.id}-profile-picture`}
-                    style={{
-                      width: "160px",
-                      height: "160px",
-                      borderRadius: "50%",
-                      objectFit: "cover",
-                      border: "none",
-                    }}
+                    style={
+                      isSaffronLine || isConfidentGrid
+                        ? { objectFit: "cover", border: "none" }
+                        : {
+                            width: "160px",
+                            height: "160px",
+                            borderRadius: "50%",
+                            objectFit: "cover",
+                            border: "none",
+                          }
+                    }
                   />
                 ) : (
                   <div
                     className={`${template.id}-profile-placeholder`}
-                    style={{
-                      width: "160px",
-                      height: "160px",
-                      borderRadius: "50%",
-                      backgroundColor: "#e0e0e0",
-                    }}
+                    style={
+                      isSaffronLine || isConfidentGrid
+                        ? undefined
+                        : {
+                            width: "160px",
+                            height: "160px",
+                            borderRadius: "50%",
+                            backgroundColor: "#e0e0e0",
+                          }
+                    }
                   />
                 )}
               </div>
@@ -1453,18 +1807,32 @@ export function ResumeRenderer({
               {/* Name, Title, Contact on Right */}
               <div
                 className={`${template.id}-header-content`}
-                style={{ flex: 1, paddingTop: "10px" }}
+                style={
+                  isSaffronLine || isConfidentGrid
+                    ? { flex: 1 }
+                    : { flex: 1, paddingTop: "10px" }
+                }
               >
                 <h1
                     className={`${template.id}-name`}
-                    style={{
-                      fontSize: `${templateStyle.fontSize.heading}px`,
-                      fontWeight: "bold",
-                      color: templateStyle.colors.text,
-                      margin: "0 0 8px 0",
-                      letterSpacing: "-0.5px",
-                      fontFamily: templateStyle.fontFamily,
-                    }}
+                    style={
+                      useCssHeaderClasses
+                        ? mergeHeaderNameStyle(
+                            {
+                              margin: "0 0 8px 0",
+                              letterSpacing: "-0.5px",
+                            },
+                            templateStyle.colors.text,
+                          )
+                        : {
+                            fontSize: `${templateStyle.fontSize.heading}px`,
+                            fontWeight: "bold",
+                            color: templateStyle.colors.text,
+                            margin: "0 0 8px 0",
+                            letterSpacing: "-0.5px",
+                            fontFamily: templateStyle.fontFamily,
+                          }
+                    }
                   >
                     {personalInfoDisplayText(
                       personalInfo.fullName,
@@ -1473,20 +1841,29 @@ export function ResumeRenderer({
                   </h1>
                 <p
                     className={`${template.id}-job-title`}
-                    style={{
-                      fontSize: `${templateStyle.fontSize.subheading}px`,
-                      color: templateStyle.colors.secondary,
-                      margin: "0 0 20px 0",
-                      fontWeight: "normal",
-                      fontFamily: templateStyle.fontFamily,
-                    }}
+                    style={
+                      useCssHeaderClasses
+                        ? mergeHeaderJobTitleStyle(
+                            { margin: "0 0 20px 0" },
+                            templateStyle.colors.secondary,
+                          )
+                        : {
+                            fontSize: `${templateStyle.fontSize.subheading}px`,
+                            color: templateStyle.colors.secondary,
+                            margin: "0 0 20px 0",
+                            fontWeight: "normal",
+                            fontFamily: templateStyle.fontFamily,
+                          }
+                    }
                   >
                     {personalInfoDisplayText(
                       personalInfo.portfolio,
                       RESUME_DISPLAY_PLACEHOLDERS.portfolio,
                     )}
                   </p>
-                {renderProfileHeaderContactInfo()}
+                {template.id === "saffron-line" || isConfidentGrid
+                  ? renderContactInfo(false)
+                  : renderProfileHeaderContactInfo()}
                 {renderProfileHeaderAdditionalInfo()}
                 {renderProfileHeaderPassportDetails()}
               </div>
@@ -1495,6 +1872,20 @@ export function ResumeRenderer({
         }
 
         // Standard header style
+        if (isRoyalIndigo) {
+          return (
+            <div className={`${template.id}-header`}>
+              <h1 className={`${template.id}-name`}>
+                {personalInfoDisplayText(
+                  personalInfo.fullName,
+                  RESUME_DISPLAY_PLACEHOLDERS.fullName,
+                )}
+              </h1>
+              {renderContactInfo(isInSidebar)}
+            </div>
+          );
+        }
+
         return (
           <div
             className={`${template.id}-header`}
@@ -1544,20 +1935,14 @@ export function ResumeRenderer({
               >
                 <h1
                     className={`${template.id}-name`}
-                    style={{
-                      fontSize: `${templateStyle.fontSize.heading}px`,
-                      fontWeight: "bold",
-                      // Use CSS classes for header colors if configured, otherwise use inline styles
-                      ...(templateStyle.useCSSClassesForHeader
-                        ? {}
-                        : {
-                          color: isInSidebar
-                            ? templateStyle.colors.sidebarText
-                            : templateStyle.colors.text,
-                        }),
-                      margin: "0 0 4px 0",
-                      fontFamily: templateStyle.fontFamily,
-                    }}
+                    style={mergeHeaderNameStyle(
+                      {
+                        margin: "0 0 4px 0",
+                      },
+                      isInSidebar
+                        ? templateStyle.colors.sidebarText
+                        : templateStyle.colors.text,
+                    )}
                   >
                     {personalInfoDisplayText(
                       personalInfo.fullName,
@@ -1566,16 +1951,10 @@ export function ResumeRenderer({
                   </h1>
                 <p
                     className={`${template.id}-job-title`}
-                    style={{
-                      fontSize: `${templateStyle.fontSize.subheading}px`,
-                      // Use CSS classes for header colors if configured, otherwise use inline styles
-                      ...(templateStyle.useCSSClassesForHeader
-                        ? {}
-                        : { color: templateStyle.colors.secondary }),
-                      margin: "0 0 6px 0",
-                      fontFamily: templateStyle.fontFamily,
-                      fontStyle: "italic",
-                    }}
+                    style={mergeHeaderJobTitleStyle(
+                      { margin: "0 0 6px 0" },
+                      templateStyle.colors.secondary,
+                    )}
                   >
                     {personalInfoDisplayText(
                       personalInfo.portfolio,
@@ -1653,15 +2032,25 @@ export function ResumeRenderer({
           >
             {renderSectionHeader(section.title, isInSidebar, section.type, section.id)}
             <div
-              className="resume-content"
-              style={{
-                fontSize: `${templateStyle.fontSize.body}px`,
-                lineHeight: templateStyle.lineHeight,
-                color: isInSidebar
-                  ? templateStyle.colors.sidebarText
-                  : templateStyle.colors.text,
-                fontFamily: templateStyle.fontFamily,
-              }}
+              className={`resume-content${
+                isConfidentGrid || isCondensedRule || isRoyalIndigo
+                  ? ` ${template.id}-summary`
+                  : isSaffronLine
+                    ? ` ${template.id}-summary`
+                    : ""
+              }`}
+              style={
+                useCssBodyTypography
+                  ? undefined
+                  : {
+                      fontSize: `${templateStyle.fontSize.body}px`,
+                      lineHeight: templateStyle.lineHeight,
+                      color: isInSidebar
+                        ? templateStyle.colors.sidebarText
+                        : templateStyle.colors.text,
+                      fontFamily: templateStyle.fontFamily,
+                    }
+              }
               dangerouslySetInnerHTML={{ __html: profileContent }}
             />
           </div>
@@ -1720,7 +2109,11 @@ export function ResumeRenderer({
             }}
           >
             {renderSectionHeader(section.title, isInSidebar, section.type, section.id)}
-            <div>
+            <div
+              className={
+                isEmberTimeline ? `${template.id}-experience-list` : undefined
+              }
+            >
               {experienceData.map((exp, index) => (
                 <div
                   key={index}
@@ -1728,11 +2121,12 @@ export function ResumeRenderer({
                   data-item-index={index}
                   className={`${template.id}-experience-item`}
                   style={{
-                    marginBottom: "16px",
+                    marginBottom:
+                      isEmberTimeline || isConfidentGrid ? undefined : "16px",
                     pageBreakInside: "auto", // Allow splitting for better pagination
                     // Only apply inline grid styles if NOT using table-cell layout via CSS
                     // Templates with table-cell layout should define it in their CSS files
-                    ...(templateStyle.timelineLayout.type === "grid"
+                    ...(templateStyle.timelineLayout.type === "grid" && !isEmberTimeline
                       ? {
                         // Let CSS override if needed (table-cell templates will override via !important)
                         display: "grid",
@@ -1740,18 +2134,24 @@ export function ResumeRenderer({
                           }px 1fr`,
                         gap: "16px",
                       }
-                      : { display: "block" }),
+                      : !isEmberTimeline && templateStyle.timelineLayout.type !== "grid"
+                        ? { display: "block" }
+                        : {}),
                   }}
                 >
                   {templateStyle.timelineLayout.type === "grid" ? (
                     <>
                       <div
                         className={`${template.id}-date-location-column`}
-                        style={{
-                          fontSize: `${templateStyle.fontSize.small}px`,
-                          color: templateStyle.colors.secondary,
-                          fontFamily: templateStyle.fontFamily,
-                        }}
+                        style={
+                          isEmberTimeline
+                            ? undefined
+                            : {
+                                fontSize: `${templateStyle.fontSize.small}px`,
+                                color: templateStyle.colors.secondary,
+                                fontFamily: templateStyle.fontFamily,
+                              }
+                        }
                       >
                         <span className={`${template.id}-date`}>
                           {formatExperienceDateRange(exp)}
@@ -1767,28 +2167,40 @@ export function ResumeRenderer({
                           className={
                             template.id === "executive"
                               ? "executive-experience-job-title"
-                              : `${template.id}-job-title`
+                              : isEmberTimeline
+                                ? `${template.id}-job-title-exp`
+                                : isConfidentGrid
+                                  ? `${template.id}-job-title-exp`
+                                  : `${template.id}-job-title`
                           }
-                          style={{
-                            fontSize: `${templateStyle.fontSize.body + 1}px`,
-                            fontWeight: "bold",
-                            color: isInSidebar
-                              ? templateStyle.colors.sidebarText
-                              : templateStyle.colors.text,
-                            marginBottom: "2px",
-                          }}
+                          style={
+                            useCssExpTypography
+                              ? undefined
+                              : {
+                                  fontSize: `${templateStyle.fontSize.body + 1}px`,
+                                  fontWeight: "bold",
+                                  color: isInSidebar
+                                    ? templateStyle.colors.sidebarText
+                                    : templateStyle.colors.text,
+                                  marginBottom: "2px",
+                                }
+                          }
                         >
                           {exp.position}
                         </div>
                         {exp.company && (
                           <div
                             className={`${template.id}-company`}
-                            style={{
-                              fontSize: `${templateStyle.fontSize.body}px`,
-                              color: templateStyle.colors.secondary,
-                              fontStyle: "italic",
-                              marginBottom: "6px",
-                            }}
+                            style={
+                              useCssExpTypography
+                                ? undefined
+                                : {
+                                    fontSize: `${templateStyle.fontSize.body}px`,
+                                    color: templateStyle.colors.secondary,
+                                    fontStyle: "italic",
+                                    marginBottom: "6px",
+                                  }
+                            }
                           >
                             {exp.company}
                           </div>
@@ -1805,15 +2217,129 @@ export function ResumeRenderer({
                               fontFamily: templateStyle.fontFamily, // Consistent font family
                             }}
                             dangerouslySetInnerHTML={{
-                              __html: Array.isArray(exp.description)
-                                ? exp.description
-                                  .map((d: any) => `<p>${d}</p>`)
-                                  .join("")
-                                : exp.description || "",
+                              __html: formatExperienceDescriptionHtml(exp.description),
                             }}
                           />
                         )}
                       </div>
+                    </>
+                  ) : isRoyalIndigo ? (
+                    <>
+                      <div className={`${template.id}-job-header`}>
+                        <div className={`${template.id}-job-title-line`}>
+                          {exp.position && (
+                            <span className={`${template.id}-job-title-exp`}>
+                              {exp.position}
+                            </span>
+                          )}
+                          {exp.company && (
+                            <>
+                              {exp.position && (
+                                <span className={`${template.id}-title-separator`}>
+                                  ,{" "}
+                                </span>
+                              )}
+                              <span className={`${template.id}-company`}>
+                                {exp.company}
+                              </span>
+                            </>
+                          )}
+                        </div>
+                        <div className={`${template.id}-job-details-container`}>
+                          <div className={`${template.id}-job-date`}>
+                            {formatExperienceDateRange(exp)}
+                          </div>
+                        </div>
+                      </div>
+                      {exp.description && (
+                        <div
+                          className={`resume-content ${template.id}-description`}
+                          dangerouslySetInnerHTML={{
+                            __html: formatExperienceDescriptionHtml(
+                              exp.description,
+                            ),
+                          }}
+                        />
+                      )}
+                    </>
+                  ) : isCondensedRule ? (
+                    <>
+                      <div className={`${template.id}-job-header`}>
+                        <div className={`${template.id}-job-title-line`}>
+                          {exp.company && (
+                            <span className={`${template.id}-company`}>
+                              {exp.company}
+                            </span>
+                          )}
+                          {exp.position && (
+                            <>
+                              {exp.company && (
+                                <span className={`${template.id}-title-separator`}>
+                                  ,{" "}
+                                </span>
+                              )}
+                              <span className={`${template.id}-job-title-exp`}>
+                                {exp.position}
+                              </span>
+                            </>
+                          )}
+                        </div>
+                        <div className={`${template.id}-job-details-container`}>
+                          <div className={`${template.id}-job-date`}>
+                            {formatExperienceDateRange(exp)}
+                          </div>
+                          {exp.location && (
+                            <div className={`${template.id}-job-location`}>
+                              {exp.location}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      {exp.description && (
+                        <div
+                          className={`resume-content ${template.id}-description`}
+                          dangerouslySetInnerHTML={{
+                            __html: formatExperienceDescriptionHtml(
+                              exp.description,
+                            ),
+                          }}
+                        />
+                      )}
+                    </>
+                  ) : isConfidentGrid ? (
+                    <>
+                      <div className={`${template.id}-job-title-line`}>
+                        <span className={`${template.id}-job-title-exp`}>
+                          {exp.position}
+                        </span>
+                        {exp.company && (
+                          <>
+                            <span className={`${template.id}-title-separator`}>
+                              ,{" "}
+                            </span>
+                            <span className={`${template.id}-company`}>
+                              {exp.company}
+                            </span>
+                          </>
+                        )}
+                      </div>
+                      {(formatExperienceDateRange(exp) || exp.location) && (
+                        <div className={`${template.id}-job-meta-line`}>
+                          {[formatExperienceDateRange(exp), exp.location]
+                            .filter(Boolean)
+                            .join(" — ")}
+                        </div>
+                      )}
+                      {exp.description && (
+                        <div
+                          className={`resume-content ${template.id}-description`}
+                          dangerouslySetInnerHTML={{
+                            __html: formatExperienceDescriptionHtml(
+                              exp.description,
+                            ),
+                          }}
+                        />
+                      )}
                     </>
                   ) : (
                     <>
@@ -1829,24 +2355,32 @@ export function ResumeRenderer({
                         <div className={`${template.id}-job-title-container`}>
                           <div
                             className={`${template.id}-job-title-exp`}
-                            style={{
-                              fontSize: `${templateStyle.fontSize.body + 1}px`,
-                              fontWeight: "bold",
-                              color: isInSidebar
-                                ? templateStyle.colors.sidebarText
-                                : templateStyle.colors.text,
-                            }}
+                            style={
+                              useCssExpTypography
+                                ? undefined
+                                : {
+                                    fontSize: `${templateStyle.fontSize.body + 1}px`,
+                                    fontWeight: "bold",
+                                    color: isInSidebar
+                                      ? templateStyle.colors.sidebarText
+                                      : templateStyle.colors.text,
+                                  }
+                            }
                           >
                             {exp.position}
                           </div>
                           {exp.company && (
                             <div
                               className={`${template.id}-company`}
-                              style={{
-                                fontSize: `${templateStyle.fontSize.body}px`,
-                                color: templateStyle.colors.secondary,
-                                fontStyle: "italic",
-                              }}
+                              style={
+                                useCssExpTypography
+                                  ? undefined
+                                  : {
+                                      fontSize: `${templateStyle.fontSize.body}px`,
+                                      color: templateStyle.colors.secondary,
+                                      fontStyle: "italic",
+                                    }
+                              }
                             >
                               {exp.company}
                             </div>
@@ -1873,20 +2407,17 @@ export function ResumeRenderer({
                       </div>
                       {exp.description && (
                         <div
+                          className={`resume-content ${template.id}-description`}
                           style={{
                             fontSize: `${templateStyle.fontSize.body}px`,
                             lineHeight: templateStyle.lineHeight,
                             color: isInSidebar
                               ? templateStyle.colors.sidebarText
                               : templateStyle.colors.text,
-                            marginTop: "8px",
+                            marginTop: isSaffronLine ? "4px" : "8px",
                           }}
                           dangerouslySetInnerHTML={{
-                            __html: Array.isArray(exp.description)
-                              ? exp.description
-                                .map((d: any) => `<p>${d}</p>`)
-                                .join("")
-                              : exp.description || "",
+                            __html: formatExperienceDescriptionHtml(exp.description),
                           }}
                         />
                       )}
@@ -1941,7 +2472,11 @@ export function ResumeRenderer({
             }}
           >
             {renderSectionHeader(section.title, isInSidebar, section.type, section.id)}
-            <div>
+            <div
+              className={
+                isEmberTimeline ? `${template.id}-education-list` : undefined
+              }
+            >
               {educationData.map((edu, index) => (
                 <div
                   key={index}
@@ -1949,11 +2484,11 @@ export function ResumeRenderer({
                   data-item-index={index}
                   className={`${template.id}-education-item`}
                   style={{
-                    marginBottom: "16px",
+                    marginBottom: isEmberTimeline ? undefined : "16px",
                     pageBreakInside: "auto", // Allow splitting for better pagination
                     // Only apply inline grid styles if using grid layout
                     // Templates with table-cell layout should define it in their CSS files
-                    ...(templateStyle.timelineLayout.type === "grid"
+                    ...(templateStyle.timelineLayout.type === "grid" && !isEmberTimeline
                       ? {
                         // Let CSS override if needed (table-cell templates will override via !important)
                         display: "grid",
@@ -1961,30 +2496,49 @@ export function ResumeRenderer({
                           }px 1fr`,
                         gap: "16px",
                       }
-                      : { display: "block" }),
+                      : !isEmberTimeline && templateStyle.timelineLayout.type !== "grid"
+                        ? { display: "block" }
+                        : {}),
                   }}
                 >
                   {templateStyle.timelineLayout.type === "grid" ? (
                     <>
                       <div
                         className={`${template.id}-education-date-location`}
-                        style={{
-                          fontSize: `${templateStyle.fontSize.small}px`,
-                          color: templateStyle.colors.secondary,
-                        }}
+                        style={
+                          isEmberTimeline
+                            ? undefined
+                            : {
+                                fontSize: `${templateStyle.fontSize.small}px`,
+                                color: templateStyle.colors.secondary,
+                              }
+                        }
                       >
-                        {edu.startDate} - {edu.endDate}
+                        <span className={`${template.id}-education-date`}>
+                          {formatResumeDateForDisplay(String(edu.startDate ?? ""))}
+                          {edu.startDate || edu.endDate ? " - " : ""}
+                          {formatResumeDateForDisplay(String(edu.endDate ?? ""))}
+                        </span>
+                        {edu.location && (
+                          <div className={`${template.id}-education-location`}>
+                            {edu.location}
+                          </div>
+                        )}
                       </div>
                       <div className={`${template.id}-education-content`}>
                         <div
                           className={`${template.id}-degree`}
-                          style={{
-                            fontSize: `${templateStyle.fontSize.body + 1}px`,
-                            fontWeight: "bold",
-                            color: isInSidebar
-                              ? templateStyle.colors.sidebarText
-                              : templateStyle.colors.text,
-                          }}
+                          style={
+                            isEmberTimeline
+                              ? undefined
+                              : {
+                                  fontSize: `${templateStyle.fontSize.body + 1}px`,
+                                  fontWeight: "bold",
+                                  color: isInSidebar
+                                    ? templateStyle.colors.sidebarText
+                                    : templateStyle.colors.text,
+                                }
+                          }
                         >
                           {edu.degree}
                           {edu.degree &&
@@ -2011,16 +2565,20 @@ export function ResumeRenderer({
                         {edu.institution && (
                           <div
                             className={`${template.id}-institution`}
-                            style={{
-                              fontSize: `${templateStyle.fontSize.body}px`,
-                              color: templateStyle.colors.secondary,
-                              fontStyle: "italic",
-                            }}
+                            style={
+                              isEmberTimeline
+                                ? undefined
+                                : {
+                                    fontSize: `${templateStyle.fontSize.body}px`,
+                                    color: templateStyle.colors.secondary,
+                                    fontStyle: "italic",
+                                  }
+                            }
                           >
                             {edu.institution}
                           </div>
                         )}
-                        {edu.location && (
+                        {edu.location && !isEmberTimeline && (
                           <div
                             className={`${template.id}-education-location`}
                             style={{
@@ -2032,6 +2590,110 @@ export function ResumeRenderer({
                           </div>
                         )}
                       </div>
+                    </>
+                  ) : isRoyalIndigo ? (
+                    <>
+                      <div className={`${template.id}-education-header`}>
+                        <div className={`${template.id}-education-title-line`}>
+                          {edu.degree && (
+                            <span className={`${template.id}-degree`}>
+                              {edu.degree}
+                            </span>
+                          )}
+                        </div>
+                        <div className={`${template.id}-education-details-container`}>
+                          {formatExperienceDateRange(edu) && (
+                            <div className={`${template.id}-education-date`}>
+                              {formatExperienceDateRange(edu)}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      {edu.institution && (
+                        <div className={`${template.id}-institution`}>
+                          {edu.institution}
+                        </div>
+                      )}
+                      {edu.description && (
+                        <div
+                          className={`resume-content ${template.id}-description`}
+                          dangerouslySetInnerHTML={{
+                            __html: formatExperienceDescriptionHtml(edu.description),
+                          }}
+                        />
+                      )}
+                    </>
+                  ) : isCondensedRule ? (
+                    <>
+                      <div className={`${template.id}-education-header`}>
+                        <div className={`${template.id}-education-title-line`}>
+                          {edu.degree && (
+                            <span className={`${template.id}-degree`}>
+                              {edu.degree}
+                            </span>
+                          )}
+                          {edu.institution && (
+                            <>
+                              {edu.degree && (
+                                <span className={`${template.id}-title-separator`}>
+                                  ,{" "}
+                                </span>
+                              )}
+                              <span className={`${template.id}-institution`}>
+                                {edu.institution}
+                              </span>
+                            </>
+                          )}
+                        </div>
+                        <div className={`${template.id}-education-details-container`}>
+                          {(edu.startDate || edu.endDate) && (
+                            <div className={`${template.id}-education-date`}>
+                              {formatResumeDateForDisplay(String(edu.startDate ?? ""))}
+                              {edu.startDate || edu.endDate ? " – " : ""}
+                              {formatResumeDateForDisplay(String(edu.endDate ?? ""))}
+                            </div>
+                          )}
+                          {edu.location && (
+                            <div className={`${template.id}-education-location`}>
+                              {edu.location}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </>
+                  ) : isConfidentGrid ? (
+                    <>
+                      <div className={`${template.id}-education-title-line`}>
+                        <span className={`${template.id}-degree`}>{edu.degree}</span>
+                        {edu.institution && (
+                          <>
+                            <span className={`${template.id}-title-separator`}>
+                              ,{" "}
+                            </span>
+                            <span className={`${template.id}-institution`}>
+                              {edu.institution}
+                            </span>
+                          </>
+                        )}
+                      </div>
+                      {(edu.startDate ||
+                        edu.endDate ||
+                        edu.location ||
+                        (edu.field && !isDefaultEducationField(edu.field))) && (
+                        <div className={`${template.id}-education-meta-line`}>
+                          {[
+                            edu.startDate || edu.endDate
+                              ? `${formatResumeDateForDisplay(String(edu.startDate ?? ""))}${edu.startDate || edu.endDate ? " - " : ""}${formatResumeDateForDisplay(String(edu.endDate ?? ""))}`
+                              : "",
+                            edu.location,
+                            edu.field && !isDefaultEducationField(edu.field)
+                              ? edu.field
+                              : "",
+                          ]
+                            .filter(Boolean)
+                            .join(" — ")}
+                        </div>
+                      )}
                     </>
                   ) : (
                     <>
@@ -2137,6 +2799,57 @@ export function ResumeRenderer({
           if (!skillsData) return null;
         }
 
+        if (isCondensedRule && resume.templateId !== "executive") {
+          let listItems: string[] = [];
+
+          if (typeof skillsData === "string") {
+            try {
+              const parser = new DOMParser();
+              const doc = parser.parseFromString(skillsData, "text/html");
+              const listElements = doc.querySelectorAll("ul > li, ol > li");
+              if (listElements.length > 0) {
+                listItems = Array.from(listElements)
+                  .map((el) => el.textContent?.trim() || "")
+                  .filter(Boolean);
+              } else {
+                listItems = skillsData
+                  .split(/[,|]/)
+                  .map((item) => item.trim())
+                  .filter(Boolean);
+              }
+            } catch {
+              listItems = skillsData
+                .split(/[,|]/)
+                .map((item) => item.trim())
+                .filter(Boolean);
+            }
+          } else if (Array.isArray(skillsData)) {
+            listItems = skillsData
+              .map((skill: unknown) =>
+                typeof skill === "string" ? skill : String(skill),
+              )
+              .filter((text: string) => text.length > 0);
+          }
+
+          if (listItems.length === 0) return null;
+
+          return (
+            <div
+              data-section={section.id}
+              style={{
+                marginBottom: `${templateStyle.sectionSpacing}px`,
+                ...sidebarStyle,
+              }}
+            >
+              {renderSectionHeader(section.title, isInSidebar, section.type, section.id)}
+              {renderCondensedRuleInlineList(
+                listItems,
+                `${template.id}-inline-list`,
+              )}
+            </div>
+          );
+        }
+
         return (
           <div
             style={{
@@ -2154,13 +2867,17 @@ export function ResumeRenderer({
           >
             {renderSectionHeader(section.title, isInSidebar, section.type, section.id)}
             <div
-              style={{
-                fontSize: `${templateStyle.fontSize.body}px`,
-                lineHeight: templateStyle.lineHeight,
-                color: isInSidebar
-                  ? templateStyle.colors.sidebarText
-                  : templateStyle.colors.text,
-              }}
+              style={
+                useCssBodyTypography
+                  ? undefined
+                  : {
+                      fontSize: `${templateStyle.fontSize.body}px`,
+                      lineHeight: templateStyle.lineHeight,
+                      color: isInSidebar
+                        ? templateStyle.colors.sidebarText
+                        : templateStyle.colors.text,
+                    }
+              }
             >
               {resume.templateId === "executive" ? (
                 // Executive template: Render skill items with ratings
@@ -2285,34 +3002,75 @@ export function ResumeRenderer({
                     return (
                       <div
                         className={`${template.id}-skills-container`}
-                        style={{
-                          display: "grid",
-                          gridTemplateColumns: `repeat(${numColumns}, 1fr)`,
-                          gap: "8px 20px",
-                          fontFamily: templateStyle.fontFamily,
-                        }}
+                        style={
+                          isConfidentGrid
+                            ? undefined
+                            : {
+                                display: "grid",
+                                gridTemplateColumns: `repeat(${numColumns}, 1fr)`,
+                                gap: "8px 20px",
+                                fontFamily: templateStyle.fontFamily,
+                              }
+                        }
                       >
-                        {columns.map((column, colIndex) => (
-                          <div key={colIndex}>
-                            {column.map((item, itemIndex) => (
+                        {isConfidentGrid ? (
+                          uniqueItems.map((item, itemIndex) => {
+                            const parsed = parseConfidentGridSkillItem(item);
+                            return (
                               <div
-                                key={`${colIndex}-${itemIndex}`}
-                                data-item-id={`skill-bullet-${colIndex}-${itemIndex}`}
-                                data-item-index={colIndex * (Math.ceil(uniqueItems.length / numColumns)) + itemIndex}
+                                key={`cg-skill-${itemIndex}`}
+                                data-item-id={`skill-bullet-${itemIndex}`}
+                                data-item-index={itemIndex}
                                 className={`${template.id}-skill-item`}
-                                style={{
-                                  display: "flex",
-                                  alignItems: "flex-start",
-                                  gap: "8px",
-                                  marginBottom: "4px",
-                                  fontSize: `${templateStyle.fontSize.body}px`,
-                                }}
                               >
-                                <span>{item}</span>
+                                <span className={`${template.id}-skill-name`}>
+                                  {parsed.name}
+                                </span>
+                                {parsed.description && (
+                                  <>
+                                    <span
+                                      className={`${template.id}-skill-separator`}
+                                    >
+                                      {" "}
+                                      —{" "}
+                                    </span>
+                                    <span className={`${template.id}-skill-desc`}>
+                                      {parsed.description}
+                                    </span>
+                                  </>
+                                )}
                               </div>
-                            ))}
-                          </div>
-                        ))}
+                            );
+                          })
+                        ) : (
+                          columns.map((column, colIndex) => (
+                            <div key={colIndex}>
+                              {column.map((item, itemIndex) => (
+                                <div
+                                  key={`${colIndex}-${itemIndex}`}
+                                  data-item-id={`skill-bullet-${colIndex}-${itemIndex}`}
+                                  data-item-index={
+                                    colIndex *
+                                      Math.ceil(
+                                        uniqueItems.length / numColumns,
+                                      ) +
+                                    itemIndex
+                                  }
+                                  className={`${template.id}-skill-item`}
+                                  style={{
+                                    display: "flex",
+                                    alignItems: "flex-start",
+                                    gap: "8px",
+                                    marginBottom: "4px",
+                                    fontSize: `${templateStyle.fontSize.body}px`,
+                                  }}
+                                >
+                                  <span>{item}</span>
+                                </div>
+                              ))}
+                            </div>
+                          ))
+                        )}
                       </div>
                     );
                   })()}
@@ -2393,6 +3151,76 @@ export function ResumeRenderer({
         const projectsData = resume.content.projects || [];
         if (projectsData.length === 0) return null;
 
+        if (isCondensedRule || isRoyalIndigo) {
+          return (
+            <div
+              data-section={section.id}
+              className={`${template.id}-section`}
+              style={
+                useCssBodyTypography
+                  ? { marginBottom: `${templateStyle.sectionSpacing}px`, ...sidebarStyle }
+                  : { marginBottom: `${templateStyle.sectionSpacing}px`, ...sidebarStyle }
+              }
+            >
+              {renderSectionHeader(section.title, isInSidebar, section.type, section.id)}
+              <div>
+                {projectsData.map((project, index) => {
+                  const tech =
+                    project.technologies == null
+                      ? ""
+                      : typeof project.technologies === "string"
+                        ? project.technologies
+                            .split(",")
+                            .map((t: string) => t.trim())
+                            .filter(Boolean)
+                            .join(", ")
+                        : (project.technologies as string[]).filter(Boolean).join(", ");
+
+                  return (
+                    <div
+                      key={index}
+                      data-item-id={project.id || `project-${index}`}
+                      data-item-index={index}
+                      className={`${template.id}-project-item`}
+                    >
+                      <div className={`${template.id}-job-header`}>
+                        <div className={`${template.id}-job-title-line`}>
+                          {project.name && (
+                            <span className={`${template.id}-company`}>{project.name}</span>
+                          )}
+                          {tech && (
+                            <>
+                              {project.name && (
+                                <span className={`${template.id}-title-separator`}>, </span>
+                              )}
+                              <span className={`${template.id}-project-subtitle`}>{tech}</span>
+                            </>
+                          )}
+                        </div>
+                        {formatProjectDateRange(project) && (
+                          <div className={`${template.id}-job-details-container`}>
+                            <div className={`${template.id}-job-date`}>
+                              {formatProjectDateRange(project)}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      {project.description && (
+                        <div
+                          className={`resume-content ${template.id}-description`}
+                          dangerouslySetInnerHTML={{
+                            __html: formatExperienceDescriptionHtml(project.description),
+                          }}
+                        />
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        }
+
         return (
           <div
             data-section={section.id}
@@ -2417,24 +3245,30 @@ export function ResumeRenderer({
                   data-item-id={project.id || `project-${index}`}
                   data-item-index={index}
                   data-pagination-atomic-if-fits=""
+                  className={isConfidentGrid ? `${template.id}-project-item` : undefined}
                   style={{
-                    marginBottom: "16px",
+                    marginBottom: isConfidentGrid ? undefined : "16px",
                     pageBreakInside: "auto", // Allow splitting for better pagination
                   }}
                 >
                   <div
-                    style={{
-                      fontSize: `${templateStyle.fontSize.body + 1}px`,
-                      fontWeight: "bold",
-                      color: isInSidebar
-                        ? templateStyle.colors.sidebarText
-                        : templateStyle.colors.text,
-                      marginBottom: "2px",
-                      display: "flex",
-                      flexWrap: "wrap",
-                      alignItems: "baseline",
-                      gap: "6px",
-                    }}
+                    className={isConfidentGrid ? `${template.id}-project-title` : undefined}
+                    style={
+                      isConfidentGrid
+                        ? undefined
+                        : {
+                            fontSize: `${templateStyle.fontSize.body + 1}px`,
+                            fontWeight: "bold",
+                            color: isInSidebar
+                              ? templateStyle.colors.sidebarText
+                              : templateStyle.colors.text,
+                            marginBottom: "2px",
+                            display: "flex",
+                            flexWrap: "wrap",
+                            alignItems: "baseline",
+                            gap: "6px",
+                          }
+                    }
                   >
                     <span>{project.name}</span>
                     {project.link && (
@@ -2473,21 +3307,23 @@ export function ResumeRenderer({
                   )}
                   {project.description && (
                     <div
-                      className="resume-content"
-                      style={{
-                        fontSize: `${templateStyle.fontSize.body}px`,
-                        lineHeight: templateStyle.lineHeight,
-                        color: isInSidebar
-                          ? templateStyle.colors.sidebarText
-                          : templateStyle.colors.text,
-                        marginBottom: "4px",
-                      }}
+                      className={`resume-content${
+                        isConfidentGrid ? ` ${template.id}-project-description` : ""
+                      }`}
+                      style={
+                        isConfidentGrid
+                          ? undefined
+                          : {
+                              fontSize: `${templateStyle.fontSize.body}px`,
+                              lineHeight: templateStyle.lineHeight,
+                              color: isInSidebar
+                                ? templateStyle.colors.sidebarText
+                                : templateStyle.colors.text,
+                              marginBottom: "4px",
+                            }
+                      }
                       dangerouslySetInnerHTML={{
-                        __html: Array.isArray(project.description)
-                          ? project.description
-                            .map((d) => `<p>${d}</p>`)
-                            .join("")
-                          : project.description || "",
+                        __html: formatExperienceDescriptionHtml(project.description),
                       }}
                     />
                   )}
@@ -2614,6 +3450,27 @@ export function ResumeRenderer({
           dotSize: 6,
           columns: 2,
         };
+
+        if (isCondensedRule) {
+          const languageNames = languagesData.map(
+            (lang: { name?: string }) => lang.name || String(lang),
+          );
+          return (
+            <div
+              data-section={section.id}
+              style={{
+                marginBottom: `${templateStyle.sectionSpacing}px`,
+                ...sidebarStyle,
+              }}
+            >
+              {renderSectionHeader(section.title, isInSidebar, section.type, section.id)}
+              {renderCondensedRuleInlineList(
+                languageNames,
+                `${template.id}-inline-list`,
+              )}
+            </div>
+          );
+        }
 
         return (
           <div
@@ -2861,6 +3718,25 @@ export function ResumeRenderer({
               >
                 No certificates added. Add your certifications in the editor.
               </div>
+            </div>
+          );
+        }
+
+        if (isCondensedRule) {
+          const certificateNames = certificatesData.map(
+            (cert: { name?: string; title?: string }) =>
+              cert.name || cert.title || String(cert),
+          );
+          return (
+            <div
+              data-section={section.id}
+              style={{ marginBottom: templateStyle.sectionSpacing }}
+            >
+              {renderSectionHeader(section.title, isInSidebar, section.type, section.id)}
+              {renderCondensedRuleInlineList(
+                certificateNames,
+                `${template.id}-inline-list`,
+              )}
             </div>
           );
         }
@@ -3481,7 +4357,19 @@ export function ResumeRenderer({
       style={{
         width: "210mm",
         minHeight: "auto",
-        padding: `${templateStyle.padding.top}mm ${templateStyle.padding.right}mm ${templateStyle.padding.bottom}mm ${templateStyle.padding.left}mm`,
+        padding: isCondensedRule
+          ? `5px ${templateStyle.padding.right}mm ${templateStyle.padding.bottom}mm ${templateStyle.padding.left}mm`
+          : isRoyalIndigo
+            ? `6mm ${templateStyle.padding.right}mm ${templateStyle.padding.bottom}mm ${templateStyle.padding.left}mm`
+            : `${templateStyle.padding.top}mm ${templateStyle.padding.right}mm ${templateStyle.padding.bottom}mm ${templateStyle.padding.left}mm`,
+        ...(isConfidentGrid
+          ? ({
+              ["--cg-pad-top" as string]: `${templateStyle.padding.top}mm`,
+              ["--cg-pad-left" as string]: `${templateStyle.padding.left}mm`,
+              ["--cg-pad-right" as string]: `${templateStyle.padding.right}mm`,
+              ["--cg-pad-bottom" as string]: `${templateStyle.padding.bottom}mm`,
+            } as React.CSSProperties)
+          : {}),
         backgroundColor: "white",
         color: templateStyle.colors.text,
         fontFamily: templateStyle.fontFamily,
@@ -3497,6 +4385,135 @@ export function ResumeRenderer({
           .resume-content ul { list-style-type: disc !important; margin: 4px 0 8px 0 !important; padding-left: 24px !important; }
           .resume-content ol { list-style-type: decimal !important; margin: 4px 0 8px 0 !important; padding-left: 24px !important; }
           .resume-content li { margin-bottom: 2px !important; line-height: 1.4 !important; }
+          .confident-grid-template .resume-content.confident-grid-description ul,
+          .confident-grid-template .resume-content.confident-grid-project-description ul {
+            list-style: none !important;
+            list-style-type: none !important;
+            padding-left: 0 !important;
+            margin: 2px 0 0 0 !important;
+          }
+          .confident-grid-template .resume-content.confident-grid-description li,
+          .confident-grid-template .resume-content.confident-grid-project-description li {
+            display: flex !important;
+            align-items: flex-start !important;
+            gap: 0.35em !important;
+            list-style: none !important;
+            padding-left: 0 !important;
+          }
+          .confident-grid-template .resume-content.confident-grid-description li::before,
+          .confident-grid-template .resume-content.confident-grid-project-description li::before {
+            content: "-" !important;
+            flex-shrink: 0 !important;
+          }
+          .confident-grid-template .resume-content.confident-grid-description li > p,
+          .confident-grid-template .resume-content.confident-grid-project-description li > p {
+            margin: 0 !important;
+            flex: 1 !important;
+            min-width: 0 !important;
+          }
+          .condensed-rule-template .resume-content.condensed-rule-description ul {
+            list-style: none !important;
+            padding-left: 0 !important;
+            margin: 2px 0 0 0 !important;
+          }
+          .condensed-rule-template .resume-content.condensed-rule-description li {
+            display: flex !important;
+            align-items: flex-start !important;
+            gap: 0.35em !important;
+            list-style: none !important;
+            padding-left: 0 !important;
+          }
+          .condensed-rule-template .resume-content.condensed-rule-description li::before {
+            content: "-" !important;
+            flex-shrink: 0 !important;
+          }
+          .condensed-rule-template .resume-content.condensed-rule-description li > p {
+            margin: 0 !important;
+            flex: 1 !important;
+            min-width: 0 !important;
+          }
+          .condensed-rule-template .condensed-rule-section-header,
+          .condensed-rule-template h2[data-section-header] {
+            font-size: 11px !important;
+            font-weight: bold !important;
+            font-style: normal !important;
+            font-family: Calibri, "Segoe UI", Arial, sans-serif !important;
+            text-transform: uppercase !important;
+            letter-spacing: 0.6px !important;
+            color: #1a1a1a !important;
+            border-bottom: 1px solid #1a1a1a !important;
+            border-top: none !important;
+            padding-bottom: 3px !important;
+            margin-bottom: 8px !important;
+            margin-top: 12px !important;
+          }
+          .condensed-rule-template [data-section="profileSummary"] h2[data-section-header] {
+            margin-top: 0 !important;
+          }
+          .condensed-rule-header-top {
+            display: flex !important;
+            flex-wrap: wrap !important;
+            align-items: baseline !important;
+            column-gap: 0.7em !important;
+            row-gap: 0 !important;
+            line-height: 1 !important;
+          }
+          .condensed-rule-header-top .condensed-rule-name,
+          .condensed-rule-header-top .condensed-rule-job-title {
+            margin: 0 !important;
+            padding: 0 !important;
+            line-height: 1 !important;
+          }
+          .royal-indigo-template .royal-indigo-section-header,
+          .royal-indigo-template h2[data-section-header] {
+            font-size: 13px !important;
+            font-weight: bold !important;
+            font-style: normal !important;
+            font-family: Arial, Helvetica, sans-serif !important;
+            text-transform: uppercase !important;
+            letter-spacing: 0.6px !important;
+            color: #5b3fa0 !important;
+            border-bottom: 1px solid #cbb8e6 !important;
+            border-top: none !important;
+            padding-bottom: 4px !important;
+            margin-bottom: 10px !important;
+            margin-top: 14px !important;
+          }
+          .royal-indigo-template [data-section="profileSummary"] h2[data-section-header] {
+            margin-top: 0 !important;
+          }
+          .royal-indigo-template .royal-indigo-name {
+            font-size: 30px !important;
+            font-weight: bold !important;
+            color: #5b3fa0 !important;
+            text-transform: uppercase !important;
+            text-align: center !important;
+          }
+          .royal-indigo-template .royal-indigo-job-header,
+          .royal-indigo-template .royal-indigo-education-header {
+            display: flex !important;
+            justify-content: space-between !important;
+            align-items: flex-start !important;
+            gap: 12px !important;
+          }
+          .royal-indigo-template .royal-indigo-job-title-line,
+          .royal-indigo-template .royal-indigo-education-title-line {
+            flex: 1 !important;
+            min-width: 0 !important;
+          }
+          .royal-indigo-template .royal-indigo-job-details-container,
+          .royal-indigo-template .royal-indigo-education-details-container {
+            flex-shrink: 0 !important;
+            text-align: right !important;
+            min-width: 108px !important;
+            white-space: nowrap !important;
+          }
+          .royal-indigo-template .royal-indigo-job-date,
+          .royal-indigo-template .royal-indigo-education-date {
+            font-size: 11px !important;
+            font-weight: bold !important;
+            color: #1f2937 !important;
+          }
           .resume-content a:not(.no-underline) { text-decoration: underline !important; color: inherit; }
           .resume-content a.no-underline { text-decoration: none !important; color: inherit; }
         `,
@@ -3509,14 +4526,24 @@ export function ResumeRenderer({
         </div>
       )}
 
-      {resumeLayout.type === "double" || templateStyle.headerStyle === "two-column" ? (
+      {effectiveResumeLayout.type === "double" || templateStyle.headerStyle === "two-column" ? (
         <div
           data-resume-two-column-root=""
-          className={isAtlanticBlueTwoColumn ? "atlantic-blue-two-column" : undefined}
+          className={
+            isAtlanticBlueTwoColumn
+              ? "atlantic-blue-two-column"
+              : isSaffronLine
+                ? "saffron-line-two-column"
+                : isConfidentGrid
+                  ? "confident-grid-two-column"
+                  : undefined
+          }
           style={
             isAtlanticBlueTwoColumn
               ? undefined
-              : { display: "flex", minHeight: "270mm" }
+              : isSaffronLine || isConfidentGrid
+                ? { display: "flex", alignItems: "flex-start" }
+                : { display: "flex", minHeight: "270mm" }
           }
         >
           <div
@@ -3531,7 +4558,17 @@ export function ResumeRenderer({
                     paddingLeft: ATLANTIC_BLUE_INNER_PADDING_PX.outerEdge,
                     paddingRight: ATLANTIC_BLUE_INNER_PADDING_PX.seam,
                   }
-                : {
+                : isSaffronLine
+                  ? {
+                      width: `${effectiveResumeLayout.columnWidths?.left || 36}%`,
+                      boxSizing: "border-box",
+                    }
+                  : isConfidentGrid
+                    ? {
+                        width: `${effectiveResumeLayout.columnWidths?.left || 50}%`,
+                        boxSizing: "border-box",
+                      }
+                    : {
                     width: templateStyle.headerStyle === "two-column" ? "40%" : `${resumeLayout.columnWidths?.left || 60}%`,
                     paddingRight: templateStyle.headerStyle === "two-column" ? "0" : "10px",
                     backgroundColor: templateStyle.headerStyle === "two-column" ? templateStyle.colors.sidebarBackground : "transparent",
@@ -3558,7 +4595,17 @@ export function ResumeRenderer({
                     paddingLeft: ATLANTIC_BLUE_INNER_PADDING_PX.seam,
                     paddingRight: ATLANTIC_BLUE_INNER_PADDING_PX.outerEdge,
                   }
-                : {
+                : isSaffronLine
+                  ? {
+                      width: `${effectiveResumeLayout.columnWidths?.right || 64}%`,
+                      boxSizing: "border-box",
+                    }
+                  : isConfidentGrid
+                    ? {
+                        width: `${effectiveResumeLayout.columnWidths?.right || 50}%`,
+                        boxSizing: "border-box",
+                      }
+                    : {
                     width: templateStyle.headerStyle === "two-column" ? "60%" : `${resumeLayout.columnWidths?.right || 40}%`,
                     paddingLeft: templateStyle.headerStyle === "two-column" ? "0" : "10px",
                     ...(templateStyle.headerStyle === "two-column" && { padding: "40px" }),

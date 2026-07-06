@@ -1,60 +1,103 @@
 /**
  * Condensed Rule Template Styles
- * Dense single-column consulting/leadership resume with slim full-width rules.
+ * Dense single-column layout aligned with condensed-rule-preview.webp
  */
 
 .condensed-rule-template {
-  font-family: Calibri, 'Segoe UI', Arial, sans-serif;
+  font-family: Calibri, "Segoe UI", Arial, sans-serif;
   color: #1a1a1a;
   background-color: #ffffff;
-  padding: 10px;
   line-height: 1.4;
   -webkit-print-color-adjust: exact !important;
   print-color-adjust: exact !important;
   color-adjust: exact !important;
 }
 
-/* Header: name + inline title */
-.condensed-rule-name {
-  font-size: 24px;
-  font-weight: 700;
+/* ── Header: name + inline italic title, contact row below ── */
+.condensed-rule-header {
+  margin-bottom: 0;
+}
+
+.condensed-rule-header-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 0.7em;
+  row-gap: 0;
+  line-height: 1;
+  margin-bottom: 6px;
+}
+
+.condensed-rule-header-top .condensed-rule-name {
+  display: block;
+  font-size: 24px !important;
+  font-weight: bold !important;
   color: #1a1a1a !important;
   letter-spacing: 0.2px;
+  line-height: 1 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  font-family: Calibri, "Segoe UI", Arial, sans-serif !important;
   -webkit-print-color-adjust: exact !important;
   print-color-adjust: exact !important;
+}
+
+.condensed-rule-name {
+  font-size: 24px !important;
+  font-weight: bold !important;
+  color: #1a1a1a !important;
+  letter-spacing: 0.2px;
+  line-height: 1 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  font-family: Calibri, "Segoe UI", Arial, sans-serif !important;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+}
+
+.condensed-rule-header-top .condensed-rule-job-title {
+  display: block;
+  margin: 0 !important;
+  padding: 0 !important;
+  line-height: 1 !important;
 }
 
 .condensed-rule-job-title {
-  font-size: 14px;
-  font-style: italic;
-  color: #555555 !important;
-  font-weight: 400;
+  font-style: italic !important;
+  font-size: 14px !important;
+  color: #1a1a1a !important;
+  font-weight: 400 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  line-height: 1 !important;
+  font-family: Calibri, "Segoe UI", Arial, sans-serif !important;
   -webkit-print-color-adjust: exact !important;
   print-color-adjust: exact !important;
 }
 
-/* Contact row sits under a thin full-width rule */
 .condensed-rule-contact {
-  font-size: 9.5px;
-  color: #1a1a1a;
-  border-top: 1px solid #1a1a1a;
-  border-bottom: 1px solid #1a1a1a;
-  padding: 5px 0;
-  margin-top: 8px;
+  font-size: 9.5px !important;
+  font-weight: 400 !important;
+  color: #555555 !important;
+  line-height: 1.4;
+  margin-top: 0;
   margin-bottom: 12px;
+  text-align: left;
 }
 
 .condensed-rule-contact a,
 .condensed-rule-contact a:visited {
-  color: #1a1a1a;
-  text-decoration: none;
+  color: #555555 !important;
+  text-decoration: none !important;
 }
 
-/* Section headers: uppercase + slim bottom rule */
+/* Section headers: uppercase bold + full-width bottom rule */
 .condensed-rule-section-header,
+.condensed-rule-template h2[data-section-header],
 .condensed-rule-template h2 {
   font-size: 11px !important;
-  font-weight: 700;
+  font-weight: bold !important;
+  font-style: normal !important;
   text-transform: uppercase;
   text-align: left;
   letter-spacing: 0.6px;
@@ -64,105 +107,180 @@
   padding-bottom: 3px !important;
   margin-bottom: 8px !important;
   margin-top: 12px !important;
+  font-family: Calibri, "Segoe UI", Arial, sans-serif !important;
   -webkit-print-color-adjust: exact !important;
   print-color-adjust: exact !important;
   color-adjust: exact !important;
 }
 
-.condensed-rule-summary {
-  font-size: 10.5px;
-  line-height: 1.45;
-  color: #1a1a1a;
-  margin-bottom: 12px;
+.condensed-rule-template [data-section="profileSummary"] h2 {
+  margin-top: 0 !important;
 }
 
-/* Experience */
+.condensed-rule-summary {
+  font-size: 10.5px;
+  font-weight: 400;
+  line-height: 1.45;
+  color: #1a1a1a;
+  margin-bottom: 0;
+}
+
+/* ── Experience ── */
 .condensed-rule-experience-item {
   margin-bottom: 11px;
   page-break-inside: avoid;
 }
 
-.condensed-rule-job-title-exp {
-  font-size: 11px;
-  font-weight: 700;
-  color: #1a1a1a;
-}
-
-.condensed-rule-company {
-  font-size: 10.5px;
-  font-style: italic;
-  color: #1a1a1a;
+.condensed-rule-job-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
   margin-bottom: 3px;
 }
 
+.condensed-rule-job-title-line,
+.condensed-rule-education-title-line {
+  flex: 1;
+  min-width: 0;
+  line-height: 1.35;
+}
+
+.condensed-rule-company {
+  display: inline;
+  font-size: 11px !important;
+  font-weight: bold !important;
+  color: #1a1a1a !important;
+  font-style: normal !important;
+}
+
+.condensed-rule-title-separator {
+  font-weight: 400;
+  color: #1a1a1a;
+}
+
+.condensed-rule-job-title-exp {
+  display: inline;
+  font-size: 11px !important;
+  font-weight: 400 !important;
+  font-style: italic !important;
+  color: #1a1a1a !important;
+}
+
+.condensed-rule-job-details-container,
+.condensed-rule-education-details-container {
+  flex-shrink: 0;
+  text-align: right;
+  min-width: 108px;
+}
+
 .condensed-rule-job-date,
-.condensed-rule-job-location,
-.condensed-rule-job-meta {
+.condensed-rule-education-date {
   font-size: 9.5px;
+  font-weight: 400;
+  color: #555555;
+  line-height: 1.3;
+}
+
+.condensed-rule-job-location,
+.condensed-rule-education-location {
+  font-size: 9.5px;
+  font-weight: 400;
   color: #555555;
   line-height: 1.3;
 }
 
 .condensed-rule-description {
   font-size: 10.5px;
+  font-weight: 400;
+  line-height: 1.45;
+  color: #1a1a1a;
+  margin-top: 2px;
+}
+
+.condensed-rule-description ul,
+.condensed-rule-template .resume-content.condensed-rule-description ul {
+  margin: 2px 0 0 0;
+  padding-left: 0;
+  list-style: none !important;
+}
+
+.condensed-rule-description li,
+.condensed-rule-template .resume-content.condensed-rule-description li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.35em;
+  margin-bottom: 2px;
+  list-style: none !important;
+  font-weight: 400;
+  color: #1a1a1a;
+}
+
+.condensed-rule-description li::before {
+  content: "-";
+  flex-shrink: 0;
+  line-height: inherit;
+}
+
+.condensed-rule-description li > p {
+  margin: 0;
+  flex: 1;
+  min-width: 0;
+}
+
+/* ── Education ── */
+.condensed-rule-education-item {
+  margin-bottom: 8px;
+  page-break-inside: avoid;
+}
+
+.condensed-rule-education-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.condensed-rule-degree {
+  display: inline;
+  font-size: 11px !important;
+  font-weight: bold !important;
+  color: #1a1a1a !important;
+}
+
+.condensed-rule-institution {
+  display: inline;
+  font-size: 11px !important;
+  font-weight: 400 !important;
+  font-style: italic !important;
+  color: #1a1a1a !important;
+}
+
+/* ── Projects (same timeline layout as experience) ── */
+.condensed-rule-project-item {
+  margin-bottom: 11px;
+  page-break-inside: avoid;
+}
+
+.condensed-rule-project-subtitle {
+  display: inline;
+  font-size: 11px !important;
+  font-weight: 400 !important;
+  font-style: italic !important;
+  color: #1a1a1a !important;
+}
+
+/* ── Skills / Languages / Certificates: inline pipe-separated ── */
+.condensed-rule-inline-list {
+  font-size: 10.5px;
+  font-weight: 400;
   line-height: 1.45;
   color: #1a1a1a;
 }
 
-.condensed-rule-description ul {
-  margin: 2px 0;
-  padding-left: 16px;
-}
-
-.condensed-rule-description li {
-  margin-bottom: 2px;
-}
-
-/* Education */
-.condensed-rule-education-item {
-  margin-bottom: 8px;
-}
-
-.condensed-rule-degree {
-  font-size: 11px;
-  font-weight: 700;
+.condensed-rule-inline-separator {
   color: #1a1a1a;
-}
-
-.condensed-rule-institution {
-  font-size: 10.5px;
-  font-style: italic;
-  color: #1a1a1a;
-}
-
-.condensed-rule-education-date {
-  font-size: 9.5px;
-  color: #555555;
-}
-
-/* Skills / Certificates: compact multi-column list */
-.condensed-rule-skills-container {
-  gap: 4px 18px !important;
-}
-
-.condensed-rule-skill-item {
-  font-size: 10.5px;
-  color: #1a1a1a;
-  position: relative;
-  padding-left: 10px;
-}
-
-.condensed-rule-skill-item::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 7px;
-  width: 3px;
-  height: 3px;
-  background-color: #1a1a1a;
-  border-radius: 50%;
-  -webkit-print-color-adjust: exact !important;
-  print-color-adjust: exact !important;
+  padding: 0 0.35em;
 }
 
 @media print {
@@ -172,13 +290,11 @@
     color-adjust: exact !important;
   }
 
-  .condensed-rule-template {
-    padding: 0;
-  }
-
   .condensed-rule-name,
   .condensed-rule-section-header,
-  .condensed-rule-template h2 {
+  .condensed-rule-template h2,
+  .condensed-rule-company,
+  .condensed-rule-degree {
     color: #1a1a1a !important;
   }
 
@@ -187,11 +303,6 @@
     border-bottom-color: #1a1a1a !important;
     border-bottom-style: solid !important;
     border-bottom-width: 1px !important;
-  }
-
-  .condensed-rule-contact {
-    border-top-color: #1a1a1a !important;
-    border-bottom-color: #1a1a1a !important;
   }
 
   .condensed-rule-experience-item,

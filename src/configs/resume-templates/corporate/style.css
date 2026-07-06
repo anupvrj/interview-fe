@@ -8,7 +8,6 @@
   font-family: "Times New Roman", Times, serif;
   color: #000000;
   background-color: #ffffff;
-  padding: 8px;
   line-height: 1.4;
 }
 
@@ -28,7 +27,9 @@
 }
 
 .corporate-job-title {
-  font-size: 16px;
+  font-style: normal !important;
+  font-size: 16px !important;
+
   color: #7f8c8d;
   margin-bottom: 12px;
 }
@@ -177,7 +178,6 @@
 /* Print Styles */
 @media print {
   .corporate-template {
-    padding: 8mm;
   }
 
   .corporate-section {

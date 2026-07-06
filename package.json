@@ -3,14 +3,15 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "npm run copy-template-css && npm run copy-pdf-worker && env NODE_ENV=development next dev -p 3001",
-    "build": "npm run copy-template-css && npm run copy-pdf-worker && next build",
+    "dev": "npm run copy-template-css && npm run copy-pdf-worker && next dev -p 3001",
+    "build": "npm run copy-template-css && npm run copy-pdf-worker && npm run fix-template-preview-images && next build",
     "start": "next start -p 3001",
     "lint": "next lint",
     "type-check": "tsc --noEmit",
     "test": "vitest run --config config/vitest.config.ts",
     "copy-template-css": "node scripts/copy-template-css.js",
-    "copy-pdf-worker": "node scripts/copy-pdf-worker.js"
+    "copy-pdf-worker": "node scripts/copy-pdf-worker.js",
+    "fix-template-preview-images": "node scripts/fix-template-preview-images.js"
   },
   "dependencies": {
     "@clerk/nextjs": "^6.36.0",

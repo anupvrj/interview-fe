@@ -8,7 +8,6 @@
   font-family: Arial, sans-serif;
   color: #000000;
   background-color: #ffffff;
-  padding: 20px;
   line-height: 1.4;
 }
 
@@ -26,7 +25,9 @@
 }
 
 .clean-slate-job-title {
-  font-size: 16px;
+  font-style: normal !important;
+  font-size: 16px !important;
+
   color: #333333;
   margin-bottom: 12px;
 }
@@ -192,7 +193,6 @@
 /* Print Styles */
 @media print {
   .clean-slate-template {
-    padding: 8mm;
   }
   
   .clean-slate-section {

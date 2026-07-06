@@ -1,9 +1,9 @@
 /**
  * Navy Frame Template Configuration
  *
- * Single-column resume with a profile-photo header band (photo left, name + contact
- * right) on a soft grey field, navy uppercase section headers and a date-on-right
- * timeline.
+ * Single-column resume with profile photo left and labeled contact right on a
+ * white header (no background band). Navy uppercase section headers and a
+ * date-on-right timeline.
  *
  * @template navy-frame
  * @category modern
@@ -19,7 +19,7 @@ export const navyframeTemplate: ResumeTemplate = {
   id: "navy-frame",
   name: "Navy Frame",
   category: "modern",
-  description: "Profile-photo header band with navy section headers",
+  description: "Profile-photo header with navy section headers on white",
   preview: "/resume-template-images/navy-frame-preview.webp",
   colors: {
     primary: "#1f3a5f",
@@ -27,7 +27,6 @@ export const navyframeTemplate: ResumeTemplate = {
     accent: "#1f3a5f",
     text: "#1f2937",
     background: "#ffffff",
-    headerBackground: "#eef1f4",
   },
   layout: {
     headerStyle: "left",
@@ -53,11 +52,10 @@ export const navyframeExtendedConfig: Partial<ExtendedResumeTemplate> = {
       accent: "#1f3a5f",
       text: "#1f2937",
       background: "#ffffff",
-      headerBackground: "#eef1f4",
     },
     headerStyle: "left",
     sectionSpacing: 11,
-    padding: { top: 10, bottom: 10, left: 12, right: 12 },
+    padding: { top: 12, bottom: 12, left: 14, right: 14 },
     sectionHeader: {
       style: "border-bottom",
       borderWidth: 1.5,
@@ -72,7 +70,8 @@ export const navyframeExtendedConfig: Partial<ExtendedResumeTemplate> = {
     },
     skillsDisplay: { type: "bullets", showRatings: false, columns: 2 },
     timelineLayout: { type: "vertical", datePosition: "right" },
-    contactDisplay: { type: "icons", layout: "vertical" },
+    contactDisplay: { type: "text", layout: "vertical" },
+    useCSSClassesForHeader: true,
     headerLayout: {
       type: "with-profile-picture",
       titlePosition: "below",
