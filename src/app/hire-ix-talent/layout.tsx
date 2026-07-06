@@ -1,33 +1,48 @@
-import { Metadata } from "next";
+import type { Metadata } from "next";
+import { hireIxTalentDemoVideo } from "@/lib/seo/marketing-video-content";
+import { getSiteUrl } from "@/lib/seo/site-url";
+
+const siteUrl = getSiteUrl();
+
+const pageTitle =
+  "Hire iX Talent | Interview-Ready Candidates with Verified iX Scores";
+const description =
+  "Search verified iX Talent with AI interview reports, session video, and iX Scores. Filter by role, skills, and industry—then shortlist candidates with proof, not guesswork.";
 
 export const metadata: Metadata = {
-  title: "Hire iX Talent — Verified Interview-Ready Candidates",
-  description:
-    "Recruit on InterviewTrix with verified iX Scores, full interview reports, and rich filters. Apply to become a recruiter and shortlist interview-ready talent.",
+  title: pageTitle,
+  description,
   keywords:
-    "hire developers, recruiter platform, verified candidates, iX Score, interview reports, technical hiring, talent marketplace",
+    "hire iX talent, recruiter platform, verified candidates, iX Score, AI interview reports, technical hiring, talent marketplace, interview-ready candidates, hiring pipeline",
   alternates: {
-    canonical: "https://interviewtrix.com/hire-ix-talent",
+    canonical: `${siteUrl}/hire-ix-talent`,
   },
   openGraph: {
-    title: "Hire iX Talent — Verified Interview-Ready Candidates | Interview Trix",
-    description:
-      "Access candidates with verified iX Scores, full interview reports, and hiring pipeline tools.",
+    title: `${pageTitle} | Interview Trix`,
+    description,
     type: "website",
-    url: "https://interviewtrix.com/hire-ix-talent",
+    url: `${siteUrl}/hire-ix-talent`,
+    videos: [
+      {
+        url: hireIxTalentDemoVideo.videoUrl,
+        width: 1280,
+        height: 720,
+        type: "video/mp4",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Hire iX Talent — Verified Interview-Ready Candidates | Interview Trix",
+    title: `${pageTitle} | Interview Trix`,
     description:
-      "Access candidates with verified iX Scores, full interview reports, and hiring pipeline tools.",
+      "Search verified iX Talent with iX Scores, AI interview reports, and session video—then shortlist with proof.",
   },
 };
 
 export default function HireIxTalentLayout({
   children,
-}: {
+}: Readonly<{
   children: React.ReactNode;
-}) {
+}>) {
   return <>{children}</>;
 }

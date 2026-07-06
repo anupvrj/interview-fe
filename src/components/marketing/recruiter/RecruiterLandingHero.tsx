@@ -1,7 +1,6 @@
 "use client";
 
-// Hero photo: Unsplash — https://unsplash.com/photos/man-in-black-button-up-shirt-sitting-beside-woman-in-gray-long-sleeve-shirt-ITs5-2L4uEA
-// Background removed locally. Free to use under the Unsplash License.
+// Hero photo: /public/marketing/ix-talent-image-person-2 (transparent cutout; avoid next/image optimize — flattens alpha to black)
 
 import Image from "next/image";
 import Link from "next/link";
@@ -14,10 +13,7 @@ import {
   Users,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  appMarketingSection,
-  appPrimaryButton,
-} from "@/lib/app-theme";
+import { appPrimaryButton } from "@/lib/app-theme";
 import { cn } from "@/lib/utils";
 
 type RecruiterLandingHeroProps = {
@@ -30,8 +26,7 @@ export function RecruiterLandingHero({
   return (
     <section
       className={cn(
-        appMarketingSection,
-        "relative overflow-hidden px-4 pb-12 pt-20 sm:px-6 sm:pb-16 sm:pt-24 md:pt-28 lg:pb-20 lg:pt-32",
+        "relative min-h-0 overflow-hidden border-b border-[#7a6cea]/10 bg-gradient-to-br from-[#7a6cea]/20 via-[#9d8ff5]/12 to-[#c4bdf7]/25 px-4 pb-12 pt-20 sm:px-6 sm:pb-16 sm:pt-24 md:pt-28 lg:min-h-[540px] lg:pl-8 lg:pr-0 lg:pb-0 lg:pt-28 xl:min-h-[620px] xl:pt-32",
       )}
     >
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
@@ -59,8 +54,20 @@ export function RecruiterLandingHero({
       </div>
 
       <div className="container relative z-10 mx-auto max-w-7xl">
+        <div className="mb-8 flex justify-center sm:mb-10 lg:hidden">
+          <Image
+            src="/marketing/ix-talent-image-person-2.png"
+            alt="Professional reviewing candidates on a laptop in a modern office"
+            width={1400}
+            height={1068}
+            unoptimized
+            className="h-auto max-h-[210px] w-auto object-contain mix-blend-screen sm:max-h-[252px]"
+            priority
+          />
+        </div>
+
         <div className="grid items-center gap-8 sm:gap-12 lg:grid-cols-2 lg:gap-16">
-          <div className="order-2 space-y-4 text-center sm:space-y-5 md:space-y-6 lg:order-1 lg:text-left">
+          <div className="space-y-4 text-center sm:space-y-5 md:space-y-6 lg:max-w-xl lg:pb-24 lg:text-left">
             <div className="inline-flex items-center gap-2 rounded-full bg-muted px-3 py-1 text-sm font-medium text-primary">
               <Sparkles className="h-3.5 w-3.5" />
               <span>Hire iX Talent</span>
@@ -69,8 +76,7 @@ export function RecruiterLandingHero({
             <h1 className="mb-4 text-[1.22rem] font-bold leading-tight tracking-tight text-slate-900 sm:mb-6 sm:text-[1.46rem] md:text-[1.625rem] lg:text-[2.15rem] xl:text-[2.28rem]">
               <span className="block">Hire interview-ready talent with</span>
               <span className="block">
-                verified{" "}
-                <span className="text-primary">iX Scores</span>
+                verified <span className="text-primary">iX Scores</span>
               </span>
             </h1>
 
@@ -131,18 +137,20 @@ export function RecruiterLandingHero({
               </div>
             </div>
           </div>
-
-          <div className="relative order-1 flex justify-center lg:order-2 lg:justify-end">
-            <Image
-              src="/marketing/recruiter-hero.png"
-              alt="Smiling software engineer working at a desk"
-              width={701}
-              height={700}
-              className="h-auto max-h-[220px] w-auto object-contain sm:max-h-[260px] lg:max-h-[300px]"
-              priority
-            />
-          </div>
         </div>
+      </div>
+
+      <div className="pointer-events-none absolute bottom-0 right-0 z-[1] hidden w-[min(48vw,686px)] lg:block">
+        <Image
+          src="/marketing/ix-talent-image-person-2.png"
+          alt=""
+          aria-hidden
+          width={1400}
+          height={1068}
+          unoptimized
+          className="h-auto w-full object-contain object-bottom object-right mix-blend-screen"
+          priority
+        />
       </div>
     </section>
   );
