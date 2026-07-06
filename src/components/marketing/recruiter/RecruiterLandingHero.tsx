@@ -8,8 +8,8 @@ import {
   ArrowRight,
   Briefcase,
   Check,
-  Sparkles,
   Star,
+  Target,
   Users,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -45,7 +45,7 @@ export function RecruiterLandingHero({
             {i % 3 === 0 ? (
               <Briefcase className="h-10 w-10 text-primary sm:h-14 sm:w-14" />
             ) : i % 3 === 1 ? (
-              <Sparkles className="h-9 w-9 text-primary sm:h-12 sm:w-12" />
+              <Target className="h-9 w-9 text-primary sm:h-12 sm:w-12" />
             ) : (
               <Users className="h-8 w-8 text-primary sm:h-11 sm:w-11" />
             )}
@@ -68,8 +68,7 @@ export function RecruiterLandingHero({
 
         <div className="grid items-center gap-8 sm:gap-12 lg:grid-cols-2 lg:gap-16">
           <div className="space-y-4 text-center sm:space-y-5 md:space-y-6 lg:max-w-xl lg:pb-24 lg:text-left">
-            <div className="inline-flex items-center gap-2 rounded-full bg-muted px-3 py-1 text-sm font-medium text-primary">
-              <Sparkles className="h-3.5 w-3.5" />
+            <div className="inline-flex items-center rounded-full bg-muted px-3 py-1 text-sm font-medium text-primary">
               <span>Hire iX Talent</span>
             </div>
 

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import {
+  ArrowRight,
   BarChart3,
   Briefcase,
   Building2,
@@ -12,7 +13,6 @@ import {
   Rocket,
   Search,
   ShieldCheck,
-  Sparkles,
   Target,
   TrendingUp,
   UserCheck,
@@ -581,8 +581,7 @@ export function RecruiterLandingSections({
             loop
             muted
           >
-            <div className="absolute right-3 top-3 z-10 flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-white shadow-lg sm:text-sm">
-              <Sparkles className="h-3.5 w-3.5" />
+            <div className="absolute right-3 top-3 z-10 rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-white shadow-lg sm:text-sm">
               iX Talent search
             </div>
           </SeoVideoSection>
@@ -613,7 +612,7 @@ export function RecruiterLandingSections({
               ) : i % 4 === 1 ? (
                 <Users className="h-9 w-9 text-primary sm:h-12 sm:w-12" />
               ) : i % 4 === 2 ? (
-                <Sparkles className="h-8 w-8 text-primary sm:h-11 sm:w-11" />
+                <ShieldCheck className="h-8 w-8 text-primary sm:h-11 sm:w-11" />
               ) : (
                 <Target className="h-9 w-9 text-primary sm:h-12 sm:w-12" />
               )}
@@ -637,7 +636,7 @@ export function RecruiterLandingSections({
             className="h-auto bg-primary px-8 py-4 text-base font-semibold text-white shadow-lg transition-all hover:bg-slate-900 hover:shadow-xl sm:py-5 sm:text-lg"
           >
             Become Recruiter
-            <Sparkles className="ml-2 h-5 w-5" />
+            <ArrowRight className="ml-2 h-5 w-5" />
           </Button>
           <p className="mt-4 text-sm font-medium text-gray-500">
             Free to apply · Verified recruiter access
