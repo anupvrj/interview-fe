@@ -8,7 +8,6 @@
   font-family: Calibri, 'Segoe UI', 'Trebuchet MS', sans-serif;
   color: #000000;
   background-color: #ffffff;
-  padding: 8px;
   line-height: 1.5;
   -webkit-print-color-adjust: exact !important;
   print-color-adjust: exact !important;
@@ -27,7 +26,9 @@
 }
 
 .true-blue-job-title {
-  font-size: 16px;
+  font-style: normal !important;
+  font-size: 16px !important;
+
   color: #2c5f9e !important;
   margin-bottom: 12px;
   font-weight: normal;
@@ -263,7 +264,6 @@
 /* Print Styles */
 @media print {
   .true-blue-template {
-    padding: 0;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
     color-adjust: exact !important;

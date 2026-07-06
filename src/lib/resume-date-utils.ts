@@ -105,13 +105,27 @@ export function formatExperienceDateRange(exp: {
   const start = formatResumeDateForDisplay(
     coerceResumeDate(exp.startDate),
   );
-  let end = formatResumeDateForDisplay(coerceResumeDate(exp.endDate));
+  const rawEnd = coerceResumeDate(exp.endDate);
+  const rawEndLower = rawEnd.toLowerCase();
+  const isPresent =
+    Boolean(exp.current) ||
+    rawEndLower === "present" ||
+    rawEndLower === "current" ||
+    rawEndLower === "till date" ||
+    rawEndLower === "till present";
 
-  if (!end && exp.current) {
-    end = "Present";
-  }
+  const end = isPresent ? "Present" : formatResumeDateForDisplay(rawEnd);
 
   if (start && end) return `${start} - ${end}`;
   if (start) return start;
   return end;
+}
+
+/** Format project/education date ranges using the same MM/YYYY display rules. */
+export function formatProjectDateRange(project: {
+  startDate?: unknown;
+  endDate?: unknown;
+  current?: boolean;
+}): string {
+  return formatExperienceDateRange(project);
 }

@@ -3,6 +3,7 @@ import type { Resume } from "@/lib/api";
 import { resumeApi, resumeDataExtractionApi } from "@/lib/api";
 import { normalizeExperienceList } from "@/lib/resume-date-utils";
 import { getExtendedTemplate } from "@/lib/templateConfigs";
+import { isListedInTemplateColumnAssignment } from "@/lib/sectionColumnUtils";
 
 export type ExtractedSectionPayload = {
   sectionType: string;
@@ -293,6 +294,96 @@ export function coerceToResumeString(value: unknown): string {
   return String(value);
 }
 
+function coerceProjectsInput(items: unknown): unknown[] {
+  if (Array.isArray(items)) return items;
+  if (items == null) return [];
+
+  if (typeof items === "object" && !Array.isArray(items)) {
+    const record = items as Record<string, unknown>;
+    if (Array.isArray(record.content)) return record.content;
+    if (record.content != null) return [record.content];
+    return [items];
+  }
+
+  if (typeof items === "string" && items.trim()) {
+    return [{ name: "Project", description: items.trim() }];
+  }
+
+  return [];
+}
+
+/** Normalize imported/LLM project entries onto the resume schema. */
+export function normalizeProjectsList(
+  items: unknown,
+): Array<Record<string, unknown>> {
+  const list = coerceProjectsInput(items);
+  if (list.length === 0) return [];
+
+  return list
+    .flatMap((item) => {
+      if (typeof item === "string" && item.trim()) {
+        return [{ name: "Project", description: item.trim() }];
+      }
+      if (item && typeof item === "object" && !Array.isArray(item)) {
+        return [item];
+      }
+      return [];
+    })
+    .map((item) => {
+      const record = item as Record<string, unknown>;
+      const name = String(
+        record.name ??
+          record.title ??
+          record.project ??
+          record.projectName ??
+          record.heading ??
+          record.label ??
+          "",
+      ).trim();
+      let description =
+        record.description ?? record.summary ?? record.details ?? record.content;
+      if (Array.isArray(description)) {
+        description = `<ul>${description
+          .map((line) => `<li>${String(line).trim()}</li>`)
+          .join("")}</ul>`;
+      } else if (description != null) {
+        description = String(description);
+      } else {
+        description = "";
+      }
+
+      let technologies =
+        record.technologies ?? record.tech ?? record.stack ?? record.tools;
+      if (typeof technologies === "string") {
+        technologies = technologies
+          .split(",")
+          .map((t) => t.trim())
+          .filter(Boolean);
+      }
+
+      const endRaw = String(record.endDate ?? record.end ?? "").trim();
+      const endLower = endRaw.toLowerCase();
+      const current =
+        Boolean(record.current) ||
+        endLower === "present" ||
+        endLower === "current" ||
+        endLower === "till date" ||
+        endLower === "till present";
+
+      return {
+        ...record,
+        id: record.id ?? createEntryId(),
+        name,
+        description,
+        technologies,
+        startDate: record.startDate ?? record.start ?? record.fromDate ?? "",
+        endDate: current ? "" : endRaw,
+        current,
+      };
+    })
+    .filter((item) => item.name || item.description);
+}
+
 function sanitizeResumeStringFields(
   content: Record<string, unknown>,
 ): Record<string, unknown> {
@@ -363,6 +454,14 @@ export function mapExtractedSectionsToContent(
 
   if (Array.isArray(content.experience)) {
     content.experience = normalizeExperienceList(content.experience);
+  }
+
+  if (Array.isArray(content.projects)) {
+    content.projects = normalizeProjectsList(content.projects);
+  } else if (content.projects != null) {
+    content.projects = normalizeProjectsList([content.projects]);
+  } else {
+    content.projects = [];
   }
 
   ensureResumePersonalInfo(content);
@@ -440,14 +539,15 @@ export function buildSectionOrderForExtractedContent(
       renderingLayout.columnAssignment.right.length > 0);
 
   if (hasColumnAssignment) {
-    return sectionOrder.map((s) => ({
-      ...s,
-      column: renderingLayout!.columnAssignment!.left.includes(s.id)
-        ? ("left" as const)
-        : renderingLayout!.columnAssignment!.right.includes(s.id)
-          ? ("right" as const)
-          : ("left" as const),
-    }));
+    const { left = [], right = [] } = renderingLayout!.columnAssignment!;
+    return sectionOrder.map((s) => {
+      const column = isListedInTemplateColumnAssignment(right, s)
+        ? ("right" as const)
+        : isListedInTemplateColumnAssignment(left, s)
+          ? ("left" as const)
+          : ("left" as const);
+      return { ...s, column };
+    });
   }
 
   let nonPersonalIndex = 0;

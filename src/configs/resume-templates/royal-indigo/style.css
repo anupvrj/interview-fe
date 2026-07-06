@@ -1,53 +1,66 @@
 /**
  * Royal Indigo Template Styles
- * Centered single-column resume with indigo accents.
+ * Centered indigo header + uppercase section rules (royal-indigo-preview.webp)
  */
 
 .royal-indigo-template {
   font-family: Arial, Helvetica, sans-serif;
   color: #1f2937;
   background-color: #ffffff;
-  padding: 10px;
   line-height: 1.5;
   -webkit-print-color-adjust: exact !important;
   print-color-adjust: exact !important;
   color-adjust: exact !important;
 }
 
-.royal-indigo-name {
-  font-size: 30px;
-  font-weight: 700;
-  color: #5b3fa0 !important;
-  letter-spacing: 1px;
+/* ── Centered header ── */
+.royal-indigo-header {
   text-align: center;
-  -webkit-print-color-adjust: exact !important;
-  print-color-adjust: exact !important;
+  border-bottom: none;
+  padding-bottom: 0;
+  margin-bottom: 10px;
 }
 
-.royal-indigo-job-title {
-  font-size: 14px;
-  color: #6b7280 !important;
-  text-align: center;
+.royal-indigo-name {
+  font-size: 30px !important;
+  font-weight: bold !important;
+  color: #5b3fa0 !important;
+  letter-spacing: 1px;
+  line-height: 1.15 !important;
+  text-align: center !important;
+  text-transform: uppercase;
+  margin: 0 0 8px 0 !important;
+  padding: 0 !important;
+  font-family: Arial, Helvetica, sans-serif !important;
   -webkit-print-color-adjust: exact !important;
   print-color-adjust: exact !important;
 }
 
 .royal-indigo-contact {
-  font-size: 11px;
-  color: #1f2937;
-  text-align: center;
+  font-size: 11px !important;
+  font-weight: 400 !important;
+  color: #1f2937 !important;
+  text-align: center !important;
+  line-height: 1.45;
+}
+
+.royal-indigo-contact-line {
+  margin-bottom: 2px;
 }
 
 .royal-indigo-contact a,
 .royal-indigo-contact a:visited {
-  color: #1f2937;
-  text-decoration: none;
+  color: #1f2937 !important;
+  text-decoration: none !important;
 }
 
+/* ── Section headers ── */
 .royal-indigo-section-header,
+.royal-indigo-template h2[data-section-header],
 .royal-indigo-template h2 {
   font-size: 13px !important;
-  font-weight: 700;
+  font-weight: bold !important;
+  font-style: normal !important;
   text-transform: uppercase;
   text-align: left;
   letter-spacing: 0.6px;
@@ -57,72 +70,132 @@
   padding-bottom: 4px !important;
   margin-bottom: 10px !important;
   margin-top: 14px !important;
+  font-family: Arial, Helvetica, sans-serif !important;
   -webkit-print-color-adjust: exact !important;
   print-color-adjust: exact !important;
   color-adjust: exact !important;
 }
 
+.royal-indigo-template [data-section="profileSummary"] h2 {
+  margin-top: 0 !important;
+}
+
 .royal-indigo-summary {
   font-size: 11px;
+  font-weight: 400;
   line-height: 1.5;
   color: #1f2937;
 }
 
-.royal-indigo-experience-item {
+/* ── Experience / Projects ── */
+.royal-indigo-experience-item,
+.royal-indigo-project-item {
   margin-bottom: 13px;
   page-break-inside: avoid;
 }
 
-.royal-indigo-job-title-exp {
-  font-size: 12px;
-  font-weight: 700;
-  color: #1f2937;
+.royal-indigo-job-header,
+.royal-indigo-education-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 3px;
+}
+
+.royal-indigo-job-title-line,
+.royal-indigo-education-title-line {
+  flex: 1;
+  min-width: 0;
+  line-height: 1.35;
+}
+
+.royal-indigo-job-title-exp,
+.royal-indigo-company,
+.royal-indigo-degree {
+  font-size: 12px !important;
+  font-weight: bold !important;
+  color: #1f2937 !important;
+  font-style: normal !important;
 }
 
 .royal-indigo-company {
+  font-size: 12px !important;
+}
+
+.royal-indigo-title-separator {
+  font-weight: bold;
+  color: #1f2937;
+}
+
+.royal-indigo-job-details-container,
+.royal-indigo-education-details-container {
+  flex-shrink: 0;
+  text-align: right;
+  min-width: 108px;
+  white-space: nowrap;
+}
+
+.royal-indigo-job-date,
+.royal-indigo-education-date {
+  font-size: 11px !important;
+  font-weight: bold !important;
+  color: #1f2937 !important;
+  line-height: 1.3;
+}
+
+.royal-indigo-institution {
   font-size: 11px;
+  font-weight: 400;
   color: #1f2937;
   margin-bottom: 3px;
 }
 
-.royal-indigo-job-date,
-.royal-indigo-job-location,
-.royal-indigo-job-meta {
-  font-size: 11px;
-  font-weight: 700;
-  color: #1f2937;
-  line-height: 1.3;
-}
-
 .royal-indigo-description {
   font-size: 11px;
+  font-weight: 400;
   line-height: 1.5;
   color: #1f2937;
+  margin-top: 2px;
 }
 
-.royal-indigo-description ul {
-  margin: 2px 0;
+.royal-indigo-description ul,
+.royal-indigo-template .resume-content.royal-indigo-description ul {
+  margin: 2px 0 0 0;
   padding-left: 18px;
+  list-style-type: disc !important;
 }
 
 .royal-indigo-description li {
   margin-bottom: 3px;
 }
 
-.royal-indigo-degree {
-  font-size: 12px;
-  font-weight: 700;
+.royal-indigo-education-item {
+  margin-bottom: 10px;
+  page-break-inside: avoid;
+}
+
+.royal-indigo-project-subtitle {
+  font-size: 12px !important;
+  font-weight: bold !important;
+  color: #1f2937 !important;
+}
+
+/* ── Skills list ── */
+.royal-indigo-skills-list {
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.5;
   color: #1f2937;
 }
 
-.royal-indigo-institution {
-  font-size: 11px;
-  color: #1f2937;
+.royal-indigo-skills-list ul {
+  margin: 0;
+  padding-left: 18px;
 }
 
-.royal-indigo-education-date {
-  font-size: 11px;
-  font-weight: 700;
+.royal-indigo-skill-label {
+  font-weight: bold;
   color: #1f2937;
 }
 
@@ -131,10 +204,6 @@
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
     color-adjust: exact !important;
-  }
-
-  .royal-indigo-template {
-    padding: 0;
   }
 
   .royal-indigo-name,
@@ -151,6 +220,7 @@
 
   .royal-indigo-experience-item,
   .royal-indigo-education-item,
+  .royal-indigo-project-item,
   .royal-indigo-section {
     page-break-inside: avoid;
   }

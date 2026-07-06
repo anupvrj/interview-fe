@@ -1,9 +1,9 @@
 /**
  * Confident Grid Template Configuration
  *
- * Two-column layout with a tinted left sidebar carrying the photo, identity, summary,
- * skills and languages; the main column holds experience and education. Thin underline
- * section headers and dotted language ratings.
+ * Full-width tinted header (photo, identity, 2×2 contact grid), then a balanced
+ * 50/50 body: summary, experience and education on the left; projects and core
+ * strengths on the right.
  *
  * @template confident-grid
  * @category modern
@@ -19,104 +19,112 @@ export const confidentgridTemplate: ResumeTemplate = {
   id: "confident-grid",
   name: "Confident Grid",
   category: "modern",
-  description: "Two-column layout with a tinted sidebar and dotted language ratings",
+  description:
+    "Tinted header with photo and contact grid, plus balanced two-column sections",
   preview: "/resume-template-images/confident-grid-preview.webp",
   colors: {
-    primary: "#1f2d3d",
-    secondary: "#41566b",
+    primary: "#000000",
+    secondary: "#000000",
     accent: "#2f5fa6",
-    text: "#1f2d3d",
+    text: "#000000",
     background: "#ffffff",
-    sidebarBackground: "#eaf1fb",
-    sidebarText: "#1f2d3d",
+    headerBackground: "#deeef7",
   },
   layout: {
-    headerStyle: "two-column",
-    sectionSpacing: 10,
-    fontFamily: "'Helvetica Neue', Arial, sans-serif",
+    headerStyle: "left",
+    sectionSpacing: 12,
+    fontFamily: "Arial, Helvetica, sans-serif",
     fontSize: {
-      heading: 24,
-      subheading: 14,
+      heading: 26,
+      subheading: 13,
       body: 11,
     },
   },
   atsOptimized: true,
 };
 
-const SIDEBAR_TYPES = ["personalInfo", "profileSummary", "skills", "languages", "interests"] as const;
-const MAIN_TYPES = [
+const LEFT_COLUMN_TYPES = [
+  "profileSummary",
   "experience",
   "education",
-  "certificates",
+] as const;
+
+const RIGHT_COLUMN_TYPES = [
   "projects",
+  "skills",
+  "certificates",
   "awards",
   "achievements",
   "courses",
   "organisations",
   "publications",
   "references",
+  "languages",
+  "interests",
 ] as const;
 
 export const confidentgridExtendedConfig: Partial<ExtendedResumeTemplate> = {
   style: {
-    fontFamily: "'Helvetica Neue', Arial, sans-serif",
-    fontSize: { heading: 24, subheading: 14, body: 11, small: 10 },
+    fontFamily: "Arial, Helvetica, sans-serif",
+    fontSize: { heading: 26, subheading: 13, body: 11, small: 10 },
     lineHeight: 1.45,
     colors: {
-      primary: "#1f2d3d",
-      secondary: "#41566b",
+      primary: "#000000",
+      secondary: "#000000",
       accent: "#2f5fa6",
-      text: "#1f2d3d",
+      text: "#000000",
       background: "#ffffff",
-      sidebarBackground: "#eaf1fb",
-      sidebarText: "#1f2d3d",
+      headerBackground: "#deeef7",
     },
-    headerStyle: "two-column",
-    sectionSpacing: 10,
-    padding: { top: 0, bottom: 0, left: 0, right: 0 },
+    headerStyle: "left",
+    sectionSpacing: 12,
+    padding: { top: 0, bottom: 10, left: 12, right: 12 },
     sectionHeader: {
       style: "border-bottom",
       borderWidth: 1,
-      borderColor: "#c2d2ea",
+      borderColor: "#b0c4de",
       textAlign: "left",
       fontSize: 12,
       fontWeight: "bold",
       marginBottom: "10px",
       paddingBottom: "4px",
       textTransform: "none",
-      letterSpacing: "0.2px",
+      letterSpacing: "0.1px",
     },
     skillsDisplay: { type: "bullets", showRatings: false, columns: 1 },
     timelineLayout: { type: "vertical", datePosition: "right" },
-    contactDisplay: { type: "icons", layout: "vertical" },
+    contactDisplay: { type: "icons", layout: "grid" },
+    useCSSClassesForHeader: true,
+    headerLayout: {
+      type: "with-profile-picture",
+      titlePosition: "below",
+    },
     languageDisplay: {
-      showRatings: true,
-      ratingType: "dots",
-      maxRating: 5,
+      showRatings: false,
     },
   },
   rendering: {
     pageBreak: { enabled: true, calculateDynamically: true },
     dataStructure: "legacy",
-    features: { twoColumnLayout: true, showPresent: true, showRatingDots: true },
+    features: { twoColumnLayout: true, showPresent: true },
     layout: {
       type: "double",
-      columnWidths: { left: 40, right: 60 },
+      columnWidths: { left: 50, right: 50 },
       columnAssignment: {
-        left: [...SIDEBAR_TYPES],
-        right: [...MAIN_TYPES],
+        left: [...LEFT_COLUMN_TYPES],
+        right: [...RIGHT_COLUMN_TYPES],
       },
     },
   },
   defaultSectionOrder: [
     { id: "personalInfo", type: "personalInfo", title: "Personal Information", visible: true },
-    { id: "profileSummary", type: "profileSummary", title: "Summary", visible: true },
-    { id: "skills", type: "skills", title: "Skills", visible: true },
-    { id: "languages", type: "languages", title: "Languages", visible: true },
+    { id: "profileSummary", type: "profileSummary", title: "Profile Summary", visible: true },
     { id: "experience", type: "experience", title: "Professional Experience", visible: true },
     { id: "education", type: "education", title: "Education", visible: true },
+    { id: "projects", type: "projects", title: "Projects", visible: true },
+    { id: "skills", type: "skills", title: "Core Strengths", visible: true },
+    { id: "languages", type: "languages", title: "Languages", visible: false },
     { id: "certificates", type: "certificates", title: "Certificates", visible: false },
-    { id: "projects", type: "projects", title: "Projects", visible: false },
   ],
 };
 
