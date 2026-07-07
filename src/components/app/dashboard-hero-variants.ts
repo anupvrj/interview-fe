@@ -135,7 +135,7 @@ export const dashboardHeroVariants: Record<
     orbHighlight: "#f1f5f9",
     orbShadow: "#1e293b",
     actionPrimary:
-      "bg-white text-slate-800 shadow-lg shadow-slate-900/25 hover:bg-white/95",
+      "bg-white text-foreground shadow-lg shadow-slate-900/25 hover:bg-white/95",
     actionOutline:
       "border-white/35 bg-white/10 text-white hover:bg-white/20 backdrop-blur-sm",
   },

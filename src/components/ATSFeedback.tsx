@@ -92,7 +92,7 @@ export function ATSFeedback({ feedback }: ATSFeedbackProps) {
   const getScoreColor = (score: number) => {
     if (score >= 80) return "text-green-600 bg-green-50 border-green-200";
     if (score >= 60) return "text-yellow-600 bg-yellow-50 border-yellow-200";
-    return "text-red-600 bg-red-50 border-red-200";
+    return "text-red-600 dark:text-[#fd7070] bg-red-50 dark:bg-red-950/25 border-red-200 dark:border-red-900/40";
   };
 
   const getScoreBadgeColor = (score: number) => {
@@ -124,9 +124,9 @@ export function ATSFeedback({ feedback }: ATSFeedbackProps) {
       return {
         badge: "bg-red-500 text-white",
         progress: "bg-red-500",
-        text: "text-red-700",
-        bg: "bg-red-50",
-        border: "border-red-200",
+        text: "text-red-700 dark:text-[#fd7070]",
+        bg: "bg-red-50 dark:bg-red-950/25",
+        border: "border-red-200 dark:border-red-900/40",
       };
     }
   };
@@ -139,8 +139,8 @@ export function ATSFeedback({ feedback }: ATSFeedbackProps) {
       {/* Score Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">ATS Score</h2>
-          <p className="text-sm text-gray-500 mt-1">
+          <h2 className="text-2xl font-bold text-foreground">ATS Score</h2>
+          <p className="text-sm text-muted-foreground mt-1">
             Applicant Tracking System Compatibility
           </p>
         </div>
@@ -184,7 +184,7 @@ export function ATSFeedback({ feedback }: ATSFeedbackProps) {
                         {isComplete && " ✓"}
                       </Badge>
                     </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2.5">
+                    <div className="w-full bg-muted rounded-full h-2.5">
                       <div
                         className={`h-2.5 rounded-full ${colors.progress} transition-all duration-300`}
                         style={{
@@ -192,7 +192,7 @@ export function ATSFeedback({ feedback }: ATSFeedbackProps) {
                         }}
                       />
                     </div>
-                    <div className="text-xs text-gray-500">
+                    <div className="text-xs text-muted-foreground">
                       {percentage.toFixed(0)}% complete
                     </div>
                   </div>
@@ -225,7 +225,7 @@ export function ATSFeedback({ feedback }: ATSFeedbackProps) {
                         {isComplete && " ✓"}
                       </Badge>
                     </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2.5">
+                    <div className="w-full bg-muted rounded-full h-2.5">
                       <div
                         className={`h-2.5 rounded-full ${colors.progress} transition-all duration-300`}
                         style={{
@@ -233,7 +233,7 @@ export function ATSFeedback({ feedback }: ATSFeedbackProps) {
                         }}
                       />
                     </div>
-                    <div className="text-xs text-gray-500">
+                    <div className="text-xs text-muted-foreground">
                       {percentage.toFixed(0)}% complete
                     </div>
                   </div>
@@ -266,7 +266,7 @@ export function ATSFeedback({ feedback }: ATSFeedbackProps) {
                         {isComplete && " ✓"}
                       </Badge>
                     </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2.5">
+                    <div className="w-full bg-muted rounded-full h-2.5">
                       <div
                         className={`h-2.5 rounded-full ${colors.progress} transition-all duration-300`}
                         style={{
@@ -274,7 +274,7 @@ export function ATSFeedback({ feedback }: ATSFeedbackProps) {
                         }}
                       />
                     </div>
-                    <div className="text-xs text-gray-500">
+                    <div className="text-xs text-muted-foreground">
                       {percentage.toFixed(0)}% complete
                     </div>
                   </div>
@@ -307,7 +307,7 @@ export function ATSFeedback({ feedback }: ATSFeedbackProps) {
                         {isComplete && " ✓"}
                       </Badge>
                     </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2.5">
+                    <div className="w-full bg-muted rounded-full h-2.5">
                       <div
                         className={`h-2.5 rounded-full ${colors.progress} transition-all duration-300`}
                         style={{
@@ -315,7 +315,7 @@ export function ATSFeedback({ feedback }: ATSFeedbackProps) {
                         }}
                       />
                     </div>
-                    <div className="text-xs text-gray-500">
+                    <div className="text-xs text-muted-foreground">
                       {percentage.toFixed(0)}% complete
                     </div>
                   </div>
@@ -336,7 +336,7 @@ export function ATSFeedback({ feedback }: ATSFeedbackProps) {
               <CardContent className="p-6">
                 <div className="flex items-center gap-2 mb-4">
                   <AlertCircle className="w-5 h-5 text-orange-600" />
-                  <h3 className="text-lg font-semibold text-gray-900">
+                  <h3 className="text-lg font-semibold text-foreground">
                     Formatting - Areas for Improvement
                   </h3>
                 </div>
@@ -344,7 +344,7 @@ export function ATSFeedback({ feedback }: ATSFeedbackProps) {
                   {feedback.details.formatting.improvements.map((improvement, index) => (
                     <li
                       key={index}
-                      className="flex items-center gap-3 text-gray-700"
+                      className="flex items-center gap-3 text-muted-foreground"
                       style={{ 
                         ...listStyleReset, 
                         display: "flex", 
@@ -385,7 +385,7 @@ export function ATSFeedback({ feedback }: ATSFeedbackProps) {
               <CardContent className="p-6">
                 <div className="flex items-center gap-2 mb-4">
                   <AlertCircle className="w-5 h-5 text-orange-600" />
-                  <h3 className="text-lg font-semibold text-gray-900">
+                  <h3 className="text-lg font-semibold text-foreground">
                     Content - Areas for Improvement
                   </h3>
                 </div>
@@ -393,7 +393,7 @@ export function ATSFeedback({ feedback }: ATSFeedbackProps) {
                   {feedback.details.content.improvements.map((improvement, index) => (
                     <li
                       key={index}
-                      className="flex items-center gap-3 text-gray-700"
+                      className="flex items-center gap-3 text-muted-foreground"
                       style={{ 
                         ...listStyleReset, 
                         display: "flex", 
@@ -434,7 +434,7 @@ export function ATSFeedback({ feedback }: ATSFeedbackProps) {
               <CardContent className="p-6">
                 <div className="flex items-center gap-2 mb-4">
                   <AlertCircle className="w-5 h-5 text-orange-600" />
-                  <h3 className="text-lg font-semibold text-gray-900">
+                  <h3 className="text-lg font-semibold text-foreground">
                     Keywords - Areas for Improvement
                   </h3>
                 </div>
@@ -442,7 +442,7 @@ export function ATSFeedback({ feedback }: ATSFeedbackProps) {
                   {feedback.details.keywords.improvements.map((improvement, index) => (
                     <li
                       key={index}
-                      className="flex items-center gap-3 text-gray-700"
+                      className="flex items-center gap-3 text-muted-foreground"
                       style={{ 
                         ...listStyleReset, 
                         display: "flex", 
@@ -483,7 +483,7 @@ export function ATSFeedback({ feedback }: ATSFeedbackProps) {
               <CardContent className="p-6">
                 <div className="flex items-center gap-2 mb-4">
                   <AlertCircle className="w-5 h-5 text-orange-600" />
-                  <h3 className="text-lg font-semibold text-gray-900">
+                  <h3 className="text-lg font-semibold text-foreground">
                     Structure - Areas for Improvement
                   </h3>
                 </div>
@@ -491,7 +491,7 @@ export function ATSFeedback({ feedback }: ATSFeedbackProps) {
                   {feedback.details.structure.improvements.map((improvement, index) => (
                     <li
                       key={index}
-                      className="flex items-center gap-3 text-gray-700"
+                      className="flex items-center gap-3 text-muted-foreground"
                       style={{ 
                         ...listStyleReset, 
                         display: "flex", 
@@ -533,13 +533,13 @@ export function ATSFeedback({ feedback }: ATSFeedbackProps) {
           <CardContent className="p-6">
             <div className="flex items-center gap-2 mb-4">
               <CheckCircle2 className="w-5 h-5 text-green-600" />
-              <h3 className="text-lg font-semibold text-gray-900">Strengths</h3>
+              <h3 className="text-lg font-semibold text-foreground">Strengths</h3>
             </div>
             <ul className="space-y-3" style={listStyleReset}>
               {feedback.strengths.map((strength, index) => (
                 <li
                   key={index}
-                  className="flex items-center gap-3 text-gray-700"
+                  className="flex items-center gap-3 text-muted-foreground"
                   style={{ 
                     ...listStyleReset, 
                     display: "flex", 
@@ -578,8 +578,8 @@ export function ATSFeedback({ feedback }: ATSFeedbackProps) {
         <Card className="border-red-200 bg-red-50/50">
           <CardContent className="p-6">
             <div className="flex items-center gap-2 mb-4">
-              <AlertCircle className="w-5 h-5 text-red-600" />
-              <h3 className="text-lg font-semibold text-gray-900">
+              <AlertCircle className="w-5 h-5 text-red-600 dark:text-[#fd7070]" />
+              <h3 className="text-lg font-semibold text-foreground">
                 Areas for Improvement
               </h3>
             </div>
@@ -587,7 +587,7 @@ export function ATSFeedback({ feedback }: ATSFeedbackProps) {
               {feedback.weaknesses.map((weakness, index) => (
                 <li
                   key={index}
-                  className="flex items-center gap-3 text-gray-700"
+                  className="flex items-center gap-3 text-muted-foreground"
                   style={{ 
                     ...listStyleReset, 
                     display: "flex", 
@@ -627,7 +627,7 @@ export function ATSFeedback({ feedback }: ATSFeedbackProps) {
           <CardContent className="p-6">
             <div className="flex items-center gap-2 mb-4">
               <Lightbulb className="w-5 h-5 text-primary" />
-              <h3 className="text-lg font-semibold text-gray-900">
+              <h3 className="text-lg font-semibold text-foreground">
                 Recommendations
               </h3>
             </div>
@@ -635,7 +635,7 @@ export function ATSFeedback({ feedback }: ATSFeedbackProps) {
               {feedback.suggestions.map((suggestion, index) => (
                 <li
                   key={index}
-                  className="flex items-center gap-3 text-gray-700"
+                  className="flex items-center gap-3 text-muted-foreground"
                   style={{ 
                     ...listStyleReset, 
                     display: "flex", 

@@ -63,6 +63,21 @@ describe("computePageBands", () => {
     const pages = computePageBands(fullHeight, elements, 1000);
     expect(pages[0].height).toBe(900);
   });
+
+  it("extends page to include tiny tail of straddling block instead of sliver on next page", () => {
+    const fullHeight = 1030;
+    const elements: PaginationElementInput[] = [
+      el({
+        kind: "item",
+        top: 400,
+        bottom: 1030,
+        height: 630,
+      }),
+    ];
+    const pages = computePageBands(fullHeight, elements, 1000);
+    expect(pages[0].height).toBe(1030);
+    expect(pages).toHaveLength(1);
+  });
 });
 
 describe("fixOrphanSemanticBoxes", () => {

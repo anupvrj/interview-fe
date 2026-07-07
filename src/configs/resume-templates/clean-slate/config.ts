@@ -22,7 +22,7 @@ export const cleanslateTemplate: ResumeTemplate = {
   name: "Clean Slate",
   category: "simple",
   description: "Clean professional layout with classic styling",
-  preview: "/resume-template-images/clean-slate-preview.webp",
+  preview: "/resume-template-images/clean-slate-form-template-design.webp",
   colors: {
     primary: "#000000",
     secondary: "#333333",
@@ -61,7 +61,7 @@ export const cleanslateExtendedConfig: Partial<ExtendedResumeTemplate> = {
     },
     headerStyle: "left",
     sectionSpacing: 10,
-    padding: { top: 6, bottom: 6, left: 8, right: 8 },
+    padding: { top: 10, bottom: 10, left: 12, right: 12 },
     sectionHeader: {
       style: "border-top-bottom",
       borderWidth: 1,
@@ -92,6 +92,17 @@ export const cleanslateExtendedConfig: Partial<ExtendedResumeTemplate> = {
       columnWidths: {
         left: 60,
         right: 40,
+      },
+      columnAssignment: {
+        left: ["profileSummary", "experience", "education", "projects"],
+        right: [
+          "skills",
+          "certificates",
+          "interests",
+          "languages",
+          "awards",
+          "certifications",
+        ],
       },
     },
   },

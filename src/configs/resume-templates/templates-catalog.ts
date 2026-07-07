@@ -403,6 +403,366 @@ export const TEMPLATES_CATALOG: TemplateCatalogItem[] = [
       industry: ["All Industries"],
     },
   },
+
+  {
+    id: "confident-grid",
+    name: "Confident Grid",
+    category: "modern",
+    description:
+      "Two-column resume with a tinted sidebar carrying identity, summary and skills, and a spacious main column for experience and education.",
+    shortDescription: "Two-column with tinted sidebar",
+    thumbnail: "/resume-template-images/confident-grid-preview.webp",
+    previewImages: {
+      main: "/resume-template-images/confident-grid-preview.webp",
+    },
+    features: [
+      "Two-column layout",
+      "Tinted sidebar",
+      "Dotted language ratings",
+      "ATS-optimized",
+    ],
+    tags: ["modern", "two-column", "sidebar", "professional"],
+    atsOptimized: true,
+    popular: false,
+    new: true,
+    colors: { primary: "#1f2d3d", secondary: "#41566b", accent: "#2f5fa6" },
+    seo: {
+      title: "Confident Grid Resume Template - Modern Two-Column Design",
+      description:
+        "Two-column resume template with a tinted sidebar and clean main column. ATS-friendly and great for managers and consultants.",
+      keywords: ["two-column resume", "modern resume", "sidebar resume template"],
+    },
+    marketing: {
+      headline: "Organized and Confident",
+      benefits: [
+        "Clear two-column structure",
+        "Sidebar keeps skills visible",
+        "Professional, modern feel",
+      ],
+      bestFor: ["Managers", "Consultants", "Operations leaders"],
+      industry: ["Consulting", "Operations", "Business"],
+    },
+  },
+
+  {
+    id: "saffron-line",
+    name: "Saffron Line",
+    category: "modern",
+    description:
+      "Two-column resume with serif headings, warm saffron section rules and a subtle column divider for an editorial, premium feel.",
+    shortDescription: "Serif two-column with saffron rules",
+    thumbnail: "/resume-template-images/saffron-line-preview.webp",
+    previewImages: {
+      main: "/resume-template-images/saffron-line-preview.webp",
+    },
+    features: [
+      "Serif typography",
+      "Saffron section rules",
+      "Two-column layout",
+      "ATS-optimized",
+    ],
+    tags: ["modern", "two-column", "serif", "elegant"],
+    atsOptimized: true,
+    popular: false,
+    new: true,
+    colors: { primary: "#2b2b2b", secondary: "#6a6a6a", accent: "#c0871f" },
+    seo: {
+      title: "Saffron Line Resume Template - Elegant Serif Two-Column",
+      description:
+        "Editorial two-column resume template with serif headings and saffron rules. ATS-friendly and refined.",
+      keywords: ["serif resume", "elegant resume", "two-column resume template"],
+    },
+    marketing: {
+      headline: "Editorial Elegance",
+      benefits: [
+        "Refined serif headings",
+        "Warm accent rules",
+        "Balanced two-column layout",
+      ],
+      bestFor: ["Operations leaders", "Account managers", "Senior professionals"],
+      industry: ["Operations", "Hospitality", "Business"],
+    },
+  },
+
+  {
+    id: "condensed-rule",
+    name: "Condensed Rule",
+    category: "simple",
+    description:
+      "Dense single-column consulting resume with an inline name and title, slim full-width rules and compact multi-column skills.",
+    shortDescription: "Dense single-column with slim rules",
+    thumbnail: "/resume-template-images/condensed-rule-preview.webp",
+    previewImages: {
+      main: "/resume-template-images/condensed-rule-preview.webp",
+    },
+    features: [
+      "Single-column layout",
+      "Inline name/title",
+      "Compact, information-dense",
+      "ATS-optimized",
+    ],
+    tags: ["simple", "ats-friendly", "compact", "professional"],
+    atsOptimized: true,
+    popular: false,
+    new: true,
+    colors: { primary: "#1a1a1a", secondary: "#555555", accent: "#1a1a1a" },
+    seo: {
+      title: "Condensed Rule Resume Template - Dense ATS-Friendly Design",
+      description:
+        "Information-dense single-column resume template with slim rules. Ideal for senior leaders with extensive experience.",
+      keywords: ["ats resume", "dense resume", "consulting resume template"],
+    },
+    marketing: {
+      headline: "More Substance Per Page",
+      benefits: [
+        "Fits extensive experience",
+        "Clean, scannable rules",
+        "Excellent ATS compatibility",
+      ],
+      bestFor: ["Senior leaders", "Consultants", "Executives"],
+      industry: ["Consulting", "Engineering", "Corporate"],
+    },
+  },
+
+  {
+    id: "royal-indigo",
+    name: "Royal Indigo",
+    category: "modern",
+    description:
+      "Centered single-column resume with an indigo name and uppercase indigo section headers. Polished yet ATS-friendly.",
+    shortDescription: "Centered layout with indigo accents",
+    thumbnail: "/resume-template-images/royal-indigo-preview.webp",
+    previewImages: {
+      main: "/resume-template-images/royal-indigo-preview.webp",
+    },
+    features: [
+      "Centered header",
+      "Indigo accents",
+      "Single-column layout",
+      "ATS-optimized",
+    ],
+    tags: ["modern", "centered", "colorful", "professional"],
+    atsOptimized: true,
+    popular: false,
+    new: true,
+    colors: { primary: "#5b3fa0", secondary: "#6b7280", accent: "#7857b8" },
+    seo: {
+      title: "Royal Indigo Resume Template - Centered Modern Design",
+      description:
+        "Centered single-column resume template with indigo accents. ATS-friendly and polished for any industry.",
+      keywords: ["modern resume", "centered resume", "indigo resume template"],
+    },
+    marketing: {
+      headline: "Polished and Distinctive",
+      benefits: [
+        "Eye-catching centered header",
+        "Tasteful indigo accents",
+        "Clean, readable structure",
+      ],
+      bestFor: ["Engineers", "Project managers", "Graduates"],
+      industry: ["Engineering", "Technology", "Business"],
+    },
+  },
+
+  {
+    id: "meridian",
+    name: "Meridian",
+    category: "simple",
+    description:
+      "Minimal black-and-white resume with a centered name, an Area of Expertise grid and key achievements. Maximum ATS clarity.",
+    shortDescription: "Minimal centered with expertise grid",
+    thumbnail: "/resume-template-images/meridian-preview.webp",
+    previewImages: {
+      main: "/resume-template-images/meridian-preview.webp",
+    },
+    features: [
+      "Centered header",
+      "Expertise grid",
+      "Minimal styling",
+      "ATS-optimized",
+    ],
+    tags: ["simple", "minimal", "ats-friendly", "clean"],
+    atsOptimized: true,
+    popular: false,
+    new: true,
+    colors: { primary: "#1a1a1a", secondary: "#4a4a4a", accent: "#1a1a1a" },
+    seo: {
+      title: "Meridian Resume Template - Minimal ATS-Friendly Design",
+      description:
+        "Minimal black-and-white resume template with an expertise grid. Maximum readability and ATS compatibility.",
+      keywords: ["minimal resume", "ats resume", "clean resume template"],
+    },
+    marketing: {
+      headline: "Minimal, Maximum Clarity",
+      benefits: [
+        "Distraction-free design",
+        "Expertise grid stands out",
+        "Excellent ATS compatibility",
+      ],
+      bestFor: ["Designers", "Specialists", "All experience levels"],
+      industry: ["Design", "Technology", "All Industries"],
+    },
+  },
+
+  {
+    id: "amber-edge",
+    name: "Amber Edge",
+    category: "modern",
+    description:
+      "Single-column resume with amber/gold section rules and a two-column skills block. Warm, modern and ATS-friendly.",
+    shortDescription: "Single-column with amber rules",
+    thumbnail: "/resume-template-images/amber-edge-preview.webp",
+    previewImages: {
+      main: "/resume-template-images/amber-edge-preview.webp",
+    },
+    features: [
+      "Amber section rules",
+      "Two-column skills block",
+      "Single-column layout",
+      "ATS-optimized",
+    ],
+    tags: ["modern", "warm", "professional", "ats-friendly"],
+    atsOptimized: true,
+    popular: false,
+    new: true,
+    colors: { primary: "#1f1f1f", secondary: "#5a5a5a", accent: "#b07d2b" },
+    seo: {
+      title: "Amber Edge Resume Template - Warm Modern Single-Column",
+      description:
+        "Single-column resume template with amber rules and a two-column skills block. ATS-friendly and modern.",
+      keywords: ["modern resume", "warm resume", "skills resume template"],
+    },
+    marketing: {
+      headline: "Warm and Professional",
+      benefits: [
+        "Distinctive amber accents",
+        "Skills shown in two columns",
+        "Clean, modern structure",
+      ],
+      bestFor: ["Engineers", "Specialists", "Individual contributors"],
+      industry: ["Engineering", "Technology", "Manufacturing"],
+    },
+  },
+
+  {
+    id: "navy-frame",
+    name: "Navy Frame",
+    category: "modern",
+    description:
+      "Single-column resume with a soft-grey profile header band (photo + contact) and navy uppercase section headers.",
+    shortDescription: "Profile header band with navy headers",
+    thumbnail: "/resume-template-images/navy-frame-preview.webp",
+    previewImages: {
+      main: "/resume-template-images/navy-frame-preview.webp",
+    },
+    features: [
+      "Profile photo header band",
+      "Navy section headers",
+      "Single-column layout",
+      "ATS-optimized",
+    ],
+    tags: ["modern", "photo", "professional", "header"],
+    atsOptimized: true,
+    popular: false,
+    new: true,
+    colors: { primary: "#1f3a5f", secondary: "#5a6b7d", accent: "#1f3a5f" },
+    seo: {
+      title: "Navy Frame Resume Template - Photo Header Modern Design",
+      description:
+        "Single-column resume template with a profile photo header band and navy headers. ATS-friendly and professional.",
+      keywords: ["photo resume", "modern resume", "navy resume template"],
+    },
+    marketing: {
+      headline: "A Confident First Impression",
+      benefits: [
+        "Photo header band",
+        "Strong navy section rules",
+        "Clean single-column body",
+      ],
+      bestFor: ["Engineers", "Professionals", "Client-facing roles"],
+      industry: ["Engineering", "Technology", "Business"],
+    },
+  },
+
+  {
+    id: "cobalt-stream",
+    name: "Cobalt Stream",
+    category: "modern",
+    description:
+      "Single-column resume with bold black section rules, cobalt role/company accents and a two-column Key Achievements footer.",
+    shortDescription: "Bold rules with cobalt accents",
+    thumbnail: "/resume-template-images/cobalt-stream-preview.webp",
+    previewImages: {
+      main: "/resume-template-images/cobalt-stream-preview.webp",
+    },
+    features: [
+      "Bold section rules",
+      "Cobalt accents",
+      "Key achievements footer",
+      "ATS-optimized",
+    ],
+    tags: ["modern", "bold", "professional", "ats-friendly"],
+    atsOptimized: true,
+    popular: false,
+    new: true,
+    colors: { primary: "#111827", secondary: "#4b5563", accent: "#2563eb" },
+    seo: {
+      title: "Cobalt Stream Resume Template - Bold Modern Single-Column",
+      description:
+        "Single-column resume template with bold rules and cobalt accents. ATS-friendly and impactful for sales and business roles.",
+      keywords: ["modern resume", "bold resume", "sales resume template"],
+    },
+    marketing: {
+      headline: "Bold and Results-Driven",
+      benefits: [
+        "Strong visual hierarchy",
+        "Cobalt accents pop",
+        "Achievements highlighted",
+      ],
+      bestFor: ["Sales professionals", "Account executives", "Business roles"],
+      industry: ["Sales", "Business", "Technology"],
+    },
+  },
+
+  {
+    id: "ember-timeline",
+    name: "Ember Timeline",
+    category: "modern",
+    description:
+      "Single-column resume with a date-on-left timeline, navy headers, orange accents and boxed skill tags.",
+    shortDescription: "Date-on-left timeline with orange accents",
+    thumbnail: "/resume-template-images/ember-timeline-preview.webp",
+    previewImages: {
+      main: "/resume-template-images/ember-timeline-preview.webp",
+    },
+    features: [
+      "Date-on-left timeline",
+      "Boxed skill tags",
+      "Orange accents",
+      "ATS-optimized",
+    ],
+    tags: ["modern", "timeline", "colorful", "professional"],
+    atsOptimized: true,
+    popular: false,
+    new: true,
+    colors: { primary: "#1f2a66", secondary: "#5b6472", accent: "#e8632a" },
+    seo: {
+      title: "Ember Timeline Resume Template - Timeline Modern Design",
+      description:
+        "Single-column resume template with a date-on-left timeline and boxed skill tags. ATS-friendly and great for technical roles.",
+      keywords: ["timeline resume", "modern resume", "data science resume template"],
+    },
+    marketing: {
+      headline: "A Clear Career Timeline",
+      benefits: [
+        "Dates align on the left",
+        "Skills shown as tags",
+        "Achievements footer",
+      ],
+      bestFor: ["Data scientists", "Analysts", "Technical specialists"],
+      industry: ["Technology", "Data", "Engineering"],
+    },
+  },
 ];
 
 /**

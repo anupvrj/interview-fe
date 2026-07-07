@@ -49,6 +49,7 @@ import {
   sumInterviewCreditsUsed,
 } from "@/lib/utils";
 import { institutePrimaryClass } from "@/components/institute/InstituteChrome";
+import { appHeroBullet, appHeroCaption } from "@/lib/app-theme";
 import { DashboardStatCard } from "@/components/dashboard/DashboardStatCard";
 import { RecentInterviewsList } from "@/components/dashboard/RecentInterviewsList";
 import { SubscriptionExpiredDialog } from "@/components/SubscriptionExpiredDialog";
@@ -222,10 +223,10 @@ export default function InterviewsPage() {
                 <Sparkles className="h-3 w-3" />
                 <span>AI Interview Practice</span>
               </div>
-              <h1 className="mb-4 text-2xl font-bold leading-[1.25] tracking-tight text-slate-900 sm:mb-6 sm:text-3xl sm:leading-[1.15] md:text-4xl lg:text-[34px] lg:leading-[42px]">
-                <span className="text-slate-900">Company-aware prep,</span>{" "}
+              <h1 className="mb-4 text-2xl font-bold leading-[1.25] tracking-tight text-foreground sm:mb-6 sm:text-3xl sm:leading-[1.15] md:text-4xl lg:text-[34px] lg:leading-[42px]">
+                <span className="text-foreground">Company-aware prep,</span>{" "}
                 <span className="text-[#7367F0]">multilingual AI practice,</span>{" "}
-                <span className="text-slate-900">and interview-ready</span>{" "}
+                <span className="text-foreground">and interview-ready</span>{" "}
                 <span className="text-[#7367F0]">reports</span>
               </h1>
               
@@ -233,19 +234,19 @@ export default function InterviewsPage() {
               <div className="space-y-3 pt-4 sm:pt-6 px-2 sm:px-0">
                 <div className="flex items-start gap-3">
                   <CheckCircle className="mt-0.5 h-5 w-5 shrink-0 text-[#7367F0]" />
-                  <span className="text-xs text-gray-700 sm:text-sm">
+                  <span className={appHeroBullet}>
                     Company- and round-specific prompts—just like a real recruiter screen.
                   </span>
                 </div>
                 <div className="flex items-start gap-3">
                   <CheckCircle className="mt-0.5 h-5 w-5 shrink-0 text-[#7367F0]" />
-                  <span className="text-xs text-gray-700 sm:text-sm">
+                  <span className={appHeroBullet}>
                     Practice out loud in your language—scores and discussion notes you can act on fast.
                   </span>
                 </div>
                 <div className="flex items-start gap-3">
                   <CheckCircle className="mt-0.5 h-5 w-5 shrink-0 text-[#7367F0]" />
-                  <span className="text-xs text-gray-700 sm:text-sm">
+                  <span className={appHeroBullet}>
                     Need peer or coding rounds? Continue in{" "}
                     <Link
                       href="/dashboard/peer-interviews"
@@ -290,7 +291,7 @@ export default function InterviewsPage() {
                       <Star key={i} className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-yellow-400 text-yellow-400" />
                     ))}
                   </div>
-                  <span className="text-xs sm:text-sm font-medium text-gray-600">4.9/5</span>
+                  <span className={appHeroCaption}>4.9/5</span>
                 </div>
               </div>
             </div>
@@ -308,7 +309,7 @@ export default function InterviewsPage() {
                 />
                 {/* Overlay Badges */}
                 <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 bg-green-500 text-white px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-md shadow-lg flex items-center gap-1 sm:gap-1.5 animate-bounce" style={{ animationDuration: '2s' }}>
-                  <div className="w-5 h-5 sm:w-6 sm:h-6 bg-white text-green-600 rounded-full flex items-center justify-center font-bold text-[9px] sm:text-[10px] animate-pulse">
+                  <div className="w-5 h-5 sm:w-6 sm:h-6 bg-card text-green-600 rounded-full flex items-center justify-center font-bold text-[9px] sm:text-[10px] animate-pulse">
                     AI
                   </div>
                   <div className="text-[9px] sm:text-[10px] leading-tight hidden xs:block">
@@ -463,7 +464,7 @@ export default function InterviewsPage() {
                   className={cn(
                     "rounded-full px-2 py-0.5 text-xs font-bold",
                     listTab === "history"
-                      ? "bg-white/20 text-white"
+                      ? "bg-card/20 text-white"
                       : "bg-card text-foreground",
                   )}
                 >
@@ -491,7 +492,7 @@ export default function InterviewsPage() {
                   className={cn(
                     "rounded-full px-2 py-0.5 text-xs font-bold",
                     listTab === "scheduled"
-                      ? "bg-white/20 text-white"
+                      ? "bg-card/20 text-white"
                       : "bg-card text-foreground",
                   )}
                 >

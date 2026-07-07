@@ -8,7 +8,6 @@
   font-family: "Times New Roman", Times, serif;
   color: #000000;
   background-color: #ffffff;
-  padding: 20px;
   line-height: 1.4;
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
@@ -36,9 +35,10 @@
 }
 
 .executive-job-title {
-  font-size: 24px;
+  font-style: italic !important;
+  font-size: 24px !important;
+
   color: #000000;
-  font-style: italic;
   font-weight: normal;
   text-align: right;
   flex-grow: 1;
@@ -295,7 +295,6 @@
 /* Print Styles */
 @media print {
   .executive-template {
-    padding: 20mm;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }

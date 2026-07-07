@@ -87,8 +87,8 @@ const config: Config = {
         sm: "calc(var(--radius) - 4px)",
       },
       boxShadow: {
-        card: "0 2px 8px 0 rgba(47, 43, 61, 0.08)",
-        header: "0 4px 18px 0 rgba(47, 43, 61, 0.1)",
+        card: "var(--shadow-card)",
+        header: "var(--shadow-header)",
         nav: "0 2px 6px 0 rgba(115, 103, 240, 0.45)",
       },
       keyframes: {

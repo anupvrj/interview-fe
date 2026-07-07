@@ -3,12 +3,14 @@
  * Configuration-driven resume preview that works with all templates
  */
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, forwardRef, useImperativeHandle } from "react";
 import { Resume, ResumeTemplate } from "@/lib/api";
 import { Button } from "@/components/ui/button";
-import { ZoomIn, ZoomOut, RotateCcw } from "lucide-react";
+import { ZoomIn, ZoomOut, RotateCcw, FileText } from "lucide-react";
 import { PaginatedPreview } from "./PaginatedPreview";
+import type { ResumePaginationSnapshot } from "./PaginatedPreview";
 import { debugResumePagination } from "@/lib/debug-resume-pagination";
+import { ResumePdfPreviewDialog } from "./ResumePdfPreviewDialog";
 
 interface Section {
   id: string;
@@ -54,19 +56,45 @@ interface ResumePreviewProps {
       left: number;
       right: number;
     };
+    dismissedEmptyTrailingPages?: number;
   };
   zoomLevel?: number;
   onZoomChange?: (zoom: number) => void;
+  onPageDelete?: (payload: {
+    pageNumber: number;
+    totalPages: number;
+  }) => void;
+  onPaginationSnapshot?: (snapshot: ResumePaginationSnapshot) => void;
+  /** Remount preview content (re-measure / re-paginate). Falls back to local remount when omitted. */
+  onRefresh?: () => void;
 }
 
-export function ResumePreview({
+export type ResumePreviewHandle = {
+  resetPreview: (options?: {
+    resetZoom?: boolean;
+    /** `local` remounts PaginatedPreview only; `full` remounts via parent onRefresh. */
+    remount?: "local" | "full";
+  }) => void;
+};
+
+export const ResumePreview = forwardRef<ResumePreviewHandle, ResumePreviewProps>(
+  function ResumePreview(
+  {
   resume,
   template,
   sections,
   layout,
   zoomLevel: controlledZoomLevel,
   onZoomChange,
-}: ResumePreviewProps) {
+  onPageDelete,
+  onPaginationSnapshot,
+  onRefresh,
+}: ResumePreviewProps,
+  ref,
+) {
+  const pageDeleteGutterPx = onPageDelete ? 44 : 0;
+  const [previewRefreshKey, setPreviewRefreshKey] = useState(0);
+  const [pdfPreviewOpen, setPdfPreviewOpen] = useState(false);
   // Use controlled zoom if provided, otherwise use internal state
   const [internalZoomLevel, setInternalZoomLevel] = useState(100);
   const zoomLevel = controlledZoomLevel ?? internalZoomLevel;
@@ -120,6 +148,31 @@ export function ResumePreview({
     });
   }, [zoomLevel, resume.resumeId]);
 
+  const resetPreview = useCallback(
+    (options?: {
+      resetZoom?: boolean;
+      remount?: "local" | "full";
+    }) => {
+      if (options?.resetZoom !== false) {
+        setZoomLevel(100);
+      }
+      containerRef.current?.scrollTo({ top: 0, left: 0, behavior: "instant" });
+      const remount = options?.remount ?? "full";
+      if (remount === "full" && onRefresh) {
+        onRefresh();
+      } else {
+        setPreviewRefreshKey((key) => key + 1);
+      }
+    },
+    [onRefresh, setZoomLevel],
+  );
+
+  useImperativeHandle(ref, () => ({ resetPreview }), [resetPreview]);
+
+  const handleRefreshPreview = useCallback(() => {
+    resetPreview({ resetZoom: false, remount: "full" });
+  }, [resetPreview]);
+
   // Use provided template or show placeholder
   if (!template) {
     return (
@@ -140,14 +193,10 @@ export function ResumePreview({
     setZoomLevel((prev) => Math.max(prev - 25, 50));
   };
 
-  const handleResetZoom = () => {
-    setZoomLevel(100);
-  };
-
   return (
-    <div className="flex flex-col h-full bg-gray-100">
+    <div className="flex h-full flex-col bg-muted/25">
       {/* Zoom Controls */}
-      <div className="sticky top-0 z-20 bg-white border-b px-4 py-2 flex items-center justify-between shadow-sm">
+      <div className="sticky top-0 z-20 flex items-center justify-between border-b border-border/60 bg-header/95 px-4 py-2 shadow-sm backdrop-blur-md">
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
@@ -159,7 +208,7 @@ export function ResumePreview({
           >
             <ZoomOut className="w-4 h-4" />
           </Button>
-          <span className="text-sm font-medium min-w-[60px] text-center">
+          <span className="min-w-[60px] text-center text-sm font-medium text-foreground">
             {zoomLevel}%
           </span>
           <Button
@@ -175,18 +224,28 @@ export function ResumePreview({
           <Button
             variant="outline"
             size="sm"
-            onClick={handleResetZoom}
+            onClick={handleRefreshPreview}
             className="h-8 px-3 ml-2"
-            title="Reset Zoom"
+            title="Refresh preview"
           >
             <RotateCcw className="w-4 h-4 mr-1" />
-            Reset
+            Refresh
           </Button>
         </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setPdfPreviewOpen(true)}
+          className="h-8 px-3"
+          title="Open PDF preview"
+        >
+          <FileText className="w-4 h-4 mr-1" />
+          PDF Preview
+        </Button>
       </div>
 
       {/* Scrollable Preview Container */}
-      <div ref={containerRef} className="flex-1 overflow-auto bg-gray-200">
+      <div ref={containerRef} className="flex-1 overflow-auto bg-muted/40">
         {/* Zoom Container - handles centering and sizing */}
         <div
           className="flex items-start min-h-full"
@@ -200,29 +259,44 @@ export function ResumePreview({
           {/* Resume Container Wrapper for Scale */}
           <div
             style={{
-              width: `${210 * (zoomLevel / 100)}mm`,
+              width: `calc(${210 * (zoomLevel / 100)}mm + ${(pageDeleteGutterPx * zoomLevel) / 100}px)`,
               position: "relative",
             }}
           >
             <div
               id={`resume-preview-container-${resume.resumeId}`}
               style={{
-                width: "210mm",
+                width: `calc(210mm + ${pageDeleteGutterPx}px)`,
                 transform: `scale(${zoomLevel / 100})`,
                 transformOrigin: "top left",
                 transition: "transform 200ms",
               }}
             >
               <PaginatedPreview
+                key={`paginated-preview-${previewRefreshKey}`}
                 resume={resume}
                 template={template}
                 sections={sections}
                 layout={layout}
+                dismissedEmptyTrailingPages={
+                  layout?.dismissedEmptyTrailingPages ?? 0
+                }
+                onPageDelete={onPageDelete}
+                onPaginationSnapshot={onPaginationSnapshot}
               />
             </div>
           </div>
         </div>
       </div>
+
+      <ResumePdfPreviewDialog
+        open={pdfPreviewOpen}
+        onOpenChange={setPdfPreviewOpen}
+        resume={resume}
+        template={template}
+        sections={sections}
+        layout={layout}
+      />
     </div>
   );
-}
+});

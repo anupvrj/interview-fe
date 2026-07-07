@@ -99,7 +99,7 @@ export function ProfileWelcomeHero({
 
       <div
         aria-hidden
-        className="pointer-events-none absolute -right-10 -top-10 h-48 w-48 rounded-full bg-white/10 blur-3xl"
+        className="pointer-events-none absolute -right-10 -top-10 h-48 w-48 rounded-full bg-card/10 blur-3xl"
       />
       <div
         aria-hidden
@@ -141,7 +141,7 @@ export function ProfileWelcomeHero({
 
       <div className="relative z-10 p-5 sm:p-6 lg:p-8">
         <div className="min-w-0 max-w-2xl space-y-3">
-          <div className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.1em] text-white/90 backdrop-blur-sm">
+          <div className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-card/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.1em] text-white/90 backdrop-blur-sm">
             <Sparkles className="h-3.5 w-3.5 text-amber-200" />
             Your profile
           </div>
@@ -158,7 +158,7 @@ export function ProfileWelcomeHero({
             {featurePills.map((pill) => (
               <span
                 key={pill.label}
-                className="inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-white/10 px-2.5 py-1 text-[11px] font-medium text-white/90 backdrop-blur-sm sm:text-xs"
+                className="inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-card/10 px-2.5 py-1 text-[11px] font-medium text-white/90 backdrop-blur-sm sm:text-xs"
               >
                 <span className={cn("h-1.5 w-1.5 rounded-full", pill.dot)} />
                 {pill.label}

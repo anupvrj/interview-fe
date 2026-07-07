@@ -266,7 +266,7 @@ export default function NewInterviewPage() {
           <CardContent className="pt-6">
             <div className="flex items-center justify-center gap-3 py-4">
               <Loader2 className="h-6 w-6 animate-spin text-primary" />
-              <p className="text-gray-700 font-medium">
+              <p className="text-muted-foreground font-medium">
                 Checking your interview limit...
               </p>
             </div>
@@ -296,19 +296,19 @@ export default function NewInterviewPage() {
                 </div>
               </div>
               <div className="flex-1">
-                <h3 className="text-2xl font-bold text-gray-900 mb-3">
+                <h3 className="text-2xl font-bold text-foreground mb-3">
                   {limitCheck.isExpired
                     ? "Subscription expired"
                     : "Not enough credits"}
                 </h3>
-                <p className="text-gray-700 mb-4 text-lg">
+                <p className="text-muted-foreground mb-4 text-lg">
                   {limitCheck.reason ||
                     "Purchase a plan or credits to continue interviewing."}
                 </p>
                 {limitCheck.creditsAvailable !== undefined &&
                   limitCheck.minimumRequired !== undefined && (
-                    <div className="mb-6 p-4 bg-white/60 rounded-xl backdrop-blur-sm">
-                      <p className="text-sm text-gray-700 mb-2">
+                    <div className="mb-6 p-4 bg-card/60 rounded-xl backdrop-blur-sm">
+                      <p className="text-sm text-muted-foreground mb-2">
                         <span className="font-semibold">
                           Available Credits:{" "}
                         </span>
@@ -316,7 +316,7 @@ export default function NewInterviewPage() {
                           {limitCheck.creditsAvailable}
                         </span>
                       </p>
-                      <p className="text-sm text-gray-700">
+                      <p className="text-sm text-muted-foreground">
                         <span className="font-semibold">Required: </span>
                         <span className="font-bold text-red-600 text-lg">
                           {limitCheck.minimumRequired}
@@ -324,7 +324,7 @@ export default function NewInterviewPage() {
                         credits (30-min interview)
                       </p>
                       {!limitCheck.isExpired && (
-                        <p className="text-xs text-gray-600 mt-2">
+                        <p className="text-xs text-muted-foreground mt-2">
                           Billing runs at 5 credits per minute—grab more credits
                           to keep interviewing and unlock full scoring reports.
                         </p>
@@ -377,14 +377,14 @@ export default function NewInterviewPage() {
                 <CheckCircle className="h-6 w-6 text-white" />
               </div>
               <div>
-                <p className="text-gray-800 font-semibold text-lg">
+                <p className="text-foreground font-semibold text-lg">
                   You have{" "}
                   <span className="font-bold text-green-600 text-xl">
                     {limitCheck.creditsAvailable || 0}
                   </span>{" "}
                   credits available
                 </p>
-                <p className="text-sm text-gray-600 mt-1">
+                <p className="text-sm text-muted-foreground mt-1">
                   Enough runway for a full rehearsal at 5 credits/min—reports and
                   discussion feedback unlock when you wrap the session cleanly.
                 </p>
@@ -395,7 +395,7 @@ export default function NewInterviewPage() {
       ) : !checkingLimit && !limitCheck ? (
         <Card className={cn(appCard)}>
           <CardContent className="pt-6">
-            <p className="text-gray-700 mb-4">
+            <p className="text-muted-foreground mb-4">
               Could not verify your interview access. Please try again.
             </p>
             <Button type="button" onClick={() => checkInterviewLimit()}>
@@ -434,7 +434,7 @@ export default function NewInterviewPage() {
                   <div className="space-y-2">
                     <Label
                       htmlFor="role"
-                      className="text-sm font-semibold text-gray-700 flex items-center gap-2"
+                      className="text-sm font-semibold text-foreground flex items-center gap-2"
                     >
                       <Target className="w-4 h-4 text-primary flex-shrink-0" />
                       Role You're Applying For
@@ -450,7 +450,7 @@ export default function NewInterviewPage() {
                       className={`h-11 sm:h-12 text-sm sm:text-base w-full ${
                         errors.role
                           ? "border-red-500 focus:ring-red-500"
-                          : "border-gray-300 focus:border-primary focus:ring-primary"
+                          : "border-border focus:border-primary focus:ring-primary"
                       } transition-all`}
                     />
                     {errors.role && (
@@ -466,7 +466,7 @@ export default function NewInterviewPage() {
                     <div className="space-y-2">
                       <Label
                         htmlFor="experience"
-                        className="text-sm font-semibold text-gray-700 flex items-center gap-2"
+                        className="text-sm font-semibold text-foreground flex items-center gap-2"
                       >
                         <Clock className="w-4 h-4 text-primary" />
                         Years of Experience
@@ -494,7 +494,7 @@ export default function NewInterviewPage() {
                     <div className="space-y-2">
                       <Label
                         htmlFor="language"
-                        className="text-sm font-semibold text-gray-700 flex items-center gap-2"
+                        className="text-sm font-semibold text-foreground flex items-center gap-2"
                       >
                         <Globe className="w-4 h-4 text-green-600" />
                         Interview Language
@@ -521,7 +521,7 @@ export default function NewInterviewPage() {
                     <div className="space-y-2">
                       <Label
                         htmlFor="department"
-                        className="text-sm font-semibold text-gray-700 flex items-center gap-2"
+                        className="text-sm font-semibold text-foreground flex items-center gap-2"
                       >
                         <Briefcase className="w-4 h-4 text-indigo-600" />
                         Department (Optional)
@@ -562,7 +562,7 @@ export default function NewInterviewPage() {
                     <div className="space-y-2">
                       <Label
                         htmlFor="discipline"
-                        className="text-sm font-semibold text-gray-700 flex items-center gap-2"
+                        className="text-sm font-semibold text-foreground flex items-center gap-2"
                       >
                         <Building2 className="w-4 h-4 text-teal-600" />
                         Discipline (Optional)
@@ -594,7 +594,7 @@ export default function NewInterviewPage() {
                   <div className="space-y-2">
                     <Label
                       htmlFor="duration"
-                      className="text-sm font-semibold text-gray-700 flex items-center gap-2"
+                      className="text-sm font-semibold text-foreground flex items-center gap-2"
                     >
                       <Clock className="w-4 h-4 text-purple-600" />
                       Interview Duration
@@ -632,7 +632,7 @@ export default function NewInterviewPage() {
                         </SelectItem>
                       </SelectContent>
                     </Select>
-                    <p className="text-xs text-gray-500 flex items-center gap-1">
+                    <p className="text-xs text-muted-foreground flex items-center gap-1">
                       <Zap className="w-3 h-3" />
                       {["premium", "enterprise"].includes(
                         userProfile?.subscription?.plan ?? "",
@@ -646,7 +646,7 @@ export default function NewInterviewPage() {
                   <div className="space-y-2">
                     <Label
                       htmlFor="targetCompany"
-                      className="text-sm font-semibold text-gray-700 flex items-center gap-2"
+                      className="text-sm font-semibold text-foreground flex items-center gap-2"
                     >
                       <Building2 className="w-4 h-4 text-pink-600 flex-shrink-0" />
                       Target Company (Optional)
@@ -661,9 +661,9 @@ export default function NewInterviewPage() {
                           targetCompany: e.target.value,
                         })
                       }
-                      className="h-11 sm:h-12 text-sm sm:text-base w-full border-gray-300 focus:border-primary focus:ring-primary transition-all"
+                      className="h-11 sm:h-12 text-sm sm:text-base w-full border-border focus:border-primary focus:ring-primary transition-all"
                     />
-                    <p className="text-xs text-gray-500 flex items-center gap-1">
+                    <p className="text-xs text-muted-foreground flex items-center gap-1">
                       <Zap className="w-3 h-3" />
                       We'll tailor questions based on the company's interview
                       pattern
@@ -672,7 +672,7 @@ export default function NewInterviewPage() {
 
                   {/* Resume Selection */}
                   <div className="space-y-2 sm:space-y-3">
-                    <Label className="text-xs sm:text-sm font-semibold text-gray-700 flex items-center gap-1.5">
+                    <Label className="text-xs sm:text-sm font-semibold text-foreground flex items-center gap-1.5">
                       <FileText className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-primary flex-shrink-0" />
                       Resume
                       <span className="text-red-500">*</span>
@@ -707,21 +707,21 @@ export default function NewInterviewPage() {
                               className={`w-4 h-4 sm:w-5 sm:h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
                                 useSavedResume
                                   ? "border-primary bg-primary"
-                                  : "border-gray-300"
+                                  : "border-border"
                               }`}
                             >
                               {useSavedResume && (
-                                <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-white" />
+                                <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-card" />
                               )}
                             </div>
                             <div className="w-8 h-8 sm:w-10 sm:h-10 bg-primary rounded-lg flex items-center justify-center flex-shrink-0">
                               <FileText className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                             </div>
                             <div className="flex-1 min-w-0">
-                              <p className="text-xs sm:text-sm font-semibold text-gray-900 truncate">
+                              <p className="text-xs sm:text-sm font-semibold text-foreground truncate">
                                 {userProfile.resume.filename}
                               </p>
-                              <p className="text-xs text-gray-500 truncate">
+                              <p className="text-xs text-muted-foreground truncate">
                                 {new Date(
                                   userProfile.resume.uploadedAt,
                                 ).toLocaleDateString("en-IN", {
@@ -736,7 +736,7 @@ export default function NewInterviewPage() {
                             )}
                           </div>
                         </div>
-                        <p className="text-xs text-gray-500 pl-11 sm:pl-12">
+                        <p className="text-xs text-muted-foreground pl-11 sm:pl-12">
                           Or upload new below
                         </p>
                       </div>
@@ -765,17 +765,17 @@ export default function NewInterviewPage() {
                           className={`w-4 h-4 sm:w-5 sm:h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
                             !useSavedResume
                               ? "border-primary bg-primary"
-                              : "border-gray-300"
+                              : "border-border"
                           }`}
                         >
                           {!useSavedResume && (
-                            <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-white" />
+                            <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-card" />
                           )}
                         </div>
                         <div className="w-8 h-8 sm:w-10 sm:h-10 bg-primary rounded-lg flex items-center justify-center flex-shrink-0">
                           <Upload className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                         </div>
-                        <span className="text-xs sm:text-sm font-semibold text-gray-900 flex-1">
+                        <span className="text-xs sm:text-sm font-semibold text-foreground flex-1">
                           Upload new resume
                         </span>
                         {!useSavedResume && (
@@ -795,7 +795,7 @@ export default function NewInterviewPage() {
                                 ? "border-primary bg-primary-muted/30"
                                 : errors.resume
                                   ? "border-red-400 bg-red-50"
-                                  : "border-gray-300 bg-gray-50/50"
+                                  : "border-border bg-muted/20"
                             }`}
                           >
                             <input {...getInputProps()} />
@@ -804,10 +804,10 @@ export default function NewInterviewPage() {
                                 <Upload className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
                               </div>
                               <div>
-                                <p className="text-xs sm:text-sm font-semibold text-gray-700 mb-1">
+                                <p className="text-xs sm:text-sm font-semibold text-foreground mb-1">
                                   {isDragActive ? "Drop here" : "Tap to upload"}
                                 </p>
-                                <p className="text-xs text-gray-400">
+                                <p className="text-xs text-muted-foreground/80">
                                   PDF only • Max 5 MB
                                 </p>
                               </div>
@@ -820,10 +820,10 @@ export default function NewInterviewPage() {
                                 <FileText className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                               </div>
                               <div className="flex-1 min-w-0">
-                                <p className="text-xs sm:text-sm font-semibold text-gray-900 truncate">
+                                <p className="text-xs sm:text-sm font-semibold text-foreground truncate">
                                   {uploadedFile.name}
                                 </p>
-                                <p className="text-xs text-gray-600">
+                                <p className="text-xs text-muted-foreground">
                                   {(uploadedFile.size / 1024 / 1024).toFixed(2)}{" "}
                                   MB
                                 </p>
@@ -902,10 +902,10 @@ export default function NewInterviewPage() {
                       <FileText className="w-4 h-4 text-white" />
                     </div>
                     <div>
-                      <p className="font-semibold text-gray-900 text-sm mb-1">
+                      <p className="font-semibold text-foreground text-sm mb-1">
                         Resume Analysis
                       </p>
-                      <p className="text-xs text-gray-600">
+                      <p className="text-xs text-muted-foreground">
                         AI analyzes your resume and prepares personalized
                         questions
                       </p>
@@ -916,10 +916,10 @@ export default function NewInterviewPage() {
                       <Target className="w-4 h-4 text-white" />
                     </div>
                     <div>
-                      <p className="font-semibold text-gray-900 text-sm mb-1">
+                      <p className="font-semibold text-foreground text-sm mb-1">
                         Interview Session
                       </p>
-                      <p className="text-xs text-gray-600">
+                      <p className="text-xs text-muted-foreground">
                         10-15 tailored questions based on your role and
                         experience
                       </p>
@@ -930,10 +930,10 @@ export default function NewInterviewPage() {
                       <Mic className="w-4 h-4 text-white" />
                     </div>
                     <div>
-                      <p className="font-semibold text-gray-900 text-sm mb-1">
+                      <p className="font-semibold text-foreground text-sm mb-1">
                         Voice Response
                       </p>
-                      <p className="text-xs text-gray-600">
+                      <p className="text-xs text-muted-foreground">
                         Answer using your voice (microphone required)
                       </p>
                     </div>
@@ -943,10 +943,10 @@ export default function NewInterviewPage() {
                       <BarChart3 className="w-4 h-4 text-white" />
                     </div>
                     <div>
-                      <p className="font-semibold text-gray-900 text-sm mb-1">
+                      <p className="font-semibold text-foreground text-sm mb-1">
                         Detailed Feedback
                       </p>
-                      <p className="text-xs text-gray-600">
+                      <p className="text-xs text-muted-foreground">
                         Get scores, behavioral analysis, and improvement
                         suggestions
                       </p>

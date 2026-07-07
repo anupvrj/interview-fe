@@ -6,10 +6,17 @@ import { cn } from "@/lib/utils";
 
 const SNIPPET = `function twoSum(nums, target) {
   const map = new Map();
-  // Run tests · Submit for hidden cases
+  for (let i = 0; i < nums.length; i++) {
+    const complement = target - nums[i];
+    if (map.has(complement)) {
+      return [map.get(complement), i];
+    }
+    map.set(nums[i], i);
+  }
+  return [];
 }`;
 
-const TYPING_MS = 28;
+const TYPING_MS = 22;
 const PAUSE_AFTER_CODE_MS = 450;
 const RUN_PUBLIC_MS = 1400;
 const PUBLIC_RESULT_MS = 900;
@@ -29,6 +36,96 @@ type Phase =
   | "run_hidden"
   | "hidden_ok"
   | "ready";
+
+function HighlightedTwoSumCode() {
+  return (
+    <div className="space-y-0.5 leading-snug">
+      <p className="m-0">
+        <span className="text-purple-400">function</span>{" "}
+        <span className="text-primary/70">twoSum</span>(
+        <span className="text-amber-200">nums</span>,{" "}
+        <span className="text-amber-200">target</span>) {"{"}
+      </p>
+      <p className="m-0 pl-4 text-muted-foreground">
+        <span className="text-purple-400">const</span> map ={" "}
+        <span className="text-purple-400">new</span> Map();
+      </p>
+      <p className="m-0 pl-4 text-muted-foreground">
+        <span className="text-purple-400">for</span> (
+        <span className="text-purple-400">let</span> i ={" "}
+        <span className="text-sky-300">0</span>; i {"<"} nums.length; i++) {"{"}
+      </p>
+      <p className="m-0 pl-8 text-muted-foreground">
+        <span className="text-purple-400">const</span> complement = target - nums[i];
+      </p>
+      <p className="m-0 pl-8 text-muted-foreground">
+        <span className="text-purple-400">if</span> (map.has(complement)) {"{"}
+      </p>
+      <p className="m-0 pl-12 text-muted-foreground">
+        <span className="text-purple-400">return</span> [map.get(complement), i];
+      </p>
+      <p className="m-0 pl-8 text-muted-foreground">{"}"}</p>
+      <p className="m-0 pl-8 text-muted-foreground">map.set(nums[i], i);</p>
+      <p className="m-0 pl-4 text-muted-foreground">{"}"}</p>
+      <p className="m-0 pl-4 text-muted-foreground">
+        <span className="text-purple-400">return</span> [];
+      </p>
+      <p className="m-0 pl-4 text-muted-foreground">{"}"}</p>
+    </div>
+  );
+}
+
+function TerminalSizer() {
+  return (
+    <div className="mt-3 space-y-1.5 border-t border-transparent pt-2 font-mono text-[10px] sm:text-[11px]">
+      <div className="flex items-center gap-2 opacity-0">
+        <span className="h-3 w-3 shrink-0" />
+        <span>Public tests passed (2/2)</span>
+      </div>
+      <div className="flex items-center gap-2 opacity-0">
+        <span className="h-3 w-3 shrink-0" />
+        <span>Hidden tests passed (8/8)</span>
+      </div>
+    </div>
+  );
+}
+
+function TerminalOutput({ phase }: { phase: Phase }) {
+  return (
+    <div className="mt-3 space-y-1.5 border-t border-slate-700/80 pt-2 font-mono text-[10px] text-muted-foreground/80 sm:text-[11px]">
+      {phase === "run_public" && (
+        <div className="flex items-center gap-2 text-sky-300">
+          <Loader2 className="h-3 w-3 shrink-0 animate-spin text-sky-400" />
+          <span>Running public tests…</span>
+        </div>
+      )}
+
+      {(phase === "public_ok" ||
+        phase === "run_hidden" ||
+        phase === "hidden_ok" ||
+        phase === "ready") && (
+        <div className="flex items-center gap-2 text-emerald-400/95">
+          <CheckCircle2 className="h-3 w-3 shrink-0" />
+          <span>Public tests passed (2/2)</span>
+        </div>
+      )}
+
+      {phase === "run_hidden" && (
+        <div className="flex items-center gap-2 text-sky-300">
+          <Loader2 className="h-3 w-3 shrink-0 animate-spin text-sky-400" />
+          <span>Running hidden tests…</span>
+        </div>
+      )}
+
+      {(phase === "hidden_ok" || phase === "ready") && (
+        <div className="flex items-center gap-2 text-emerald-400/95">
+          <CheckCircle2 className="h-3 w-3 shrink-0" />
+          <span>Hidden tests passed (8/8)</span>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function CodingRoundHeroPreview() {
   const [typedLen, setTypedLen] = useState(0);
@@ -98,82 +195,42 @@ export function CodingRoundHeroPreview() {
 
   return (
     <div className="w-full max-w-[600px] overflow-hidden rounded-xl border-2 border-border bg-slate-900 shadow-2xl sm:max-w-[700px] sm:rounded-xl sm:border-4">
-      <div className="flex items-center gap-2 border-b border-slate-700 bg-slate-800 px-3 py-2">
+      <div className="flex items-center gap-2 border-b border-slate-700 bg-slate-800 px-3 py-1.5">
         <div className="flex gap-1.5">
           <span className="h-3 w-3 rounded-full bg-red-500/90" />
           <span className="h-3 w-3 rounded-full bg-amber-400/90" />
           <span className="h-3 w-3 rounded-full bg-emerald-500/90" />
         </div>
-        <span className="ml-2 font-mono text-[10px] text-slate-400 sm:text-xs">
+        <span className="ml-2 font-mono text-[10px] text-muted-foreground/80 sm:text-xs">
           solution.ts · Practice Coding Round
         </span>
       </div>
 
-      <div className="min-h-[148px] p-4 font-mono text-[11px] leading-relaxed sm:min-h-[156px] sm:p-5 sm:text-xs">
-        {!codeDone ? (
-          <pre className="m-0 whitespace-pre-wrap break-all text-slate-300">
-            {typedSlice}
-            {showCursor ? (
-              <span className="ml-0.5 inline-block h-3.5 w-2 animate-pulse bg-sky-400 align-middle sm:h-4" />
-            ) : null}
-          </pre>
-        ) : (
-          <div className="space-y-2 opacity-100 transition-opacity duration-300">
-            <p className="m-0">
-              <span className="text-purple-400">function</span>{" "}
-              <span className="text-primary/70">twoSum</span>(
-              <span className="text-amber-200">nums</span>,{" "}
-              <span className="text-amber-200">target</span>) {"{"}
-            </p>
-            <p className="m-0 pl-4 text-slate-500">
-              <span className="text-purple-400">const</span> map ={" "}
-              <span className="text-purple-400">new</span> Map();
-            </p>
-            <p className="m-0 pl-4 text-emerald-400/90">
-              // Run tests · Submit for hidden cases
-            </p>
-            <p className="m-0 pl-4 text-slate-500">{"}"}</p>
-          </div>
-        )}
+      <div className="relative p-3 font-mono text-[10px] leading-snug sm:p-4 sm:text-[11px]">
+        <div className="invisible pointer-events-none select-none" aria-hidden="true">
+          <HighlightedTwoSumCode />
+          <TerminalSizer />
+        </div>
 
-        {showTerminal && (
-          <div className="mt-4 space-y-2 border-t border-slate-700/80 pt-3 font-mono text-[10px] text-slate-400 sm:text-[11px]">
-            {phase === "run_public" && (
-              <div className="flex items-center gap-2 text-sky-300">
-                <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-sky-400" />
-                <span>Running public tests…</span>
-              </div>
-            )}
-
-            {(phase === "public_ok" ||
-              phase === "run_hidden" ||
-              phase === "hidden_ok" ||
-              phase === "ready") && (
-              <div className="flex items-center gap-2 text-emerald-400/95">
-                <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
-                <span>Public tests passed (2/2)</span>
-              </div>
-            )}
-
-            {phase === "run_hidden" && (
-              <div className="flex items-center gap-2 text-sky-300">
-                <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-sky-400" />
-                <span>Running hidden tests…</span>
-              </div>
-            )}
-
-            {(phase === "hidden_ok" || phase === "ready") && (
-              <div className="flex items-center gap-2 text-emerald-400/95">
-                <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
-                <span>Hidden tests passed (8/8)</span>
-              </div>
-            )}
-          </div>
-        )}
+        <div className="absolute inset-0 overflow-hidden p-3 sm:p-4">
+          {!codeDone ? (
+            <pre className="m-0 whitespace-pre-wrap break-all text-foreground/70 leading-snug">
+              {typedSlice}
+              {showCursor ? (
+                <span className="ml-0.5 inline-block h-3 w-2 animate-pulse bg-sky-400 align-middle sm:h-3.5" />
+              ) : null}
+            </pre>
+          ) : (
+            <>
+              <HighlightedTwoSumCode />
+              {showTerminal ? <TerminalOutput phase={phase} /> : null}
+            </>
+          )}
+        </div>
       </div>
 
-      <div className="flex items-center justify-between border-t border-slate-700 bg-slate-800/80 px-3 py-2">
-        <span className="text-[10px] text-slate-500">
+      <div className="flex items-center justify-between border-t border-slate-700 bg-slate-800/80 px-3 py-1.5">
+        <span className="text-[10px] text-muted-foreground">
           Tests · Public + hidden on submit
         </span>
         <span
@@ -183,7 +240,7 @@ export function CodingRoundHeroPreview() {
               ? "bg-emerald-600/90 text-white shadow-[0_0_14px_rgba(52,211,153,0.5)]"
               : footerLabel.text === "Testing…" || footerLabel.text === "Starting tests…"
                 ? "bg-amber-600/85 text-white"
-                : "bg-slate-700 text-slate-400",
+                : "bg-slate-700 text-muted-foreground/80",
           )}
         >
           {footerLabel.text}

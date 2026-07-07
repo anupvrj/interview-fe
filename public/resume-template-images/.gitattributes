@@ -1,0 +1,3 @@
+# Preview images must be regular binary files — symlinks break Vercel deploys.
+*-preview.webp binary
+*-preview.png binary

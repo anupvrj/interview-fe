@@ -63,9 +63,22 @@ const SHOW_RECONNECT_ATTEMPT_DEBUG =
   process.env.NEXT_PUBLIC_VERCEL_ENV === "preview" ||
   process.env.NEXT_PUBLIC_APP_ENV === "staging";
 
-/** Voice provider for realtime: "gemini" (default) or "chatgpt". Set via NEXT_PUBLIC_VOICE_PROVIDER. */
-const VOICE_PROVIDER: "chatgpt" | "gemini" =
-  (process.env.NEXT_PUBLIC_VOICE_PROVIDER as "chatgpt" | "gemini") || "gemini";
+/** Voice provider for realtime interviews. Valid: `gemini` (default) or `chatgpt`. */
+function resolveVoiceProvider(
+  raw: string | undefined,
+): "chatgpt" | "gemini" {
+  if (raw === "chatgpt" || raw === "gemini") return raw;
+  if (raw) {
+    console.warn(
+      `[Voice] Invalid NEXT_PUBLIC_VOICE_PROVIDER="${raw}". Use "gemini" or "chatgpt". Defaulting to gemini.`,
+    );
+  }
+  return "gemini";
+}
+
+const VOICE_PROVIDER = resolveVoiceProvider(
+  process.env.NEXT_PUBLIC_VOICE_PROVIDER,
+);
 
 const RECORDING_OPT_IN_STORAGE_PREFIX = "interviewRecordingOptIn_";
 
@@ -657,11 +670,8 @@ export function RealtimeInterviewClient({
       websocketRef.current = ws;
 
       ws.onopen = () => {
-        // For Gemini, wait for the backend "connected" message (Gemini session ready)
-        // before enabling the Start button. For ChatGPT, enable immediately on WS open.
-        if (voiceProviderRef.current !== "gemini") {
-          setConnected(true);
-        } else {
+        // Wait for backend "connected" once upstream AI session is ready (Gemini + ChatGPT).
+        if (voiceProviderRef.current === "gemini") {
           // App-level keepalive from first byte of session (covers long AI prep on Railway).
           startClientWsHeartbeat();
         }
@@ -718,8 +728,9 @@ export function RealtimeInterviewClient({
             setConnected(true);
           } else if (data.type === "connected") {
             if (data.provider) voiceProviderRef.current = data.provider;
-            // Gemini session is ready — enable the Start Interview button
+            // Upstream AI session is ready — enable Start Interview
             setConnected(true);
+            setError("");
           } else if (data.type === "openai_event") {
             handleOpenAIEvent(data.event);
           } else if (data.type === "audio_response") {
@@ -2282,13 +2293,13 @@ export function RealtimeInterviewClient({
         )}
       >
         {codingDiscussionHost ? (
-          <div className="w-full max-w-md rounded-2xl border border-white/10 bg-white/[0.06] p-4 text-center">
+          <div className="w-full max-w-md rounded-2xl border border-white/10 bg-card/[0.06] p-4 text-center">
             <AlertCircle className="mx-auto mb-3 h-10 w-10 text-red-400" />
             <h2 className="mb-2 text-base font-semibold text-white">Error</h2>
             <p className="mb-4 text-sm text-gray-400">{error}</p>
             <Button
               variant="secondary"
-              className="w-full border-white/15 bg-white/10 text-white hover:bg-white/15"
+              className="w-full border-white/15 bg-card/10 text-white hover:bg-card/15"
               onClick={() =>
                 notifyCodingDiscussionExit("close")
               }
@@ -2330,7 +2341,7 @@ export function RealtimeInterviewClient({
         open={showInterviewComplete}
         onOpenChange={setShowInterviewComplete}
       >
-        <AlertDialogContent className="sm:max-w-md border-2 border-green-200 bg-white shadow-xl">
+        <AlertDialogContent className="sm:max-w-md border-2 border-green-200 bg-card shadow-xl">
           <AlertDialogHeader>
             <div className="flex flex-col items-center text-center">
               <CheckCircle2 className="mx-auto mb-4 h-12 w-12 text-green-500" />
@@ -2420,7 +2431,7 @@ export function RealtimeInterviewClient({
           }
         }}
       >
-        <AlertDialogContent className="sm:max-w-md border-2 border-amber-200 bg-white shadow-xl">
+        <AlertDialogContent className="sm:max-w-md border-2 border-amber-200 bg-card shadow-xl">
           <AlertDialogHeader>
             <div className="flex flex-col items-center text-center">
               <AlertCircle className="mx-auto h-12 w-12 text-amber-500 mb-4" />
@@ -2466,7 +2477,7 @@ export function RealtimeInterviewClient({
         open={showEndInterviewConfirm}
         onOpenChange={setShowEndInterviewConfirm}
       >
-        <AlertDialogContent className="sm:max-w-md border-2 border-amber-200 bg-white shadow-xl">
+        <AlertDialogContent className="sm:max-w-md border-2 border-amber-200 bg-card shadow-xl">
           <AlertDialogHeader>
             <div className="flex flex-col items-center text-center">
               <AlertCircle className="mx-auto h-12 w-12 text-amber-500 mb-4" />
@@ -2504,7 +2515,7 @@ export function RealtimeInterviewClient({
         </AlertDialogContent>
       </AlertDialog>
       <AlertDialog open={connectionFailed} onOpenChange={() => {}}>
-        <AlertDialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto mx-4 w-[calc(100%-2rem)] border-2 border-red-200 bg-white shadow-xl">
+        <AlertDialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto mx-4 w-[calc(100%-2rem)] border-2 border-red-200 bg-card shadow-xl">
           <AlertDialogHeader>
             <div className="flex flex-col items-center text-center">
               <AlertCircle className="mx-auto h-12 w-12 shrink-0 text-red-500 mb-4" />
@@ -2576,7 +2587,7 @@ export function RealtimeInterviewClient({
           <span>{activeError}</span>
           <button
             onClick={() => setActiveError("")}
-            className="ml-2 rounded-full p-0.5 hover:bg-white/20"
+            className="ml-2 rounded-full p-0.5 hover:bg-card/20"
             aria-label="Dismiss"
           >
             ✕
@@ -2594,7 +2605,7 @@ export function RealtimeInterviewClient({
                   type="button"
                   variant="ghost"
                   size="icon"
-                  className="shrink-0 text-white/90 hover:bg-white/10 hover:text-white"
+                  className="shrink-0 text-white/90 hover:bg-card/10 hover:text-white"
                   aria-label="Back to interviews"
                   onClick={() => {
                     router.push("/dashboard/interviews");
@@ -2616,7 +2627,7 @@ export function RealtimeInterviewClient({
             <div className="flex w-full min-w-0 flex-row items-center gap-2 sm:w-auto sm:gap-3">
               <Progress
                 value={Math.min((elapsedTime / targetDurationSec) * 100, 100)}
-                className="h-2 min-w-0 flex-1 bg-white/10 sm:w-40 sm:flex-none"
+                className="h-2 min-w-0 flex-1 bg-card/10 sm:w-40 sm:flex-none"
               />
               {isInterviewActive && (
                 <Button
@@ -2668,10 +2679,10 @@ export function RealtimeInterviewClient({
             {/* Left: profile + live speaking + start — same row height as camera on lg */}
             <Card
               className={cn(
-                "flex flex-col overflow-visible border-white/10 bg-white/[0.06] shadow-lg shadow-black/20",
+                "flex flex-col overflow-visible border-white/10 bg-card/[0.06] shadow-lg shadow-black/20",
                 codingDiscussionHost &&
                   isCodingDiscussion &&
-                  "h-auto w-full shrink-0 rounded-xl border-0 bg-white/[0.04] shadow-none",
+                  "h-auto w-full shrink-0 rounded-xl border-0 bg-card/[0.04] shadow-none",
                 codingEmbed && isCodingDiscussion
                   ? codingDiscussionHost
                     ? "relative"
@@ -2687,7 +2698,7 @@ export function RealtimeInterviewClient({
                   variant="ghost"
                   size="icon"
                   className={cn(
-                    "absolute z-10 text-white/70 hover:bg-white/10 hover:text-white",
+                    "absolute z-10 text-white/70 hover:bg-card/10 hover:text-white",
                     codingDiscussionHost
                       ? "right-0.5 top-0.5 h-7 w-7"
                       : "right-1 top-1 h-8 w-8",
@@ -2932,7 +2943,7 @@ export function RealtimeInterviewClient({
             </Card>
 
             {!codingEmbed ? (
-              <Card className="flex min-h-0 flex-col overflow-visible border-white/10 bg-white/[0.06] shadow-lg shadow-black/20 lg:h-full">
+              <Card className="flex min-h-0 flex-col overflow-visible border-white/10 bg-card/[0.06] shadow-lg shadow-black/20 lg:h-full">
                 <CardContent className="flex min-h-0 flex-1 flex-col p-4 sm:p-5">
                   <div className="relative min-h-[200px] w-full flex-1 overflow-hidden rounded-2xl bg-black lg:min-h-0">
                     <video
@@ -2996,7 +3007,7 @@ export function RealtimeInterviewClient({
           {!(codingEmbed && isCodingDiscussion) ? (
           <Card
             className={cn(
-              "rounded-xl border border-white/10 bg-white/[0.04] shadow-lg shadow-black/20 backdrop-blur-md",
+              "rounded-xl border border-white/10 bg-card/[0.04] shadow-lg shadow-black/20 backdrop-blur-md",
               codingEmbed && "shrink-0",
             )}
           >
@@ -3106,7 +3117,7 @@ export function RealtimeInterviewClient({
           {!(codingEmbed && isCodingDiscussion) ? (
           <Card
             className={cn(
-              "animate-none border border-white/10 bg-white/[0.04] shadow-md",
+              "animate-none border border-white/10 bg-card/[0.04] shadow-md",
               codingEmbed && "min-h-0 flex-1 overflow-hidden",
             )}
           >

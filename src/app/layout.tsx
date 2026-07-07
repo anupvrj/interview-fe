@@ -7,7 +7,7 @@ import { TemplateRegistryInitializer } from "@/components/TemplateRegistryInitia
 import { getGaMeasurementId } from "@/config/google-analytics";
 import { getClarityProjectId } from "@/config/microsoft-clarity";
 import { AppMicrosoftClarity } from "@/components/AppMicrosoftClarity";
-import { Toaster } from "sonner";
+import { AppToaster } from "@/components/AppToaster";
 import {
   StructuredData,
   organizationSchema,
@@ -106,22 +106,7 @@ export default function RootLayout({
           <AppMicrosoftClarity projectId={clarityProjectId} />
           <TemplateRegistryInitializer />
           <UserProvider>{children}</UserProvider>
-          <Toaster
-            position="top-right"
-            toastOptions={{
-              style: {
-                background: "white",
-                color: "#1f2937",
-                border: "1px solid #e5e7eb",
-                padding: "16px",
-                borderRadius: "12px",
-                boxShadow:
-                  "0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)",
-              },
-              className: "sonner-toast",
-            }}
-            richColors
-          />
+          <AppToaster />
         </body>
       </html>
     </ClerkProvider>

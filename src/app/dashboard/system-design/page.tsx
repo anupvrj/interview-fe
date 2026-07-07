@@ -104,7 +104,7 @@ function ProblemPickerBody(
 
   if (problemsLoading) {
     return (
-      <div className="flex items-center justify-center gap-2 py-8 text-sm text-slate-600">
+      <div className="flex items-center justify-center gap-2 py-8 text-sm text-muted-foreground">
         <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
         Loading problems…
       </div>
@@ -113,7 +113,7 @@ function ProblemPickerBody(
 
   if (problems.length === 0) {
     return (
-      <p className="rounded-lg border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+      <p className="rounded-lg border border-dashed border-border bg-muted/20 p-4 text-sm text-muted-foreground">
         No problems are available right now. Please try again later.
       </p>
     );
@@ -132,12 +132,12 @@ function ProblemPickerBody(
                 onPick(p.id);
               }}
               className={cn(
-                "flex w-full flex-col items-stretch gap-1 rounded-lg border border-[#7367F0]/15 bg-white p-3 text-left text-sm transition hover:border-[#7367F0]/30 hover:bg-[#7367F0]/5",
+                "flex w-full flex-col items-stretch gap-1 rounded-lg border border-[#7367F0]/15 bg-card p-3 text-left text-sm transition hover:border-[#7367F0]/30 hover:bg-[#7367F0]/5",
                 busy && "opacity-70",
               )}
             >
               <div className="flex items-start justify-between gap-2">
-                <span className="font-semibold text-slate-900">{p.title}</span>
+                <span className="font-semibold text-foreground">{p.title}</span>
                 {busy ? (
                   <Loader2
                     className="mt-0.5 h-4 w-4 shrink-0 animate-spin text-[#7367F0]"
@@ -145,7 +145,7 @@ function ProblemPickerBody(
                   />
                 ) : null}
               </div>
-              <div className="flex flex-wrap gap-2 text-xs text-slate-500">
+              <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
                 <span className="rounded bg-slate-100 px-1.5 py-0.5 font-medium capitalize">
                   {p.difficulty}
                 </span>
@@ -288,7 +288,7 @@ export default function SystemDesignDashboardPage() {
   if (!user) {
     return (
       <div className="mx-auto max-w-lg px-4 py-16 text-center">
-        <p className="text-slate-600">Sign in to view system design sessions.</p>
+        <p className="text-muted-foreground">Sign in to view system design sessions.</p>
         <Button asChild className={cn("mt-4", institutePrimaryClass)}>
           <Link href="/sign-in">Go to sign in</Link>
         </Button>
@@ -360,26 +360,26 @@ export default function SystemDesignDashboardPage() {
               Whiteboard + voice practice
             </div>
 
-            <h1 className="mt-4 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl lg:text-4xl">
+            <h1 className="mt-4 text-2xl font-bold tracking-tight text-foreground sm:text-3xl lg:text-4xl">
               Design{" "}
               <span className="text-[#7367F0]">systems</span>
               {" "}
               like it&apos;s{" "}
               <span className="text-[#7367F0]">interview</span> day
             </h1>
-            <p className="mt-3 max-w-2xl text-sm leading-relaxed text-slate-600 sm:text-base">
+            <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground sm:text-base">
               Pick a prompt, sketch your architecture on the canvas, and get
               structured feedback — with optional screen recording after you wrap
               up.
             </p>
 
-            <ul className="mt-6 space-y-2 text-sm text-slate-700">
+            <ul className="mt-6 space-y-2 text-sm text-foreground">
               <li className="flex items-start gap-2">
                 <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#7367F0] text-[11px] font-bold text-white">
                   1
                 </span>
                 <span>
-                  <span className="font-semibold text-slate-900">Flow:</span>{" "}
+                  <span className="font-semibold text-foreground">Flow:</span>{" "}
                   requirements → high-level diagram → drilldowns.
                 </span>
               </li>
@@ -388,7 +388,7 @@ export default function SystemDesignDashboardPage() {
                   2
                 </span>
                 <span>
-                  <span className="font-semibold text-slate-900">Voice:</span>{" "}
+                  <span className="font-semibold text-foreground">Voice:</span>{" "}
                   talk through tradeoffs like a real interview.
                 </span>
               </li>
@@ -397,7 +397,7 @@ export default function SystemDesignDashboardPage() {
                   3
                 </span>
                 <span>
-                  <span className="font-semibold text-slate-900">
+                  <span className="font-semibold text-foreground">
                     Feedback:
                   </span>{" "}
                   scoring and strengths/risks when you finalize.
@@ -434,7 +434,7 @@ export default function SystemDesignDashboardPage() {
                     />
                   ))}
                 </div>
-                <span className="text-xs font-medium text-slate-600 sm:text-sm">
+                <span className="text-xs font-medium text-muted-foreground sm:text-sm">
                   4.9/5
                 </span>
               </div>
@@ -442,13 +442,13 @@ export default function SystemDesignDashboardPage() {
           </div>
 
           <div className="relative mx-auto w-full max-w-[420px] motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-4 motion-safe:duration-700 motion-safe:delay-150 motion-safe:ease-out lg:mx-0 lg:justify-self-end">
-            <div className="pointer-events-none absolute -left-8 top-10 hidden rotate-[-8deg] rounded-xl border border-[#7367F0]/20 bg-white/80 px-3 py-2 text-[11px] font-semibold text-[#7367F0] shadow-sm sm:block">
+            <div className="pointer-events-none absolute -left-8 top-10 hidden rotate-[-8deg] rounded-xl border border-[#7367F0]/20 bg-card/80 px-3 py-2 text-[11px] font-semibold text-[#7367F0] shadow-sm sm:block">
               <div className="flex items-center gap-2">
                 <Network className="h-4 w-4" aria-hidden />
                 End-to-end flow
               </div>
             </div>
-            <div className="pointer-events-none absolute -right-6 bottom-6 hidden rotate-[6deg] rounded-xl border border-violet-200/60 bg-white/80 px-3 py-2 text-[11px] font-semibold text-violet-700 shadow-sm sm:block">
+            <div className="pointer-events-none absolute -right-6 bottom-6 hidden rotate-[6deg] rounded-xl border border-violet-200/60 bg-card/80 px-3 py-2 text-[11px] font-semibold text-violet-700 shadow-sm sm:block">
               <div className="flex items-center gap-2">
                 <GitBranch className="h-4 w-4" aria-hidden />
                 Tradeoffs + deep dives
@@ -552,7 +552,7 @@ export default function SystemDesignDashboardPage() {
                     >
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
-                          <div className="truncate text-sm font-semibold text-slate-900">
+                          <div className="truncate text-sm font-semibold text-foreground">
                             {title}
                           </div>
                           <span
@@ -564,11 +564,11 @@ export default function SystemDesignDashboardPage() {
                             {row.status}
                           </span>
                         </div>
-                        <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
+                        <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
                           <span>{formatDate(row.updatedAt)}</span>
                           <span>
                             Score:{" "}
-                            <span className="font-medium text-slate-700">
+                            <span className="font-medium text-foreground">
                               {formatScore(score)}
                             </span>
                           </span>

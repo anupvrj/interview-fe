@@ -25,32 +25,22 @@ function HeroStatCardShell({ children }: { children: ReactNode }) {
   );
 }
 
-function HeroStatFooter({ progress }: { progress?: number }) {
-  if (progress != null) {
-    const width = Math.min(100, Math.max(0, progress));
-    return (
+function HeroStatFooter({ progress }: { progress: number }) {
+  const width = Math.min(100, Math.max(0, progress));
+  return (
+    <div
+      className={cn(
+        "mt-2.5 h-1.5 overflow-hidden rounded-full",
+        dashboardHeroStatPalette.progressTrack,
+      )}
+    >
       <div
         className={cn(
-          "mt-2.5 h-1.5 overflow-hidden rounded-full",
-          dashboardHeroStatPalette.progressTrack,
+          "h-full rounded-full transition-all",
+          dashboardHeroStatPalette.progressFill,
         )}
-      >
-        <div
-          className={cn(
-            "h-full rounded-full transition-all",
-            dashboardHeroStatPalette.progressFill,
-          )}
-          style={{ width: `${width}%` }}
-        />
-      </div>
-    );
-  }
-
-  return (
-    <div className="mt-2.5 flex gap-1">
-      {dashboardHeroStatPalette.footerBars.map((bar) => (
-        <span key={bar} className={cn("h-1.5 flex-1 rounded-full", bar)} />
-      ))}
+        style={{ width: `${width}%` }}
+      />
     </div>
   );
 }
@@ -113,7 +103,7 @@ export function DashboardStatCard({
             <Icon className="h-4 w-4" strokeWidth={2} />
           </div>
         </div>
-        <HeroStatFooter progress={progress} />
+        {progress != null ? <HeroStatFooter progress={progress} /> : null}
       </div>
     </HeroStatCardShell>
   );

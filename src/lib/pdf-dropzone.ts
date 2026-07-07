@@ -5,7 +5,10 @@
  * @see https://github.com/react-dropzone/react-dropzone/issues/1199
  */
 
-export const PDF_RESUME_MAX_BYTES = 5 * 1024 * 1024; // 5 MB
+export const PDF_RESUME_MAX_BYTES = 2 * 1024 * 1024; // 2 MB (ATS standard)
+
+/** Editor import — allows larger uploads when replacing content in an existing resume. */
+export const RESUME_IMPORT_MAX_BYTES = 5 * 1024 * 1024; // 5 MB
 
 export const pdfResumeDropzoneAccept = {
   "application/pdf": [".pdf"],

@@ -8,9 +8,12 @@ import { useUser } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
 import { Menu, X, Lock, Bell, LayoutGrid } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { userApi, interviewApi, AccessRole } from "@/lib/api";
+import { interviewApi, type AccessRole } from "@/lib/api";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { ProfileMenu } from "@/components/app/ProfileMenu";
+import { useActiveRole } from "@/components/roles/ActiveRoleProvider";
+import { RoleSwitcher } from "@/components/roles/RoleSwitcher";
+import { isPathAllowedForRole, roleHome, type ActiveRole } from "@/lib/roles";
 import {
   appNavIconWrap,
   appNavItemActive,
@@ -19,7 +22,9 @@ import {
   appTopBar,
 } from "@/lib/app-theme";
 import {
+  filterNavByActiveRole,
   getDashboardNavItems,
+  withPeerNavItems,
   type DashboardNavItem,
 } from "@/lib/dashboard-nav";
 import { SubscriptionExpiredBanner } from "@/components/SubscriptionExpiredBanner";
@@ -29,12 +34,83 @@ interface DashboardLayoutProps {
   children: ReactNode;
 }
 
+function isPublicPeerInterviewerProfilePath(pathname: string): boolean {
+  const hub = "/dashboard/peer-interviews/interviewer";
+  if (!pathname.startsWith(`${hub}/`)) return false;
+  const segment = pathname.slice(`${hub}/`.length).split("/")[0];
+  return /^[a-f0-9]{24}$/i.test(segment);
+}
+
+function isInterviewerBookingsNavPath(pathname: string | null): boolean {
+  if (!pathname) return false;
+  return (
+    pathname === "/dashboard/peer-interviews/interviewer/bookings" ||
+    pathname.startsWith("/dashboard/peer-interviews/interviewer/bookings/")
+  );
+}
+
+function isCandidateBookingsNavPath(pathname: string | null): boolean {
+  if (!pathname) return false;
+  return (
+    pathname === "/dashboard/peer-interviews/bookings" ||
+    pathname.startsWith("/dashboard/peer-interviews/bookings/")
+  );
+}
+
+function isInterviewerHubNavPath(pathname: string | null): boolean {
+  if (!pathname) return false;
+  if (pathname === "/dashboard/peer-interviews/interviewer/apply") return false;
+  if (pathname === "/dashboard/peer-interviews/interviewer/earnings") return false;
+  if (pathname.startsWith("/dashboard/peer-interviews/interviewer/earnings/")) {
+    return false;
+  }
+  if (isInterviewerBookingsNavPath(pathname)) return false;
+  if (pathname === "/dashboard/peer-interviews/interviewer") return true;
+  return pathname.startsWith("/dashboard/peer-interviews/interviewer/slots");
+}
+
+function isPeerInterviewsNavPath(pathname: string | null): boolean {
+  if (!pathname?.startsWith("/dashboard/peer-interviews")) return false;
+  if (isCandidateBookingsNavPath(pathname)) return false;
+  if (pathname === "/dashboard/peer-interviews/interviewer/apply") return false;
+  if (pathname === "/dashboard/peer-interviews/interviewer/earnings") return false;
+  if (pathname.startsWith("/dashboard/peer-interviews/interviewer/earnings/")) {
+    return false;
+  }
+  if (isInterviewerBookingsNavPath(pathname)) return false;
+  if (isInterviewerHubNavPath(pathname)) return false;
+  if (
+    pathname.startsWith("/dashboard/peer-interviews/interviewer/") &&
+    !isPublicPeerInterviewerProfilePath(pathname)
+  ) {
+    return false;
+  }
+  return true;
+}
+
+function isSuperAdminPeerInterviewersPath(pathname: string | null): boolean {
+  return pathname?.startsWith("/dashboard/super-admin/peer-interviewers") ?? false;
+}
+
+function isSuperAdminPeerBookingsPath(pathname: string | null): boolean {
+  return pathname?.startsWith("/dashboard/super-admin/peer-bookings") ?? false;
+}
+
+function isSuperAdminHomePath(pathname: string | null): boolean {
+  if (!pathname) return false;
+  if (isSuperAdminPeerInterviewersPath(pathname) || isSuperAdminPeerBookingsPath(pathname)) {
+    return false;
+  }
+  return pathname === "/dashboard/super-admin" || pathname.startsWith("/dashboard/super-admin/");
+}
+
 function resolveNavActive(
   item: DashboardNavItem,
   pathname: string | null,
   institutionBase: string | null,
   isDashboardInterviewsDetailPath: boolean,
   interviewsSubpathKind: "general" | "coding_practice" | null,
+  activeRole: ActiveRole | null,
 ): boolean {
   const baseActive =
     pathname === item.href ||
@@ -60,6 +136,39 @@ function resolveNavActive(
       isActive = false;
     }
   }
+  if (item.href === "/dashboard/peer-interviews") {
+    isActive = isPeerInterviewsNavPath(pathname);
+  }
+  if (item.href === "/dashboard/peer-interviews/bookings") {
+    isActive =
+      activeRole === "candidate" && isCandidateBookingsNavPath(pathname);
+  }
+  if (item.href === "/dashboard/peer-interviews/interviewer") {
+    isActive = isInterviewerHubNavPath(pathname);
+  }
+  if (item.href === "/dashboard/peer-interviews/interviewer/apply") {
+    isActive = pathname === "/dashboard/peer-interviews/interviewer/apply";
+  }
+  if (item.href === "/dashboard/peer-interviews/interviewer/earnings") {
+    isActive =
+      pathname === "/dashboard/peer-interviews/interviewer/earnings" ||
+      (pathname?.startsWith("/dashboard/peer-interviews/interviewer/earnings/") ?? false);
+  }
+  if (item.href === "/dashboard/peer-interviews/interviewer/bookings") {
+    isActive =
+      isInterviewerBookingsNavPath(pathname) ||
+      (activeRole === "interviewer" &&
+        (pathname?.startsWith("/dashboard/peer-interviews/bookings/") ?? false));
+  }
+  if (item.href === "/dashboard/super-admin") {
+    isActive = isSuperAdminHomePath(pathname);
+  }
+  if (item.href === "/dashboard/super-admin/peer-interviewers") {
+    isActive = isSuperAdminPeerInterviewersPath(pathname);
+  }
+  if (item.href === "/dashboard/super-admin/peer-bookings") {
+    isActive = isSuperAdminPeerBookingsPath(pathname);
+  }
   return isActive;
 }
 
@@ -67,10 +176,18 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { user, isLoaded } = useUser();
+  const roleCtx = useActiveRole();
+  const profile = roleCtx?.profile ?? null;
+  const accessRole: AccessRole | null = profile?.accessRole ?? null;
+  const institutionId = profile?.institutionId
+    ? String(profile.institutionId)
+    : null;
+  const peerNav = profile?.peer ?? null;
+  const activeRole = roleCtx?.activeRole ?? null;
+  const availableRoles = roleCtx?.availableRoles ?? [];
+  const roleReady = roleCtx?.ready ?? false;
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [accessRole, setAccessRole] = useState<AccessRole | null>(null);
-  const [institutionId, setInstitutionId] = useState<string | null>(null);
   const [interviewsSubpathKind, setInterviewsSubpathKind] = useState<
     "general" | "coding_practice" | null
   >(null);
@@ -83,23 +200,6 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       interviewsPathSegment !== "new" &&
       pathname !== "/dashboard/interviews",
   );
-
-  useEffect(() => {
-    if (isLoaded && user) {
-      userApi
-        .getMyProfile()
-        .then((profile) => {
-          setAccessRole(profile.accessRole || "user");
-          setInstitutionId(
-            profile.institutionId ? String(profile.institutionId) : null,
-          );
-        })
-        .catch(() => {
-          setAccessRole("user");
-          setInstitutionId(null);
-        });
-    }
-  }, [isLoaded, user]);
 
   useEffect(() => {
     if (!isDashboardInterviewsDetailPath || !interviewsPathSegment || !user) {
@@ -125,30 +225,37 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     };
   }, [isDashboardInterviewsDetailPath, interviewsPathSegment, user]);
 
-  const isInstitutionAdmin = accessRole === "institution_admin";
+  const isInstitutionView = activeRole === "institution_admin";
 
+  // Send multi-role users without a chosen role to the role chooser.
   useEffect(() => {
-    if (!isInstitutionAdmin || !institutionId || !pathname) return;
-    const base = `/dashboard/institute/${institutionId}`;
-    const allowed =
-      pathname === base ||
-      pathname.startsWith(`${base}/`) ||
-      pathname === "/dashboard/profile" ||
-      pathname.startsWith("/dashboard/profile/") ||
-      pathname === "/dashboard/coding-interviews" ||
-      pathname.startsWith("/dashboard/coding-interviews/");
-    if (!allowed && pathname.startsWith("/dashboard")) {
-      router.replace(base);
+    if (!roleReady) return;
+    if (!activeRole && availableRoles.length > 1) {
+      router.replace("/select-role");
     }
-  }, [isInstitutionAdmin, institutionId, pathname, router]);
+  }, [roleReady, activeRole, availableRoles.length, router]);
+
+  // Keep navigation within the active role's allowed area.
+  useEffect(() => {
+    if (!roleReady || !activeRole || !pathname) return;
+    if (!pathname.startsWith("/dashboard")) return;
+    if (!isPathAllowedForRole(activeRole, pathname, profile)) {
+      router.replace(roleHome(activeRole, profile));
+    }
+  }, [roleReady, activeRole, pathname, profile, router]);
 
   const menuItems = useMemo(
-    () => getDashboardNavItems(accessRole, institutionId),
-    [accessRole, institutionId],
+    () =>
+      filterNavByActiveRole(
+        withPeerNavItems(getDashboardNavItems(accessRole, institutionId), peerNav),
+        activeRole,
+        profile,
+      ),
+    [accessRole, institutionId, peerNav, activeRole, profile],
   );
 
   const institutionBase =
-    isInstitutionAdmin && institutionId
+    isInstitutionView && institutionId
       ? `/dashboard/institute/${institutionId}`
       : null;
 
@@ -162,12 +269,14 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
   const renderNavItem = (item: DashboardNavItem) => {
     const Icon = item.icon;
+    const showNavLabels = sidebarOpen || mobileMenuOpen;
     const isActive = resolveNavActive(
       item,
       pathname,
       institutionBase,
       isDashboardInterviewsDetailPath,
       interviewsSubpathKind,
+      activeRole,
     );
 
     return (
@@ -175,10 +284,10 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         key={item.href}
         href={item.href}
         onClick={() => setMobileMenuOpen(false)}
-        title={!sidebarOpen ? item.title : undefined}
+        title={!showNavLabels ? item.title : undefined}
         className={cn(
-          "group relative flex items-center gap-2 rounded-[0.625rem] px-2.5 py-1.5 text-sm font-medium leading-tight transition-all duration-200",
-          sidebarOpen ? "justify-start" : "justify-center px-2",
+          "group relative flex items-center gap-2 rounded-[0.625rem] px-2.5 py-2 text-sm font-medium leading-tight transition-all duration-200 lg:py-1.5",
+          showNavLabels ? "justify-start" : "justify-center px-2",
           isActive ? appNavItemActive : appNavItemInactive,
         )}
       >
@@ -199,7 +308,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             strokeWidth={2}
           />
         </span>
-        {sidebarOpen ? (
+        {showNavLabels ? (
           <span className="flex min-w-0 flex-1 items-center gap-1.5">
             <span className="truncate">{item.title}</span>
             {item.locked ? (
@@ -250,7 +359,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           </div>
           <Link
             href={
-              isInstitutionAdmin && institutionId
+              isInstitutionView && institutionId
                 ? `/dashboard/institute/${institutionId}`
                 : "/dashboard"
             }
@@ -265,31 +374,34 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               className="hidden h-7 w-auto dark:block"
             />
           </Link>
-          <div className="justify-self-end">
+          <div className="flex items-center gap-1.5 justify-self-end">
             <ProfileMenu placement="bottom-end" />
           </div>
         </div>
       </header>
 
       <div className="flex">
-        {/* Sidebar */}
+        {/* Sidebar — full-height drawer on mobile, fixed rail on desktop */}
         <aside
           className={cn(
             appSidebar,
-            "z-40 transition-all duration-300",
-            "fixed lg:sticky lg:top-0 lg:h-screen",
-            sidebarOpen ? "w-[260px]" : "w-0 lg:w-[78px]",
-            "overflow-hidden",
+            "z-40 shrink-0 overflow-hidden",
+            // Mobile drawer only
+            "max-lg:fixed max-lg:left-0 max-lg:top-0 max-lg:h-dvh max-lg:w-[260px]",
+            "max-lg:transition-transform max-lg:duration-300 max-lg:ease-in-out",
             mobileMenuOpen
-              ? "translate-x-0"
-              : "-translate-x-full lg:translate-x-0",
+              ? "max-lg:translate-x-0"
+              : "max-lg:-translate-x-full",
+            // Desktop — fixed to viewport; main content offset separately
+            "lg:fixed lg:inset-y-0 lg:left-0 lg:translate-x-0 lg:transition-[width] lg:duration-300",
+            sidebarOpen ? "lg:w-[260px]" : "lg:w-[78px]",
           )}
         >
-          <div className="flex h-full flex-col">
-            <div className="hidden border-b border-sidebar-border/80 px-4 py-5 lg:block">
+          <div className="flex h-full max-lg:h-full lg:h-screen flex-col">
+            <div className="hidden shrink-0 border-b border-sidebar-border/80 px-4 py-5 lg:block">
               <Link
                 href={
-                  isInstitutionAdmin && institutionId
+                  isInstitutionView && institutionId
                     ? `/dashboard/institute/${institutionId}`
                     : "/"
                 }
@@ -314,11 +426,11 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               </Link>
             </div>
 
-            <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto px-2.5 py-3">
+            <nav className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto overscroll-y-contain px-2.5 py-3 max-lg:pt-16">
               {menuItems.map((item) => renderNavItem(item))}
             </nav>
 
-            <div className="hidden border-t border-sidebar-border/80 p-4 lg:block">
+            <div className="hidden shrink-0 border-t border-sidebar-border/80 p-4 lg:block">
               <div
                 className={cn(
                   "flex items-center gap-3",
@@ -349,7 +461,13 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         ) : null}
 
         {/* Main */}
-        <main className="min-w-0 flex-1 bg-background">
+        <main
+          className={cn(
+            "min-w-0 flex-1 overflow-x-hidden bg-background",
+            "lg:transition-[margin-left] lg:duration-300",
+            sidebarOpen ? "lg:ml-[260px]" : "lg:ml-[78px]",
+          )}
+        >
           <div className="hidden px-6 pt-6 lg:block">
             <header
               className={cn(
@@ -368,6 +486,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 </Button>
               </div>
               <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+                <RoleSwitcher />
                 <ThemeToggle />
                 <Button
                   variant="ghost"

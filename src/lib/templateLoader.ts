@@ -35,6 +35,15 @@ const TEMPLATE_MANIFEST = [
   "harvard",
   "mercury",
   "true-blue",
+  "confident-grid",
+  "saffron-line",
+  "condensed-rule",
+  "royal-indigo",
+  "meridian",
+  "amber-edge",
+  "navy-frame",
+  "cobalt-stream",
+  "ember-timeline",
 ] as const;
 
 export type TemplateId = (typeof TEMPLATE_MANIFEST)[number];
@@ -46,28 +55,84 @@ export type TemplateId = (typeof TEMPLATE_MANIFEST)[number];
 class CSSRegistry {
   private loadedStyles = new Set<string>();
   private styleElements = new Map<string, HTMLStyleElement>();
+  private activeTemplateId: string | null = null;
 
   /**
-   * Load CSS for a specific template
-   * Returns true if CSS was loaded, false if already loaded
+   * Load CSS for a specific template via public URL so it can be removed on switch.
+   * Returns true if CSS was loaded, false if already active for this template.
    */
   async loadTemplateCSS(templateId: string): Promise<boolean> {
-    if (this.loadedStyles.has(templateId)) {
-      return false; // Already loaded
+    if (typeof window === "undefined") {
+      return false;
+    }
+
+    if (this.activeTemplateId === templateId && this.loadedStyles.has(templateId)) {
+      return false;
+    }
+
+    if (this.activeTemplateId && this.activeTemplateId !== templateId) {
+      this.unloadTemplateCSS(this.activeTemplateId);
+    }
+
+    if (this.styleElements.has(templateId)) {
+      this.activeTemplateId = templateId;
+      this.loadedStyles.add(templateId);
+      return false;
     }
 
     try {
-      // Dynamically import CSS file
-      const cssModule = await import(
-        `../configs/resume-templates/${templateId}/style.css`
+      const origin = window.location.origin;
+      const response = await fetch(
+        `${origin}/resume-templates/${templateId}/style.css`,
+        { cache: "no-store" },
       );
-      
+
+      if (!response.ok) {
+        throw new Error(`Template CSS not found (${response.status})`);
+      }
+
+      let css = await response.text();
+
+      css += `\n/* Template parity: page gutters from config.style.padding (ResumeRenderer inline mm) */\n.${templateId}-template { box-sizing: border-box; }\n`;
+
+      if (templateId === "mercury") {
+        try {
+          const overrides = await fetch(
+            `${origin}/resume-templates/mercury/mercury-overrides.css`,
+            { cache: "no-store" },
+          );
+          if (overrides.ok) {
+            css += `\n${await overrides.text()}`;
+          }
+        } catch {
+          /* optional */
+        }
+      }
+
+      const styleElement = document.createElement("style");
+      styleElement.setAttribute("data-template", templateId);
+      styleElement.textContent = css;
+      document.head.appendChild(styleElement);
+
+      this.styleElements.set(templateId, styleElement);
       this.loadedStyles.add(templateId);
+      this.activeTemplateId = templateId;
       return true;
     } catch (error) {
-      // CSS file might not exist for this template (optional)
-      console.warn(`No CSS file found for template: ${templateId}`);
-      return false;
+      console.warn(
+        `Failed to load public CSS for template ${templateId}, falling back to bundled import:`,
+        error,
+      );
+
+      try {
+        await import(`../configs/resume-templates/${templateId}/style.css`);
+        this.loadedStyles.add(templateId);
+        this.activeTemplateId = templateId;
+        return true;
+      } catch (importError) {
+        console.warn(`No CSS file found for template: ${templateId}`, importError);
+        return false;
+      }
     }
   }
 
@@ -97,7 +162,16 @@ class CSSRegistry {
       styleElement.remove();
       this.styleElements.delete(templateId);
       this.loadedStyles.delete(templateId);
+      if (this.activeTemplateId === templateId) {
+        this.activeTemplateId = null;
+      }
       return true;
+    }
+    if (this.loadedStyles.has(templateId)) {
+      this.loadedStyles.delete(templateId);
+      if (this.activeTemplateId === templateId) {
+        this.activeTemplateId = null;
+      }
     }
     return false;
   }

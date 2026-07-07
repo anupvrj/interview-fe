@@ -1,0 +1,240 @@
+/**
+ * Navy Frame Template Styles
+ * White header (photo + labeled contact), navy section rules, date-on-right timeline.
+ */
+
+.navy-frame-template {
+  font-family: 'Helvetica Neue', Arial, sans-serif;
+  color: #1f2937;
+  background-color: #ffffff;
+  line-height: 1.5;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+  color-adjust: exact !important;
+}
+
+/* Header: no background band — matches reference image */
+.navy-frame-header-section {
+  background-color: transparent !important;
+  background: none !important;
+  padding: 0 !important;
+  gap: 22px !important;
+  align-items: flex-start !important;
+  margin-bottom: 18px !important;
+  border-radius: 0 !important;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+  color-adjust: exact !important;
+}
+
+.navy-frame-header-content {
+  padding-top: 0 !important;
+}
+
+.navy-frame-header-section .navy-frame-profile-picture,
+.navy-frame-header-section .navy-frame-profile-placeholder {
+  width: 96px !important;
+  height: 96px !important;
+  border-radius: 6px !important;
+  object-fit: cover;
+}
+
+.navy-frame-profile-placeholder {
+  background-color: #e5e7eb !important;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+}
+
+.navy-frame-name {
+  font-size: 26px !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.5px !important;
+  color: #1f3a5f !important;
+  margin: 0 0 10px 0 !important;
+  line-height: 1.15 !important;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+}
+
+/* Reference design: name + contact only (no job title under name) */
+.navy-frame-header-section .navy-frame-job-title {
+  display: none !important;
+}
+
+.navy-frame-contact {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 0;
+}
+
+.navy-frame-contact-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 10px;
+  line-height: 1.45;
+  color: #1f2937 !important;
+}
+
+.navy-frame-contact-label {
+  font-weight: 700;
+  color: #1f2937 !important;
+  min-width: 68px;
+  flex-shrink: 0;
+}
+
+.navy-frame-contact-value {
+  font-weight: 400;
+  color: #1f2937 !important;
+}
+
+.navy-frame-contact-row a,
+.navy-frame-contact-row a:visited {
+  color: #1f2937 !important;
+  text-decoration: none;
+}
+
+/* Section headers */
+.navy-frame-section-header,
+.navy-frame-template h2 {
+  font-size: 12px !important;
+  font-weight: 700;
+  text-transform: uppercase;
+  text-align: left;
+  letter-spacing: 0.5px;
+  color: #1f3a5f !important;
+  border-bottom: 1.5px solid #1f3a5f !important;
+  border-top: none !important;
+  padding-bottom: 4px !important;
+  margin-bottom: 10px !important;
+  margin-top: 14px !important;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+  color-adjust: exact !important;
+}
+
+.navy-frame-summary {
+  font-size: 11px;
+  line-height: 1.5;
+  color: #1f2937;
+}
+
+.navy-frame-experience-item {
+  margin-bottom: 12px;
+  page-break-inside: avoid;
+}
+
+.navy-frame-job-title-exp {
+  font-size: 12px;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.navy-frame-company {
+  font-size: 11px;
+  color: #5a6b7d;
+  margin-bottom: 3px;
+}
+
+.navy-frame-job-date,
+.navy-frame-job-location,
+.navy-frame-job-meta {
+  font-size: 11px;
+  font-weight: 700;
+  color: #1f2937;
+  line-height: 1.3;
+}
+
+.navy-frame-description {
+  font-size: 11px;
+  line-height: 1.5;
+  color: #1f2937;
+}
+
+.navy-frame-description ul {
+  margin: 2px 0;
+  padding-left: 18px;
+}
+
+.navy-frame-description li {
+  margin-bottom: 3px;
+}
+
+.navy-frame-degree {
+  font-size: 12px;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.navy-frame-institution {
+  font-size: 11px;
+  color: #5a6b7d;
+}
+
+.navy-frame-education-date {
+  font-size: 11px;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.navy-frame-skill-item {
+  font-size: 11px;
+  color: #1f2937;
+  position: relative;
+  padding-left: 12px;
+  margin-bottom: 4px !important;
+}
+
+.navy-frame-skill-item::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 7px;
+  width: 4px;
+  height: 4px;
+  background-color: #1f3a5f;
+  border-radius: 50%;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+}
+
+@media print {
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+
+  .navy-frame-header-section {
+    background-color: transparent !important;
+    background: none !important;
+  }
+
+  .navy-frame-profile-placeholder {
+    background-color: #e5e7eb !important;
+  }
+
+  .navy-frame-name,
+  .navy-frame-section-header,
+  .navy-frame-template h2 {
+    color: #1f3a5f !important;
+  }
+
+  .navy-frame-section-header,
+  .navy-frame-template h2 {
+    border-bottom-color: #1f3a5f !important;
+    border-bottom-style: solid !important;
+  }
+
+  .navy-frame-skill-item::before {
+    background-color: #1f3a5f !important;
+  }
+
+  .navy-frame-experience-item,
+  .navy-frame-education-item,
+  .navy-frame-section {
+    page-break-inside: avoid;
+  }
+}

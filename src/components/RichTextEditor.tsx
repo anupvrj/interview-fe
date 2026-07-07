@@ -33,6 +33,9 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { AIContentPromptField } from "@/components/resume-editor/AIContentPromptField";
+import { toast } from "sonner";
 
 interface RichTextEditorProps {
   readonly value: string;
@@ -49,6 +52,12 @@ export function RichTextEditor({
 }: RichTextEditorProps) {
   const [isRefining, setIsRefining] = useState(false);
   const [showLinkDialog, setShowLinkDialog] = useState(false);
+  const [showAiDialog, setShowAiDialog] = useState(false);
+  const [aiUserPrompt, setAiUserPrompt] = useState("");
+  const [aiOutputText, setAiOutputText] = useState("");
+  const [aiContentType, setAiContentType] = useState<"paragraph" | "list">(
+    "paragraph",
+  );
   const [linkUrl, setLinkUrl] = useState("");
   const [linkText, setLinkText] = useState("");
 
@@ -69,7 +78,11 @@ export function RichTextEditor({
     ],
     content: value || "",
     onUpdate: ({ editor }) => {
-      onChange(editor.getHTML());
+      const html = editor.getHTML();
+      if (normalizeHTML(html) === normalizeHTML(value || "")) {
+        return;
+      }
+      onChange(html);
     },
     editorProps: {
       attributes: {
@@ -101,7 +114,7 @@ export function RichTextEditor({
     // Only update if content actually changed (after normalization)
     if (newContent !== currentContent) {
       const { from, to } = editor.state.selection;
-      editor.commands.setContent(newContent);
+      editor.commands.setContent(newContent, { emitUpdate: false });
       // Restore cursor position if possible
       try {
         editor.commands.setTextSelection({ from, to });
@@ -167,30 +180,88 @@ export function RichTextEditor({
     editor.chain().focus().unsetLink().run();
   };
 
-  // AI Content Refinement
-  const handleAIRefine = async () => {
+  const htmlToEditablePlain = (html: string): string => {
+    if (html.includes("<li>")) {
+      return [...html.matchAll(/<li[^>]*>(.*?)<\/li>/gi)]
+        .map((match) => match[1].replaceAll(/<[^>]*>/g, "").trim())
+        .filter(Boolean)
+        .join("\n");
+    }
+    return html
+      .replaceAll(/<br\s*\/?>/gi, "\n")
+      .replaceAll(/<[^>]*>/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  };
+
+  const plainToHtml = (text: string, type: "paragraph" | "list"): string => {
+    if (type === "list") {
+      const items = text
+        .split("\n")
+        .map((line) => line.trim())
+        .filter(Boolean);
+      return `<ul>${items.map((item) => `<li>${item}</li>`).join("")}</ul>`;
+    }
+    const paragraphs = text
+      .split(/\n\n+/)
+      .map((p) => p.trim())
+      .filter(Boolean);
+    if (paragraphs.length <= 1) {
+      return `<p>${text.trim()}</p>`;
+    }
+    return paragraphs.map((p) => `<p>${p}</p>`).join("");
+  };
+
+  const runAIRefine = async (options?: { usePrompt?: boolean }) => {
     if (!editor || isRefining) return;
 
     const currentContent = editor.getHTML();
     const plainText = currentContent.replaceAll(/<[^>]*>/g, "").trim();
 
     if (!plainText) {
+      toast.error("Add some content before using AI refine.");
       return;
     }
 
     setIsRefining(true);
     try {
-      const result = await contentApi.refineContent(currentContent);
-
-      // Update editor with refined content
-      editor.commands.setContent(result.refinedContent);
-      onChange(result.refinedContent);
+      const result = await contentApi.refineContent(
+        currentContent,
+        "auto",
+        options?.usePrompt === false
+          ? undefined
+          : aiUserPrompt.trim() || undefined,
+      );
+      setAiContentType(result.contentType);
+      setAiOutputText(htmlToEditablePlain(result.refinedContent));
     } catch (error) {
       console.error("Error refining content:", error);
-      // Could add a toast notification here
+      toast.error("Could not generate content. Please try again.");
     } finally {
       setIsRefining(false);
     }
+  };
+
+  const applyAIContent = () => {
+    if (!editor || !aiOutputText.trim()) return;
+    const html = plainToHtml(aiOutputText, aiContentType);
+    editor.commands.setContent(html);
+    onChange(html);
+    setShowAiDialog(false);
+    toast.success("AI content applied");
+  };
+
+  const openAiDialog = () => {
+    if (!editor) return;
+    const plainText = editor.getHTML().replaceAll(/<[^>]*>/g, "").trim();
+    if (!plainText) {
+      toast.error("Add some content before using AI refine.");
+      return;
+    }
+    setAiUserPrompt("");
+    setAiOutputText("");
+    setShowAiDialog(true);
+    void runAIRefine({ usePrompt: false });
   };
 
   if (!editor) {
@@ -198,9 +269,13 @@ export function RichTextEditor({
   }
 
   return (
-    <div className={`rich-text-editor border rounded-md ${className}`}>
+    <div
+      className={`rich-text-editor overflow-hidden rounded-lg border border-border/80 bg-card shadow-sm ${className}`}
+      draggable={false}
+      onDragStart={(e) => e.preventDefault()}
+    >
       {/* Toolbar */}
-      <div className="flex flex-wrap items-center gap-1 p-2 border-b bg-gray-50 rounded-t-md">
+      <div className="flex flex-wrap items-center gap-1 rounded-t-lg border-b border-border/60 bg-gradient-to-r from-[#7367F0]/[0.05] via-muted/30 to-transparent p-2">
         {/* Text Formatting */}
         <div className="flex items-center gap-1 border-r pr-2 mr-2">
           <Button
@@ -357,10 +432,10 @@ export function RichTextEditor({
           type="button"
           variant="outline"
           size="sm"
-          className="absolute bottom-3 right-3 h-8 w-8 p-0 bg-gradient-to-r from-purple-500 to-primary text-white border-0 hover:from-purple-600 hover:to-primary shadow-lg hover:shadow-xl transition-all duration-200"
-          onClick={handleAIRefine}
+          className="absolute bottom-3 right-3 h-8 w-8 border-0 bg-[#7367F0] p-0 text-white shadow-[0_2px_10px_rgba(115,103,240,0.4)] transition-all duration-200 hover:bg-[#6e62e5] hover:shadow-[0_4px_16px_rgba(115,103,240,0.45)]"
+          onClick={openAiDialog}
           disabled={isRefining || !value?.trim()}
-          title="AI Refine - Make content more professional and resume-friendly"
+          title="AI refine — improve content with optional custom instructions"
         >
           {isRefining ? (
             <Loader2 className="w-4 h-4 animate-spin" />
@@ -423,6 +498,84 @@ export function RichTextEditor({
             <Button type="button" onClick={insertLink}>
               Insert Link
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showAiDialog} onOpenChange={setShowAiDialog}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-primary" />
+              AI content assistant
+            </DialogTitle>
+            <DialogDescription>
+              Refine your text for the resume, or add instructions for tone,
+              structure, and style before regenerating.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <AIContentPromptField
+              id="rich-text-ai-prompt"
+              value={aiUserPrompt}
+              onChange={setAiUserPrompt}
+              disabled={isRefining}
+            />
+
+            <div className="space-y-2">
+              <Label htmlFor="rich-text-ai-output" className="text-sm font-medium">
+                Generated content
+              </Label>
+              {isRefining ? (
+                <div className="flex items-center gap-2 rounded-md border border-border bg-muted/30 px-3 py-6 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Generating…
+                </div>
+              ) : (
+                <Textarea
+                  id="rich-text-ai-output"
+                  value={aiOutputText}
+                  onChange={(e) => setAiOutputText(e.target.value)}
+                  rows={6}
+                  className="min-h-[140px] text-sm"
+                  placeholder="AI output will appear here. Edit before applying."
+                />
+              )}
+            </div>
+          </div>
+
+          <DialogFooter className="flex-col gap-2 sm:flex-row sm:justify-between">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => void runAIRefine({ usePrompt: true })}
+              disabled={isRefining}
+            >
+              {isRefining ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Sparkles className="mr-2 h-4 w-4" />
+              )}
+              Regenerate
+            </Button>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowAiDialog(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                onClick={applyAIContent}
+                disabled={!aiOutputText.trim() || isRefining}
+              >
+                Apply to editor
+              </Button>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>

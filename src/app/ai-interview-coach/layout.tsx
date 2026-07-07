@@ -1,23 +1,26 @@
 import { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'AI Interview Coach - AI Interview Practice | Interview Trix',
+  title: 'AI Voice Interview Coach — Free Mock Interview Practice',
   description:
-    'Master your interview skills with AI Interview Practice. Get real-time feedback, detailed performance reports, and personalized coaching to ace your next interview.',
+    'Practice realistic, voice-based mock interviews with an AI interview coach. Get company-specific questions, role and experience tailoring, and instant reports scoring your technical, behavioral, communication, and confidence skills.',
   keywords:
-    'AI interview coach, AI Interview Practice, interview practice, interview preparation, AI feedback, career coaching, job interview tips',
+    'AI interview coach, AI voice interview, mock interview practice, AI mock interview, company-specific interview prep, interview preparation, real-time interview feedback, interview report and scores, behavioral interview practice',
+  alternates: {
+    canonical: 'https://interviewtrix.com/ai-interview-coach',
+  },
   openGraph: {
-    title: 'AI Interview Coach - AI Interview Practice | Interview Trix',
+    title: 'AI Voice Interview Coach — Free Mock Interview Practice | Interview Trix',
     description:
-      'Master your interview skills with AI Interview Practice. Get real-time feedback and personalized coaching.',
+      'Realistic voice-based mock interviews with company-specific questions, instant AI feedback, and detailed performance reports.',
     type: 'website',
     url: 'https://interviewtrix.com/ai-interview-coach',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'AI Interview Coach - AI Interview Practice | Interview Trix',
+    title: 'AI Voice Interview Coach — Free Mock Interview Practice | Interview Trix',
     description:
-      'Master your interview skills with AI Interview Practice. Get real-time feedback and personalized coaching.',
+      'Realistic voice-based mock interviews with company-specific questions, instant AI feedback, and detailed performance reports.',
   },
 };
 

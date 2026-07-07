@@ -121,7 +121,7 @@ export default function BatchScheduleRunPage({
         variant="ghost"
         size="sm"
         asChild
-        className="-ml-2 w-fit text-slate-600 hover:text-slate-900"
+        className="-ml-2 w-fit text-muted-foreground hover:text-foreground"
       >
         <Link href={`/dashboard/institute/${institutionId}/batches/${batchId}`}>
           <ArrowLeft className="mr-1 h-4 w-4" />
@@ -138,7 +138,7 @@ export default function BatchScheduleRunPage({
             {data.passingScore != null ? (
               <>
                 {" "}
-                · Pass threshold <span className="font-semibold text-slate-800">{data.passingScore}</span>
+                · Pass threshold <span className="font-semibold text-foreground">{data.passingScore}</span>
                 /100
               </>
             ) : null}
@@ -183,7 +183,7 @@ export default function BatchScheduleRunPage({
             data.averageScore != null ? (
               <>
                 {data.averageScore.toFixed(1)}
-                <span className="text-lg font-normal text-slate-500"> /100</span>
+                <span className="text-lg font-normal text-muted-foreground"> /100</span>
               </>
             ) : (
               "—"
@@ -197,7 +197,7 @@ export default function BatchScheduleRunPage({
             data.highestScore != null ? (
               <>
                 {data.highestScore}
-                <span className="text-lg font-normal text-slate-500"> /100</span>
+                <span className="text-lg font-normal text-muted-foreground"> /100</span>
               </>
             ) : (
               "—"
@@ -208,7 +208,7 @@ export default function BatchScheduleRunPage({
 
       {data.topPerformers.length > 0 ? (
         <Card className={cn(institutePanelClass, "overflow-hidden shadow-xl")}>
-          <CardHeader className="border-b border-border/60 bg-gradient-to-r from-amber-50/40 to-white pb-4">
+          <CardHeader className="border-b border-border/60 bg-gradient-to-r from-amber-50/40 to-card pb-4">
             <CardTitle className="flex items-center gap-2 text-lg">
               <Trophy className="h-5 w-5 text-amber-600" />
               Top performers
@@ -218,7 +218,7 @@ export default function BatchScheduleRunPage({
             <InstituteTableShell>
               <Table>
                 <TableHeader>
-                  <TableRow className="border-b border-slate-200/80 bg-slate-50/90 hover:bg-slate-50/90">
+                  <TableRow className="border-b border-border/80 bg-muted/30 hover:bg-muted/30">
                     <TableHead className="w-14">#</TableHead>
                     <TableHead>Candidate</TableHead>
                     <TableHead className="text-right">Score</TableHead>
@@ -231,13 +231,13 @@ export default function BatchScheduleRunPage({
                       key={`${row.interviewId}-${row.rank}`}
                       className="hover:bg-muted/40"
                     >
-                      <TableCell className="font-medium text-slate-600">{row.rank}</TableCell>
+                      <TableCell className="font-medium text-muted-foreground">{row.rank}</TableCell>
                       <TableCell>
-                        <div className="font-medium text-slate-900">
+                        <div className="font-medium text-foreground">
                           {row.name || row.email || row.clerkId}
                         </div>
                         {row.name && row.email ? (
-                          <div className="text-xs text-slate-500">{row.email}</div>
+                          <div className="text-xs text-muted-foreground">{row.email}</div>
                         ) : null}
                       </TableCell>
                       <TableCell className="text-right font-semibold tabular-nums">
@@ -263,7 +263,7 @@ export default function BatchScheduleRunPage({
       ) : null}
 
       <Card className={cn(institutePanelClass, "overflow-hidden shadow-xl")}>
-        <CardHeader className="border-b border-border/60 bg-gradient-to-r from-muted/50 to-white">
+        <CardHeader className="border-b border-border/60 bg-gradient-to-r from-muted/40 to-card">
           <CardTitle className="flex items-center gap-2 text-lg">
             <Users className="h-5 w-5 text-primary" />
             Everyone in this round
@@ -277,7 +277,7 @@ export default function BatchScheduleRunPage({
           <InstituteTableShell>
             <Table>
               <TableHeader>
-                <TableRow className="border-b border-slate-200/80 bg-slate-50/90 hover:bg-slate-50/90">
+                <TableRow className="border-b border-border/80 bg-muted/30 hover:bg-muted/30">
                   <TableHead>Candidate</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Score</TableHead>
@@ -289,12 +289,12 @@ export default function BatchScheduleRunPage({
                 {data.participants.map((p) => (
                   <TableRow key={p.scheduleId} className="hover:bg-muted/40">
                     <TableCell>
-                      <div className="font-medium text-slate-900">
+                      <div className="font-medium text-foreground">
                         {p.name || p.email || p.clerkId}
                       </div>
-                      {p.email ? <div className="text-xs text-slate-500">{p.email}</div> : null}
+                      {p.email ? <div className="text-xs text-muted-foreground">{p.email}</div> : null}
                     </TableCell>
-                    <TableCell className="capitalize text-sm text-slate-700">{p.status}</TableCell>
+                    <TableCell className="capitalize text-sm text-foreground">{p.status}</TableCell>
                     <TableCell className="text-right tabular-nums">
                       {p.overallScore != null ? p.overallScore : "—"}
                     </TableCell>
@@ -304,7 +304,7 @@ export default function BatchScheduleRunPage({
                       ) : p.passed === false ? (
                         <span className="text-red-600">No</span>
                       ) : (
-                        <span className="text-slate-400">—</span>
+                        <span className="text-muted-foreground">—</span>
                       )}
                     </TableCell>
                     <TableCell className="text-right">
@@ -318,7 +318,7 @@ export default function BatchScheduleRunPage({
                           </Link>
                         </Button>
                       ) : (
-                        <span className="text-xs text-slate-400">—</span>
+                        <span className="text-xs text-muted-foreground">—</span>
                       )}
                     </TableCell>
                   </TableRow>

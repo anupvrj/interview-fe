@@ -3,6 +3,8 @@ import axios, {
   AxiosError,
   type InternalAxiosRequestConfig,
 } from "axios";
+import type { ATSReportV3 } from "@/types/atsReport";
+export { isATSReportV3 } from "@/types/atsReport";
 
 /** Base URL for API (includes `/api` path). Use for `<img src>` and other non-axios URLs. */
 export const API_URL =
@@ -62,6 +64,11 @@ async function snapshotFileForUpload(file: File): Promise<Blob> {
 let tokenGetter: (() => Promise<string | null>) | null = null;
 export function setAuthTokenGetter(getter: () => Promise<string | null>) {
   tokenGetter = getter;
+}
+
+export async function getAuthToken(): Promise<string | null> {
+  if (!tokenGetter) return null;
+  return tokenGetter();
 }
 
 // Request interceptor to add auth token and userId
@@ -129,6 +136,8 @@ export interface User {
     industry: string;
   };
   industries?: string[];
+  /** IANA timezone for peer interviews */
+  peerTimezone?: string;
   resume?: {
     s3Key: string;
     filename: string;
@@ -151,6 +160,17 @@ export interface User {
   profileCompletionPercentage?: number;
   /** Avg. overall report score (practice + completed interviews), when present */
   averageInterviewScore?: number | null;
+  /** Peer interview capability derived from an InterviewerProfile */
+  peer?: {
+    isInterviewer: boolean;
+    interviewerStatus:
+      | "pending"
+      | "approved"
+      | "rejected"
+      | "suspended"
+      | "blocked"
+      | null;
+  };
 }
 
 /** Matches post-interview UX feedback form / API (session issues dropdown). */
@@ -1209,25 +1229,50 @@ export interface Resume {
       left: number;
       right: number;
     };
+    /** Blank trailing pages removed by the user in the editor preview. */
+    dismissedEmptyTrailingPages?: number;
   };
   atsScore?: number;
-  atsFeedback?: {
-    score: number;
-    strengths: string[];
-    weaknesses: string[];
-    suggestions: string[];
-    details?: {
-      formatting?: { score: number; issues: string[]; improvements: string[] };
-      content?: { score: number; issues: string[]; improvements: string[] };
-      keywords?: { score: number; issues: string[]; improvements: string[] };
-      structure?: { score: number; issues: string[]; improvements: string[] };
-    };
+  atsFeedback?: ATSReportV3 | LegacyATSFeedback;
+  atsImprovementMeta?: {
+    improvedAt: string;
+    previousScore?: number;
+    suppressedCheckIds: import("@/types/atsReport").ATSCheckId[];
+  };
+  atsIgnoredIssues?: import("@/types/atsReport").ATSIgnoredIssue[];
+  atsScoringContext?: {
+    rawPdfText?: string;
+    lastJobDescription?: string;
   };
   isDefault?: boolean;
   pdfS3Key?: string; // S3 key for generated PDF
   thumbnailS3Key?: string; // S3 key for resume thumbnail
   createdAt: string;
   updatedAt: string;
+}
+
+export interface LegacyATSFeedback {
+  score: number;
+  strengths: string[];
+  weaknesses: string[];
+  suggestions: string[];
+  details?: {
+    formatting?: { score: number; issues: string[]; improvements: string[] };
+    content?: { score: number; issues: string[]; improvements: string[] };
+    keywords?: { score: number; issues: string[]; improvements: string[] };
+    structure?: { score: number; issues: string[]; improvements: string[] };
+  };
+}
+
+export interface RecalculateATSOptions {
+  jobDescription?: string;
+  rawPdfText?: string;
+  fileMetadata?: {
+    fileName: string;
+    fileSizeBytes: number;
+    mimeType: string;
+    rawTextLength?: number;
+  };
 }
 
 export const resumeApi = {
@@ -1311,6 +1356,7 @@ export const resumeApi = {
       sectionOrder?: Resume["sectionOrder"];
       layout?: Resume["layout"];
       isDefault?: boolean;
+      pdfS3Key?: string;
     },
   ): Promise<Resume> => {
     const response = await apiClient.put<{ data: Resume }>(
@@ -1375,13 +1421,69 @@ export const resumeApi = {
     return created;
   },
 
-  recalculateATS: async (resumeId: string): Promise<Resume> => {
+  recalculateATS: async (
+    resumeId: string,
+    options: RecalculateATSOptions = {},
+  ): Promise<Resume> => {
     const response = await apiClient.post<{ data: Resume }>(
       `/resumes/${resumeId}/ats-score`,
-      {},
+      options,
       {
-        timeout: 180000, // 3 minutes (180 seconds) for ATS score calculation
+        timeout: 180000,
       },
+    );
+    return response.data.data;
+  },
+
+  improveFromATS: async (
+    resumeId: string,
+    options: { jobDescription?: string } = {},
+  ): Promise<Resume> => {
+    const response = await apiClient.post<{ data: Resume }>(
+      `/resumes/${resumeId}/improve-from-ats`,
+      options,
+      {
+        timeout: 300000,
+      },
+    );
+    return response.data.data;
+  },
+
+  improveATSIssue: async (
+    resumeId: string,
+    body: {
+      checkId: string;
+      categoryLabel?: string;
+      issue: import("@/types/atsReport").ATSIssue;
+      userPrompt?: string;
+    },
+  ): Promise<{
+    improvedContent: string;
+    sourceContent: string;
+    contentType: "bullet" | "paragraph" | "text";
+  }> => {
+    const response = await apiClient.post<{
+      data: {
+        improvedContent: string;
+        sourceContent: string;
+        contentType: "bullet" | "paragraph" | "text";
+      };
+    }>(`/resumes/${resumeId}/ats-improve-issue`, body, {
+      timeout: 60000,
+    });
+    return response.data.data;
+  },
+
+  ignoreATSIssue: async (
+    resumeId: string,
+    body: {
+      checkId: string;
+      issue: import("@/types/atsReport").ATSIssue;
+    },
+  ): Promise<Resume> => {
+    const response = await apiClient.post<{ data: Resume }>(
+      `/resumes/${resumeId}/ats-ignore-issue`,
+      body,
     );
     return response.data.data;
   },
@@ -1471,6 +1573,33 @@ export const resumeDataExtractionApi = {
     );
     return response.data.data;
   },
+
+  importLinkedInProfile: async (
+    handle: string,
+    templateId: string,
+  ): Promise<{
+    sections: Record<
+      string,
+      {
+        sectionType: string;
+        content: string | any;
+        format: "html" | "list" | "paragraph" | "structured";
+      }
+    >;
+    templateId: string;
+  }> => {
+    const response = await apiClient.post(
+      "/import-linkedin-profile",
+      {
+        handle,
+        templateId,
+      },
+      {
+        timeout: 180000, // 180 seconds (3 minutes) for fetch + AI enhancement
+      },
+    );
+    return response.data.data;
+  },
 };
 
 // Content API
@@ -1478,6 +1607,7 @@ export const contentApi = {
   refineContent: async (
     content: string,
     contentType?: "paragraph" | "list" | "auto",
+    userPrompt?: string,
   ): Promise<{
     originalContent: string;
     refinedContent: string;
@@ -1490,6 +1620,7 @@ export const contentApi = {
     const response = await apiClient.post("/refine-content", {
       content,
       contentType: contentType || "auto",
+      userPrompt: userPrompt?.trim() || undefined,
     });
     return response.data.data;
   },
@@ -2518,6 +2649,619 @@ export const systemDesignApi = {
       },
     );
     return response.data.data;
+  },
+};
+
+// ============================================================================
+// Peer Interview
+// ============================================================================
+
+export interface PeerInterviewType {
+  _id: string;
+  key: string;
+  name: string;
+  shortDescription: string;
+  maxPriceCap: number;
+  defaultDurationMins: number;
+  order: number;
+}
+
+export interface PeerIndustry {
+  _id: string;
+  key: string;
+  name: string;
+  roles: string[];
+  order: number;
+}
+
+export type PeerAvailability = "available" | "away" | "offline";
+export type PeerInterviewerStatus =
+  | "pending"
+  | "approved"
+  | "rejected"
+  | "suspended"
+  | "blocked";
+
+export interface PeerInterviewerProfile {
+  _id: string;
+  clerkId: string;
+  name: string;
+  jobRole: string;
+  company: string;
+  industry?: string;
+  yearsOfExperience: number;
+  workEmail: string;
+  corporateIdFrontKey?: string;
+  corporateIdBackKey?: string;
+  canTakeTypes: string[];
+  pricing: Record<string, number>;
+  availabilityStatus: PeerAvailability;
+  status: PeerInterviewerStatus;
+  rejectionReason?: string;
+  suspensionReason?: string;
+  ratingAvg: number;
+  ratingCount: number;
+  profilePictureUrl?: string;
+  approvedAt?: string;
+}
+
+export interface PeerInterviewerCard {
+  id: string;
+  name: string;
+  jobRole: string;
+  company: string;
+  industry?: string;
+  yearsOfExperience: number;
+  canTakeTypes: string[];
+  pricing: Record<string, number>;
+  availabilityStatus: PeerAvailability;
+  ratingAvg: number;
+  ratingCount: number;
+  profilePictureUrl?: string;
+  /** IANA timezone when loaded from detail endpoint */
+  timezone?: string;
+}
+
+export interface PeerMeetCoHostInfo {
+  email: string;
+  assigned: boolean;
+  error?: string;
+}
+
+export interface PeerSlot {
+  id: string;
+  start: string;
+  end: string;
+  durationMins: number;
+  availableForTypes: string[];
+  prices: Record<string, number>;
+  videoLink?: string;
+  googleMeetSpaceName?: string;
+  videoLinkSource?: "google_meet_api" | "manual";
+  meetCoHostEmail?: string;
+  meetCoHostAssigned?: boolean;
+  meetCoHost?: PeerMeetCoHostInfo;
+  status: "open" | "booked" | "blocked" | "expired";
+  bookingId?: string;
+}
+
+export type PeerBookingStatus =
+  | "pending_acceptance"
+  | "rejected"
+  | "accepted_unpaid"
+  | "paid_confirmed"
+  | "completed"
+  | "cancelled"
+  | "refunded";
+
+export interface PeerFeedback {
+  rating: number;
+  comments?: string;
+  at?: string;
+}
+
+export type PeerChatPresence = "online" | "away" | "offline";
+
+export type PeerChatSenderRole = "candidate" | "interviewer";
+
+export interface PeerChatMessage {
+  id: string;
+  bookingId: string;
+  senderClerkId: string;
+  senderRole: PeerChatSenderRole;
+  body: string;
+  clientMessageId?: string;
+  createdAt: string;
+}
+
+export interface PeerChatPartner {
+  clerkId: string;
+  displayName: string;
+  presence: PeerChatPresence;
+}
+
+export interface PeerInterviewerCandidateScore {
+  technical: number;
+  behaviour: number;
+  communication: number;
+  overall: number;
+  comments?: string;
+  submittedAt?: string;
+}
+
+export interface PeerBookingCandidatePreview {
+  name: string;
+  email?: string;
+  role?: string;
+  experienceYears?: number;
+  resume?: {
+    url: string;
+    filename: string;
+    source: "uploaded" | "builder";
+  };
+}
+
+export interface PeerBookingInterviewerPreview {
+  name: string;
+  company: string;
+  jobRole?: string;
+  industry?: string;
+  yearsOfExperience?: number;
+  ratingAvg?: number;
+  ratingCount?: number;
+  profilePictureUrl?: string;
+}
+
+export interface PeerBookingCancelPolicy {
+  refundType: "none" | "partial" | "full";
+  refundAmount: number;
+  refundPercent: number;
+  hoursUntilStart: number;
+  message: string;
+}
+
+export interface PeerMeetArtifactsPreview {
+  transcriptAvailable?: boolean;
+  recordingAvailable?: boolean;
+  meetRecordingS3Status?: "pending" | "complete" | "failed" | "skipped";
+  fetchedAt?: string;
+}
+
+export interface PeerSessionRecording {
+  s3Key?: string;
+  uploadedAt?: string;
+  uploadedByClerkId?: string;
+  durationSec?: number;
+}
+
+export type PeerReportStatus =
+  | "none"
+  | "pending"
+  | "processing"
+  | "completed"
+  | "failed";
+
+export type PeerArtifactsStatus =
+  | "none"
+  | "waiting"
+  | "processing"
+  | "complete"
+  | "failed";
+
+export interface PeerInterviewReport {
+  reportId: string;
+  bookingRef: string;
+  interviewType: string;
+  overallScore: number;
+  categoryScores: {
+    technical: number;
+    behavioral: number;
+    communication: number;
+    confidence: number;
+  };
+  qaAnalysis: Array<{
+    question: string;
+    candidateAnswer: string;
+    suggestedAnswer: string;
+    correctnessScore: number;
+    clarityScore: number;
+    completenessScore: number;
+    answerQuality?: "strong" | "partial" | "weak" | "avoided";
+    questionType: "technical" | "behavioral" | "system-design" | "hr";
+    questionDifficulty: "easy" | "medium" | "hard";
+    feedback: string;
+    strengths: string[];
+    improvements: string[];
+  }>;
+  strengths: string[];
+  improvements: string[];
+  behavioral: {
+    confidence: number;
+    clarity: number;
+    fluency: number;
+    fillersPerMinute: number;
+  };
+  pass2Analysis?: {
+    overallSummary?: string;
+    topStrengths?: string[];
+    topImprovements?: string[];
+    communicationScore?: number;
+  };
+  transcriptSource?: "google_meet" | "manual" | "interviewer_score";
+  createdAt?: string;
+}
+
+export interface PeerBooking {
+  id: string;
+  bookingRef: string;
+  slotId: string;
+  interviewerId: string;
+  candidateId: string;
+  interviewType: string;
+  start: string;
+  end: string;
+  amount: number;
+  currency: string;
+  status: PeerBookingStatus;
+  rejectionReason?: string;
+  cancellationReason?: string;
+  videoLink?: string;
+  candidateFeedback?: PeerFeedback;
+  interviewerFeedback?: PeerFeedback;
+  interviewerCandidateScore?: PeerInterviewerCandidateScore;
+  candidateMarkedDone: boolean;
+  interviewerMarkedDone: boolean;
+  rescheduleCount?: number;
+  googleMeetSpaceName?: string;
+  meetCoHostEmail?: string;
+  meetCoHostAssigned?: boolean;
+  sessionRecording?: PeerSessionRecording;
+  meetArtifacts?: PeerMeetArtifactsPreview;
+  conferenceEndedAt?: string;
+  artifactsStatus?: PeerArtifactsStatus;
+  reportStatus?: PeerReportStatus;
+  peerReportId?: string;
+  adminPayout?: { status: string; amount?: number; decidedBy?: string; at?: string };
+  refund?: { type?: string; amount?: number; status: string; reason?: string; at?: string };
+  razorpayOrderId?: string;
+  createdAt: string;
+  // admin-enriched
+  interviewerName?: string;
+  interviewerCompany?: string;
+  candidateName?: string;
+  candidateEmail?: string;
+  candidate?: PeerBookingCandidatePreview;
+  interviewer?: PeerBookingInterviewerPreview;
+  viewerRole?: "candidate" | "interviewer";
+  cancelPolicy?: PeerBookingCancelPolicy;
+  canReschedule?: boolean;
+  rescheduleBlockedReason?: string;
+  earning?: PeerEarning;
+}
+
+export type PeerEarningStatus = "pending" | "approved" | "paid" | "rejected";
+
+export interface PeerEarning {
+  id: string;
+  bookingId: string;
+  bookingRef: string;
+  interviewType: string;
+  grossAmount: number;
+  platformFee: number;
+  platformFeePercent: number;
+  amount: number;
+  status: PeerEarningStatus;
+  earnedAt?: string;
+  paidAt?: string;
+  decidedBy?: string;
+  notes?: string;
+  createdAt?: string;
+}
+
+export interface PeerEarningsSummary {
+  totalEarnings: number;
+  pendingEarnings: number;
+  approvedEarnings: number;
+  paidOutEarnings: number;
+}
+
+export interface PeerEarningsListResponse {
+  items: PeerEarning[];
+  summary: PeerEarningsSummary;
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+}
+
+export interface PeerReassignInterviewerOption {
+  _id: string;
+  name: string;
+  company: string;
+  workEmail: string;
+  industry?: string;
+  jobRole?: string;
+  canTakeTypes: string[];
+  availabilityStatus: string;
+  hasOpenSlot?: boolean;
+}
+
+export interface PeerReassignInterviewerFilters {
+  industry: string;
+  jobRole: string;
+  interviewType: string;
+  interviewTypeName: string;
+  availability: "available_away" | "available" | "away" | "any";
+  requireOpenSlot: boolean;
+}
+
+export interface PeerReassignInterviewerList {
+  defaults: PeerReassignInterviewerFilters;
+  filters: PeerReassignInterviewerFilters;
+  interviewers: PeerReassignInterviewerOption[];
+}
+
+export interface PeerPaginated<T> {
+  items: T[];
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+}
+
+export interface PeerInterviewerAnalytics {
+  totalBookings: number;
+  interviewsDone: number;
+  cancelled: number;
+  pending: number;
+  totalEarnings: number;
+  pendingEarnings: number;
+  approvedEarnings: number;
+  paidOutEarnings: number;
+  ratingAvg: number;
+  ratingCount: number;
+  availabilityStatus: PeerAvailability;
+  pendingRequests: Array<{
+    id: string;
+    bookingRef: string;
+    interviewType: string;
+    start: string;
+    end: string;
+    amount: number;
+    status: PeerBookingStatus;
+  }>;
+  upcoming: Array<{
+    bookingRef: string;
+    interviewType: string;
+    start: string;
+    end: string;
+    status: PeerBookingStatus;
+  }>;
+}
+
+function unwrap<T>(p: Promise<{ data: { data: T } }>): Promise<T> {
+  return p.then((r) => r.data.data);
+}
+
+export const peerApi = {
+  // Catalog
+  listInterviewTypes: () =>
+    unwrap<PeerInterviewType[]>(apiClient.get("/peer/interview-types")),
+  listIndustries: () =>
+    unwrap<PeerIndustry[]>(apiClient.get("/peer/industries")),
+
+  // Uploads (single file -> { key })
+  uploadIdDocument: async (file: File): Promise<{ key: string }> => {
+    const blob = await snapshotFileForUpload(file);
+    const formData = new FormData();
+    formData.append("file", blob, file.name);
+    const r = await apiClient.post<{ data: { key: string } }>("/peer/uploads", formData);
+    return r.data.data;
+  },
+
+  // Interviewer profile
+  apply: (body: Record<string, unknown>) =>
+    unwrap<PeerInterviewerProfile>(apiClient.post("/peer/interviewer/apply", body)),
+  getMyInterviewerProfile: () =>
+    unwrap<PeerInterviewerProfile | null>(apiClient.get("/peer/interviewer/me")),
+  setAvailability: (status: PeerAvailability) =>
+    unwrap<PeerInterviewerProfile>(
+      apiClient.patch("/peer/interviewer/availability", { status }),
+    ),
+  setPricing: (pricing: Record<string, number>) =>
+    unwrap<PeerInterviewerProfile>(
+      apiClient.patch("/peer/interviewer/pricing", { pricing }),
+    ),
+  getAnalytics: () =>
+    unwrap<PeerInterviewerAnalytics>(apiClient.get("/peer/interviewer/analytics")),
+  getEarningsSummary: () =>
+    unwrap<PeerEarningsSummary>(apiClient.get("/peer/interviewer/earnings/summary")),
+  listEarnings: (params?: { status?: string; page?: number; pageSize?: number }) =>
+    unwrap<PeerEarningsListResponse>(
+      apiClient.get("/peer/interviewer/earnings", { params }),
+    ),
+
+  getTimezone: () =>
+    unwrap<{ timezone: string }>(apiClient.get("/peer/me/timezone")),
+  setTimezone: (timezone: string) =>
+    unwrap<{ timezone: string }>(apiClient.patch("/peer/me/timezone", { timezone })),
+
+  // Slots
+  createSlot: (body: {
+    start: string;
+    end: string;
+    availableForTypes: string[];
+    videoLink: string;
+    googleMeetSpaceName?: string;
+    videoLinkSource?: "google_meet_api" | "manual";
+  }) => unwrap<PeerSlot>(apiClient.post("/peer/slots", body)),
+  createSlotsBulk: (body: {
+    slots: { start: string; end: string }[];
+    availableForTypes: string[];
+  }) =>
+    unwrap<{
+      created: PeerSlot[];
+      skippedPast: number;
+      skippedOverlap: number;
+      skippedMeet: number;
+    }>(apiClient.post("/peer/slots/bulk", body)),
+  listMySlots: () => unwrap<PeerSlot[]>(apiClient.get("/peer/slots/me")),
+  updateSlot: (
+    id: string,
+    body: {
+      start: string;
+      end: string;
+      availableForTypes: string[];
+      videoLink: string;
+      googleMeetSpaceName?: string;
+      videoLinkSource?: "google_meet_api" | "manual";
+    },
+  ) => unwrap<PeerSlot>(apiClient.patch(`/peer/slots/${id}`, body)),
+  createMeetSpace: () =>
+    unwrap<{
+      videoLink: string;
+      googleMeetSpaceName: string;
+      meetingCode: string;
+      videoLinkSource: "google_meet_api";
+      meetCoHost?: PeerMeetCoHostInfo;
+    }>(apiClient.post("/peer/meet/create-space")),
+  generateMeetLink: (slotId: string) =>
+    unwrap<PeerSlot>(apiClient.post(`/peer/slots/${slotId}/generate-meet-link`)),
+  deleteSlot: (id: string) =>
+    unwrap<{ deleted: boolean }>(apiClient.delete(`/peer/slots/${id}`)),
+  bulkDeleteSlots: (ids: string[]) =>
+    unwrap<{ deleted: number; skipped: number }>(
+      apiClient.post("/peer/slots/bulk-delete", { ids }),
+    ),
+
+  // Directory
+  listInterviewers: (params: Record<string, unknown>) =>
+    unwrap<PeerPaginated<PeerInterviewerCard>>(
+      apiClient.get("/peer/interviewers", { params }),
+    ),
+  getInterviewer: (id: string) =>
+    unwrap<{ interviewer: PeerInterviewerCard; slots: PeerSlot[] }>(
+      apiClient.get(`/peer/interviewers/${id}`),
+    ),
+
+  // Bookings
+  createBooking: (body: { slotId: string; interviewType: string }) =>
+    unwrap<PeerBooking>(apiClient.post("/peer/bookings", body)),
+  listMyBookings: () => unwrap<PeerBooking[]>(apiClient.get("/peer/bookings/me")),
+  listInterviewerBookings: () =>
+    unwrap<PeerBooking[]>(apiClient.get("/peer/bookings/interviewer")),
+  getBooking: (id: string) =>
+    unwrap<PeerBooking>(apiClient.get(`/peer/bookings/${id}`)),
+  listChatMessages: (
+    id: string,
+    params?: { limit?: number; before?: string },
+  ) =>
+    unwrap<{ messages: PeerChatMessage[]; hasMore: boolean }>(
+      apiClient.get(`/peer/bookings/${id}/chat/messages`, { params }),
+    ),
+  acceptBooking: (id: string) =>
+    unwrap<PeerBooking>(apiClient.post(`/peer/bookings/${id}/accept`)),
+  rejectBooking: (id: string, reason: string) =>
+    unwrap<PeerBooking>(apiClient.post(`/peer/bookings/${id}/reject`, { reason })),
+  cancelBooking: (id: string, reason?: string) =>
+    unwrap<PeerBooking>(apiClient.post(`/peer/bookings/${id}/cancel`, { reason })),
+  rescheduleBooking: (id: string, slotId: string) =>
+    unwrap<PeerBooking>(apiClient.post(`/peer/bookings/${id}/reschedule`, { slotId })),
+  payBooking: (id: string) =>
+    unwrap<{ order: RazorpayOrder }>(apiClient.post(`/peer/bookings/${id}/pay`)),
+  verifyBookingPayment: (
+    id: string,
+    body: {
+      razorpayOrderId: string;
+      razorpayPaymentId: string;
+      razorpaySignature: string;
+    },
+  ) => unwrap<PeerBooking>(apiClient.post(`/peer/bookings/${id}/verify-payment`, body)),
+  submitFeedback: (id: string, body: { rating: number; comments?: string }) =>
+    unwrap<PeerBooking>(apiClient.post(`/peer/bookings/${id}/feedback`, body)),
+  submitInterviewerCandidateScore: (
+    id: string,
+    body: { technical: number; behaviour: number; communication: number; comments?: string },
+  ) =>
+    unwrap<PeerBooking>(
+      apiClient.post(`/peer/bookings/${id}/candidate-score`, body),
+    ),
+  markDone: (id: string) =>
+    unwrap<PeerBooking>(apiClient.post(`/peer/bookings/${id}/mark-done`)),
+  getRecordingUploadUrl: (id: string) =>
+    unwrap<{ uploadUrl: string; s3Key: string; expiresIn: number; bookingRef: string }>(
+      apiClient.get(`/peer/bookings/${id}/recording/upload-url`),
+    ),
+  saveRecordingKey: (id: string, body: { s3Key: string; durationSec?: number }) =>
+    unwrap<PeerBooking>(apiClient.post(`/peer/bookings/${id}/recording/save-key`, body)),
+  markRecordingStarted: (id: string) =>
+    unwrap<{ started: boolean }>(apiClient.post(`/peer/bookings/${id}/recording/start`)),
+  getRecordingVideoUrl: (id: string) =>
+    unwrap<{ url: string; expiresIn: number | null; source?: string }>(
+      apiClient.get(`/peer/bookings/${id}/recording/video-url`),
+    ),
+  getPeerReport: (id: string) =>
+    unwrap<PeerInterviewReport | null>(apiClient.get(`/peer/bookings/${id}/report`)),
+  generatePeerReport: (id: string) =>
+    unwrap<{ report: PeerInterviewReport; generated: boolean }>(
+      apiClient.post(`/peer/bookings/${id}/report/generate`),
+    ),
+
+  // Admin
+  admin: {
+    listInterviewers: (status?: string) =>
+      unwrap<PeerInterviewerProfile[]>(
+        apiClient.get("/admin/peer/interviewers", { params: status ? { status } : {} }),
+      ),
+    getInterviewer: (id: string) =>
+      unwrap<any>(apiClient.get(`/admin/peer/interviewers/${id}`)),
+    setInterviewerStatus: (
+      id: string,
+      action: "approve" | "reject" | "suspend" | "block" | "unblock",
+      reason?: string,
+    ) =>
+      unwrap<PeerInterviewerProfile>(
+        apiClient.post(`/admin/peer/interviewers/${id}/status`, { action, reason }),
+      ),
+    listBookings: (params: Record<string, unknown>) =>
+      unwrap<PeerPaginated<PeerBooking>>(
+        apiClient.get("/admin/peer/bookings", { params }),
+      ),
+    getBooking: (id: string) =>
+      unwrap<any>(apiClient.get(`/admin/peer/bookings/${id}`)),
+    listReassignInterviewers: (
+      bookingId: string,
+      params?: Partial<{
+        industry: string;
+        jobRole: string;
+        interviewType: string;
+        availability: PeerReassignInterviewerFilters["availability"];
+        requireOpenSlot: boolean;
+      }>,
+    ) =>
+      unwrap<PeerReassignInterviewerList>(
+        apiClient.get(`/admin/peer/bookings/${bookingId}/reassign-interviewers`, {
+          params: params
+            ? {
+                ...params,
+                requireOpenSlot:
+                  params.requireOpenSlot === undefined
+                    ? undefined
+                    : String(params.requireOpenSlot),
+              }
+            : undefined,
+        }),
+      ),
+    decidePayout: (id: string, approve: boolean) =>
+      unwrap<PeerBooking & { earning?: PeerEarning }>(
+        apiClient.post(`/admin/peer/bookings/${id}/payout`, { approve }),
+      ),
+    markEarningPaid: (earningId: string) =>
+      unwrap<PeerEarning>(apiClient.post(`/admin/peer/earnings/${earningId}/mark-paid`)),
+    refund: (id: string, body: { type: "full" | "partial"; amount?: number; reason: string }) =>
+      unwrap<PeerBooking>(apiClient.post(`/admin/peer/bookings/${id}/refund`, body)),
+    reassign: (id: string, newSlotId: string) =>
+      unwrap<PeerBooking>(apiClient.post(`/admin/peer/bookings/${id}/reassign`, { newSlotId })),
   },
 };
 

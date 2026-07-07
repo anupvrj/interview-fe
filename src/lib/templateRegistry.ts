@@ -81,6 +81,15 @@ export function getExtendedTemplate(baseTemplate: any): ExtendedResumeTemplate {
         executive: require("@/configs/resume-templates/executive/config"),
         "true-blue": require("@/configs/resume-templates/true-blue/config"),
         harvard: require("@/configs/resume-templates/harvard/config"),
+        "confident-grid": require("@/configs/resume-templates/confident-grid/config"),
+        "saffron-line": require("@/configs/resume-templates/saffron-line/config"),
+        "condensed-rule": require("@/configs/resume-templates/condensed-rule/config"),
+        "royal-indigo": require("@/configs/resume-templates/royal-indigo/config"),
+        meridian: require("@/configs/resume-templates/meridian/config"),
+        "amber-edge": require("@/configs/resume-templates/amber-edge/config"),
+        "navy-frame": require("@/configs/resume-templates/navy-frame/config"),
+        "cobalt-stream": require("@/configs/resume-templates/cobalt-stream/config"),
+        "ember-timeline": require("@/configs/resume-templates/ember-timeline/config"),
       };
 
       const configModule = knownConfigs[baseTemplate.id];

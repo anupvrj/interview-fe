@@ -59,8 +59,8 @@ export default function InstituteHubPage() {
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">Institution dashboards</h1>
-        <p className="mt-1 text-slate-600">
+        <h1 className="text-2xl font-bold text-foreground">Institution dashboards</h1>
+        <p className="mt-1 text-muted-foreground">
           Super admin: choose an institution to manage candidates, schedules, and settings.
         </p>
       </div>
@@ -74,17 +74,17 @@ export default function InstituteHubPage() {
         </CardHeader>
         <CardContent className="space-y-2">
           {institutions.length === 0 ? (
-            <p className="text-slate-500">No institutions yet.</p>
+            <p className="text-muted-foreground">No institutions yet.</p>
           ) : (
             institutions.map((inst) => (
               <Link
                 key={inst._id}
                 href={`/dashboard/institute/${inst._id}`}
-                className="flex cursor-pointer flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 bg-slate-50/80 px-3 py-2 transition-colors hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                className="flex cursor-pointer flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-muted/25 px-3 py-2 transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
               >
                 <div>
-                  <p className="font-medium text-slate-900">{inst.name}</p>
-                  <p className="text-xs text-slate-500">{inst.slug}</p>
+                  <p className="font-medium text-foreground">{inst.name}</p>
+                  <p className="text-xs text-muted-foreground">{inst.slug}</p>
                 </div>
                 <span className="text-sm font-semibold text-primary">Open dashboard</span>
               </Link>

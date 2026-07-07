@@ -1,0 +1,319 @@
+/**
+ * Ember Timeline Template Styles
+ * Matches ember-timeline-preview.webp: date-on-left timeline rail, navy headers, orange accents.
+ */
+
+.ember-timeline-template {
+  font-family: Arial, Helvetica, sans-serif;
+  color: #1f2937;
+  background-color: #ffffff;
+  line-height: 1.5;
+  box-sizing: border-box;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+  color-adjust: exact !important;
+}
+
+.ember-timeline-name {
+  font-size: 28px !important;
+  font-weight: 700 !important;
+  color: #1f2a66 !important;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  line-height: 1.15 !important;
+  margin: 0 0 4px 0 !important;
+  font-family: Arial, Helvetica, sans-serif !important;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+}
+
+.ember-timeline-job-title {
+  font-style: normal !important;
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  color: #e8632a !important;
+  margin: 0 0 8px 0 !important;
+  font-family: Arial, Helvetica, sans-serif !important;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+}
+
+.ember-timeline-contact {
+  font-size: 10.5px;
+  color: #1f2937;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  align-items: center;
+}
+
+.ember-timeline-contact-item,
+.ember-timeline-contact-item span {
+  color: #1f2937 !important;
+  font-family: Arial, Helvetica, sans-serif !important;
+}
+
+.ember-timeline-contact-item svg {
+  color: #e8632a !important;
+  stroke: #e8632a !important;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+}
+
+.ember-timeline-section-header,
+.ember-timeline-template h2 {
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  text-transform: uppercase;
+  text-align: left;
+  letter-spacing: 0.4px;
+  color: #1f2a66 !important;
+  border-bottom: none !important;
+  border-top: none !important;
+  padding-bottom: 0 !important;
+  margin-bottom: 8px !important;
+  margin-top: 12px !important;
+  font-family: Arial, Helvetica, sans-serif !important;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+  color-adjust: exact !important;
+}
+
+.ember-timeline-template [data-section="personalInfo"] + [data-section] h2,
+.ember-timeline-template [data-section="profileSummary"] + [data-section] h2 {
+  margin-top: 0 !important;
+}
+
+.ember-timeline-summary {
+  font-size: 11px;
+  line-height: 1.5;
+  color: #1f2937;
+}
+
+/* ── Experience / education timeline rail ── */
+.ember-timeline-experience-list,
+.ember-timeline-education-list {
+  position: relative;
+}
+
+.ember-timeline-experience-list::before,
+.ember-timeline-education-list::before {
+  content: "";
+  position: absolute;
+  left: 115px;
+  top: 4px;
+  bottom: 4px;
+  width: 1.5px;
+  background-color: #c5cad4;
+  transform: translateX(-0.75px);
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+}
+
+.ember-timeline-experience-item,
+.ember-timeline-education-item {
+  display: grid !important;
+  grid-template-columns: 115px 1fr !important;
+  gap: 0 !important;
+  margin-bottom: 0 !important;
+  padding-bottom: 14px;
+  page-break-inside: avoid;
+  position: relative;
+}
+
+.ember-timeline-experience-item:last-child,
+.ember-timeline-education-item:last-child {
+  padding-bottom: 0;
+}
+
+.ember-timeline-date-location-column,
+.ember-timeline-education-date-location {
+  padding-right: 14px;
+  text-align: left;
+  box-sizing: border-box;
+}
+
+.ember-timeline-date,
+.ember-timeline-education-date-location .ember-timeline-education-date,
+.ember-timeline-education-date {
+  display: block;
+  font-size: 10.5px !important;
+  font-weight: 700 !important;
+  color: #1f2a66 !important;
+  line-height: 1.35;
+  font-family: Arial, Helvetica, sans-serif !important;
+}
+
+.ember-timeline-location,
+.ember-timeline-education-location {
+  font-size: 10px !important;
+  color: #5b6472 !important;
+  margin-top: 2px;
+  line-height: 1.35;
+  font-family: Arial, Helvetica, sans-serif !important;
+}
+
+.ember-timeline-job-content,
+.ember-timeline-education-content {
+  position: relative;
+  padding-left: 16px;
+  min-width: 0;
+}
+
+.ember-timeline-job-content::before,
+.ember-timeline-education-content::before {
+  content: "";
+  position: absolute;
+  left: -4.5px;
+  top: 3px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background-color: #1f2a66;
+  z-index: 1;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+}
+
+.ember-timeline-job-title-exp,
+.ember-timeline-job-content .ember-timeline-job-title {
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  color: #1f2a66 !important;
+  margin-bottom: 2px !important;
+  font-family: Arial, Helvetica, sans-serif !important;
+}
+
+.ember-timeline-company {
+  font-size: 11px !important;
+  color: #e8632a !important;
+  font-weight: 700 !important;
+  font-style: normal !important;
+  margin-bottom: 4px !important;
+  font-family: Arial, Helvetica, sans-serif !important;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+}
+
+.ember-timeline-description {
+  font-size: 11px;
+  line-height: 1.5;
+  color: #1f2937;
+}
+
+.ember-timeline-description ul {
+  margin: 2px 0 0 0;
+  padding-left: 16px;
+  list-style-type: disc !important;
+}
+
+.ember-timeline-description li {
+  margin-bottom: 3px;
+}
+
+.ember-timeline-description li > p {
+  display: inline;
+  margin: 0;
+}
+
+.ember-timeline-degree {
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  color: #1f2a66 !important;
+  font-family: Arial, Helvetica, sans-serif !important;
+}
+
+.ember-timeline-institution {
+  font-size: 11px !important;
+  color: #e8632a !important;
+  font-weight: 700 !important;
+  font-style: normal !important;
+  margin-top: 2px;
+  font-family: Arial, Helvetica, sans-serif !important;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+}
+
+/* Skills — plain inline labels, no underline or bullet markers */
+.ember-timeline-skill-item {
+  display: inline-block;
+  font-size: 10.5px;
+  color: #1f2937;
+  border: none !important;
+  border-bottom: none !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  margin: 0 14px 6px 0 !important;
+  background: transparent !important;
+  list-style: none !important;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+}
+
+.ember-timeline-skill-item::before {
+  content: none !important;
+}
+
+/* Two-column Key Achievements footer */
+.ember-timeline-award-item {
+  display: inline-block;
+  width: 48%;
+  vertical-align: top;
+  padding-right: 2%;
+  box-sizing: border-box;
+}
+
+.ember-timeline-award-title {
+  font-weight: 700;
+  color: #1f2a66;
+}
+
+@media print {
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+
+  .ember-timeline-experience-list::before,
+  .ember-timeline-education-list::before {
+    background-color: #c5cad4 !important;
+  }
+
+  .ember-timeline-job-content::before,
+  .ember-timeline-education-content::before {
+    background-color: #1f2a66 !important;
+  }
+
+  .ember-timeline-job-title,
+  .ember-timeline-company,
+  .ember-timeline-institution,
+  .ember-timeline-contact-item svg {
+    color: #e8632a !important;
+  }
+
+  .ember-timeline-name,
+  .ember-timeline-section-header,
+  .ember-timeline-template h2,
+  .ember-timeline-date,
+  .ember-timeline-job-title-exp,
+  .ember-timeline-degree {
+    color: #1f2a66 !important;
+  }
+
+  .ember-timeline-section-header,
+  .ember-timeline-template h2 {
+    color: #1f2a66 !important;
+    border-bottom: none !important;
+  }
+
+  .ember-timeline-skill-item {
+    border-bottom: none !important;
+  }
+
+  .ember-timeline-experience-item,
+  .ember-timeline-education-item,
+  .ember-timeline-section {
+    page-break-inside: avoid;
+  }
+}

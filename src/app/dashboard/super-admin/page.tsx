@@ -554,7 +554,7 @@ export default function SuperAdminPage() {
         </CardHeader>
         <CardContent>
           {institutions.length === 0 ? (
-            <p className="text-slate-500">No institutions yet</p>
+            <p className="text-muted-foreground">No institutions yet</p>
           ) : (
             <div className="overflow-x-auto w-full">
               <Table className="min-w-[720px] border-collapse text-left">
@@ -655,19 +655,19 @@ export default function SuperAdminPage() {
                         </TableCell>
                         <TableCell>
                           <div className="flex min-w-[10rem] max-w-[18rem] flex-col gap-0.5">
-                            <span className="font-medium text-slate-900">
+                            <span className="font-medium text-foreground">
                               {s.candidateName?.trim()
                                 ? s.candidateName.trim()
                                 : "—"}
                             </span>
-                            <span className="break-all text-sm text-slate-600">
+                            <span className="break-all text-sm text-muted-foreground">
                               {s.candidateEmail?.trim()
                                 ? s.candidateEmail.trim()
                                 : "—"}
                             </span>
                             {!s.candidateName?.trim() &&
                             !s.candidateEmail?.trim() ? (
-                              <span className="font-mono text-[11px] text-slate-400">
+                              <span className="font-mono text-[11px] text-muted-foreground">
                                 {s.candidateClerkId}
                               </span>
                             ) : null}
@@ -702,7 +702,7 @@ export default function SuperAdminPage() {
           <CardDescription>Platform-wide user management</CardDescription>
           <div className="flex gap-4 mt-4 flex-wrap items-center">
             <div className="relative flex-1 min-w-[200px] max-w-sm">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
                 placeholder="Search users..."
                 value={search}
@@ -766,7 +766,7 @@ export default function SuperAdminPage() {
                           <span className="text-xs">View</span>
                         </Button>
                       ) : (
-                        <span className="text-xs text-slate-400">—</span>
+                        <span className="text-xs text-muted-foreground">—</span>
                       )}
                     </TableCell>
                     <TableCell className="min-w-[140px]">
@@ -776,7 +776,7 @@ export default function SuperAdminPage() {
                       >
                         <button
                           type="button"
-                          className={`flex items-center gap-1 w-full text-left text-sm border rounded px-2 py-1.5 hover:bg-slate-50 min-w-[120px] ${
+                          className={`flex items-center gap-1 w-full text-left text-sm border rounded px-2 py-1.5 hover:bg-muted/20 min-w-[120px] ${
                             (u as any).accessRole === "super_admin"
                               ? "bg-amber-50 border-amber-200"
                               : (u as any).accessRole === "institution_admin"
@@ -795,7 +795,7 @@ export default function SuperAdminPage() {
                                 ? "text-amber-800"
                                 : (u as any).accessRole === "institution_admin"
                                 ? "text-primary"
-                                : "text-gray-700"
+                                : "text-muted-foreground"
                             }`}
                           >
                             {(u as any).accessRole === "super_admin"
@@ -807,24 +807,24 @@ export default function SuperAdminPage() {
                           <ChevronDown className="w-4 h-4 shrink-0 opacity-50" />
                         </button>
                         {roleDropdownUser?._id === u._id && (
-                          <div className="absolute top-full left-0 mt-1 z-50 bg-white border rounded-md shadow-lg py-1 min-w-[180px]">
+                          <div className="absolute top-full left-0 mt-1 z-50 bg-card border rounded-md shadow-lg py-1 min-w-[180px]">
                             <button
                               type="button"
-                              className="w-full px-3 py-2 text-left text-sm hover:bg-slate-100"
+                              className="w-full px-3 py-2 text-left text-sm hover:bg-muted/50"
                               onClick={() => handleSetRole(u, "user")}
                               disabled={roleUpdating}
                             >
                               User
                             </button>
                             <div className="border-t my-1" />
-                            <div className="px-2 py-1 text-xs text-slate-500 font-medium">
+                            <div className="px-2 py-1 text-xs text-muted-foreground font-medium">
                               Institution Admin
                             </div>
                             {institutions.map((inst) => (
                               <button
                                 key={inst._id}
                                 type="button"
-                                className="w-full px-3 py-2 text-left text-sm hover:bg-slate-100 pl-4"
+                                className="w-full px-3 py-2 text-left text-sm hover:bg-muted/50 pl-4"
                                 onClick={() =>
                                   handleSetRole(u, "institution_admin", String(inst._id))
                                 }
@@ -834,7 +834,7 @@ export default function SuperAdminPage() {
                               </button>
                             ))}
                             {institutions.length === 0 && (
-                              <div className="px-3 py-2 text-sm text-slate-500">
+                              <div className="px-3 py-2 text-sm text-muted-foreground">
                                 No institutions
                               </div>
                             )}
@@ -846,7 +846,7 @@ export default function SuperAdminPage() {
                       <div className="relative" ref={instDropdownUser?._id === u._id ? instDropdownRef : undefined}>
                         <button
                           type="button"
-                          className="flex items-center gap-1 w-full text-left text-sm border rounded px-2 py-1.5 hover:bg-slate-50 min-w-[140px]"
+                          className="flex items-center gap-1 w-full text-left text-sm border rounded px-2 py-1.5 hover:bg-muted/20 min-w-[140px]"
                           onClick={() => {
                             setInstDropdownUser(instDropdownUser?._id === u._id ? null : u);
                             setInstSearch("");
@@ -862,7 +862,7 @@ export default function SuperAdminPage() {
                           <ChevronDown className="w-4 h-4 shrink-0 opacity-50" />
                         </button>
                         {instDropdownUser?._id === u._id && (
-                          <div className="absolute top-full left-0 mt-1 z-50 bg-white border rounded-md shadow-lg py-1 min-w-[200px]">
+                          <div className="absolute top-full left-0 mt-1 z-50 bg-card border rounded-md shadow-lg py-1 min-w-[200px]">
                             <div className="px-2 pb-2">
                               <Input
                                 placeholder="Search institutions..."
@@ -875,7 +875,7 @@ export default function SuperAdminPage() {
                             <div className="max-h-48 overflow-y-auto">
                               <button
                                 type="button"
-                                className="w-full px-3 py-2 text-left text-sm hover:bg-slate-100"
+                                className="w-full px-3 py-2 text-left text-sm hover:bg-muted/50"
                                 onClick={() => handleSetInstitution(u, null)}
                                 disabled={instUpdating}
                               >
@@ -885,7 +885,7 @@ export default function SuperAdminPage() {
                                 <button
                                   key={inst._id}
                                   type="button"
-                                  className="w-full px-3 py-2 text-left text-sm hover:bg-slate-100"
+                                  className="w-full px-3 py-2 text-left text-sm hover:bg-muted/50"
                                   onClick={() =>
                                     handleSetInstitution(u, String(inst._id))
                                   }
@@ -895,7 +895,7 @@ export default function SuperAdminPage() {
                                 </button>
                               ))}
                               {filteredInstitutions.length === 0 && (
-                                <div className="px-3 py-2 text-sm text-slate-500">
+                                <div className="px-3 py-2 text-sm text-muted-foreground">
                                   No institutions found
                                 </div>
                               )}
@@ -906,7 +906,7 @@ export default function SuperAdminPage() {
                     </TableCell>
                     <TableCell>
                       <select
-                        className="text-xs border rounded px-2 py-1"
+                        className="app-control text-xs"
                         value={(u as any).subscription?.plan || "free"}
                         onChange={(e) =>
                           handleUpdatePlan(
@@ -949,10 +949,10 @@ export default function SuperAdminPage() {
                           {u.averageInterviewScore}
                         </span>
                       ) : (
-                        <span className="text-slate-400">—</span>
+                        <span className="text-muted-foreground">—</span>
                       )}
                     </TableCell>
-                    <TableCell className="text-slate-600">
+                    <TableCell className="text-muted-foreground">
                       {formatDate(u.createdAt)}
                     </TableCell>
                     <TableCell className="text-right whitespace-nowrap">
@@ -1055,7 +1055,7 @@ export default function SuperAdminPage() {
                 onChange={(e) => setScheduleExpiresAt(e.target.value)}
                 className="mt-1"
               />
-              <p className="mt-1 text-xs text-slate-500">
+              <p className="mt-1 text-xs text-muted-foreground">
                 Latest time the candidate can start. Must be on or after 24 hours before the
                 scheduled time. Leave empty for no upper limit.
               </p>
@@ -1085,7 +1085,7 @@ export default function SuperAdminPage() {
               <Label htmlFor="sa-sch-lang">Language</Label>
               <select
                 id="sa-sch-lang"
-                className="mt-1 w-full rounded-md border px-3 py-2"
+                className="app-control mt-1 w-full bg-card"
                 value={scheduleLang}
                 onChange={(e) => setScheduleLang(e.target.value as "en" | "hi")}
               >
@@ -1106,7 +1106,7 @@ export default function SuperAdminPage() {
               <Label htmlFor="sa-sch-dur">Duration</Label>
               <select
                 id="sa-sch-dur"
-                className="mt-1 w-full rounded-md border px-3 py-2"
+                className="app-control mt-1 w-full bg-card"
                 value={scheduleDuration}
                 onChange={(e) => setScheduleDuration(e.target.value as "15" | "30")}
               >
@@ -1216,7 +1216,7 @@ export default function SuperAdminPage() {
                 onChange={(e) => setInstMaxUsers(e.target.value)}
                 placeholder="Unlimited if empty"
               />
-              <p className="mt-1 text-xs text-slate-500">
+              <p className="mt-1 text-xs text-muted-foreground">
                 Caps how many users can be added to this institution. Leave empty for no limit.
               </p>
             </div>
@@ -1299,7 +1299,7 @@ export default function SuperAdminPage() {
                 onChange={(e) => setEditMaxUsers(e.target.value)}
                 placeholder="Unlimited if empty"
               />
-              <p className="mt-1 text-xs text-slate-500">
+              <p className="mt-1 text-xs text-muted-foreground">
                 Empty = unlimited. Existing users are not removed if you lower the cap.
               </p>
             </div>
@@ -1393,7 +1393,7 @@ export default function SuperAdminPage() {
               <Label htmlFor="add-plan">Plan</Label>
               <select
                 id="add-plan"
-                className="w-full border rounded px-3 py-2"
+                className="app-control w-full bg-card"
                 value={addPlan}
                 onChange={(e) => setAddPlan(e.target.value as any)}
               >
@@ -1406,7 +1406,7 @@ export default function SuperAdminPage() {
               <Label htmlFor="add-institution">Institution (optional)</Label>
               <select
                 id="add-institution"
-                className="w-full border rounded px-3 py-2"
+                className="app-control w-full bg-card"
                 value={addInstitutionId}
                 onChange={(e) => setAddInstitutionId(e.target.value)}
               >

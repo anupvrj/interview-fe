@@ -4,10 +4,9 @@ import { useEffect, useState } from "react";
 import { useUser } from "@clerk/nextjs";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { userApi } from "@/lib/api";
+import { userApi, ResumeTemplate, resumeApi } from "@/lib/api";
 import { useDropzone } from "react-dropzone";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -22,14 +21,37 @@ import {
   CheckCircle,
   FileEdit,
   Sparkles,
-  Upload,
-  FileText,
-  X,
   ArrowRight,
   SkipForward,
 } from "lucide-react";
-import { ResumeTemplate, resumeApi, resumeDataExtractionApi } from "@/lib/api";
+import {
+  buildSectionOrderForExtractedContent,
+  mapExtractedSectionsToContent,
+  RESUME_IMPORT_PROCESSING_MESSAGES,
+} from "@/lib/resume-data-import";
 import { TemplatePreview } from "@/components/TemplatePreview";
+import { PageHeader } from "@/components/app/PageHeader";
+import { ResumeBuilderImportChoiceCards } from "@/components/resume-builder/ResumeBuilderImportChoiceCards";
+import { ResumeBuilderLinkedInForm } from "@/components/resume-builder/ResumeBuilderLinkedInForm";
+import { ResumeBuilderPdfDropzone } from "@/components/resume-builder/ResumeBuilderPdfDropzone";
+import { ResumeBuilderProcessingView } from "@/components/resume-builder/ResumeBuilderProcessingView";
+import { ResumeCreationStepper } from "@/components/resume-builder/ResumeCreationStepper";
+import type { ResumeImportSource } from "@/components/resume-builder/ResumeBuilderImportChoiceCards";
+import {
+  resumeBuilderFooterActions,
+  resumeBuilderHeroCard,
+  resumeBuilderInfoBanner,
+  resumeBuilderOutlineButton,
+  resumeBuilderPage,
+  resumeBuilderPrimaryButton,
+  resumeBuilderFilterPill,
+  resumeBuilderFilterPillActive,
+  resumeBuilderSelectedBanner,
+  resumeBuilderTemplateCard,
+  resumeBuilderTemplateCardSelected,
+} from "@/components/resume-builder/resumeBuilderStyles";
+import { appCard, appOutlineButton } from "@/lib/app-theme";
+import { cn } from "@/lib/utils";
 import { extractTextFromPDF } from "@/lib/pdf-utils";
 import {
   PDF_RESUME_MAX_BYTES,
@@ -45,18 +67,9 @@ const categoryLabels = {
 };
 
 type FilterCategory = "all" | "simple" | "modern" | "creative";
-type Step = "template" | "upload" | "processing";
+type Step = "template" | "import" | "processing";
 
-const uploadedResumeProcessingMessages = [
-  "Extracting data from your resume and structuring it...",
-  "Analyzing your work experience and achievements...",
-  "Identifying key skills and strengths...",
-  "Mapping your experience into clear resume sections...",
-  "Refining wording for better recruiter impact...",
-  "Organizing sections for better readability...",
-  "Polishing details to make your resume stand out...",
-  "Final checks in progress. Almost done...",
-];
+const uploadedResumeProcessingMessages = [...RESUME_IMPORT_PROCESSING_MESSAGES];
 
 const defaultResumeProcessingMessages = [
   "Setting up your resume with default content...",
@@ -74,6 +87,10 @@ export default function NewResumePage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [step, setStep] = useState<Step>("template");
+  const [importSource, setImportSource] = useState<ResumeImportSource | null>(
+    null,
+  );
+  const [linkedinHandle, setLinkedinHandle] = useState<string>("");
   const [templates, setTemplates] = useState<ResumeTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
@@ -85,9 +102,10 @@ export default function NewResumePage() {
   const [showLimitModal, setShowLimitModal] = useState(false);
   const [processingMessageIndex, setProcessingMessageIndex] = useState(0);
 
-  const processingMessages = uploadedFile
-    ? uploadedResumeProcessingMessages
-    : defaultResumeProcessingMessages;
+  const processingMessages =
+    uploadedFile || importSource === "linkedin"
+      ? uploadedResumeProcessingMessages
+      : defaultResumeProcessingMessages;
 
   useEffect(() => {
     if (step !== "processing") {
@@ -159,7 +177,7 @@ export default function NewResumePage() {
 
       if (templateParam && skipTemplate) {
         setSelectedTemplate(templateParam);
-        setStep("upload");
+        setStep("import");
       }
     } catch (error) {
       console.error("Error checking onboarding status:", error);
@@ -227,9 +245,13 @@ export default function NewResumePage() {
     setSelectedTemplate(templateId);
   };
 
-  const useTemplateAndGoToUpload = (templateId: string) => {
+  const useTemplateAndGoToImport = (templateId: string) => {
     setSelectedTemplate(templateId);
-    setStep("upload");
+    setImportSource(null);
+    setUploadedFile(null);
+    setResumeText("");
+    setLinkedinHandle("");
+    setStep("import");
   };
 
   const handleSkip = () => {
@@ -342,8 +364,9 @@ export default function NewResumePage() {
     } catch (error: any) {
       console.error("❌ Error creating resume with dummy content:", error);
 
-      // Reset step back to upload so user can try again
-      setStep("upload");
+      // Reset step back to import so user can try again
+      setStep("import");
+      setImportSource(null);
 
       const isLimitError =
         error?.response?.status === 403 &&
@@ -375,21 +398,19 @@ export default function NewResumePage() {
 
       console.log("📋 Extracting resume data from uploaded text...");
 
-      // Extract resume data using LLM (only when resume is uploaded)
+      const { resumeDataExtractionApi } = await import("@/lib/api");
       const extractedData = await resumeDataExtractionApi.extractResumeData(
         selectedTemplate,
-        resumeText, // Will have content since this is called after upload
+        resumeText,
       );
 
       console.log("✅ Data extracted via LLM");
 
-      // Prepare template config for backend
       const { TemplateLoader } = await import("@/lib/templateLoader");
       const templateConfig =
         await TemplateLoader.loadTemplate(selectedTemplate);
       const extended = templateConfig.extended;
 
-      // Extract layout from extended config
       const renderingLayout = extended.rendering?.layout;
       const initialLayout = {
         type: (renderingLayout?.type === "header-plus-columns"
@@ -404,156 +425,13 @@ export default function NewResumePage() {
         },
       };
 
-      // Build content first so we can ensure sections with data are in section order
-      const content = mapExtractedDataToResumeContent(extractedData.sections);
+      const content = mapExtractedSectionsToContent(extractedData.sections);
+      const sectionOrder = buildSectionOrderForExtractedContent(
+        extended,
+        content,
+        initialLayout.type,
+      );
 
-      // Default section titles for sections that may be extracted but missing from template
-      const SECTION_TITLES: Record<string, string> = {
-        personalInfo: "Personal Information",
-        profileSummary: "Profile Summary",
-        experience: "Professional Experience",
-        education: "Education",
-        skills: "Skills",
-        projects: "Projects",
-        languages: "Languages",
-        certificates: "Certificates",
-        awards: "Awards",
-        achievements: "Achievements",
-        interests: "Interests",
-        courses: "Courses",
-        organisations: "Organisations",
-        publications: "Publications",
-        references: "References",
-        declaration: "Declaration",
-        technicalSkills: "Technical Skills",
-      };
-
-      // Check if content has data for a section (array with length, or non-empty string)
-      const hasContent = (key: string): boolean => {
-        const val = content[key];
-        if (val == null) return false;
-        if (Array.isArray(val)) return val.length > 0;
-        if (typeof val === "string") return val.trim().length > 0;
-        if (typeof val === "object" && !Array.isArray(val))
-          return Object.keys(val).length > 0;
-        return false;
-      };
-
-      // Prepare section order with column assignments
-      let sectionOrder = extended.defaultSectionOrder || [];
-
-      // If template has no default section order, use a minimal default so we can add extracted sections
-      if (sectionOrder.length === 0) {
-        sectionOrder = [
-          {
-            id: "personalInfo",
-            type: "personalInfo",
-            title: SECTION_TITLES.personalInfo,
-            visible: true,
-          },
-          {
-            id: "profileSummary",
-            type: "profileSummary",
-            title: SECTION_TITLES.profileSummary,
-            visible: true,
-          },
-          {
-            id: "experience",
-            type: "experience",
-            title: SECTION_TITLES.experience,
-            visible: true,
-          },
-          {
-            id: "education",
-            type: "education",
-            title: SECTION_TITLES.education,
-            visible: true,
-          },
-          {
-            id: "skills",
-            type: "skills",
-            title: SECTION_TITLES.skills,
-            visible: true,
-          },
-          {
-            id: "projects",
-            type: "projects",
-            title: SECTION_TITLES.projects,
-            visible: false,
-          },
-          {
-            id: "languages",
-            type: "languages",
-            title: SECTION_TITLES.languages,
-            visible: false,
-          },
-          {
-            id: "certificates",
-            type: "certificates",
-            title: SECTION_TITLES.certificates,
-            visible: false,
-          },
-          {
-            id: "awards",
-            type: "awards",
-            title: SECTION_TITLES.awards,
-            visible: false,
-          },
-        ];
-      }
-
-      // Ensure every section that has extracted content exists in sectionOrder and is visible
-      const sectionTypesInOrder = new Set(sectionOrder.map((s) => s.type));
-      for (const key of Object.keys(content)) {
-        if (!hasContent(key)) continue;
-        const title =
-          SECTION_TITLES[key] ||
-          key.replace(/([A-Z])/g, " $1").replace(/^./, (c) => c.toUpperCase());
-        if (sectionTypesInOrder.has(key)) {
-          sectionOrder = sectionOrder.map((s) =>
-            s.type === key ? { ...s, visible: true } : s,
-          );
-        } else {
-          sectionOrder.push({
-            id: key,
-            type: key,
-            title,
-            visible: true,
-          });
-          sectionTypesInOrder.add(key);
-        }
-      }
-
-      if (initialLayout.type === "double") {
-        const hasColumnAssignment =
-          renderingLayout?.columnAssignment &&
-          (renderingLayout.columnAssignment.left.length > 0 ||
-            renderingLayout.columnAssignment.right.length > 0);
-
-        if (hasColumnAssignment) {
-          sectionOrder = sectionOrder.map((s) => ({
-            ...s,
-            column: renderingLayout.columnAssignment?.left.includes(s.id)
-              ? ("left" as const)
-              : renderingLayout.columnAssignment?.right.includes(s.id)
-                ? ("right" as const)
-                : ("left" as const),
-          }));
-        } else {
-          let nonPersonalIndex = 0;
-          sectionOrder = sectionOrder.map((s) => {
-            if (s.id === "personalInfo") return s;
-            const column =
-              nonPersonalIndex % 2 === 0
-                ? ("left" as const)
-                : ("right" as const);
-            nonPersonalIndex++;
-            return { ...s, column };
-          });
-        }
-      }
-
-      // Create resume with extracted data
       const resume = await resumeApi.create(user.id, {
         templateId: selectedTemplate,
         title: "My Resume",
@@ -567,8 +445,9 @@ export default function NewResumePage() {
     } catch (error: any) {
       console.error("❌ Error creating resume:", error);
 
-      // Reset step back to upload so user can try again
-      setStep("upload");
+      // Reset step back to import so user can try again
+      setStep("import");
+      setImportSource("pdf");
 
       const isLimitError =
         error?.response?.status === 403 &&
@@ -600,71 +479,160 @@ export default function NewResumePage() {
     }
   };
 
-  const mapExtractedDataToResumeContent = (
-    sections: Record<
-      string,
-      {
-        sectionType: string;
-        content: string | any;
-        format: "html" | "list" | "paragraph" | "structured";
-      }
-    >,
-  ) => {
-    const content: any = {};
+  const handleCreateResumeFromLinkedIn = async () => {
+    if (!selectedTemplate || !user) return;
 
-    for (const [sectionType, sectionData] of Object.entries(sections)) {
-      // Handle personalInfo specially - it's an object, not an array
-      if (sectionType === "personalInfo") {
-        if (
-          sectionData.format === "structured" &&
-          typeof sectionData.content === "object" &&
-          !Array.isArray(sectionData.content)
-        ) {
-          content.personalInfo = sectionData.content;
-        } else if (typeof sectionData.content === "object") {
-          content.personalInfo = sectionData.content;
-        }
-      }
-      // Handle technicalSkills - map to single skills field
-      else if (sectionType === "technicalSkills") {
-        // New structure: single skills field
-        content.skills = sectionData.content;
-      }
-      // Handle skills - map to single skills field
-      else if (sectionType === "skills") {
-        // New structure: single skills field
-        content.skills = sectionData.content;
-      }
-      // Handle array-based structured data (experience, education, projects, etc.)
-      else if (
-        sectionData.format === "structured" &&
-        Array.isArray(sectionData.content)
-      ) {
-        content[sectionType] = sectionData.content;
-      }
-      // Handle string content (profileSummary, etc.)
-      else if (typeof sectionData.content === "string") {
-        content[sectionType] = sectionData.content;
-      }
-      // Fallback: assign content as-is
-      else {
-        content[sectionType] = sectionData.content;
-      }
+    const handle = linkedinHandle.trim();
+    if (!handle) {
+      alert("Please enter your LinkedIn profile URL or username.");
+      return;
     }
 
-    return content;
+    try {
+      setCreating(true);
+      setStep("processing");
+
+      console.log("🔗 Importing resume data from LinkedIn...");
+
+      const { resumeDataExtractionApi } = await import("@/lib/api");
+      const extractedData = await resumeDataExtractionApi.importLinkedInProfile(
+        handle,
+        selectedTemplate,
+      );
+
+      console.log("✅ LinkedIn data imported and enhanced via LLM");
+
+      const { TemplateLoader } = await import("@/lib/templateLoader");
+      const templateConfig =
+        await TemplateLoader.loadTemplate(selectedTemplate);
+      const extended = templateConfig.extended;
+
+      const renderingLayout = extended.rendering?.layout;
+      const initialLayout = {
+        type: (renderingLayout?.type === "header-plus-columns"
+          ? "double"
+          : renderingLayout?.type || "single") as "single" | "double",
+        columnWidths: renderingLayout?.columnWidths || { left: 60, right: 40 },
+        padding: extended.style?.padding || {
+          top: 10,
+          bottom: 10,
+          left: 10,
+          right: 10,
+        },
+      };
+
+      const content = mapExtractedSectionsToContent(extractedData.sections);
+      const sectionOrder = buildSectionOrderForExtractedContent(
+        extended,
+        content,
+        initialLayout.type,
+      );
+
+      const resume = await resumeApi.create(user.id, {
+        templateId: selectedTemplate,
+        title: "My Resume",
+        content,
+        sectionOrder,
+        layout: initialLayout,
+      });
+
+      console.log("✅ Resume created from LinkedIn:", resume.resumeId);
+      router.push(`/dashboard/resumes/${resume.resumeId}/edit`);
+    } catch (error: any) {
+      console.error("❌ Error creating resume from LinkedIn:", error);
+
+      setStep("import");
+      setImportSource("linkedin");
+
+      const isLimitError =
+        error?.response?.status === 403 &&
+        (error?.response?.data?.message || error?.message || "")
+          .toLowerCase()
+          .includes("resume limit");
+
+      if (isLimitError) {
+        setShowLimitModal(true);
+      } else if (
+        error?.code === "ECONNABORTED" ||
+        error?.message?.includes("timeout") ||
+        error?.message?.includes("Request timeout")
+      ) {
+        alert(
+          "Importing your LinkedIn profile is taking longer than expected. Please try again.",
+        );
+      } else {
+        alert(
+          `Failed to import from LinkedIn: ${
+            error?.response?.data?.message ||
+            error?.message ||
+            "Please try again."
+          }`,
+        );
+      }
+    } finally {
+      setCreating(false);
+    }
   };
 
   if (!isLoaded || loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
+      <div className="flex min-h-[420px] items-center justify-center">
         <div className="text-center">
-          <Loader2 className="w-12 h-12 animate-spin text-purple-600 mx-auto mb-4" />
-          <p className="text-gray-600">Loading templates...</p>
+          <Loader2 className="mx-auto mb-4 h-12 w-12 animate-spin text-primary" />
+          <p className="text-sm text-muted-foreground">Loading templates…</p>
         </div>
       </div>
     );
   }
+
+  const stepMeta: Record<
+    Step,
+    { title: string; description: string; badge?: string }
+  > = {
+    template: {
+      badge: "Resume builder",
+      title: "Choose a template",
+      description:
+        "Pick an ATS-friendly layout. You can change templates anytime in the editor.",
+    },
+    import: {
+      badge: "Import data",
+      title:
+        importSource === "linkedin"
+          ? "Connect your LinkedIn profile"
+          : importSource === "pdf"
+            ? "Upload your resume PDF"
+            : "How would you like to start?",
+      description:
+        importSource === "linkedin"
+          ? "We’ll fetch your public LinkedIn data and enhance it with AI for recruiters and ATS."
+          : importSource === "pdf"
+            ? "Upload a PDF to auto-fill sections, or skip and edit polished starter content."
+            : "Import from LinkedIn or upload an existing PDF — or start with template defaults.",
+    },
+    processing: {
+      badge: "Almost there",
+      title: "Building your resume",
+      description: "AI is organizing your content into a polished, editable draft.",
+    },
+  };
+
+  const processingLabel =
+    importSource === "linkedin"
+      ? linkedinHandle.trim() || "LinkedIn profile"
+      : uploadedFile?.name || "your resume";
+
+  const handleImportBack = () => {
+    if (importSource) {
+      setImportSource(null);
+      setUploadedFile(null);
+      setResumeText("");
+      return;
+    }
+    setStep("template");
+  };
+
+  const currentMeta = stepMeta[step];
 
   // Filter templates based on active filter
   const filteredTemplates =
@@ -684,358 +652,377 @@ export default function NewResumePage() {
   )?.name;
 
   return (
-    <div className="w-full max-w-7xl mx-auto space-y-4 lg:space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-4">
+    <div className={resumeBuilderPage}>
+      <div className="flex items-start gap-3">
         <Link href="/dashboard/resumes">
-          <Button variant="ghost" size="icon">
-            <ArrowLeft className="w-5 h-5" />
+          <Button
+            variant="ghost"
+            size="icon"
+            className="mt-1 shrink-0 text-muted-foreground hover:text-foreground"
+          >
+            <ArrowLeft className="h-5 w-5" />
           </Button>
         </Link>
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
-            {step === "template" && "Choose a Template"}
-            {step === "upload" && "Upload Your Resume (Optional)"}
-            {step === "processing" && "Creating Your Resume"}
-          </h1>
-          <p className="text-gray-600 mt-1">
-            {step === "template" &&
-              "Select an ATS-friendly template to get started"}
-            {step === "upload" &&
-              "Upload your existing resume to auto-fill sections, or skip to use template defaults"}
-            {step === "processing" &&
-              "Setting up your resume with AI-powered content..."}
-          </p>
+        <div className="min-w-0 flex-1">
+          <PageHeader
+            badge={currentMeta.badge}
+            title={currentMeta.title}
+            description={currentMeta.description}
+          />
         </div>
       </div>
 
-      {/* Step 1: Template Selection */}
+      <ResumeCreationStepper currentStep={step} />
+
       {step === "template" && (
         <>
-          {/* Selected Template Actions */}
-          {selectedTemplate && (
-            <Card className="sticky top-20 z-20 border-2 border-purple-200 bg-purple-50/95 backdrop-blur supports-[backdrop-filter]:bg-purple-50/80 shadow-sm">
-              <CardContent className="p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex items-center gap-3">
-                  <CheckCircle className="w-5 h-5 text-purple-600" />
-                  <div>
-                    <p className="font-semibold text-gray-900">
-                      Template Selected
-                    </p>
-                    <p className="text-sm text-gray-600">
-                      {selectedTemplateName} template
-                    </p>
-                  </div>
+          {selectedTemplate ? (
+            <div className={resumeBuilderSelectedBanner}>
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary ring-1 ring-primary/15">
+                  <CheckCircle className="h-5 w-5" />
                 </div>
-              </CardContent>
-            </Card>
-          )}
+                <div>
+                  <p className="font-semibold text-foreground">
+                    {selectedTemplateName}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Selected template — hover a card and click Use Template to
+                    continue
+                  </p>
+                </div>
+              </div>
+            </div>
+          ) : null}
 
-          {/* Filter Buttons */}
-          <div className="flex items-center gap-3 flex-wrap">
-            {filterButtons.map((filter) => (
-              <Button
-                key={filter.id}
-                onClick={() => setActiveFilter(filter.id)}
-                variant={activeFilter === filter.id ? "default" : "outline"}
-                className={
-                  activeFilter === filter.id
-                    ? "bg-gradient-to-r from-purple-600 to-primary hover:bg-slate-900 text-white"
-                    : "border-gray-300 hover:border-purple-400"
-                }
-              >
-                {filter.label}
-                {activeFilter === filter.id && (
-                  <span className="ml-2 px-2 py-0.5 text-xs bg-white/20 rounded-full">
-                    {filter.id === "all"
-                      ? templates.length
-                      : templates.filter((t) => t.category === filter.id)
-                          .length}
+          <div className="flex flex-wrap items-center gap-2">
+            {filterButtons.map((filter) => {
+              const isActive = activeFilter === filter.id;
+              const count =
+                filter.id === "all"
+                  ? templates.length
+                  : templates.filter((t) => t.category === filter.id).length;
+              return (
+                <button
+                  key={filter.id}
+                  type="button"
+                  onClick={() => setActiveFilter(filter.id)}
+                  className={cn(
+                    isActive
+                      ? resumeBuilderFilterPillActive
+                      : resumeBuilderFilterPill,
+                  )}
+                >
+                  {filter.label}
+                  <span
+                    className={cn(
+                      "ml-2 rounded-full px-2 py-0.5 text-xs",
+                      isActive
+                        ? "bg-card/20 text-white"
+                        : "bg-muted text-muted-foreground",
+                    )}
+                  >
+                    {count}
                   </span>
-                )}
-              </Button>
-            ))}
+                </button>
+              );
+            })}
           </div>
 
-          {/* Templates Grid */}
           <div className="space-y-4">
             <div className="flex items-center gap-2">
-              <h2 className="text-xl font-bold text-gray-900">
+              <h2 className="text-lg font-semibold text-foreground">
                 {activeFilter === "all"
-                  ? "All Templates"
-                  : `${categoryLabels[activeFilter]} Templates`}
+                  ? "All templates"
+                  : `${categoryLabels[activeFilter]} templates`}
               </h2>
-              <span className="px-2 py-1 text-xs font-semibold bg-gray-100 text-gray-600 rounded-full">
+              <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
                 {filteredTemplates.length}
               </span>
             </div>
 
             {filteredTemplates.length > 0 ? (
-              <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 lg:gap-6 items-stretch">
+              <div className="grid items-stretch gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 lg:gap-5">
                 {filteredTemplates.map((template) => {
                   const isSelected = selectedTemplate === template.id;
                   return (
-                    <Card
+                    <div
                       key={template.id}
-                      className={`group relative flex h-full min-h-0 flex-col overflow-hidden border-2 cursor-pointer transition-all hover:shadow-xl ${
-                        isSelected
-                          ? "border-purple-500 shadow-lg ring-2 ring-purple-200"
-                          : "border-gray-200 hover:border-purple-300"
-                      }`}
+                      className={cn(
+                        resumeBuilderTemplateCard,
+                        isSelected && resumeBuilderTemplateCardSelected,
+                      )}
                       onClick={() => handleTemplateSelect(template.id)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          handleTemplateSelect(template.id);
+                        }
+                      }}
+                      role="button"
+                      tabIndex={0}
                     >
-                      <CardContent className="relative flex min-h-0 flex-1 flex-col p-0">
-                        <TemplatePreview
-                          template={template}
-                          isSelected={isSelected}
-                        />
-                        <div className="flex flex-1 flex-col bg-white p-4">
-                          <h3 className="font-bold text-gray-900 mb-1">
-                            {template.name}
-                          </h3>
-                          <p className="text-sm text-gray-600 mb-3">
-                            {template.description}
-                          </p>
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span
-                              className="px-2 py-1 text-xs font-medium rounded"
-                              style={{
-                                backgroundColor: `${template.colors.primary}20`,
-                                color: template.colors.primary,
-                              }}
-                            >
-                              {categoryLabels[template.category]}
-                            </span>
-                            {template.atsOptimized && (
-                              <span className="px-2 py-1 text-xs font-medium bg-green-100 text-green-700 rounded">
-                                ATS Optimized
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                        <div
-                          className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-black/45 opacity-0 transition-opacity duration-200 group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <Button
-                            type="button"
-                            className="shadow-lg bg-gradient-to-r from-purple-600 to-primary hover:bg-slate-900 text-white"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              useTemplateAndGoToUpload(template.id);
+                      <TemplatePreview
+                        template={template}
+                        isSelected={isSelected}
+                      />
+                      <div className="flex flex-1 flex-col bg-card p-4">
+                        <h3 className="mb-1 font-semibold text-foreground">
+                          {template.name}
+                        </h3>
+                        <p className="mb-3 text-sm text-muted-foreground">
+                          {template.description}
+                        </p>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span
+                            className="rounded-md px-2 py-1 text-xs font-medium"
+                            style={{
+                              backgroundColor: `${template.colors.primary}20`,
+                              color: template.colors.primary,
                             }}
-                            aria-label={`Use ${template.name} template and continue to upload`}
                           >
-                            Use Template
-                            <ArrowRight className="w-4 h-4 ml-2" />
-                          </Button>
+                            {categoryLabels[template.category]}
+                          </span>
+                          {template.atsOptimized ? (
+                            <span className="rounded-md bg-emerald-500/10 px-2 py-1 text-xs font-medium text-emerald-700">
+                              ATS optimized
+                            </span>
+                          ) : null}
                         </div>
-                      </CardContent>
-                    </Card>
+                      </div>
+                      <div
+                        className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-[#2f2b3d]/45 opacity-0 transition-opacity duration-200 group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <Button
+                          type="button"
+                          className={resumeBuilderPrimaryButton}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            useTemplateAndGoToImport(template.id);
+                          }}
+                        >
+                          Use template
+                          <ArrowRight className="ml-2 h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
                   );
                 })}
               </div>
             ) : (
-              <div className="text-center py-12">
-                <p className="text-gray-500">
+              <div className={cn(resumeBuilderHeroCard, "py-12 text-center")}>
+                <p className="text-muted-foreground">
                   No templates found in this category.
                 </p>
               </div>
             )}
           </div>
-        </>
-      )}
 
-      {/* Step 2: Resume Upload */}
-      {step === "upload" && (
-        <div className="space-y-6">
-          <Card className="border-2 border-border bg-muted/30">
-            <CardContent className="p-6">
-              <div className="flex items-start gap-4">
-                <div className="w-12 h-12 bg-primary rounded-lg flex items-center justify-center flex-shrink-0">
-                  <FileText className="w-6 h-6 text-white" />
-                </div>
-                <div className="flex-1">
-                  <h3 className="font-bold text-gray-900 mb-2">
-                    Template: {selectedTemplateName}
-                  </h3>
-                  <p className="text-sm text-gray-600">
-                    Upload your existing resume PDF to automatically extract and
-                    fill in your information. This will save you time and ensure
-                    accuracy.
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Upload Area */}
-          <Card className="border-2 border-dashed border-gray-300 hover:border-purple-400 transition-colors">
-            <CardContent className="p-8">
-              {!uploadedFile ? (
-                <div
-                  {...getRootProps()}
-                  className={`text-center cursor-pointer ${
-                    isDragActive ? "opacity-70" : ""
-                  }`}
-                >
-                  <input {...getInputProps()} />
-                  <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    {extracting ? (
-                      <Loader2 className="w-8 h-8 text-purple-600 animate-spin" />
-                    ) : (
-                      <Upload className="w-8 h-8 text-purple-600" />
-                    )}
-                  </div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                    {extracting
-                      ? "Extracting text from PDF..."
-                      : isDragActive
-                        ? "Drop your resume here"
-                        : "Upload Your Resume PDF"}
-                  </h3>
-                  <p className="text-sm text-gray-600 mb-4">
-                    Drag and drop your PDF file here, or click to browse
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    Supported format: PDF (max 10MB)
-                  </p>
-                </div>
-              ) : (
-                <div className="flex items-center justify-between p-4 bg-green-50 border border-green-200 rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <FileText className="w-8 h-8 text-green-600" />
-                    <div>
-                      <p className="font-semibold text-gray-900">
-                        {uploadedFile.name}
-                      </p>
-                      <p className="text-sm text-gray-600">
-                        {(uploadedFile.size / 1024 / 1024).toFixed(2)} MB
-                      </p>
-                    </div>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      setUploadedFile(null);
-                      setResumeText("");
-                    }}
-                  >
-                    <X className="w-4 h-4" />
-                  </Button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Action Buttons */}
-          <div className="flex items-center justify-between">
-            <Button variant="outline" onClick={() => setStep("template")}>
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back
-            </Button>
-            <div className="flex gap-3">
-              <Button
-                variant="outline"
-                onClick={handleSkip}
-                disabled={creating}
-              >
-                <SkipForward className="w-4 h-4 mr-2" />
-                Skip & Use Defaults
-              </Button>
-              <Button
-                onClick={() => {
-                  setStep("processing");
-                  handleCreateResume();
-                }}
-                disabled={creating || extracting}
-                className="bg-gradient-to-r from-purple-600 to-primary hover:bg-slate-900 text-white"
-              >
-                {creating ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Creating...
-                  </>
-                ) : (
-                  <>
-                    <FileEdit className="w-4 h-4 mr-2" />
-                    Create Resume
-                  </>
-                )}
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Step 3: Processing */}
-      {step === "processing" && (
-        <Card className="border-2 border-purple-200 bg-purple-50/50">
-          <CardContent className="p-12 text-center">
-            <Loader2 className="w-16 h-16 animate-spin text-purple-600 mx-auto mb-4" />
-            <h3 className="text-xl font-bold text-gray-900 mb-2">
-              Creating Your Resume
-            </h3>
-            <p className="text-gray-600">
-              {processingMessages[processingMessageIndex]}
-            </p>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Info Card */}
-      {step === "template" && (
-        <Card className="border-2 border-border bg-muted/30">
-          <CardContent className="p-4 lg:p-6">
+          <div className={resumeBuilderInfoBanner}>
             <div className="flex items-start gap-3">
-              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center flex-shrink-0">
-                <Sparkles className="w-4 h-4 text-white" />
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary ring-1 ring-primary/15">
+                <Sparkles className="h-5 w-5" />
               </div>
               <div>
-                <h3 className="font-bold text-gray-900 mb-2">
-                  All Templates are ATS-Friendly
+                <h3 className="font-semibold text-foreground">
+                  ATS-friendly by design
                 </h3>
-                <p className="text-sm text-gray-600">
-                  Our templates are designed to pass Applicant Tracking Systems
-                  (ATS) with scores above 80%. You can edit your resume content
-                  and download as PDF anytime.
+                <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
+                  Templates are built to pass applicant tracking systems. Edit
+                  content freely and export to PDF whenever you&apos;re ready.
                 </p>
               </div>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </>
       )}
 
-      {/* Resume limit reached – upgrade plan modal */}
+      {step === "import" && (
+        <div className="space-y-5">
+          {selectedTemplateName ? (
+            <div className={resumeBuilderSelectedBanner}>
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary ring-1 ring-primary/15">
+                  <CheckCircle className="h-5 w-5" />
+                </div>
+                <div>
+                  <p className="font-semibold text-foreground">
+                    Template: {selectedTemplateName}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Choose how you&apos;d like to populate your resume
+                  </p>
+                </div>
+              </div>
+            </div>
+          ) : null}
+
+          {!importSource ? (
+            <>
+              <ResumeBuilderImportChoiceCards
+                selectedSource={importSource}
+                onSelectLinkedIn={() => setImportSource("linkedin")}
+                onSelectPdf={() => setImportSource("pdf")}
+              />
+              <div className={resumeBuilderFooterActions}>
+                <Button
+                  variant="outline"
+                  className={resumeBuilderOutlineButton}
+                  onClick={() => setStep("template")}
+                >
+                  <ArrowLeft className="mr-2 h-4 w-4" />
+                  Back
+                </Button>
+                <Button
+                  variant="outline"
+                  className={resumeBuilderOutlineButton}
+                  onClick={handleSkip}
+                  disabled={creating}
+                >
+                  <SkipForward className="mr-2 h-4 w-4" />
+                  Skip & use defaults
+                </Button>
+              </div>
+            </>
+          ) : importSource === "linkedin" ? (
+            <ResumeBuilderLinkedInForm
+              value={linkedinHandle}
+              onChange={setLinkedinHandle}
+              onSubmit={() => {
+                if (linkedinHandle.trim()) {
+                  setStep("processing");
+                  void handleCreateResumeFromLinkedIn();
+                }
+              }}
+              footer={
+                <div className={resumeBuilderFooterActions}>
+                  <Button
+                    variant="outline"
+                    className={resumeBuilderOutlineButton}
+                    onClick={handleImportBack}
+                  >
+                    <ArrowLeft className="mr-2 h-4 w-4" />
+                    Back
+                  </Button>
+                  <Button
+                    className={resumeBuilderPrimaryButton}
+                    onClick={() => {
+                      setStep("processing");
+                      void handleCreateResumeFromLinkedIn();
+                    }}
+                    disabled={!linkedinHandle.trim() || creating}
+                  >
+                    {creating ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Importing…
+                      </>
+                    ) : (
+                      <>
+                        Import from LinkedIn
+                        <ArrowRight className="ml-2 h-4 w-4" />
+                      </>
+                    )}
+                  </Button>
+                </div>
+              }
+            />
+          ) : (
+            <ResumeBuilderPdfDropzone
+              uploadedFile={uploadedFile}
+              extracting={extracting}
+              isDragActive={isDragActive}
+              maxSizeLabel={`${(PDF_RESUME_MAX_BYTES / 1024 / 1024).toFixed(0)} MB`}
+              getRootProps={getRootProps}
+              getInputProps={getInputProps}
+              onRemoveFile={() => {
+                setUploadedFile(null);
+                setResumeText("");
+              }}
+              footer={
+                <div className={resumeBuilderFooterActions}>
+                  <Button
+                    variant="outline"
+                    className={resumeBuilderOutlineButton}
+                    onClick={handleImportBack}
+                  >
+                    <ArrowLeft className="mr-2 h-4 w-4" />
+                    Back
+                  </Button>
+                  <div className="flex flex-col gap-2 sm:flex-row">
+                    <Button
+                      variant="outline"
+                      className={resumeBuilderOutlineButton}
+                      onClick={handleSkip}
+                      disabled={creating}
+                    >
+                      <SkipForward className="mr-2 h-4 w-4" />
+                      Skip & use defaults
+                    </Button>
+                    <Button
+                      className={resumeBuilderPrimaryButton}
+                      onClick={() => {
+                        setStep("processing");
+                        void handleCreateResume();
+                      }}
+                      disabled={creating || extracting || !uploadedFile}
+                    >
+                      {creating ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Creating…
+                        </>
+                      ) : (
+                        <>
+                          <FileEdit className="mr-2 h-4 w-4" />
+                          Create resume
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              }
+            />
+          )}
+        </div>
+      )}
+
+      {step === "processing" && (
+        <ResumeBuilderProcessingView
+          label={processingLabel}
+          messageIndex={processingMessageIndex}
+          messages={processingMessages}
+        />
+      )}
+
       <Dialog open={showLimitModal} onOpenChange={setShowLimitModal}>
-        <DialogContent className="sm:max-w-md border-2 border-purple-200 bg-white shadow-xl">
+        <DialogContent className={cn(appCard, "sm:max-w-md border-primary/20")}>
           <DialogHeader>
-            <DialogTitle className="text-xl font-bold text-gray-900">
+            <DialogTitle className="text-xl font-semibold text-foreground">
               Resume limit reached
             </DialogTitle>
-            <DialogDescription className="text-left text-gray-600 pt-1">
+            <DialogDescription className="pt-1 text-left text-muted-foreground">
               You&apos;ve used all the resumes included in your current plan.
-              Upgrade your plan to create more resumes and keep building.
+              Upgrade to create more resumes and keep building.
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter className="flex flex-col-reverse sm:flex-row gap-2 pt-4">
+          <DialogFooter className="flex flex-col-reverse gap-2 pt-4 sm:flex-row">
             <Button
               variant="outline"
+              className={appOutlineButton}
               onClick={() => setShowLimitModal(false)}
-              className="border-gray-300"
             >
               Cancel
             </Button>
             <Button
+              className={resumeBuilderPrimaryButton}
               onClick={() => {
                 setShowLimitModal(false);
                 router.push("/dashboard/plan");
               }}
-              className="bg-gradient-to-r from-purple-600 to-primary hover:bg-slate-900 text-white"
             >
               Upgrade plan
-              <ArrowRight className="w-4 h-4 ml-2" />
+              <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           </DialogFooter>
         </DialogContent>

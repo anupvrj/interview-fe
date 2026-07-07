@@ -1,0 +1,384 @@
+/**
+ * Confident Grid Template Styles
+ * Tinted full-width header + 2×2 contact grid + balanced 50/50 body columns.
+ * Typography/colors aligned with confident-grid-preview.png
+ */
+
+.confident-grid-template {
+  font-family: Arial, Helvetica, sans-serif;
+  color: #000000;
+  background-color: #ffffff;
+  line-height: 1.45;
+  box-sizing: border-box;
+  --cg-pad-top: 0mm;
+  --cg-pad-left: 12mm;
+  --cg-pad-right: 12mm;
+  --cg-pad-bottom: 10mm;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+  color-adjust: exact !important;
+}
+
+/* ── Full-width tinted header (edge-to-edge within page) ── */
+.confident-grid-header-section {
+  background-color: #deeef7 !important;
+  padding: 22px var(--cg-pad-right, 12mm) 22px var(--cg-pad-left, 12mm) !important;
+  margin-top: calc(-1 * var(--cg-pad-top, 0mm)) !important;
+  margin-left: calc(-1 * var(--cg-pad-left, 12mm)) !important;
+  margin-right: calc(-1 * var(--cg-pad-right, 12mm)) !important;
+  margin-bottom: 18px !important;
+  width: calc(100% + var(--cg-pad-left, 12mm) + var(--cg-pad-right, 12mm)) !important;
+  display: flex !important;
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+  gap: 28px !important;
+  box-sizing: border-box;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+}
+
+.confident-grid-header-section .confident-grid-profile-picture,
+.confident-grid-header-section .confident-grid-profile-placeholder {
+  width: 138px !important;
+  height: 138px !important;
+  border-radius: 50% !important;
+  object-fit: cover;
+  flex-shrink: 0;
+  border: none !important;
+}
+
+.confident-grid-profile-placeholder {
+  background-color: #c5d9ea !important;
+}
+
+.confident-grid-header-content {
+  flex: 1;
+  min-width: 0;
+  padding-top: 0 !important;
+}
+
+.confident-grid-name {
+  font-size: 26px !important;
+  font-weight: 700 !important;
+  color: #000000 !important;
+  letter-spacing: 0.1px;
+  line-height: 1.15 !important;
+  margin: 0 0 4px 0 !important;
+  font-family: Arial, Helvetica, sans-serif !important;
+  text-transform: none;
+}
+
+.confident-grid-job-title {
+  font-style: normal !important;
+  font-size: 13px !important;
+  font-weight: 400 !important;
+  color: #000000 !important;
+  margin: 0 0 10px 0 !important;
+  font-family: Arial, Helvetica, sans-serif !important;
+}
+
+/* 2×2 contact grid: email | phone / location | linkedin */
+.confident-grid-contact,
+.confident-grid-contact-grid {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr;
+  column-gap: 36px !important;
+  row-gap: 8px !important;
+  margin-top: 2px;
+  font-size: 10px;
+  font-weight: 400;
+}
+
+.confident-grid-contact a {
+  text-decoration: none !important;
+  color: inherit;
+}
+
+.confident-grid-contact-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.confident-grid-contact-item,
+.confident-grid-contact-item span {
+  color: #000000 !important;
+  font-weight: 400 !important;
+  font-family: Arial, Helvetica, sans-serif !important;
+}
+
+.confident-grid-contact-item svg {
+  width: 13px !important;
+  height: 13px !important;
+  color: #000000 !important;
+  stroke: #000000 !important;
+  flex-shrink: 0;
+}
+
+/* ── Balanced body columns ── */
+.confident-grid-two-column,
+.confident-grid-template [data-resume-two-column-root] {
+  display: flex !important;
+  align-items: flex-start !important;
+  gap: 32px !important;
+  min-height: 0 !important;
+  width: 100%;
+}
+
+.confident-grid-template [data-resume-left-column],
+.confident-grid-template [data-resume-right-column] {
+  width: 50% !important;
+  flex-shrink: 0;
+  background: transparent !important;
+  padding: 0 !important;
+  min-height: 0 !important;
+  box-sizing: border-box;
+}
+
+/* ── Section headers ── */
+.confident-grid-section-header,
+.confident-grid-template h2 {
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  text-transform: none;
+  text-align: left;
+  letter-spacing: 0.1px;
+  color: #000000 !important;
+  border-bottom: 1px solid #b0c4de !important;
+  border-top: none !important;
+  padding-bottom: 4px !important;
+  margin-bottom: 10px !important;
+  margin-top: 0 !important;
+  font-family: Arial, Helvetica, sans-serif !important;
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+}
+
+.confident-grid-template [data-resume-left-column] .confident-grid-section:not(:first-child) h2,
+.confident-grid-template [data-resume-right-column] .confident-grid-section:not(:first-child) h2 {
+  margin-top: 14px !important;
+}
+
+.confident-grid-summary {
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.5;
+  color: #000000;
+}
+
+/* ── Experience ── */
+.confident-grid-experience-item {
+  margin-bottom: 12px;
+  page-break-inside: avoid;
+}
+
+.confident-grid-job-title-line,
+.confident-grid-education-title-line {
+  margin-bottom: 2px;
+  line-height: 1.35;
+}
+
+.confident-grid-job-title-exp,
+.confident-grid-degree {
+  display: inline;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  color: #000000 !important;
+}
+
+.confident-grid-title-separator {
+  font-weight: 400;
+  color: #000000;
+}
+
+.confident-grid-company,
+.confident-grid-institution {
+  display: inline;
+  font-size: 11px !important;
+  color: #000000 !important;
+  font-weight: 400 !important;
+  font-style: italic !important;
+}
+
+.confident-grid-job-meta-line,
+.confident-grid-education-meta-line {
+  font-size: 10px;
+  font-weight: 400;
+  color: #000000;
+  line-height: 1.3;
+  margin-bottom: 4px;
+}
+
+.confident-grid-job-date,
+.confident-grid-job-location,
+.confident-grid-job-meta,
+.confident-grid-education-date {
+  font-size: 10px;
+  font-weight: 400;
+  color: #000000;
+  line-height: 1.3;
+}
+
+.confident-grid-description {
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.45;
+  color: #000000;
+  margin-top: 2px;
+}
+
+.confident-grid-description ul,
+.confident-grid-template .resume-content.confident-grid-description ul {
+  margin: 2px 0 0 0;
+  padding-left: 0;
+  list-style: none !important;
+  list-style-type: none !important;
+}
+
+.confident-grid-description li,
+.confident-grid-template .resume-content.confident-grid-description li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.35em;
+  margin-bottom: 3px;
+  padding-left: 0;
+  list-style: none !important;
+  font-weight: 400;
+  color: #000000;
+}
+
+.confident-grid-description li::marker {
+  content: none;
+}
+
+.confident-grid-description li::before {
+  content: "-";
+  flex-shrink: 0;
+  line-height: inherit;
+  font-weight: 400;
+}
+
+.confident-grid-description li > p {
+  margin: 0;
+  flex: 1;
+  min-width: 0;
+  font-weight: 400;
+}
+
+/* ── Education ── */
+.confident-grid-education-item {
+  margin-bottom: 10px;
+  page-break-inside: avoid;
+}
+
+/* ── Projects (right column) ── */
+.confident-grid-project-item {
+  margin-bottom: 12px;
+  page-break-inside: avoid;
+}
+
+.confident-grid-project-title {
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  color: #000000 !important;
+  margin-bottom: 4px !important;
+  line-height: 1.4;
+}
+
+.confident-grid-project-description {
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.45;
+  color: #000000;
+}
+
+.confident-grid-project-description ul {
+  margin: 2px 0 0 0;
+  padding-left: 0;
+  list-style: none !important;
+}
+
+.confident-grid-project-description li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.35em;
+  margin-bottom: 3px;
+  list-style: none !important;
+  font-weight: 400;
+  color: #000000;
+}
+
+.confident-grid-project-description li::before {
+  content: "-";
+  flex-shrink: 0;
+  line-height: inherit;
+}
+
+.confident-grid-project-description li > p {
+  display: block;
+  margin: 0;
+  flex: 1;
+  min-width: 0;
+  font-weight: 400;
+}
+
+/* ── Core strengths: bold label — regular description (no list bullets) ── */
+.confident-grid-skills-container {
+  display: block;
+}
+
+.confident-grid-skill-item {
+  font-size: 11px;
+  font-weight: 400;
+  color: #000000;
+  display: block;
+  padding-left: 0 !important;
+  margin-bottom: 5px !important;
+  line-height: 1.45;
+}
+
+.confident-grid-skill-item::before {
+  content: none !important;
+}
+
+.confident-grid-skill-name {
+  font-weight: 700;
+  color: #000000;
+}
+
+.confident-grid-skill-separator {
+  font-weight: 400;
+  color: #000000;
+}
+
+.confident-grid-skill-desc {
+  font-weight: 400;
+  color: #000000;
+}
+
+@media print {
+  .confident-grid-header-section {
+    background-color: #deeef7 !important;
+  }
+
+  .confident-grid-name,
+  .confident-grid-section-header,
+  .confident-grid-template h2,
+  .confident-grid-job-title-exp,
+  .confident-grid-degree,
+  .confident-grid-project-title,
+  .confident-grid-skill-name {
+    color: #000000 !important;
+  }
+
+  .confident-grid-section-header,
+  .confident-grid-template h2 {
+    border-bottom-color: #b0c4de !important;
+  }
+
+  .confident-grid-experience-item,
+  .confident-grid-education-item,
+  .confident-grid-section {
+    page-break-inside: avoid;
+  }
+}

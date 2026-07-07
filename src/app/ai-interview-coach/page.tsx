@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import {
   Mic,
@@ -15,26 +16,116 @@ import {
   Star,
   Bot,
   UserCircle,
-  Code,
-  Video,
+  Building2,
+  FileText,
+  Check,
+  type LucideIcon,
 } from "lucide-react";
 import { SiteHeader } from "@/components/SiteHeader";
 import { MarketingFooter } from "@/components/MarketingFooter";
-import Image from "next/image";
-import { appMarketingSection, appMarketingSectionAlt } from "@/lib/app-theme";
+import {
+  appMarketingSection,
+  appMarketingSectionAlt,
+} from "@/lib/app-theme";
 import { cn } from "@/lib/utils";
 
+const trustedCompanies = [
+  { name: "Razorpay", file: "razorpay.png" },
+  { name: "Amazon", file: "amazon.png" },
+  { name: "TCS", file: "tcs.png" },
+  { name: "Accenture", file: "accenture.png" },
+  { name: "Deloitte", file: "deloitte.png" },
+  { name: "Bosch Group", file: "bosch-group.png" },
+  { name: "Mercedes-Benz", file: "mercedes-benz.png" },
+  { name: "Fortinet", file: "fortinet.png" },
+  { name: "News Corp", file: "news-corp.png" },
+  { name: "Walmart", file: "walmart.png" },
+  { name: "PayPal", file: "paypal.png" },
+  { name: "BCE Global Tech", file: "bce-global-tech.png" },
+];
+
+type Feature = {
+  title: string;
+  tagline: string;
+  body: string;
+  icon: LucideIcon;
+  gradient: string;
+};
+
+const features: Feature[] = [
+  {
+    title: "Conversational Voice AI",
+    tagline: "Talk, don't type.",
+    body: "Answer out loud in a real-time voice conversation that feels like sitting across from a live recruiter.",
+    icon: Mic,
+    gradient: "from-indigo-500 to-purple-600",
+  },
+  {
+    title: "Company-Specific Questions",
+    tagline: "Target your exact employer.",
+    body: "Name your target company and role, and the AI shapes questions around how that team actually interviews.",
+    icon: Building2,
+    gradient: "from-cyan-500 to-sky-600",
+  },
+  {
+    title: "Role & Experience Tailored",
+    tagline: "Calibrated to your level.",
+    body: "Set your role, discipline, and years of experience so every question fits you—from fresher to senior.",
+    icon: Target,
+    gradient: "from-violet-500 to-violet-700",
+  },
+  {
+    title: "Resume-Aware Follow-ups",
+    tagline: "Built around your story.",
+    body: "Use your saved resume or upload a PDF—the AI digs into your real projects and pushes for specifics.",
+    icon: FileText,
+    gradient: "from-slate-700 to-slate-900",
+  },
+  {
+    title: "Detailed Reports & Scores",
+    tagline: "Know exactly what to fix.",
+    body: "Get a full transcript plus Technical, Behavioral, Communication, and Confidence scores with clear next steps.",
+    icon: BarChart3,
+    gradient: "from-amber-500 to-orange-600",
+  },
+  {
+    title: "Adaptive Difficulty Scaling",
+    tagline: "Push harder as you improve.",
+    body: "The AI ramps question difficulty in real time based on how you answer—so every session stays challenging.",
+    icon: Brain,
+    gradient: "from-emerald-500 to-teal-600",
+  },
+];
+
+const howItWorksSteps: { title: string; body: string; icon: LucideIcon }[] = [
+  {
+    title: "Set Up Your Session",
+    body: "Pick your role, target company, language, and duration in seconds.",
+    icon: PlayCircle,
+  },
+  {
+    title: "Talk to the AI Interviewer",
+    body: "Answer behavioral and technical questions out loud in a live voice session.",
+    icon: Mic,
+  },
+  {
+    title: "Get Instant Feedback",
+    body: "The AI analyzes your delivery and scores each answer as you speak.",
+    icon: Brain,
+  },
+  {
+    title: "Review Your Report",
+    body: "Read your transcript, category scores, and exactly what to improve next.",
+    icon: BarChart3,
+  },
+];
+
 export default function InterviewCoachPage() {
-  // Animated Heading States
-  const [headingText, setHeadingText] = useState("");
-  const [showCursor, setShowCursor] = useState(true);
-  const [headingComplete, setHeadingComplete] = useState(false);
-  
-  // How It Works Animation States
+  // How It Works scroll-reveal state
   const [howItWorksVisible, setHowItWorksVisible] = useState(false);
   const howItWorksRef = useRef<HTMLDivElement>(null);
-  
-  // Interview Animation States
+
+  // "See It In Action" animation state
   const [currentQuestion, setCurrentQuestion] = useState("Tell me about yourself");
   const [showFeedback, setShowFeedback] = useState(false);
   const [showScore, setShowScore] = useState(false);
@@ -44,34 +135,9 @@ export default function InterviewCoachPage() {
   const interviewRef = useRef<HTMLDivElement>(null);
   const animationContainerRef = useRef<HTMLDivElement>(null);
 
-  // Animated Heading Effect
-  useEffect(() => {
-    const fullText = "AI Interview Practice coach";
-    let currentIndex = 0;
-    
-    const typeInterval = setInterval(() => {
-      if (currentIndex < fullText.length) {
-        setHeadingText(fullText.substring(0, currentIndex + 1));
-        currentIndex++;
-      } else {
-        clearInterval(typeInterval);
-        setHeadingComplete(true);
-      }
-    }, 100);
-
-    // Cursor blinking animation - keep blinking even after animation completes
-    const cursorInterval = setInterval(() => {
-      setShowCursor((prev) => !prev);
-    }, 530);
-
-    return () => {
-      clearInterval(typeInterval);
-      // Don't clear cursor interval - keep it blinking
-    };
-  }, []);
-
   // How It Works Section Animation
   useEffect(() => {
+    const node = howItWorksRef.current;
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
@@ -80,16 +146,16 @@ export default function InterviewCoachPage() {
           }
         });
       },
-      { threshold: 0.2 }
+      { threshold: 0.2 },
     );
 
-    if (howItWorksRef.current) {
-      observer.observe(howItWorksRef.current);
+    if (node) {
+      observer.observe(node);
     }
 
     return () => {
-      if (howItWorksRef.current) {
-        observer.unobserve(howItWorksRef.current);
+      if (node) {
+        observer.unobserve(node);
       }
     };
   }, []);
@@ -112,12 +178,11 @@ export default function InterviewCoachPage() {
 
     let stepIndex = 0;
     let questionIndex = 0;
-    let timeouts: NodeJS.Timeout[] = [];
+    const timeouts: NodeJS.Timeout[] = [];
 
     const runStep = () => {
       const step = steps[stepIndex];
-      
-      // Show loading state before transition
+
       if (step.type === "question") {
         setIsQuestionLoading(true);
         setShowFeedback(false);
@@ -133,67 +198,50 @@ export default function InterviewCoachPage() {
         setShowScore(false);
       }
 
-      // After loading delay, show content
       const loadingTimeout = setTimeout(() => {
         if (step.type === "question") {
           setCurrentQuestion(questions[questionIndex]);
           setIsQuestionLoading(false);
-          // Scroll to top for question
           setTimeout(() => {
-            if (animationContainerRef.current) {
-              animationContainerRef.current.scrollTo({
-                top: 0,
-                behavior: "smooth"
-              });
-            }
+            animationContainerRef.current?.scrollTo({ top: 0, behavior: "smooth" });
           }, 100);
         } else if (step.type === "recording") {
           setCurrentStep(1);
           setIsLoading(false);
-          // Scroll to answer card position
           setTimeout(() => {
-            if (animationContainerRef.current) {
-              const isSmall = window.innerWidth >= 640;
-              animationContainerRef.current.scrollTo({
-                top: isSmall ? 75 : 70,
-                behavior: "smooth"
-              });
-            }
+            const isSmall = window.innerWidth >= 640;
+            animationContainerRef.current?.scrollTo({
+              top: isSmall ? 75 : 70,
+              behavior: "smooth",
+            });
           }, 100);
         } else if (step.type === "feedback") {
           setShowFeedback(true);
           setCurrentStep(2);
           setIsLoading(false);
-          // Scroll to feedback card position
           setTimeout(() => {
-            if (animationContainerRef.current) {
-              const isSmall = window.innerWidth >= 640;
-              animationContainerRef.current.scrollTo({
-                top: isSmall ? 165 : 155,
-                behavior: "smooth"
-              });
-            }
+            const isSmall = window.innerWidth >= 640;
+            animationContainerRef.current?.scrollTo({
+              top: isSmall ? 165 : 155,
+              behavior: "smooth",
+            });
           }, 100);
         } else if (step.type === "score") {
           setShowScore(true);
           setCurrentStep(3);
           setIsLoading(false);
-          // Scroll to score card position
           setTimeout(() => {
-            if (animationContainerRef.current) {
-              const isSmall = window.innerWidth >= 640;
-              animationContainerRef.current.scrollTo({
-                top: isSmall ? 240 : 225,
-                behavior: "smooth"
-              });
-            }
+            const isSmall = window.innerWidth >= 640;
+            animationContainerRef.current?.scrollTo({
+              top: isSmall ? 240 : 225,
+              behavior: "smooth",
+            });
           }, 100);
         }
       }, step.loadingDelay);
 
       timeouts.push(loadingTimeout);
 
-      // Move to next step
       const stepTimeout = setTimeout(() => {
         stepIndex = (stepIndex + 1) % steps.length;
         if (stepIndex === 0) {
@@ -201,14 +249,14 @@ export default function InterviewCoachPage() {
         }
         runStep();
       }, step.delay);
-      
+
       timeouts.push(stepTimeout);
     };
 
     runStep();
 
     return () => {
-      timeouts.forEach(timeout => clearTimeout(timeout));
+      timeouts.forEach((timeout) => clearTimeout(timeout));
     };
   }, []);
 
@@ -291,540 +339,461 @@ export default function InterviewCoachPage() {
       <div className="min-h-screen bg-background scroll-smooth selection:bg-info-muted">
         <SiteHeader />
 
-      <section
-        className={cn(
-          appMarketingSection,
-          "relative overflow-hidden px-4 pb-12 pt-24 sm:px-6 sm:pb-16 sm:pt-28 lg:pt-32",
-        )}
-      >
-        <div className="container relative z-10 mx-auto max-w-7xl">
-          <div className="text-center">
-            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-primary/15 bg-primary-muted px-3 py-1 text-sm font-medium text-primary">
-              <Sparkles className="h-3 w-3" />
-              <span>AI Interview Coach</span>
-            </div>
-            <h1 className="mb-4 text-3xl font-bold leading-tight tracking-tight text-foreground sm:mb-6 sm:text-5xl md:text-6xl lg:text-7xl">
-              {(() => {
-                const fullText = "AI Interview Practice coach";
-                const coachStart = fullText.indexOf("coach");
-                const beforeCoach = headingText.substring(0, Math.min(coachStart, headingText.length));
-                const coachPart = headingText.length > coachStart ? headingText.substring(coachStart) : '';
-                
-                return (
-                  <>
-                    <span className="block sm:inline">
-                      {beforeCoach.split('').map((char, index) => (
-                        <span key={index} className="text-foreground">
-                          {char === ' ' ? '\u00A0' : char}
-                        </span>
-                      ))}
-                    </span>
-                    <span className="block sm:inline">
-                      {coachPart.split('').map((char, index) => {
-                        const isCoachChar = index < 5;
-                        return (
-                          <span
-                            key={index}
-                            className={isCoachChar ? 'text-primary' : 'text-foreground'}
-                          >
-                            {char === ' ' ? '\u00A0' : char}
-                          </span>
-                        );
-                      })}
-                      {headingText.length >= fullText.length && (
-                        <span 
-                          className={`bg-primary ml-1 inline-block h-[1em] w-0.5 align-middle ${
-                            showCursor ? 'opacity-100' : 'opacity-0'
-                          }`}
-                          style={{
-                            transition: 'opacity 0.1s ease-in-out',
-                            animation: headingComplete ? 'blink-caret 1s infinite' : 'none'
-                          }}
-                        />
-                      )}
-                    </span>
-                  </>
-                );
-              })()}
-            </h1>
-            <p className="mx-auto max-w-3xl text-lg leading-relaxed text-muted-foreground sm:text-xl md:text-2xl">
-              Shortlisted? Use AI Interview Practice in multiple languages, with company-specific prep—and for tech roles, tackle coding rounds plus AI discussion on your exact solution, reports, and scores.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      {/* Interview Coach Hero Section */}
-      <section className={cn(appMarketingSectionAlt, "relative overflow-hidden px-4 pb-16 pt-16 sm:px-6 sm:pb-20 sm:pt-20 md:pb-24 lg:pb-28 lg:pt-24")}>
-        {/* Animated Background Elements */}
-        <div className="absolute inset-0 pointer-events-none overflow-hidden">
-          {[...Array(8)].map((_, i) => (
-            <div
-              key={i}
-              className="absolute"
-              style={{
-                left: `${(i * 15) % 100}%`,
-                top: `${(i * 20) % 100}%`,
-                opacity: 0.09,
-                animation: `float-${i % 3} ${6 + (i % 3) * 2}s ease-in-out infinite`,
-                animationDelay: `${i * 0.5}s`,
-              }}
-            >
-              <Mic className="w-12 h-12 sm:w-16 sm:h-16 text-primary/70" />
-            </div>
-          ))}
-          {[...Array(8)].map((_, i) => (
-            <div
-              key={`brain-${i}`}
-              className="absolute"
-              style={{
-                left: `${(i * 12 + 5) % 100}%`,
-                top: `${(i * 18 + 10) % 100}%`,
-                opacity: 0.07,
-                animation: `float-${(i + 1) % 3} ${7 + (i % 3) * 2}s ease-in-out infinite`,
-                animationDelay: `${i * 0.7}s`,
-              }}
-            >
-              <Brain className="w-10 h-10 sm:w-14 sm:h-14 text-primary/70" />
-            </div>
-          ))}
-          {[...Array(6)].map((_, i) => (
-            <div
-              key={`message-${i}`}
-              className="absolute"
-              style={{
-                left: `${(i * 16) % 100}%`,
-                top: `${(i * 22) % 100}%`,
-                opacity: 0.06,
-                animation: `float-${i % 3} ${8 + (i % 2) * 2}s ease-in-out infinite`,
-                animationDelay: `${i * 0.6}s`,
-              }}
-            >
-              <MessageSquare className="w-8 h-8 sm:w-12 sm:h-12 text-indigo-300" />
-            </div>
-          ))}
-        </div>
-
-        <div className="container mx-auto max-w-7xl relative z-10">
-          <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
-            {/* Left Section - Marketing Content */}
-            <div className="text-center lg:text-left space-y-6 relative z-10">
-              <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight text-slate-900 leading-tight mb-4 sm:mb-6">
-                Perform Like It&apos;s Already Your Dream Company
-              </h2>
-
-              <p className="text-base sm:text-lg md:text-xl text-gray-600 leading-relaxed max-w-xl mx-auto lg:mx-0 px-2 sm:px-0">
-                Tell us who you&apos;re targeting—we mirror their style. Multilingual AI Interview Practice, coding plus &quot;why this complexity?&quot; follow-ups, and full performance reports so nothing surprises you on the day.
-              </p>
-              
-              {/* Company Logos */}
-              <div className="pt-4 sm:pt-6 px-2 sm:px-0">
-                <p className="text-xs sm:text-sm text-gray-500 mb-3 sm:mb-4 text-center lg:text-left">Trusted by candidates at top companies</p>
-                <div className="flex flex-wrap items-center justify-center lg:justify-start gap-4 sm:gap-6 opacity-60">
-                  <div className="text-lg sm:text-xl font-bold text-gray-700">Amazon</div>
-                  <div className="text-lg sm:text-xl font-bold text-gray-700">Deloitte</div>
-                  <div className="text-lg sm:text-xl font-bold text-gray-700">Flipkart</div>
-                  <div className="text-lg sm:text-xl font-bold text-gray-700">TCS</div>
-                  <div className="text-lg sm:text-xl font-bold text-gray-700">Infosys</div>
-                  <div className="text-lg sm:text-xl font-bold text-gray-700">Razorpay</div>
-                </div>
-              </div>
-              
-              <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-3 sm:gap-4 pt-2 px-2 sm:px-0">
-                <Link href="/dashboard/interviews/new" className="w-full sm:w-auto">
-                  <Button
-                    size="lg"
-                    className="w-full sm:w-auto bg-primary hover:bg-slate-900 text-white font-semibold text-sm sm:text-base px-5 sm:px-6 py-4 sm:py-5 h-auto shadow-lg hover:shadow-xl transition-all"
-                  >
-                    Start Free Interview
-                    <ArrowRight className="w-4 h-4 ml-2" />
-                  </Button>
-                </Link>
-                <div className="flex items-center gap-1.5 sm:gap-2">
-                  <div className="flex items-center gap-0.5 sm:gap-1">
-                    {[...Array(5)].map((_, i) => (
-                      <Star key={i} className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-yellow-400 text-yellow-400" />
-                    ))}
-                  </div>
-                  <span className="text-xs sm:text-sm font-medium text-gray-600">4.9/5</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Right Section - Interview Preview */}
-            <div className="relative flex justify-center lg:justify-start order-1 lg:order-2">
-              <div className="relative rounded-lg sm:rounded-xl shadow-2xl overflow-hidden bg-white w-full max-w-[600px] sm:max-w-[700px] border-2 sm:border-4 border-border">
-                <Image
-                  src="/mock-interview-previewiew.png"
-                  alt="AI Interview Practice interface"
-                  width={700}
-                  height={560}
-                  className="w-full h-auto object-contain"
-                  priority
-                />
-                {/* Overlay Badges */}
-                <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 bg-green-500 text-white px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-md shadow-lg flex items-center gap-1 sm:gap-1.5 animate-bounce" style={{ animationDuration: '2s' }}>
-                  <div className="w-5 h-5 sm:w-6 sm:h-6 bg-white text-green-600 rounded-full flex items-center justify-center font-bold text-[9px] sm:text-[10px] animate-pulse">
-                    AI
-                  </div>
-                  <div className="text-[9px] sm:text-[10px] leading-tight hidden xs:block">
-                    <div className="font-semibold">Live</div>
-                    <div className="text-green-100 text-[8px] sm:text-[9px]">Interview</div>
-                  </div>
-                </div>
-                <div className="absolute top-1.5 left-1.5 sm:top-2 sm:left-2 bg-primary text-white px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-md shadow-lg text-[9px] sm:text-[10px] font-semibold animate-pulse" style={{ animationDuration: '2.5s', animationDelay: '0.5s' }}>
-                  <span className="hidden sm:inline">Real-time Feedback</span>
-                  <span className="sm:hidden">Feedback</span>
-                </div>
-                <div className="absolute bottom-1.5 right-1.5 sm:bottom-2 sm:right-2">
-                  <Button
-                    size="sm"
-                    className="bg-primary hover:bg-slate-900 text-white shadow-lg h-6 sm:h-7 px-1.5 sm:px-2 text-[9px] sm:text-[10px] animate-bounce" 
-                    style={{ animationDuration: '2.2s', animationDelay: '1s' }}
-                  >
-                    <Mic className="w-2.5 h-2.5 sm:w-3 sm:h-3 mr-0.5 sm:mr-1" />
-                    <span className="hidden sm:inline">Start Answer</span>
-                    <span className="sm:hidden">Start</span>
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* How It Works Section */}
-      <section ref={howItWorksRef} className="py-16 sm:py-20 md:py-24 lg:py-28 px-4 sm:px-6 bg-white">
-        <div className="container mx-auto max-w-7xl">
-          <div className={`text-center mb-12 sm:mb-16 transition-all duration-700 ${
-            howItWorksVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
-          }`}>
-            <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-slate-900 mb-4">
-              How It Works
-            </h2>
-            <p className="text-lg sm:text-xl text-gray-600 max-w-2xl mx-auto">
-              Configure → answer → get scored → iterate with clear next steps
-            </p>
-          </div>
-
-          <div className="relative">
-            {/* Connection Line - Desktop Only */}
-            <div className="hidden lg:block absolute top-1/2 left-0 right-0 h-2 bg-muted transform -translate-y-1/2 overflow-hidden rounded-full" style={{ top: '50%' }}>
-              <div 
-                className="h-full bg-gradient-to-r from-primary/80 via-muted0 to-primary rounded-full absolute"
+        {/* Hero Section */}
+        <section
+          className={cn(
+            appMarketingSection,
+            "relative overflow-hidden px-4 pb-12 pt-20 sm:px-6 sm:pb-16 sm:pt-24 md:pt-28 lg:pb-20 lg:pt-32",
+          )}
+        >
+          {/* Floating background icons */}
+          <div className="pointer-events-none absolute inset-0 overflow-hidden">
+            {[...Array(8)].map((_, i) => (
+              <div
+                key={`hero-float-${i}`}
+                className="absolute"
                 style={{
-                  animation: howItWorksVisible ? 'lineProgress 6s ease-in-out 0.5s infinite' : 'none',
-                  boxShadow: howItWorksVisible ? '0 0 12px rgba(59, 130, 246, 0.6)' : 'none'
+                  left: `${(i * 13 + 4) % 92}%`,
+                  top: `${(i * 19 + 6) % 88}%`,
+                  opacity: 0.08,
+                  animation: `float-${i % 3} ${6 + (i % 3) * 2}s ease-in-out infinite`,
+                  animationDelay: `${i * 0.5}s`,
                 }}
-              ></div>
-            </div>
-
-            {/* Steps */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8 relative z-10">
-              {/* Step 1 */}
-              <div className={`bg-white rounded-2xl p-4 sm:p-5 border-2 border-border shadow-lg hover:shadow-xl transition-all hover:border-border ${
-                howItWorksVisible 
-                  ? 'opacity-100 translate-y-0' 
-                  : 'opacity-0 translate-y-8'
-              }`}
-              style={{
-                transitionDelay: howItWorksVisible ? '0.1s' : '0s',
-                transitionDuration: '0.6s',
-                transitionTimingFunction: 'ease-out'
-              }}>
-                <div className="flex flex-col items-center text-center">
-                  <div className="w-16 h-16 sm:w-20 sm:h-20 bg-primary rounded-2xl flex items-center justify-center mb-4 shadow-md">
-                    <PlayCircle className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
-                  </div>
-                  <div className="w-8 h-8 bg-primary text-primary-foreground rounded-full flex items-center justify-center font-bold text-sm sm:text-base mb-3">
-                    1
-                  </div>
-                  <h3 className="text-lg sm:text-xl font-bold text-slate-900 mb-2">
-                    Set Up Your Session
-                  </h3>
-                  <p className="text-sm sm:text-base text-gray-600">
-                    Role, dream company, round, and language—for company-specific simulation
-                  </p>
-                </div>
+              >
+                {i % 3 === 0 ? (
+                  <Mic className="h-10 w-10 text-primary sm:h-14 sm:w-14" />
+                ) : i % 3 === 1 ? (
+                  <Brain className="h-9 w-9 text-primary sm:h-12 sm:w-12" />
+                ) : (
+                  <MessageSquare className="h-8 w-8 text-primary sm:h-11 sm:w-11" />
+                )}
               </div>
-
-              {/* Step 2 */}
-              <div className={`bg-white rounded-2xl p-4 sm:p-5 border-2 border-border shadow-lg hover:shadow-xl transition-all hover:border-border ${
-                howItWorksVisible 
-                  ? 'opacity-100 translate-y-0' 
-                  : 'opacity-0 translate-y-8'
-              }`}
-              style={{
-                transitionDelay: howItWorksVisible ? '0.2s' : '0s',
-                transitionDuration: '0.6s',
-                transitionTimingFunction: 'ease-out'
-              }}>
-                <div className="flex flex-col items-center text-center">
-                  <div className="w-16 h-16 sm:w-20 sm:h-20 bg-primary rounded-2xl flex items-center justify-center mb-4 shadow-md">
-                    <Mic className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
-                  </div>
-                  <div className="w-8 h-8 bg-primary text-primary-foreground rounded-full flex items-center justify-center font-bold text-sm sm:text-base mb-3">
-                    2
-                  </div>
-                  <h3 className="text-lg sm:text-xl font-bold text-slate-900 mb-2">
-                    AI Interview Practice or coding
-                  </h3>
-                  <p className="text-sm sm:text-base text-gray-600">
-                    Speak through behavioral and technical prompts—or code and defend your approach
-                  </p>
-                </div>
-              </div>
-
-              {/* Step 3 */}
-              <div className={`bg-white rounded-2xl p-4 sm:p-5 border-2 border-border shadow-lg hover:shadow-xl transition-all hover:border-border ${
-                howItWorksVisible 
-                  ? 'opacity-100 translate-y-0' 
-                  : 'opacity-0 translate-y-8'
-              }`}
-              style={{
-                transitionDelay: howItWorksVisible ? '0.3s' : '0s',
-                transitionDuration: '0.6s',
-                transitionTimingFunction: 'ease-out'
-              }}>
-                <div className="flex flex-col items-center text-center">
-                  <div className="w-16 h-16 sm:w-20 sm:h-20 bg-primary rounded-2xl flex items-center justify-center mb-4 shadow-md">
-                    <Brain className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
-                  </div>
-                  <div className="w-8 h-8 bg-primary text-primary-foreground rounded-full flex items-center justify-center font-bold text-sm sm:text-base mb-3">
-                    3
-                  </div>
-                  <h3 className="text-lg sm:text-xl font-bold text-slate-900 mb-2">
-                    AI Feedback &amp; Report
-                  </h3>
-                  <p className="text-sm sm:text-base text-gray-600">
-                    Instant analysis, discussion score, and what to fix next
-                  </p>
-                </div>
-              </div>
-
-              {/* Step 4 */}
-              <div className={`bg-white rounded-2xl p-4 sm:p-5 border-2 border-border shadow-lg hover:shadow-xl transition-all hover:border-border ${
-                howItWorksVisible 
-                  ? 'opacity-100 translate-y-0' 
-                  : 'opacity-0 translate-y-8'
-              }`}
-              style={{
-                transitionDelay: howItWorksVisible ? '0.4s' : '0s',
-                transitionDuration: '0.6s',
-                transitionTimingFunction: 'ease-out'
-              }}>
-                <div className="flex flex-col items-center text-center">
-                  <div className="w-16 h-16 sm:w-20 sm:h-20 bg-primary rounded-2xl flex items-center justify-center mb-4 shadow-md">
-                    <BarChart3 className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
-                  </div>
-                  <div className="w-8 h-8 bg-primary text-primary-foreground rounded-full flex items-center justify-center font-bold text-sm sm:text-base mb-3">
-                    4
-                  </div>
-                  <h3 className="text-lg sm:text-xl font-bold text-slate-900 mb-2">
-                    Optional: Peer Interviews
-                  </h3>
-                  <p className="text-sm sm:text-base text-gray-600">
-                    Level up with real engineers when you want human eyes on your delivery
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Animated Interview Preview Section */}
-      <section ref={interviewRef} className="py-8 sm:py-12 md:py-16 lg:py-20 px-4 sm:px-6 bg-muted/30 relative overflow-hidden">
-        {/* Animated Background Icons */}
-        <div className="absolute inset-0 pointer-events-none overflow-hidden">
-          {[...Array(6)].map((_, i) => (
-            <div
-              key={i}
-              className="absolute"
-              style={{
-                left: `${(i * 15) % 100}%`,
-                top: `${(i * 20) % 100}%`,
-                opacity: 0.09,
-                animation: `float-${i % 3} ${6 + (i % 3) * 2}s ease-in-out infinite`,
-                animationDelay: `${i * 0.5}s`,
-              }}
-            >
-              {i % 3 === 0 ? (
-                <Brain className="w-8 h-8 sm:w-10 sm:h-10 text-primary/70" />
-              ) : i % 3 === 1 ? (
-                <Mic className="w-8 h-8 sm:w-10 sm:h-10 text-primary/70" />
-              ) : (
-                <MessageSquare className="w-8 h-8 sm:w-10 sm:h-10 text-primary/70" />
-              )}
-            </div>
-          ))}
-          {[...Array(4)].map((_, i) => (
-            <div
-              key={`secondary-${i}`}
-              className="absolute"
-              style={{
-                left: `${(i * 18) % 100}%`,
-                top: `${(i * 25) % 100}%`,
-                opacity: 0.07,
-                animation: `float-${i % 3} ${7 + (i % 2) * 2}s ease-in-out infinite`,
-                animationDelay: `${i * 0.7}s`,
-              }}
-            >
-              {i % 2 === 0 ? (
-                <Bot className="w-6 h-6 sm:w-8 sm:h-8 text-primary/50" />
-              ) : (
-                <UserCircle className="w-6 h-6 sm:w-8 sm:h-8 text-primary/50" />
-              )}
-            </div>
-          ))}
-        </div>
-        <div className="container mx-auto max-w-7xl relative z-10">
-          {/* Section Heading */}
-          <div className="text-center mb-6 sm:mb-8">
-            <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-slate-900 mb-2 sm:mb-3">
-              See It In Action
-            </h2>
-            <p className="text-base sm:text-lg text-gray-600 leading-relaxed max-w-3xl mx-auto">
-              From first question to scorecard—AI Interview Practice and AI feedback the way shortlists are really decided.
-            </p>
+            ))}
           </div>
 
-          {/* Animation Card Container */}
-          <div className="w-full">
-            <div className="relative bg-white w-full shadow-2xl overflow-hidden border sm:border-2 md:border-4 border-border rounded-lg sm:rounded-xl">
-              <div className="grid md:grid-cols-2">
-                {/* Left Side - Image */}
-                <div className="relative w-full bg-white flex items-center justify-center p-4 sm:p-5 md:p-6">
-                  <div className="relative w-full flex items-center justify-center rounded-lg overflow-hidden">
-                    <Image
-                      src="/image-candidate-ai-interview.jpg"
-                      alt="AI Interview in Progress"
-                      width={700}
-                      height={444}
-                      className="object-contain rounded-lg w-full h-auto"
-                      priority
-                      unoptimized
-                      style={{ objectPosition: "center" }}
-                    />
-                  </div>
-                  {/* Overlay Badge */}
-                  <div className="absolute top-3 right-3 bg-green-500 text-white px-3 py-1.5 rounded-md shadow-lg flex items-center gap-1.5 text-xs sm:text-sm font-semibold z-10">
-                    <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
-                    Live Interview
+          <div className="container relative z-10 mx-auto max-w-7xl">
+            <div className="grid items-center gap-8 sm:gap-12 lg:grid-cols-2 lg:gap-16">
+              {/* Left - Marketing Content */}
+              <div className="order-2 space-y-4 text-center sm:space-y-5 md:space-y-6 lg:order-1 lg:text-left">
+                <div className="inline-flex items-center gap-2 rounded-full bg-muted px-3 py-1 text-sm font-medium text-primary">
+                  <Sparkles className="h-3.5 w-3.5" />
+                  <span>AI Voice Interview Practice</span>
+                </div>
+
+                <h1 className="mb-4 text-[1.22rem] font-bold leading-tight tracking-tight text-slate-900 sm:mb-6 sm:text-[1.46rem] md:text-[1.625rem] lg:text-[2.15rem] xl:text-[2.28rem]">
+                  <span className="block">Practice Real Interviews with</span>
+                  <span className="block">
+                    Your{" "}
+                    <span className="text-primary">AI Interview Coach</span>
+                  </span>
+                </h1>
+
+                <p className="mx-auto max-w-xl px-2 text-base leading-relaxed text-gray-600 sm:px-0 sm:text-lg lg:text-xl">
+                  Get 100% ready before the real one. Run realistic, voice-based
+                  mock interviews with company-specific questions, instant AI
+                  feedback, and a detailed scorecard—so nothing surprises you on
+                  interview day.
+                </p>
+
+                <div className="flex flex-col items-center justify-center gap-3 px-2 pt-2 sm:flex-row sm:gap-4 sm:px-0 lg:justify-start">
+                  <Link href="/dashboard/interviews/new" className="w-full sm:w-auto">
+                    <Button
+                      size="lg"
+                      className="h-auto w-full bg-primary px-5 py-4 text-sm font-semibold text-white shadow-lg transition-all hover:bg-slate-900 hover:shadow-xl sm:w-auto sm:px-6 sm:py-5 sm:text-base"
+                    >
+                      Start Free Interview
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </Button>
+                  </Link>
+                  <div className="flex items-center gap-1.5 sm:gap-2">
+                    <div className="flex items-center gap-0.5 sm:gap-1">
+                      {[...Array(5)].map((_, i) => (
+                        <Star
+                          key={i}
+                          className="h-3.5 w-3.5 fill-yellow-400 text-yellow-400 sm:h-4 sm:w-4"
+                        />
+                      ))}
+                    </div>
+                    <span className="text-xs font-medium text-gray-600 sm:text-sm">
+                      4.9/5
+                    </span>
                   </div>
                 </div>
-                
-                {/* Right Side - Animation */}
-                <div className="p-3 sm:p-4 md:p-5 flex items-center bg-white">
-                  <div 
-                    ref={animationContainerRef}
-                    className="relative w-full min-h-[350px] sm:min-h-[400px] md:min-h-[395px] overflow-y-auto scroll-smooth"
-                    style={{ scrollBehavior: "smooth" }}
+
+                {/* Quick Stats */}
+                <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 pt-2 text-sm font-medium text-gray-500 lg:justify-start">
+                  <div className="flex items-center gap-2">
+                    <Check className="h-4 w-4 text-primary" />
+                    <span>No credit card required</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Check className="h-4 w-4 text-primary" />
+                    <span>Instant AI feedback</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Right - Interview Preview */}
+              <div className="relative order-1 flex justify-center lg:order-2 lg:justify-end">
+                <div className="relative w-full max-w-[600px] overflow-hidden rounded-lg border-2 border-border bg-white shadow-2xl sm:max-w-[700px] sm:rounded-xl sm:border-4">
+                  <Image
+                    src="/mock-interview-previewiew.png"
+                    alt="AI voice interview practice interface with real-time feedback"
+                    width={700}
+                    height={560}
+                    className="h-auto w-full object-contain"
+                    priority
+                  />
+                  <div
+                    className="absolute right-1.5 top-1.5 flex animate-bounce items-center gap-1 rounded-md bg-green-500 px-1.5 py-0.5 text-white shadow-lg sm:right-2 sm:top-2 sm:gap-1.5 sm:px-2 sm:py-1"
+                    style={{ animationDuration: "2s" }}
                   >
-                    {/* Question Section - Always visible */}
-                    <div className="absolute top-0 left-0 right-0 transition-all duration-500 ease-in-out">
-                      <div className="bg-card rounded-xl p-2 pt-3 border border-border shadow-lg shadow-primary/10 fade-in shimmer-effect backdrop-blur-sm">
-                        <div className="flex items-start gap-3 sm:gap-4">
-                          {/* AI Avatar */}
-                          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-primary flex items-center justify-center flex-shrink-0 shadow-lg shadow-primary/30 ring-2 ring-border/50">
-                            <Bot className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
-                          </div>
-                          <div className="flex-1">
-                            <div className="text-xs sm:text-sm font-bold text-primary mb-1.5">AI Interviewer</div>
-                            {isQuestionLoading ? (
-                              <div className="space-y-2">
-                                <div className="skeleton skeleton-text skeleton-text-medium"></div>
-                                <div className="skeleton skeleton-text skeleton-text-short"></div>
+                    <div className="flex h-5 w-5 animate-pulse items-center justify-center rounded-full bg-white text-[9px] font-bold text-green-600 sm:h-6 sm:w-6 sm:text-[10px]">
+                      AI
+                    </div>
+                    <div className="hidden text-[9px] leading-tight xs:block sm:text-[10px]">
+                      <div className="font-semibold">Live</div>
+                      <div className="text-[8px] text-green-100 sm:text-[9px]">
+                        Interview
+                      </div>
+                    </div>
+                  </div>
+                  <div
+                    className="absolute left-1.5 top-1.5 animate-pulse rounded-md bg-primary px-1.5 py-0.5 text-[9px] font-semibold text-white shadow-lg sm:left-2 sm:top-2 sm:px-2 sm:py-1 sm:text-[10px]"
+                    style={{ animationDuration: "2.5s", animationDelay: "0.5s" }}
+                  >
+                    <span className="hidden sm:inline">Real-time Feedback</span>
+                    <span className="sm:hidden">Feedback</span>
+                  </div>
+                  <div className="absolute bottom-1.5 right-1.5 sm:bottom-2 sm:right-2">
+                    <Button
+                      size="sm"
+                      className="h-6 animate-bounce bg-primary px-1.5 text-[9px] text-white shadow-lg hover:bg-slate-900 sm:h-7 sm:px-2 sm:text-[10px]"
+                      style={{ animationDuration: "2.2s", animationDelay: "1s" }}
+                    >
+                      <Mic className="mr-0.5 h-2.5 w-2.5 sm:mr-1 sm:h-3 sm:w-3" />
+                      <span className="hidden sm:inline">Start Answer</span>
+                      <span className="sm:hidden">Start</span>
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Trusted Companies — continuously running, faded logos that colorize on hover */}
+        <section className="relative overflow-hidden border-y border-border/60 bg-gradient-to-b from-white to-slate-50/80 py-10 sm:py-14">
+          <div
+            className="overflow-hidden"
+            style={{
+              maskImage:
+                "linear-gradient(to right, transparent, black 8%, black 92%, transparent)",
+              WebkitMaskImage:
+                "linear-gradient(to right, transparent, black 8%, black 92%, transparent)",
+            }}
+          >
+            <div className="flex w-max animate-trusted-logos-marquee items-center">
+              {[...trustedCompanies, ...trustedCompanies].map((company, index) => (
+                <div
+                  key={`${company.file}-${index}`}
+                  className="flex w-[42vw] shrink-0 items-center justify-center px-5 sm:w-[24vw] sm:px-6 md:w-[18vw] lg:w-[14vw]"
+                >
+                  <Image
+                    src={`/company-logos/${company.file}`}
+                    alt={`${company.name} logo`}
+                    width={180}
+                    height={56}
+                    className="h-8 w-auto max-w-[130px] object-contain opacity-50 grayscale transition-all duration-300 hover:scale-105 hover:opacity-100 hover:grayscale-0 sm:h-10 sm:max-w-[150px]"
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* How It Works Section */}
+        <section
+          ref={howItWorksRef}
+          className={cn(appMarketingSectionAlt, "px-4 py-16 sm:px-6 sm:py-20 lg:py-24")}
+        >
+          <div className="container mx-auto max-w-7xl">
+            <div
+              className={`mb-12 text-center transition-all duration-700 sm:mb-16 ${
+                howItWorksVisible
+                  ? "translate-y-0 opacity-100"
+                  : "translate-y-4 opacity-0"
+              }`}
+            >
+              <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-muted px-3 py-1 text-sm font-medium text-primary">
+                <span>How It Works</span>
+              </div>
+              <h2 className="mb-4 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl lg:text-5xl">
+                Complete real-time{" "}
+                <span className="text-primary">AI interview</span>
+              </h2>
+              <p className="mx-auto max-w-2xl text-lg leading-relaxed text-gray-600">
+                Set up, speak, get scored, and iterate—four simple steps to a
+                sharper performance.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4 sm:gap-8">
+              {howItWorksSteps.map((step, index) => {
+                const Icon = step.icon;
+                return (
+                  <div
+                    key={step.title}
+                    className={`group relative flex flex-col rounded-xl border border-border/80 bg-card p-6 text-left shadow-card transition-all duration-500 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-xl ${
+                      howItWorksVisible
+                        ? "translate-y-0 opacity-100"
+                        : "translate-y-8 opacity-0"
+                    }`}
+                    style={{
+                      transitionDelay: howItWorksVisible
+                        ? `${0.1 + index * 0.1}s`
+                        : "0s",
+                    }}
+                  >
+                    <div className="mb-4 flex items-center justify-between">
+                      <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary shadow-md transition-transform group-hover:scale-105">
+                        <Icon className="h-7 w-7 text-white" />
+                      </div>
+                      <span className="text-4xl font-bold text-primary/15">
+                        {index + 1}
+                      </span>
+                    </div>
+                    <h3 className="mb-2 text-lg font-bold text-slate-900">
+                      {step.title}
+                    </h3>
+                    <p className="text-sm leading-relaxed text-gray-600">
+                      {step.body}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+
+        {/* See It In Action — Animated Interview Preview */}
+        <section
+          ref={interviewRef}
+          className={cn(
+            appMarketingSection,
+            "relative overflow-hidden px-4 py-16 sm:px-6 sm:py-20 lg:py-24",
+          )}
+        >
+          {/* Floating background icons */}
+          <div className="pointer-events-none absolute inset-0 overflow-hidden">
+            {[...Array(6)].map((_, i) => (
+              <div
+                key={`action-float-${i}`}
+                className="absolute"
+                style={{
+                  left: `${(i * 16 + 4) % 92}%`,
+                  top: `${(i * 21 + 6) % 88}%`,
+                  opacity: 0.07,
+                  animation: `float-${i % 3} ${6 + (i % 3) * 2}s ease-in-out infinite`,
+                  animationDelay: `${i * 0.5}s`,
+                }}
+              >
+                {i % 3 === 0 ? (
+                  <Brain className="h-9 w-9 text-primary sm:h-12 sm:w-12" />
+                ) : i % 3 === 1 ? (
+                  <Mic className="h-8 w-8 text-primary sm:h-11 sm:w-11" />
+                ) : (
+                  <Bot className="h-8 w-8 text-primary sm:h-10 sm:w-10" />
+                )}
+              </div>
+            ))}
+          </div>
+
+          <div className="container relative z-10 mx-auto max-w-7xl">
+            <div className="mb-10 text-center sm:mb-12">
+              <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-muted px-3 py-1 text-sm font-medium text-primary">
+                <span>See It In Action</span>
+              </div>
+              <h2 className="mb-3 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl lg:text-5xl">
+                From first question to{" "}
+                <span className="text-primary">scorecard</span>
+              </h2>
+              <p className="mx-auto max-w-2xl text-lg leading-relaxed text-gray-600">
+                Watch a live mock unfold—question, spoken answer, instant feedback,
+                and a score—the way shortlists are really decided.
+              </p>
+            </div>
+
+            {/* Animation Card Container */}
+            <div className="w-full">
+              <div className="relative w-full overflow-hidden rounded-lg border border-border bg-white shadow-2xl sm:rounded-xl sm:border-2 md:border-4">
+                <div className="grid md:grid-cols-2">
+                  {/* Left Side - Image */}
+                  <div className="relative flex w-full items-center justify-center bg-white p-4 sm:p-5 md:p-6">
+                    <div className="relative flex w-full items-center justify-center overflow-hidden rounded-lg">
+                      <Image
+                        src="/image-candidate-ai-interview.jpg"
+                        alt="Candidate practicing a live AI voice interview"
+                        width={700}
+                        height={444}
+                        className="h-auto w-full rounded-lg object-contain"
+                        priority
+                        unoptimized
+                        style={{ objectPosition: "center" }}
+                      />
+                    </div>
+                    <div className="absolute right-3 top-3 z-10 flex items-center gap-1.5 rounded-md bg-green-500 px-3 py-1.5 text-xs font-semibold text-white shadow-lg sm:text-sm">
+                      <div className="h-2 w-2 animate-pulse rounded-full bg-white"></div>
+                      Live Interview
+                    </div>
+                  </div>
+
+                  {/* Right Side - Animation */}
+                  <div className="flex items-center bg-white p-3 sm:p-4 md:p-5">
+                    <div
+                      ref={animationContainerRef}
+                      className="relative min-h-[350px] w-full overflow-y-auto scroll-smooth sm:min-h-[400px] md:min-h-[395px]"
+                      style={{ scrollBehavior: "smooth" }}
+                    >
+                      {/* Question Section */}
+                      <div className="absolute left-0 right-0 top-0 transition-all duration-500 ease-in-out">
+                        <div className="fade-in shimmer-effect rounded-xl border border-border bg-card p-2 pt-3 shadow-lg shadow-primary/10 backdrop-blur-sm">
+                          <div className="flex items-start gap-3 sm:gap-4">
+                            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-primary shadow-lg shadow-primary/30 ring-2 ring-border/50 sm:h-12 sm:w-12">
+                              <Bot className="h-5 w-5 text-white sm:h-6 sm:w-6" />
+                            </div>
+                            <div className="flex-1">
+                              <div className="mb-1.5 text-xs font-bold text-primary sm:text-sm">
+                                AI Interviewer
                               </div>
-                            ) : (
-                              <div className="text-xs sm:text-sm text-gray-800 font-medium leading-relaxed fade-in">
-                                {currentQuestion || "Tell me about yourself"}
-                              </div>
-                            )}
+                              {isQuestionLoading ? (
+                                <div className="space-y-2">
+                                  <div className="skeleton skeleton-text skeleton-text-medium"></div>
+                                  <div className="skeleton skeleton-text skeleton-text-short"></div>
+                                </div>
+                              ) : (
+                                <div className="fade-in text-xs font-medium leading-relaxed text-gray-800 sm:text-sm">
+                                  {currentQuestion || "Tell me about yourself"}
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
 
-                    {/* Answer Section - Positioned below question */}
-                    <div className={`absolute top-[70px] sm:top-[75px] left-0 right-0 transition-all duration-500 ease-in-out ${currentStep >= 1 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'}`}>
-                      <div className="bg-gradient-to-br from-slate-50 to-white rounded-xl p-2 pt-3 border border-slate-200/60 shadow-lg shadow-slate-500/10 fade-in shimmer-effect backdrop-blur-sm">
-                        <div className="flex items-start gap-3 sm:gap-4">
-                          {/* Person Avatar */}
-                          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gradient-to-br from-slate-600 to-slate-700 flex items-center justify-center flex-shrink-0 shadow-lg shadow-slate-500/30 ring-2 ring-slate-200/50">
-                            <UserCircle className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
-                          </div>
-                          <div className="flex-1">
-                            <div className="text-xs sm:text-sm font-bold text-slate-700 mb-1.5">You</div>
-                            {isLoading && currentStep < 1 ? (
-                              <div className="space-y-2">
-                                <div className="skeleton skeleton-text skeleton-text-long"></div>
-                                <div className="skeleton skeleton-text skeleton-text-medium"></div>
+                      {/* Answer Section */}
+                      <div
+                        className={`absolute left-0 right-0 top-[70px] transition-all duration-500 ease-in-out sm:top-[75px] ${
+                          currentStep >= 1
+                            ? "translate-y-0 opacity-100"
+                            : "pointer-events-none translate-y-4 opacity-0"
+                        }`}
+                      >
+                        <div className="fade-in shimmer-effect rounded-xl border border-slate-200/60 bg-gradient-to-br from-slate-50 to-white p-2 pt-3 shadow-lg shadow-slate-500/10 backdrop-blur-sm">
+                          <div className="flex items-start gap-3 sm:gap-4">
+                            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-slate-600 to-slate-700 shadow-lg shadow-slate-500/30 ring-2 ring-slate-200/50 sm:h-12 sm:w-12">
+                              <UserCircle className="h-5 w-5 text-white sm:h-6 sm:w-6" />
+                            </div>
+                            <div className="flex-1">
+                              <div className="mb-1.5 text-xs font-bold text-slate-700 sm:text-sm">
+                                You
                               </div>
-                            ) : currentStep === 1 ? (
-                              <div className="text-xs sm:text-sm text-slate-600 italic font-medium fade-in flex items-center gap-2">
-                                Speaking... <span className="inline-block w-2 h-4 bg-primary rounded-sm ml-1 animate-pulse"></span>
-                              </div>
-                            ) : currentStep >= 2 ? (
-                              <div className="text-xs sm:text-sm text-slate-800 font-medium leading-relaxed fade-in">
-                                I am a software engineer with 5+ years of experience in building scalable web applications...
-                              </div>
-                            ) : null}
+                              {isLoading && currentStep < 1 ? (
+                                <div className="space-y-2">
+                                  <div className="skeleton skeleton-text skeleton-text-long"></div>
+                                  <div className="skeleton skeleton-text skeleton-text-medium"></div>
+                                </div>
+                              ) : currentStep === 1 ? (
+                                <div className="fade-in flex items-center gap-2 text-xs font-medium italic text-slate-600 sm:text-sm">
+                                  Speaking...{" "}
+                                  <span className="ml-1 inline-block h-4 w-2 animate-pulse rounded-sm bg-primary"></span>
+                                </div>
+                              ) : currentStep >= 2 ? (
+                                <div className="fade-in text-xs font-medium leading-relaxed text-slate-800 sm:text-sm">
+                                  I am a software engineer with 5+ years of
+                                  experience in building scalable web
+                                  applications...
+                                </div>
+                              ) : null}
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
 
-                    {/* Feedback Section - Positioned below answer */}
-                    <div className={`absolute top-[155px] sm:top-[165px] left-0 right-0 transition-all duration-500 ease-in-out ${showFeedback ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'}`}>
-                      <div className="bg-gradient-to-br from-emerald-50 to-green-50/50 rounded-xl p-2 pt-3 border border-emerald-200/50 shadow-lg shadow-emerald-500/10 fade-in shimmer-effect backdrop-blur-sm">
-                        <div className="flex items-start gap-3 sm:gap-4">
-                          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center flex-shrink-0 shadow-lg shadow-emerald-500/30 ring-2 ring-emerald-200/50">
-                            <Brain className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
-                          </div>
-                          <div className="flex-1">
-                            <div className="text-xs sm:text-sm font-bold text-emerald-700 mb-1.5">AI Feedback</div>
-                            {isLoading && !showFeedback ? (
-                              <div className="space-y-2">
-                                <div className="skeleton skeleton-text skeleton-text-medium"></div>
-                                <div className="skeleton skeleton-text skeleton-text-short"></div>
+                      {/* Feedback Section */}
+                      <div
+                        className={`absolute left-0 right-0 top-[155px] transition-all duration-500 ease-in-out sm:top-[165px] ${
+                          showFeedback
+                            ? "translate-y-0 opacity-100"
+                            : "pointer-events-none translate-y-4 opacity-0"
+                        }`}
+                      >
+                        <div className="fade-in shimmer-effect rounded-xl border border-emerald-200/50 bg-gradient-to-br from-emerald-50 to-green-50/50 p-2 pt-3 shadow-lg shadow-emerald-500/10 backdrop-blur-sm">
+                          <div className="flex items-start gap-3 sm:gap-4">
+                            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-emerald-500 to-green-600 shadow-lg shadow-emerald-500/30 ring-2 ring-emerald-200/50 sm:h-12 sm:w-12">
+                              <Brain className="h-5 w-5 text-white sm:h-6 sm:w-6" />
+                            </div>
+                            <div className="flex-1">
+                              <div className="mb-1.5 text-xs font-bold text-emerald-700 sm:text-sm">
+                                AI Feedback
                               </div>
-                            ) : (
-                              <div className="text-xs sm:text-sm text-emerald-900 font-medium leading-relaxed fade-in">
-                                Good structure. Consider adding specific examples of your achievements.
-                              </div>
-                            )}
+                              {isLoading && !showFeedback ? (
+                                <div className="space-y-2">
+                                  <div className="skeleton skeleton-text skeleton-text-medium"></div>
+                                  <div className="skeleton skeleton-text skeleton-text-short"></div>
+                                </div>
+                              ) : (
+                                <div className="fade-in text-xs font-medium leading-relaxed text-emerald-900 sm:text-sm">
+                                  Good structure. Consider adding specific
+                                  examples of your achievements.
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
 
-                    {/* Score Section - Positioned below feedback */}
-                    <div className={`absolute top-[225px] sm:top-[240px] left-0 right-0 transition-all duration-500 ease-in-out ${showScore ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'}`}>
-                      <div className="rounded-xl border border-border bg-card p-2 pt-3 shadow-card fade-in shimmer-effect">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <div className="text-xs sm:text-sm font-bold text-primary mb-1.5">Overall Score</div>
-                            {isLoading && !showScore ? (
-                              <div className="space-y-2">
-                                <div className="skeleton skeleton-text skeleton-text-short w-12"></div>
+                      {/* Score Section */}
+                      <div
+                        className={`absolute left-0 right-0 top-[225px] transition-all duration-500 ease-in-out sm:top-[240px] ${
+                          showScore
+                            ? "translate-y-0 opacity-100"
+                            : "pointer-events-none translate-y-4 opacity-0"
+                        }`}
+                      >
+                        <div className="fade-in shimmer-effect rounded-xl border border-border bg-card p-2 pt-3 shadow-card">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <div className="mb-1.5 text-xs font-bold text-primary sm:text-sm">
+                                Overall Score
                               </div>
-                            ) : (
-                              <div className="text-2xl sm:text-3xl font-bold text-primary fade-in">85%</div>
-                            )}
-                          </div>
-                          <div className="flex flex-col items-end gap-1">
-                            {isLoading && !showScore ? (
-                              <>
-                                <div className="skeleton skeleton-text skeleton-text-short w-16"></div>
-                                <div className="skeleton skeleton-text skeleton-text-short w-12"></div>
-                              </>
-                            ) : (
-                              <>
-                                <div className="text-xs sm:text-sm text-slate-600 font-medium fade-in">Confidence: 88%</div>
-                                <div className="text-xs sm:text-sm text-slate-600 font-medium fade-in">Clarity: 82%</div>
-                              </>
-                            )}
+                              {isLoading && !showScore ? (
+                                <div className="space-y-2">
+                                  <div className="skeleton skeleton-text skeleton-text-short w-12"></div>
+                                </div>
+                              ) : (
+                                <div className="fade-in text-2xl font-bold text-primary sm:text-3xl">
+                                  85%
+                                </div>
+                              )}
+                            </div>
+                            <div className="flex flex-col items-end gap-1">
+                              {isLoading && !showScore ? (
+                                <>
+                                  <div className="skeleton skeleton-text skeleton-text-short w-16"></div>
+                                  <div className="skeleton skeleton-text skeleton-text-short w-12"></div>
+                                </>
+                              ) : (
+                                <>
+                                  <div className="fade-in text-xs font-medium text-slate-600 sm:text-sm">
+                                    Confidence: 88%
+                                  </div>
+                                  <div className="fade-in text-xs font-medium text-slate-600 sm:text-sm">
+                                    Clarity: 82%
+                                  </div>
+                                </>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -834,121 +803,124 @@ export default function InterviewCoachPage() {
               </div>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* Features Section */}
-      <section className="py-16 sm:py-20 md:py-24 lg:py-28 px-4 sm:px-6 bg-muted relative overflow-hidden">
-        <div className="container mx-auto max-w-7xl relative z-10">
-          <div className="text-center mb-12 sm:mb-16">
-            <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-slate-900 mb-4">
-              AI Interview Practice, coding, and company realism
+        {/* Features Section */}
+        <section
+          className={cn(
+            "relative overflow-hidden border-y border-[#7367F0]/20 bg-gradient-to-br from-[#7367F0]/[0.16] via-[#7367F0]/[0.06] to-[#7367F0]/[0.22]",
+            "px-4 py-16 sm:px-6 sm:py-20 lg:py-24",
+          )}
+        >
+          {/* Floating background icons */}
+          <div className="pointer-events-none absolute inset-0 overflow-hidden">
+            {[...Array(10)].map((_, i) => (
+              <div
+                key={`feat-float-${i}`}
+                className="absolute"
+                style={{
+                  left: `${(i * 11) % 92}%`,
+                  top: `${(i * 17) % 88}%`,
+                  opacity: 0.12,
+                  animation: `float-${i % 3} ${6 + (i % 3) * 2}s ease-in-out infinite`,
+                  animationDelay: `${i * 0.45}s`,
+                }}
+              >
+                {i % 3 === 0 ? (
+                  <Mic className="h-10 w-10 text-primary sm:h-14 sm:w-14" />
+                ) : i % 3 === 1 ? (
+                  <Target className="h-9 w-9 text-primary sm:h-12 sm:w-12" />
+                ) : (
+                  <BarChart3 className="h-8 w-8 text-primary sm:h-11 sm:w-11" />
+                )}
+              </div>
+            ))}
+          </div>
+
+          <div className="container relative z-10 mx-auto max-w-7xl">
+            <div className="mb-12 text-center sm:mb-16">
+              <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-muted px-3 py-1 text-sm font-medium text-primary">
+                <span>Why It Works</span>
+              </div>
+              <h2 className="mb-4 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl lg:text-5xl">
+                Don&apos;t just practice. <span className="text-primary">Perform.</span>
+              </h2>
+              <p className="mx-auto max-w-2xl text-lg leading-relaxed text-gray-600">
+                Skip generic Q&amp;A and simulate the exact interview you&apos;ll
+                face—right down to the company, role, and language.
+              </p>
+            </div>
+
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {features.map((feature) => {
+                const Icon = feature.icon;
+                return (
+                  <div
+                    key={feature.title}
+                    className="group relative flex h-full min-h-[230px] flex-col rounded-xl border border-border/80 bg-card p-6 text-left shadow-card transition-all duration-300 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-xl"
+                  >
+                    <div className="absolute inset-0 rounded-xl bg-muted/40 opacity-0 transition-opacity group-hover:opacity-100" />
+                    <div className="relative flex h-full flex-col">
+                      <div className="mb-4 flex items-start gap-4">
+                        <div
+                          className={cn(
+                            "flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br shadow-md transition-transform group-hover:scale-105",
+                            feature.gradient,
+                          )}
+                        >
+                          <Icon className="h-7 w-7 text-white" strokeWidth={2} />
+                        </div>
+                        <div className="min-w-0">
+                          <h3 className="text-xl font-bold text-slate-900">
+                            {feature.title}
+                          </h3>
+                          <p className="mt-1 text-sm font-semibold text-gray-800">
+                            {feature.tagline}
+                          </p>
+                        </div>
+                      </div>
+                      <p className="flex-1 text-sm leading-relaxed text-gray-600">
+                        {feature.body}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+
+        {/* CTA Section */}
+        <section
+          className={cn(appMarketingSectionAlt, "px-4 py-16 sm:px-6 sm:py-20 lg:py-24")}
+        >
+          <div className="container relative z-10 mx-auto max-w-4xl text-center">
+            <h2 className="mb-4 text-3xl font-bold tracking-tight text-slate-900 sm:mb-6 sm:text-4xl lg:text-5xl">
+              Don&apos;t just apply.{" "}
+              <span className="text-primary">Rehearse to win.</span>
             </h2>
-            <p className="text-lg sm:text-xl text-gray-600 max-w-2xl mx-auto">
-              Don&apos;t just practice generic Q&amp;A—simulate the interview you&apos;ll actually face.
+            <p className="mx-auto mb-8 max-w-2xl text-lg leading-relaxed text-gray-600 sm:mb-10 sm:text-xl">
+              Transform how you sound and show up—with a voice-based AI mock
+              interview and a report that tells you exactly what to improve before
+              offer week.
+            </p>
+            <Link href="/dashboard/interviews/new">
+              <Button
+                size="lg"
+                className="h-auto bg-primary px-8 py-4 text-base font-semibold text-white shadow-lg transition-all hover:bg-slate-900 hover:shadow-xl sm:py-5 sm:text-lg"
+              >
+                Start Your Free Interview
+                <ArrowRight className="ml-2 h-5 w-5" />
+              </Button>
+            </Link>
+            <p className="mt-4 text-sm font-medium text-gray-500">
+              No credit card required · Instant feedback
             </p>
           </div>
+        </section>
 
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
-            {/* Feature 1 */}
-            <div className="bg-white rounded-2xl p-6 sm:p-8 border-2 border-border shadow-lg hover:shadow-xl transition-all hover:border-border">
-              <div className="w-14 h-14 bg-primary rounded-xl flex items-center justify-center mb-4 shadow-md">
-                <Mic className="w-7 h-7 text-white" />
-              </div>
-              <h3 className="text-xl font-bold text-slate-900 mb-2">AI Interview Practice</h3>
-              <p className="text-gray-600">
-                Multilingual AI sessions that adapt—tell us your target company for a closer match to their style
-              </p>
-            </div>
-
-            {/* Feature 2 */}
-            <div className="bg-white rounded-2xl p-6 sm:p-8 border-2 border-border shadow-lg hover:shadow-xl transition-all hover:border-border">
-              <div className="w-14 h-14 bg-primary rounded-xl flex items-center justify-center mb-4 shadow-md">
-                <Code className="w-7 h-7 text-white" />
-              </div>
-              <h3 className="text-xl font-bold text-slate-900 mb-2">Practice Coding Round</h3>
-              <p className="text-gray-600">
-                Solve structured problems—then defend your complexity choices with AI prompts tied to your code
-              </p>
-            </div>
-
-            {/* Feature 3 */}
-            <div className="bg-white rounded-2xl p-6 sm:p-8 border-2 border-border shadow-lg hover:shadow-xl transition-all hover:border-border">
-              <div className="w-14 h-14 bg-primary rounded-xl flex items-center justify-center mb-4 shadow-md">
-                <Target className="w-7 h-7 text-white" />
-              </div>
-              <h3 className="text-xl font-bold text-slate-900 mb-2">Company-Specific Prep</h3>
-              <p className="text-gray-600">
-                Role- and employer-aware drills so practice maps to how that team hires
-              </p>
-            </div>
-
-            {/* Feature 4 */}
-            <div className="bg-white rounded-2xl p-6 sm:p-8 border-2 border-border shadow-lg hover:shadow-xl transition-all hover:border-border">
-              <div className="w-14 h-14 bg-primary rounded-xl flex items-center justify-center mb-4 shadow-md">
-                <BarChart3 className="w-7 h-7 text-white" />
-              </div>
-              <h3 className="text-xl font-bold text-slate-900 mb-2">Reports &amp; Discussion Scores</h3>
-              <p className="text-gray-600">
-                Full write-ups with transcripts, strengths, weaknesses, and what to rehearse next
-              </p>
-            </div>
-
-            {/* Feature 5 */}
-            <div className="bg-white rounded-2xl p-6 sm:p-8 border-2 border-border shadow-lg hover:shadow-xl transition-all hover:border-border">
-              <div className="w-14 h-14 bg-primary rounded-xl flex items-center justify-center mb-4 shadow-md">
-                <MessageSquare className="w-7 h-7 text-white" />
-              </div>
-              <h3 className="text-xl font-bold text-slate-900 mb-2">Multilingual Support</h3>
-              <p className="text-gray-600">
-                Practice in the languages you interview in—smooth handoffs across English, Hindi, and more
-              </p>
-            </div>
-
-            {/* Feature 6 */}
-            <Link
-              href="/sign-up"
-              className="bg-white rounded-2xl p-6 sm:p-8 border-2 border-border shadow-lg hover:shadow-xl transition-all hover:border-border block text-left"
-            >
-              <div className="w-14 h-14 bg-primary rounded-xl flex items-center justify-center mb-4 shadow-md">
-                <Video className="w-7 h-7 text-white" />
-              </div>
-              <h3 className="text-xl font-bold text-slate-900 mb-2">Peer Interviews</h3>
-              <p className="text-gray-600">
-                Still nervous? Book real engineers for live feedback and a performance score—from people who&apos;ve cleared the bar
-              </p>
-              <p className="text-sm font-medium text-primary mt-3 flex items-center gap-1">
-                Sign up to schedule <ArrowRight className="w-4 h-4" />
-              </p>
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* CTA Section */}
-      <section className="py-16 sm:py-20 md:py-24 lg:py-28 px-4 sm:px-6 bg-gray-50 relative overflow-hidden">
-        <div className="container mx-auto max-w-4xl text-center relative z-10">
-          <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-slate-900 mb-4 sm:mb-6">
-            Don&apos;t just apply—rehearse to win
-          </h2>
-          <p className="text-lg sm:text-xl text-gray-600 mb-8 sm:mb-10 max-w-2xl mx-auto">
-            Transform how you sound, code, and show up—with reports that tell you exactly what to improve before offer week.
-          </p>
-          <Link href="/dashboard/interviews/new">
-            <Button
-              size="lg"
-              className="text-white font-medium shadow-sm transition-all h-12 px-8 hover:opacity-90 !bg-primary text-base sm:text-lg"
-            >
-              Start Your Free Interview
-              <ArrowRight className="w-5 h-5 ml-2" />
-            </Button>
-          </Link>
-        </div>
-      </section>
-
-      <MarketingFooter />
+        <MarketingFooter />
       </div>
     </>
   );
 }
-
