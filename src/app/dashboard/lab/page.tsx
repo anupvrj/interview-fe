@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 import {
   captureLabInput,
   createSession,
@@ -18,33 +19,49 @@ import {
 import {
   classifyPrompt,
   defaultFixtureForPrompt,
-  getKindLabel,
   latestPromptsPerName,
   type PromptClassification,
 } from "@/lib/labPromptCatalog";
-import { LabVoicePanel } from "@/components/lab/LabVoicePanel";
-import { LabKindLegend } from "@/components/lab/LabKindLegend";
-import { LabPromptSidebar } from "@/components/lab/LabPromptSidebar";
+import { LabAgentDetail } from "@/components/lab/LabAgentDetail";
+import { LabAgentSidebar } from "@/components/lab/LabAgentSidebar";
+import { LabPlayground } from "@/components/lab/LabPlayground";
+import { LabResizablePanels } from "@/components/lab/LabResizablePanels";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
-import { FlaskConical, Loader2, RefreshCw } from "lucide-react";
+import { Bot, Loader2, Plus, RefreshCw } from "lucide-react";
 
 const APP_ENV = process.env.NEXT_PUBLIC_APP_ENV || "development";
 
-const KIND_HEADER: Record<string, string> = {
-  voice: "border-sky-500/30 bg-sky-500/5",
-  execute: "border-violet-500/30 bg-violet-500/5",
-  profile: "border-amber-500/30 bg-amber-500/5",
+type ModelConfigState = {
+  model: string;
+  temperature: string;
+  maxTokens: string;
 };
+
+function modelConfigFromPrompt(p?: PromptRecord): ModelConfigState {
+  const mc = p?.modelConfig;
+  return {
+    model: typeof mc?.model === "string" ? mc.model : "",
+    temperature:
+      typeof mc?.temperature === "number" ? String(mc.temperature) : "",
+    maxTokens: typeof mc?.maxTokens === "number" ? String(mc.maxTokens) : "",
+  };
+}
+
+function buildModelConfigPayload(state: ModelConfigState): Record<string, unknown> | undefined {
+  const out: Record<string, unknown> = {};
+  if (state.model.trim()) out.model = state.model.trim();
+  if (state.temperature.trim()) {
+    const t = Number.parseFloat(state.temperature);
+    if (!Number.isNaN(t)) out.temperature = t;
+  }
+  if (state.maxTokens.trim()) {
+    const n = Number.parseInt(state.maxTokens, 10);
+    if (!Number.isNaN(n)) out.maxTokens = n;
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
+}
 
 export default function LabPage() {
   const [prompts, setPrompts] = useState<PromptRecord[]>([]);
@@ -53,6 +70,12 @@ export default function LabPage() {
   const [selectedProfile, setSelectedProfile] = useState("");
   const [editorContent, setEditorContent] = useState("");
   const [editorVersion, setEditorVersion] = useState("1.0.0");
+  const [editorInputVariables, setEditorInputVariables] = useState<string[]>([]);
+  const [modelConfig, setModelConfig] = useState<ModelConfigState>({
+    model: "",
+    temperature: "",
+    maxTokens: "",
+  });
   const [targetEnv, setTargetEnv] = useState("staging");
   const [fixtureInput, setFixtureInput] = useState("{}");
   const [fixtureName, setFixtureName] = useState("golden-live");
@@ -62,7 +85,6 @@ export default function LabPage() {
   const [executeOutput, setExecuteOutput] = useState("");
   const [voiceSessionId, setVoiceSessionId] = useState<string | null>(null);
   const [voiceStatus, setVoiceStatus] = useState("idle");
-  const [status, setStatus] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -73,19 +95,25 @@ export default function LabPage() {
     : null;
   const profilePrompts = catalog.filter((p) => p.name.startsWith("profile-"));
 
-  const selectPrompt = useCallback((p: PromptRecord) => {
+  const applyPromptToEditor = useCallback((p: PromptRecord) => {
     const m = classifyPrompt(p);
-    setSelectedName(p.name);
     setEditorContent(p.content);
     setEditorVersion(p.version);
-    setFixtureInput(
-      JSON.stringify(defaultFixtureForPrompt(p.name, m.kind), null, 2),
-    );
+    setEditorInputVariables(p.inputVariables ?? []);
+    setModelConfig(modelConfigFromPrompt(p));
+    setFixtureInput(JSON.stringify(defaultFixtureForPrompt(p.name, m.kind), null, 2));
     setResolvedPrompt("");
     setExecuteOutput("");
     setVoiceSessionId(null);
-    setStatus(null);
   }, []);
+
+  const selectPrompt = useCallback(
+    (p: PromptRecord) => {
+      setSelectedName(p.name);
+      applyPromptToEditor(p);
+    },
+    [applyPromptToEditor],
+  );
 
   const refresh = useCallback(async () => {
     setLoadError(null);
@@ -96,11 +124,8 @@ export default function LabPage() {
     setPrompts(p);
     setFixtures(f);
     const current = latestPromptsPerName(p).find((x) => x.name === selectedName);
-    if (current) {
-      setEditorContent(current.content);
-      setEditorVersion(current.version);
-    }
-  }, [selectedName]);
+    if (current) applyPromptToEditor(current);
+  }, [selectedName, applyPromptToEditor]);
 
   useEffect(() => {
     refresh().catch((e) => setLoadError(String(e)));
@@ -108,7 +133,8 @@ export default function LabPage() {
 
   useEffect(() => {
     if (catalog.length && !selectedPrompt) {
-      const first = catalog.find((p) => p.name === "interviewer-system") ?? catalog[0];
+      const first =
+        catalog.find((p) => p.name === "interviewer-system") ?? catalog[0];
       if (first) selectPrompt(first);
     }
   }, [catalog, selectedPrompt, selectPrompt]);
@@ -117,16 +143,21 @@ export default function LabPage() {
     try {
       return JSON.parse(fixtureInput) as Record<string, unknown>;
     } catch {
-      throw new Error("Fixture input must be valid JSON");
+      throw new Error("Scenario input must be valid JSON");
     }
   };
 
-  /** Voice wrapper ref + optional profile for render/voice tests */
   const composeRefs = () => {
     if (meta?.previewViaLiveWrapper && selectedName.startsWith("profile-")) {
       return {
-        promptRef: { name: "interviewer-system", environment: "development" as const },
-        profileRef: { name: selectedName, environment: "development" as const },
+        promptRef: {
+          name: "interviewer-system",
+          environment: "development" as const,
+        },
+        profileRef: {
+          name: selectedName,
+          environment: "development" as const,
+        },
       };
     }
     return {
@@ -154,21 +185,22 @@ export default function LabPage() {
 
   const onSave = async () => {
     setLoading(true);
-    setStatus(null);
     try {
       await savePrompt({
         name: selectedName,
         version: editorVersion,
         content: editorContent,
         environment: "development",
-        inputVariables: selectedPrompt?.inputVariables ?? [],
-        description: selectedPrompt?.description ?? `Lab edit ${new Date().toISOString()}`,
+        inputVariables: editorInputVariables,
+        description:
+          selectedPrompt?.description ?? `Lab edit ${new Date().toISOString()}`,
         tags: selectedPrompt?.tags,
+        modelConfig: buildModelConfigPayload(modelConfig),
       });
-      setStatus("Saved to development");
+      toast.success("Draft saved to development");
       await refresh();
     } catch (e) {
-      setStatus(String(e));
+      toast.error(String(e));
     } finally {
       setLoading(false);
     }
@@ -176,12 +208,11 @@ export default function LabPage() {
 
   const onPromote = async () => {
     setLoading(true);
-    setStatus(null);
     try {
       await promotePrompt(selectedName, targetEnv, "development");
-      setStatus(`Promoted ${selectedName} → ${targetEnv}`);
+      toast.success(`Deployed ${selectedName} → ${targetEnv}`);
     } catch (e) {
-      setStatus(String(e));
+      toast.error(String(e));
     } finally {
       setLoading(false);
     }
@@ -189,7 +220,6 @@ export default function LabPage() {
 
   const onSaveFixture = async () => {
     setLoading(true);
-    setStatus(null);
     try {
       const input = parseFixtureInput();
       const { promptRef, profileRef } = composeRefs();
@@ -198,12 +228,12 @@ export default function LabPage() {
         promptName: promptRef.name,
         profileName: profileRef?.name ?? (selectedProfile || undefined),
         input,
-        description: `Lab fixture ${selectedName}`,
+        description: `Lab scenario ${selectedName}`,
       });
-      setStatus(`Saved fixture "${fixtureName}"`);
+      toast.success(`Scenario "${fixtureName}" saved`);
       await refresh();
     } catch (e) {
-      setStatus(String(e));
+      toast.error(String(e));
     } finally {
       setLoading(false);
     }
@@ -217,21 +247,18 @@ export default function LabPage() {
     if (f.profileName) setSelectedProfile(f.profileName);
     setFixtureInput(JSON.stringify(f.input, null, 2));
     const p = catalog.find((x) => x.name === f.promptName);
-    if (p) {
-      setEditorContent(p.content);
-      setEditorVersion(p.version);
-    }
-    setStatus(`Loaded fixture "${name}"`);
+    if (p) applyPromptToEditor(p);
+    toast.info(`Loaded scenario "${name}"`);
   };
 
   const onDeleteFixture = async (name: string) => {
     setLoading(true);
     try {
       await deleteFixture(name);
-      setStatus(`Deleted fixture "${name}"`);
+      toast.success(`Deleted scenario "${name}"`);
       await refresh();
     } catch (e) {
-      setStatus(String(e));
+      toast.error(String(e));
     } finally {
       setLoading(false);
     }
@@ -239,7 +266,7 @@ export default function LabPage() {
 
   const onCaptureInput = async () => {
     if (!captureInterviewId.trim()) {
-      setStatus("Enter an interviewId to capture");
+      toast.error("Enter an interview ID to capture");
       return;
     }
     setLoading(true);
@@ -255,11 +282,9 @@ export default function LabPage() {
         setSelectedProfile(captured.profileRef.name);
       }
       setFixtureInput(JSON.stringify(captured.input, null, 2));
-      setStatus(
-        `Captured input for ${captured.interviewId} (${captured.promptRef.name})`,
-      );
+      toast.success(`Captured input for ${captured.interviewId}`);
     } catch (e) {
-      setStatus(String(e));
+      toast.error(String(e));
     } finally {
       setLoading(false);
     }
@@ -274,9 +299,9 @@ export default function LabPage() {
       const session = await createSession(sessionPayload(input));
       setResolvedPrompt(session.systemPrompt);
       setVoiceSessionId(session.sessionId);
-      setStatus(`Rendered — session ${session.sessionId.slice(0, 8)}…`);
+      toast.success("Prompt rendered");
     } catch (e) {
-      setStatus(String(e));
+      toast.error(String(e));
     } finally {
       setLoading(false);
     }
@@ -289,17 +314,22 @@ export default function LabPage() {
     try {
       const input = parseFixtureInput();
       const { promptRef, profileRef } = composeRefs();
+      const mc = buildModelConfigPayload(modelConfig);
       const result = await executePrompt({
         promptRef,
         profileRef,
         input,
         responseFormat: meta?.executeReturnsJson ? "json_object" : "text",
+        ...(mc?.model ? { model: String(mc.model) } : {}),
+        ...(typeof mc?.temperature === "number"
+          ? { temperature: mc.temperature }
+          : {}),
       });
       setResolvedPrompt(result.systemPrompt);
       setExecuteOutput(result.output);
-      setStatus(`Execute OK`);
+      toast.success("Execute complete");
     } catch (e) {
-      setStatus(String(e));
+      toast.error(String(e));
     } finally {
       setLoading(false);
     }
@@ -318,364 +348,181 @@ export default function LabPage() {
       setResolvedPrompt(session.systemPrompt);
       setVoiceSessionId(session.sessionId);
       setVoiceStatus("session ready");
-      setStatus(`Voice session ready (${provider})`);
+      toast.success(`Voice session ready (${provider})`);
     } catch (e) {
       setVoiceStatus("error");
-      setStatus(String(e));
+      toast.error(String(e));
     } finally {
       setLoading(false);
     }
   };
 
+  const playgroundProps = meta
+    ? {
+        meta,
+        fixtureName,
+        onFixtureNameChange: setFixtureName,
+        fixtureInput,
+        onFixtureInputChange: setFixtureInput,
+        fixtures,
+        onSaveFixture,
+        onLoadFixture,
+        onDeleteFixture,
+        captureInterviewId,
+        onCaptureInterviewIdChange: setCaptureInterviewId,
+        onCaptureInput,
+        useEditorDraft,
+        onUseEditorDraftChange: setUseEditorDraft,
+        loading,
+        onRenderTest,
+        onExecuteTest,
+        onPrepareVoice,
+        voiceSessionId,
+        voiceStatus,
+        onVoiceStatus: setVoiceStatus,
+        resolvedPrompt,
+        executeOutput,
+      }
+    : null;
+
+  const agentDetail =
+    selectedPrompt && meta ? (
+      <LabAgentDetail
+        selectedPrompt={selectedPrompt}
+        meta={meta}
+        profilePrompts={profilePrompts}
+        selectedProfile={selectedProfile}
+        onProfileChange={setSelectedProfile}
+        editorContent={editorContent}
+        onContentChange={setEditorContent}
+        editorVersion={editorVersion}
+        onVersionChange={setEditorVersion}
+        inputVariables={editorInputVariables}
+        onInputVariablesChange={setEditorInputVariables}
+        modelConfig={modelConfig}
+        onModelConfigChange={setModelConfig}
+        targetEnv={targetEnv}
+        onTargetEnvChange={setTargetEnv}
+        loading={loading}
+        onSave={onSave}
+        onPromote={onPromote}
+      />
+    ) : (
+      <div className="flex h-full items-center justify-center p-8 text-sm text-muted-foreground">
+        {loading ? (
+          <Loader2 className="h-5 w-5 animate-spin" />
+        ) : (
+          "Select an agent to edit"
+        )}
+      </div>
+    );
+
   return (
-    <div className="mx-auto flex max-w-7xl flex-col gap-5 p-4 md:p-6">
-      <header className="flex flex-wrap items-start justify-between gap-4">
-        <div className="flex items-start gap-3">
+    <div className="-mb-4 -mt-4 flex h-[calc(100dvh-5.5rem)] flex-col overflow-hidden sm:-mb-5 sm:-mt-5 lg:-mb-8 lg:-mt-5 lg:h-[calc(100dvh-9.25rem)]">
+      <header className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-border/60 bg-background py-3">
+        <div className="flex items-center gap-3">
           <div className="rounded-lg bg-primary/10 p-2">
-            <FlaskConical className="h-6 w-6 text-primary" />
+            <Bot className="h-5 w-5 text-primary" />
           </div>
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight">Agent Lab</h1>
-            <p className="text-sm text-muted-foreground">
-              Prompt CMS on runtime · {catalog.length} templates ·{" "}
-              <span className="font-medium">{APP_ENV}</span>
+            <h1 className="text-lg font-semibold tracking-tight">Agent Lab</h1>
+            <p className="text-xs text-muted-foreground">
+              Build and test AI agents
             </p>
           </div>
         </div>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          disabled={loading}
-          onClick={() => refresh().catch((e) => setLoadError(String(e)))}
-        >
-          <RefreshCw className={cn("mr-1.5 h-3.5 w-3.5", loading && "animate-spin")} />
-          Refresh
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            disabled
+            title="Coming soon"
+            className="h-8 text-xs"
+          >
+            <Plus className="mr-1.5 h-3.5 w-3.5" />
+            New agent
+          </Button>
+          <Badge variant="secondary" className="text-[10px] font-normal">
+            {APP_ENV}
+          </Badge>
+          <Badge variant="outline" className="text-[10px] font-normal">
+            {catalog.length} agents
+          </Badge>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-8 w-8 p-0"
+            disabled={loading}
+            onClick={() => refresh().catch((e) => setLoadError(String(e)))}
+            aria-label="Refresh"
+          >
+            <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
+          </Button>
+        </div>
       </header>
 
-      <LabKindLegend />
-
       {loadError ? (
-        <Card className="border-destructive/40 bg-destructive/5">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">Could not load prompts</CardTitle>
-            <CardDescription>{loadError}</CardDescription>
-          </CardHeader>
-          <CardContent className="text-xs text-muted-foreground">
-            Runtime must share <code className="rounded bg-muted px-1">MONGODB_URI</code> with
-            core. Seed:{" "}
+        <div className="border-b border-destructive/30 bg-destructive/5 py-3 text-sm">
+          <p className="font-medium text-destructive">Could not load agents</p>
+          <p className="mt-1 text-xs text-muted-foreground">{loadError}</p>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Seed:{" "}
             <code className="rounded bg-muted px-1">
               cd interview-core && npm run seed:prompts development
             </code>
-          </CardContent>
-        </Card>
-      ) : null}
-
-      {!loadError && catalog.length === 0 ? (
-        <Card className="border-amber-500/40 bg-amber-500/5">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">No prompts in Mongo</CardTitle>
-            <CardDescription>
-              Run the seed script, then restart runtime.
-            </CardDescription>
-          </CardHeader>
-        </Card>
-      ) : null}
-
-      {status ? (
-        <div className="rounded-md border border-border bg-muted/40 px-3 py-2 text-sm">
-          {status}
+          </p>
         </div>
       ) : null}
 
-      <div className="grid gap-5 lg:grid-cols-[minmax(220px,260px)_1fr]">
-        <aside className="lg:sticky lg:top-4 lg:self-start">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium">Catalog</CardTitle>
-              <CardDescription className="text-xs">
-                Grouped by product surface
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="max-h-[calc(100vh-12rem)] overflow-y-auto pt-0">
-              <LabPromptSidebar
-                prompts={prompts}
-                selectedName={selectedName}
-                onSelect={selectPrompt}
-              />
-            </CardContent>
-          </Card>
-        </aside>
+      {!loadError && catalog.length === 0 ? (
+        <div className="border-b border-amber-500/30 bg-amber-500/5 py-3 text-sm">
+          <p className="font-medium">No agents in Mongo</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Run the seed script, then restart runtime.
+          </p>
+        </div>
+      ) : null}
 
-        <div className="flex min-w-0 flex-col gap-5">
-          {selectedPrompt && meta ? (
-            <div
-              className={cn(
-                "rounded-xl border px-4 py-3",
-                KIND_HEADER[meta.kind],
-              )}
-            >
-              <div className="flex flex-wrap items-center gap-2">
-                <h2 className="font-mono text-sm font-semibold">{selectedName}</h2>
-                <Badge variant="outline" className="text-[10px]">
-                  {getKindLabel(meta.kind)}
-                </Badge>
-                <Badge variant="secondary" className="text-[10px]">
-                  v{editorVersion}
-                </Badge>
-                <span className="text-xs text-muted-foreground">
-                  {meta.categoryLabel}
-                </span>
-              </div>
-              <p className="mt-1 text-sm text-muted-foreground">{meta.description}</p>
-              {meta.previewViaLiveWrapper ? (
-                <p className="mt-2 text-xs text-amber-800 dark:text-amber-200">
-                  Profiles compose into{" "}
-                  <code className="rounded bg-background/60 px-1">interviewer-system</code> via{" "}
-                  <code className="rounded bg-background/60 px-1">profileRef</code>. Use{" "}
-                  <strong>Render</strong> below to preview the full system prompt.
-                </p>
-              ) : null}
+      <div className="hidden min-h-0 flex-1 lg:flex">
+        <LabResizablePanels
+          left={
+            <LabAgentSidebar
+              prompts={prompts}
+              selectedName={selectedName}
+              onSelect={selectPrompt}
+            />
+          }
+          center={agentDetail}
+          right={playgroundProps ? <LabPlayground {...playgroundProps} /> : <div />}
+        />
+      </div>
+
+      {/* Tablet / mobile: stacked panes with internal scroll */}
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden lg:hidden">
+        <details className="shrink-0 border-b border-border/60">
+          <summary className="cursor-pointer px-4 py-2.5 text-sm font-medium">
+            Browse agents ({catalog.length})
+          </summary>
+          <div className="max-h-48 overflow-y-auto border-t border-border/60">
+            <LabAgentSidebar
+              prompts={prompts}
+              selectedName={selectedName}
+              onSelect={selectPrompt}
+            />
+          </div>
+        </details>
+
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          <div className="min-h-0 flex-1 overflow-hidden border-b border-border/60">
+            {agentDetail}
+          </div>
+          {playgroundProps ? (
+            <div className="min-h-0 flex-1 overflow-hidden bg-muted/10">
+              <LabPlayground {...playgroundProps} />
             </div>
           ) : null}
-
-          <div className="grid gap-5 xl:grid-cols-2">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Template editor</CardTitle>
-                <CardDescription>
-                  Changes save to <strong>development</strong> only until promoted.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {meta?.needsProfileRef ? (
-                  <div>
-                    <Label className="text-xs text-muted-foreground">
-                      Compose with profile (profileRef)
-                    </Label>
-                    <select
-                      className="mt-1 w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm"
-                      value={selectedProfile}
-                      onChange={(e) => setSelectedProfile(e.target.value)}
-                    >
-                      <option value="">— none —</option>
-                      {profilePrompts.map((p) => (
-                        <option key={p.name} value={p.name}>
-                          {p.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                ) : null}
-
-                <div>
-                  <Label className="text-xs text-muted-foreground">Version</Label>
-                  <input
-                    className="mt-1 w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm"
-                    value={editorVersion}
-                    onChange={(e) => setEditorVersion(e.target.value)}
-                  />
-                </div>
-
-                <textarea
-                  className="h-64 w-full rounded-md border border-border bg-background p-3 font-mono text-xs leading-relaxed"
-                  value={editorContent}
-                  onChange={(e) => setEditorContent(e.target.value)}
-                  spellCheck={false}
-                />
-
-                <div className="flex flex-wrap gap-2">
-                  <Button type="button" disabled={loading} onClick={onSave}>
-                    {loading ? (
-                      <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
-                    ) : null}
-                    Save
-                  </Button>
-                  <select
-                    className="rounded-md border border-border bg-background px-2 py-2 text-sm"
-                    value={targetEnv}
-                    onChange={(e) => setTargetEnv(e.target.value)}
-                  >
-                    <option value="staging">→ staging</option>
-                    <option value="production">→ production</option>
-                    <option value="experiment">→ experiment</option>
-                  </select>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    disabled={loading}
-                    onClick={onPromote}
-                  >
-                    Promote
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Test bench</CardTitle>
-                <CardDescription>
-                  {meta?.supportsVoiceTest
-                    ? "Render composes the prompt; voice test uses Gemini mic path."
-                    : meta?.supportsExecuteTest
-                      ? "Render shows composed prompt; Execute runs one LLM call."
-                      : "Render previews how this profile composes into a live session."}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex flex-wrap gap-2">
-                  <input
-                    className="min-w-[8rem] flex-1 rounded-md border border-border bg-background px-2 py-1.5 text-sm"
-                    placeholder="Fixture name"
-                    value={fixtureName}
-                    onChange={(e) => setFixtureName(e.target.value)}
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    disabled={loading}
-                    onClick={onSaveFixture}
-                  >
-                    Save fixture
-                  </Button>
-                  {fixtures.length > 0 ? (
-                    <select
-                      className="rounded-md border border-border bg-background px-2 py-1.5 text-sm"
-                      defaultValue=""
-                      onChange={(e) => {
-                        if (e.target.value) onLoadFixture(e.target.value);
-                        e.target.value = "";
-                      }}
-                    >
-                      <option value="">Load…</option>
-                      {fixtures.map((f) => (
-                        <option key={f.name} value={f.name}>
-                          {f.name}
-                        </option>
-                      ))}
-                    </select>
-                  ) : null}
-                </div>
-
-                {(meta?.supportsVoiceTest || meta?.needsProfileRef) &&
-                !meta.previewViaLiveWrapper ? (
-                  <div className="flex flex-wrap gap-2">
-                    <input
-                      className="min-w-[10rem] flex-1 rounded-md border border-border bg-background px-2 py-1.5 text-sm"
-                      placeholder="Interview ID — capture real input from core"
-                      value={captureInterviewId}
-                      onChange={(e) => setCaptureInterviewId(e.target.value)}
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      disabled={loading}
-                      onClick={onCaptureInput}
-                    >
-                      Capture
-                    </Button>
-                  </div>
-                ) : null}
-
-                <textarea
-                  className="h-36 w-full rounded-md border border-border bg-background p-2 font-mono text-xs"
-                  value={fixtureInput}
-                  onChange={(e) => setFixtureInput(e.target.value)}
-                />
-
-                {!meta?.previewViaLiveWrapper ? (
-                  <label className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <input
-                      type="checkbox"
-                      checked={useEditorDraft}
-                      onChange={(e) => setUseEditorDraft(e.target.checked)}
-                    />
-                    Use unsaved editor draft when rendering
-                  </label>
-                ) : null}
-
-                <div className="flex flex-wrap gap-2">
-                  <Button type="button" disabled={loading} onClick={onRenderTest}>
-                    Render prompt
-                  </Button>
-                  {meta?.supportsExecuteTest ? (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      disabled={loading}
-                      onClick={onExecuteTest}
-                    >
-                      Execute LLM
-                      {meta.executeReturnsJson ? " (JSON)" : ""}
-                    </Button>
-                  ) : null}
-                  {meta?.supportsVoiceTest ? (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      disabled={loading}
-                      onClick={onPrepareVoice}
-                    >
-                      Prepare voice
-                    </Button>
-                  ) : null}
-                </div>
-
-                {meta?.supportsVoiceTest ? (
-                  <LabVoicePanel
-                    sessionId={voiceSessionId}
-                    onStatus={setVoiceStatus}
-                  />
-                ) : null}
-
-                {meta?.supportsVoiceTest ? (
-                  <p className="text-xs text-muted-foreground">Voice: {voiceStatus}</p>
-                ) : null}
-
-                <div>
-                  <Label className="text-xs text-muted-foreground">
-                    Composed system prompt
-                  </Label>
-                  <pre className="mt-1 max-h-40 overflow-auto rounded-md border border-border bg-muted/30 p-2 text-xs whitespace-pre-wrap">
-                    {resolvedPrompt || "Run Render to preview…"}
-                  </pre>
-                </div>
-
-                {executeOutput ? (
-                  <div>
-                    <Label className="text-xs text-muted-foreground">LLM output</Label>
-                    <pre className="mt-1 max-h-40 overflow-auto rounded-md border border-border bg-muted/30 p-2 text-xs whitespace-pre-wrap">
-                      {executeOutput}
-                    </pre>
-                  </div>
-                ) : null}
-
-                {fixtures.length > 0 ? (
-                  <ul className="space-y-1 border-t border-border pt-2 text-xs text-muted-foreground">
-                    {fixtures.map((f) => (
-                      <li key={f.name} className="flex items-center justify-between gap-2">
-                        <span className="truncate">
-                          {f.name} → {f.promptName}
-                          {f.profileName ? ` + ${f.profileName}` : ""}
-                        </span>
-                        <button
-                          type="button"
-                          className="shrink-0 text-destructive hover:underline"
-                          onClick={() => onDeleteFixture(f.name)}
-                        >
-                          delete
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                ) : null}
-              </CardContent>
-            </Card>
-          </div>
         </div>
       </div>
     </div>

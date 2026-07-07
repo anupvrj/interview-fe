@@ -88,10 +88,21 @@ export const LAB_CATEGORIES: LabCategory[] = [
 ];
 
 const KIND_LABELS: Record<PromptKind, string> = {
-  voice: "Voice",
-  execute: "Execute",
+  voice: "Live",
+  execute: "Batch",
   profile: "Profile",
 };
+
+/** Sidebar groups — agent-type first, not product surface. */
+export const AGENT_TYPE_GROUPS: {
+  kind: PromptKind;
+  label: string;
+  description: string;
+}[] = [
+  { kind: "voice", label: "Live agents", description: "Real-time voice sessions" },
+  { kind: "execute", label: "Batch agents", description: "One-shot text / JSON LLM" },
+  { kind: "profile", label: "Profiles", description: "Composed into live agents" },
+];
 
 const KIND_DESCRIPTIONS: Record<PromptKind, string> = {
   voice: "Session + WebSocket — test with mic in lab or full interview UI.",
@@ -214,6 +225,56 @@ export function classifyPrompt(prompt: PromptRecord): PromptClassification {
 
 export function getKindLabel(kind: PromptKind): string {
   return KIND_LABELS[kind];
+}
+
+/** Human-facing agent name for the lab UI (backend `name` unchanged). */
+export function getAgentDisplayName(
+  name: string,
+  meta?: Pick<PromptClassification, "shortLabel">,
+): string {
+  if (meta?.shortLabel) return meta.shortLabel;
+  if (name.startsWith("profile-")) {
+    return name
+      .slice("profile-".length)
+      .split("-")
+      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+      .join(" ");
+  }
+  return name
+    .split("-")
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
+}
+
+/** Two-letter initials for agent list avatars. */
+export function getAgentInitials(displayName: string): string {
+  const words = displayName.trim().split(/\s+/).filter(Boolean);
+  if (words.length >= 2) {
+    return (words[0]![0]! + words[1]![0]!).toUpperCase();
+  }
+  return displayName.slice(0, 2).toUpperCase();
+}
+
+export function groupAgentsByKind(
+  prompts: PromptRecord[],
+): Map<PromptKind, PromptRecord[]> {
+  const catalog = latestPromptsPerName(prompts);
+  const groups = new Map<PromptKind, PromptRecord[]>();
+  for (const { kind } of AGENT_TYPE_GROUPS) {
+    groups.set(kind, []);
+  }
+  for (const p of catalog) {
+    const { kind } = classifyPrompt(p);
+    groups.get(kind)?.push(p);
+  }
+  for (const [, items] of groups) {
+    items.sort((a, b) => {
+      const la = getAgentDisplayName(a.name, classifyPrompt(a));
+      const lb = getAgentDisplayName(b.name, classifyPrompt(b));
+      return la.localeCompare(lb);
+    });
+  }
+  return groups;
 }
 
 export function getKindDescription(kind: PromptKind): string {

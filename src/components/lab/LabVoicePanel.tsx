@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Button } from "@/components/ui/button";
 import { connectVoiceSession } from "@/lib/runtimeApi";
 
 const TARGET_SAMPLE_RATE = 24000;
@@ -225,23 +226,19 @@ export function LabVoicePanel({ sessionId, onStatus, onTranscript }: Props) {
   useEffect(() => () => cleanup(), [cleanup]);
 
   return (
-    <div className="rounded-lg border border-border bg-muted/20 p-3">
+    <div className="rounded-lg border border-border/60 bg-muted/20 p-3">
       <div className="mb-2 flex flex-wrap items-center gap-2">
-        <button
+        <Button
           type="button"
+          size="sm"
           disabled={!sessionId}
           onClick={() => void startVoice()}
-          className="rounded bg-primary px-3 py-1.5 text-sm text-primary-foreground disabled:opacity-50"
         >
-          {active ? "Restart voice" : "Start live voice (mic)"}
-        </button>
-        <button
-          type="button"
-          onClick={cleanup}
-          className="rounded border border-border px-3 py-1.5 text-sm"
-        >
+          {active ? "Restart voice" : "Start live voice"}
+        </Button>
+        <Button type="button" size="sm" variant="outline" onClick={cleanup}>
           Stop
-        </button>
+        </Button>
         {aiSpeaking ? (
           <span className="text-xs text-muted-foreground">AI speaking…</span>
         ) : active ? (
