@@ -354,6 +354,78 @@ export const DEFAULT_SD_VOICE_FIXTURE = {
   considerations: "Hash collisions, cache, DB sharding",
 };
 
+export const DEFAULT_ATS_FEEDBACK_FIXTURE = {
+  cosineSimilarityPercent: "72.50",
+  cosineSimilarityRounded: 73,
+  fontContext: "",
+  sectionContext: "",
+  schemaJson: '{"overallScore":0,"categoryScores":{}}',
+  resumeText: "Jane Doe\nBackend Engineer\nSkills: Node.js, PostgreSQL",
+  extractedKeywords: "Node.js, PostgreSQL, API",
+};
+
+export const DEFAULT_REPORT_COACHING_PASS2_FIXTURE = {
+  role: "Backend Engineer",
+  experience: 5,
+  overallScore: 68,
+  technicalScore: 72,
+  codingRoundContext: "",
+  qaScoreSummary: "Q1 [medium/good]: score=75, Q2 [hard/fair]: score=60",
+  behavioralAnswers: "Q: Tell me about a conflict. A: I mediated between teams...",
+};
+
+export const DEFAULT_RESUME_DATA_EXTRACT_FIXTURE = {
+  sectionNames: "personalInfo, experience, skills",
+  resumeText: "Jane Doe\nSoftware Engineer at Acme\nSkills: Node.js, PostgreSQL",
+};
+
+export const DEFAULT_SD_SCORING_FIXTURE = {
+  problemContext: "Design a URL shortener — 100M links/day.",
+  boardHint: "Labels: API Gateway, Redis, DB",
+  feedbackSummary: "(none)",
+  transcriptBlock: "Candidate: I would start with an API layer...",
+};
+
+export const DEFAULT_SD_REPORT_FIXTURE = {
+  problemBrief: "URL shortener — scale, redirects, analytics.",
+  boardHint: "Labels: LB, API, Cache, DB",
+  scoreBlock: '{"overallScore":65}',
+  feedbackBlock: "(none)",
+  mergedTranscript: "Candidate discussed hashing and cache layers.",
+};
+
+export const DEFAULT_RESUME_CONTENT_REFINE_FIXTURE = {
+  taskMode: "refinement",
+  contentType: "paragraph",
+  rawText: "Worked on backend services and improved API performance.",
+  wordCount: 8,
+  maxWords: 11,
+  hasUserPrompt: false,
+  userPrompt: "",
+  noQuantification: false,
+  wantsBrevity: false,
+  wantsFormalTone: false,
+  wantsCasualTone: false,
+};
+
+export const DEFAULT_PEER_SEGMENT_FIXTURE = {
+  interviewType: "technical",
+  interviewerName: "Sam",
+  candidateName: "Alex",
+  transcript:
+    "Sam: Tell me about your last project.\nAlex: I built an API gateway with rate limiting.\nSam: How did you handle failures?",
+};
+
+export const DEFAULT_PEER_QA_FIXTURE = {
+  interviewType: "technical",
+  interviewerName: "Sam",
+  candidateName: "Alex",
+  question: "How did you handle failures?",
+  answer: "We used retries with exponential backoff and circuit breakers.",
+  index: 1,
+  total: 2,
+};
+
 export function defaultFixtureForPrompt(name: string, kind: PromptKind): Record<string, unknown> {
   if (name.startsWith("profile-")) {
     return {
@@ -370,13 +442,92 @@ export function defaultFixtureForPrompt(name: string, kind: PromptKind): Record<
         "### Two Sum (Easy)\nGiven an array...\n\nCandidate code:\n```\nfunction twoSum() {}\n```",
     };
   }
-  if (name.startsWith("report-")) return DEFAULT_REPORT_FIXTURE;
+  if (name.startsWith("report-qa")) return DEFAULT_REPORT_FIXTURE;
+  if (name === "report-coaching-pass2") return DEFAULT_REPORT_COACHING_PASS2_FIXTURE;
   if (name === "transcript-normalize") return DEFAULT_TRANSCRIPT_FIXTURE;
   if (name === "ats-resume-extract") return DEFAULT_ATS_EXTRACT_FIXTURE;
+  if (name === "ats-resume-feedback") return DEFAULT_ATS_FEEDBACK_FIXTURE;
+  if (name === "resume-data-extract") return DEFAULT_RESUME_DATA_EXTRACT_FIXTURE;
+  if (name.startsWith("peer-")) {
+    if (name === "peer-transcript-segment") return DEFAULT_PEER_SEGMENT_FIXTURE;
+    if (name === "peer-qa-analysis") return DEFAULT_PEER_QA_FIXTURE;
+    return {
+      interviewType: "technical",
+      candidateName: "Alex",
+      overallScore: 72,
+      qaCount: 5,
+    };
+  }
+  if (name === "ats-batch-check") {
+    return {
+      resumeText: "Jane Doe\nBackend Engineer",
+      bulletCount: 2,
+      bulletsBlock: "1. Built APIs\n2. Led migrations",
+      skillsList: "Node.js, PostgreSQL",
+      profileJson: '{"targetRole":"Backend Engineer"}',
+      jobDescriptionSection: "NO JOB DESCRIPTION — skip tailoring checks.",
+      checksToRun: "spellingGrammar, quantifyingImpact",
+      targetRole: "Backend Engineer",
+    };
+  }
+  if (name === "ats-jd-extract") {
+    return { jobDescription: "Senior Backend Engineer — 5+ years Node.js, AWS required." };
+  }
+  if (name === "linkedin-profile-enhance") {
+    return {
+      sectionNames: "personalInfo, experience, skills",
+      profileJson: '{"fullName":"Jane Doe","headline":"Backend Engineer"}',
+    };
+  }
+  if (name === "ats-resume-enhance") {
+    return {
+      resumeContentJson: '{"experience":[]}',
+      profileSummaryLine: "",
+      atsScoreLine: "ATS score: 65/100 (4 issues)",
+      feedbackSummary: "Add metrics to bullets",
+      jobDescriptionSection: "",
+    };
+  }
+  if (name === "ats-issue-improve") {
+    return {
+      resumeSnippet: "Built backend services",
+      checkLabel: "Quantifying impact",
+      categoryLabelClause: "",
+      issueTitle: "Missing metrics",
+      issueDescription: "Bullet lacks measurable impact",
+      suggestionLine: "SUGGESTION: Add throughput or latency improvements",
+      rewriteSuggestionLine: "",
+      interviewQuestionLine: "",
+      fixBodyLine: "",
+      sourceContent: "Built backend services",
+      hasUserPrompt: false,
+      userPrompt: "",
+      noQuantification: false,
+      wantsBrevity: false,
+      wantsFormalTone: false,
+      wantsCasualTone: false,
+    };
+  }
+  if (name === "interviewer-voice-greeting") {
+    return {
+      candidateName: "Alex",
+      role: "Backend Engineer",
+      experienceText: "with 5 years of experience",
+      additionalContext: "",
+      topSkills: "Node.js, PostgreSQL, Redis",
+      interviewerDisplayName: "Jordan Lee",
+      interviewerTitle: "Engineering Manager",
+      introArticle: "an",
+      atCompany: " at Acme Corp",
+    };
+  }
+  if (name === "resume-content-refine") return DEFAULT_RESUME_CONTENT_REFINE_FIXTURE;
+  if (name === "system-design-scoring") return DEFAULT_SD_SCORING_FIXTURE;
+  if (name === "system-design-report") return DEFAULT_SD_REPORT_FIXTURE;
   if (name.startsWith("system-design-voice")) return DEFAULT_SD_VOICE_FIXTURE;
   if (name.startsWith("system-design-chat") || name.startsWith("system-design-diagram")) {
     return DEFAULT_SD_CHAT_FIXTURE;
   }
   if (kind === "voice") return DEFAULT_LIVE_FIXTURE;
-  return { promptBody: "(assembled in core — paste or capture from interview)" };
+  return { note: "(no default fixture — add variables in the editor)" };
 }
