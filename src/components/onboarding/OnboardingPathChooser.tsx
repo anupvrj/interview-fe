@@ -5,8 +5,17 @@ import { InterviewTrixLogo } from "@/components/InterviewTrixLogo";
 import { ROLE_META } from "@/lib/roles";
 import { cn } from "@/lib/utils";
 
-const ONBOARDING_PATHS = ["candidate", "interviewer"] as const;
+const ONBOARDING_PATHS = ["candidate", "interviewer", "recruiter"] as const;
 export type OnboardingPath = (typeof ONBOARDING_PATHS)[number];
+
+const PATH_DESCRIPTIONS: Record<OnboardingPath, string> = {
+  candidate:
+    "Practice interviews, build your resume, and book peer mock sessions.",
+  interviewer:
+    "Apply to become a verified peer interviewer and earn from mock interviews.",
+  recruiter:
+    "Discover verified iX Talent, review iX Reports and hire top candidates.",
+};
 
 type OnboardingPathChooserProps = {
   displayName?: string;
@@ -32,12 +41,12 @@ export function OnboardingPathChooser({
           Welcome, {displayName}
         </h1>
         <p className="mt-2 max-w-md text-sm text-muted-foreground">
-          How would you like to use InterviewTrix? Choose one to get started — you
-          can always explore the other side later.
+          How would you like to use InterviewTrix? Choose one to get started —
+          you can always explore the other side later.
         </p>
       </div>
 
-      <div className="grid w-full max-w-2xl gap-4 sm:grid-cols-2">
+      <div className="grid w-full max-w-4xl gap-4 sm:grid-cols-3">
         {ONBOARDING_PATHS.map((path) => {
           const meta = ROLE_META[path];
           const Icon = meta.icon;
@@ -63,9 +72,7 @@ export function OnboardingPathChooser({
                   <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-primary" />
                 </span>
                 <span className="mt-1 block text-sm text-muted-foreground">
-                  {path === "candidate"
-                    ? "Practice interviews, build your resume, and book peer mock sessions."
-                    : "Apply to become a verified peer interviewer and earn from mock interviews."}
+                  {PATH_DESCRIPTIONS[path]}
                 </span>
               </span>
             </button>

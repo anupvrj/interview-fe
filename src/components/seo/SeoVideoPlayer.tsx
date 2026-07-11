@@ -7,7 +7,6 @@ export type SeoVideoPlayerProps = Readonly<{
   videoUrl: string;
   title: string;
   thumbnailUrl?: string;
-  captionsUrl?: string;
   className?: string;
   autoPlay?: boolean;
   loop?: boolean;
@@ -20,13 +19,12 @@ export type SeoVideoPlayerProps = Readonly<{
 
 /**
  * HTML5 video player tuned for public S3 / CloudFront byte-range streaming.
- * crossOrigin="anonymous" enables WebVTT captions when served from another origin.
+ * Captions/transcripts are kept in JSON-LD only — not rendered on the video.
  */
 export function SeoVideoPlayer({
   videoUrl,
   title,
   thumbnailUrl,
-  captionsUrl,
   className,
   autoPlay = false,
   loop = false,
@@ -67,19 +65,8 @@ export function SeoVideoPlayer({
         playsInline={playsInline}
         controls={controls}
         preload={preload}
-        crossOrigin={captionsUrl ? "anonymous" : undefined}
         aria-label={title}
-      >
-        {captionsUrl ? (
-          <track
-            kind="captions"
-            srcLang="en"
-            label="English captions"
-            src={captionsUrl}
-            default
-          />
-        ) : null}
-      </video>
+      />
       {children}
     </div>
   );

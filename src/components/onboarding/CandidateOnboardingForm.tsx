@@ -31,6 +31,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { InstitutionAffiliationFields } from "@/components/profile/InstitutionAffiliationFields";
+import { ProfileSkillsEditor } from "@/components/profile/ProfileSkillsEditor";
 import {
   FormField,
   FormSection,
@@ -49,22 +50,15 @@ import {
 } from "@/lib/pdf-dropzone";
 import { appPrimaryButton } from "@/lib/app-theme";
 import { cn } from "@/lib/utils";
-
-const INDUSTRIES = [
-  "IT/Software",
-  "Finance",
-  "Healthcare",
-  "Education",
-  "Manufacturing",
-  "Retail",
-  "Consulting",
-  "E-commerce",
-  "Telecommunications",
-  "Automotive",
-  "Real Estate",
-  "Media & Entertainment",
-  "Other",
-] as const;
+import {
+  DEFAULT_INTERVIEW_OPT_INS,
+  IX_CATEGORY_KEYS,
+  IX_CATEGORY_META,
+  type InterviewOptIns,
+} from "@/lib/ix-score-constants";
+import { IndustryRoleFields } from "@/components/career/IndustryRoleFields";
+import { industrySelectOptions } from "@/lib/career-catalog";
+import { AppSelect } from "@/components/ui/app-select";
 
 const STEPS = [
   { number: 1, title: "Profile", icon: User },
@@ -126,13 +120,17 @@ export function CandidateOnboardingForm({ onBack }: Readonly<CandidateOnboarding
   const [reviewData, setReviewData] = useState({
     overallExperience: 0,
     experience: 0,
-    currentJob: { company: "", role: "", industry: "" },
-    industries: [] as string[],
+    currentJob: { company: "", role: "" },
+    industry: "",
+    skills: [] as string[],
   });
   const [affiliation, setAffiliation] = useState<AffiliationValue>({
     affiliationInstitutionId: null,
     affiliationInstitutionName: "",
   });
+  const [interviewOptIns, setInterviewOptIns] = useState<InterviewOptIns>(
+    DEFAULT_INTERVIEW_OPT_INS,
+  );
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     accept: pdfResumeDropzoneAccept,
@@ -196,10 +194,10 @@ export function CandidateOnboardingForm({ onBack }: Readonly<CandidateOnboarding
       minimal || userType !== "experienced" || !reviewData.currentJob.company
         ? undefined
         : reviewData.currentJob,
-    industries:
-      minimal || reviewData.industries.length === 0
-        ? undefined
-        : reviewData.industries,
+    industry: minimal || !reviewData.industry ? undefined : reviewData.industry,
+    skills:
+      minimal || reviewData.skills.length === 0 ? undefined : reviewData.skills,
+    interviewOptIns: minimal ? undefined : interviewOptIns,
     ...toOnboardingAffiliationPayload(affiliation),
   });
 
@@ -213,8 +211,9 @@ export function CandidateOnboardingForm({ onBack }: Readonly<CandidateOnboarding
       setReviewData({
         overallExperience: 0,
         experience: 0,
-        currentJob: { company: "", role: "", industry: "" },
-        industries: [],
+        currentJob: { company: "", role: "" },
+        industry: "",
+        skills: [],
       });
       setCurrentStep(2);
       return;
@@ -230,9 +229,9 @@ export function CandidateOnboardingForm({ onBack }: Readonly<CandidateOnboarding
         currentJob: {
           company: result.extracted.currentJob?.company || "",
           role: result.extracted.currentJob?.role || "",
-          industry: result.extracted.currentJob?.industry || "",
         },
-        industries: result.extracted.skills?.slice(0, 5) || [],
+        industry: result.extracted.currentJob?.industry || "",
+        skills: result.extracted.skills?.slice(0, 20) || [],
       });
       setCurrentStep(2);
     } catch (err: unknown) {
@@ -245,13 +244,17 @@ export function CandidateOnboardingForm({ onBack }: Readonly<CandidateOnboarding
     }
   };
 
-  const toggleIndustry = (industry: string) => {
-    setReviewData((prev) => ({
-      ...prev,
-      industries: prev.industries.includes(industry)
-        ? prev.industries.filter((i) => i !== industry)
-        : [...prev.industries, industry],
-    }));
+  const toggleInterviewOpt = (key: keyof InterviewOptIns) => {
+    setInterviewOptIns((prev) => {
+      const next = { ...prev, [key]: !prev[key] };
+      const enabled = IX_CATEGORY_KEYS.filter((k) => next[k]);
+      if (enabled.length === 0) {
+        setError("At least one interview type must stay selected");
+        return prev;
+      }
+      setError("");
+      return next;
+    });
   };
 
   const completeOnboarding = async (minimal = false) => {
@@ -549,90 +552,112 @@ export function CandidateOnboardingForm({ onBack }: Readonly<CandidateOnboarding
                         className={onboardingControlClass}
                       />
                     </FormField>
-                    <FormField label="Role / title" htmlFor="job-role">
-                      <Input
-                        id="job-role"
-                        value={reviewData.currentJob.role}
-                        onChange={(e) =>
+                    <div className="sm:col-span-2">
+                      <IndustryRoleFields
+                        industryId="onboarding-job-industry"
+                        roleId="onboarding-job-role"
+                        industry={reviewData.industry}
+                        role={reviewData.currentJob.role}
+                        onIndustryChange={(value) =>
+                          setReviewData((prev) => ({ ...prev, industry: value }))
+                        }
+                        onRoleChange={(value) =>
                           setReviewData((prev) => ({
                             ...prev,
-                            currentJob: { ...prev.currentJob, role: e.target.value },
+                            currentJob: { ...prev.currentJob, role: value },
                           }))
                         }
-                        placeholder="e.g. Software Engineer"
-                        className={onboardingControlClass}
+                        industryLabel="Industry"
+                        roleLabel="Role / title"
+                        layout="grid"
+                        industryClassName={onboardingControlClass}
+                        roleClassName={onboardingControlClass}
                       />
-                    </FormField>
-                    <FormField label="Industry" htmlFor="job-industry">
-                      <Select
-                        value={reviewData.currentJob.industry}
-                        onValueChange={(value) =>
-                          setReviewData((prev) => ({
-                            ...prev,
-                            currentJob: { ...prev.currentJob, industry: value },
-                          }))
-                        }
-                      >
-                        <SelectTrigger id="job-industry" className={onboardingControlClass}>
-                          <SelectValue placeholder="Select industry" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {INDUSTRIES.map((industry) => (
-                            <SelectItem key={industry} value={industry}>
-                              {industry}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </FormField>
+                    </div>
                   </div>
                 </FormSection>
               ) : null}
 
               <FormSection
-                icon={TrendingUp}
-                title="Industries of interest"
-                description="Optional — we'll suggest relevant practice content."
+                icon={Eye}
+                title="Which interviews are you practising?"
+                description="Your iX Report is built from the categories you select here. You can change this later from My Profile."
               >
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                  {INDUSTRIES.map((industry) => {
-                    const selected = reviewData.industries.includes(industry);
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  {IX_CATEGORY_KEYS.map((key) => {
+                    const meta = IX_CATEGORY_META[key];
+                    const active = interviewOptIns[key];
                     return (
                       <button
-                        key={industry}
+                        key={key}
                         type="button"
-                        onClick={() => toggleIndustry(industry)}
+                        onClick={() => toggleInterviewOpt(key)}
                         className={cn(
-                          "flex items-center justify-between gap-2 rounded-lg border px-3 py-2.5 text-left text-xs font-medium transition-colors sm:text-sm",
-                          selected
-                            ? "border-[#7367F0]/50 bg-[#7367F0]/[0.08] text-foreground"
-                            : "border-border/70 bg-card text-muted-foreground hover:border-[#7367F0]/30",
+                          "rounded-xl border p-4 text-left transition-colors",
+                          active
+                            ? "border-[#7367F0] bg-[#7367F0]/5 shadow-sm"
+                            : "border-border/70 bg-card hover:border-[#7367F0]/30",
                         )}
                       >
-                        <span className="truncate">{industry}</span>
-                        {selected ? (
-                          <Check className="h-3.5 w-3.5 shrink-0 text-[#7367F0]" />
-                        ) : null}
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-sm font-semibold text-foreground">
+                            {meta.label}
+                          </span>
+                          <span
+                            className={cn(
+                              "rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase",
+                              active
+                                ? "bg-[#7367F0] text-white"
+                                : "bg-muted text-muted-foreground",
+                            )}
+                          >
+                            {active ? "On" : "Off"}
+                          </span>
+                        </div>
+                        <p className="mt-2 text-xs text-muted-foreground">
+                          {meta.description}
+                        </p>
                       </button>
                     );
                   })}
                 </div>
               </FormSection>
 
-              {extractedData?.skills && extractedData.skills.length > 0 ? (
-                <div className="rounded-xl border border-emerald-400/40 bg-emerald-50/40 px-4 py-3 dark:bg-emerald-950/20">
-                  <p className="text-xs font-medium text-muted-foreground">Skills detected</p>
-                  <div className="mt-2 flex flex-wrap gap-1.5">
-                    {extractedData.skills.slice(0, 10).map((skill) => (
-                      <span
-                        key={skill}
-                        className="rounded-md bg-emerald-100/80 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
-                      >
-                        {skill}
-                      </span>
-                    ))}
-                  </div>
-                </div>
+              <FormSection
+                icon={Sparkles}
+                title="Skills"
+                description="Remove extracted skills with ×, pick from suggestions, or type your own."
+              >
+                <ProfileSkillsEditor
+                  skills={reviewData.skills}
+                  industry={reviewData.industry}
+                  onChange={(skills) =>
+                    setReviewData((prev) => ({ ...prev, skills }))
+                  }
+                />
+              </FormSection>
+
+              {userType !== "experienced" ? (
+              <FormSection
+                icon={TrendingUp}
+                title="Industry"
+                description="Optional — helps us tailor practice and recruiter discovery."
+              >
+                <FormField label="Industry" htmlFor="onboarding-industry">
+                  <AppSelect
+                    id="onboarding-industry"
+                    value={reviewData.industry}
+                    onChange={(value) =>
+                      setReviewData((prev) => ({ ...prev, industry: value }))
+                    }
+                    allowEmpty
+                    emptyLabel="Not specified"
+                    placeholder="Select industry"
+                    options={industrySelectOptions()}
+                    className={onboardingControlClass}
+                  />
+                </FormField>
+              </FormSection>
               ) : null}
             </>
           ) : null}
