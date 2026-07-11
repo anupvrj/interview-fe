@@ -13,10 +13,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AppSelect } from "@/components/ui/app-select";
+import { JobRoleSelect } from "@/components/career/JobRoleSelect";
 import { cn } from "@/lib/utils";
+import { toPeerIndustryList } from "@/lib/career-catalog";
 import {
   peerApi,
-  type PeerIndustry,
   type PeerInterviewType,
   type PeerReassignInterviewerFilters,
   type PeerReassignInterviewerList,
@@ -82,7 +83,7 @@ export function AdminPeerBookingReassignDialog({
   const [reassignData, setReassignData] = useState<PeerReassignInterviewerList | null>(null);
   const [filters, setFilters] = useState<PeerReassignInterviewerFilters>(EMPTY_FILTERS);
   const [defaults, setDefaults] = useState<PeerReassignInterviewerFilters | null>(null);
-  const [industries, setIndustries] = useState<PeerIndustry[]>([]);
+  const industries = useMemo(() => toPeerIndustryList(), []);
   const [interviewTypes, setInterviewTypes] = useState<PeerInterviewType[]>([]);
   const [targetInterviewer, setTargetInterviewer] = useState("");
   const [targetSlots, setTargetSlots] = useState<PeerSlot[]>([]);
@@ -90,12 +91,6 @@ export function AdminPeerBookingReassignDialog({
   const [search, setSearch] = useState("");
   const [filtersExpanded, setFiltersExpanded] = useState(false);
   const [loadingInterviewers, setLoadingInterviewers] = useState(false);
-
-  const roleOptions = useMemo(() => {
-    if (!filters.industry) return [];
-    const industry = industries.find((i) => i.name === filters.industry);
-    return industry?.roles ?? [];
-  }, [filters.industry, industries]);
 
   const filteredInterviewers = useMemo(
     () => filterByNameOrEmail(reassignData?.interviewers ?? [], search),
@@ -158,11 +153,7 @@ export function AdminPeerBookingReassignDialog({
     if (!open) return;
     void (async () => {
       try {
-        const [industryList, types] = await Promise.all([
-          peerApi.listIndustries(),
-          peerApi.listInterviewTypes(),
-        ]);
-        setIndustries(industryList);
+        const types = await peerApi.listInterviewTypes();
         setInterviewTypes(types);
       } catch {
         /* optional metadata */
@@ -290,14 +281,14 @@ export function AdminPeerBookingReassignDialog({
                   </FilterField>
 
                   <FilterField id="reassign-role" label="Role">
-                    <AppSelect
+                    <JobRoleSelect
                       id="reassign-role"
                       value={filters.jobRole}
                       onChange={(v) => setFilters((prev) => ({ ...prev, jobRole: v }))}
+                      industry={filters.industry || undefined}
                       disabled={!filters.industry}
-                      allowEmpty
-                      emptyLabel="All roles"
-                      options={roleOptions.map((role) => ({ value: role, label: role }))}
+                      placeholder="All roles"
+                      inputClassName="h-11 bg-card"
                     />
                   </FilterField>
 
