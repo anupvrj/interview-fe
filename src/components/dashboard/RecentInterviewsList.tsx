@@ -130,6 +130,71 @@ function renderUnifiedRowActions(
   );
 }
 
+function renderUnifiedRowActions(
+  row: DashboardRecentSessionRow,
+  playVideo: (interviewId: string) => void,
+) {
+  return (
+    <div className="flex flex-wrap items-center gap-0.5">
+      {row.canPlayRecording && row.interviewId && (
+        <IconActionButton
+          title="Play recording"
+          onClick={() => playVideo(row.interviewId!)}
+        >
+          <PlayCircle className="h-4 w-4" strokeWidth={1.75} />
+        </IconActionButton>
+      )}
+      {row.reportHref &&
+        (row.status === "completed" ||
+          row.status === "processing" ||
+          row.status === "failed") && (
+          <IconActionButton title="View report" href={row.reportHref}>
+            <Eye className="h-4 w-4" strokeWidth={1.75} />
+          </IconActionButton>
+        )}
+      {row.showGenerateReport && row.reportHref && (
+        <Link
+          href={row.reportHref}
+          title="Generate Report"
+          className={cn(
+            buttonVariants({ variant: "ghost", size: "sm" }),
+            "h-8 px-2 text-xs text-[#7367F0] hover:bg-[#7367F0]/10 hover:text-[#7367F0]",
+          )}
+        >
+          <Sparkles className="mr-1 h-3.5 w-3.5" />
+          Report
+        </Link>
+      )}
+      {row.continueHref &&
+        (row.status === "draft" || row.status === "active") && (
+          <Link
+            href={row.continueHref}
+            className={cn(
+              buttonVariants({ size: "sm" }),
+              institutePrimaryClass,
+              "h-8 gap-1 px-3 text-xs",
+            )}
+          >
+            <PlayCircle className="h-3.5 w-3.5" />
+            {row.status === "draft" ? "Start" : "Continue"}
+          </Link>
+        )}
+      {row.status === "processing" && row.reportHref && (
+        <Link
+          href={row.reportHref}
+          className={cn(
+            buttonVariants({ variant: "ghost", size: "sm" }),
+            "h-8 gap-1 px-2 text-xs text-[#7367F0] hover:bg-[#7367F0]/10 hover:text-[#7367F0]",
+          )}
+        >
+          <Clock className="h-3.5 w-3.5" />
+          Processing
+        </Link>
+      )}
+    </div>
+  );
+}
+
 function IconActionButton({
   title,
   onClick,
@@ -185,6 +250,8 @@ export function RecentInterviewsList({
   onDelete,
   getDraftActiveHref,
   emptyDescription,
+  emptyCtaHref,
+  emptyCtaLabel,
 }: {
   interviews?: Interview[];
   sessionRows?: DashboardRecentSessionRow[];
@@ -195,6 +262,8 @@ export function RecentInterviewsList({
   onDelete?: (interviewId: string) => void;
   getDraftActiveHref?: (interviewId: string) => string;
   emptyDescription?: ReactNode;
+  emptyCtaHref?: string | null;
+  emptyCtaLabel?: string;
 }) {
   const useUnified = sessionRows != null;
   const listLength = useUnified ? sessionRows.length : (interviews?.length ?? 0);
@@ -224,6 +293,10 @@ export function RecentInterviewsList({
   };
 
   if (listLength === 0) {
+    const ctaHref =
+      emptyCtaHref === null
+        ? null
+        : (emptyCtaHref ?? "/dashboard/interviews/new");
     return (
       <div className="px-5 py-16 text-center">
         <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-xl bg-[#7367F0]/10">
@@ -236,11 +309,14 @@ export function RecentInterviewsList({
           {emptyDescription ??
             "Start AI interview practice for your target role and company."}
         </p>
-        <Link href="/dashboard/interviews/new">
-          <Button className={institutePrimaryClass}>
-            <Plus className="mr-2 h-4 w-4" /> Create your first interview
-          </Button>
-        </Link>
+        {ctaHref ? (
+          <Link href={ctaHref}>
+            <Button className={institutePrimaryClass}>
+              <Plus className="mr-2 h-4 w-4" />{" "}
+              {emptyCtaLabel ?? "Create your first interview"}
+            </Button>
+          </Link>
+        ) : null}
       </div>
     );
   }

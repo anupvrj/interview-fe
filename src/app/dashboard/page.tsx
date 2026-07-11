@@ -63,6 +63,7 @@ import {
   userApi,
 } from "@/lib/api";
 import { getPeerInterviewUnlockStatus } from "@/lib/peer-interviews";
+import { buildDashboardRecentSessions } from "@/lib/dashboard-recent-sessions";
 import {
   cn,
   getInterviewCreditsUsed,
@@ -115,6 +116,16 @@ export default function DashboardPage() {
   const [interviewTypeFilter, setInterviewTypeFilter] =
     useState<DashboardSessionFilter>("all");
   const itemsPerPage = 10;
+
+  const recentSessions = useMemo(
+    () =>
+      buildDashboardRecentSessions({
+        interviews,
+        systemDesignSessions,
+        peerBookings,
+      }),
+    [interviews, systemDesignSessions, peerBookings],
+  );
   const [resumePage, setResumePage] = useState(1);
   const resumeItemsPerPage = 8;
   const [scheduledInterviews, setScheduledInterviews] = useState<any[]>([]);
@@ -653,7 +664,7 @@ export default function DashboardPage() {
                 Recent Interviews
               </CardTitle>
               <CardDescription className="mt-1 text-sm">
-                Your latest practice sessions with scores and reports.
+                AI, coding, system design, and peer sessions with scores and reports.
               </CardDescription>
             </div>
             <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
@@ -695,11 +706,12 @@ export default function DashboardPage() {
         </CardHeader>
         <CardContent className="p-0">
           <RecentInterviewsList
-            sessionRows={filteredRecentSessions}
+            sessionRows={recentSessions}
             currentPage={currentPage}
             itemsPerPage={itemsPerPage}
             onPageChange={setCurrentPage}
             onVideoUnavailable={() => setVideoUnavailableOpen(true)}
+            emptyDescription="Start an AI interview, coding round, system design session, or book a peer interview."
           />
         </CardContent>
       </Card>
