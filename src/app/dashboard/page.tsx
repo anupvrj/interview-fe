@@ -63,7 +63,12 @@ import {
   userApi,
 } from "@/lib/api";
 import { getPeerInterviewUnlockStatus } from "@/lib/peer-interviews";
-import { buildDashboardRecentSessions } from "@/lib/dashboard-recent-sessions";
+import {
+  buildDashboardRecentSessions,
+  countDashboardSessionsByFilter,
+  filterDashboardSessions,
+  type DashboardSessionFilter,
+} from "@/lib/dashboard-recent-sessions";
 import {
   cn,
   getInterviewCreditsUsed,
@@ -84,12 +89,6 @@ import { RecentInterviewsList } from "@/components/dashboard/RecentInterviewsLis
 import { DashboardResumesList } from "@/components/dashboard/DashboardResumesList";
 import { SubscriptionExpiredDialog } from "@/components/SubscriptionExpiredDialog";
 import { useSubscriptionExpiredGate } from "@/hooks/useSubscriptionExpiredGate";
-import {
-  buildDashboardRecentSessions,
-  countDashboardSessionsByFilter,
-  filterDashboardSessions,
-  type DashboardSessionFilter,
-} from "@/lib/dashboard-recent-sessions";
 
 const ONBOARDING_BANNER_DISMISSED_KEY = "dashboard-onboarding-banner-dismissed";
 
@@ -145,16 +144,6 @@ export default function DashboardPage() {
   } = useSubscriptionExpiredGate();
   const [downloadingResumeId, setDownloadingResumeId] = useState<string | null>(
     null,
-  );
-
-  const recentSessions = useMemo(
-    () =>
-      buildDashboardRecentSessions({
-        interviews,
-        systemDesignSessions,
-        peerBookings,
-      }),
-    [interviews, systemDesignSessions, peerBookings],
   );
 
   const interviewTypeCounts = useMemo(
