@@ -254,7 +254,7 @@ export function DashboardResumesList({
                   </td>
 
                   <td className="px-5 py-3.5 align-top">
-                    <div className="flex flex-wrap items-center gap-0.5">
+                    <div className="inline-flex flex-nowrap items-center gap-0.5">
                       <IconActionButton
                         title="Download PDF"
                         onClick={() => onDownload(resume.resumeId)}

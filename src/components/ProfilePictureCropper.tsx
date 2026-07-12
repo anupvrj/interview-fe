@@ -142,7 +142,10 @@ export function ProfilePictureCropper({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl w-full p-0 overflow-hidden">
+      <DialogContent
+        overlayClassName="z-[100]"
+        className="z-[100] max-h-[95dvh] w-full max-w-2xl overflow-hidden p-0"
+      >
         <DialogHeader className="px-6 pt-6">
           <DialogTitle>Edit Profile Picture</DialogTitle>
         </DialogHeader>
@@ -217,21 +220,30 @@ export function ProfilePictureCropper({
             </p>
           </div>
         </div>
-        <DialogFooter className="px-6 pb-6">
+        <DialogFooter className="flex flex-row flex-nowrap items-center gap-2 px-4 py-4 sm:justify-end sm:px-6 sm:pb-6">
           <Button
             type="button"
             variant="outline"
             onClick={handleReset}
-            className="mr-2"
+            className="h-9 min-w-0 flex-1 px-2 text-xs sm:flex-none sm:px-4 sm:text-sm"
           >
-            <X className="w-4 h-4 mr-2" />
+            <X className="mr-1.5 h-4 w-4 shrink-0" />
             Reset
           </Button>
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            className="h-9 min-w-0 flex-1 px-2 text-xs sm:flex-none sm:px-4 sm:text-sm"
+          >
             Cancel
           </Button>
-          <Button type="button" onClick={handleSave}>
-            <Check className="w-4 h-4 mr-2" />
+          <Button
+            type="button"
+            onClick={handleSave}
+            className="h-9 min-w-0 flex-1 px-2 text-xs sm:flex-none sm:px-4 sm:text-sm"
+          >
+            <Check className="mr-1.5 h-4 w-4 shrink-0" />
             Save
           </Button>
         </DialogFooter>
