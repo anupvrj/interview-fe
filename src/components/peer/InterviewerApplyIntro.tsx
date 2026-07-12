@@ -33,7 +33,7 @@ const STEPS = [
   {
     icon: CalendarClock,
     title: "Your schedule, your rules",
-    body: "Create 30–60 minute availability slots when it suits you. Generate a Google Meet link for each slot, choose which rounds you can take, and control visibility with Available, Away, or Offline.",
+    body: "Create 30–60 minute availability slots when it suits you. Google Meet is created when a candidate pays. Choose which rounds you can take, and control visibility with Available, Away, or Offline.",
   },
   {
     icon: ShieldCheck,
