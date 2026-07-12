@@ -29,7 +29,7 @@ export const royalindigoTemplate: ResumeTemplate = {
   },
   layout: {
     headerStyle: "centered",
-    sectionSpacing: 11,
+    sectionSpacing: 8,
     fontFamily: "Arial, Helvetica, sans-serif",
     fontSize: {
       heading: 30,
@@ -53,7 +53,7 @@ export const royalindigoExtendedConfig: Partial<ExtendedResumeTemplate> = {
       background: "#ffffff",
     },
     headerStyle: "centered",
-    sectionSpacing: 11,
+    sectionSpacing: 8,
     padding: { top: 6, bottom: 10, left: 14, right: 14 },
     sectionHeader: {
       style: "border-bottom",
@@ -62,8 +62,10 @@ export const royalindigoExtendedConfig: Partial<ExtendedResumeTemplate> = {
       textAlign: "left",
       fontSize: 13,
       fontWeight: "bold",
-      marginBottom: "10px",
-      paddingBottom: "4px",
+      marginBottom: "6px",
+      marginTop: "8px",
+      paddingTop: "8px",
+      paddingBottom: "0px",
       textTransform: "uppercase",
       letterSpacing: "0.6px",
     },
@@ -86,11 +88,12 @@ export const royalindigoExtendedConfig: Partial<ExtendedResumeTemplate> = {
     { id: "profileSummary", type: "profileSummary", title: "Summary", visible: true },
     { id: "experience", type: "experience", title: "Work Experience", visible: true },
     { id: "education", type: "education", title: "Education", visible: true },
-    { id: "projects", type: "projects", title: "Projects", visible: true },
-    { id: "skills", type: "skills", title: "Skills", visible: true },
-    { id: "languages", type: "languages", title: "Languages", visible: true },
+    { id: "projects", type: "projects", title: "Projects", visible: false },
+    { id: "skills", type: "skills", title: "Additional Information", visible: true },
+    { id: "languages", type: "languages", title: "Languages", visible: false },
     { id: "certificates", type: "certificates", title: "Certificates", visible: false },
-    { id: "interests", type: "interests", title: "Additional Information", visible: false },
+    { id: "awards", type: "awards", title: "Awards", visible: false },
+    { id: "interests", type: "interests", title: "Interests", visible: false },
   ],
 };
 
