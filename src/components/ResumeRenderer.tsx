@@ -51,6 +51,7 @@ interface ResumeRendererProps {
 
 import {
   formatExperienceDateRange,
+  formatExperienceDateRangeAbbreviated,
   formatProjectDateRange,
   formatResumeDateForDisplay,
 } from "@/lib/resume-date-utils";
@@ -105,6 +106,89 @@ function parseConfidentGridSkillItem(
   return { name: trimmed };
 }
 
+function parseConfidentGridSkillsList(
+  data: unknown,
+): { name: string; description?: string }[] {
+  if (!data) return [];
+
+  const toParsed = (items: string[]) =>
+    items
+      .map((item) => item.replace(/\s+/g, " ").trim())
+      .filter(Boolean)
+      .map(parseConfidentGridSkillItem)
+      .filter((item) => item.name);
+
+  if (Array.isArray(data)) {
+    return toParsed(data.map((item) => String(item)));
+  }
+
+  if (typeof data === "string") {
+    try {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(data, "text/html");
+      const listElements = doc.querySelectorAll("ul > li, ol > li, p");
+      if (listElements.length > 0) {
+        return toParsed(
+          Array.from(listElements)
+            .map((el) => el.textContent?.trim() || "")
+            .filter(Boolean),
+        );
+      }
+    } catch {
+      /* fall through */
+    }
+
+    return toParsed(
+      data
+        .split(/\n|<br\s*\/?>/i)
+        .map((line) => line.replace(/<[^>]+>/g, "").trim())
+        .filter(Boolean),
+    );
+  }
+
+  if (typeof data === "object" && data !== null) {
+    const values = Object.values(data as Record<string, unknown>).flatMap(
+      (value) => {
+        if (Array.isArray(value)) return value.map(String);
+        if (value == null) return [];
+        return [String(value)];
+      },
+    );
+    return toParsed(values);
+  }
+
+  return [];
+}
+
+function formatCondensedRuleLanguageLevel(level?: number): string {
+  if (!level) return "";
+  if (level >= 5) return "Native";
+  if (level >= 4) return "Fluent";
+  return "Intermediate";
+}
+
+function renderCondensedRuleLabeledInlineList(
+  items: { label: string; value: string }[],
+  className: string,
+): React.ReactNode {
+  const filtered = items.filter((item) => item.label.trim());
+  if (filtered.length === 0) return null;
+
+  return (
+    <div className={className}>
+      {filtered.map((item, index) => (
+        <span key={`${item.label}-${index}`}>
+          {index > 0 && (
+            <span className="condensed-rule-inline-separator"> | </span>
+          )}
+          <span className="condensed-rule-inline-label">{item.label}:</span>{" "}
+          {item.value}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 function renderCondensedRuleInlineList(
   items: string[],
   className: string,
@@ -124,6 +208,198 @@ function renderCondensedRuleInlineList(
       ))}
     </div>
   );
+}
+
+function formatRoyalIndigoLanguageLevel(level?: number): string {
+  if (!level) return "";
+  if (level >= 5) return "Fluent";
+  if (level >= 4) return "intermediate";
+  return "basic";
+}
+
+const SAFFRON_LINE_SKILL_CATEGORIES = [
+  {
+    key: "programmingLanguages",
+    label: "Programming Languages",
+    aliases: ["programming languages", "programming language"],
+  },
+  {
+    key: "frameworksLibraries",
+    label: "Frameworks & Libraries",
+    aliases: ["frameworks & libraries", "frameworks and libraries"],
+  },
+  {
+    key: "coreConcepts",
+    label: "Core Concepts",
+    aliases: ["core concepts", "core concept"],
+  },
+  {
+    key: "developerTools",
+    label: "Developer Tools",
+    aliases: ["developer tools", "dev tools"],
+  },
+] as const;
+
+function normalizeSaffronSkillValue(value: unknown): string {
+  if (value == null) return "";
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => String(item).trim())
+      .filter(Boolean)
+      .join(", ");
+  }
+  if (typeof value === "string") {
+    return value.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+  }
+  return String(value).trim();
+}
+
+function parseSaffronLineSkillGroups(
+  data: unknown,
+): { label: string; value: string }[] {
+  if (!data) return [];
+
+  if (typeof data === "object" && data !== null && !Array.isArray(data)) {
+    const record = data as Record<string, unknown>;
+    const groups: { label: string; value: string }[] = [];
+
+    for (const category of SAFFRON_LINE_SKILL_CATEGORIES) {
+      const direct = normalizeSaffronSkillValue(record[category.key]);
+      if (direct) {
+        groups.push({ label: category.label, value: direct });
+        continue;
+      }
+
+      for (const alias of category.aliases) {
+        const aliasValue = Object.entries(record).find(
+          ([key]) => key.trim().toLowerCase() === alias,
+        )?.[1];
+        const text = normalizeSaffronSkillValue(aliasValue);
+        if (text) {
+          groups.push({ label: category.label, value: text });
+          break;
+        }
+      }
+    }
+
+    if (groups.length > 0) return groups;
+
+    const genericGroups = Object.entries(record)
+      .map(([label, value]) => ({
+        label: label.trim(),
+        value: normalizeSaffronSkillValue(value),
+      }))
+      .filter((group) => group.label && group.value);
+
+    if (genericGroups.length > 0) return genericGroups;
+  }
+
+  if (typeof data === "string") {
+    try {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(data, "text/html");
+      const groups: { label: string; value: string }[] = [];
+
+      doc.querySelectorAll("p, li").forEach((el) => {
+        const text = (el.textContent || "").replace(/\s+/g, " ").trim();
+        const match = text.match(/^([^:]+):\s*(.+)$/);
+        if (match) {
+          groups.push({
+            label: match[1].trim(),
+            value: match[2].trim(),
+          });
+        }
+      });
+
+      if (groups.length > 0) return groups;
+    } catch {
+      /* fall through */
+    }
+
+    const lines = data
+      .split(/\n|<br\s*\/?>/i)
+      .map((line) => line.replace(/<[^>]+>/g, "").trim())
+      .filter(Boolean);
+
+    const lineGroups = lines
+      .map((line) => {
+        const match = line.match(/^([^:]+):\s*(.+)$/);
+        if (!match) return null;
+        return { label: match[1].trim(), value: match[2].trim() };
+      })
+      .filter((group): group is { label: string; value: string } => Boolean(group));
+
+    if (lineGroups.length > 0) return lineGroups;
+  }
+
+  if (Array.isArray(data)) {
+    const items = data.map((item) => String(item).trim()).filter(Boolean);
+    if (items.length === 0) return [];
+
+    const labeled = items
+      .map((item) => {
+        const match = item.match(/^([^:]+):\s*(.+)$/);
+        if (!match) return null;
+        return { label: match[1].trim(), value: match[2].trim() };
+      })
+      .filter((group): group is { label: string; value: string } => Boolean(group));
+
+    if (labeled.length > 0) return labeled;
+
+    const chunkSize = Math.ceil(items.length / SAFFRON_LINE_SKILL_CATEGORIES.length);
+    return SAFFRON_LINE_SKILL_CATEGORIES.map((category, index) => ({
+      label: category.label,
+      value: items
+        .slice(index * chunkSize, (index + 1) * chunkSize)
+        .join(", "),
+    })).filter((group) => group.value);
+  }
+
+  return [];
+}
+
+function formatSaffronLineLanguageLevel(level?: number): string {
+  if (!level) return "";
+  if (level >= 5) return "Native";
+  if (level >= 4) return "Professional Working Proficiency";
+  if (level >= 3) return "Limited Working Proficiency";
+  return "Elementary Proficiency";
+}
+
+function parseRoyalIndigoSkillItems(skillsData: unknown): string[] {
+  if (!skillsData) return [];
+
+  if (typeof skillsData === "string") {
+    try {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(skillsData, "text/html");
+      const listElements = doc.querySelectorAll("ul > li, ol > li");
+      if (listElements.length > 0) {
+        return Array.from(listElements)
+          .map((el) => el.textContent?.trim() || "")
+          .filter(Boolean);
+      }
+      return skillsData
+        .split(/[,|]/)
+        .map((item) => item.trim())
+        .filter(Boolean);
+    } catch {
+      return skillsData
+        .split(/[,|]/)
+        .map((item) => item.trim())
+        .filter(Boolean);
+    }
+  }
+
+  if (Array.isArray(skillsData)) {
+    return skillsData
+      .map((skill: unknown) =>
+        typeof skill === "string" ? skill : String(skill),
+      )
+      .filter((text: string) => text.length > 0);
+  }
+
+  return [];
 }
 
 export function ResumeRenderer({
@@ -180,10 +456,14 @@ export function ResumeRenderer({
   const isConfidentGrid = template.id === "confident-grid";
   const isCondensedRule = template.id === "condensed-rule";
   const isRoyalIndigo = template.id === "royal-indigo";
+  const isCobaltStream = template.id === "cobalt-stream";
+  const isAmberEdge = template.id === "amber-edge";
+  const isMeridian = template.id === "meridian";
+  const formatRoyalIndigoDateRange = formatExperienceDateRangeAbbreviated;
   const useCssExpTypography =
-    isEmberTimeline || isConfidentGrid || isCondensedRule || isRoyalIndigo;
+    isEmberTimeline || isConfidentGrid || isCondensedRule || isRoyalIndigo || isCobaltStream || isAmberEdge || isMeridian || isSaffronLine;
   const useCssBodyTypography =
-    isConfidentGrid || isCondensedRule || isRoyalIndigo;
+    isConfidentGrid || isCondensedRule || isRoyalIndigo || isCobaltStream || isAmberEdge || isMeridian || isSaffronLine;
   const effectiveResumeLayout =
     isSaffronLine && extendedTemplate?.rendering?.layout?.type === "double"
       ? {
@@ -238,7 +518,7 @@ export function ResumeRenderer({
       }
 
       const cleanItems = items.map(stripLeadingBullet);
-      if (isSaffronLine || isConfidentGrid || isCondensedRule || isRoyalIndigo) {
+      if (isSaffronLine || isConfidentGrid || isCondensedRule || isRoyalIndigo || isAmberEdge || isMeridian) {
         return `<ul>${cleanItems.map((item) => `<li>${item}</li>`).join("")}</ul>`;
       }
       return cleanItems.map((item) => `<p>${item}</p>`).join("");
@@ -409,6 +689,24 @@ export function ResumeRenderer({
       let nonPersonalInfoIndex = 0;
 
       bodySections.forEach((section, index) => {
+        // Saffron Line: always follow template column assignment (education on left, etc.)
+        if (
+          isSaffronLine &&
+          columnAssignment &&
+          (columnAssignment.left?.length > 0 || columnAssignment.right?.length > 0)
+        ) {
+          if (isListedInTemplateColumnAssignment(columnAssignment.left, section)) {
+            leftColumn.push(section);
+            return;
+          }
+          if (isListedInTemplateColumnAssignment(columnAssignment.right, section)) {
+            rightColumn.push(section);
+            return;
+          }
+          leftColumn.push(section);
+          return;
+        }
+
         // Saved column from editor reordering takes precedence
         if (section.column === "left" || section.column === "right") {
           if (section.column === "left") {
@@ -511,6 +809,10 @@ export function ResumeRenderer({
     const icon = ICON_MAP[sectionType as keyof typeof ICON_MAP];
     const headerTitle = title;
     const headerConfig = templateStyle.sectionHeader;
+    const showSectionIcon =
+      Boolean(sectionType) &&
+      (templateStyle.headerStyle === "two-column" || isSaffronLine);
+    const sectionIconSize = isSaffronLine ? 12 : 16;
 
     // Generate template-specific class name for CSS styling
     const templateClassName = `${template.id}-section-header`;
@@ -547,11 +849,11 @@ export function ResumeRenderer({
                 }`,
             }}
           >
-            {sectionType && templateStyle.headerStyle === "two-column" && (
+            {showSectionIcon && (
               <>
-                {React.createElement(getSectionIcon(sectionType), {
-                  size: 16,
-                  style: { marginRight: "8px", display: "inline" },
+                {React.createElement(getSectionIcon(sectionType!), {
+                  size: sectionIconSize,
+                  style: { marginRight: isSaffronLine ? "6px" : "8px", display: "inline" },
                 })}
               </>
             )}
@@ -568,7 +870,7 @@ export function ResumeRenderer({
             data-section-id={sectionId}
             className={templateClassName}
             style={
-              useCssHeaderClasses && (isCondensedRule || isRoyalIndigo)
+              useCssHeaderClasses && (isCondensedRule || isRoyalIndigo || isCobaltStream || isAmberEdge || isMeridian || isSaffronLine || isConfidentGrid)
                 ? { fontWeight: "bold" }
                 : {
                     ...baseStyle,
@@ -577,11 +879,11 @@ export function ResumeRenderer({
                   }
             }
           >
-            {sectionType && templateStyle.headerStyle === "two-column" && (
+            {showSectionIcon && (
               <>
-                {React.createElement(getSectionIcon(sectionType), {
-                  size: 16,
-                  style: { marginRight: "8px", display: "inline" },
+                {React.createElement(getSectionIcon(sectionType!), {
+                  size: sectionIconSize,
+                  style: { marginRight: isSaffronLine ? "6px" : "8px", display: "inline" },
                 })}
               </>
             )}
@@ -629,11 +931,11 @@ export function ResumeRenderer({
                     : "none",
             }}
           >
-            {sectionType && templateStyle.headerStyle === "two-column" && (
+            {showSectionIcon && (
               <>
-                {React.createElement(getSectionIcon(sectionType), {
-                  size: 16,
-                  style: { marginRight: "8px", display: "inline" },
+                {React.createElement(getSectionIcon(sectionType!), {
+                  size: sectionIconSize,
+                  style: { marginRight: isSaffronLine ? "6px" : "8px", display: "inline" },
                 })}
               </>
             )}
@@ -654,11 +956,11 @@ export function ResumeRenderer({
               textDecoration: "underline",
             }}
           >
-            {sectionType && templateStyle.headerStyle === "two-column" && (
+            {showSectionIcon && (
               <>
-                {React.createElement(getSectionIcon(sectionType), {
-                  size: 16,
-                  style: { marginRight: "8px", display: "inline" },
+                {React.createElement(getSectionIcon(sectionType!), {
+                  size: sectionIconSize,
+                  style: { marginRight: isSaffronLine ? "6px" : "8px", display: "inline" },
                 })}
               </>
             )}
@@ -676,11 +978,11 @@ export function ResumeRenderer({
             className={templateClassName}
             style={baseStyle}
           >
-            {sectionType && templateStyle.headerStyle === "two-column" && (
+            {showSectionIcon && (
               <>
-                {React.createElement(getSectionIcon(sectionType), {
-                  size: 16,
-                  style: { marginRight: "8px", display: "inline" },
+                {React.createElement(getSectionIcon(sectionType!), {
+                  size: sectionIconSize,
+                  style: { marginRight: isSaffronLine ? "6px" : "8px", display: "inline" },
                 })}
               </>
             )}
@@ -1029,7 +1331,7 @@ export function ResumeRenderer({
     }
 
     // Text-only contact display
-    const contactSeparator = isCondensedRule
+    const contactSeparator = isCondensedRule || isAmberEdge || isMeridian
       ? " | "
       : isRoyalIndigo
         ? " • "
@@ -1079,7 +1381,7 @@ export function ResumeRenderer({
       <div
         className={`${template.id}-contact`}
         style={
-          isCondensedRule
+          isCondensedRule || isAmberEdge || isMeridian
             ? undefined
             : {
                 fontSize: `${templateStyle.fontSize.small}px`,
@@ -1099,7 +1401,7 @@ export function ResumeRenderer({
                 href={item.href}
                 className="no-underline"
                 style={
-                  isCondensedRule
+                  isCondensedRule || isAmberEdge || isMeridian
                     ? undefined
                     : { textDecoration: "none", color: textColor }
                 }
@@ -1744,7 +2046,7 @@ export function ResumeRenderer({
             (template.id === "mercury"
               ? "#f5f5f5"
               : template.id === "confident-grid"
-                ? "#deeef7"
+                ? "#d8e5ec"
                 : "transparent");
           const usesCssHeaderBand =
             template.id === "saffron-line" ||
@@ -1891,6 +2193,25 @@ export function ResumeRenderer({
             className={`${template.id}-header`}
             style={{ marginBottom: `${templateStyle.sectionSpacing}px` }}
           >
+            {isMeridian ? (
+              <>
+                <div className={`${template.id}-header-top`}>
+                  <h1 className={`${template.id}-name`}>
+                    {personalInfoDisplayText(
+                      personalInfo.fullName,
+                      RESUME_DISPLAY_PLACEHOLDERS.fullName,
+                    )}
+                  </h1>
+                  <p className={`${template.id}-job-title`}>
+                    {personalInfoDisplayText(
+                      personalInfo.portfolio,
+                      RESUME_DISPLAY_PLACEHOLDERS.portfolio,
+                    )}
+                  </p>
+                </div>
+                {renderContactInfo(isInSidebar)}
+              </>
+            ) : (
             <div
               style={{
                 textAlign:
@@ -1978,6 +2299,7 @@ export function ResumeRenderer({
                 {renderAdditionalPersonalInfo(isInSidebar)}
               </div>
             </div>
+            )}
           </div>
         );
 
@@ -2017,6 +2339,7 @@ export function ResumeRenderer({
 
         return (
           <div
+            data-section={section.id}
             style={{
               marginBottom: `${isInSidebar && templateStyle.headerStyle === "two-column"
                 ? templateStyle.sectionSpacing * 2
@@ -2030,10 +2353,12 @@ export function ResumeRenderer({
               ...sidebarStyle,
             }}
           >
-            {renderSectionHeader(section.title, isInSidebar, section.type, section.id)}
+            {!isMeridian &&
+              renderSectionHeader(section.title, isInSidebar, section.type, section.id)}
             <div
+              data-item-id={`${section.id}-body`}
               className={`resume-content${
-                isConfidentGrid || isCondensedRule || isRoyalIndigo
+                isConfidentGrid || isCondensedRule || isRoyalIndigo || isAmberEdge || isMeridian
                   ? ` ${template.id}-summary`
                   : isSaffronLine
                     ? ` ${template.id}-summary`
@@ -2117,12 +2442,18 @@ export function ResumeRenderer({
               {experienceData.map((exp, index) => (
                 <div
                   key={index}
-                  data-item-id={exp.id || `exp-${index}`}
+                  {...(isRoyalIndigo
+                    ? {}
+                    : {
+                        "data-item-id": exp.id || `exp-${index}`,
+                      })}
                   data-item-index={index}
                   className={`${template.id}-experience-item`}
                   style={{
                     marginBottom:
-                      isEmberTimeline || isConfidentGrid ? undefined : "16px",
+                      isEmberTimeline || isConfidentGrid || isAmberEdge || isMeridian || isSaffronLine
+                        ? undefined
+                        : "16px",
                     pageBreakInside: "auto", // Allow splitting for better pagination
                     // Only apply inline grid styles if NOT using table-cell layout via CSS
                     // Templates with table-cell layout should define it in their CSS files
@@ -2225,7 +2556,10 @@ export function ResumeRenderer({
                     </>
                   ) : isRoyalIndigo ? (
                     <>
-                      <div className={`${template.id}-job-header`}>
+                      <div
+                        data-item-id={`${exp.id || `exp-${index}`}-header`}
+                        className={`${template.id}-job-header`}
+                      >
                         <div className={`${template.id}-job-title-line`}>
                           {exp.position && (
                             <span className={`${template.id}-job-title-exp`}>
@@ -2247,12 +2581,13 @@ export function ResumeRenderer({
                         </div>
                         <div className={`${template.id}-job-details-container`}>
                           <div className={`${template.id}-job-date`}>
-                            {formatExperienceDateRange(exp)}
+                            {formatRoyalIndigoDateRange(exp)}
                           </div>
                         </div>
                       </div>
                       {exp.description && (
                         <div
+                          data-item-id={`${exp.id || `exp-${index}`}-body`}
                           className={`resume-content ${template.id}-description`}
                           dangerouslySetInnerHTML={{
                             __html: formatExperienceDescriptionHtml(
@@ -2327,9 +2662,51 @@ export function ResumeRenderer({
                         <div className={`${template.id}-job-meta-line`}>
                           {[formatExperienceDateRange(exp), exp.location]
                             .filter(Boolean)
-                            .join(" — ")}
+                            .join(" | ")}
                         </div>
                       )}
+                      {exp.description && (
+                        <div
+                          className={`resume-content ${template.id}-description`}
+                          dangerouslySetInnerHTML={{
+                            __html: formatExperienceDescriptionHtml(
+                              exp.description,
+                            ),
+                          }}
+                        />
+                      )}
+                    </>
+                  ) : isMeridian ? (
+                    <>
+                      <div className={`${template.id}-job-header`}>
+                        <div className={`${template.id}-job-title-container`}>
+                          <div className={`${template.id}-job-title-line`}>
+                            {exp.position && (
+                              <span className={`${template.id}-job-title-exp`}>
+                                {exp.position}
+                              </span>
+                            )}
+                            {exp.company && (
+                              <>
+                                {exp.position && (
+                                  <span className={`${template.id}-title-separator`}>
+                                    {" "}
+                                    |{" "}
+                                  </span>
+                                )}
+                                <span className={`${template.id}-company`}>
+                                  {exp.company}
+                                </span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                        <div className={`${template.id}-job-details-container`}>
+                          <div className={`${template.id}-job-date`}>
+                            {formatExperienceDateRange(exp)}
+                          </div>
+                        </div>
+                      </div>
                       {exp.description && (
                         <div
                           className={`resume-content ${template.id}-description`}
@@ -2345,12 +2722,16 @@ export function ResumeRenderer({
                     <>
                       <div
                         className={`${template.id}-job-header`}
-                        style={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "flex-start",
-                          marginBottom: "4px",
-                        }}
+                        style={
+                          isAmberEdge || isMeridian || isSaffronLine
+                            ? undefined
+                            : {
+                                display: "flex",
+                                justifyContent: "space-between",
+                                alignItems: "flex-start",
+                                marginBottom: "4px",
+                              }
+                        }
                       >
                         <div className={`${template.id}-job-title-container`}>
                           <div
@@ -2388,12 +2769,16 @@ export function ResumeRenderer({
                         </div>
                         <div
                           className={`${template.id}-job-details-container`}
-                          style={{
-                            fontSize: `${templateStyle.fontSize.small}px`,
-                            color: templateStyle.colors.secondary,
-                            textAlign: "right",
-                            minWidth: "120px",
-                          }}
+                          style={
+                            isAmberEdge || isSaffronLine
+                              ? undefined
+                              : {
+                                  fontSize: `${templateStyle.fontSize.small}px`,
+                                  color: templateStyle.colors.secondary,
+                                  textAlign: "right",
+                                  minWidth: "120px",
+                                }
+                          }
                         >
                           <div className={`${template.id}-job-date`}>
                             {formatExperienceDateRange(exp)}
@@ -2408,14 +2793,18 @@ export function ResumeRenderer({
                       {exp.description && (
                         <div
                           className={`resume-content ${template.id}-description`}
-                          style={{
-                            fontSize: `${templateStyle.fontSize.body}px`,
-                            lineHeight: templateStyle.lineHeight,
-                            color: isInSidebar
-                              ? templateStyle.colors.sidebarText
-                              : templateStyle.colors.text,
-                            marginTop: isSaffronLine ? "4px" : "8px",
-                          }}
+                          style={
+                            isAmberEdge || isMeridian || isSaffronLine
+                              ? undefined
+                              : {
+                                  fontSize: `${templateStyle.fontSize.body}px`,
+                                  lineHeight: templateStyle.lineHeight,
+                                  color: isInSidebar
+                                    ? templateStyle.colors.sidebarText
+                                    : templateStyle.colors.text,
+                                  marginTop: isSaffronLine ? "4px" : "8px",
+                                }
+                          }
                           dangerouslySetInnerHTML={{
                             __html: formatExperienceDescriptionHtml(exp.description),
                           }}
@@ -2480,11 +2869,15 @@ export function ResumeRenderer({
               {educationData.map((edu, index) => (
                 <div
                   key={index}
-                  data-item-id={edu.id || `edu-${index}`}
+                  {...(isRoyalIndigo
+                    ? {}
+                    : {
+                        "data-item-id": edu.id || `edu-${index}`,
+                      })}
                   data-item-index={index}
                   className={`${template.id}-education-item`}
                   style={{
-                    marginBottom: isEmberTimeline ? undefined : "16px",
+                    marginBottom: isEmberTimeline || isAmberEdge || isMeridian || isSaffronLine ? undefined : "16px",
                     pageBreakInside: "auto", // Allow splitting for better pagination
                     // Only apply inline grid styles if using grid layout
                     // Templates with table-cell layout should define it in their CSS files
@@ -2529,7 +2922,7 @@ export function ResumeRenderer({
                         <div
                           className={`${template.id}-degree`}
                           style={
-                            isEmberTimeline
+                            isEmberTimeline || isCobaltStream
                               ? undefined
                               : {
                                   fontSize: `${templateStyle.fontSize.body + 1}px`,
@@ -2566,7 +2959,7 @@ export function ResumeRenderer({
                           <div
                             className={`${template.id}-institution`}
                             style={
-                              isEmberTimeline
+                              isEmberTimeline || isCobaltStream
                                 ? undefined
                                 : {
                                     fontSize: `${templateStyle.fontSize.body}px`,
@@ -2593,7 +2986,10 @@ export function ResumeRenderer({
                     </>
                   ) : isRoyalIndigo ? (
                     <>
-                      <div className={`${template.id}-education-header`}>
+                      <div
+                        data-item-id={`${edu.id || `edu-${index}`}-header`}
+                        className={`${template.id}-education-header`}
+                      >
                         <div className={`${template.id}-education-title-line`}>
                           {edu.degree && (
                             <span className={`${template.id}-degree`}>
@@ -2602,9 +2998,9 @@ export function ResumeRenderer({
                           )}
                         </div>
                         <div className={`${template.id}-education-details-container`}>
-                          {formatExperienceDateRange(edu) && (
+                          {formatRoyalIndigoDateRange(edu) && (
                             <div className={`${template.id}-education-date`}>
-                              {formatExperienceDateRange(edu)}
+                              {formatRoyalIndigoDateRange(edu)}
                             </div>
                           )}
                         </div>
@@ -2616,6 +3012,7 @@ export function ResumeRenderer({
                       )}
                       {edu.description && (
                         <div
+                          data-item-id={`${edu.id || `edu-${index}`}-body`}
                           className={`resume-content ${template.id}-description`}
                           dangerouslySetInnerHTML={{
                             __html: formatExperienceDescriptionHtml(edu.description),
@@ -2664,14 +3061,20 @@ export function ResumeRenderer({
                   ) : isConfidentGrid ? (
                     <>
                       <div className={`${template.id}-education-title-line`}>
-                        <span className={`${template.id}-degree`}>{edu.degree}</span>
                         {edu.institution && (
+                          <span className={`${template.id}-degree`}>
+                            {edu.institution}
+                          </span>
+                        )}
+                        {edu.degree && (
                           <>
-                            <span className={`${template.id}-title-separator`}>
-                              ,{" "}
-                            </span>
+                            {edu.institution && (
+                              <span className={`${template.id}-title-separator`}>
+                                ,{" "}
+                              </span>
+                            )}
                             <span className={`${template.id}-institution`}>
-                              {edu.institution}
+                              {edu.degree}
                             </span>
                           </>
                         )}
@@ -2691,7 +3094,7 @@ export function ResumeRenderer({
                               : "",
                           ]
                             .filter(Boolean)
-                            .join(" — ")}
+                            .join(" | ")}
                         </div>
                       )}
                     </>
@@ -2699,24 +3102,32 @@ export function ResumeRenderer({
                     <>
                       <div
                         className={`${template.id}-education-header`}
-                        style={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "flex-start",
-                        }}
+                        style={
+                          isAmberEdge || isMeridian || isSaffronLine
+                            ? undefined
+                            : {
+                                display: "flex",
+                                justifyContent: "space-between",
+                                alignItems: "flex-start",
+                              }
+                        }
                       >
                         <div
                           className={`${template.id}-education-title-container`}
                         >
                           <div
                             className={`${template.id}-degree`}
-                            style={{
-                              fontSize: `${templateStyle.fontSize.body + 1}px`,
-                              fontWeight: "bold",
-                              color: isInSidebar
-                                ? templateStyle.colors.sidebarText
-                                : templateStyle.colors.text,
-                            }}
+                            style={
+                              isCobaltStream || isAmberEdge || isMeridian || isSaffronLine
+                                ? undefined
+                                : {
+                                    fontSize: `${templateStyle.fontSize.body + 1}px`,
+                                    fontWeight: "bold",
+                                    color: isInSidebar
+                                      ? templateStyle.colors.sidebarText
+                                      : templateStyle.colors.text,
+                                  }
+                            }
                           >
                             {edu.degree}
                             {edu.degree &&
@@ -2743,11 +3154,15 @@ export function ResumeRenderer({
                           {edu.institution && (
                             <div
                               className={`${template.id}-institution`}
-                              style={{
-                                fontSize: `${templateStyle.fontSize.body}px`,
-                                color: templateStyle.colors.secondary,
-                                fontStyle: "italic",
-                              }}
+                              style={
+                                isCobaltStream || isAmberEdge || isMeridian || isSaffronLine
+                                  ? undefined
+                                  : {
+                                      fontSize: `${templateStyle.fontSize.body}px`,
+                                      color: templateStyle.colors.secondary,
+                                      fontStyle: "italic",
+                                    }
+                              }
                             >
                               {edu.institution}
                             </div>
@@ -2755,11 +3170,15 @@ export function ResumeRenderer({
                         </div>
                         <div
                           className={`${template.id}-education-details-container`}
-                          style={{
-                            fontSize: `${templateStyle.fontSize.small}px`,
-                            color: templateStyle.colors.secondary,
-                            textAlign: "right",
-                          }}
+                          style={
+                            isAmberEdge || isMeridian || isSaffronLine
+                              ? undefined
+                              : {
+                                  fontSize: `${templateStyle.fontSize.small}px`,
+                                  color: templateStyle.colors.secondary,
+                                  textAlign: "right",
+                                }
+                          }
                         >
                           <div className={`${template.id}-education-date`}>
                             {edu.startDate} - {edu.endDate}
@@ -2796,7 +3215,302 @@ export function ResumeRenderer({
         } else {
           // Other templates: Get from direct skills field (new structure: single field)
           skillsData = resume.content.skills;
+
+          if (isRoyalIndigo) {
+            const skillList = parseRoyalIndigoSkillItems(skillsData);
+
+            let languagesData: any[] = [];
+            const languagesSection = (resume.content as any).sections?.find(
+              (s: any) => s.type === "languages",
+            );
+            if (languagesSection?.items?.length) {
+              languagesData = languagesSection.items;
+            } else if (Array.isArray(resume.content.languages)) {
+              languagesData = resume.content.languages;
+            }
+
+            const languageText = languagesData
+              .map((lang) => {
+                const name =
+                  typeof lang === "string" ? lang : lang.name || String(lang);
+                const level =
+                  typeof lang === "object"
+                    ? Number(lang.level ?? lang.proficiency)
+                    : undefined;
+                const levelLabel = formatRoyalIndigoLanguageLevel(level);
+                return levelLabel ? `${name} (${levelLabel})` : name;
+              })
+              .filter(Boolean)
+              .join(", ");
+
+            const certificatesData = resume.content.certificates || [];
+            const certificateText = certificatesData
+              .map((cert: { name?: string; title?: string }) =>
+                cert.name || cert.title || "",
+              )
+              .filter(Boolean)
+              .join(", ");
+
+            const awardsData = resume.content.awards || [];
+            const additionalItems: { label: string; value: string }[] = [];
+
+            if (skillList.length > 0) {
+              additionalItems.push({
+                label: "Technical Skills",
+                value: skillList.join(", "),
+              });
+            }
+            if (languageText) {
+              additionalItems.push({ label: "Languages", value: languageText });
+            }
+            if (certificateText) {
+              additionalItems.push({
+                label: "Certifications",
+                value: certificateText,
+              });
+            }
+            awardsData.forEach((award: {
+              title?: string;
+              issuer?: string;
+              description?: string;
+            }) => {
+              const value =
+                award.description?.trim() ||
+                [award.title, award.issuer].filter(Boolean).join(", ");
+              if (value) {
+                additionalItems.push({ label: "Awards/Activities", value });
+              }
+            });
+
+            if (additionalItems.length === 0) return null;
+
+            return (
+              <div
+                data-section={section.id}
+                className={`${template.id}-section`}
+                style={{
+                  marginBottom: `${templateStyle.sectionSpacing}px`,
+                  ...sidebarStyle,
+                }}
+              >
+                {renderSectionHeader(
+                  section.title,
+                  isInSidebar,
+                  section.type,
+                  section.id,
+                )}
+                <div className={`${template.id}-skills-list`}>
+                  <ul>
+                    {additionalItems.map((item, index) => (
+                      <li
+                        key={`${item.label}-${index}`}
+                        data-item-id={`additional-${section.id}-${index}`}
+                      >
+                        <span className={`${template.id}-skill-label`}>
+                          {item.label}:
+                        </span>{" "}
+                        {item.value}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            );
+          }
+
+          if (isAmberEdge) {
+            const parseAmberEdgeSkillList = (data: unknown): string[] => {
+              if (!data) return [];
+              if (typeof data === "string") {
+                try {
+                  const parser = new DOMParser();
+                  const doc = parser.parseFromString(data, "text/html");
+                  const listElements = doc.querySelectorAll("ul > li, ol > li");
+                  if (listElements.length > 0) {
+                    return Array.from(listElements)
+                      .map((el) => el.textContent?.trim() || "")
+                      .filter(Boolean);
+                  }
+                } catch {
+                  /* fall through */
+                }
+                return data
+                  .split(/[,|\n]/)
+                  .map((item) => item.trim())
+                  .filter(Boolean);
+              }
+              if (Array.isArray(data)) {
+                return data
+                  .map((skill) => String(skill).trim())
+                  .filter(Boolean);
+              }
+              return [];
+            };
+
+            let professionalSkills: string[] = [];
+            let technicalSkills: string[] = [];
+
+            if (
+              typeof skillsData === "object" &&
+              skillsData !== null &&
+              !Array.isArray(skillsData)
+            ) {
+              const grouped = skillsData as {
+                soft?: unknown;
+                professional?: unknown;
+                technical?: unknown;
+              };
+              professionalSkills = parseAmberEdgeSkillList(
+                grouped.soft ?? grouped.professional,
+              );
+              technicalSkills = parseAmberEdgeSkillList(grouped.technical);
+            }
+
+            if (professionalSkills.length === 0 && technicalSkills.length === 0) {
+              const allSkills = parseAmberEdgeSkillList(skillsData);
+              if (allSkills.length === 0) return null;
+              const midpoint = Math.ceil(allSkills.length / 2);
+              professionalSkills = allSkills.slice(0, midpoint);
+              technicalSkills = allSkills.slice(midpoint);
+            }
+
+            if (professionalSkills.length === 0 && technicalSkills.length === 0) {
+              return null;
+            }
+
+            const renderSkillColumn = (items: string[], colOffset: number) => (
+              <div>
+                {items.map((item, index) => (
+                  <div
+                    key={`${colOffset}-${index}`}
+                    data-item-id={`skill-bullet-${colOffset}-${index}`}
+                    data-item-index={colOffset + index}
+                    className={`${template.id}-skill-item`}
+                  >
+                    <span>{item}</span>
+                  </div>
+                ))}
+              </div>
+            );
+
+            return (
+              <div
+                data-section={section.id}
+                className={`${template.id}-section`}
+                style={{
+                  marginBottom: `${templateStyle.sectionSpacing}px`,
+                  ...sidebarStyle,
+                }}
+              >
+                <div className={`${template.id}-skills-dual`}>
+                  {professionalSkills.length > 0 && (
+                    <div className={`${template.id}-skills-dual-column`}>
+                      <div className={`${template.id}-skills-dual-header`}>
+                        Professional Skills
+                      </div>
+                      {renderSkillColumn(professionalSkills, 0)}
+                    </div>
+                  )}
+                  {technicalSkills.length > 0 && (
+                    <div className={`${template.id}-skills-dual-column`}>
+                      <div className={`${template.id}-skills-dual-header`}>
+                        Technical Skills
+                      </div>
+                      {renderSkillColumn(
+                        technicalSkills,
+                        professionalSkills.length,
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          }
+
+          if (isSaffronLine) {
+            const skillGroups = parseSaffronLineSkillGroups(skillsData);
+            if (skillGroups.length === 0) return null;
+
+            return (
+              <div
+                data-section={section.id}
+                className={`${template.id}-section`}
+                style={{
+                  marginBottom: `${templateStyle.sectionSpacing}px`,
+                  ...sidebarStyle,
+                }}
+              >
+                {renderSectionHeader(
+                  section.title,
+                  isInSidebar,
+                  section.type,
+                  section.id,
+                )}
+                <div className={`${template.id}-skills-groups`}>
+                  {skillGroups.map((group, index) => (
+                    <div
+                      key={`${group.label}-${index}`}
+                      data-item-id={`skill-${section.id}-${index}`}
+                      data-item-index={index}
+                      className={`${template.id}-skill-category`}
+                    >
+                      <span className={`${template.id}-skill-category-name`}>
+                        {group.label}:
+                      </span>{" "}
+                      <span className={`${template.id}-skill-category-value`}>
+                        {group.value}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          }
+
           if (!skillsData) return null;
+        }
+
+        if (isConfidentGrid && resume.templateId !== "executive") {
+          const skillItems = parseConfidentGridSkillsList(skillsData);
+          if (skillItems.length === 0) return null;
+
+          return (
+            <div
+              data-section={section.id}
+              className={`${template.id}-section`}
+              style={{
+                marginBottom: `${templateStyle.sectionSpacing}px`,
+                ...sidebarStyle,
+              }}
+            >
+              {renderSectionHeader(section.title, isInSidebar, section.type, section.id)}
+              <div className={`${template.id}-skills-container`}>
+                {skillItems.map((item, itemIndex) => (
+                  <div
+                    key={`cg-skill-${itemIndex}`}
+                    data-item-id={`skill-bullet-${itemIndex}`}
+                    data-item-index={itemIndex}
+                    className={`${template.id}-skill-item`}
+                  >
+                    <span className={`${template.id}-skill-name`}>
+                      {item.name}
+                    </span>
+                    {item.description && (
+                      <>
+                        <span className={`${template.id}-skill-separator`}>
+                          {" "}
+                          —{" "}
+                        </span>
+                        <span className={`${template.id}-skill-desc`}>
+                          {item.description}
+                        </span>
+                      </>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
         }
 
         if (isCondensedRule && resume.templateId !== "executive") {
@@ -3003,7 +3717,7 @@ export function ResumeRenderer({
                       <div
                         className={`${template.id}-skills-container`}
                         style={
-                          isConfidentGrid
+                          isConfidentGrid || isMeridian
                             ? undefined
                             : {
                                 display: "grid",
@@ -3057,13 +3771,17 @@ export function ResumeRenderer({
                                     itemIndex
                                   }
                                   className={`${template.id}-skill-item`}
-                                  style={{
-                                    display: "flex",
-                                    alignItems: "flex-start",
-                                    gap: "8px",
-                                    marginBottom: "4px",
-                                    fontSize: `${templateStyle.fontSize.body}px`,
-                                  }}
+                                  style={
+                                    isMeridian
+                                      ? undefined
+                                      : {
+                                          display: "flex",
+                                          alignItems: "flex-start",
+                                          gap: "8px",
+                                          marginBottom: "4px",
+                                          fontSize: `${templateStyle.fontSize.body}px`,
+                                        }
+                                  }
                                 >
                                   <span>{item}</span>
                                 </div>
@@ -3151,7 +3869,11 @@ export function ResumeRenderer({
         const projectsData = resume.content.projects || [];
         if (projectsData.length === 0) return null;
 
-        if (isCondensedRule || isRoyalIndigo) {
+        if (isCondensedRule || isRoyalIndigo || isCobaltStream) {
+          const formatProjectDates = isRoyalIndigo
+            ? formatRoyalIndigoDateRange
+            : formatProjectDateRange;
+
           return (
             <div
               data-section={section.id}
@@ -3176,14 +3898,18 @@ export function ResumeRenderer({
                             .join(", ")
                         : (project.technologies as string[]).filter(Boolean).join(", ");
 
+                  const itemId = project.id || `project-${index}`;
+
                   return (
                     <div
                       key={index}
-                      data-item-id={project.id || `project-${index}`}
-                      data-item-index={index}
                       className={`${template.id}-project-item`}
                     >
-                      <div className={`${template.id}-job-header`}>
+                      <div
+                        data-item-id={`${itemId}-header`}
+                        data-item-index={index}
+                        className={`${template.id}-job-header`}
+                      >
                         <div className={`${template.id}-job-title-line`}>
                           {project.name && (
                             <span className={`${template.id}-company`}>{project.name}</span>
@@ -3197,10 +3923,66 @@ export function ResumeRenderer({
                             </>
                           )}
                         </div>
-                        {formatProjectDateRange(project) && (
+                        {formatProjectDates(project) && (
                           <div className={`${template.id}-job-details-container`}>
                             <div className={`${template.id}-job-date`}>
-                              {formatProjectDateRange(project)}
+                              {formatProjectDates(project)}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      {project.description && (
+                        <div
+                          data-item-id={`${itemId}-body`}
+                          className={`resume-content ${template.id}-description`}
+                          dangerouslySetInnerHTML={{
+                            __html: formatExperienceDescriptionHtml(project.description),
+                          }}
+                        />
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        }
+
+        if (isAmberEdge) {
+          return (
+            <div
+              data-section={section.id}
+              className={`${template.id}-section`}
+              style={{
+                marginBottom: `${templateStyle.sectionSpacing}px`,
+                ...sidebarStyle,
+              }}
+            >
+              {renderSectionHeader(section.title, isInSidebar, section.type, section.id)}
+              <div>
+                {projectsData.map((project, index) => {
+                  const itemId = project.id || `project-${index}`;
+                  const dateText = [project.startDate, project.endDate]
+                    .filter(Boolean)
+                    .join(" – ");
+
+                  return (
+                    <div
+                      key={index}
+                      className={`${template.id}-project-item`}
+                      data-item-id={itemId}
+                      data-item-index={index}
+                    >
+                      <div className={`${template.id}-job-header`}>
+                        <div className={`${template.id}-job-title-container`}>
+                          <div className={`${template.id}-project-title`}>
+                            {project.name}
+                          </div>
+                        </div>
+                        {dateText && (
+                          <div className={`${template.id}-job-details-container`}>
+                            <div className={`${template.id}-job-date`}>
+                              {dateText}
                             </div>
                           </div>
                         )}
@@ -3209,7 +3991,9 @@ export function ResumeRenderer({
                         <div
                           className={`resume-content ${template.id}-description`}
                           dangerouslySetInnerHTML={{
-                            __html: formatExperienceDescriptionHtml(project.description),
+                            __html: formatExperienceDescriptionHtml(
+                              project.description,
+                            ),
                           }}
                         />
                       )}
@@ -3360,6 +4144,8 @@ export function ResumeRenderer({
         );
 
       case "languages":
+        if (isRoyalIndigo) return null;
+
         // Check multiple possible locations for languages data
         let languagesData: any[] = [];
 
@@ -3452,9 +4238,21 @@ export function ResumeRenderer({
         };
 
         if (isCondensedRule) {
-          const languageNames = languagesData.map(
-            (lang: { name?: string }) => lang.name || String(lang),
+          const languageItems = languagesData.map(
+            (lang: { name?: string; level?: number; proficiency?: number }) => {
+              const name =
+                typeof lang === "string" ? lang : lang.name || String(lang);
+              const level =
+                typeof lang === "object"
+                  ? Number(lang.level ?? lang.proficiency)
+                  : undefined;
+              return {
+                label: name,
+                value: formatCondensedRuleLanguageLevel(level),
+              };
+            },
           );
+
           return (
             <div
               data-section={section.id}
@@ -3464,10 +4262,57 @@ export function ResumeRenderer({
               }}
             >
               {renderSectionHeader(section.title, isInSidebar, section.type, section.id)}
-              {renderCondensedRuleInlineList(
-                languageNames,
+              {renderCondensedRuleLabeledInlineList(
+                languageItems,
                 `${template.id}-inline-list`,
               )}
+            </div>
+          );
+        }
+
+        if (isSaffronLine) {
+          const languageItems = languagesData.map(
+            (lang: { name?: string; level?: number; proficiency?: number }) => {
+              const name =
+                typeof lang === "string" ? lang : lang.name || String(lang);
+              const level =
+                typeof lang === "object"
+                  ? Number(lang.level ?? lang.proficiency)
+                  : undefined;
+              return {
+                label: name,
+                value: formatSaffronLineLanguageLevel(level),
+              };
+            },
+          );
+
+          return (
+            <div
+              data-section={section.id}
+              className={`${template.id}-section`}
+              style={{
+                marginBottom: `${templateStyle.sectionSpacing}px`,
+                ...sidebarStyle,
+              }}
+            >
+              {renderSectionHeader(section.title, isInSidebar, section.type, section.id)}
+              <div className={`${template.id}-languages-list`}>
+                {languageItems.map((item, index) => (
+                  <div
+                    key={`${item.label}-${index}`}
+                    data-item-id={`lang-${section.id}-${index}`}
+                    data-item-index={index}
+                    className={`${template.id}-language-item`}
+                  >
+                    <span className={`${template.id}-skill-category-name`}>
+                      {item.label}:
+                    </span>{" "}
+                    <span className={`${template.id}-skill-category-value`}>
+                      {item.value}
+                    </span>
+                  </div>
+                ))}
+              </div>
             </div>
           );
         }
@@ -3580,6 +4425,8 @@ export function ResumeRenderer({
         );
 
       case "awards":
+        if (isRoyalIndigo || isCondensedRule) return null;
+
         // Handle both executive (sections array) and other templates (direct awards array)
         let awardsData: any[] = [];
 
@@ -3593,6 +4440,50 @@ export function ResumeRenderer({
         }
 
         if (awardsData.length === 0) return null;
+
+        if (isMeridian) {
+          return (
+            <div
+              data-section={section.id}
+              className={`${template.id}-section`}
+              style={{
+                marginBottom: `${templateStyle.sectionSpacing}px`,
+                ...sidebarStyle,
+              }}
+            >
+              {renderSectionHeader(
+                section.title,
+                isInSidebar,
+                section.type,
+                section.id,
+              )}
+              <ul className={`${template.id}-awards-list`}>
+                {awardsData.map((award, index) => {
+                  const description =
+                    typeof award.description === "string"
+                      ? award.description.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim()
+                      : award.description || "";
+
+                  return (
+                    <li
+                      key={index}
+                      data-item-id={award.id || `award-${index}`}
+                      data-item-index={index}
+                      className={`${template.id}-award-item`}
+                    >
+                      {award.title && (
+                        <span className={`${template.id}-award-title`}>
+                          {award.title}.
+                        </span>
+                      )}{" "}
+                      {description}
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          );
+        }
 
         return (
           <div
@@ -3689,6 +4580,8 @@ export function ResumeRenderer({
         );
 
       case "certificates":
+        if (isRoyalIndigo) return null;
+
         // Handle both executive (sections array) and other templates (direct certificates array)
         let certificatesData: any[] = [];
 
@@ -3895,15 +4788,126 @@ export function ResumeRenderer({
         );
 
       case "interests":
-        const interestsData: string | string[] = resume.content.interests || "";
+        const interestsRaw = resume.content.interests as
+          | string
+          | string[]
+          | undefined;
+
+        if (isAmberEdge || isMeridian) {
+          const additionalItems: { label: string; value: string }[] = [];
+
+          const languagesData = Array.isArray(resume.content.languages)
+            ? resume.content.languages
+            : [];
+          const languageText = languagesData
+            .map((lang) => {
+              const name =
+                typeof lang === "string" ? lang : lang.name || String(lang);
+              const level =
+                typeof lang === "object" && lang !== null
+                  ? Number((lang as { level?: number }).level)
+                  : undefined;
+              if (level !== undefined && Number.isFinite(level) && level > 0) {
+                return `${name} (${level}/5)`;
+              }
+              return name;
+            })
+            .filter(Boolean)
+            .join(", ");
+
+          if (languageText) {
+            additionalItems.push({ label: "Languages", value: languageText });
+          }
+
+          const certificatesData = resume.content.certificates || [];
+          const certificateText = certificatesData
+            .map(
+              (cert: { name?: string; title?: string }) =>
+                cert.name || cert.title || "",
+            )
+            .filter(Boolean)
+            .join(", ");
+
+          const interestsText = Array.isArray(interestsRaw)
+            ? interestsRaw.join(", ")
+            : typeof interestsRaw === "string"
+              ? interestsRaw.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim()
+              : "";
+
+          if (certificateText) {
+            additionalItems.push({
+              label: "Certifications",
+              value: certificateText,
+            });
+          } else if (interestsText) {
+            additionalItems.push({
+              label: "Certifications",
+              value: interestsText,
+            });
+          }
+
+          if (isMeridian) {
+            const achievementsData = resume.content.achievements || [];
+            const awardsActivityText = achievementsData
+              .map((item: { title?: string; description?: string } | string) =>
+                typeof item === "string"
+                  ? item
+                  : item.title || item.description || "",
+              )
+              .filter(Boolean)
+              .join(", ");
+
+            if (awardsActivityText) {
+              additionalItems.push({
+                label: "Awards/Activities",
+                value: awardsActivityText,
+              });
+            }
+          }
+
+          if (additionalItems.length === 0) return null;
+
+          return (
+            <div
+              data-section={section.id}
+              className={`${template.id}-section`}
+              style={{
+                marginBottom: `${templateStyle.sectionSpacing}px`,
+                ...sidebarStyle,
+              }}
+            >
+              {renderSectionHeader(
+                section.title,
+                isInSidebar,
+                section.type,
+                section.id,
+              )}
+              <div className={`${template.id}-skills-list`}>
+                <ul>
+                  {additionalItems.map((item, index) => (
+                    <li
+                      key={`${item.label}-${index}`}
+                      data-item-id={`additional-${section.id}-${index}`}
+                    >
+                      <span className={`${template.id}-skill-label`}>
+                        {item.label}:
+                      </span>{" "}
+                      {item.value}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          );
+        }
 
         // Check if it's empty (string or array)
         const isEmpty =
-          !interestsData ||
-          (Array.isArray(interestsData) && interestsData.length === 0) ||
-          (typeof interestsData === "string" && !interestsData.trim()) ||
-          (typeof interestsData === "string" &&
-            interestsData.trim() === "<p></p>");
+          !interestsRaw ||
+          (Array.isArray(interestsRaw) && interestsRaw.length === 0) ||
+          (typeof interestsRaw === "string" && !interestsRaw.trim()) ||
+          (typeof interestsRaw === "string" &&
+            interestsRaw.trim() === "<p></p>");
 
         if (isEmpty) {
           return (
@@ -3935,14 +4939,14 @@ export function ResumeRenderer({
                 lineHeight: "1.4",
               }}
             >
-              {typeof interestsData === "string" ? (
+              {typeof interestsRaw === "string" ? (
                 <div
                   className="resume-content"
-                  dangerouslySetInnerHTML={{ __html: interestsData }}
+                  dangerouslySetInnerHTML={{ __html: interestsRaw }}
                 />
-              ) : (
-                (interestsData as string[]).join(", ")
-              )}
+              ) : Array.isArray(interestsRaw) ? (
+                interestsRaw.join(", ")
+              ) : null}
             </div>
           </div>
         );
@@ -4357,11 +5361,7 @@ export function ResumeRenderer({
       style={{
         width: "210mm",
         minHeight: "auto",
-        padding: isCondensedRule
-          ? `5px ${templateStyle.padding.right}mm ${templateStyle.padding.bottom}mm ${templateStyle.padding.left}mm`
-          : isRoyalIndigo
-            ? `6mm ${templateStyle.padding.right}mm ${templateStyle.padding.bottom}mm ${templateStyle.padding.left}mm`
-            : `${templateStyle.padding.top}mm ${templateStyle.padding.right}mm ${templateStyle.padding.bottom}mm ${templateStyle.padding.left}mm`,
+        padding: `${templateStyle.padding.top}mm ${templateStyle.padding.right}mm ${templateStyle.padding.bottom}mm ${templateStyle.padding.left}mm`,
         ...(isConfidentGrid
           ? ({
               ["--cg-pad-top" as string]: `${templateStyle.padding.top}mm`,
@@ -4411,6 +5411,47 @@ export function ResumeRenderer({
             flex: 1 !important;
             min-width: 0 !important;
           }
+          .confident-grid-template .confident-grid-section-header,
+          .confident-grid-template h2[data-section-header] {
+            font-size: 12px !important;
+            font-weight: 700 !important;
+            font-family: Arial, Helvetica, sans-serif !important;
+            color: #000000 !important;
+            border-bottom: 1px solid #b9cad4 !important;
+            border-top: none !important;
+            padding-bottom: 4px !important;
+            margin-bottom: 10px !important;
+          }
+          .confident-grid-template .confident-grid-header-section {
+            background-color: #d8e5ec !important;
+          }
+          .confident-grid-template .confident-grid-name {
+            font-size: 26px !important;
+            font-weight: 700 !important;
+            color: #000000 !important;
+          }
+          .confident-grid-template .confident-grid-job-title {
+            font-size: 13px !important;
+            font-weight: 400 !important;
+            color: #000000 !important;
+          }
+          .confident-grid-template .confident-grid-job-title-exp,
+          .confident-grid-template .confident-grid-degree,
+          .confident-grid-template .confident-grid-project-title,
+          .confident-grid-template .confident-grid-skill-name {
+            font-weight: 700 !important;
+            color: #000000 !important;
+          }
+          .confident-grid-template .confident-grid-company,
+          .confident-grid-template .confident-grid-institution {
+            font-weight: 400 !important;
+            font-style: italic !important;
+            color: #000000 !important;
+          }
+          .confident-grid-template .confident-grid-skill-item {
+            font-weight: 400 !important;
+            line-height: 1.5 !important;
+          }
           .condensed-rule-template .resume-content.condensed-rule-description ul {
             list-style: none !important;
             padding-left: 0 !important;
@@ -4432,10 +5473,17 @@ export function ResumeRenderer({
             flex: 1 !important;
             min-width: 0 !important;
           }
+          .condensed-rule-template .condensed-rule-company,
+          .condensed-rule-template .condensed-rule-degree,
+          .condensed-rule-template .condensed-rule-inline-label,
+          .condensed-rule-template .condensed-rule-name {
+            font-weight: 700 !important;
+            color: #1a1a1a !important;
+          }
           .condensed-rule-template .condensed-rule-section-header,
           .condensed-rule-template h2[data-section-header] {
             font-size: 11px !important;
-            font-weight: bold !important;
+            font-weight: 700 !important;
             font-style: normal !important;
             font-family: Calibri, "Segoe UI", Arial, sans-serif !important;
             text-transform: uppercase !important;
@@ -4464,27 +5512,80 @@ export function ResumeRenderer({
             padding: 0 !important;
             line-height: 1 !important;
           }
+          .saffron-line-template .saffron-line-section-header,
+          .saffron-line-template h2[data-section-header] {
+            font-size: 12px !important;
+            font-weight: 700 !important;
+            font-family: Georgia, 'Times New Roman', serif !important;
+            text-transform: uppercase !important;
+            letter-spacing: 0.6px !important;
+            color: #2b2b2b !important;
+            border-bottom: 2.5px solid #c0871f !important;
+            border-top: none !important;
+            padding-bottom: 4px !important;
+            margin-bottom: 10px !important;
+            display: flex !important;
+            align-items: center !important;
+          }
+          .saffron-line-template .saffron-line-section-header svg,
+          .saffron-line-template h2[data-section-header] svg {
+            color: #c0871f !important;
+            stroke: #c0871f !important;
+            width: 12px !important;
+            height: 12px !important;
+            margin-right: 6px !important;
+            flex-shrink: 0 !important;
+          }
+          .saffron-line-template .saffron-line-name {
+            font-size: 28px !important;
+            font-weight: 700 !important;
+            color: #2b2b2b !important;
+          }
+          .saffron-line-template .saffron-line-job-title {
+            font-style: italic !important;
+            font-size: 15px !important;
+            color: #c0871f !important;
+            font-weight: 400 !important;
+          }
+          .saffron-line-template .saffron-line-job-title-exp,
+          .saffron-line-template .saffron-line-degree,
+          .saffron-line-template .saffron-line-skill-category-name {
+            font-weight: 700 !important;
+            color: #2b2b2b !important;
+          }
+          .saffron-line-template .saffron-line-company,
+          .saffron-line-template .saffron-line-institution {
+            font-style: italic !important;
+            color: #6a6a6a !important;
+          }
+          .saffron-line-template .saffron-line-job-date,
+          .saffron-line-template .saffron-line-job-location,
+          .saffron-line-template .saffron-line-education-date {
+            color: #6a6a6a !important;
+            font-weight: 400 !important;
+          }
           .royal-indigo-template .royal-indigo-section-header,
           .royal-indigo-template h2[data-section-header] {
             font-size: 13px !important;
-            font-weight: bold !important;
+            font-weight: 700 !important;
             font-style: normal !important;
             font-family: Arial, Helvetica, sans-serif !important;
             text-transform: uppercase !important;
             letter-spacing: 0.6px !important;
             color: #5b3fa0 !important;
-            border-bottom: 1px solid #cbb8e6 !important;
-            border-top: none !important;
-            padding-bottom: 4px !important;
-            margin-bottom: 10px !important;
-            margin-top: 14px !important;
+            border-top: 1px solid #cbb8e6 !important;
+            border-bottom: none !important;
+            padding-top: 8px !important;
+            padding-bottom: 0 !important;
+            margin-bottom: 6px !important;
+            margin-top: 8px !important;
           }
-          .royal-indigo-template [data-section="profileSummary"] h2[data-section-header] {
-            margin-top: 0 !important;
+          .royal-indigo-template [data-section]:not([data-section="personalInfo"]) {
+            padding-top: 8px !important;
           }
           .royal-indigo-template .royal-indigo-name {
             font-size: 30px !important;
-            font-weight: bold !important;
+            font-weight: 700 !important;
             color: #5b3fa0 !important;
             text-transform: uppercase !important;
             text-align: center !important;
@@ -4511,8 +5612,23 @@ export function ResumeRenderer({
           .royal-indigo-template .royal-indigo-job-date,
           .royal-indigo-template .royal-indigo-education-date {
             font-size: 11px !important;
-            font-weight: bold !important;
+            font-weight: 700 !important;
             color: #1f2937 !important;
+          }
+          .royal-indigo-template .royal-indigo-job-title-exp,
+          .royal-indigo-template .royal-indigo-company,
+          .royal-indigo-template .royal-indigo-degree {
+            font-weight: 700 !important;
+            color: #1f2937 !important;
+          }
+          .royal-indigo-template .royal-indigo-skill-label {
+            font-weight: 700 !important;
+            color: #1f2937 !important;
+          }
+          .royal-indigo-template .royal-indigo-skills-list ul {
+            margin: 0 !important;
+            padding-left: 18px !important;
+            list-style-type: disc !important;
           }
           .resume-content a:not(.no-underline) { text-decoration: underline !important; color: inherit; }
           .resume-content a.no-underline { text-decoration: none !important; color: inherit; }

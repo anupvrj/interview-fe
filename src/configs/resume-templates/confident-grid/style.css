@@ -21,7 +21,7 @@
 
 /* ── Full-width tinted header (edge-to-edge within page) ── */
 .confident-grid-header-section {
-  background-color: #deeef7 !important;
+  background-color: #d8e5ec !important;
   padding: 22px var(--cg-pad-right, 12mm) 22px var(--cg-pad-left, 12mm) !important;
   margin-top: calc(-1 * var(--cg-pad-top, 0mm)) !important;
   margin-left: calc(-1 * var(--cg-pad-left, 12mm)) !important;
@@ -48,7 +48,7 @@
 }
 
 .confident-grid-profile-placeholder {
-  background-color: #c5d9ea !important;
+  background-color: #c5d5de !important;
 }
 
 .confident-grid-header-content {
@@ -144,7 +144,7 @@
   text-align: left;
   letter-spacing: 0.1px;
   color: #000000 !important;
-  border-bottom: 1px solid #b0c4de !important;
+  border-bottom: 1px solid #b9cad4 !important;
   border-top: none !important;
   padding-bottom: 4px !important;
   margin-bottom: 10px !important;
@@ -324,7 +324,9 @@
 
 /* ── Core strengths: bold label — regular description (no list bullets) ── */
 .confident-grid-skills-container {
-  display: block;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .confident-grid-skill-item {
@@ -333,8 +335,8 @@
   color: #000000;
   display: block;
   padding-left: 0 !important;
-  margin-bottom: 5px !important;
-  line-height: 1.45;
+  margin-bottom: 0 !important;
+  line-height: 1.5;
 }
 
 .confident-grid-skill-item::before {
@@ -342,8 +344,8 @@
 }
 
 .confident-grid-skill-name {
-  font-weight: 700;
-  color: #000000;
+  font-weight: 700 !important;
+  color: #000000 !important;
 }
 
 .confident-grid-skill-separator {
@@ -358,7 +360,7 @@
 
 @media print {
   .confident-grid-header-section {
-    background-color: #deeef7 !important;
+    background-color: #d8e5ec !important;
   }
 
   .confident-grid-name,
@@ -373,7 +375,7 @@
 
   .confident-grid-section-header,
   .confident-grid-template h2 {
-    border-bottom-color: #b0c4de !important;
+    border-bottom-color: #b9cad4 !important;
   }
 
   .confident-grid-experience-item,

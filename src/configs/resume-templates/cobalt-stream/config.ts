@@ -54,7 +54,7 @@ export const cobaltstreamExtendedConfig: Partial<ExtendedResumeTemplate> = {
     },
     headerStyle: "left",
     sectionSpacing: 11,
-    padding: { top: 10, bottom: 10, left: 12, right: 12 },
+    padding: { top: 5, bottom: 10, left: 12, right: 12 },
     sectionHeader: {
       style: "border-bottom",
       borderWidth: 2,

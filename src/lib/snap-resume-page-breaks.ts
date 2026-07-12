@@ -4,7 +4,10 @@ import {
   isResumePaginationDebugEnabled,
 } from "@/lib/debug-resume-pagination";
 
-const LINE_CUT_EPS = 1;
+/** Tolerance (px) for treating a cut as aligned with a line edge. */
+const LINE_CUT_EPS = 3;
+
+export type TextLineBounds = { top: number; bottom: number };
 
 /**
  * After band computation, page cuts can fall through the middle of a text line
@@ -24,12 +27,8 @@ export function snapResumePageBreaksToLineBounds(
   if (lines.length === 0) return pages;
 
   let current = pages;
-  for (let pass = 0; pass < 5; pass++) {
-    const next = snapResumePageBreaksOnce(
-      lines,
-      current,
-      fullHeight,
-    );
+  for (let pass = 0; pass < 12; pass++) {
+    const next = enforceLineSafePageBreaks(current, lines, fullHeight);
     if (pageBandsEqual(current, next)) {
       current = next;
       break;
@@ -40,14 +39,7 @@ export function snapResumePageBreaksToLineBounds(
   const result = current;
   if (
     isResumePaginationDebugEnabled() &&
-    result !== pages &&
-    (pages.length !== result.length ||
-      pages.some(
-        (p, i) =>
-          !result[i] ||
-          p.offsetY !== result[i].offsetY ||
-          p.height !== result[i].height,
-      ))
+    !pageBandsEqual(result, pages)
   ) {
     debugResumePagination("pagination:snapLineBounds:adjusted", {
       beforePagesCount: pages.length,
@@ -63,11 +55,28 @@ export function snapResumePageBreaksToLineBounds(
   return result;
 }
 
-function snapResumePageBreaksOnce(
-  lines: { top: number; bottom: number }[],
+/** Returns true when cut y falls strictly inside a rendered text line. */
+export function cutSplitsTextLine(
+  y: number,
+  lines: TextLineBounds[],
+): boolean {
+  return lines.some(
+    (line) => y > line.top + LINE_CUT_EPS && y < line.bottom - LINE_CUT_EPS,
+  );
+}
+
+/**
+ * Move every page break off text-line interiors. Prefer pushing the whole line
+ * to the next page (snap to line.top); extend the current page (line.bottom)
+ * when that keeps more content without re-splitting a line.
+ */
+export function enforceLineSafePageBreaks(
   pages: PageBand[],
+  lines: TextLineBounds[],
   fullHeight: number,
 ): PageBand[] {
+  if (pages.length <= 1 || lines.length === 0) return pages;
+
   const breaks: number[] = [];
   for (let i = 0; i < pages.length - 1; i++) {
     breaks.push(pages[i].offsetY + pages[i].height);
@@ -76,15 +85,16 @@ function snapResumePageBreaksOnce(
   for (let i = 0; i < breaks.length; i++) {
     const prevBreak = i === 0 ? 0 : breaks[i - 1];
     const nextBreak = i === breaks.length - 1 ? fullHeight : breaks[i + 1];
-    const y = breaks[i];
-    const snapped = snapCutToAvoidSplitLines(y, lines, prevBreak, nextBreak);
-    if (snapped !== y) {
-      breaks[i] = Math.floor(snapped);
-    }
+    breaks[i] = snapCutToAvoidSplitLines(
+      breaks[i],
+      lines,
+      prevBreak,
+      nextBreak,
+      fullHeight,
+    );
   }
 
-  const out = rebuildPageBandsFromBreaks(breaks, fullHeight);
-  return out.length === pages.length ? out : pages;
+  return rebuildPageBandsFromBreaks(breaks, fullHeight);
 }
 
 function pageBandsEqual(a: PageBand[], b: PageBand[]): boolean {
@@ -103,53 +113,79 @@ function rebuildPageBandsFromBreaks(
   breaks: number[],
   fullHeight: number,
 ): PageBand[] {
-  const out: PageBand[] = [];
-  for (let i = 0; i <= breaks.length; i++) {
-    const offsetY = i === 0 ? 0 : breaks[i - 1];
-    const endY = i === breaks.length ? fullHeight : breaks[i];
-    const height = Math.floor(endY - offsetY);
-    if (height <= 0) {
-      return [];
+  const normalizedBreaks: number[] = [];
+  for (const rawBreak of breaks) {
+    const b = Math.floor(rawBreak);
+    if (b <= 0 || b >= fullHeight) continue;
+    if (
+      normalizedBreaks.length === 0
+        ? b <= 0
+        : b <= normalizedBreaks[normalizedBreaks.length - 1]
+    ) {
+      continue;
     }
+    normalizedBreaks.push(b);
+  }
+
+  const out: PageBand[] = [];
+  let offsetY = 0;
+
+  for (const endY of normalizedBreaks) {
+    const height = endY - offsetY;
+    if (height <= 0) continue;
     out.push({
       pageNumber: out.length + 1,
-      offsetY: Math.floor(offsetY),
+      offsetY,
       height,
     });
+    offsetY = endY;
   }
-  return out;
+
+  const tailHeight = fullHeight - offsetY;
+  if (tailHeight > 0) {
+    out.push({
+      pageNumber: out.length + 1,
+      offsetY,
+      height: tailHeight,
+    });
+  }
+
+  return out.length > 0 ? out : [{ pageNumber: 1, offsetY: 0, height: fullHeight }];
 }
 
 function snapCutToAvoidSplitLines(
   y: number,
-  lines: { top: number; bottom: number }[],
+  lines: TextLineBounds[],
   prevBreak: number,
   nextBreak: number,
+  fullHeight: number,
 ): number {
+  let snapped = Math.floor(y);
+
   for (const line of lines) {
-    if (y <= line.top + LINE_CUT_EPS || y >= line.bottom - LINE_CUT_EPS) {
+    if (snapped <= line.top + LINE_CUT_EPS || snapped >= line.bottom - LINE_CUT_EPS) {
       continue;
     }
 
-    const distToTop = y - line.top;
-    const distToBottom = line.bottom - y;
     const canMoveToNextPage = line.top > prevBreak + LINE_CUT_EPS;
-    const canExtendThisPage = line.bottom <= nextBreak - LINE_CUT_EPS;
+    const canExtendThisPage =
+      line.bottom <= fullHeight &&
+      line.bottom <= nextBreak + LINE_CUT_EPS &&
+      line.bottom > prevBreak + LINE_CUT_EPS;
 
-    // Cut through middle of a line — snap to the nearest valid line edge.
-    if (canMoveToNextPage && (!canExtendThisPage || distToTop <= distToBottom)) {
-      return line.top;
+    // Prefer moving the whole line to the next page — avoids bottom clipping on
+    // the current page and gives cleaner continuation-page tops.
+    if (canMoveToNextPage) {
+      snapped = Math.floor(line.top);
+      continue;
     }
 
     if (canExtendThisPage) {
-      return line.bottom;
-    }
-
-    if (canMoveToNextPage) {
-      return line.top;
+      snapped = Math.ceil(line.bottom);
     }
   }
-  return y;
+
+  return Math.max(prevBreak + 1, Math.min(snapped, fullHeight - 1));
 }
 
 /** Max tail sliver (px) scaled to measured line height — larger body fonts need more room. */
@@ -166,7 +202,7 @@ export function resolveTailSliverMaxPx(
 /** Measure all text line boxes in container document coordinates (px). */
 export function measureTextLineBounds(
   container: HTMLElement,
-): { top: number; bottom: number }[] {
+): TextLineBounds[] {
   const containerRect = container.getBoundingClientRect();
   return collectTextLineBounds(container, containerRect);
 }
@@ -178,8 +214,8 @@ export function measureTextLineBounds(
 function collectTextLineBounds(
   container: HTMLElement,
   containerRect: DOMRect,
-): { top: number; bottom: number }[] {
-  const raw: { top: number; bottom: number }[] = [];
+): TextLineBounds[] {
+  const raw: TextLineBounds[] = [];
   const walker = document.createTreeWalker(
     container,
     NodeFilter.SHOW_TEXT,
@@ -216,7 +252,7 @@ function collectTextLineBounds(
     const rects = range.getClientRects();
     for (let i = 0; i < rects.length; i++) {
       const r = rects[i];
-      if (r.width < 1 || r.height < 4) continue;
+      if (r.width < 1 || r.height < 3) continue;
       raw.push({
         top: r.top - containerRect.top,
         bottom: r.bottom - containerRect.top,
@@ -229,15 +265,15 @@ function collectTextLineBounds(
 
 /** Merge rects that belong to the same line (subpixel / split runs). */
 function mergeAdjacentLineBounds(
-  lines: { top: number; bottom: number }[],
-): { top: number; bottom: number }[] {
+  lines: TextLineBounds[],
+): TextLineBounds[] {
   if (lines.length === 0) return lines;
 
   const sorted = [...lines].sort((a, b) =>
     a.top !== b.top ? a.top - b.top : a.bottom - b.bottom,
   );
 
-  const merged: { top: number; bottom: number }[] = [];
+  const merged: TextLineBounds[] = [];
   for (const line of sorted) {
     const prev = merged[merged.length - 1];
     if (
@@ -250,7 +286,7 @@ function mergeAdjacentLineBounds(
     if (
       prev &&
       Math.abs(prev.bottom - line.top) <= LINE_CUT_EPS &&
-      Math.abs(prev.top - line.top) <= 3
+      Math.abs(prev.top - line.top) <= 4
     ) {
       prev.bottom = Math.max(prev.bottom, line.bottom);
       prev.top = Math.min(prev.top, line.top);
