@@ -25,7 +25,7 @@ export const saffronlineTemplate: ResumeTemplate = {
   colors: {
     primary: "#2b2b2b",
     secondary: "#6a6a6a",
-    accent: "#c0871f",
+    accent: "#F0A23B",
     text: "#2b2b2b",
     background: "#ffffff",
   },
@@ -69,7 +69,7 @@ export const saffronlineExtendedConfig: Partial<ExtendedResumeTemplate> = {
     colors: {
       primary: "#2b2b2b",
       secondary: "#6a6a6a",
-      accent: "#c0871f",
+      accent: "#F0A23B",
       text: "#2b2b2b",
       background: "#ffffff",
     },
@@ -79,7 +79,7 @@ export const saffronlineExtendedConfig: Partial<ExtendedResumeTemplate> = {
     sectionHeader: {
       style: "border-bottom",
       borderWidth: 2.5,
-      borderColor: "#c0871f",
+      borderColor: "#F0A23B",
       textAlign: "left",
       fontSize: 12,
       fontWeight: "bold",
@@ -94,7 +94,7 @@ export const saffronlineExtendedConfig: Partial<ExtendedResumeTemplate> = {
     useCSSClassesForHeader: true,
     headerLayout: {
       type: "with-profile-picture",
-      titlePosition: "below",
+      titlePosition: "inline",
     },
     languageDisplay: {
       showRatings: false,

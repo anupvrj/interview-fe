@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { Public_Sans } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 import { AppGoogleAnalytics } from "@/components/AppGoogleAnalytics";
 import { UserProvider } from "@/components/UserProvider";
@@ -14,8 +13,6 @@ import {
   webApplicationSchema,
 } from "@/components/StructuredData";
 import "./globals.css";
-
-const publicSans = Public_Sans({ subsets: ["latin"], variable: "--font-sans" });
 
 export const metadata: Metadata = {
   metadataBase: new URL(
@@ -98,10 +95,20 @@ export default function RootLayout({
     <ClerkProvider>
       <html lang="en">
         <head>
+          <link rel="preconnect" href="https://fonts.googleapis.com" />
+          <link
+            rel="preconnect"
+            href="https://fonts.gstatic.com"
+            crossOrigin="anonymous"
+          />
+          <link
+            href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@100..900&display=swap"
+            rel="stylesheet"
+          />
           <StructuredData data={organizationSchema} />
           <StructuredData data={webApplicationSchema} />
         </head>
-        <body className={publicSans.className} suppressHydrationWarning>
+        <body className="font-sans antialiased" suppressHydrationWarning>
           <AppGoogleAnalytics gaId={gaMeasurementId} />
           <AppMicrosoftClarity projectId={clarityProjectId} />
           <TemplateRegistryInitializer />

@@ -91,6 +91,9 @@ const config: Config = {
         header: "0 4px 18px 0 rgba(47, 43, 61, 0.1)",
         nav: "0 2px 6px 0 rgba(115, 103, 240, 0.45)",
       },
+      fontFamily: {
+        sans: ["var(--font-sans)", "ui-sans-serif", "system-ui", "sans-serif"],
+      },
       keyframes: {
         "accordion-down": {
           from: { height: "0" },
