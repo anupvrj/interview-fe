@@ -29,7 +29,7 @@ export function RecruiterApplyDialog({
       <DialogContent className={dialogShell}>
         <DialogHeader className={dialogHeaderClass}>
           <DialogTitle className="text-base font-semibold leading-snug sm:text-lg">
-            Become a recruiter
+            Become a Recruiter
           </DialogTitle>
           <DialogDescription className="text-left text-xs leading-relaxed">
             Apply to hire verified iX Talent on InterviewTrix. Individual and

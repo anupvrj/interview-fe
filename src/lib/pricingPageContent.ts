@@ -8,10 +8,17 @@ export const PAID_PLAN_IDS = [
   "tech_pro",
 ] as const;
 
+export const CHECKOUT_PLAN_IDS = ["trial", ...PAID_PLAN_IDS] as const;
+
 export type PaidPlanId = (typeof PAID_PLAN_IDS)[number];
+export type CheckoutPlanId = (typeof CHECKOUT_PLAN_IDS)[number];
 
 export function isPaidPlanId(id: string): id is PaidPlanId {
   return (PAID_PLAN_IDS as readonly string[]).includes(id);
+}
+
+export function isCheckoutPlanId(id: string): id is CheckoutPlanId {
+  return (CHECKOUT_PLAN_IDS as readonly string[]).includes(id);
 }
 
 /** Features tagged "Coming soon" on plan cards — aligned with plansSeedData.ts */
@@ -39,33 +46,45 @@ export const COMPARISON_ROWS: ComparisonRow[] = [
   },
   {
     feature: "Monthly pricing",
-    general_pass: "₹599/mo",
+    general_pass: "₹699/mo",
     tech_basic: "₹899/mo",
     tech_pro: "₹1,999/mo",
   },
   {
     feature: "Monthly credits on renewal",
-    general_pass: "500",
+    general_pass: "600",
     tech_basic: "1,000",
-    tech_pro: "5,000",
+    tech_pro: "3,000",
   },
   {
-    feature: "AI mock interview screening / mo",
-    general_pass: "5",
-    tech_basic: "5",
-    tech_pro: "15",
+    feature: "Interview burn rate",
+    general_pass: "5 credits / min",
+    tech_basic: "5 credits / min",
+    tech_pro: "5 credits / min",
   },
   {
-    feature: "Live coding round interview / mo",
+    feature: "AI mock interviews",
+    general_pass: "Unlimited (credits)",
+    tech_basic: "Unlimited (credits)",
+    tech_pro: "Unlimited (credits)",
+  },
+  {
+    feature: "Coding round practice",
     general_pass: "—",
-    tech_basic: "5",
-    tech_pro: "15",
+    tech_basic: "Unlimited (credits)",
+    tech_pro: "Unlimited (credits)",
   },
   {
-    feature: "Live system design interview / mo",
+    feature: "System design practice",
     general_pass: "—",
-    tech_basic: "2",
-    tech_pro: "5",
+    tech_basic: "Unlimited (credits)",
+    tech_pro: "Unlimited (credits)",
+  },
+  {
+    feature: "Free peer interviews / period",
+    general_pass: "—",
+    tech_basic: "—",
+    tech_pro: "2",
   },
   {
     feature: "White board drawing",

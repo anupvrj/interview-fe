@@ -62,6 +62,9 @@ import { PageHeader } from "@/components/app/PageHeader";
 import { JobRoleSelect } from "@/components/career/JobRoleSelect";
 import { appCard } from "@/lib/app-theme";
 import { cn } from "@/lib/utils";
+import { UpgradeUpsellDialog } from "@/components/upsell/UpgradeUpsellDialog";
+import { TrialUpsellDialog } from "@/components/upsell/TrialUpsellDialog";
+import { useUpsellState } from "@/components/upsell/useUpsellState";
 
 const disciplineOptionsByDepartment: Record<
   string,
@@ -99,6 +102,9 @@ export default function NewCodingInterviewPage() {
     targetCompany: "",
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [upgradeUpsellOpen, setUpgradeUpsellOpen] = useState(false);
+  const [trialUpsellOpen, setTrialUpsellOpen] = useState(false);
+  const { showTrialUpsell, data: entitlements } = useUpsellState();
 
   const loadUserProfile = async () => {
     if (!user) return;
@@ -132,7 +138,7 @@ export default function NewCodingInterviewPage() {
     if (!user) return;
     setCheckingLimit(true);
     try {
-      const result = await paymentApi.checkInterviewLimit();
+      const result = await paymentApi.checkInterviewLimit("codingRound");
       setLimitCheck(result);
     } catch (error: unknown) {
       console.error("Error checking limit:", error);
@@ -215,7 +221,7 @@ export default function NewCodingInterviewPage() {
       return;
     }
 
-    const limitResult = await paymentApi.checkInterviewLimit();
+    const limitResult = await paymentApi.checkInterviewLimit("codingRound");
     if (!limitResult.allowed) {
       setLimitCheck(limitResult);
       return;
@@ -326,6 +332,41 @@ export default function NewCodingInterviewPage() {
           </CardContent>
         </Card>
       ) : limitCheck && !limitCheck.allowed ? (
+        showTrialUpsell ? (
+          <Card className={cn(appCard, "border-2 border-[#7367F0]/30")}>
+            <CardContent className="flex flex-col items-center gap-4 py-10 text-center">
+              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[#7367F0]/10">
+                <Sparkles className="h-8 w-8 text-[#7367F0]" />
+              </div>
+              <div className="max-w-md space-y-2">
+                <h3 className="text-2xl font-bold text-foreground">
+                  Start your trial to practice
+                </h3>
+                <p className="text-muted-foreground">
+                  Experience the full platform — AI interviews, coding, system
+                  design, ATS tools &amp; 200 credits for 14 days.
+                </p>
+              </div>
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <Button
+                  size="lg"
+                  onClick={() => setTrialUpsellOpen(true)}
+                  className="!bg-[#7367F0] hover:!bg-[#6358d8] text-white"
+                >
+                  <Sparkles className="mr-2 h-5 w-5" />
+                  Start trial — ₹299
+                </Button>
+                <Button
+                  size="lg"
+                  variant="outline"
+                  onClick={() => setUpgradeUpsellOpen(true)}
+                >
+                  View paid plans
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        ) : (
         <Card className="border-2 border-orange-400 bg-gradient-to-br from-orange-50 via-red-50 to-pink-50 shadow-xl">
           <CardContent className="pt-6">
             <div className="flex flex-col items-start gap-6 md:flex-row">
@@ -367,14 +408,26 @@ export default function NewCodingInterviewPage() {
                     </div>
                   )}
                 <div className="flex flex-col gap-3 sm:flex-row">
-                  <Button
-                    onClick={() => router.push("/dashboard/plan")}
-                    size="lg"
-                    className="!bg-emerald-600 text-white shadow-lg transition-all hover:!bg-emerald-700 hover:shadow-xl"
-                  >
-                    <Zap className="mr-2 h-5 w-5" />
-                    Purchase Credits
-                  </Button>
+                  {limitCheck.gate === "upgrade_required" ||
+                  limitCheck.creditsAvailable === undefined ? (
+                    <Button
+                      onClick={() => setUpgradeUpsellOpen(true)}
+                      size="lg"
+                      className="!bg-[#7367F0] text-white shadow-lg transition-all hover:!bg-[#6358d8] hover:shadow-xl"
+                    >
+                      <Crown className="mr-2 h-5 w-5" />
+                      Upgrade to Tech Basic
+                    </Button>
+                  ) : (
+                    <Button
+                      onClick={() => router.push("/pricing")}
+                      size="lg"
+                      className="!bg-emerald-600 text-white shadow-lg transition-all hover:!bg-emerald-700 hover:shadow-xl"
+                    >
+                      <Zap className="mr-2 h-5 w-5" />
+                      Get more credits
+                    </Button>
+                  )}
                   <Button
                     onClick={() => router.push("/pricing")}
                     size="lg"
@@ -389,6 +442,7 @@ export default function NewCodingInterviewPage() {
             </div>
           </CardContent>
         </Card>
+        )
       ) : limitCheck && limitCheck.allowed ? (
         <Card className="border-2 border-green-400 bg-gradient-to-br from-green-50 to-emerald-50 shadow-lg">
           <CardContent className="pt-6">
@@ -904,6 +958,19 @@ export default function NewCodingInterviewPage() {
           </div>
         </div>
       )}
+      <TrialUpsellDialog
+        open={trialUpsellOpen}
+        onOpenChange={setTrialUpsellOpen}
+        variant="practice_coding"
+        hasPurchasedTrial={entitlements?.trial.hasPurchased}
+      />
+      <UpgradeUpsellDialog
+        open={upgradeUpsellOpen}
+        onOpenChange={setUpgradeUpsellOpen}
+        title="Coding interview practice"
+        description="Run AI coding rounds with real-time feedback. Included on Tech Basic and Tech Pro."
+        targetPlan="tech_basic"
+      />
     </div>
   );
 }

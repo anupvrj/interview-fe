@@ -274,11 +274,14 @@ export function ImportResumeDialog({
         className={cn(
           appCard,
           "gap-0 overflow-hidden border-primary/15 p-0",
-          phase === "processing" ? "sm:max-w-4xl" : "sm:max-w-lg",
+          phase === "processing"
+            ? "flex max-h-[min(92dvh,920px)] w-[calc(100vw-1.25rem)] max-w-[calc(100vw-1.25rem)] flex-col overflow-y-auto sm:max-w-4xl"
+            : "sm:max-w-lg",
         )}
       >
-        <DialogHeader className="space-y-2 border-b border-border/60 bg-gradient-to-br from-[#7367F0]/[0.05] via-card to-transparent px-6 pb-5 pt-6">
-          <DialogTitle className="text-xl font-semibold text-foreground">
+        {phase !== "processing" ? (
+        <DialogHeader className="space-y-2 border-b border-border/60 bg-gradient-to-br from-[#7367F0]/[0.05] via-card to-transparent px-4 pb-4 pt-5 sm:px-6 sm:pb-5 sm:pt-6">
+          <DialogTitle className="text-lg font-semibold text-foreground sm:text-xl">
             Import resume data
           </DialogTitle>
           <DialogDescription className="text-left text-sm leading-relaxed text-muted-foreground">
@@ -286,8 +289,9 @@ export function ImportResumeDialog({
             PDF resume or your LinkedIn profile.
           </DialogDescription>
         </DialogHeader>
+        ) : null}
 
-        <div className="px-6 py-5">
+        <div className="px-3 py-4 sm:px-6 sm:py-5">
           {phase === "processing" && processingLabel ? (
             <ResumeBuilderProcessingView
               label={processingLabel}

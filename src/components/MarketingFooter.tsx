@@ -40,6 +40,12 @@ export function MarketingFooter({
                   Hire iX Talent
                 </Link>
                 <Link
+                  href="/become-peer-interviewer"
+                  className="text-sm text-gray-300 hover:text-white transition-colors"
+                >
+                  Become Interviewer
+                </Link>
+                <Link
                   href="/about-us"
                   className="text-sm text-gray-300 hover:text-white transition-colors"
                 >

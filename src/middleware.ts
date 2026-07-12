@@ -20,6 +20,7 @@ const isPublicRoute = createRouteMatcher([
   "/refund(.*)",
   "/terms(.*)",
   "/hire-ix-talent(.*)",
+  "/become-peer-interviewer(.*)",
   "/robots.txt",
   "/sitemap.xml",
 ]);

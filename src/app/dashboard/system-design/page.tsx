@@ -47,8 +47,9 @@ import {
 } from "@/components/institute/InstituteChrome";
 import { SystemDesignHeroPreview } from "@/components/system-design/SystemDesignHeroPreview";
 import { DashboardStatCard } from "@/components/dashboard/DashboardStatCard";
-import { SubscriptionExpiredDialog } from "@/components/SubscriptionExpiredDialog";
-import { useSubscriptionExpiredGate } from "@/hooks/useSubscriptionExpiredGate";
+import { PracticeSessionGateDialogs } from "@/components/upsell/PracticeSessionGateDialogs";
+import { PracticeLockedGate } from "@/components/upsell/PracticeLockedGate";
+import { usePracticeSessionGate } from "@/components/upsell/usePracticeSessionGate";
 import { fetchSubscriptionExpired } from "@/lib/subscriptionAccess";
 
 import {
@@ -173,12 +174,15 @@ export default function SystemDesignDashboardPage() {
   );
   const [createRandomBusy, setCreateRandomBusy] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const practiceGate = usePracticeSessionGate();
   const {
-    open: subscriptionExpiredOpen,
-    setOpen: setSubscriptionExpiredOpen,
-    checking: checkingSubscription,
-    guardSessionStart,
-  } = useSubscriptionExpiredGate();
+    startPracticeSession,
+    checkingSubscription,
+    canUse,
+    showTrialUpsell,
+    entitlementsLoading,
+    setSubscriptionExpiredOpen,
+  } = practiceGate;
 
   const refreshSessions = useCallback(async () => {
     try {
@@ -245,8 +249,13 @@ export default function SystemDesignDashboardPage() {
     return { total, completed, avgScore };
   }, [sessions]);
 
+  const systemDesignLocked =
+    !entitlementsLoading && !canUse("systemDesign");
+
   const openProblemPicker = () => {
-    void guardSessionStart(() => setProblemDialogOpen(true));
+    startPracticeSession("system_design", {
+      onProceed: () => setProblemDialogOpen(true),
+    });
   };
 
   const startSession = async (problemId?: string) => {
@@ -459,6 +468,13 @@ export default function SystemDesignDashboardPage() {
         </div>
       </section>
 
+      {systemDesignLocked ? (
+        <PracticeLockedGate
+          type="system_design"
+          showTrialUpsell={showTrialUpsell}
+        />
+      ) : (
+        <>
       {sessions.length > 0 ? (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
           <DashboardStatCard
@@ -683,6 +699,8 @@ export default function SystemDesignDashboardPage() {
           )}
         </CardContent>
       </Card>
+        </>
+      )}
 
       <Dialog open={problemDialogOpen} onOpenChange={setProblemDialogOpen}>
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
@@ -720,10 +738,7 @@ export default function SystemDesignDashboardPage() {
         </DialogContent>
       </Dialog>
 
-      <SubscriptionExpiredDialog
-        open={subscriptionExpiredOpen}
-        onOpenChange={setSubscriptionExpiredOpen}
-      />
+      <PracticeSessionGateDialogs {...practiceGate} />
     </div>
   );
 }

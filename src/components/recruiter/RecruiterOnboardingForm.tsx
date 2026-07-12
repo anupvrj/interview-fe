@@ -203,7 +203,7 @@ export function RecruiterOnboardingForm({
       <div className="overflow-hidden rounded-xl border border-border/60 bg-card shadow-card">
         <div className="border-b border-border/60 bg-gradient-to-br from-[#7367F0]/10 to-transparent px-5 py-5 text-center sm:px-6">
           <h2 className="text-xl font-semibold tracking-tight sm:text-2xl">
-            Become a recruiter
+            Become a Recruiter
           </h2>
           <p className="mx-auto mt-1.5 max-w-md text-sm text-muted-foreground">
             Apply to hire iX Talent. Our team reviews applications within 24-48

@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import {
   isScoreBasedPeerReportBooking,
-  PeerInterviewerScoreReportDialog,
+  PeerInterviewerScoreReportContent,
 } from "@/components/peer/PeerInterviewerScoreReportDialog";
 import { appCard } from "@/lib/app-theme";
 import { cn } from "@/lib/utils";
@@ -22,23 +22,16 @@ export default function PeerBookingReportPage() {
   const [booking, setBooking] = useState<PeerBooking | null>(null);
   const [report, setReport] = useState<PeerInterviewReport | null>(null);
   const [loading, setLoading] = useState(true);
-  const [scoreDialogOpen, setScoreDialogOpen] = useState(false);
 
   const load = async () => {
     setLoading(true);
     try {
       const [b, r] = await Promise.all([
         peerApi.getBooking(id),
-        peerApi.getPeerReport(id),
+        peerApi.getPeerReport(id).catch(() => null),
       ]);
       setBooking(b);
       setReport(r);
-      if (
-        b &&
-        (r?.transcriptSource === "interviewer_score" || isScoreBasedPeerReportBooking(b))
-      ) {
-        setScoreDialogOpen(true);
-      }
     } catch (e: any) {
       toast.error(e?.response?.data?.message || "Failed to load report");
     } finally {
@@ -48,15 +41,20 @@ export default function PeerBookingReportPage() {
 
   useEffect(() => {
     void load();
-    const interval =
-      booking?.reportStatus === "processing" || booking?.reportStatus === "pending"
-        ? setInterval(() => void load(), 5000)
-        : undefined;
-    return () => {
-      if (interval) clearInterval(interval);
-    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id, booking?.reportStatus]);
+  }, [id]);
+
+  useEffect(() => {
+    if (
+      booking?.reportStatus !== "processing" &&
+      booking?.reportStatus !== "pending"
+    ) {
+      return;
+    }
+    const interval = setInterval(() => void load(), 5000);
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [booking?.reportStatus]);
 
   if (loading) {
     return (
@@ -84,29 +82,15 @@ export default function PeerBookingReportPage() {
       {isScoreReport && booking ? (
         <>
           <div>
-            <h1 className="text-2xl font-semibold">Peer interview report</h1>
-            <p className="text-sm text-muted-foreground">
-              {booking.bookingRef} · Based on interviewer scores
+            <h1 className="text-2xl font-semibold">Interview report</h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Based on your peer interviewer&apos;s evaluation. No Meet transcript was
+              available for this session.
             </p>
           </div>
-          <PeerInterviewerScoreReportDialog
-            booking={booking}
-            open={scoreDialogOpen}
-            onOpenChange={setScoreDialogOpen}
-          />
-          {!scoreDialogOpen ? (
-            <div className={cn(appCard, "p-6 text-center")}>
-              <p className="text-sm text-muted-foreground">
-                This report is based on your peer interviewer&apos;s evaluation.
-              </p>
-              <Button
-                className="mt-4 bg-[#7367F0] text-white hover:bg-[#6e62e5]"
-                onClick={() => setScoreDialogOpen(true)}
-              >
-                Open report
-              </Button>
-            </div>
-          ) : null}
+          <div className={cn(appCard, "p-4 sm:p-6")}>
+            <PeerInterviewerScoreReportContent booking={booking} />
+          </div>
         </>
       ) : (
         <>
@@ -124,6 +108,13 @@ export default function PeerBookingReportPage() {
                   <Loader2 className="mx-auto mb-3 h-8 w-8 animate-spin text-[#7367F0]" />
                   <p>Interview report is being generated from the meeting transcript…</p>
                 </>
+              ) : booking?.interviewerCandidateScore ? (
+                <div className="space-y-4 text-left">
+                  <p className="text-sm text-muted-foreground">
+                    Meet transcript report is not available. Showing interviewer evaluation instead.
+                  </p>
+                  <PeerInterviewerScoreReportContent booking={booking} />
+                </div>
               ) : (
                 <p>
                   Report not available yet. It appears after the meeting ends and Google Meet

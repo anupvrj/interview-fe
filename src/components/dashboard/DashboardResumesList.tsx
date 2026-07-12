@@ -229,7 +229,16 @@ export function DashboardResumesList({
                         </span>
                       </p>
                     ) : (
-                      <span className="text-sm text-muted-foreground">—</span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8 whitespace-nowrap px-3 text-xs font-semibold"
+                        asChild
+                      >
+                        <Link href={`/dashboard/resumes/${resume.resumeId}/edit`}>
+                          Check ATS Score
+                        </Link>
+                      </Button>
                     )}
                   </td>
 

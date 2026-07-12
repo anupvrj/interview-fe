@@ -63,7 +63,6 @@ import {
   userApi,
 } from "@/lib/api";
 import { getPeerInterviewUnlockStatus } from "@/lib/peer-interviews";
-import { buildDashboardRecentSessions } from "@/lib/dashboard-recent-sessions";
 import {
   cn,
   getInterviewCreditsUsed,
@@ -82,8 +81,8 @@ import { InterviewTypeFilterBar } from "@/components/dashboard/InterviewTypeFilt
 import { IxOptInNotice } from "@/components/ix-score/IxOptInNotice";
 import { RecentInterviewsList } from "@/components/dashboard/RecentInterviewsList";
 import { DashboardResumesList } from "@/components/dashboard/DashboardResumesList";
-import { SubscriptionExpiredDialog } from "@/components/SubscriptionExpiredDialog";
-import { useSubscriptionExpiredGate } from "@/hooks/useSubscriptionExpiredGate";
+import { PracticeSessionGateDialogs } from "@/components/upsell/PracticeSessionGateDialogs";
+import { usePracticeSessionGate } from "@/components/upsell/usePracticeSessionGate";
 import {
   buildDashboardRecentSessions,
   countDashboardSessionsByFilter,
@@ -138,23 +137,12 @@ export default function DashboardPage() {
   >(null);
   const [videoUnavailableOpen, setVideoUnavailableOpen] = useState(false);
   const {
-    open: subscriptionExpiredOpen,
-    setOpen: setSubscriptionExpiredOpen,
-    checking: checkingSubscription,
-    navigateToNewSession,
-  } = useSubscriptionExpiredGate();
+    startPracticeSession,
+    checkingSubscription,
+    ...practiceGate
+  } = usePracticeSessionGate();
   const [downloadingResumeId, setDownloadingResumeId] = useState<string | null>(
     null,
-  );
-
-  const recentSessions = useMemo(
-    () =>
-      buildDashboardRecentSessions({
-        interviews,
-        systemDesignSessions,
-        peerBookings,
-      }),
-    [interviews, systemDesignSessions, peerBookings],
   );
 
   const interviewTypeCounts = useMemo(
@@ -690,7 +678,9 @@ export default function DashboardPage() {
                 type="button"
                 disabled={checkingSubscription}
                 onClick={() =>
-                  navigateToNewSession("/dashboard/interviews/new")
+                  startPracticeSession("ai", {
+                    path: "/dashboard/interviews/new",
+                  })
                 }
                 className={institutePrimaryClass}
               >
@@ -706,7 +696,7 @@ export default function DashboardPage() {
         </CardHeader>
         <CardContent className="p-0">
           <RecentInterviewsList
-            sessionRows={recentSessions}
+            sessionRows={filteredRecentSessions}
             currentPage={currentPage}
             itemsPerPage={itemsPerPage}
             onPageChange={setCurrentPage}
@@ -818,10 +808,7 @@ export default function DashboardPage() {
         </DialogContent>
       </Dialog>
 
-      <SubscriptionExpiredDialog
-        open={subscriptionExpiredOpen}
-        onOpenChange={setSubscriptionExpiredOpen}
-      />
+      <PracticeSessionGateDialogs {...practiceGate} />
     </div>
   );
 }

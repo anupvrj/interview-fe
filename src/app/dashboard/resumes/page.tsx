@@ -48,6 +48,8 @@ import {
 } from "@/components/institute/InstituteChrome";
 import { DashboardStatCard } from "@/components/dashboard/DashboardStatCard";
 import { DashboardResumesList } from "@/components/dashboard/DashboardResumesList";
+import { TrialUpsellDialog } from "@/components/upsell/TrialUpsellDialog";
+import { useEntitlements } from "@/hooks/useEntitlements";
 
 const RESUME_ITEMS_PER_PAGE = 10;
 
@@ -64,6 +66,8 @@ export default function ResumesPage() {
   const [showLimitModal, setShowLimitModal] = useState(false);
   const [checkingLimit, setCheckingLimit] = useState(false);
   const [resumePage, setResumePage] = useState(1);
+  const [trialUpsellOpen, setTrialUpsellOpen] = useState(false);
+  const { canUse, data: entitlements } = useEntitlements();
 
   // Resume Builder Animation States
   const [resumeText, setResumeText] = useState("");
@@ -254,12 +258,22 @@ export default function ResumesPage() {
   };
 
   const handleDownload = async (resumeId: string) => {
+    if (!canUse("resumeDownload")) {
+      setTrialUpsellOpen(true);
+      return;
+    }
     try {
       setDownloadingId(resumeId);
       const pdfUrl = await resumeApi.downloadPDF(resumeId);
       window.open(pdfUrl, "_blank");
     } catch (error: any) {
       console.error("Error downloading PDF:", error);
+
+      const gate = error.response?.data?.gate;
+      if (error.response?.status === 403 && gate) {
+        setTrialUpsellOpen(true);
+        return;
+      }
 
       // If PDF doesn't exist, redirect to editor to generate it
       if (
@@ -867,6 +881,12 @@ export default function ResumesPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <TrialUpsellDialog
+        open={trialUpsellOpen}
+        onOpenChange={setTrialUpsellOpen}
+        variant="resume_download"
+        hasPurchasedTrial={entitlements?.trial.hasPurchased}
+      />
     </div>
   );
 }

@@ -50,15 +50,6 @@ export function getCandidateBookingSteps(status: PeerBooking["status"]) {
   return steps;
 }
 
-function stepShowsLabel(
-  step: { key: string; state: BookingStepState },
-  status: PeerBooking["status"],
-): boolean {
-  if (step.state === "upcoming") return false;
-  if (status === "completed") return step.key === "done";
-  return true;
-}
-
 export function PeerBookingProgressStepper({ status }: { status: PeerBooking["status"] }) {
   return <BookingProgressStepper status={status} />;
 }
@@ -90,20 +81,17 @@ function BookingProgressStepper({ status }: { status: PeerBooking["status"] }) {
                   index + 1
                 )}
               </span>
-              {stepShowsLabel(step, status) ? (
-                <span
-                  className={cn(
-                    "max-w-[4.5rem] text-center text-[10px] font-semibold uppercase leading-tight tracking-wide sm:max-w-none",
-                    step.state === "complete" &&
-                      "text-emerald-700 dark:text-emerald-300",
-                    step.state === "current" && "text-[#7367F0]",
-                  )}
-                >
-                  {step.label}
-                </span>
-              ) : (
-                <span className="h-3" aria-hidden />
-              )}
+              <span
+                className={cn(
+                  "max-w-[4.5rem] text-center text-[10px] font-semibold uppercase leading-tight tracking-wide sm:max-w-none",
+                  step.state === "complete" &&
+                    "text-emerald-700 dark:text-emerald-300",
+                  step.state === "current" && "text-[#7367F0]",
+                  step.state === "upcoming" && "text-muted-foreground",
+                )}
+              >
+                {step.label}
+              </span>
             </div>
             {index < steps.length - 1 ? (
               <div className="flex min-w-[0.35rem] max-w-[2rem] flex-1 items-center self-start pt-3.5 sm:max-w-none">

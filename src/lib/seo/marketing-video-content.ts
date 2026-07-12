@@ -79,21 +79,52 @@ export const atsCheckerDemoVideo: MarketingVideoContent = {
   ],
 };
 
+export const aiInterviewCoachDemoVideo: MarketingVideoContent = {
+  ...aiInterviewDemoVideo,
+  id: "ai-interview-coach-demo",
+  name: "Interview Trix AI Interview Coach Demo",
+  description:
+    "Watch a live AI mock interview on Interview Trix: voice-first practice, real-time feedback, company-specific questions, and a detailed scorecard to help you get shortlisted.",
+  embedUrl: `${getSiteUrl()}/ai-interview-coach`,
+  pagePath: "/ai-interview-coach",
+};
+
+export const peerInterviewBookingDemoVideo: MarketingVideoContent = {
+  id: "peer-interview-booking-demo",
+  name: "Interview Trix Peer Interview Booking Demo",
+  description:
+    "See how candidates browse verified peer interviewers, pick an open slot on your calendar, and pay only after you accept the booking request.",
+  thumbnailUrl: "/marketing/image-person-2.png",
+  uploadDate: "2026-07-12T00:00:00+00:00",
+  videoUrl: getPublicVideoUrl("Interview-trix-peer-interview-booking-demo.mp4"),
+  embedUrl: `${getSiteUrl()}/become-peer-interviewer`,
+  pagePath: "/become-peer-interviewer",
+  durationSeconds: 60,
+  duration: secondsToIso8601Duration(60),
+  transcript:
+    "Candidates open the peer interview directory on Interview Trix and browse verified interviewers by role, company, and interview type. They view your profile, available slots, and pricing before sending a booking request. You receive the request in your interviewer dashboard and accept or decline at your pace. Payment is collected only after you accept — then the session is confirmed on both calendars with video meeting details.",
+  keyTakeaways: [
+    "Candidates discover your profile in the peer interviewer directory.",
+    "They choose an open slot and submit a booking request — no payment yet.",
+    "You accept requests you want; candidates pay only after acceptance.",
+    "Confirmed sessions appear on both dashboards with meeting details ready.",
+  ],
+};
+
 export const hireIxTalentDemoVideo: MarketingVideoContent = {
   id: "hire-ix-talent-demo",
   name: "Interview Trix Hire iX Talent Demo",
   description:
     "See how recruiters search verified iX Talent on Interview Trix: filter by role, industry, skills, and iX Score, then review full interview reports before shortlisting.",
-  thumbnailUrl: "/ai_interview_thumbnail.png",
-  uploadDate: "2026-06-27T19:18:46+00:00",
-  videoUrl: getPublicVideoUrl("ai_interview_demo_interview_trix.mp4"),
+  thumbnailUrl: "/marketing/ix-talent-image-person-2.png",
+  uploadDate: "2026-07-12T08:27:15+00:00",
+  videoUrl: getPublicVideoUrl("Interview-trix-ix-talent-hiring-demo.mp4"),
   embedUrl: `${getSiteUrl()}/hire-ix-talent`,
   pagePath: "/hire-ix-talent",
-  durationSeconds: 10,
-  duration: secondsToIso8601Duration(10),
-  captionsUrl: "/captions/ai-interview-demo.vtt",
+  durationSeconds: 60,
+  duration: secondsToIso8601Duration(60),
   transcript:
-    "Recruiters on Interview Trix search verified iX Talent who have completed AI mock interviews. Filter candidates by role, industry, skills, and minimum iX Score. Open full iX Reports with category breakdowns, transcripts, and interview context before your first outreach. Shortlist top profiles and track hiring pipeline from search to hired.",
+    "Recruiters on Interview Trix search verified iX Talent who have completed AI mock interviews. Filter candidates by role, industry, skills, and minimum iX Score. Open full iX Reports with category breakdowns, transcripts, and interview context before your first outreach. Shortlist top profiles and move the right people through your hiring pipeline from search to shortlist.",
   keyTakeaways: [
     "Search iX Talent by role, industry, skills, and verified iX Score.",
     "Review full iX Reports and interview performance before shortlisting.",
@@ -104,7 +135,9 @@ export const hireIxTalentDemoVideo: MarketingVideoContent = {
 /** All public marketing videos — used by video sitemap and JSON-LD registries. */
 export const marketingVideos: MarketingVideoContent[] = [
   aiInterviewDemoVideo,
+  aiInterviewCoachDemoVideo,
   resumeBuilderDemoVideo,
   atsCheckerDemoVideo,
   hireIxTalentDemoVideo,
+  peerInterviewBookingDemoVideo,
 ];

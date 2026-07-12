@@ -1,6 +1,6 @@
 "use client";
 
-// Hero photo: /public/marketing/ix-talent-image-person-2 (transparent cutout; avoid next/image optimize — flattens alpha to black)
+// Hero photo: /public/marketing/Interview-trix-ix-recruiter-2.png (transparent cutout; avoid next/image optimize — flattens alpha to black)
 
 import Image from "next/image";
 import Link from "next/link";
@@ -54,14 +54,14 @@ export function RecruiterLandingHero({
       </div>
 
       <div className="container relative z-10 mx-auto max-w-7xl">
-        <div className="mb-8 flex justify-center sm:mb-10 lg:hidden">
+        <div className="mb-8 flex w-full justify-center sm:mb-10 lg:hidden">
           <Image
-            src="/marketing/ix-talent-image-person-2.png"
-            alt="Professional reviewing candidates on a laptop in a modern office"
+            src="/marketing/Interview-trix-ix-recruiter-2.png"
+            alt="Recruiter celebrating successful candidate shortlisting on InterviewTrix"
             width={1400}
             height={1068}
             unoptimized
-            className="h-auto max-h-[210px] w-auto object-contain mix-blend-screen sm:max-h-[252px]"
+            className="h-auto w-[80vw] object-contain mix-blend-screen"
             priority
           />
         </div>
@@ -139,15 +139,15 @@ export function RecruiterLandingHero({
         </div>
       </div>
 
-      <div className="pointer-events-none absolute bottom-0 right-0 z-[1] hidden w-[min(48vw,686px)] lg:block">
+      <div className="pointer-events-none absolute bottom-0 right-0 z-[1] hidden w-[min(48vw,720px)] lg:block">
         <Image
-          src="/marketing/ix-talent-image-person-2.png"
+          src="/marketing/Interview-trix-ix-recruiter-2.png"
           alt=""
           aria-hidden
           width={1400}
           height={1068}
           unoptimized
-          className="h-auto w-full object-contain object-bottom object-right mix-blend-screen"
+          className="h-auto max-h-[550px] w-full object-contain object-bottom object-right mix-blend-screen"
           priority
         />
       </div>
