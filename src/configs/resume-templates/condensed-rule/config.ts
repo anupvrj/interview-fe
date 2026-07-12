@@ -57,7 +57,7 @@ export const condensedruleExtendedConfig: Partial<ExtendedResumeTemplate> = {
     },
     headerStyle: "left",
     sectionSpacing: 9,
-    padding: { top: 1.3, bottom: 10, left: 12, right: 12 },
+    padding: { top: 6, bottom: 10, left: 12, right: 12 },
     sectionHeader: {
       style: "border-bottom",
       borderWidth: 1,
@@ -93,10 +93,11 @@ export const condensedruleExtendedConfig: Partial<ExtendedResumeTemplate> = {
     { id: "profileSummary", type: "profileSummary", title: "Summary", visible: true },
     { id: "experience", type: "experience", title: "Professional Experience", visible: true },
     { id: "education", type: "education", title: "Education", visible: true },
-    { id: "projects", type: "projects", title: "Projects", visible: true },
+    { id: "projects", type: "projects", title: "Projects", visible: false },
     { id: "skills", type: "skills", title: "Skills", visible: true },
     { id: "languages", type: "languages", title: "Languages", visible: true },
     { id: "certificates", type: "certificates", title: "Certificates", visible: true },
+    { id: "awards", type: "awards", title: "Awards", visible: false },
   ],
 };
 

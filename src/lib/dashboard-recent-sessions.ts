@@ -177,8 +177,13 @@ function mapSystemDesignSession(
   };
 }
 
-function mapPeerBooking(booking: PeerBooking): DashboardRecentSessionRow {
-  const typeLabel = booking.interviewType.replace(/_/g, " ");
+function mapPeerBooking(
+  booking: PeerBooking,
+  typeNames?: Record<string, string>,
+): DashboardRecentSessionRow {
+  const typeLabel =
+    typeNames?.[booking.interviewType] ||
+    booking.interviewType.replace(/_/g, " ");
   const interviewer =
     booking.interviewer?.name || booking.interviewerName || "Interviewer";
   const bookingHref = `/dashboard/peer-interviews/bookings/${booking.id}`;
@@ -213,7 +218,7 @@ export function buildDashboardRecentSessions(input: {
   const rows: DashboardRecentSessionRow[] = [
     ...input.interviews.map(mapAiInterview),
     ...input.systemDesignSessions.map(mapSystemDesignSession),
-    ...input.peerBookings.map(mapPeerBooking),
+    ...input.peerBookings.map((booking) => mapPeerBooking(booking)),
   ];
 
   return rows.sort(
@@ -248,7 +253,7 @@ export function buildPeerHistorySessionRows(
 ): DashboardRecentSessionRow[] {
   return bookings
     .map((booking) => {
-      const row = mapPeerBooking(booking);
+      const row = mapPeerBooking(booking, typeNames);
       const typeLabel =
         typeNames[booking.interviewType] ||
         booking.interviewType.replace(/_/g, " ");

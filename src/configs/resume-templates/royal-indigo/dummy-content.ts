@@ -1,6 +1,6 @@
 /**
  * Royal Indigo Template - Dummy Content
- * Engineering executive sample.
+ * Matches royal-indigo-preview.webp sample.
  */
 
 export const royalindigoDummyContent = {
@@ -10,7 +10,7 @@ export const royalindigoDummyContent = {
     phone: "123-456-7890",
     location: "Any City",
     linkedin: "www.reallygreatsite.com",
-    portfolio: "Engineering Executive",
+    portfolio: "",
   },
 
   profileSummary:
@@ -34,7 +34,7 @@ export const royalindigoDummyContent = {
       position: "Project Engineer",
       company: "Salford & Co",
       location: "",
-      startDate: "2021-03",
+      startDate: "2019-03",
       endDate: "2022-12",
       current: false,
       description: [
@@ -97,14 +97,26 @@ export const royalindigoDummyContent = {
       endDate: "2023",
     },
   ],
-  certificates: [],
+  certificates: [
+    { name: "Professional Engineer (PE) License", issuer: "", date: "" },
+    { name: "Project Management Professional (PMP)", issuer: "", date: "" },
+  ],
   achievements: [],
+  awards: [
+    {
+      title: "Engineering Excellence Award",
+      issuer: "Borcelle Technologies",
+      date: "",
+      description:
+        "Received the 'Engineering Excellence' Award for outstanding contributions to project innovation, Borcelle Technologies.",
+    },
+  ],
   languages: [
     { name: "English", level: 5 },
     { name: "Malay", level: 4 },
     { name: "German", level: 3 },
   ],
-  interests: "Professional Engineer (PE) License, Project Management Professional (PMP)",
+  interests: "",
 };
 
 export default royalindigoDummyContent;

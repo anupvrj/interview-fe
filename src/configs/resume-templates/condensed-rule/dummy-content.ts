@@ -126,6 +126,7 @@ export const condensedruleDummyContent = {
     },
   ],
   achievements: [],
+  awards: [],
   languages: [
     { name: "Arabic", level: 5 },
     { name: "English", level: 4 },

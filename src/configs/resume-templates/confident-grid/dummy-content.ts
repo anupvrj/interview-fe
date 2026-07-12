@@ -1,127 +1,114 @@
 /**
  * Confident Grid Template - Dummy Content
- * Consulting / advisory leadership sample.
+ * Matches confident-grid-preview.webp sample (Robert M. Vance Jr.).
  */
 
 export const confidentgridDummyContent = {
   personalInfo: {
-    fullName: "Antoine Delorme",
-    email: "antoine.delorme@email.com",
-    phone: "+33 6 42 85 17 36",
-    location: "Paris, France",
-    linkedin: "linkedin.com/in/antoine-delorme",
-    portfolio: "Consulting Director",
+    fullName: "Robert M. Vance Jr.",
+    email: "robert.vance@email.com",
+    phone: "(555) 555-1234",
+    location: "Boston, MA",
+    linkedin: "linkedin.com/in/robertvance",
+    portfolio: "Medical Device Sales Leader",
     profilePicture: "",
   },
 
   profileSummary:
-    "Consulting leader with 20 years of experience advising large organizations on strategy execution, operational transformation, and performance improvement. Background in leading cross-functional teams, shaping complex client engagements, and turning business priorities into practical implementation plans. Recognized for structured problem-solving, executive communication, and building trusted relationships in senior consulting and transformation settings.",
+    "Results-driven medical device sales leader with 15+ years of experience building high-performing teams, expanding regional territories, and driving revenue growth across complex hospital and IDN accounts. Proven track record of exceeding quota, launching new product lines, and developing long-term customer relationships in competitive healthcare markets.",
 
   experience: [
     {
-      position: "Consulting Director",
-      company: "Capstone Advisory Partners",
-      location: "Paris, France",
-      startDate: "2019-01",
+      position: "Regional Sales Director",
+      company: "MedTech Solutions Inc.",
+      location: "Boston, MA",
+      startDate: "2018-01",
       endDate: "",
       current: true,
       description: [
-        "Direct enterprise transformation engagements for regional and international clients, aligning executive teams on strategy, operating model, and delivery priorities.",
-        "Oversee multidisciplinary consulting teams across performance improvement, organizational redesign, and governance projects with consistent client satisfaction.",
-        "Drive business development efforts through proposal leadership, account growth planning, and expansion of long-term advisory relationships.",
+        "Lead a team of 12 sales representatives across the Northeast region, consistently achieving 110%+ of annual revenue targets.",
+        "Developed strategic account plans for top 25 hospital systems, resulting in 28% year-over-year growth.",
+        "Launched three new product lines, coordinating with marketing and clinical teams to drive adoption.",
       ],
     },
     {
-      position: "Senior Management Consultant",
-      company: "Axelia Strategy Consulting",
-      location: "Lyon, France",
-      startDate: "2015-01",
-      endDate: "2019-01",
+      position: "Senior Sales Manager",
+      company: "CardioVascular Systems",
+      location: "Hartford, CT",
+      startDate: "2013-06",
+      endDate: "2017-12",
       current: false,
       description: [
-        "Led transformation workstreams for clients undergoing process redesign, cost optimization, and post-merger integration across multiple business units.",
-        "Managed steering committees, client workshops, and delivery plans to keep programs on track against milestones, scope, and budget.",
-        "Improved reporting frameworks and decision-making routines, enabling leadership teams to monitor implementation progress more effectively.",
+        "Managed territory spanning Connecticut and Rhode Island with $8M annual quota responsibility.",
+        "Built relationships with key opinion leaders and hospital administrators to expand market share.",
+        "Mentored junior sales representatives, improving team close rates by 18%.",
       ],
     },
     {
-      position: "Management Consultant",
-      company: "Novaris Conseil",
-      location: "Paris, France",
-      startDate: "2011-01",
-      endDate: "2015-01",
+      position: "Sales Representative",
+      company: "OrthoMed Devices",
+      location: "Providence, RI",
+      startDate: "2009-01",
+      endDate: "2013-05",
       current: false,
       description: [
-        "Delivered market assessments, business cases, and operational diagnostics for strategic and organizational improvement assignments.",
-        "Owned project analysis streams and coordinated stakeholder inputs to support recommendations with clear data and implementation logic.",
-        "Contributed to executive presentations and roadmap development for transformation initiatives in regulated and service-based industries.",
+        "Sold orthopedic implant portfolio to surgeons and hospital purchasing departments.",
+        "Exceeded quota in 4 of 5 years, earning President's Club recognition twice.",
+        "Coordinated surgical case coverage and product training for clinical staff.",
       ],
     },
   ],
 
   education: [
     {
-      degree: "Executive Certificate in Strategic Transformation",
-      institution: "INSEAD",
-      location: "Fontainebleau, France",
-      startDate: "2018",
-      endDate: "2018",
+      degree: "Master of Science in Business Administration",
+      institution: "Boston University",
+      location: "Boston, MA",
+      startDate: "2007",
+      endDate: "2009",
       gpa: "",
       description: "",
     },
     {
-      degree: "Master in Management",
-      institution: "HEC Paris",
-      location: "Paris, France",
-      startDate: "2006",
-      endDate: "2008",
-      gpa: "",
-      description: "",
-    },
-    {
-      degree: "Bachelor in Economics and Public Policy",
-      institution: "Sciences Po",
-      location: "Paris, France",
-      startDate: "2004",
-      endDate: "2006",
+      degree: "Bachelor of Science in Biology",
+      institution: "University of Massachusetts",
+      location: "Amherst, MA",
+      startDate: "2003",
+      endDate: "2007",
       gpa: "",
       description: "",
     },
   ],
 
   skills: [
-    "Enterprise Sales — Led national and regional sales teams across complex medical device portfolios with consistent quota attainment.",
-    "Territory Planning — Built data-driven territory models that improved coverage, pipeline quality, and account prioritization.",
+    "Regional Sales & Territory Growth — Demonstrated ability to expand market presence and exceed revenue targets across multi-state territories.",
     "Clinical Solution Selling — Partnered with physicians and hospital stakeholders to align product value with patient outcomes.",
     "Contract Negotiation — Managed multi-million dollar agreements with IDNs, GPOs, and regional hospital systems.",
     "Cross-Functional Leadership — Coordinated marketing, clinical affairs, and operations to support launches and adoption.",
+    "Team Development — Built and mentored high-performing sales teams with consistent quota attainment.",
   ],
 
   projects: [
     {
-      name: "Enterprise Transformation Program",
+      name: "Northeast Territory Expansion",
       description:
-        "Led a multi-year operating model redesign for a Fortune 500 client, delivering €12M in annual savings.",
-      technologies: "Strategy, Change Management",
-      startDate: "2022",
-      endDate: "2023",
-    },
-    {
-      name: "Performance Analytics Platform",
-      description:
-        "Built executive dashboards and KPI frameworks that improved decision speed across regional leadership teams.",
-      technologies: "Analytics, Power BI",
+        "Led strategic expansion into three new states, adding $4.2M in annual recurring revenue within 18 months.",
+      technologies: "Sales Strategy, Market Analysis",
       startDate: "2020",
       endDate: "2021",
+    },
+    {
+      name: "Hospital System Partnership Program",
+      description:
+        "Designed and implemented a tiered partnership model adopted by 12 major IDNs across the region.",
+      technologies: "Account Management, Healthcare",
+      startDate: "2019",
+      endDate: "2020",
     },
   ],
   certificates: [],
   achievements: [],
-  languages: [
-    { name: "French", level: 5 },
-    { name: "English", level: 5 },
-    { name: "Spanish", level: 3 },
-  ],
+  languages: [],
   interests: "",
 };
 

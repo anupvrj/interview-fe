@@ -3283,7 +3283,7 @@ export const peerApi = {
     start: string;
     end: string;
     availableForTypes: string[];
-    videoLink: string;
+    videoLink?: string;
     googleMeetSpaceName?: string;
     videoLinkSource?: "google_meet_api" | "manual";
   }) => unwrap<PeerSlot>(apiClient.post("/peer/slots", body)),
@@ -3304,7 +3304,7 @@ export const peerApi = {
       start: string;
       end: string;
       availableForTypes: string[];
-      videoLink: string;
+      videoLink?: string;
       googleMeetSpaceName?: string;
       videoLinkSource?: "google_meet_api" | "manual";
     },

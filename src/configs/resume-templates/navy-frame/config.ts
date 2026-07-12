@@ -55,7 +55,7 @@ export const navyframeExtendedConfig: Partial<ExtendedResumeTemplate> = {
     },
     headerStyle: "left",
     sectionSpacing: 11,
-    padding: { top: 12, bottom: 12, left: 14, right: 14 },
+    padding: { top: 5, bottom: 12, left: 14, right: 14 },
     sectionHeader: {
       style: "border-bottom",
       borderWidth: 1.5,
