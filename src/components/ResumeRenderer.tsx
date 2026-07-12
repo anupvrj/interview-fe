@@ -2115,6 +2115,56 @@ export function ResumeRenderer({
                     : { flex: 1, paddingTop: "10px" }
                 }
               >
+                {isSaffronLine ? (
+                  <div className={`${template.id}-header-top`}>
+                    <h1
+                      className={`${template.id}-name`}
+                      style={
+                        useCssHeaderClasses
+                          ? mergeHeaderNameStyle(
+                              {
+                                margin: 0,
+                                letterSpacing: "-0.5px",
+                              },
+                              templateStyle.colors.text,
+                            )
+                          : {
+                              fontSize: `${templateStyle.fontSize.heading}px`,
+                              fontWeight: "bold",
+                              color: templateStyle.colors.text,
+                              margin: 0,
+                              letterSpacing: "-0.5px",
+                              fontFamily: templateStyle.fontFamily,
+                            }
+                      }
+                    >
+                      {personalInfoDisplayText(
+                        personalInfo.fullName,
+                        RESUME_DISPLAY_PLACEHOLDERS.fullName,
+                      )}
+                    </h1>
+                    <p
+                      className={`${template.id}-job-title`}
+                      style={
+                        useCssHeaderClasses
+                          ? mergeHeaderJobTitleStyle({ margin: 0 }, templateStyle.colors.text)
+                          : {
+                              fontSize: `${templateStyle.fontSize.subheading}px`,
+                              color: templateStyle.colors.text,
+                              margin: 0,
+                              fontWeight: "normal",
+                              fontFamily: templateStyle.fontFamily,
+                            }
+                      }
+                    >
+                      {personalInfoDisplayText(
+                        personalInfo.portfolio,
+                        RESUME_DISPLAY_PLACEHOLDERS.portfolio,
+                      )}
+                    </p>
+                  </div>
+                ) : (
+                  <>
                 <h1
                     className={`${template.id}-name`}
                     style={
@@ -2163,6 +2213,8 @@ export function ResumeRenderer({
                       RESUME_DISPLAY_PLACEHOLDERS.portfolio,
                     )}
                   </p>
+                  </>
+                )}
                 {template.id === "saffron-line" || isConfidentGrid
                   ? renderContactInfo(false)
                   : renderProfileHeaderContactInfo()}
@@ -5520,7 +5572,7 @@ export function ResumeRenderer({
             text-transform: uppercase !important;
             letter-spacing: 0.6px !important;
             color: #2b2b2b !important;
-            border-bottom: 2.5px solid #c0871f !important;
+            border-bottom: 2.5px solid #F0A23B !important;
             border-top: none !important;
             padding-bottom: 4px !important;
             margin-bottom: 10px !important;
@@ -5529,8 +5581,8 @@ export function ResumeRenderer({
           }
           .saffron-line-template .saffron-line-section-header svg,
           .saffron-line-template h2[data-section-header] svg {
-            color: #c0871f !important;
-            stroke: #c0871f !important;
+            color: #F0A23B !important;
+            stroke: #F0A23B !important;
             width: 12px !important;
             height: 12px !important;
             margin-right: 6px !important;
@@ -5544,8 +5596,26 @@ export function ResumeRenderer({
           .saffron-line-template .saffron-line-job-title {
             font-style: italic !important;
             font-size: 15px !important;
-            color: #c0871f !important;
+            color: #2b2b2b !important;
             font-weight: 400 !important;
+          }
+          .saffron-line-template .saffron-line-header-top {
+            display: flex !important;
+            flex-wrap: wrap !important;
+            align-items: baseline !important;
+            gap: 0 12px !important;
+            margin-bottom: 10px !important;
+          }
+          .saffron-line-template .saffron-line-header-top .saffron-line-name,
+          .saffron-line-template .saffron-line-header-top .saffron-line-job-title {
+            margin: 0 !important;
+          }
+          .saffron-line-template .saffron-line-header-section {
+            margin-bottom: 30px !important;
+          }
+          .saffron-line-template .saffron-line-header-section::after {
+            content: none !important;
+            display: none !important;
           }
           .saffron-line-template .saffron-line-job-title-exp,
           .saffron-line-template .saffron-line-degree,
