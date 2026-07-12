@@ -109,7 +109,11 @@ export function InterviewerSlotViewDialog({
                 <ExternalLink className="h-3.5 w-3.5 shrink-0" />
               </a>
             </section>
-          ) : null}
+          ) : (
+            <section className="rounded-lg border border-border/60 bg-muted/20 px-3 py-2.5 text-xs text-muted-foreground">
+              Google Meet is created when a candidate books, pays, and the interview is confirmed.
+            </section>
+          )}
         </div>
 
         <div className="flex justify-end gap-2 border-t border-border/60 bg-muted/20 px-6 py-4">
