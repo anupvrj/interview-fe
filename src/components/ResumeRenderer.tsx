@@ -4788,7 +4788,10 @@ export function ResumeRenderer({
         );
 
       case "interests":
-        const interestsData: string | string[] = resume.content.interests || "";
+        const interestsRaw = resume.content.interests as
+          | string
+          | string[]
+          | undefined;
 
         if (isAmberEdge || isMeridian) {
           const additionalItems: { label: string; value: string }[] = [];
@@ -4804,9 +4807,10 @@ export function ResumeRenderer({
                 typeof lang === "object" && lang !== null
                   ? Number((lang as { level?: number }).level)
                   : undefined;
-              return Number.isFinite(level) && level > 0
-                ? `${name} (${level}/5)`
-                : name;
+              if (level !== undefined && Number.isFinite(level) && level > 0) {
+                return `${name} (${level}/5)`;
+              }
+              return name;
             })
             .filter(Boolean)
             .join(", ");
@@ -4824,12 +4828,11 @@ export function ResumeRenderer({
             .filter(Boolean)
             .join(", ");
 
-          const interestsText =
-            typeof interestsData === "string"
-              ? interestsData.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim()
-              : Array.isArray(interestsData)
-                ? interestsData.join(", ")
-                : "";
+          const interestsText = Array.isArray(interestsRaw)
+            ? interestsRaw.join(", ")
+            : typeof interestsRaw === "string"
+              ? interestsRaw.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim()
+              : "";
 
           if (certificateText) {
             additionalItems.push({
@@ -4845,21 +4848,14 @@ export function ResumeRenderer({
 
           if (isMeridian) {
             const achievementsData = resume.content.achievements || [];
-            const awardsActivityText = Array.isArray(achievementsData)
-              ? achievementsData
-                  .map((item: { title?: string; description?: string } | string) =>
-                    typeof item === "string"
-                      ? item
-                      : item.title || item.description || "",
-                  )
-                  .filter(Boolean)
-                  .join(", ")
-              : typeof achievementsData === "string"
-                ? achievementsData
-                    .replace(/<[^>]+>/g, " ")
-                    .replace(/\s+/g, " ")
-                    .trim()
-                : "";
+            const awardsActivityText = achievementsData
+              .map((item: { title?: string; description?: string } | string) =>
+                typeof item === "string"
+                  ? item
+                  : item.title || item.description || "",
+              )
+              .filter(Boolean)
+              .join(", ");
 
             if (awardsActivityText) {
               additionalItems.push({
@@ -4907,11 +4903,11 @@ export function ResumeRenderer({
 
         // Check if it's empty (string or array)
         const isEmpty =
-          !interestsData ||
-          (Array.isArray(interestsData) && interestsData.length === 0) ||
-          (typeof interestsData === "string" && !interestsData.trim()) ||
-          (typeof interestsData === "string" &&
-            interestsData.trim() === "<p></p>");
+          !interestsRaw ||
+          (Array.isArray(interestsRaw) && interestsRaw.length === 0) ||
+          (typeof interestsRaw === "string" && !interestsRaw.trim()) ||
+          (typeof interestsRaw === "string" &&
+            interestsRaw.trim() === "<p></p>");
 
         if (isEmpty) {
           return (
@@ -4943,14 +4939,14 @@ export function ResumeRenderer({
                 lineHeight: "1.4",
               }}
             >
-              {typeof interestsData === "string" ? (
+              {typeof interestsRaw === "string" ? (
                 <div
                   className="resume-content"
-                  dangerouslySetInnerHTML={{ __html: interestsData }}
+                  dangerouslySetInnerHTML={{ __html: interestsRaw }}
                 />
-              ) : (
-                (interestsData as string[]).join(", ")
-              )}
+              ) : Array.isArray(interestsRaw) ? (
+                interestsRaw.join(", ")
+              ) : null}
             </div>
           </div>
         );

@@ -63,7 +63,6 @@ export const royalindigoExtendedConfig: Partial<ExtendedResumeTemplate> = {
       fontSize: 13,
       fontWeight: "bold",
       marginBottom: "6px",
-      marginTop: "8px",
       paddingTop: "8px",
       paddingBottom: "0px",
       textTransform: "uppercase",
