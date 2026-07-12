@@ -30,6 +30,9 @@ import {
 } from "@/lib/dashboard-nav";
 import { SubscriptionExpiredBanner } from "@/components/SubscriptionExpiredBanner";
 import { SubscriptionPendingBanner } from "@/components/SubscriptionPendingBanner";
+import { TrialUpsellDialog } from "@/components/upsell/TrialUpsellDialog";
+import { useUpsellState } from "@/components/upsell/useUpsellState";
+import { useEntitlements } from "@/hooks/useEntitlements";
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -50,14 +53,6 @@ function isInterviewerBookingsNavPath(pathname: string | null): boolean {
   );
 }
 
-function isCandidateBookingsNavPath(pathname: string | null): boolean {
-  if (!pathname) return false;
-  return (
-    pathname === "/dashboard/peer-interviews/bookings" ||
-    pathname.startsWith("/dashboard/peer-interviews/bookings/")
-  );
-}
-
 function isInterviewerHubNavPath(pathname: string | null): boolean {
   if (!pathname) return false;
   if (pathname === "/dashboard/peer-interviews/interviewer/apply") return false;
@@ -73,7 +68,6 @@ function isInterviewerHubNavPath(pathname: string | null): boolean {
 
 function isPeerInterviewsNavPath(pathname: string | null): boolean {
   if (!pathname?.startsWith("/dashboard/peer-interviews")) return false;
-  if (isCandidateBookingsNavPath(pathname)) return false;
   if (pathname === "/dashboard/peer-interviews/interviewer/apply") return false;
   if (pathname === "/dashboard/peer-interviews/interviewer/earnings")
     return false;
@@ -175,10 +169,6 @@ function resolveNavActive(
   if (item.href === "/dashboard/peer-interviews") {
     isActive = isPeerInterviewsNavPath(pathname);
   }
-  if (item.href === "/dashboard/peer-interviews/bookings") {
-    isActive =
-      activeRole === "candidate" && isCandidateBookingsNavPath(pathname);
-  }
   if (item.href === "/dashboard/peer-interviews/interviewer") {
     isActive = isInterviewerHubNavPath(pathname);
   }
@@ -247,6 +237,14 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const [interviewsSubpathKind, setInterviewsSubpathKind] = useState<
     "general" | "coding_practice" | null
   >(null);
+  const [trialPromoOpen, setTrialPromoOpen] = useState(false);
+  const { canUse } = useEntitlements();
+  const {
+    shouldShowTrialPromo,
+    markTrialPromoShown,
+    dismissTrialPromo,
+    data: upsellData,
+  } = useUpsellState();
 
   const interviewsDetailMatch =
     /^\/dashboard\/interviews\/([^/]+)(?:\/|$)/.exec(pathname ?? "") ??
@@ -282,6 +280,20 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     };
   }, [isDashboardInterviewsDetailPath, interviewsPathSegment, user]);
 
+  useEffect(() => {
+    if (!roleReady) return;
+    if (!shouldShowTrialPromo()) return;
+
+    const timer = window.setTimeout(() => {
+      if (shouldShowTrialPromo()) {
+        markTrialPromoShown();
+        setTrialPromoOpen(true);
+      }
+    }, 30_000);
+
+    return () => window.clearTimeout(timer);
+  }, [roleReady, shouldShowTrialPromo, markTrialPromoShown]);
+
   const isInstitutionView = activeRole === "institution_admin";
 
   // Send multi-role users without a chosen role to the role chooser.
@@ -301,21 +313,40 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     }
   }, [roleReady, activeRole, pathname, profile, router]);
 
-  const menuItems = useMemo(
-    () =>
-      filterNavByActiveRole(
-        withRecruiterNavItems(
-          withPeerNavItems(
-            getDashboardNavItems(accessRole, institutionId),
-            peerNav,
-          ),
-          recruiterNav,
+  const menuItems = useMemo(() => {
+    const items = filterNavByActiveRole(
+      withRecruiterNavItems(
+        withPeerNavItems(
+          getDashboardNavItems(accessRole, institutionId),
+          peerNav,
         ),
-        activeRole,
-        profile,
+        recruiterNav,
       ),
-    [accessRole, institutionId, peerNav, recruiterNav, activeRole, profile],
-  );
+      activeRole,
+      profile,
+    );
+
+    return items.map((item) => {
+      if (item.href === "/dashboard/coding-interviews") {
+        return { ...item, locked: !canUse("codingRound") };
+      }
+      if (item.href === "/dashboard/system-design") {
+        return { ...item, locked: !canUse("systemDesign") };
+      }
+      if (item.href === "/dashboard/ix-report") {
+        return { ...item, locked: !canUse("ixScore") };
+      }
+      return item;
+    });
+  }, [
+    accessRole,
+    institutionId,
+    peerNav,
+    recruiterNav,
+    activeRole,
+    profile,
+    canUse,
+  ]);
 
   const institutionBase =
     isInstitutionView && institutionId
@@ -577,6 +608,14 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           </div>
         </main>
       </div>
+
+      <TrialUpsellDialog
+        open={trialPromoOpen}
+        onOpenChange={setTrialPromoOpen}
+        variant="dashboard_promo"
+        onDismiss={dismissTrialPromo}
+        hasPurchasedTrial={upsellData?.trial.hasPurchased}
+      />
     </div>
   );
 }

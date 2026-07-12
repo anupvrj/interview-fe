@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/select";
 
 const INPUT_CLASS =
-  "h-7 w-[4.25rem] shrink-0 !h-7 !px-1.5 text-center text-xs tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none";
+  "h-7 w-[4.25rem] shrink-0 !h-7 !px-1.5 text-center text-xs tabular-nums max-md:h-6 max-md:w-[3.75rem] max-md:!h-6 max-md:!px-1 max-md:text-[11px] [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none";
 
 interface LayoutNumberFieldProps {
   label: string;
@@ -62,7 +62,7 @@ function LayoutNumberField({
           type="button"
           variant="outline"
           size="icon"
-          className="h-7 w-7 shrink-0"
+          className="h-7 w-7 shrink-0 max-md:h-6 max-md:w-6"
           onClick={() => onChange(clamp(value - step))}
           aria-label={`Decrease ${label}`}
         >
@@ -100,7 +100,7 @@ function LayoutNumberField({
           type="button"
           variant="outline"
           size="icon"
-          className="h-7 w-7 shrink-0"
+          className="h-7 w-7 shrink-0 max-md:h-6 max-md:w-6"
           onClick={() => onChange(clamp(value + step))}
           aria-label={`Increase ${label}`}
         >
@@ -194,7 +194,7 @@ export function LayoutTypographyControls({
           Font family
         </Label>
         <Select value={selectedFontFamily} onValueChange={onFontFamilyChange}>
-          <SelectTrigger className="h-7 w-[9.5rem] max-w-full shrink-0 !h-7 !px-2 text-xs">
+          <SelectTrigger className="h-7 w-[9.5rem] max-w-full shrink-0 !h-7 !px-2 text-xs max-md:h-6 max-md:w-[8.5rem] max-md:!h-6 max-md:text-[11px]">
             <SelectValue placeholder="Select font" />
           </SelectTrigger>
           <SelectContent>

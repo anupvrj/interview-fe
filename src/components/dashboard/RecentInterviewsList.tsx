@@ -14,7 +14,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { Interview, interviewApi } from "@/lib/api";
+import { Interview, interviewApi, peerApi, systemDesignApi } from "@/lib/api";
 import type { DashboardRecentSessionRow } from "@/lib/dashboard-recent-sessions";
 import {
   cn,
@@ -27,8 +27,9 @@ import {
   instituteSecondaryClass,
 } from "@/components/institute/InstituteChrome";
 import { interviewRoundLabel } from "@/lib/interview-kind";
+import { toast } from "sonner";
 
-const TABLE_HEADERS = [
+const DEFAULT_TABLE_HEADERS = [
   "Interview",
   "Session",
   "Score",
@@ -57,6 +58,7 @@ function statusBadgeClass(status: string): string {
     active: "bg-amber-50 text-amber-700",
     draft: "bg-slate-100 text-muted-foreground",
     failed: "bg-rose-50 text-rose-700",
+    cancelled: "bg-slate-100 text-slate-600",
   };
   return badges[status] ?? badges.draft;
 }
@@ -65,29 +67,50 @@ function sessionTypeLabel(interview: Interview): string {
   return interviewRoundLabel(interview);
 }
 
+function notifyUnavailable(message = "No content available") {
+  toast.message(message);
+}
+
 function renderUnifiedRowActions(
   row: DashboardRecentSessionRow,
-  playVideo: (interviewId: string) => void,
+  playRecording: (row: DashboardRecentSessionRow) => void,
 ) {
+  const detailsHref = row.detailsHref ?? row.reportHref;
+  const canPlay = Boolean(row.canPlayRecording);
+  const canViewDetails = Boolean(detailsHref);
+
   return (
-    <div className="flex flex-wrap items-center gap-0.5">
-      {row.canPlayRecording && row.interviewId && (
-        <IconActionButton
-          title="Play recording"
-          onClick={() => playVideo(row.interviewId!)}
-        >
-          <PlayCircle className="h-4 w-4" strokeWidth={1.75} />
-        </IconActionButton>
-      )}
-      {row.reportHref &&
-        (row.status === "completed" ||
-          row.status === "processing" ||
-          row.status === "failed") && (
-          <IconActionButton title="View report" href={row.reportHref}>
-            <Eye className="h-4 w-4" strokeWidth={1.75} />
-          </IconActionButton>
-        )}
-      {row.showGenerateReport && row.reportHref && (
+    <div className="flex flex-nowrap items-center gap-1">
+      <IconActionButton
+        title={canPlay ? "Play recording" : "No recording available"}
+        tone="outline"
+        unavailable={!canPlay}
+        onClick={() => {
+          if (!canPlay) {
+            notifyUnavailable("No content available");
+            return;
+          }
+          playRecording(row);
+        }}
+      >
+        <PlayCircle className="h-3.5 w-3.5" />
+      </IconActionButton>
+
+      <IconActionButton
+        title={canViewDetails ? "View details" : "No details available"}
+        tone="primary"
+        unavailable={!canViewDetails}
+        href={canViewDetails ? detailsHref : undefined}
+        onClick={
+          canViewDetails
+            ? undefined
+            : () => notifyUnavailable("No content available")
+        }
+      >
+        <Eye className="h-3.5 w-3.5" />
+      </IconActionButton>
+
+      {row.showGenerateReport && row.reportHref ? (
         <Link
           href={row.reportHref}
           title="Generate Report"
@@ -99,22 +122,24 @@ function renderUnifiedRowActions(
           <Sparkles className="mr-1 h-3.5 w-3.5" />
           Report
         </Link>
-      )}
+      ) : null}
+
       {row.continueHref &&
-        (row.status === "draft" || row.status === "active") && (
-          <Link
-            href={row.continueHref}
-            className={cn(
-              buttonVariants({ size: "sm" }),
-              institutePrimaryClass,
-              "h-8 gap-1 px-3 text-xs",
-            )}
-          >
-            <PlayCircle className="h-3.5 w-3.5" />
-            {row.status === "draft" ? "Start" : "Continue"}
-          </Link>
-        )}
-      {row.status === "processing" && row.reportHref && (
+      (row.status === "draft" || row.status === "active") ? (
+        <Link
+          href={row.continueHref}
+          className={cn(
+            buttonVariants({ size: "sm" }),
+            institutePrimaryClass,
+            "h-8 gap-1 px-3 text-xs",
+          )}
+        >
+          <PlayCircle className="h-3.5 w-3.5" />
+          {row.status === "draft" ? "Start" : "Continue"}
+        </Link>
+      ) : null}
+
+      {row.status === "processing" && row.reportHref ? (
         <Link
           href={row.reportHref}
           className={cn(
@@ -125,7 +150,7 @@ function renderUnifiedRowActions(
           <Clock className="h-3.5 w-3.5" />
           Processing
         </Link>
-      )}
+      ) : null}
     </div>
   );
 }
@@ -135,43 +160,57 @@ function IconActionButton({
   onClick,
   children,
   href,
-  disabled,
-  destructive,
+  unavailable,
+  tone = "outline",
 }: {
   title: string;
   onClick?: () => void;
   children: ReactNode;
   href?: string;
-  disabled?: boolean;
-  destructive?: boolean;
+  unavailable?: boolean;
+  tone?: "outline" | "primary" | "destructive";
 }) {
   const className = cn(
-    "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors",
-    destructive
-      ? "text-rose-400 hover:bg-rose-50 hover:text-rose-600"
-      : "text-[#a8aaae] hover:bg-[#7367F0]/[0.06] hover:text-[#7367F0]",
-    disabled && "pointer-events-none opacity-50",
+    "h-8 w-8 shrink-0",
+    tone === "primary" &&
+      "bg-[#7367F0] text-white hover:bg-[#6e62e5] hover:text-white",
+    tone === "destructive" &&
+      "border-rose-200 text-rose-600 hover:bg-rose-50 hover:text-rose-700",
+    unavailable && "cursor-not-allowed opacity-40",
   );
 
-  if (href) {
+  if (href && !unavailable) {
     return (
-      <Link href={href} title={title} aria-label={title} className={className}>
-        {children}
-      </Link>
+      <Button
+        asChild
+        variant={tone === "outline" || tone === "destructive" ? "outline" : "default"}
+        size="icon"
+        className={className}
+      >
+        <Link href={href} title={title} aria-label={title}>
+          {children}
+        </Link>
+      </Button>
     );
   }
 
   return (
-    <button
+    <Button
       type="button"
+      variant={
+        tone === "primary"
+          ? "default"
+          : "outline"
+      }
+      size="icon"
       title={title}
       aria-label={title}
+      aria-disabled={unavailable || undefined}
       onClick={onClick}
-      disabled={disabled}
       className={className}
     >
       {children}
-    </button>
+    </Button>
   );
 }
 
@@ -187,6 +226,7 @@ export function RecentInterviewsList({
   emptyDescription,
   emptyCtaHref,
   emptyCtaLabel,
+  tableHeaders = DEFAULT_TABLE_HEADERS,
 }: {
   interviews?: Interview[];
   sessionRows?: DashboardRecentSessionRow[];
@@ -199,6 +239,7 @@ export function RecentInterviewsList({
   emptyDescription?: ReactNode;
   emptyCtaHref?: string | null;
   emptyCtaLabel?: string;
+  tableHeaders?: readonly string[];
 }) {
   const useUnified = sessionRows != null;
   const listLength = useUnified ? sessionRows.length : (interviews?.length ?? 0);
@@ -213,18 +254,48 @@ export function RecentInterviewsList({
       );
   const totalPages = Math.ceil(listLength / itemsPerPage);
 
-  const playVideo = async (interviewId: string) => {
+  const playRecording = async (row: DashboardRecentSessionRow) => {
     try {
-      const { videoUrl } = await interviewApi.getRecordingVideoUrl(interviewId);
+      let videoUrl = "";
+      if (row.kind === "systemDesign" && row.systemDesignSessionId) {
+        const res = await systemDesignApi.getRecordingPlaybackUrl(
+          row.systemDesignSessionId,
+        );
+        videoUrl = res.videoUrl;
+      } else if (row.kind === "peer" && row.peerBookingId) {
+        const res = await peerApi.getRecordingVideoUrl(row.peerBookingId);
+        videoUrl = res.url;
+      } else if (row.interviewId) {
+        const res = await interviewApi.getRecordingVideoUrl(row.interviewId);
+        videoUrl = res.videoUrl;
+      }
+
       if (!videoUrl?.trim()) {
+        notifyUnavailable("No content available");
         onVideoUnavailable();
         return;
       }
       window.open(videoUrl, "_blank");
     } catch (error) {
       console.error("Error getting video URL:", error);
+      notifyUnavailable("No content available");
       onVideoUnavailable();
     }
+  };
+
+  const playVideo = async (interviewId: string) => {
+    await playRecording({
+      key: interviewId,
+      kind: "screening",
+      title: "",
+      subtitle: "",
+      sessionLabel: "",
+      score: null,
+      status: "completed",
+      sortAt: "",
+      interviewId,
+      canPlayRecording: true,
+    });
   };
 
   if (listLength === 0) {
@@ -269,7 +340,7 @@ export function RecentInterviewsList({
           </colgroup>
           <thead>
             <tr className="border-b border-border/70">
-              {TABLE_HEADERS.map((header) => (
+              {tableHeaders.map((header) => (
                 <th
                   key={header}
                   scope="col"
@@ -328,7 +399,7 @@ export function RecentInterviewsList({
                       </span>
                     </td>
                     <td className="px-5 py-3.5 align-top">
-                      {renderUnifiedRowActions(row, playVideo)}
+                      {renderUnifiedRowActions(row, playRecording)}
                     </td>
                   </tr>
                 ))
@@ -338,9 +409,11 @@ export function RecentInterviewsList({
                 interview.session?.duration,
               );
               const creditsUsed = getInterviewCreditsUsed(interview);
-              const subtitle =
-                interview.metadata.targetCompany?.trim() ||
-                formatDate(interview.createdAt);
+              const company = interview.metadata.targetCompany?.trim();
+              const createdLabel = formatDate(interview.createdAt);
+              const subtitle = company
+                ? `${company} · ${createdLabel}`
+                : createdLabel;
               const language =
                 interview.metadata.language === "hi" ? "Hindi" : "English";
 
@@ -399,65 +472,93 @@ export function RecentInterviewsList({
                   </td>
 
                   <td className="px-5 py-3.5 align-top">
-                    <div className="flex flex-wrap items-center gap-0.5">
-                      {interview.status === "completed" && (
-                        <>
-                          <IconActionButton
-                            title="Play recording"
-                            onClick={() => playVideo(interview.interviewId)}
-                          >
-                            <PlayCircle
-                              className="h-4 w-4"
-                              strokeWidth={1.75}
-                            />
-                          </IconActionButton>
-                          <IconActionButton
-                            title="View report"
-                            href={`/dashboard/interviews/${interview.interviewId}/report`}
-                          >
-                            <Eye className="h-4 w-4" strokeWidth={1.75} />
-                          </IconActionButton>
-                          {!interview.report && (
-                            <Link
-                              href={`/dashboard/interviews/${interview.interviewId}/report`}
-                              title="Generate Report"
-                              className={cn(
-                                buttonVariants({
-                                  variant: "ghost",
-                                  size: "sm",
-                                }),
-                                "h-8 px-2 text-xs text-[#7367F0] hover:bg-[#7367F0]/10 hover:text-[#7367F0]",
-                              )}
+                    <div className="flex flex-nowrap items-center gap-1">
+                      {(() => {
+                        const canPlay =
+                          interview.status === "completed" ||
+                          interview.status === "failed";
+                        const detailsHref =
+                          interview.status === "completed" ||
+                          interview.status === "processing"
+                            ? `/dashboard/interviews/${interview.interviewId}/report`
+                            : interview.status === "draft" ||
+                                interview.status === "active"
+                              ? (getDraftActiveHref?.(interview.interviewId) ??
+                                `/interview/${interview.interviewId}/realtime`)
+                              : interview.status === "failed"
+                                ? `/dashboard/interviews/${interview.interviewId}/report`
+                                : undefined;
+                        const canViewDetails = Boolean(detailsHref);
+
+                        return (
+                          <>
+                            <IconActionButton
+                              title={
+                                canPlay
+                                  ? "Play recording"
+                                  : "No recording available"
+                              }
+                              tone="outline"
+                              unavailable={!canPlay}
+                              onClick={() => {
+                                if (!canPlay) {
+                                  notifyUnavailable("No content available");
+                                  return;
+                                }
+                                playVideo(interview.interviewId);
+                              }}
                             >
-                              <Sparkles className="mr-1 h-3.5 w-3.5" />
-                              Report
-                            </Link>
+                              <PlayCircle className="h-3.5 w-3.5" />
+                            </IconActionButton>
+                            <IconActionButton
+                              title={
+                                canViewDetails
+                                  ? "View details"
+                                  : "No details available"
+                              }
+                              tone="primary"
+                              unavailable={!canViewDetails}
+                              href={canViewDetails ? detailsHref : undefined}
+                              onClick={
+                                canViewDetails
+                                  ? undefined
+                                  : () =>
+                                      notifyUnavailable("No content available")
+                              }
+                            >
+                              <Eye className="h-3.5 w-3.5" />
+                            </IconActionButton>
+                          </>
+                        );
+                      })()}
+                      {interview.status === "completed" && !interview.report && (
+                        <Link
+                          href={`/dashboard/interviews/${interview.interviewId}/report`}
+                          title="Generate Report"
+                          className={cn(
+                            buttonVariants({
+                              variant: "ghost",
+                              size: "sm",
+                            }),
+                            "h-8 px-2 text-xs text-[#7367F0] hover:bg-[#7367F0]/10 hover:text-[#7367F0]",
                           )}
-                        </>
+                        >
+                          <Sparkles className="mr-1 h-3.5 w-3.5" />
+                          Report
+                        </Link>
                       )}
                       {interview.status === "failed" && (
-                        <>
-                          <IconActionButton
-                            title="Play recording"
-                            onClick={() => playVideo(interview.interviewId)}
-                          >
-                            <PlayCircle
-                              className="h-4 w-4"
-                              strokeWidth={1.75}
-                            />
-                          </IconActionButton>
-                          <Link
-                            href={`/dashboard/interviews/${interview.interviewId}/report`}
-                            title="Generate Report"
-                            className={cn(
-                              buttonVariants({ variant: "ghost", size: "sm" }),
-                              "h-8 px-2 text-xs text-[#7367F0] hover:bg-[#7367F0]/10 hover:text-[#7367F0]",
-                            )}
-                          >
-                            <Sparkles className="mr-1 h-3.5 w-3.5" />
-                            Report
-                          </Link>
-                        </>
+                        <Link
+                          href={`/dashboard/interviews/${interview.interviewId}/report`}
+                          title="Generate Report"
+                          className={cn(
+                            buttonVariants({ variant: "ghost", size: "sm" }),
+                            "h-8 px-2 text-xs text-[#7367F0] hover:bg-[#7367F0]/10 hover:text-[#7367F0]",
+                          )}
+                        >
+                          <Sparkles className="mr-1 h-3.5 w-3.5" />
+                          Report
+                        </Link>
                       )}
                       {interview.status === "draft" && (
                         <Link
@@ -475,59 +576,43 @@ export function RecentInterviewsList({
                           Start
                         </Link>
                       )}
-                      {interview.status === "processing" &&
-                        (onDelete ? (
-                          <Link
-                            href={`/dashboard/interviews/${interview.interviewId}/processing`}
-                            className={cn(
-                              buttonVariants({ variant: "ghost", size: "sm" }),
-                              "h-8 gap-1 px-2 text-xs text-[#7367F0] hover:bg-[#7367F0]/10 hover:text-[#7367F0]",
-                            )}
-                          >
-                            <Clock className="h-3.5 w-3.5" />
-                            Processing
-                          </Link>
-                        ) : (
-                          <IconActionButton
-                            title="View interview"
-                            href={`/dashboard/interviews/${interview.interviewId}/report`}
-                          >
-                            <Eye className="h-4 w-4" strokeWidth={1.75} />
-                          </IconActionButton>
-                        ))}
-                      {interview.status === "active" &&
-                        (onDelete ? (
-                          <Link
-                            href={
-                              getDraftActiveHref?.(interview.interviewId) ??
-                              `/interview/${interview.interviewId}/realtime`
-                            }
-                            className={cn(
-                              buttonVariants({ size: "sm" }),
-                              institutePrimaryClass,
-                              "h-8 gap-1 px-3 text-xs",
-                            )}
-                          >
-                            <PlayCircle className="h-3.5 w-3.5" />
-                            Continue
-                          </Link>
-                        ) : (
-                          <IconActionButton
-                            title="View interview"
-                            href={`/dashboard/interviews/${interview.interviewId}/report`}
-                          >
-                            <Eye className="h-4 w-4" strokeWidth={1.75} />
-                          </IconActionButton>
-                        ))}
+                      {interview.status === "processing" && onDelete ? (
+                        <Link
+                          href={`/dashboard/interviews/${interview.interviewId}/processing`}
+                          className={cn(
+                            buttonVariants({ variant: "ghost", size: "sm" }),
+                            "h-8 gap-1 px-2 text-xs text-[#7367F0] hover:bg-[#7367F0]/10 hover:text-[#7367F0]",
+                          )}
+                        >
+                          <Clock className="h-3.5 w-3.5" />
+                          Processing
+                        </Link>
+                      ) : null}
+                      {interview.status === "active" && onDelete ? (
+                        <Link
+                          href={
+                            getDraftActiveHref?.(interview.interviewId) ??
+                            `/interview/${interview.interviewId}/realtime`
+                          }
+                          className={cn(
+                            buttonVariants({ size: "sm" }),
+                            institutePrimaryClass,
+                            "h-8 gap-1 px-3 text-xs",
+                          )}
+                        >
+                          <PlayCircle className="h-3.5 w-3.5" />
+                          Continue
+                        </Link>
+                      ) : null}
                       {(interview.status === "draft" ||
                         interview.status === "active") &&
                         onDelete && (
                           <IconActionButton
                             title="Delete interview"
+                            tone="destructive"
                             onClick={() => onDelete(interview.interviewId)}
-                            destructive
                           >
-                            <Trash2 className="h-4 w-4" strokeWidth={1.75} />
+                            <Trash2 className="h-3.5 w-3.5" />
                           </IconActionButton>
                         )}
                     </div>

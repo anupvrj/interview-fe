@@ -21,7 +21,7 @@ import { MarketingFooter } from "@/components/MarketingFooter";
 import { PageHeader } from "@/components/app/PageHeader";
 import { appCard } from "@/lib/app-theme";
 import { cn } from "@/lib/utils";
-import { isPaidPlanId, type PaidPlanId } from "@/lib/pricingPageContent";
+import { isCheckoutPlanId, isPaidPlanId, type CheckoutPlanId } from "@/lib/pricingPageContent";
 import type { SelfServePlanSlug } from "@/lib/api";
 
 declare global {
@@ -34,7 +34,8 @@ function CheckoutPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user, isLoaded } = useUser();
-  const planId = searchParams.get("plan") as PaidPlanId | null;
+  const planId = searchParams.get("plan") as CheckoutPlanId | null;
+  const isTrialCheckout = planId === "trial";
   const billingCycle = (searchParams.get("cycle") || "monthly") as
     | "monthly"
     | "quarterly"
@@ -121,16 +122,21 @@ function CheckoutPageContent() {
         return;
       }
 
-      if (!planId || !isPaidPlanId(planId)) {
+      if (!planId || !isCheckoutPlanId(planId)) {
         router.push("/pricing");
         return;
       }
 
       try {
         setCatalogError(null);
-        const catalog = await planApi.getAllPlans();
-        setPlanCatalog(catalog);
-        const planRecord = catalog.find((p) => p.planId === planId);
+        let planRecord: PlanRecord | null = null;
+        if (isTrialCheckout) {
+          planRecord = await planApi.getPlanById("trial");
+        } else {
+          const catalog = await planApi.getAllPlans();
+          setPlanCatalog(catalog);
+          planRecord = catalog.find((p) => p.planId === planId) ?? null;
+        }
         if (!planRecord) {
           setCatalogError(
             "This plan is not available. Please choose another from pricing.",
@@ -139,6 +145,16 @@ function CheckoutPageContent() {
           return;
         }
         setSelectedPlan(planRecord);
+
+        if (isTrialCheckout) {
+          setSamePlanError(null);
+          return;
+        }
+
+        const catalog = planCatalog.length
+          ? planCatalog
+          : await planApi.getAllPlans();
+        if (!planCatalog.length) setPlanCatalog(catalog);
 
         const planLabel = (id: string) =>
           catalog.find((p) => p.planId === id)?.displayName ??
@@ -195,10 +211,12 @@ function CheckoutPageContent() {
     setError(null);
 
     try {
-      const order = await paymentApi.createOrder(
-        planId as SelfServePlanSlug,
-        billingCycle,
-      );
+      const order = isTrialCheckout
+        ? await paymentApi.createTrialOrder()
+        : await paymentApi.createOrder(
+            planId as SelfServePlanSlug,
+            billingCycle,
+          );
       console.log("🔍 Order received from backend:", order);
       console.log("💰 Amount in paise:", order.amount);
       console.log("💰 Amount in rupees:", order.amount / 100);
@@ -212,7 +230,7 @@ function CheckoutPageContent() {
       }
 
       // Check if this is a subscription (has subscriptionId)
-      if (order.subscriptionId) {
+      if (order.subscriptionId && !isTrialCheckout) {
         console.log(
           "🔑 Opening Razorpay with subscription_id:",
           order.subscriptionId,
@@ -280,7 +298,9 @@ function CheckoutPageContent() {
           amount: order.amount,
           currency: order.currency,
           name: "Interview Trix",
-          description: `${selectedPlan.name} Plan - ${selectedPlan.creditsIncluded[billingCycle]} credits`,
+          description: isTrialCheckout
+            ? "Trial Pass — 200 credits for 14 days"
+            : `${selectedPlan.name} Plan - ${selectedPlan.creditsIncluded[billingCycle]} credits`,
           order_id: order.orderId,
           // Enable Indian payment methods
           method: {
@@ -305,8 +325,11 @@ function CheckoutPageContent() {
                 result,
               );
 
-              // Redirect to dashboard after successful payment
-              router.push("/dashboard?payment=success");
+              router.push(
+                isTrialCheckout
+                  ? "/dashboard/plan?payment=success&type=trial"
+                  : "/dashboard?payment=success",
+              );
             } catch (err: any) {
               console.error("❌ Payment verification failed:", err);
               setError(

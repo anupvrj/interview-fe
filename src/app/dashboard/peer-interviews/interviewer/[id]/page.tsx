@@ -246,7 +246,7 @@ export default function InterviewerDetailPage() {
     return (
       <div className={cn(appCard, "flex flex-col items-center gap-3 px-6 py-16 text-center")}>
         <p className="text-lg font-semibold">Interviewer not found</p>
-        <Link href="/dashboard/peer-interviews">
+        <Link href="/dashboard/peer-interviews/book">
           <Button variant="outline">Back to directory</Button>
         </Link>
       </div>

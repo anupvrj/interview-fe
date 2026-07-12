@@ -188,7 +188,7 @@ export default function CandidateBookingsPage() {
         className="min-w-0"
         actions={
           <>
-            <Link href="/dashboard/peer-interviews" className="lg:hidden">
+            <Link href="/dashboard/peer-interviews/book" className="lg:hidden">
               <Button
                 size="icon"
                 variant="outline"
@@ -198,7 +198,7 @@ export default function CandidateBookingsPage() {
                 <Plus className="h-4 w-4" />
               </Button>
             </Link>
-            <Link href="/dashboard/peer-interviews" className="hidden lg:block">
+            <Link href="/dashboard/peer-interviews/book" className="hidden lg:block">
               <Button className="h-10 bg-[#7367F0] text-white hover:bg-[#6e62e5]">
                 Book new interview
               </Button>
@@ -220,7 +220,7 @@ export default function CandidateBookingsPage() {
           <p className="max-w-md text-sm text-muted-foreground">
             Find a verified interviewer, pick a slot, and get real mock interview practice.
           </p>
-          <Link href="/dashboard/peer-interviews">
+          <Link href="/dashboard/peer-interviews/book">
             <Button className="bg-[#7367F0] text-white hover:bg-[#6e62e5]">Find an interviewer</Button>
           </Link>
         </div>
@@ -378,8 +378,15 @@ export default function CandidateBookingsPage() {
                 onPageChange={setPreviousPage}
                 onVideoUnavailable={() => undefined}
                 emptyDescription="Finished peer interviews will show up here with scores and report links."
-                emptyCtaHref="/dashboard/peer-interviews"
+                emptyCtaHref="/dashboard/peer-interviews/book"
                 emptyCtaLabel="Book a peer interview"
+                tableHeaders={[
+                  "Interview",
+                  "Scheduled on",
+                  "Score",
+                  "Status",
+                  "Actions",
+                ]}
               />
             </CardContent>
           </Card>

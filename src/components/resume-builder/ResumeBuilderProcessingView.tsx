@@ -17,7 +17,12 @@ export function ResumeBuilderProcessingView({
   className,
 }: ResumeBuilderProcessingViewProps) {
   return (
-    <div className={cn("py-2 sm:py-4", className)}>
+    <div
+      className={cn(
+        "min-w-0 overflow-hidden px-1 py-2 sm:px-0 sm:py-4",
+        className,
+      )}
+    >
       <ResumeImportProcessingView
         fileName={label}
         messageIndex={messageIndex}

@@ -87,7 +87,16 @@ export const royalindigoDummyContent = {
     "Process Optimization",
   ],
 
-  projects: [],
+  projects: [
+    {
+      name: "Smart Manufacturing Platform",
+      description:
+        "<ul><li>Led development of IoT monitoring dashboards that reduced downtime by 15%.</li><li>Integrated predictive maintenance models with existing SCADA systems.</li></ul>",
+      technologies: ["Industrial IoT"],
+      startDate: "2022",
+      endDate: "2023",
+    },
+  ],
   certificates: [
     { name: "Professional Engineer (PE) License", issuer: "", date: "" },
     { name: "Project Management Professional (PMP)", issuer: "", date: "" },

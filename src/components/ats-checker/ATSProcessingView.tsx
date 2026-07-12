@@ -181,9 +181,14 @@ export function ATSProcessingView({
         </h1>
 
         {fileName && (
-          <p className="mt-2 text-sm text-muted-foreground sm:text-base">
-            Analyzing{" "}
-            <span className="font-medium text-foreground">{fileName}</span>
+          <p className="mx-auto mt-2 flex w-full max-w-xl min-w-0 flex-col items-center gap-0.5 px-4 text-sm text-muted-foreground sm:flex-row sm:justify-center sm:gap-1 sm:px-0 sm:text-base">
+            <span className="shrink-0">Analyzing</span>
+            <span
+              className="min-w-0 max-w-full truncate font-medium text-foreground"
+              title={fileName}
+            >
+              {fileName}
+            </span>
           </p>
         )}
       </div>

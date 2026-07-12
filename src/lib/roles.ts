@@ -106,10 +106,14 @@ const PEER_CANDIDATE_BOOKINGS = "/dashboard/peer-interviews/bookings";
 const RECRUITER_HUB = "/dashboard/ix-recruiter";
 const RECRUITER_APPLY = "/dashboard/ix-recruiter/apply";
 
+const PEER_CANDIDATE_BOOK = "/dashboard/peer-interviews/book";
+
 /** Candidate marketplace and booking list — not for the interviewer role view. */
 function isCandidatePeerMarketplacePath(pathname: string): boolean {
   return (
-    pathname === PEER_CANDIDATE_HUB || pathname === PEER_CANDIDATE_BOOKINGS
+    pathname === PEER_CANDIDATE_HUB ||
+    pathname === PEER_CANDIDATE_BOOK ||
+    pathname === PEER_CANDIDATE_BOOKINGS
   );
 }
 

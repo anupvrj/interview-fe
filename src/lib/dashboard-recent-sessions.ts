@@ -29,9 +29,15 @@ export type DashboardRecentSessionRow = {
   status: string;
   sortAt: string;
   reportHref?: string;
+  /** Primary details page (booking / session / report). */
+  detailsHref?: string;
   continueHref?: string;
   /** AI interviews — play recording */
   interviewId?: string;
+  /** System design session id for recording playback */
+  systemDesignSessionId?: string;
+  /** Peer booking id for recording playback */
+  peerBookingId?: string;
   canPlayRecording?: boolean;
   canDelete?: boolean;
   showGenerateReport?: boolean;
@@ -79,7 +85,10 @@ function peerTableStatus(booking: PeerBooking): string {
   ) {
     return "active";
   }
-  if (booking.status === "cancelled" || booking.status === "rejected") {
+  if (booking.status === "cancelled") {
+    return "cancelled";
+  }
+  if (booking.status === "rejected") {
     return "failed";
   }
   return booking.status;
@@ -90,8 +99,11 @@ function mapAiInterview(interview: Interview): DashboardRecentSessionRow {
     ? "coding"
     : "screening";
   const role = interview.metadata.role || "General Interview";
-  const subtitle =
-    interview.metadata.targetCompany?.trim() || formatDate(interview.createdAt);
+  const company = interview.metadata.targetCompany?.trim();
+  const createdLabel = formatDate(interview.createdAt);
+  const subtitle = company
+    ? `${company} · ${createdLabel}`
+    : createdLabel;
 
   return {
     key: `ai-${interview.interviewId}`,
@@ -106,9 +118,19 @@ function mapAiInterview(interview: Interview): DashboardRecentSessionRow {
     status: interview.status,
     sortAt: interview.createdAt,
     reportHref:
-      interview.status === "completed" || interview.status === "processing"
+      interview.status === "completed" ||
+      interview.status === "processing" ||
+      interview.status === "failed"
         ? `/dashboard/interviews/${interview.interviewId}/report`
         : undefined,
+    detailsHref:
+      interview.status === "completed" ||
+      interview.status === "processing" ||
+      interview.status === "failed"
+        ? `/dashboard/interviews/${interview.interviewId}/report`
+        : interview.status === "draft" || interview.status === "active"
+          ? `/interview/${interview.interviewId}/realtime`
+          : undefined,
     continueHref:
       interview.status === "draft" || interview.status === "active"
         ? `/interview/${interview.interviewId}/realtime`
@@ -128,11 +150,15 @@ function mapSystemDesignSession(
   session: SystemDesignSession,
 ): DashboardRecentSessionRow {
   const title = getProblemById(session.problemId)?.title ?? "System Design";
+  const detailsHref =
+    session.status === "completed"
+      ? `/dashboard/system-design/${session.sessionId}`
+      : `/dashboard/system-design/${session.sessionId}`;
   return {
     key: `sd-${session.sessionId}`,
     kind: "systemDesign",
     title,
-    subtitle: formatDate(session.completedAt ?? session.createdAt),
+    subtitle: formatDate(session.createdAt),
     sessionLabel: KIND_LABELS.systemDesign,
     score: systemDesignScore(session),
     status: session.status === "completed" ? "completed" : "active",
@@ -141,10 +167,13 @@ function mapSystemDesignSession(
       session.status === "completed"
         ? `/dashboard/system-design/${session.sessionId}/report`
         : undefined,
+    detailsHref,
     continueHref:
       session.status === "active"
         ? `/dashboard/system-design/${session.sessionId}`
         : undefined,
+    systemDesignSessionId: session.sessionId,
+    canPlayRecording: Boolean(session.recordingS3Key),
   };
 }
 
@@ -157,53 +186,28 @@ function mapPeerBooking(
     booking.interviewType.replace(/_/g, " ");
   const interviewer =
     booking.interviewer?.name || booking.interviewerName || "Interviewer";
+  const bookingHref = `/dashboard/peer-interviews/bookings/${booking.id}`;
+  const hasRecording = Boolean(
+    booking.sessionRecording?.s3Key ||
+      booking.meetArtifacts?.recordingAvailable,
+  );
+
   return {
     key: `peer-${booking.id}`,
     kind: "peer",
     title: `${typeLabel} — Peer Interview`,
-    subtitle: `${interviewer} · ${formatDate(booking.start)}`,
+    subtitle: `${interviewer} · ${formatDate(booking.createdAt)}`,
     sessionLabel: KIND_LABELS.peer,
     score: peerDisplayScore(booking),
     status: peerTableStatus(booking),
     sortAt: booking.start,
-    reportHref:
-      booking.status === "completed"
-        ? `/dashboard/peer-interviews/bookings/${booking.id}/report`
-        : undefined,
+    reportHref: bookingHref,
+    detailsHref: bookingHref,
     continueHref:
-      booking.status === "paid_confirmed"
-        ? `/dashboard/peer-interviews/bookings/${booking.id}`
-        : undefined,
+      booking.status === "paid_confirmed" ? bookingHref : undefined,
+    peerBookingId: booking.id,
+    canPlayRecording: hasRecording,
   };
-}
-
-export function isPreviousPeerBooking(booking: PeerBooking): boolean {
-  if (booking.status === "completed") return true;
-  if (
-    booking.status === "rejected" ||
-    booking.status === "cancelled" ||
-    booking.status === "refunded"
-  ) {
-    return true;
-  }
-  if (
-    booking.status === "paid_confirmed" &&
-    new Date(booking.start).getTime() < Date.now()
-  ) {
-    return true;
-  }
-  return false;
-}
-
-export function buildPeerHistorySessionRows(
-  bookings: PeerBooking[],
-  typeNames: Record<string, string> = {},
-): DashboardRecentSessionRow[] {
-  return bookings
-    .map((booking) => mapPeerBooking(booking, typeNames))
-    .sort(
-      (a, b) => new Date(b.sortAt).getTime() - new Date(a.sortAt).getTime(),
-    );
 }
 
 export function buildDashboardRecentSessions(input: {
@@ -240,4 +244,55 @@ export function filterDashboardSessions(
 ): DashboardRecentSessionRow[] {
   if (filter === "all") return rows;
   return rows.filter((r) => r.kind === filter);
+}
+
+/** Map peer bookings into dashboard-style rows for the bookings history table. */
+export function buildPeerHistorySessionRows(
+  bookings: PeerBooking[],
+  typeNames: Record<string, string> = {},
+): DashboardRecentSessionRow[] {
+  return bookings
+    .map((booking) => {
+      const row = mapPeerBooking(booking, typeNames);
+      const typeLabel =
+        typeNames[booking.interviewType] ||
+        booking.interviewType.replace(/_/g, " ");
+      const bookingHref = `/dashboard/peer-interviews/bookings/${booking.id}`;
+      const interviewer =
+        booking.interviewer?.name || booking.interviewerName || "Interviewer";
+      return {
+        ...row,
+        title: `${typeLabel} — Peer Interview`,
+        subtitle: `${interviewer} · Created ${formatDate(booking.createdAt)}`,
+        sessionLabel: formatDate(booking.start),
+        // History "View" should open booking details, not the report.
+        reportHref: bookingHref,
+        detailsHref: bookingHref,
+        continueHref: undefined,
+      };
+    })
+    .sort(
+      (a, b) => new Date(b.sortAt).getTime() - new Date(a.sortAt).getTime(),
+    );
+}
+
+export function isPreviousPeerBooking(
+  booking: PeerBooking,
+  now = Date.now(),
+): boolean {
+  if (booking.status === "completed") return true;
+  if (
+    booking.status === "rejected" ||
+    booking.status === "cancelled" ||
+    booking.status === "refunded"
+  ) {
+    return true;
+  }
+  if (
+    booking.status === "paid_confirmed" &&
+    new Date(booking.end).getTime() < now
+  ) {
+    return true;
+  }
+  return false;
 }

@@ -248,7 +248,8 @@ export function RichTextEditor({
     editor.commands.setContent(html);
     onChange(html);
     setShowAiDialog(false);
-    toast.success("AI content applied");
+    setAiUserPrompt("");
+    setAiOutputText("");
   };
 
   const openAiDialog = () => {
@@ -447,7 +448,10 @@ export function RichTextEditor({
 
       {/* Link Dialog */}
       <Dialog open={showLinkDialog} onOpenChange={setShowLinkDialog}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent
+          overlayClassName="z-[80]"
+          className="z-[80] w-[calc(100%-2rem)] sm:max-w-[425px]"
+        >
           <DialogHeader>
             <DialogTitle>Insert Link</DialogTitle>
             <DialogDescription>
@@ -503,19 +507,18 @@ export function RichTextEditor({
       </Dialog>
 
       <Dialog open={showAiDialog} onOpenChange={setShowAiDialog}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
+        <DialogContent
+          overlayClassName="z-[80]"
+          className="z-[80] flex max-h-[min(85dvh,640px)] w-[calc(100%-2rem)] max-w-lg flex-col gap-0 overflow-hidden p-0 sm:max-w-lg [&>button]:hidden"
+        >
+          <DialogHeader className="shrink-0 border-b border-border/60 px-4 py-4 text-left">
             <DialogTitle className="flex items-center gap-2">
               <Sparkles className="h-5 w-5 text-primary" />
               AI content assistant
             </DialogTitle>
-            <DialogDescription>
-              Refine your text for the resume, or add instructions for tone,
-              structure, and style before regenerating.
-            </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4">
+          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-y-contain px-4 py-4">
             <AIContentPromptField
               id="rich-text-ai-prompt"
               value={aiUserPrompt}
@@ -539,13 +542,13 @@ export function RichTextEditor({
                   onChange={(e) => setAiOutputText(e.target.value)}
                   rows={6}
                   className="min-h-[140px] text-sm"
-                  placeholder="AI output will appear here. Edit before applying."
+                  placeholder="AI output will appear here. Edit before inserting."
                 />
               )}
             </div>
           </div>
 
-          <DialogFooter className="flex-col gap-2 sm:flex-row sm:justify-between">
+          <DialogFooter className="shrink-0 flex-col gap-2 border-t border-border/60 px-4 py-4 sm:flex-row sm:justify-between">
             <Button
               type="button"
               variant="outline"
@@ -573,7 +576,7 @@ export function RichTextEditor({
                 onClick={applyAIContent}
                 disabled={!aiOutputText.trim() || isRefining}
               >
-                Apply to editor
+                Insert
               </Button>
             </div>
           </DialogFooter>

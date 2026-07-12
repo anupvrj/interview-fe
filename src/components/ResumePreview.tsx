@@ -6,11 +6,20 @@
 import { useState, useRef, useEffect, useCallback, forwardRef, useImperativeHandle } from "react";
 import { Resume, ResumeTemplate } from "@/lib/api";
 import { Button } from "@/components/ui/button";
-import { ZoomIn, ZoomOut, RotateCcw, FileText } from "lucide-react";
+import { ZoomIn, ZoomOut, RotateCcw, FileText, Eye } from "lucide-react";
 import { PaginatedPreview } from "./PaginatedPreview";
 import type { ResumePaginationSnapshot } from "./PaginatedPreview";
 import { debugResumePagination } from "@/lib/debug-resume-pagination";
 import { ResumePdfPreviewDialog } from "./ResumePdfPreviewDialog";
+import { cn } from "@/lib/utils";
+import {
+  resumePreviewZoomHeader,
+  resumePreviewZoomHeaderDesktop,
+  resumePreviewZoomHeaderMobile,
+} from "@/components/resume-editor/resumeEditorStyles";
+import { useResumePreviewFitZoom } from "@/hooks/useResumePreviewFitZoom";
+import { useResumePreviewPinchZoom } from "@/hooks/useResumePreviewPinchZoom";
+import { useResumePreviewTrackpadZoom } from "@/hooks/useResumePreviewTrackpadZoom";
 
 interface Section {
   id: string;
@@ -67,6 +76,8 @@ interface ResumePreviewProps {
   onPaginationSnapshot?: (snapshot: ResumePaginationSnapshot) => void;
   /** Remount preview content (re-measure / re-paginate). Falls back to local remount when omitted. */
   onRefresh?: () => void;
+  /** Mobile: auto fit page width to viewport and use tighter chrome */
+  compact?: boolean;
 }
 
 export type ResumePreviewHandle = {
@@ -89,6 +100,7 @@ export const ResumePreview = forwardRef<ResumePreviewHandle, ResumePreviewProps>
   onPageDelete,
   onPaginationSnapshot,
   onRefresh,
+  compact = false,
 }: ResumePreviewProps,
   ref,
 ) {
@@ -98,46 +110,99 @@ export const ResumePreview = forwardRef<ResumePreviewHandle, ResumePreviewProps>
   // Use controlled zoom if provided, otherwise use internal state
   const [internalZoomLevel, setInternalZoomLevel] = useState(100);
   const zoomLevel = controlledZoomLevel ?? internalZoomLevel;
+  const zoomLevelRef = useRef(zoomLevel);
+  zoomLevelRef.current = zoomLevel;
   
-  // Create a unified setter that handles both controlled and uncontrolled modes
+  // Stable setter — avoids retriggering fit-zoom when zoom value changes
   const setZoomLevel = useCallback((value: number | ((prev: number) => number)) => {
+    const newValue =
+      typeof value === "function" ? value(zoomLevelRef.current) : value;
     if (onZoomChange) {
-      // Controlled mode: evaluate function if needed, then pass number to onZoomChange
-      const newValue = typeof value === 'function' ? value(zoomLevel) : value;
       onZoomChange(newValue);
     } else {
-      // Uncontrolled mode: use React state setter (supports both number and function)
-      setInternalZoomLevel(value);
+      setInternalZoomLevel(newValue);
     }
-  }, [onZoomChange, zoomLevel]);
+  }, [onZoomChange]);
   
   const containerRef = useRef<HTMLDivElement>(null);
+  const pageMeasureRef = useRef<HTMLDivElement>(null);
+  const scaledPageRef = useRef<HTMLDivElement>(null);
+  const [pageWidthPx, setPageWidthPx] = useState(0);
+  const [scaledLayout, setScaledLayout] = useState({ width: 0, height: 0 });
+  const minZoom = compact ? 30 : 50;
+  const zoomScale = zoomLevel / 100;
 
-  // Handle pinch-to-zoom
+  const measurePageWidth = useCallback(() => {
+    const pageMeasure = pageMeasureRef.current;
+    if (!pageMeasure) return;
+    setPageWidthPx(pageMeasure.offsetWidth);
+  }, []);
+
+  const measureScaledLayout = useCallback(() => {
+    const scaledPage = scaledPageRef.current;
+    if (!scaledPage) return;
+    const rect = scaledPage.getBoundingClientRect();
+    if (rect.width > 0 && rect.height > 0) {
+      setScaledLayout({ width: rect.width, height: rect.height });
+    }
+  }, []);
+
+  const { markUserAdjusted, resetFitZoom } = useResumePreviewFitZoom({
+    enabled: compact,
+    pageWidthGutterPx: pageDeleteGutterPx,
+    horizontalPadding: compact ? 12 : 80,
+    containerRef,
+    pageMeasureRef,
+    onZoom: setZoomLevel,
+    resetKey: `${previewRefreshKey}-${resume.resumeId}`,
+  });
+
+  useResumePreviewPinchZoom({
+    enabled: true,
+    containerRef,
+    zoomLevel,
+    onZoom: setZoomLevel,
+    onUserAdjusted: markUserAdjusted,
+    minZoom,
+    maxZoom: 200,
+  });
+
+  useResumePreviewTrackpadZoom({
+    enabled: true,
+    rootRef: containerRef,
+    zoomLevel,
+    onZoom: setZoomLevel,
+    onUserAdjusted: markUserAdjusted,
+    minZoom,
+    maxZoom: 200,
+  });
+
   useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
+    measurePageWidth();
+    const pageMeasure = pageMeasureRef.current;
+    if (!pageMeasure) return;
 
-    const handleWheel = (e: WheelEvent) => {
-      if (e.ctrlKey) {
-        e.preventDefault();
-        setZoomLevel((prev:number) => {
-          // Adjust sensitivity as needed
-          const delta = -e.deltaY * 0.5;
-          const newZoom = prev + delta;
-          // Clamp between 50% and 200%
-          return Math.min(Math.max(Math.round(newZoom), 50), 200);
-        });
-      }
-    };
+    const ro = new ResizeObserver(() => measurePageWidth());
+    ro.observe(pageMeasure);
+    return () => ro.disconnect();
+  }, [measurePageWidth, previewRefreshKey, resume.resumeId]);
 
-    // Add event listener with passive: false to allow preventing default
-    container.addEventListener("wheel", handleWheel, { passive: false });
+  useEffect(() => {
+    if (!compact) return;
 
-    return () => {
-      container.removeEventListener("wheel", handleWheel);
-    };
-  }, [setZoomLevel]);
+    measureScaledLayout();
+    const scaledPage = scaledPageRef.current;
+    if (!scaledPage) return;
+
+    const ro = new ResizeObserver(() => measureScaledLayout());
+    ro.observe(scaledPage);
+    return () => ro.disconnect();
+  }, [compact, measureScaledLayout, zoomLevel, previewRefreshKey, resume.resumeId]);
+
+  useEffect(() => {
+    if (!compact) return;
+    requestAnimationFrame(() => measureScaledLayout());
+  }, [compact, zoomLevel, measureScaledLayout, sections, layout]);
 
   useEffect(() => {
     debugResumePagination("ResumePreview:zoom", {
@@ -154,7 +219,11 @@ export const ResumePreview = forwardRef<ResumePreviewHandle, ResumePreviewProps>
       remount?: "local" | "full";
     }) => {
       if (options?.resetZoom !== false) {
-        setZoomLevel(100);
+        if (compact) {
+          resetFitZoom();
+        } else {
+          setZoomLevel(100);
+        }
       }
       containerRef.current?.scrollTo({ top: 0, left: 0, behavior: "instant" });
       const remount = options?.remount ?? "full";
@@ -164,14 +233,15 @@ export const ResumePreview = forwardRef<ResumePreviewHandle, ResumePreviewProps>
         setPreviewRefreshKey((key) => key + 1);
       }
     },
-    [onRefresh, setZoomLevel],
+    [onRefresh, setZoomLevel, compact, resetFitZoom],
   );
 
   useImperativeHandle(ref, () => ({ resetPreview }), [resetPreview]);
 
   const handleRefreshPreview = useCallback(() => {
     resetPreview({ resetZoom: false, remount: "full" });
-  }, [resetPreview]);
+    resetFitZoom();
+  }, [resetPreview, resetFitZoom]);
 
   // Use provided template or show placeholder
   if (!template) {
@@ -186,29 +256,48 @@ export const ResumePreview = forwardRef<ResumePreviewHandle, ResumePreviewProps>
   }
 
   const handleZoomIn = () => {
-    setZoomLevel((prev:number) => Math.min(prev + 25, 200));
+    markUserAdjusted();
+    setZoomLevel((prev: number) => Math.min(prev + 25, 200));
   };
 
   const handleZoomOut = () => {
-    setZoomLevel((prev) => Math.max(prev - 25, 50));
+    markUserAdjusted();
+    setZoomLevel((prev) => Math.max(prev - 25, minZoom));
   };
+
+  const scaledWidthPx =
+    compact && scaledLayout.width > 0
+      ? scaledLayout.width
+      : pageWidthPx > 0
+        ? pageWidthPx * zoomScale + (pageDeleteGutterPx * zoomLevel) / 100
+        : null;
+  const scaledHeightPx =
+    compact && scaledLayout.height > 0 ? scaledLayout.height : null;
 
   return (
     <div className="flex h-full flex-col bg-muted/25">
       {/* Zoom Controls */}
-      <div className="sticky top-0 z-20 flex items-center justify-between border-b border-border/60 bg-header/95 px-4 py-2 shadow-sm backdrop-blur-md">
-        <div className="flex items-center gap-2">
+      <div
+        className={cn(
+          resumePreviewZoomHeader,
+          compact
+            ? resumePreviewZoomHeaderMobile
+            : resumePreviewZoomHeaderDesktop,
+        )}
+      >
+        <div className="flex flex-1 items-center gap-1.5 sm:gap-2">
           <Button
             variant="outline"
             size="sm"
             onClick={handleZoomOut}
-            disabled={zoomLevel <= 50}
+            disabled={zoomLevel <= minZoom}
             className="h-8 w-8 p-0"
             title="Zoom Out"
+            aria-label="Zoom out"
           >
             <ZoomOut className="w-4 h-4" />
           </Button>
-          <span className="min-w-[60px] text-center text-sm font-medium text-foreground">
+          <span className="min-w-[44px] text-center text-xs font-medium text-foreground sm:min-w-[60px] sm:text-sm">
             {zoomLevel}%
           </span>
           <Button
@@ -218,6 +307,7 @@ export const ResumePreview = forwardRef<ResumePreviewHandle, ResumePreviewProps>
             disabled={zoomLevel >= 200}
             className="h-8 w-8 p-0"
             title="Zoom In"
+            aria-label="Zoom in"
           >
             <ZoomIn className="w-4 h-4" />
           </Button>
@@ -225,51 +315,78 @@ export const ResumePreview = forwardRef<ResumePreviewHandle, ResumePreviewProps>
             variant="outline"
             size="sm"
             onClick={handleRefreshPreview}
-            className="h-8 px-3 ml-2"
+            className="h-8 w-8 p-0"
             title="Refresh preview"
+            aria-label="Refresh preview"
           >
-            <RotateCcw className="w-4 h-4 mr-1" />
-            Refresh
+            <RotateCcw className="w-4 h-4" />
           </Button>
         </div>
         <Button
           variant="outline"
           size="sm"
           onClick={() => setPdfPreviewOpen(true)}
-          className="h-8 px-3"
+          className="h-8 w-8 shrink-0 p-0 md:w-auto md:px-3"
           title="Open PDF preview"
+          aria-label="Open PDF preview"
         >
-          <FileText className="w-4 h-4 mr-1" />
-          PDF Preview
+          <Eye className="h-4 w-4 md:hidden" />
+          <FileText className="hidden h-4 w-4 md:mr-1 md:block" />
+          <span className="hidden md:inline">PDF Preview</span>
         </Button>
       </div>
 
       {/* Scrollable Preview Container */}
-      <div ref={containerRef} className="flex-1 overflow-auto bg-muted/40">
+      <div
+        ref={containerRef}
+        className={cn(
+          "flex-1 touch-pan-x touch-pan-y overflow-auto bg-muted/40",
+          compact && "pl-12",
+        )}
+      >
+        <div
+          aria-hidden
+          ref={pageMeasureRef}
+          className="pointer-events-none fixed left-[-9999px] top-0 h-0 w-[210mm] overflow-hidden opacity-0"
+        />
         {/* Zoom Container - handles centering and sizing */}
         <div
-          className="flex items-start min-h-full"
+          className={cn(
+            "flex min-h-full items-start justify-center",
+            compact ? "w-full" : "w-max min-w-full",
+          )}
           style={{
-            padding: "40px",
-            width: "max-content",
-            minWidth: "100%",
-            justifyContent: "center",
+            padding: compact ? "8px 6px 16px" : "40px",
           }}
         >
           {/* Resume Container Wrapper for Scale */}
           <div
+            className={compact ? "mx-auto" : undefined}
             style={{
-              width: `calc(${210 * (zoomLevel / 100)}mm + ${(pageDeleteGutterPx * zoomLevel) / 100}px)`,
+              width: compact
+                ? scaledWidthPx != null
+                  ? `${scaledWidthPx}px`
+                  : "100%"
+                : `calc(${210 * zoomScale}mm + ${(pageDeleteGutterPx * zoomLevel) / 100}px)`,
+              height:
+                compact && scaledHeightPx != null
+                  ? `${scaledHeightPx}px`
+                  : undefined,
               position: "relative",
             }}
           >
             <div
               id={`resume-preview-container-${resume.resumeId}`}
+              ref={scaledPageRef}
               style={{
-                width: `calc(210mm + ${pageDeleteGutterPx}px)`,
-                transform: `scale(${zoomLevel / 100})`,
+                width: compact
+                  ? pageWidthPx > 0
+                    ? `${pageWidthPx + pageDeleteGutterPx}px`
+                    : `calc(210mm + ${pageDeleteGutterPx}px)`
+                  : `calc(210mm + ${pageDeleteGutterPx}px)`,
+                transform: `scale(${zoomScale})`,
                 transformOrigin: "top left",
-                transition: "transform 200ms",
+                transition: compact ? undefined : "transform 200ms",
               }}
             >
               <PaginatedPreview
@@ -296,6 +413,7 @@ export const ResumePreview = forwardRef<ResumePreviewHandle, ResumePreviewProps>
         template={template}
         sections={sections}
         layout={layout}
+        compact={compact}
       />
     </div>
   );

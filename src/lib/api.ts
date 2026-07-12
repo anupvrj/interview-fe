@@ -12,6 +12,7 @@ export const API_URL =
 
 export type SubscriptionPlanSlug =
   | "free"
+  | "trial"
   | "general_pass"
   | "tech_basic"
   | "tech_pro"
@@ -22,6 +23,11 @@ export type SelfServePlanSlug =
   | "general_pass"
   | "tech_basic"
   | "tech_pro";
+
+export type InterviewCreditType =
+  | "aiMockInterview"
+  | "codingRound"
+  | "systemDesign";
 
 export const apiClient: AxiosInstance = axios.create({
   baseURL: API_URL,
@@ -233,6 +239,10 @@ export interface IxSessionRow {
   category: IxCategoryKey;
   title: string;
   completedAt: string;
+  /** When the interview/session/booking was created (not report generation time). */
+  createdAt?: string;
+  /** When the interview was scheduled to occur (peer start; else created). */
+  scheduledAt?: string;
   overallScore: number;
   reportHref: string;
   source: "ai" | "coding" | "system_design" | "peer";
@@ -1047,10 +1057,13 @@ export interface InterviewLimitCheck {
   allowed: boolean;
   reason?: string;
   isExpired?: boolean;
-  creditsAvailable?: number; // New: credit-based system
-  minimumRequired?: number; // New: minimum credits required
-  interviewsUsed?: number; // Deprecated
-  interviewsLimit?: number; // Deprecated
+  creditsAvailable?: number;
+  minimumRequired?: number;
+  ratePerMinute?: number;
+  upgradePlan?: string;
+  gate?: "trial_required" | "upgrade_required" | "insufficient_credits";
+  interviewsUsed?: number;
+  interviewsLimit?: number;
 }
 
 export interface RazorpayOrder {
@@ -1069,6 +1082,13 @@ export const paymentApi = {
     const response = await apiClient.post<{ data: RazorpayOrder }>(
       "/payments/create-order",
       { plan, billingCycle },
+    );
+    return response.data.data;
+  },
+
+  createTrialOrder: async (): Promise<RazorpayOrder> => {
+    const response = await apiClient.post<{ data: RazorpayOrder }>(
+      "/payments/create-trial-order",
     );
     return response.data.data;
   },
@@ -1156,9 +1176,65 @@ export const paymentApi = {
     return response.data.data;
   },
 
-  checkInterviewLimit: async (): Promise<InterviewLimitCheck> => {
+  checkInterviewLimit: async (
+    type: InterviewCreditType = "aiMockInterview",
+  ): Promise<InterviewLimitCheck> => {
     const response = await apiClient.get<{ data: InterviewLimitCheck }>(
       "/payments/check-limit",
+      { params: { type } },
+    );
+    return response.data.data;
+  },
+};
+
+export type PlanEntitlements = {
+  aiMockInterview: boolean;
+  codingRound: boolean;
+  systemDesign: boolean;
+  behavioralMock: boolean;
+  resumeDesign: boolean;
+  resumeDownload: boolean;
+  atsChecker: boolean;
+  atsOptimizer: boolean;
+  oneClickResumeOptimizer: boolean;
+  detailedInterviewReport: boolean;
+  ixScore: boolean;
+  ixCertifiedBadge: boolean;
+  growthTracking: boolean;
+  targetCompanyPractice: boolean;
+  advancedAiModels: boolean;
+  whiteboard: boolean;
+  peerInterviewBooking: boolean;
+  freePeerInterviewsPerPeriod: number;
+};
+
+export type ResolvedEntitlements = {
+  plan: SubscriptionPlanSlug;
+  status: string;
+  periodEnd?: string;
+  needsRenewal: boolean;
+  entitlements: PlanEntitlements;
+  creditRates: {
+    aiMockInterview: number;
+    codingRound: number;
+    systemDesign: number;
+  };
+  creditsAvailable: number;
+  peerInterviewsRemaining: number;
+  trial: {
+    hasPurchased: boolean;
+    canPurchase: boolean;
+  };
+  isFreeTier: boolean;
+  hasActiveTrial: boolean;
+  canPurchaseTrial: boolean;
+  showTrialUpsell: boolean;
+};
+
+export const entitlementApi = {
+  getEntitlements: async (): Promise<ResolvedEntitlements> => {
+    const response = await apiClient.get<{ data: ResolvedEntitlements }>(
+      "/entitlements",
     );
     return response.data.data;
   },
