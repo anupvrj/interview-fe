@@ -153,7 +153,7 @@ export function JobRoleSelect({
           disabled={disabled}
           placeholder={placeholder}
           autoComplete="off"
-          className={cn("h-11 bg-card", inputClassName)}
+          className={cn("h-11 w-full bg-card", inputClassName)}
           onChange={(event) => {
             onChange(event.target.value);
             openSuggestions();

@@ -55,7 +55,9 @@ export function PracticeSessionGateDialogs({
         open={trialOpen}
         onOpenChange={setTrialOpen}
         variant={trialVariant}
-        hasPurchasedTrial={entitlements?.trial.hasPurchased}
+        hasPurchasedTrial={
+          entitlements ? !entitlements.canPurchaseTrial : false
+        }
       />
       <UpgradeUpsellDialog
         open={upgradeOpen}

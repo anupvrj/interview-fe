@@ -2,10 +2,13 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Sparkles, ArrowRight, Check } from "lucide-react";
+import { useState } from "react";
+import { Sparkles, ArrowRight, Check, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { trialApi } from "@/lib/api";
 import { appCard } from "@/lib/app-theme";
 import {
+  TRIAL_CTA,
   TRIAL_FEATURES_TAGLINE,
   TRIAL_UNLOCKED_FEATURES,
 } from "@/lib/trialFeatures";
@@ -23,6 +26,24 @@ export function TrialOfferStep({
   className,
 }: TrialOfferStepProps) {
   const router = useRouter();
+  const [starting, setStarting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const startTrial = async () => {
+    setStarting(true);
+    setError(null);
+    try {
+      await trialApi.startTrial();
+      router.push("/select-role");
+    } catch (err: unknown) {
+      const message =
+        (err as { response?: { data?: { message?: string } } })?.response?.data
+          ?.message || "Failed to start trial. Please try again.";
+      setError(message);
+    } finally {
+      setStarting(false);
+    }
+  };
 
   if (hasPurchasedTrial) {
     return (
@@ -51,15 +72,15 @@ export function TrialOfferStep({
             <Sparkles className="h-7 w-7" />
           </div>
           <h1 className="text-2xl font-bold text-foreground">
-            Experience everything — 14 days
+            {TRIAL_CTA}
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">
             {TRIAL_FEATURES_TAGLINE}
           </p>
           <p className="mt-4 text-3xl font-bold tabular-nums text-foreground">
-            ₹299
+            Free
             <span className="ml-1 text-base font-normal text-muted-foreground">
-              one-time
+              for 14 days
             </span>
           </p>
         </div>
@@ -74,25 +95,39 @@ export function TrialOfferStep({
         </ul>
 
         <div className="flex flex-col gap-3 border-t border-border/60 px-6 py-6 sm:px-8">
+          {error ? (
+            <p className="text-center text-sm text-destructive">{error}</p>
+          ) : null}
           <Button
             size="lg"
             className="w-full"
-            onClick={() => router.push("/checkout?plan=trial")}
+            onClick={() => void startTrial()}
+            disabled={starting}
           >
-            Start trial — ₹299
-            <ArrowRight className="ml-2 h-4 w-4" />
+            {starting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Starting trial…
+              </>
+            ) : (
+              <>
+                {TRIAL_CTA}
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </>
+            )}
           </Button>
           <Button
             variant="outline"
             size="lg"
             className="w-full"
             onClick={() => router.push("/select-role")}
+            disabled={starting}
           >
             Continue on Free plan
           </Button>
           <p className="text-center text-xs text-muted-foreground">
-            Trial is one-time only. Upgrade anytime to General Pass, Tech Basic,
-            or Tech Pro.
+            Trial is one-time per email. Upgrade anytime to General Pass, Tech
+            Basic, or Tech Pro.
           </p>
         </div>
       </div>

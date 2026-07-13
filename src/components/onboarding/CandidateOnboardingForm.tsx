@@ -38,6 +38,7 @@ import {
   onboardingControlClass,
 } from "@/components/onboarding/onboarding-form-primitives";
 import { isPaidPlanId } from "@/lib/pricingPageContent";
+import { POST_ONBOARDING_TRIAL_OFFER_KEY } from "@/lib/trialFeatures";
 import { userApi } from "@/lib/api";
 import {
   toOnboardingAffiliationPayload,
@@ -168,6 +169,7 @@ export function CandidateOnboardingForm({ onBack }: Readonly<CandidateOnboarding
       router.push(`/checkout?plan=${pendingPlan}&cycle=monthly`);
     } else {
       if (pendingPlan) localStorage.removeItem("pendingPlan");
+      sessionStorage.setItem(POST_ONBOARDING_TRIAL_OFFER_KEY, "1");
       router.push("/select-role");
     }
   };

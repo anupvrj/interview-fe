@@ -24,7 +24,7 @@ export default function TrialOfferPage() {
     void (async () => {
       try {
         const entitlements = await entitlementApi.getEntitlements();
-        setHasPurchasedTrial(entitlements.trial.hasPurchased);
+        setHasPurchasedTrial(!entitlements.canPurchaseTrial);
       } catch {
         setHasPurchasedTrial(false);
       } finally {

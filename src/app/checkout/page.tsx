@@ -75,6 +75,10 @@ function CheckoutPageContent() {
 
   // Clear error immediately when planId changes
   useEffect(() => {
+    if (planId === "trial") {
+      router.replace("/dashboard?trial_offer=1");
+      return;
+    }
     setSamePlanError(null);
     setCheckingSubscription(true);
     // Don't reset razorpayLoaded - if it's already loaded, keep it loaded
