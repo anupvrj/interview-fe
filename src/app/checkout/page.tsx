@@ -8,9 +8,16 @@ import {
   Check,
   X,
   ArrowUp,
+  ArrowLeft,
+  ArrowRight,
+  Coins,
+  Calendar,
+  Shield,
+  Sparkles,
+  AlertCircle,
+  CreditCard,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { paymentApi, planApi, Subscription } from "@/lib/api";
 import type { PlanRecord } from "@/lib/planRecord";
 import { getPlanMarketingHighlights } from "@/lib/planHighlightsFromFeatures";
@@ -18,10 +25,22 @@ import Script from "next/script";
 import Link from "next/link";
 import { SiteHeader } from "@/components/SiteHeader";
 import { MarketingFooter } from "@/components/MarketingFooter";
-import { PageHeader } from "@/components/app/PageHeader";
-import { appCard } from "@/lib/app-theme";
+import {
+  appCardElevated,
+  appPrimaryButton,
+  appSurfaceMuted,
+} from "@/lib/app-theme";
 import { cn } from "@/lib/utils";
-import { isCheckoutPlanId, isPaidPlanId, type CheckoutPlanId } from "@/lib/pricingPageContent";
+import {
+  isCheckoutPlanId,
+  PLAN_COLUMN_LABELS,
+  type CheckoutPlanId,
+  type PaidPlanId,
+} from "@/lib/pricingPageContent";
+import {
+  getMarketingPlanGradient,
+  getMarketingPlanIcon,
+} from "@/lib/planMarketingDisplay";
 import type { SelfServePlanSlug } from "@/lib/api";
 
 declare global {
@@ -75,6 +94,10 @@ function CheckoutPageContent() {
 
   // Clear error immediately when planId changes
   useEffect(() => {
+    if (planId === "trial") {
+      router.replace("/dashboard?trial_offer=1");
+      return;
+    }
     setSamePlanError(null);
     setCheckingSubscription(true);
     // Don't reset razorpayLoaded - if it's already loaded, keep it loaded
@@ -249,7 +272,7 @@ function CheckoutPageContent() {
             email: user.primaryEmailAddress?.emailAddress || "",
           },
           theme: {
-            color: "#2563EB",
+            color: "#7367F0",
           },
           handler: async function (response: any) {
             try {
@@ -344,7 +367,7 @@ function CheckoutPageContent() {
             email: user.primaryEmailAddress?.emailAddress || "",
           },
           theme: {
-            color: "#2563EB",
+            color: "#7367F0",
           },
           modal: {
             ondismiss: function () {
@@ -367,20 +390,23 @@ function CheckoutPageContent() {
   if (!isLoaded || !user || !planId || checkingSubscription) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <Loader2 className="h-8 w-8 animate-spin text-[#7367F0]" />
       </div>
     );
   }
 
   if (catalogError || !selectedPlan) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-background px-4">
-        <p className="text-gray-700 mb-4 text-center max-w-md">
-          {catalogError ?? "Unable to load plan."}
-        </p>
-        <Link href="/pricing">
-          <Button variant="outline">Back to pricing</Button>
-        </Link>
+      <div className="flex min-h-screen flex-col items-center justify-center bg-background px-4">
+        <div className={cn(appCardElevated, "max-w-md p-8 text-center")}>
+          <AlertCircle className="mx-auto mb-4 h-10 w-10 text-[#7367F0]" />
+          <p className="mb-6 text-sm leading-relaxed text-muted-foreground">
+            {catalogError ?? "Unable to load plan."}
+          </p>
+          <Button variant="outline" asChild>
+            <Link href="/pricing">Back to pricing</Link>
+          </Button>
+        </div>
       </div>
     );
   }
@@ -389,6 +415,18 @@ function CheckoutPageContent() {
   const planPrice = plan.pricing[billingCycle];
   const planCredits = plan.creditsIncluded[billingCycle];
   const highlightLines = getPlanMarketingHighlights(plan);
+  const PlanIcon = getMarketingPlanIcon(plan.planId, plan.icon);
+  const planGradient = getMarketingPlanGradient(plan.planId);
+  const planLabel =
+    PLAN_COLUMN_LABELS[plan.planId as PaidPlanId] ??
+    plan.displayName ??
+    plan.name;
+  const billingLabel =
+    billingCycle === "monthly"
+      ? "Monthly"
+      : billingCycle === "quarterly"
+        ? "Quarterly"
+        : "Yearly";
 
   return (
     <>
@@ -397,7 +435,6 @@ function CheckoutPageContent() {
         strategy="afterInteractive"
         onLoad={() => {
           console.log("Razorpay SDK loaded");
-          // Double check that it's actually available
           setTimeout(() => {
             if (typeof window !== "undefined" && window.Razorpay) {
               setRazorpayLoaded(true);
@@ -413,156 +450,234 @@ function CheckoutPageContent() {
         }}
       />
 
-      <div className="relative min-h-screen scroll-smooth bg-background selection:bg-info-muted">
+      <div className="relative min-h-screen scroll-smooth bg-background selection:bg-[#7367F0]/20">
+        <div
+          aria-hidden
+          className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_15%_10%,rgba(115,103,240,0.08),transparent_40%),radial-gradient(circle_at_85%_20%,rgba(139,92,246,0.06),transparent_38%)]"
+        />
         <SiteHeader />
 
-        <div className="container relative z-10 mx-auto max-w-2xl px-4 pb-16 pt-24 sm:pt-28 lg:pt-32">
-          <PageHeader
-            title="Complete your purchase"
-            description="Review your plan and pay securely with Razorpay. Credits apply to your account after successful payment."
-          />
-          <Card className={cn(appCard, "mt-8 p-8 shadow-header")}>
-            <div className="mb-8 p-6 bg-card rounded-lg border border-border">
-              <h2 className="text-lg font-semibold mb-4 text-gray-900">
-                Order Summary
-              </h2>
-              <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-700">Plan</span>
-                  <span className="font-semibold text-gray-900">
-                    {plan.name}
+        <div className="container relative z-10 mx-auto max-w-3xl px-4 pb-16 pt-24 sm:pt-28 lg:pt-32">
+          <Button
+            variant="ghost"
+            asChild
+            className="-ml-2 mb-6 text-muted-foreground hover:text-foreground"
+          >
+            <Link href="/pricing">
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to pricing
+            </Link>
+          </Button>
+
+          <div className="space-y-4">
+            <div className={cn(appCardElevated, "overflow-hidden")}>
+              <div className="relative overflow-hidden border-b border-border/60 px-5 py-6 sm:px-6">
+                <div
+                  className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[#7367F0]/15 via-transparent to-transparent"
+                  aria-hidden
+                />
+                <div
+                  className="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-[#7367F0]/15 blur-3xl"
+                  aria-hidden
+                />
+
+                <div className="relative space-y-4">
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-[#7367F0]/25 bg-[#7367F0]/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-[#7367F0]">
+                    <Sparkles className="h-3 w-3" aria-hidden />
+                    Secure checkout
                   </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-700">Credits</span>
-                  <span className="font-semibold text-gray-900">
-                    {planCredits.toLocaleString()} credits
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-700">Billing Period</span>
-                  <span className="font-semibold text-gray-900">
-                    {billingCycle === "monthly"
-                      ? "Monthly"
-                      : billingCycle === "quarterly"
-                        ? "Quarterly"
-                        : "Yearly"}
-                  </span>
-                </div>
-                <div className="border-t pt-3 mt-3">
-                  <div className="flex justify-between items-center">
-                    <span className="text-lg font-semibold text-gray-900">
-                      Total
-                    </span>
-                    <span className="text-2xl font-bold text-primary">
-                      ₹{planPrice.toLocaleString()}
-                    </span>
+
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="flex items-start gap-4">
+                      <span
+                        className={cn(
+                          "flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br text-white shadow-lg",
+                          planGradient,
+                        )}
+                      >
+                        <PlanIcon className="h-7 w-7" aria-hidden />
+                      </span>
+                      <div>
+                        <h1 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">
+                          Complete your purchase
+                        </h1>
+                        <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+                          Review your plan and pay securely with Razorpay.
+                          Credits apply after successful payment.
+                        </p>
+                      </div>
+                    </div>
                   </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    <CheckoutStatPill icon={PlanIcon} label={planLabel} />
+                    <CheckoutStatPill
+                      icon={Coins}
+                      label={`${planCredits.toLocaleString()} credits`}
+                    />
+                    <CheckoutStatPill icon={Calendar} label={billingLabel} />
+                    <CheckoutStatPill icon={Shield} label="Razorpay secure" />
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-5 px-5 py-6 sm:px-6">
+                <div className="rounded-2xl border border-[#7367F0]/15 bg-[#7367F0]/[0.04] p-4 sm:p-5">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Order summary
+                  </p>
+                  <div className="mt-3 space-y-3">
+                    <div className="flex items-center justify-between gap-3 text-sm">
+                      <span className="text-muted-foreground">Plan</span>
+                      <span className="font-semibold text-foreground">
+                        {plan.name}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between gap-3 text-sm">
+                      <span className="text-muted-foreground">Credits</span>
+                      <span className="font-semibold text-foreground">
+                        {planCredits.toLocaleString()} credits
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between gap-3 text-sm">
+                      <span className="text-muted-foreground">Billing</span>
+                      <span className="font-semibold text-foreground">
+                        {billingLabel}
+                      </span>
+                    </div>
+                    <div className="border-t border-border/60 pt-3">
+                      <div className="flex items-end justify-between gap-3">
+                        <span className="text-sm font-medium text-muted-foreground">
+                          Total due today
+                        </span>
+                        <span className="text-3xl font-bold tracking-tight text-[#7367F0]">
+                          ₹{planPrice.toLocaleString()}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {samePlanError ? (
+                  <div className="rounded-xl border border-amber-500/30 bg-amber-500/[0.06] p-4">
+                    <div className="flex items-start gap-3">
+                      <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+                      <div className="min-w-0 flex-1">
+                        <p className="font-semibold text-foreground">
+                          Already subscribed
+                        </p>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          {samePlanError}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+                      {currentSubscription &&
+                      getNextPlan(currentSubscription.plan) ? (
+                        <Button className={cn("flex-1", appPrimaryButton)} asChild>
+                          <Link
+                            href={`/checkout?plan=${getNextPlan(currentSubscription.plan)}`}
+                          >
+                            <ArrowUp className="mr-2 h-4 w-4" />
+                            Upgrade to{" "}
+                            {planCatalog.find(
+                              (p) =>
+                                p.planId ===
+                                getNextPlan(currentSubscription.plan),
+                            )?.name ?? "Next Plan"}
+                          </Link>
+                        </Button>
+                      ) : null}
+                      <Button variant="outline" className="flex-1" asChild>
+                        <Link href="/dashboard">Go to dashboard</Link>
+                      </Button>
+                    </div>
+                  </div>
+                ) : null}
+
+                {error ? (
+                  <div className="flex items-start gap-3 rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+                    <X className="mt-0.5 h-4 w-4 shrink-0" />
+                    <span>{error}</span>
+                  </div>
+                ) : null}
+
+                {!razorpayLoaded ? (
+                  <div className="flex items-center gap-2 rounded-xl border border-border/60 bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin text-[#7367F0]" />
+                    Loading payment gateway…
+                  </div>
+                ) : null}
+
+                <Button
+                  onClick={handlePayment}
+                  disabled={loading || !razorpayLoaded || !!samePlanError}
+                  size="lg"
+                  className={cn(
+                    "h-12 w-full text-base font-semibold shadow-lg shadow-[#7367F0]/20 disabled:cursor-not-allowed disabled:opacity-50",
+                    appPrimaryButton,
+                  )}
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                      Processing…
+                    </>
+                  ) : !razorpayLoaded ? (
+                    <>
+                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                      Loading…
+                    </>
+                  ) : (
+                    <>
+                      Pay ₹{planPrice.toLocaleString()} now
+                      <ArrowRight className="ml-2 h-5 w-5" />
+                    </>
+                  )}
+                </Button>
+
+                <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
+                  <CreditCard className="h-3.5 w-3.5" aria-hidden />
+                  <span>Secure payment powered by Razorpay</span>
                 </div>
               </div>
             </div>
 
-            {/* Same Plan Error Message */}
-            {samePlanError && (
-              <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                <div className="flex items-start gap-3 mb-3">
-                  <X className="h-5 w-5 text-yellow-600 flex-shrink-0 mt-0.5" />
-                  <div className="flex-1">
-                    <p className="text-yellow-800 font-semibold mb-1">
-                      Already Subscribed
-                    </p>
-                    <p className="text-yellow-700 text-sm">{samePlanError}</p>
-                  </div>
-                </div>
-                {currentSubscription &&
-                  getNextPlan(currentSubscription.plan) && (
-                    <Link
-                      href={`/checkout?plan=${getNextPlan(currentSubscription.plan)}`}
-                    >
-                      <Button className="w-full mt-3">
-                        <ArrowUp className="h-4 w-4 mr-2" />
-                        Upgrade to{" "}
-                        {planCatalog.find(
-                          (p) =>
-                            p.planId ===
-                            getNextPlan(currentSubscription.plan),
-                        )?.name ?? "Next Plan"}
-                      </Button>
-                    </Link>
-                  )}
-                <Link href="/dashboard" className="block mt-3">
-                  <Button variant="outline" className="w-full">
-                    Go to Dashboard
-                  </Button>
-                </Link>
+            <div className={cn(appCardElevated, "overflow-hidden")}>
+              <div className="border-b border-border/60 px-5 py-4 sm:px-6">
+                <h2 className="text-sm font-semibold text-foreground">
+                  What&apos;s included
+                </h2>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  Everything you unlock with {planLabel}
+                </p>
               </div>
-            )}
+              <ul className="grid grid-cols-1 gap-x-6 gap-y-2.5 p-5 sm:grid-cols-2 sm:p-6">
+                {highlightLines.map((highlight) => (
+                  <li key={highlight} className="flex items-start gap-3 text-sm">
+                    <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-500/15">
+                      <Check
+                        className="h-3 w-3 text-emerald-600 dark:text-emerald-400"
+                        strokeWidth={3}
+                        aria-hidden
+                      />
+                    </span>
+                    <span className="font-medium text-foreground/90">
+                      {highlight}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
 
-            {/* Error Message */}
-            {error && (
-              <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center gap-3">
-                <X className="h-5 w-5 text-red-600" />
-                <p className="text-red-700">{error}</p>
-              </div>
-            )}
-
-            {/* Payment Button */}
-            {!razorpayLoaded && (
-              <div className="mb-4 p-3 bg-muted border border-border rounded-lg">
-                <div className="flex items-center gap-2 text-primary">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  <p className="text-sm">Loading payment gateway...</p>
-                </div>
-              </div>
-            )}
-            <Button
-              onClick={handlePayment}
-              disabled={loading || !razorpayLoaded || !!samePlanError}
-              size="lg"
-              className="w-full py-6 text-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                  Processing...
-                </>
-              ) : !razorpayLoaded ? (
-                <>
-                  <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                  Loading...
-                </>
-              ) : (
-                <>Pay ₹{planPrice.toLocaleString()} Now</>
-              )}
-            </Button>
-
-            <p className="text-sm text-gray-500 text-center mt-4">
-              Secure payment powered by Razorpay
-            </p>
-            <p className="text-xs text-muted-foreground text-center mt-2 px-2">
-              Card payments usually activate your plan instantly. UPI AutoPay
-              may take until the bank confirms the first debit (often same day,
-              sometimes the next day).
-            </p>
-          </Card>
-
-          {/* Features Reminder */}
-          <Card className={cn(appCard, "mt-6 p-6 shadow-header")}>
-            <h3 className="font-semibold text-lg mb-4 text-gray-900">
-              What you'll get:
-            </h3>
-            <ul className="space-y-2">
-              {highlightLines.slice(0, 4).map((highlight, index) => (
-                <li
-                  key={index}
-                  className="flex items-center gap-2 text-gray-700"
-                >
-                  <Check className="h-5 w-5 shrink-0 text-primary" />
-                  {highlight}
-                </li>
-              ))}
-            </ul>
-          </Card>
+            <div className={cn(appSurfaceMuted, "px-4 py-3.5 text-center sm:px-5")}>
+              <p className="text-xs leading-relaxed text-muted-foreground sm:text-sm">
+                Card payments usually activate your plan instantly. UPI AutoPay
+                may take until the bank confirms the first debit — often same
+                day, sometimes the next day.
+              </p>
+            </div>
+          </div>
         </div>
 
         <MarketingFooter as="footer" className="relative z-10" />
@@ -571,12 +686,27 @@ function CheckoutPageContent() {
   );
 }
 
+function CheckoutStatPill({
+  icon: Icon,
+  label,
+}: Readonly<{
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+}>) {
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-full border border-[#7367F0]/15 bg-background/80 px-3 py-1 text-xs font-medium text-foreground shadow-sm">
+      <Icon className="h-3.5 w-3.5 text-[#7367F0]" aria-hidden />
+      {label}
+    </span>
+  );
+}
+
 export default function CheckoutPage() {
   return (
     <Suspense
       fallback={
         <div className="flex items-center justify-center min-h-screen bg-background">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <Loader2 className="h-8 w-8 animate-spin text-[#7367F0]" />
         </div>
       }
     >

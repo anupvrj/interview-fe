@@ -1,68 +1,63 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useUser } from "@clerk/nextjs";
-import { ArrowRight, Sparkles } from "lucide-react";
+import { ArrowRight, Loader2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { entitlementApi } from "@/lib/api";
+import { trialApi } from "@/lib/api";
+import {
+  TRIAL_CTA,
+  TRIAL_FEATURES_TAGLINE,
+} from "@/lib/trialFeatures";
 import { cn } from "@/lib/utils";
-
-const TRIAL_CHECKOUT_PATH = "/checkout?plan=trial";
 
 type TrialPricingBannerProps = {
   className?: string;
+  visible?: boolean;
+  onTrialStarted?: () => void;
 };
 
-export function TrialPricingBanner({ className }: TrialPricingBannerProps) {
+export function TrialPricingBanner({
+  className,
+  visible = true,
+  onTrialStarted,
+}: TrialPricingBannerProps) {
   const router = useRouter();
-  const { isLoaded, isSignedIn } = useUser();
-  const [hideBanner, setHideBanner] = useState(false);
-  const [entitlementsReady, setEntitlementsReady] = useState(false);
+  const { isSignedIn } = useUser();
+  const [starting, setStarting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!isLoaded || !isSignedIn) {
-      setEntitlementsReady(true);
+  if (!visible) return null;
+
+  const handleStartTrial = async () => {
+    if (!isSignedIn) {
+      router.push(
+        `/sign-in?redirect_url=${encodeURIComponent("/pricing")}`,
+      );
       return;
     }
 
-    let cancelled = false;
-    entitlementApi
-      .getEntitlements()
-      .then((data) => {
-        if (cancelled) return;
-        if (!data.canPurchaseTrial || data.hasActiveTrial) {
-          setHideBanner(true);
-        }
-      })
-      .catch(() => {
-        /* show banner if entitlements unavailable */
-      })
-      .finally(() => {
-        if (!cancelled) setEntitlementsReady(true);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [isLoaded, isSignedIn]);
-
-  const handleStartTrial = () => {
-    if (isSignedIn) {
-      router.push(TRIAL_CHECKOUT_PATH);
-      return;
+    setStarting(true);
+    setError(null);
+    try {
+      await trialApi.startTrial();
+      onTrialStarted?.();
+      router.push("/dashboard");
+    } catch (err: unknown) {
+      const message =
+        (err as { response?: { data?: { message?: string } } })?.response?.data
+          ?.message || "Failed to start trial. Please try again.";
+      setError(message);
+    } finally {
+      setStarting(false);
     }
-    router.push(
-      `/sign-in?redirect_url=${encodeURIComponent(TRIAL_CHECKOUT_PATH)}`,
-    );
   };
-
-  if (!isLoaded || !entitlementsReady || hideBanner) return null;
 
   return (
     <div
       className={cn(
-        "relative mt-16 overflow-hidden border-b border-[#7367F0]/20 bg-gradient-to-r from-[#7367F0]/10 via-amber-500/10 to-[#7367F0]/10",
+        "relative overflow-hidden border-b border-[#7367F0]/20 bg-gradient-to-r from-[#7367F0]/10 via-amber-500/10 to-[#7367F0]/10",
         className,
       )}
     >
@@ -74,23 +69,35 @@ export function TrialPricingBanner({ className }: TrialPricingBannerProps) {
           </div>
           <div className="min-w-0 space-y-1">
             <p className="text-sm font-semibold text-foreground sm:text-base">
-              Experience everything for{" "}
-              <span className="text-[#7367F0]">₹299</span> — 14-day trial
+              {TRIAL_CTA} — 14 days free
             </p>
             <p className="text-xs text-muted-foreground sm:text-sm">
-              Full platform for 14 days — AI interviews, coding, system design,
-              ATS tools &amp; 200 credits. One-time ₹299.
+              {TRIAL_FEATURES_TAGLINE} Full platform access — AI interviews,
+              coding, system design, and ATS tools.
             </p>
+            {error ? (
+              <p className="text-xs text-destructive">{error}</p>
+            ) : null}
           </div>
         </div>
         <div className="shrink-0">
           <Button
             size="lg"
             className="w-full bg-[#7367F0] px-6 text-white hover:bg-[#6358d8] sm:w-auto"
-            onClick={handleStartTrial}
+            onClick={() => void handleStartTrial()}
+            disabled={starting}
           >
-            Start your trial now
-            <ArrowRight className="ml-2 h-4 w-4" />
+            {starting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Starting…
+              </>
+            ) : (
+              <>
+                {TRIAL_CTA}
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </>
+            )}
           </Button>
         </div>
       </div>

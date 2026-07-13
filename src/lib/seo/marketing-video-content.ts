@@ -132,6 +132,28 @@ export const hireIxTalentDemoVideo: MarketingVideoContent = {
   ],
 };
 
+export const aiCodingRoundDemoVideo: MarketingVideoContent = {
+  id: "ai-coding-round-demo",
+  name: "Interview Trix AI Coding Round Demo",
+  description:
+    "Watch a full AI coding round on Interview Trix: solve interview-style problems in the editor, run hidden tests, and get scored feedback before your next technical screen.",
+  thumbnailUrl: "/ai_interview_thumbnail.png",
+  uploadDate: "2026-07-13T00:00:00+00:00",
+  videoUrl:
+    "https://interview-trix-public.s3.ap-south-1.amazonaws.com/videos/Interview+Trix+AI+Coding+Round.mp4",
+  embedUrl: `${getSiteUrl()}/ai-coding-practice`,
+  pagePath: "/ai-coding-practice",
+  durationSeconds: 90,
+  duration: secondsToIso8601Duration(90),
+  transcript:
+    "Candidates open an AI coding round on Interview Trix and work through interview-style problems in a live code editor. They write solutions, run tests, and iterate until hidden test cases pass. The AI discussion round follows with feedback on approach, complexity, and communication — ending with a scored report recruiters can trust.",
+  keyTakeaways: [
+    "Practice real interview-style coding problems in a live editor.",
+    "Run tests and pass hidden cases before your technical screen.",
+    "Get AI discussion feedback and a scored coding round report.",
+  ],
+};
+
 /** All public marketing videos — used by video sitemap and JSON-LD registries. */
 export const marketingVideos: MarketingVideoContent[] = [
   aiInterviewDemoVideo,
@@ -140,4 +162,5 @@ export const marketingVideos: MarketingVideoContent[] = [
   atsCheckerDemoVideo,
   hireIxTalentDemoVideo,
   peerInterviewBookingDemoVideo,
+  aiCodingRoundDemoVideo,
 ];

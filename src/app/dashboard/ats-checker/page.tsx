@@ -402,7 +402,9 @@ function DashboardATSCheckerContent() {
         open={trialUpsellOpen}
         onOpenChange={setTrialUpsellOpen}
         variant="feature_locked"
-        hasPurchasedTrial={entitlements?.trial.hasPurchased}
+        hasPurchasedTrial={
+          entitlements ? !entitlements.canPurchaseTrial : false
+        }
       />
       <UpgradeUpsellDialog
         open={upgradeUpsellOpen}

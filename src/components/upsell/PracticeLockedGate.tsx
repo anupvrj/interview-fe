@@ -518,9 +518,9 @@ export function PracticeLockedGate({
   const config = LOCK_CONFIG[type];
   const Preview = PREVIEW_BY_TYPE[type];
   const primaryHref = showTrialUpsell
-    ? "/checkout?plan=trial"
+    ? "/dashboard?trial_offer=1"
     : `/checkout?plan=${config.upgradePlan}`;
-  const primaryLabel = showTrialUpsell ? "Start trial plan" : "Upgrade & unlock";
+  const primaryLabel = showTrialUpsell ? "Start free trial" : "Upgrade & unlock";
 
   return (
     <div className="relative isolate min-h-[520px] overflow-hidden rounded-xl border border-border/60 bg-card sm:min-h-[600px]">

@@ -24,14 +24,14 @@ const UPGRADE_COPY: Record<
   { title: string; description: string }
 > = {
   tech_basic: {
-    title: "Upgrade to practice",
+    title: "Unlock coding & system design",
     description:
-      "Coding rounds and system design sessions are included on Tech Basic and Tech Pro.",
+      "Run interview-style coding rounds and whiteboard system design sessions with AI feedback, scores, and session history.",
   },
   general_pass: {
-    title: "Upgrade to practice",
+    title: "Unlock AI interview practice",
     description:
-      "AI mock interviews and full practice features require General Pass or higher.",
+      "Practice company-aware AI mock interviews with scored reports, resume tools, and your full interview history.",
   },
 };
 
@@ -55,7 +55,9 @@ export function PracticeSessionGateDialogs({
         open={trialOpen}
         onOpenChange={setTrialOpen}
         variant={trialVariant}
-        hasPurchasedTrial={entitlements?.trial.hasPurchased}
+        hasPurchasedTrial={
+          entitlements ? !entitlements.canPurchaseTrial : false
+        }
       />
       <UpgradeUpsellDialog
         open={upgradeOpen}

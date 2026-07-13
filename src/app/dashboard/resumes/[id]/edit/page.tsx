@@ -6559,7 +6559,9 @@ export default function EditResumePage() {
         open={trialUpsellOpen}
         onOpenChange={setTrialUpsellOpen}
         variant="resume_download"
-        hasPurchasedTrial={entitlements?.trial.hasPurchased}
+        hasPurchasedTrial={
+          entitlements ? !entitlements.canPurchaseTrial : false
+        }
       />
     </div>
   );

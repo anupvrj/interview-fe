@@ -30,9 +30,10 @@ import {
 } from "@/lib/dashboard-nav";
 import { SubscriptionExpiredBanner } from "@/components/SubscriptionExpiredBanner";
 import { SubscriptionPendingBanner } from "@/components/SubscriptionPendingBanner";
-import { TrialUpsellDialog } from "@/components/upsell/TrialUpsellDialog";
+import { TrialUpsellDialog, type TrialUpsellVariant } from "@/components/upsell/TrialUpsellDialog";
 import { useUpsellState } from "@/components/upsell/useUpsellState";
 import { useEntitlements } from "@/hooks/useEntitlements";
+import { POST_ONBOARDING_TRIAL_OFFER_KEY } from "@/lib/trialFeatures";
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -238,11 +239,15 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     "general" | "coding_practice" | null
   >(null);
   const [trialPromoOpen, setTrialPromoOpen] = useState(false);
-  const { canUse } = useEntitlements();
+  const [trialPromoVariant, setTrialPromoVariant] =
+    useState<TrialUpsellVariant>("dashboard_promo");
+  const [skipDelayedTrialPromo, setSkipDelayedTrialPromo] = useState(false);
+  const { canUse, refresh: refreshEntitlements } = useEntitlements();
   const {
     shouldShowTrialPromo,
     markTrialPromoShown,
     dismissTrialPromo,
+    refresh: refreshUpsell,
     data: upsellData,
   } = useUpsellState();
 
@@ -281,18 +286,52 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   }, [isDashboardInterviewsDetailPath, interviewsPathSegment, user]);
 
   useEffect(() => {
-    if (!roleReady) return;
+    if (!roleReady || !upsellData?.showTrialUpsell) return;
+    if (typeof window === "undefined") return;
+
+    const postOnboarding =
+      sessionStorage.getItem(POST_ONBOARDING_TRIAL_OFFER_KEY) === "1";
+    const queryOffer =
+      new URLSearchParams(window.location.search).get("trial_offer") === "1";
+
+    if (!postOnboarding && !queryOffer) return;
+
+    sessionStorage.removeItem(POST_ONBOARDING_TRIAL_OFFER_KEY);
+    if (queryOffer && pathname) {
+      router.replace(pathname);
+    }
+
+    setTrialPromoVariant("onboarding_complete");
+    setTrialPromoOpen(true);
+    setSkipDelayedTrialPromo(true);
+    markTrialPromoShown();
+  }, [
+    roleReady,
+    upsellData?.showTrialUpsell,
+    pathname,
+    router,
+    markTrialPromoShown,
+  ]);
+
+  useEffect(() => {
+    if (!roleReady || skipDelayedTrialPromo) return;
     if (!shouldShowTrialPromo()) return;
 
     const timer = window.setTimeout(() => {
       if (shouldShowTrialPromo()) {
         markTrialPromoShown();
+        setTrialPromoVariant("dashboard_promo");
         setTrialPromoOpen(true);
       }
     }, 30_000);
 
     return () => window.clearTimeout(timer);
-  }, [roleReady, shouldShowTrialPromo, markTrialPromoShown]);
+  }, [
+    roleReady,
+    skipDelayedTrialPromo,
+    shouldShowTrialPromo,
+    markTrialPromoShown,
+  ]);
 
   const isInstitutionView = activeRole === "institution_admin";
 
@@ -612,9 +651,13 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       <TrialUpsellDialog
         open={trialPromoOpen}
         onOpenChange={setTrialPromoOpen}
-        variant="dashboard_promo"
+        variant={trialPromoVariant}
         onDismiss={dismissTrialPromo}
-        hasPurchasedTrial={upsellData?.trial.hasPurchased}
+        onTrialStarted={() => {
+          void refreshEntitlements();
+          void refreshUpsell();
+        }}
+        hasPurchasedTrial={upsellData ? !upsellData.canPurchaseTrial : false}
       />
     </div>
   );

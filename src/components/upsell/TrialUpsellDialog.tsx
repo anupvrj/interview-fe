@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowRight,
@@ -8,6 +9,7 @@ import {
   Calendar,
   Zap,
   Plus,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -17,14 +19,20 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { trialApi } from "@/lib/api";
 import {
+  TRIAL_CTA,
   TRIAL_FEATURES_TAGLINE,
+  TRIAL_STAT_CREDITS,
+  TRIAL_STAT_DURATION,
+  TRIAL_STAT_FREE,
   TRIAL_UNLOCKED_FEATURES,
 } from "@/lib/trialFeatures";
 import { cn } from "@/lib/utils";
 
 export type TrialUpsellVariant =
   | "dashboard_promo"
+  | "onboarding_complete"
   | "interview_start"
   | "resume_download"
   | "feature_locked"
@@ -41,41 +49,48 @@ type VariantCopy = {
 
 const VARIANT_COPY: Record<TrialUpsellVariant, VariantCopy> = {
   dashboard_promo: {
-    title: "Experience everything for ₹299",
+    title: TRIAL_CTA,
     description: TRIAL_FEATURES_TAGLINE,
     secondary: "Maybe later",
     badge: "Full platform trial",
   },
+  onboarding_complete: {
+    title: TRIAL_CTA,
+    description:
+      "Unlock AI mock interviews, coding rounds, system design, ATS tools, and more — free for 14 days.",
+    secondary: "Continue on Free plan",
+    badge: "Welcome offer",
+  },
   interview_start: {
-    title: "Start your trial to practice",
+    title: "Start your free trial to practice",
     description: TRIAL_FEATURES_TAGLINE,
     secondary: "Not now",
   },
   resume_download: {
-    title: "Unlock with trial",
+    title: "Unlock with free trial",
     description:
       "Get the full 14-day experience — resume download, interviews, coding, system design & more.",
     secondary: "Continue editing",
   },
   feature_locked: {
-    title: "Unlock with trial",
+    title: "Unlock with free trial",
     description: TRIAL_FEATURES_TAGLINE,
     secondary: "Maybe later",
   },
   practice_ai: {
-    title: "Start your trial to practice",
+    title: "Start your free trial to practice",
     description: TRIAL_FEATURES_TAGLINE,
     secondary: "Not now",
     badge: "All features unlocked",
   },
   practice_coding: {
-    title: "Start your trial to get going",
+    title: "Start your free trial to get going",
     description: TRIAL_FEATURES_TAGLINE,
     secondary: "Not now",
     badge: "All features unlocked",
   },
   practice_system_design: {
-    title: "Start your trial to get going",
+    title: "Start your free trial to get going",
     description: TRIAL_FEATURES_TAGLINE,
     secondary: "Not now",
     badge: "All features unlocked",
@@ -87,6 +102,7 @@ type TrialUpsellDialogProps = {
   onOpenChange: (open: boolean) => void;
   variant?: TrialUpsellVariant;
   onDismiss?: () => void;
+  onTrialStarted?: () => void;
   hasPurchasedTrial?: boolean;
 };
 
@@ -110,10 +126,13 @@ export function TrialUpsellDialog({
   onOpenChange,
   variant = "dashboard_promo",
   onDismiss,
+  onTrialStarted,
   hasPurchasedTrial = false,
 }: TrialUpsellDialogProps) {
   const router = useRouter();
   const copy = VARIANT_COPY[variant];
+  const [starting, setStarting] = useState(false);
+  const [startError, setStartError] = useState<string | null>(null);
 
   const handleDismiss = () => {
     onDismiss?.();
@@ -125,9 +144,21 @@ export function TrialUpsellDialog({
     router.push("/pricing");
   };
 
-  const startTrial = () => {
-    onOpenChange(false);
-    router.push("/checkout?plan=trial");
+  const startTrial = async () => {
+    setStarting(true);
+    setStartError(null);
+    try {
+      await trialApi.startTrial();
+      onTrialStarted?.();
+      onOpenChange(false);
+    } catch (err: unknown) {
+      const message =
+        (err as { response?: { data?: { message?: string } } })?.response?.data
+          ?.message || "Failed to start trial. Please try again.";
+      setStartError(message);
+    } finally {
+      setStarting(false);
+    }
   };
 
   if (hasPurchasedTrial) {
@@ -197,9 +228,9 @@ export function TrialUpsellDialog({
             </DialogHeader>
 
             <div className="flex flex-wrap gap-2">
-              <TrialStatPill icon={Zap} label="₹299 one-time" />
-              <TrialStatPill icon={Coins} label="200 credits" />
-              <TrialStatPill icon={Calendar} label="14 days full access" />
+              <TrialStatPill icon={Zap} label={TRIAL_STAT_FREE} />
+              <TrialStatPill icon={Coins} label={TRIAL_STAT_CREDITS} />
+              <TrialStatPill icon={Calendar} label={TRIAL_STAT_DURATION} />
             </div>
           </div>
         </div>
@@ -211,10 +242,12 @@ export function TrialUpsellDialog({
                 Trial pass
               </p>
               <p className="mt-1 flex items-baseline gap-1.5">
-                <span className="text-3xl font-bold tabular-nums tracking-tight text-foreground">
-                  ₹299
+                <span className="text-3xl font-bold tracking-tight text-foreground">
+                  Free
                 </span>
-                <span className="text-sm text-muted-foreground">one-time</span>
+                <span className="text-sm text-muted-foreground">
+                  for {TRIAL_STAT_DURATION.replace(" full access", "")}
+                </span>
               </p>
             </div>
             <div className="rounded-xl bg-emerald-500/10 px-3 py-2 text-right">
@@ -263,24 +296,38 @@ export function TrialUpsellDialog({
             "flex flex-col gap-2 border-t border-border/50 bg-muted/20 px-6 py-5 md:px-8",
           )}
         >
+          {startError ? (
+            <p className="text-center text-sm text-destructive">{startError}</p>
+          ) : null}
           <Button
             size="lg"
             className="h-12 w-full bg-[#7367F0] text-base font-semibold shadow-lg shadow-[#7367F0]/20 hover:bg-[#6358d8]"
-            onClick={startTrial}
+            onClick={() => void startTrial()}
+            disabled={starting}
           >
-            Start trial — ₹299
-            <ArrowRight className="ml-2 h-4 w-4" />
+            {starting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Starting trial…
+              </>
+            ) : (
+              <>
+                {TRIAL_CTA}
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </>
+            )}
           </Button>
           <Button
             variant="ghost"
             size="lg"
             className="w-full text-muted-foreground hover:text-foreground"
             onClick={handleDismiss}
+            disabled={starting}
           >
             {copy.secondary}
           </Button>
           <p className="text-center text-[11px] leading-relaxed text-muted-foreground">
-            One-time purchase · No auto-renew · Full platform for 14 days
+            One-time per email · No auto-renew · Full platform for 14 days
           </p>
         </div>
       </DialogContent>

@@ -1240,6 +1240,24 @@ export const entitlementApi = {
   },
 };
 
+export type StartTrialResult = {
+  periodEnd: string;
+  creditsGranted: number;
+  subscriptionId: string;
+  entitlements: ResolvedEntitlements;
+};
+
+export const trialApi = {
+  startTrial: async (): Promise<StartTrialResult> => {
+    const response = await apiClient.post<{
+      success: boolean;
+      data: StartTrialResult;
+      message: string;
+    }>("/trial/start");
+    return response.data.data;
+  },
+};
+
 // Resume Types
 export interface ResumeTemplate {
   id: string;
