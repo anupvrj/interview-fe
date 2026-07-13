@@ -1,11 +1,11 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useUser } from "@clerk/nextjs";
 import { ArrowRight, Loader2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { entitlementApi, trialApi } from "@/lib/api";
+import { trialApi } from "@/lib/api";
 import {
   TRIAL_CTA,
   TRIAL_FEATURES_TAGLINE,
@@ -14,42 +14,21 @@ import { cn } from "@/lib/utils";
 
 type TrialPricingBannerProps = {
   className?: string;
+  visible?: boolean;
+  onTrialStarted?: () => void;
 };
 
-export function TrialPricingBanner({ className }: TrialPricingBannerProps) {
+export function TrialPricingBanner({
+  className,
+  visible = true,
+  onTrialStarted,
+}: TrialPricingBannerProps) {
   const router = useRouter();
-  const { isLoaded, isSignedIn } = useUser();
-  const [hideBanner, setHideBanner] = useState(false);
-  const [entitlementsReady, setEntitlementsReady] = useState(false);
+  const { isSignedIn } = useUser();
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!isLoaded || !isSignedIn) {
-      setEntitlementsReady(true);
-      return;
-    }
-
-    let cancelled = false;
-    entitlementApi
-      .getEntitlements()
-      .then((data) => {
-        if (cancelled) return;
-        if (!data.canPurchaseTrial || data.hasActiveTrial) {
-          setHideBanner(true);
-        }
-      })
-      .catch(() => {
-        /* show banner if entitlements unavailable */
-      })
-      .finally(() => {
-        if (!cancelled) setEntitlementsReady(true);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [isLoaded, isSignedIn]);
+  if (!visible) return null;
 
   const handleStartTrial = async () => {
     if (!isSignedIn) {
@@ -63,7 +42,7 @@ export function TrialPricingBanner({ className }: TrialPricingBannerProps) {
     setError(null);
     try {
       await trialApi.startTrial();
-      setHideBanner(true);
+      onTrialStarted?.();
       router.push("/dashboard");
     } catch (err: unknown) {
       const message =
@@ -75,12 +54,10 @@ export function TrialPricingBanner({ className }: TrialPricingBannerProps) {
     }
   };
 
-  if (!isLoaded || !entitlementsReady || hideBanner) return null;
-
   return (
     <div
       className={cn(
-        "relative mt-16 overflow-hidden border-b border-[#7367F0]/20 bg-gradient-to-r from-[#7367F0]/10 via-amber-500/10 to-[#7367F0]/10",
+        "relative overflow-hidden border-b border-[#7367F0]/20 bg-gradient-to-r from-[#7367F0]/10 via-amber-500/10 to-[#7367F0]/10",
         className,
       )}
     >

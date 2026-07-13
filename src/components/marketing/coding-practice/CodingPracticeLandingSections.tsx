@@ -17,7 +17,8 @@ import {
   Zap,
   type LucideIcon,
 } from "lucide-react";
-import { CodingRoundHeroPreview } from "@/components/coding-interviews/CodingRoundHeroPreview";
+import { SeoVideoSection } from "@/components/seo/SeoVideoSection";
+import { aiCodingRoundDemoVideo } from "@/lib/seo/marketing-video-content";
 import { Button } from "@/components/ui/button";
 import {
   appMarketingSection,
@@ -560,12 +561,19 @@ export function CodingPracticeLandingSections() {
             </p>
           </div>
 
-          <div className="relative mx-auto w-full max-w-lg">
-            <CodingRoundHeroPreview />
+          <SeoVideoSection
+            content={aiCodingRoundDemoVideo}
+            variant="feature"
+            className="relative mx-auto w-full max-w-4xl"
+            playerClassName="overflow-hidden rounded-lg border border-border bg-white shadow-2xl sm:rounded-xl sm:border-2 md:border-4"
+            autoPlay
+            loop
+            muted
+          >
             <div className="absolute right-3 top-3 z-10 rounded-md bg-emerald-500 px-3 py-1.5 text-xs font-semibold text-white shadow-lg sm:text-sm">
               Hidden tests
             </div>
-          </div>
+          </SeoVideoSection>
         </div>
       </section>
 

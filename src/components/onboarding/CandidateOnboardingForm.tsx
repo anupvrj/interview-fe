@@ -7,7 +7,6 @@ import { useDropzone } from "react-dropzone";
 import {
   ArrowLeft,
   ArrowRight,
-  Briefcase,
   Check,
   CheckCircle,
   Eye,
@@ -15,26 +14,19 @@ import {
   GraduationCap,
   Loader2,
   Rocket,
-  Sparkles,
   TrendingUp,
   Upload,
   User,
   X,
+  AlertCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { InstitutionAffiliationFields } from "@/components/profile/InstitutionAffiliationFields";
 import { ProfileSkillsEditor } from "@/components/profile/ProfileSkillsEditor";
 import {
   FormField,
-  FormSection,
+  StepBlock,
   onboardingControlClass,
 } from "@/components/onboarding/onboarding-form-primitives";
 import { isPaidPlanId } from "@/lib/pricingPageContent";
@@ -49,7 +41,11 @@ import {
   pdfResumeDropzoneAccept,
   pdfResumeFileValidator,
 } from "@/lib/pdf-dropzone";
-import { appPrimaryButton } from "@/lib/app-theme";
+import {
+  appCardElevated,
+  appPrimaryButton,
+  appSurfaceMuted,
+} from "@/lib/app-theme";
 import { cn } from "@/lib/utils";
 import {
   DEFAULT_INTERVIEW_OPT_INS,
@@ -60,11 +56,41 @@ import {
 import { IndustryRoleFields } from "@/components/career/IndustryRoleFields";
 import { industrySelectOptions } from "@/lib/career-catalog";
 import { AppSelect } from "@/components/ui/app-select";
+import { OnboardingCardGraphics } from "@/components/onboarding/OnboardingAnimatedGraphics";
 
 const STEPS = [
-  { number: 1, title: "Profile", icon: User },
-  { number: 2, title: "Details", icon: Eye },
-  { number: 3, title: "Finish", icon: CheckCircle },
+  {
+    number: 1,
+    title: "Profile",
+    icon: User,
+    headline: "Who are you?",
+    description:
+      "Pick your profile type and optionally link your college or institution.",
+  },
+  {
+    number: 2,
+    title: "Resume",
+    icon: FileText,
+    headline: "Add your resume",
+    description:
+      "Upload your CV to pre-fill experience and skills. You can skip this step.",
+  },
+  {
+    number: 3,
+    title: "Details",
+    icon: Eye,
+    headline: "Fine-tune your profile",
+    description:
+      "Review extracted info, choose interview types, and add skills for tailored practice.",
+  },
+  {
+    number: 4,
+    title: "Finish",
+    icon: CheckCircle,
+    headline: "You're all set",
+    description:
+      "Your profile is ready — finish to jump into your dashboard and start practicing.",
+  },
 ] as const;
 
 type UserType = "student" | "fresher" | "experienced" | "";
@@ -104,11 +130,101 @@ const USER_TYPE_OPTIONS: {
   },
 ];
 
-type CandidateOnboardingFormProps = {
-  onBack?: () => void;
-};
+function ProfileTypeCard({
+  selected,
+  onSelect,
+  icon: Icon,
+  accent,
+  label,
+  description,
+}: Readonly<{
+  selected: boolean;
+  onSelect: () => void;
+  icon: typeof GraduationCap;
+  accent: string;
+  label: string;
+  description: string;
+}>) {
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      className={cn(
+        "flex flex-col items-start rounded-xl border p-4 text-left transition-all",
+        selected
+          ? "border-[#7367F0]/50 bg-[#7367F0]/[0.06] shadow-sm ring-1 ring-[#7367F0]/20"
+          : "border-border/70 bg-card hover:border-[#7367F0]/30 hover:bg-muted/20",
+      )}
+    >
+      <span className="mb-3 flex w-full items-center justify-between gap-2">
+        <span
+          className={cn(
+            "flex h-10 w-10 items-center justify-center rounded-lg",
+            accent,
+          )}
+        >
+          <Icon className="h-5 w-5" />
+        </span>
+        <span
+          className={cn(
+            "flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition-colors",
+            selected
+              ? "border-[#7367F0] bg-[#7367F0]"
+              : "border-border bg-background",
+          )}
+        >
+          {selected ? <span className="h-2 w-2 rounded-full bg-white" /> : null}
+        </span>
+      </span>
+      <span className="text-sm font-semibold text-foreground">{label}</span>
+      <span className="mt-1 text-xs leading-relaxed text-muted-foreground">
+        {description}
+      </span>
+    </button>
+  );
+}
 
-export function CandidateOnboardingForm({ onBack }: Readonly<CandidateOnboardingFormProps>) {
+function OptInCard({
+  active,
+  onToggle,
+  label,
+  description,
+}: Readonly<{
+  active: boolean;
+  onToggle: () => void;
+  label: string;
+  description: string;
+}>) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      className={cn(
+        "rounded-xl border p-4 text-left transition-all",
+        active
+          ? "border-[#7367F0]/50 bg-[#7367F0]/[0.06] shadow-sm ring-1 ring-[#7367F0]/20"
+          : "border-border/70 bg-card hover:border-[#7367F0]/30 hover:bg-muted/20",
+      )}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-sm font-semibold text-foreground">{label}</span>
+        <span
+          className={cn(
+            "rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase",
+            active ? "bg-[#7367F0] text-white" : "bg-muted text-muted-foreground",
+          )}
+        >
+          {active ? "On" : "Off"}
+        </span>
+      </div>
+      <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+        {description}
+      </p>
+    </button>
+  );
+}
+
+export function CandidateOnboardingForm() {
   const { user } = useUser();
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState(1);
@@ -203,11 +319,16 @@ export function CandidateOnboardingForm({ onBack }: Readonly<CandidateOnboarding
     ...toOnboardingAffiliationPayload(affiliation),
   });
 
-  const handleStep1Next = async () => {
+  const handleStep1Next = () => {
     if (!userType) {
       setError("Please select your profile type");
       return;
     }
+    setError("");
+    setCurrentStep(2);
+  };
+
+  const handleStep2Next = async () => {
     if (!resumeFile) {
       setExtractedData({ skills: [] });
       setReviewData({
@@ -217,7 +338,8 @@ export function CandidateOnboardingForm({ onBack }: Readonly<CandidateOnboarding
         industry: "",
         skills: [],
       });
-      setCurrentStep(2);
+      setError("");
+      setCurrentStep(3);
       return;
     }
     try {
@@ -235,7 +357,8 @@ export function CandidateOnboardingForm({ onBack }: Readonly<CandidateOnboarding
         industry: result.extracted.currentJob?.industry || "",
         skills: result.extracted.skills?.slice(0, 20) || [],
       });
-      setCurrentStep(2);
+      setError("");
+      setCurrentStep(3);
     } catch (err: unknown) {
       const message =
         (err as { response?: { data?: { message?: string } } })?.response?.data
@@ -279,195 +402,191 @@ export function CandidateOnboardingForm({ onBack }: Readonly<CandidateOnboarding
     }
   };
 
-  return (
-    <div className="mx-auto w-full max-w-2xl">
-      <div className="overflow-hidden rounded-xl border border-border/60 bg-card shadow-card">
-        {/* Header */}
-        <div className="border-b border-border/60 bg-gradient-to-br from-[#7367F0]/10 via-transparent to-transparent px-5 py-5 sm:px-6">
-          <div className="flex items-start justify-between gap-3">
-            {onBack ? (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={onBack}
-                className="-ml-2 h-8 shrink-0 text-muted-foreground"
-              >
-                <ArrowLeft className="mr-1 h-4 w-4" />
-                Back
-              </Button>
-            ) : (
-              <span className="w-16" />
-            )}
-            <div className="min-w-0 flex-1 text-center">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#7367F0]">
-                Step {currentStep} of {STEPS.length}
-              </p>
-              <h1 className="mt-1 text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
-                Set up your profile
-              </h1>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Personalize your interview prep experience
-              </p>
-            </div>
-            <span className="w-16 shrink-0" />
-          </div>
+  const goBackStep = () => {
+    setError("");
+    setCurrentStep((step) => Math.max(step - 1, 1));
+  };
 
-          {/* Step indicator */}
-          <div className="mt-5 flex items-center gap-2">
-            {STEPS.map((step, index) => {
-              const done = currentStep > step.number;
-              const active = currentStep === step.number;
-              const StepIcon = step.icon;
-              return (
-                <div key={step.number} className="flex min-w-0 flex-1 items-center gap-2">
-                  <div
-                    className={cn(
-                      "flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-xs font-semibold transition-colors",
-                      active &&
-                        "border-[#7367F0] bg-[#7367F0] text-white shadow-[0_2px_6px_rgba(115,103,240,0.35)]",
-                      done && "border-emerald-500 bg-emerald-500 text-white",
-                      !active &&
-                        !done &&
-                        "border-border bg-muted/40 text-muted-foreground",
-                    )}
-                  >
-                    {done ? <Check className="h-4 w-4" /> : <StepIcon className="h-3.5 w-3.5" />}
-                  </div>
-                  <span
-                    className={cn(
-                      "hidden truncate text-xs font-medium sm:block",
-                      active ? "text-foreground" : "text-muted-foreground",
-                    )}
-                  >
-                    {step.title}
-                  </span>
-                  {index < STEPS.length - 1 ? (
-                    <div
-                      className={cn(
-                        "mx-1 h-px min-w-[1rem] flex-1",
-                        done ? "bg-emerald-400/70" : "bg-border",
-                      )}
-                    />
-                  ) : null}
-                </div>
-              );
-            })}
+  const activeStep = STEPS[currentStep - 1];
+  const selectedUserTypeLabel =
+    USER_TYPE_OPTIONS.find((option) => option.value === userType)?.label ?? "";
+  const enabledInterviewCount = IX_CATEGORY_KEYS.filter(
+    (key) => interviewOptIns[key],
+  ).length;
+
+  return (
+    <div className="mx-auto w-full max-w-3xl space-y-4">
+      <div className={cn(appCardElevated, "overflow-hidden")}>
+        <div className="relative overflow-hidden border-b border-border/60 bg-gradient-to-br from-[#7367F0]/10 via-transparent to-transparent px-5 py-5 sm:px-6">
+          <OnboardingCardGraphics step={currentStep} />
+          <div className="relative z-10">
+          <p className="text-center text-[11px] font-semibold uppercase tracking-[0.08em] text-[#7367F0]">
+            Step {currentStep} of {STEPS.length}
+          </p>
+          <h1 className="mt-2 text-center text-lg font-semibold tracking-tight text-foreground sm:text-xl">
+            {activeStep.headline}
+          </h1>
+          <p className="mx-auto mt-1 max-w-md text-center text-sm text-muted-foreground">
+            {activeStep.description}
+          </p>
+
+          <div className="mt-6 flex justify-center px-1 sm:px-2">
+            <ol className="flex items-start">
+              {STEPS.map((step, index) => {
+                const done = currentStep > step.number;
+                const active = currentStep === step.number;
+                const StepIcon = step.icon;
+                return (
+                  <li key={step.number} className="flex items-start">
+                    <div className="flex w-[4.25rem] flex-col items-center sm:w-[5.25rem]">
+                      <div
+                        className={cn(
+                          "flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-xs font-semibold transition-colors",
+                          active &&
+                            "border-[#7367F0] bg-[#7367F0] text-white shadow-[0_2px_6px_rgba(115,103,240,0.35)]",
+                          done && "border-emerald-500 bg-emerald-500 text-white",
+                          !active &&
+                            !done &&
+                            "border-border bg-muted/40 text-muted-foreground",
+                        )}
+                      >
+                        {done ? (
+                          <Check className="h-4 w-4" />
+                        ) : (
+                          <StepIcon className="h-3.5 w-3.5" />
+                        )}
+                      </div>
+                      <span
+                        className={cn(
+                          "mt-1.5 text-center text-[10px] font-medium leading-tight sm:text-xs",
+                          active ? "text-foreground" : "text-muted-foreground",
+                        )}
+                      >
+                        {step.title}
+                      </span>
+                    </div>
+                    {index < STEPS.length - 1 ? (
+                      <div
+                        className={cn(
+                          "mt-4 h-px w-5 shrink-0 sm:w-9 md:w-12",
+                          done ? "bg-emerald-400/70" : "bg-border",
+                        )}
+                      />
+                    ) : null}
+                  </li>
+                );
+              })}
+            </ol>
+          </div>
           </div>
         </div>
 
-        {/* Body */}
-        <div className="space-y-8 px-4 py-6 sm:px-6 sm:py-8">
+        <div className="px-5 py-6 sm:px-6">
+          <div
+            key={currentStep}
+            className="animate-fadeInUp"
+            style={{ animation: "fadeInUp 0.45s ease-out both" }}
+          >
           {currentStep === 1 ? (
-            <>
-              <FormSection
-                icon={User}
-                title="Who are you?"
+            <div className="space-y-8">
+              <StepBlock
+                title="Profile type"
                 description="Pick the option that best describes you today."
               >
                 <div className="grid gap-3 sm:grid-cols-3">
-                  {USER_TYPE_OPTIONS.map((option) => {
-                    const Icon = option.icon;
-                    const selected = userType === option.value;
-                    return (
-                      <button
-                        key={option.value}
-                        type="button"
-                        onClick={() => setUserType(option.value)}
-                        className={cn(
-                          "flex flex-col items-start rounded-xl border p-4 text-left transition-all",
-                          selected
-                            ? "border-[#7367F0]/50 bg-[#7367F0]/[0.06] ring-2 ring-[#7367F0]/20"
-                            : "border-border/70 bg-card hover:border-[#7367F0]/30 hover:bg-[#7367F0]/[0.03]",
-                        )}
-                      >
-                        <span
-                          className={cn(
-                            "mb-3 flex h-10 w-10 items-center justify-center rounded-lg",
-                            option.accent,
-                          )}
-                        >
-                          <Icon className="h-5 w-5" />
-                        </span>
-                        <span className="text-sm font-semibold text-foreground">
-                          {option.label}
-                        </span>
-                        <span className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                          {option.description}
-                        </span>
-                      </button>
-                    );
-                  })}
+                  {USER_TYPE_OPTIONS.map((option) => (
+                    <ProfileTypeCard
+                      key={option.value}
+                      selected={userType === option.value}
+                      onSelect={() => {
+                        setUserType(option.value);
+                        setError("");
+                      }}
+                      icon={option.icon}
+                      accent={option.accent}
+                      label={option.label}
+                      description={option.description}
+                    />
+                  ))}
                 </div>
-              </FormSection>
+              </StepBlock>
 
-              <InstitutionAffiliationFields
-                value={affiliation}
-                onChange={setAffiliation}
-                disabled={loading || extracting}
-                embedded
-                collapsible
-              />
-
-              <FormSection
-                icon={Upload}
-                title="Resume upload"
-                description="We'll pre-fill your profile from your CV. You can skip this step."
+              <StepBlock
+                title="College or institution"
+                description="Optional — link your account to your campus for institute features."
               >
-                {!resumeFile ? (
-                  <div
-                    {...getRootProps()}
-                    className={cn(
-                      "flex min-h-[9rem] cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-dashed px-4 py-6 text-center transition-colors",
-                      isDragActive
-                        ? "border-[#7367F0]/60 bg-[#7367F0]/[0.06]"
-                        : "border-border/70 bg-muted/20 hover:border-[#7367F0]/40 hover:bg-[#7367F0]/[0.03]",
-                    )}
-                  >
-                    <input {...getInputProps()} />
-                    <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#7367F0]/10 text-[#7367F0]">
-                      <Upload className="h-5 w-5" />
-                    </span>
-                    <span className="text-sm font-medium text-foreground">
-                      {isDragActive ? "Drop your resume here" : "Drag & drop your resume"}
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      PDF only · Max 5 MB · Optional
-                    </span>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-3 rounded-xl border border-emerald-400/60 bg-emerald-50/50 px-4 py-3 dark:bg-emerald-950/20">
-                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600 dark:bg-emerald-900/40">
-                      <FileText className="h-5 w-5" />
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium text-foreground">
-                        {resumeFile.name}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {(resumeFile.size / 1024 / 1024).toFixed(2)} MB
-                      </p>
-                    </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => setResumeFile(null)}
-                      className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                )}
-              </FormSection>
-            </>
+                <InstitutionAffiliationFields
+                  value={affiliation}
+                  onChange={setAffiliation}
+                  disabled={loading || extracting}
+                  embedded
+                  collapsible
+                />
+              </StepBlock>
+            </div>
           ) : null}
 
           {currentStep === 2 ? (
-            <>
-              <FormSection
-                icon={Sparkles}
-                title={extractedData?.name ? "Review extracted info" : "Your experience"}
+            <StepBlock
+              title="Resume upload"
+              description="We'll pre-fill your profile from your CV. You can continue without uploading."
+            >
+              {!resumeFile ? (
+                <div
+                  {...getRootProps()}
+                  className={cn(
+                    "flex min-h-[12rem] cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-dashed px-4 py-8 text-center transition-colors",
+                    isDragActive
+                      ? "border-[#7367F0]/60 bg-[#7367F0]/[0.06]"
+                      : "border-border/70 bg-muted/20 hover:border-[#7367F0]/40 hover:bg-[#7367F0]/[0.03]",
+                  )}
+                >
+                  <input {...getInputProps()} />
+                  <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#7367F0]/10 text-[#7367F0]">
+                    <Upload className="h-5 w-5" />
+                  </span>
+                  <span className="text-sm font-medium text-foreground">
+                    {isDragActive
+                      ? "Drop your resume here"
+                      : "Drag & drop or click to upload"}
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    PDF only · Max 5 MB · Optional
+                  </span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-3 rounded-xl border border-emerald-500/30 bg-emerald-500/[0.06] p-3.5">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#7367F0]/10 text-[#7367F0]">
+                    <FileText className="h-5 w-5" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold text-foreground">
+                      {resumeFile.name}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {(resumeFile.size / 1024 / 1024).toFixed(2)} MB
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setResumeFile(null)}
+                    className="h-9 w-9 shrink-0 text-muted-foreground hover:text-destructive"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
+            </StepBlock>
+          ) : null}
+
+          {currentStep === 3 ? (
+            <div className="space-y-8">
+              <StepBlock
+                title={
+                  extractedData?.name ? "Review extracted info" : "Your experience"
+                }
                 description={
                   extractedData?.name
                     ? "We pulled these details from your resume. Adjust anything that looks off."
@@ -476,7 +595,9 @@ export function CandidateOnboardingForm({ onBack }: Readonly<CandidateOnboarding
               >
                 {extractedData?.name ? (
                   <div className="rounded-xl border border-border/60 bg-muted/20 px-4 py-3">
-                    <p className="text-xs font-medium text-muted-foreground">Name from resume</p>
+                    <p className="text-xs font-medium text-muted-foreground">
+                      Name from resume
+                    </p>
                     <p className="mt-0.5 text-sm font-semibold text-foreground">
                       {extractedData.name}
                     </p>
@@ -531,11 +652,10 @@ export function CandidateOnboardingForm({ onBack }: Readonly<CandidateOnboarding
                     </FormField>
                   ) : null}
                 </div>
-              </FormSection>
+              </StepBlock>
 
               {userType === "experienced" ? (
-                <FormSection
-                  icon={Briefcase}
+                <StepBlock
                   title="Current role"
                   description="Where you work today — helps us match interview difficulty."
                 >
@@ -577,56 +697,30 @@ export function CandidateOnboardingForm({ onBack }: Readonly<CandidateOnboarding
                       />
                     </div>
                   </div>
-                </FormSection>
+                </StepBlock>
               ) : null}
 
-              <FormSection
-                icon={Eye}
+              <StepBlock
                 title="Which interviews are you practising?"
                 description="Your iX Report is built from the categories you select here. You can change this later from My Profile."
               >
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   {IX_CATEGORY_KEYS.map((key) => {
                     const meta = IX_CATEGORY_META[key];
-                    const active = interviewOptIns[key];
                     return (
-                      <button
+                      <OptInCard
                         key={key}
-                        type="button"
-                        onClick={() => toggleInterviewOpt(key)}
-                        className={cn(
-                          "rounded-xl border p-4 text-left transition-colors",
-                          active
-                            ? "border-[#7367F0] bg-[#7367F0]/5 shadow-sm"
-                            : "border-border/70 bg-card hover:border-[#7367F0]/30",
-                        )}
-                      >
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-sm font-semibold text-foreground">
-                            {meta.label}
-                          </span>
-                          <span
-                            className={cn(
-                              "rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase",
-                              active
-                                ? "bg-[#7367F0] text-white"
-                                : "bg-muted text-muted-foreground",
-                            )}
-                          >
-                            {active ? "On" : "Off"}
-                          </span>
-                        </div>
-                        <p className="mt-2 text-xs text-muted-foreground">
-                          {meta.description}
-                        </p>
-                      </button>
+                        active={interviewOptIns[key]}
+                        onToggle={() => toggleInterviewOpt(key)}
+                        label={meta.label}
+                        description={meta.description}
+                      />
                     );
                   })}
                 </div>
-              </FormSection>
+              </StepBlock>
 
-              <FormSection
-                icon={Sparkles}
+              <StepBlock
                 title="Skills"
                 description="Remove extracted skills with ×, pick from suggestions, or type your own."
               >
@@ -637,149 +731,222 @@ export function CandidateOnboardingForm({ onBack }: Readonly<CandidateOnboarding
                     setReviewData((prev) => ({ ...prev, skills }))
                   }
                 />
-              </FormSection>
+              </StepBlock>
 
               {userType !== "experienced" ? (
-              <FormSection
-                icon={TrendingUp}
-                title="Industry"
-                description="Optional — helps us tailor practice and recruiter discovery."
-              >
-                <FormField label="Industry" htmlFor="onboarding-industry">
-                  <AppSelect
-                    id="onboarding-industry"
-                    value={reviewData.industry}
-                    onChange={(value) =>
-                      setReviewData((prev) => ({ ...prev, industry: value }))
-                    }
-                    allowEmpty
-                    emptyLabel="Not specified"
-                    placeholder="Select industry"
-                    options={industrySelectOptions()}
-                    className={onboardingControlClass}
-                  />
-                </FormField>
-              </FormSection>
+                <StepBlock
+                  title="Industry"
+                  description="Optional — helps us tailor practice and recruiter discovery."
+                >
+                  <FormField label="Industry" htmlFor="onboarding-industry">
+                    <AppSelect
+                      id="onboarding-industry"
+                      value={reviewData.industry}
+                      onChange={(value) =>
+                        setReviewData((prev) => ({ ...prev, industry: value }))
+                      }
+                      allowEmpty
+                      emptyLabel="Not specified"
+                      placeholder="Select industry"
+                      options={industrySelectOptions()}
+                      className={onboardingControlClass}
+                    />
+                  </FormField>
+                </StepBlock>
               ) : null}
-            </>
-          ) : null}
-
-          {currentStep === 3 ? (
-            <div className="flex flex-col items-center py-4 text-center">
-              <span className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600">
-                <CheckCircle className="h-8 w-8" />
-              </span>
-              <h2 className="text-lg font-semibold text-foreground">You&apos;re all set</h2>
-              <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-                Your profile is ready. Hit finish to jump into your dashboard and start
-                practicing.
-              </p>
             </div>
           ) : null}
 
+          {currentStep === 4 ? (
+            <div className="space-y-6">
+              <div className="flex flex-col items-center py-2 text-center">
+                <span className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600">
+                  <CheckCircle className="h-8 w-8" />
+                </span>
+                <p className="max-w-sm text-sm leading-relaxed text-muted-foreground">
+                  Everything looks good. Finish setup to open your dashboard and
+                  start your first practice session.
+                </p>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="rounded-xl border border-border/60 bg-muted/20 px-4 py-3">
+                  <p className="text-xs font-medium text-muted-foreground">Profile</p>
+                  <p className="mt-0.5 text-sm font-semibold text-foreground">
+                    {selectedUserTypeLabel || "—"}
+                  </p>
+                </div>
+                <div className="rounded-xl border border-border/60 bg-muted/20 px-4 py-3">
+                  <p className="text-xs font-medium text-muted-foreground">Resume</p>
+                  <p className="mt-0.5 truncate text-sm font-semibold text-foreground">
+                    {resumeFile ? resumeFile.name : "Skipped"}
+                  </p>
+                </div>
+                <div className="rounded-xl border border-border/60 bg-muted/20 px-4 py-3">
+                  <p className="text-xs font-medium text-muted-foreground">
+                    Interview types
+                  </p>
+                  <p className="mt-0.5 text-sm font-semibold text-foreground">
+                    {enabledInterviewCount} selected
+                  </p>
+                </div>
+                <div className="rounded-xl border border-border/60 bg-muted/20 px-4 py-3">
+                  <p className="text-xs font-medium text-muted-foreground">Skills</p>
+                  <p className="mt-0.5 text-sm font-semibold text-foreground">
+                    {reviewData.skills.length > 0
+                      ? `${reviewData.skills.length} added`
+                      : "None yet"}
+                  </p>
+                </div>
+              </div>
+            </div>
+          ) : null}
+          </div>
+
           {error ? (
-            <div className="flex items-start gap-2 rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
-              <X className="mt-0.5 h-4 w-4 shrink-0" />
+            <div className="mt-6 flex items-start gap-2.5 rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
               <span>{error}</span>
             </div>
           ) : null}
-        </div>
 
-        {/* Footer */}
-        <div className="flex flex-col-reverse gap-3 border-t border-border/60 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-          {currentStep > 1 ? (
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setCurrentStep((s) => s - 1)}
-              disabled={loading || extracting}
-              className="w-full sm:w-auto"
-            >
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Back
-            </Button>
-          ) : (
-            <span className="hidden sm:block" />
-          )}
+          <div className="mt-8 flex flex-col-reverse gap-3 border-t border-border/60 pt-6 sm:flex-row sm:items-center sm:justify-between">
+            {currentStep > 1 ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="lg"
+                onClick={goBackStep}
+                disabled={loading || extracting}
+                className="w-full sm:w-auto"
+              >
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Back
+              </Button>
+            ) : currentStep < 4 ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="lg"
+                onClick={() => void completeOnboarding(true)}
+                disabled={loading || extracting || !userType}
+                className="w-full sm:w-auto"
+              >
+                Skip for now
+              </Button>
+            ) : (
+              <span className="hidden sm:block" />
+            )}
 
-          <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
-            {currentStep === 1 ? (
-              <>
+            <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+              {currentStep === 1 ? (
                 <Button
                   type="button"
-                  variant="outline"
-                  onClick={() => void completeOnboarding(true)}
-                  disabled={loading || extracting || !userType}
-                  className="w-full sm:w-auto"
+                  size="lg"
+                  onClick={handleStep1Next}
+                  disabled={!userType}
+                  className={cn(
+                    "h-12 w-full px-8 text-base font-semibold sm:w-auto",
+                    appPrimaryButton,
+                  )}
                 >
-                  Skip for now
+                  Continue
+                  <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
+              ) : null}
+
+              {currentStep === 2 ? (
                 <Button
                   type="button"
-                  onClick={() => void handleStep1Next()}
-                  disabled={extracting || !userType}
-                  className={cn("w-full sm:w-auto", appPrimaryButton)}
+                  size="lg"
+                  onClick={() => void handleStep2Next()}
+                  disabled={extracting}
+                  className={cn(
+                    "h-12 w-full px-8 text-base font-semibold sm:w-auto",
+                    appPrimaryButton,
+                  )}
                 >
                   {extracting ? (
                     <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                       Reading resume…
                     </>
                   ) : (
                     <>
                       Continue
-                      <ArrowRight className="ml-2 h-4 w-4" />
+                      <ArrowRight className="ml-2 h-5 w-5" />
                     </>
                   )}
                 </Button>
-              </>
-            ) : null}
+              ) : null}
 
-            {currentStep === 2 ? (
-              <>
+              {currentStep === 3 ? (
+                <>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="lg"
+                    onClick={() => void completeOnboarding(false)}
+                    disabled={loading}
+                    className="w-full sm:w-auto sm:hidden"
+                  >
+                    Skip for now
+                  </Button>
+                  <Button
+                    type="button"
+                    size="lg"
+                    onClick={() => {
+                      setError("");
+                      setCurrentStep(4);
+                    }}
+                    disabled={loading}
+                    className={cn(
+                      "h-12 w-full px-8 text-base font-semibold sm:w-auto",
+                      appPrimaryButton,
+                    )}
+                  >
+                    Continue
+                    <ArrowRight className="ml-2 h-5 w-5" />
+                  </Button>
+                </>
+              ) : null}
+
+              {currentStep === 4 ? (
                 <Button
                   type="button"
-                  variant="outline"
+                  size="lg"
                   onClick={() => void completeOnboarding(false)}
                   disabled={loading}
-                  className="w-full sm:w-auto"
+                  className={cn(
+                    "h-12 w-full px-8 text-base font-semibold sm:w-auto",
+                    appPrimaryButton,
+                  )}
                 >
-                  Skip for now
+                  {loading ? (
+                    <>
+                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                      Finishing…
+                    </>
+                  ) : (
+                    <>
+                      Finish setup
+                      <CheckCircle className="ml-2 h-5 w-5" />
+                    </>
+                  )}
                 </Button>
-                <Button
-                  type="button"
-                  onClick={() => setCurrentStep(3)}
-                  disabled={loading}
-                  className={cn("w-full sm:w-auto", appPrimaryButton)}
-                >
-                  Continue
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
-              </>
-            ) : null}
-
-            {currentStep === 3 ? (
-              <Button
-                type="button"
-                onClick={() => void completeOnboarding(false)}
-                disabled={loading}
-                className={cn("w-full sm:w-auto", appPrimaryButton)}
-              >
-                {loading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Finishing…
-                  </>
-                ) : (
-                  <>
-                    Finish setup
-                    <CheckCircle className="ml-2 h-4 w-4" />
-                  </>
-                )}
-              </Button>
-            ) : null}
+              ) : null}
+            </div>
           </div>
         </div>
+      </div>
+
+      <div className={cn(appSurfaceMuted, "px-4 py-3.5 text-center sm:px-5")}>
+        <p className="text-xs leading-relaxed text-muted-foreground sm:text-sm">
+          You can update profile details, skills, and interview preferences anytime
+          from{" "}
+          <span className="font-medium text-foreground">My Profile</span> in your
+          dashboard.
+        </p>
       </div>
     </div>
   );
