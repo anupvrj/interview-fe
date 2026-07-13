@@ -4,6 +4,8 @@
 
 @layer base {
   :root {
+    --font-sans: "Public Sans", ui-sans-serif, system-ui, -apple-system,
+      BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     /* Vuexy-inspired palette (#7367F0 primary, #F8F7FA canvas) */
     --background: 240 20% 98%;
     --foreground: 254 16% 21%;

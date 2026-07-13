@@ -54,11 +54,11 @@ export const meridianExtendedConfig: Partial<ExtendedResumeTemplate> = {
     },
     headerStyle: "centered",
     sectionSpacing: 10,
-    padding: { top: 10, bottom: 10, left: 14, right: 14 },
+    padding: { top: 5, bottom: 10, left: 14, right: 14 },
     sectionHeader: {
       style: "border-bottom",
       borderWidth: 1,
-      borderColor: "#cfcfcf",
+      borderColor: "#1a1a1a",
       textAlign: "left",
       fontSize: 12,
       fontWeight: "bold",
@@ -70,6 +70,7 @@ export const meridianExtendedConfig: Partial<ExtendedResumeTemplate> = {
     skillsDisplay: { type: "bullets", showRatings: false, columns: 3 },
     timelineLayout: { type: "vertical", datePosition: "right" },
     contactDisplay: { type: "text", layout: "horizontal" },
+    useCSSClassesForHeader: true,
   },
   rendering: {
     pageBreak: { enabled: true, calculateDynamically: true },
@@ -87,7 +88,7 @@ export const meridianExtendedConfig: Partial<ExtendedResumeTemplate> = {
     { id: "awards", type: "awards", title: "Key Achievements", visible: true },
     { id: "experience", type: "experience", title: "Professional Experience", visible: true },
     { id: "education", type: "education", title: "Education", visible: true },
-    { id: "interests", type: "interests", title: "Additional Information", visible: false },
+    { id: "interests", type: "interests", title: "Additional Information", visible: true },
   ],
 };
 

@@ -64,6 +64,12 @@ import {
 } from "@/lib/api";
 import { getPeerInterviewUnlockStatus } from "@/lib/peer-interviews";
 import {
+  buildDashboardRecentSessions,
+  countDashboardSessionsByFilter,
+  filterDashboardSessions,
+  type DashboardSessionFilter,
+} from "@/lib/dashboard-recent-sessions";
+import {
   cn,
   getInterviewCreditsUsed,
   scheduledInterviewCanStartNow,
@@ -83,12 +89,6 @@ import { RecentInterviewsList } from "@/components/dashboard/RecentInterviewsLis
 import { DashboardResumesList } from "@/components/dashboard/DashboardResumesList";
 import { PracticeSessionGateDialogs } from "@/components/upsell/PracticeSessionGateDialogs";
 import { usePracticeSessionGate } from "@/components/upsell/usePracticeSessionGate";
-import {
-  buildDashboardRecentSessions,
-  countDashboardSessionsByFilter,
-  filterDashboardSessions,
-  type DashboardSessionFilter,
-} from "@/lib/dashboard-recent-sessions";
 
 const ONBOARDING_BANNER_DISMISSED_KEY = "dashboard-onboarding-banner-dismissed";
 

@@ -28,7 +28,7 @@ export const confidentgridTemplate: ResumeTemplate = {
     accent: "#2f5fa6",
     text: "#000000",
     background: "#ffffff",
-    headerBackground: "#deeef7",
+    headerBackground: "#d8e5ec",
   },
   layout: {
     headerStyle: "left",
@@ -74,7 +74,7 @@ export const confidentgridExtendedConfig: Partial<ExtendedResumeTemplate> = {
       accent: "#2f5fa6",
       text: "#000000",
       background: "#ffffff",
-      headerBackground: "#deeef7",
+      headerBackground: "#d8e5ec",
     },
     headerStyle: "left",
     sectionSpacing: 12,
@@ -82,7 +82,7 @@ export const confidentgridExtendedConfig: Partial<ExtendedResumeTemplate> = {
     sectionHeader: {
       style: "border-bottom",
       borderWidth: 1,
-      borderColor: "#b0c4de",
+      borderColor: "#b9cad4",
       textAlign: "left",
       fontSize: 12,
       fontWeight: "bold",

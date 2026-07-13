@@ -72,6 +72,11 @@ interface PreviewFrame {
   template: ResumeTemplate;
 }
 
+/** Bleed at continuation page tops so ascenders are not clipped at the cut. */
+const PAGE_CLIP_BLEED_PX = 8;
+/** Extra breathing room at the top of page 2+ after a page break. */
+const CONTINUATION_PAGE_TOP_PAD_PX = 10;
+
 export const PaginatedPreview: React.FC<PaginatedPreviewProps> = ({
   resume,
   template,
@@ -315,7 +320,14 @@ export const PaginatedPreview: React.FC<PaginatedPreviewProps> = ({
           style={{ paddingRight: onPageDelete ? "44px" : undefined }}
         >
           <div className="flex flex-col items-center">
-            {visiblePages.map((page, index) => (
+            {visiblePages.map((page, index) => {
+              const isContinuationPage = index > 0;
+              const topBleed = isContinuationPage ? PAGE_CLIP_BLEED_PX : 0;
+              const continuationPad = isContinuationPage
+                ? CONTINUATION_PAGE_TOP_PAD_PX
+                : 0;
+
+              return (
               <div
                 key={`page-wrap-${index}-${frame.key}`}
                 className="relative mb-5"
@@ -346,7 +358,9 @@ export const PaginatedPreview: React.FC<PaginatedPreviewProps> = ({
                       top: `${TOP_MARGIN_MM}mm`,
                       left: 0,
                       width: `${A4_WIDTH_MM}mm`,
-                      height: `${page.height}px`,
+                      height: `${page.height + topBleed + continuationPad}px`,
+                      paddingTop: `${continuationPad}px`,
+                      boxSizing: "border-box",
                       overflow: "hidden",
                       background: isAtlanticBlue
                         ? ATLANTIC_BLUE_PAGINATED_PAGE_BG
@@ -356,7 +370,7 @@ export const PaginatedPreview: React.FC<PaginatedPreviewProps> = ({
                     <div
                       style={{
                         position: "absolute",
-                        top: `-${Math.floor(page.offsetY)}px`,
+                        top: `-${page.offsetY - topBleed}px`,
                         left: 0,
                         width: "100%",
                       }}
@@ -399,7 +413,8 @@ export const PaginatedPreview: React.FC<PaginatedPreviewProps> = ({
                   </button>
                 ) : null}
               </div>
-            ))}
+            );
+            })}
           </div>
         </div>
       )}
