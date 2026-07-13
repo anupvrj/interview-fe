@@ -185,6 +185,8 @@ export function RecentInterviewsList({
   onDelete,
   getDraftActiveHref,
   emptyDescription,
+  emptyCtaHref,
+  emptyCtaLabel,
 }: {
   interviews?: Interview[];
   sessionRows?: DashboardRecentSessionRow[];
@@ -195,6 +197,8 @@ export function RecentInterviewsList({
   onDelete?: (interviewId: string) => void;
   getDraftActiveHref?: (interviewId: string) => string;
   emptyDescription?: ReactNode;
+  emptyCtaHref?: string | null;
+  emptyCtaLabel?: string;
 }) {
   const useUnified = sessionRows != null;
   const listLength = useUnified ? sessionRows.length : (interviews?.length ?? 0);
@@ -224,6 +228,10 @@ export function RecentInterviewsList({
   };
 
   if (listLength === 0) {
+    const ctaHref =
+      emptyCtaHref === null
+        ? null
+        : (emptyCtaHref ?? "/dashboard/interviews/new");
     return (
       <div className="px-5 py-16 text-center">
         <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-xl bg-[#7367F0]/10">
@@ -236,11 +244,14 @@ export function RecentInterviewsList({
           {emptyDescription ??
             "Start AI interview practice for your target role and company."}
         </p>
-        <Link href="/dashboard/interviews/new">
-          <Button className={institutePrimaryClass}>
-            <Plus className="mr-2 h-4 w-4" /> Create your first interview
-          </Button>
-        </Link>
+        {ctaHref ? (
+          <Link href={ctaHref}>
+            <Button className={institutePrimaryClass}>
+              <Plus className="mr-2 h-4 w-4" />{" "}
+              {emptyCtaLabel ?? "Create your first interview"}
+            </Button>
+          </Link>
+        ) : null}
       </div>
     );
   }

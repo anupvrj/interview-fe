@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Clock, Copy, Loader2, Video } from "lucide-react";
+import { Clock, Loader2, Video } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -59,9 +59,6 @@ export function InterviewerSlotFormDialog({
   const [date, setDate] = useState("");
   const [time, setTime] = useState("17:00");
   const [duration, setDuration] = useState(60);
-  const [videoLink, setVideoLink] = useState("");
-  const [googleMeetSpaceName, setGoogleMeetSpaceName] = useState("");
-  const [generatingMeet, setGeneratingMeet] = useState(false);
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [scheduleMode, setScheduleMode] = useState<PeerSlotScheduleMode>("once");
@@ -82,8 +79,6 @@ export function InterviewerSlotFormDialog({
       setDate(toDateInputValueInTimezone(start, timezone));
       setTime(toTimeInputValueInTimezone(start, timezone));
       setDuration(slot.durationMins);
-      setVideoLink(slot.googleMeetSpaceName ? (slot.videoLink ?? "") : "");
-      setGoogleMeetSpaceName(slot.googleMeetSpaceName ?? "");
       setSelectedTypes([...slot.availableForTypes]);
     } else {
       const day = createDay ?? new Date();
@@ -92,8 +87,6 @@ export function InterviewerSlotFormDialog({
       setDate(dayStr);
       setTime("17:00");
       setDuration(60);
-      setVideoLink("");
-      setGoogleMeetSpaceName("");
       setSelectedTypes([]);
       setScheduleMode("once");
       setRecurringWeekdays([weekdayOfDateParts(year, month, dom)]);
@@ -105,32 +98,6 @@ export function InterviewerSlotFormDialog({
     setSelectedTypes((prev) =>
       prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key],
     );
-  };
-
-  const generateMeetLink = async () => {
-    setGeneratingMeet(true);
-    try {
-      if (slot?.id) {
-        const updated = await peerApi.generateMeetLink(slot.id);
-        setVideoLink(updated.videoLink ?? "");
-        setGoogleMeetSpaceName(updated.googleMeetSpaceName ?? "");
-      } else {
-        const created = await peerApi.createMeetSpace();
-        setVideoLink(created.videoLink);
-        setGoogleMeetSpaceName(created.googleMeetSpaceName);
-      }
-      toast.success("Google Meet link generated");
-    } catch (e: any) {
-      toast.error(e?.response?.data?.message || "Could not generate Meet link");
-    } finally {
-      setGeneratingMeet(false);
-    }
-  };
-
-  const copyMeetLink = async () => {
-    if (!videoLink.trim()) return;
-    await navigator.clipboard.writeText(videoLink.trim());
-    toast.success("Meeting link copied");
   };
 
   const handleScheduleModeChange = (mode: PeerSlotScheduleMode) => {
@@ -153,8 +120,6 @@ export function InterviewerSlotFormDialog({
         })
       : 0;
 
-  const requiresMeetUpfront = Boolean(slot) || scheduleMode === "once";
-
   const saveSlot = async () => {
     if (!date || !time) {
       toast.error("Pick a date and time");
@@ -162,10 +127,6 @@ export function InterviewerSlotFormDialog({
     }
     if (selectedTypes.length === 0) {
       toast.error("Select at least one interview type");
-      return;
-    }
-    if (requiresMeetUpfront && (!videoLink.trim() || !googleMeetSpaceName.trim())) {
-      toast.error("Generate a Google Meet link before saving");
       return;
     }
     const start = buildSlotStartInTimezone(date, time, timezone);
@@ -180,11 +141,6 @@ export function InterviewerSlotFormDialog({
       }
     }
     const end = new Date(start.getTime() + duration * 60000);
-    const meetPayload = {
-      videoLink: videoLink.trim(),
-      googleMeetSpaceName: googleMeetSpaceName.trim(),
-      videoLinkSource: "google_meet_api" as const,
-    };
     setSaving(true);
     try {
       if (slot) {
@@ -192,7 +148,6 @@ export function InterviewerSlotFormDialog({
           start: start.toISOString(),
           end: end.toISOString(),
           availableForTypes: selectedTypes,
-          ...meetPayload,
         });
         toast.success("Slot updated");
       } else if (scheduleMode === "weekly") {
@@ -219,18 +174,17 @@ export function InterviewerSlotFormDialog({
           slots,
           availableForTypes: selectedTypes,
         });
-        const skipped = result.skippedPast + result.skippedOverlap + result.skippedMeet;
+        const skipped = result.skippedPast + result.skippedOverlap;
         toast.success(
           skipped > 0
-            ? `Created ${result.created.length} slots with unique Meet links (${skipped} skipped)`
-            : `Created ${result.created.length} slots with unique Meet links`,
+            ? `Created ${result.created.length} slots (${skipped} skipped)`
+            : `Created ${result.created.length} slots`,
         );
       } else {
         await peerApi.createSlot({
           start: start.toISOString(),
           end: end.toISOString(),
           availableForTypes: selectedTypes,
-          ...meetPayload,
         });
         toast.success("Slot created");
       }
@@ -245,9 +199,6 @@ export function InterviewerSlotFormDialog({
       setSaving(false);
     }
   };
-
-  const legacyManualSlot =
-    Boolean(slot) && !slot?.googleMeetSpaceName && slot?.videoLinkSource === "manual";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -338,80 +289,19 @@ export function InterviewerSlotFormDialog({
             </div>
           </section>
 
-          <section className="space-y-3">
-            <div className="flex items-center gap-2">
-              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#7367F0]/10 text-[#7367F0]">
+          <section className="rounded-xl border border-border/60 bg-muted/20 p-4">
+            <div className="flex items-start gap-3">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#7367F0]/10 text-[#7367F0]">
                 <Video className="h-4 w-4" />
               </span>
-              <div>
-                <p className="text-sm font-semibold">Meeting link</p>
-                <p className="text-xs text-muted-foreground">
-                  {requiresMeetUpfront
-                    ? "Generate a Google Meet room with auto-transcription. Calendar invites are sent after payment when the interview is confirmed."
-                    : "A unique Google Meet room is created automatically for each slot when you save this weekly schedule."}
+              <div className="space-y-1">
+                <p className="text-sm font-semibold">Google Meet</p>
+                <p className="text-xs leading-relaxed text-muted-foreground">
+                  No need to create a meeting link now. A unique Google Meet room is generated
+                  automatically when the candidate pays and the interview is confirmed. Calendar
+                  invites are sent at that time.
                 </p>
               </div>
-            </div>
-
-            <div className="space-y-3 rounded-xl border border-border/60 bg-muted/20 p-4">
-              {legacyManualSlot ? (
-                <p className="text-xs text-amber-700 dark:text-amber-300">
-                  This slot uses a legacy custom link. Generate a Google Meet link to update it.
-                </p>
-              ) : null}
-
-              {!requiresMeetUpfront ? (
-                <p className="text-sm text-muted-foreground">
-                  No need to generate a link now — each of the{" "}
-                  {recurringCreateCount > 0 ? recurringCreateCount : "scheduled"} slots will get
-                  its own Meet room.
-                </p>
-              ) : (
-                <>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    disabled={generatingMeet}
-                    onClick={() => void generateMeetLink()}
-                    className="gap-1"
-                  >
-                    {generatingMeet ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    ) : (
-                      <Video className="h-3.5 w-3.5" />
-                    )}
-                    {videoLink ? "Regenerate Google Meet link" : "Generate Google Meet link"}
-                  </Button>
-
-                  {videoLink ? (
-                    <div className="flex items-start gap-2 sm:gap-3">
-                      <a
-                        href={videoLink}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="min-w-0 flex-1 break-all text-sm leading-relaxed text-[#7367F0] hover:underline"
-                      >
-                        {videoLink}
-                      </a>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => void copyMeetLink()}
-                        className="h-8 shrink-0 px-2 text-muted-foreground hover:text-foreground"
-                      >
-                        <Copy className="mr-1 h-3.5 w-3.5" />
-                        Copy
-                      </Button>
-                    </div>
-                  ) : (
-                    <p className="text-xs text-muted-foreground">
-                      A Google Meet link is required for every slot.
-                    </p>
-                  )}
-                </>
-              )}
             </div>
           </section>
         </div>
