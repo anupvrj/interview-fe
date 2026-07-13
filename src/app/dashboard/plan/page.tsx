@@ -14,6 +14,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Crown,
   Loader2,
@@ -371,6 +372,7 @@ export default function PlanPage() {
   }
 
   const normalizedPlan = normalizeSubscriptionPlan(subscription?.plan);
+  const isTrialPlan = normalizedPlan === "trial";
   const currentPlanRecord = allPlans.find((p) => p.planId === normalizedPlan);
   const isPendingActivation = activationState === "pending";
   const isFailedActivation = activationState === "failed";
@@ -380,15 +382,22 @@ export default function PlanPage() {
     "Your plan";
   const planName = isPendingActivation
     ? `Activating ${pendingPlanName}`
-    : normalizedPlan === "free"
-      ? "Free tier"
-      : currentPlanRecord?.displayName || currentPlanRecord?.name || "Your plan";
+    : isTrialPlan
+      ? "Trial Pass"
+      : normalizedPlan === "free"
+        ? "Free tier"
+        : currentPlanRecord?.displayName || currentPlanRecord?.name || "Your plan";
 
-  const nextPlan = getNextPlan(normalizedPlan);
-  const isPaidPlan = normalizedPlan !== "free" && !isPendingActivation;
+  const nextPlan = isTrialPlan
+    ? getNextPlan("free")
+    : getNextPlan(normalizedPlan);
+  const isPaidPlan =
+    normalizedPlan !== "free" && !isPendingActivation && !isTrialPlan;
   const displayCredits =
     creditBalance?.available ?? subscription?.creditsAvailable ?? 0;
-  const monthlyCredits = currentPlanRecord?.creditsIncluded?.monthly ?? 0;
+  const monthlyCredits = isTrialPlan
+    ? 200
+    : (currentPlanRecord?.creditsIncluded?.monthly ?? 0);
   const creditProgress =
     monthlyCredits > 0
       ? Math.min(100, (displayCredits / monthlyCredits) * 100)
@@ -399,6 +408,8 @@ export default function PlanPage() {
       : "Awaiting payment"
     : isFailedActivation
       ? "Payment failed"
+      : isTrialPlan
+        ? "Trial active"
       : subscription?.status === "cancelled"
         ? "Cancelled"
         : isPaidPlan
@@ -754,26 +765,23 @@ export default function PlanPage() {
             </div>
 
             <div className="space-y-3">
-              <label
-                htmlFor="credit-amount"
-                className="text-sm font-medium text-foreground"
-              >
-                Credit amount
-              </label>
-              <Input
-                id="credit-amount"
-                type="number"
-                placeholder="e.g. 500 (min 300)"
-                value={customCreditAmount}
-                onChange={(e) => handleCreditAmountChange(e.target.value)}
-                min="300"
-                step="50"
-                className={cn(
-                  "h-11 text-base",
-                  creditAmountError &&
-                    "border-destructive focus-visible:ring-destructive",
-                )}
-              />
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="credit-amount">Credit amount</Label>
+                <Input
+                  id="credit-amount"
+                  type="number"
+                  placeholder="e.g. 500 (min 300)"
+                  value={customCreditAmount}
+                  onChange={(e) => handleCreditAmountChange(e.target.value)}
+                  min="300"
+                  step="50"
+                  className={cn(
+                    "h-11 w-full text-base",
+                    creditAmountError &&
+                      "border-destructive focus-visible:ring-destructive",
+                  )}
+                />
+              </div>
               {creditAmountError ? (
                 <p className="flex items-center gap-1.5 text-xs font-medium text-destructive">
                   <AlertTriangle className="h-3.5 w-3.5 shrink-0" />

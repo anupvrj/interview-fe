@@ -53,8 +53,9 @@ import { appHeroBullet, appHeroCaption } from "@/lib/app-theme";
 import { DashboardStatCard } from "@/components/dashboard/DashboardStatCard";
 import { RecentInterviewsList } from "@/components/dashboard/RecentInterviewsList";
 import { filterInterviewsByType } from "@/lib/interview-kind";
-import { SubscriptionExpiredDialog } from "@/components/SubscriptionExpiredDialog";
-import { useSubscriptionExpiredGate } from "@/hooks/useSubscriptionExpiredGate";
+import { PracticeSessionGateDialogs } from "@/components/upsell/PracticeSessionGateDialogs";
+import { PracticeLockedGate } from "@/components/upsell/PracticeLockedGate";
+import { usePracticeSessionGate } from "@/components/upsell/usePracticeSessionGate";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -71,11 +72,13 @@ export default function InterviewsPage() {
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [deleteBusy, setDeleteBusy] = useState(false);
   const {
-    open: subscriptionExpiredOpen,
-    setOpen: setSubscriptionExpiredOpen,
-    checking: checkingSubscription,
-    navigateToNewSession,
-  } = useSubscriptionExpiredGate();
+    startPracticeSession,
+    checkingSubscription,
+    canUse,
+    showTrialUpsell,
+    entitlementsLoading,
+    ...practiceGate
+  } = usePracticeSessionGate();
 
   useEffect(() => {
     if (isLoaded && user) {
@@ -164,6 +167,8 @@ export default function InterviewsPage() {
         ) / scoredInterviews.length
       : 0;
   const totalCreditsUsed = sumInterviewCreditsUsed(screeningInterviews);
+  const aiPracticeLocked =
+    !entitlementsLoading && !canUse("aiMockInterview");
 
   return (
     <div className="w-full max-w-7xl mx-auto space-y-4 lg:space-y-6">
@@ -275,7 +280,9 @@ export default function InterviewsPage() {
                   size="lg"
                   disabled={checkingSubscription}
                   onClick={() =>
-                    navigateToNewSession("/dashboard/interviews/new")
+                    startPracticeSession("ai", {
+                      path: "/dashboard/interviews/new",
+                    })
                   }
                   className={cn(
                     institutePrimaryClass,
@@ -344,6 +351,10 @@ export default function InterviewsPage() {
         </div>
       </section>
 
+      {aiPracticeLocked ? (
+        <PracticeLockedGate type="ai" showTrialUpsell={showTrialUpsell} />
+      ) : (
+        <>
       {/* Quick Stats — screening round counts (table below is screening-only) */}
       {interviews.length > 0 && (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-2 xl:grid-cols-4">
@@ -427,7 +438,11 @@ export default function InterviewsPage() {
             <Button
               type="button"
               disabled={checkingSubscription}
-              onClick={() => navigateToNewSession("/dashboard/interviews/new")}
+              onClick={() =>
+                startPracticeSession("ai", {
+                  path: "/dashboard/interviews/new",
+                })
+              }
               className={institutePrimaryClass}
             >
               {checkingSubscription ? (
@@ -641,6 +656,8 @@ export default function InterviewsPage() {
           )}
         </CardContent>
       </Card>
+        </>
+      )}
 
       <Dialog
         open={!!deleteConfirmId}
@@ -705,10 +722,7 @@ export default function InterviewsPage() {
         </DialogContent>
       </Dialog>
 
-      <SubscriptionExpiredDialog
-        open={subscriptionExpiredOpen}
-        onOpenChange={setSubscriptionExpiredOpen}
-      />
+      <PracticeSessionGateDialogs {...practiceGate} />
     </div>
   );
 }

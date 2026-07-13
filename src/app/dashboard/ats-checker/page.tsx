@@ -3,9 +3,13 @@
 import React, { useCallback, useEffect, useState, Suspense } from "react";
 import { useUser } from "@clerk/nextjs";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowRight, RefreshCw, RotateCcw } from "lucide-react";
+import { ArrowRight, Lock, RefreshCw, RotateCcw, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { isATSReportV3, resumeApi } from "@/lib/api";
+import { useEntitlements } from "@/hooks/useEntitlements";
+import { TrialUpsellDialog } from "@/components/upsell/TrialUpsellDialog";
+import { UpgradeUpsellDialog } from "@/components/upsell/UpgradeUpsellDialog";
+import { useUpsellState } from "@/components/upsell/useUpsellState";
 import {
   clearPendingATSUpload,
   loadPendingATSUpload,
@@ -54,6 +58,12 @@ function DashboardATSCheckerContent() {
   const [improving, setImproving] = useState(false);
   const [improveStep, setImproveStep] = useState(0);
   const [currentTemplateId, setCurrentTemplateId] = useState<string | undefined>();
+  const [trialUpsellOpen, setTrialUpsellOpen] = useState(false);
+  const [upgradeUpsellOpen, setUpgradeUpsellOpen] = useState(false);
+  const { canUse } = useEntitlements();
+  const { needsTrial, getUpgradeTarget, data: entitlements } = useUpsellState();
+  const globalOptimizerEnabled = canUse("oneClickResumeOptimizer");
+  const upgradeTarget = getUpgradeTarget("oneClickResumeOptimizer");
 
   const loadExistingReport = useCallback(async (id: string) => {
     try {
@@ -168,6 +178,15 @@ function DashboardATSCheckerContent() {
 
   const handleImproveScore = async () => {
     if (!resumeId || improving) return;
+
+    if (!globalOptimizerEnabled) {
+      if (needsTrial) {
+        setTrialUpsellOpen(true);
+      } else {
+        setUpgradeUpsellOpen(true);
+      }
+      return;
+    }
 
     setImproving(true);
     setError(null);
@@ -304,30 +323,60 @@ function DashboardATSCheckerContent() {
               </p>
             </div>
 
-            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
+            <div className="flex flex-row flex-wrap gap-2 sm:justify-end">
               <Button
                 size="lg"
                 onClick={() => void handleImproveScore()}
                 disabled={improving || !resumeId}
-                className="bg-primary text-white hover:bg-primary/90"
+                className="h-10 min-w-0 flex-1 gap-1.5 bg-primary px-2 text-xs text-white hover:bg-primary/90 sm:h-11 sm:flex-none sm:gap-2 sm:px-6 sm:text-sm"
+                title={
+                  globalOptimizerEnabled
+                    ? "Improve your resume"
+                    : "Improve your resume (trial or paid plan required)"
+                }
               >
-                Improve your resume
-                <ArrowRight className="ml-2 h-4 w-4" />
+                {globalOptimizerEnabled ? (
+                  <TrendingUp className="h-4 w-4 shrink-0 sm:hidden" />
+                ) : (
+                  <Lock className="h-4 w-4 shrink-0 sm:hidden" />
+                )}
+                <span className="truncate sm:hidden">
+                  {globalOptimizerEnabled ? "Improve" : "Improve (locked)"}
+                </span>
+                <span className="hidden sm:inline">
+                  {globalOptimizerEnabled
+                    ? "Improve your resume"
+                    : "Improve your resume (upgrade)"}
+                </span>
+                <ArrowRight className="hidden h-4 w-4 sm:ml-1 sm:inline" />
               </Button>
               <Button
                 size="lg"
                 variant="outline"
                 onClick={handleRerun}
                 disabled={rerunning || !resumeId}
+                className="h-10 min-w-0 flex-1 gap-1.5 px-2 text-xs sm:h-11 sm:flex-none sm:gap-2 sm:px-6 sm:text-sm"
+                title="Re-run ATS check"
               >
                 <RefreshCw
-                  className={cn("mr-2 h-4 w-4", rerunning && "animate-spin")}
+                  className={cn(
+                    "h-4 w-4 shrink-0",
+                    rerunning && "animate-spin",
+                  )}
                 />
-                Re-run ATS check
+                <span className="truncate sm:hidden">Re-run</span>
+                <span className="hidden sm:inline">Re-run ATS check</span>
               </Button>
-              <Button size="lg" variant="outline" onClick={handleCheckAnother}>
-                <RotateCcw className="mr-2 h-4 w-4" />
-                Check another resume
+              <Button
+                size="lg"
+                variant="outline"
+                onClick={handleCheckAnother}
+                className="h-10 min-w-0 flex-1 gap-1.5 px-2 text-xs sm:h-11 sm:flex-none sm:gap-2 sm:px-6 sm:text-sm"
+                title="Check another resume"
+              >
+                <RotateCcw className="h-4 w-4 shrink-0" />
+                <span className="truncate sm:hidden">Another</span>
+                <span className="hidden sm:inline">Check another resume</span>
               </Button>
             </div>
           </div>
@@ -348,6 +397,22 @@ function DashboardATSCheckerContent() {
           />
         </div>
       )}
+
+      <TrialUpsellDialog
+        open={trialUpsellOpen}
+        onOpenChange={setTrialUpsellOpen}
+        variant="feature_locked"
+        hasPurchasedTrial={
+          entitlements ? !entitlements.canPurchaseTrial : false
+        }
+      />
+      <UpgradeUpsellDialog
+        open={upgradeUpsellOpen}
+        onOpenChange={setUpgradeUpsellOpen}
+        title="One-click optimizer"
+        description="Apply AI fixes to your entire resume in one click. Included in trial and paid plans."
+        targetPlan={upgradeTarget?.plan ?? "general_pass"}
+      />
     </div>
   );
 }

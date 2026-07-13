@@ -7,10 +7,10 @@ import { RESUME_IMPORT_PROCESSING_MESSAGES } from "@/lib/resume-data-import";
 
 function ResumeScanMock({ active }: { active: boolean }) {
   return (
-    <div className="relative mx-auto w-full max-w-[240px]">
+    <div className="relative mx-auto w-full max-w-[200px] sm:max-w-[240px]">
       <div className="relative overflow-hidden rounded-xl border border-border/80 bg-card shadow-lg">
         <div className="h-2 bg-gradient-to-r from-primary/30 via-primary/50 to-primary/30" />
-        <div className="space-y-2.5 p-4">
+        <div className="space-y-2.5 p-3 sm:p-4">
           <div className="h-3 w-3/4 rounded-md bg-foreground/12" />
           <div className="h-2 w-1/2 rounded-md bg-foreground/8" />
           <div className="space-y-1.5 pt-1">
@@ -56,8 +56,8 @@ function ResumeScanMock({ active }: { active: boolean }) {
       </div>
 
       {active && (
-        <div className="mt-4 flex items-center justify-center gap-2 text-sm font-medium text-primary">
-          <ScanLine className="h-4 w-4 animate-pulse" />
+        <div className="mt-3 flex items-center justify-center gap-2 text-xs font-medium text-primary sm:mt-4 sm:text-sm">
+          <ScanLine className="h-3.5 w-3.5 animate-pulse sm:h-4 sm:w-4" />
           Scanning document…
         </div>
       )}
@@ -97,42 +97,53 @@ export function ResumeImportProcessingView({
   }, [steps.length]);
 
   return (
-    <div className="mx-auto w-full max-w-4xl">
-      <div className="mb-8 text-center sm:mb-10">
-        <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-4 py-1.5 text-sm font-medium text-primary">
-          <Loader2 className="h-4 w-4 animate-spin" />
-          {headerLabel}
+    <div className="mx-auto w-full min-w-0 max-w-4xl overflow-hidden">
+      <div className="mb-5 px-1 text-center sm:mb-8 sm:px-0 md:mb-10">
+        <div className="mb-3 inline-flex max-w-full items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-3 py-1.5 text-xs font-medium text-primary sm:px-4 sm:text-sm">
+          <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin sm:h-4 sm:w-4" />
+          <span className="truncate">{headerLabel}</span>
         </div>
 
         <h2
           key={activeMessage}
-          className="animate-fade-in text-xl font-bold tracking-tight text-foreground sm:text-2xl lg:text-3xl"
+          className="animate-fade-in px-1 text-base font-bold leading-snug tracking-tight text-foreground sm:text-xl sm:leading-tight lg:text-2xl"
         >
-          {activeMessage.replace(/…$/, "")}
-          <span className="inline-block w-5 animate-pulse text-primary">…</span>
+          <span className="break-words [overflow-wrap:anywhere]">
+            {activeMessage.replace(/…$/, "")}
+          </span>
+          <span className="inline-block w-4 animate-pulse text-primary sm:w-5">
+            …
+          </span>
         </h2>
 
         {fileName ? (
-          <p className="mt-2 text-sm text-muted-foreground sm:text-base">
-            Processing{" "}
-            <span className="font-medium text-foreground">{fileName}</span>
-          </p>
+          <div className="mx-auto mt-2 max-w-full px-1 text-xs text-muted-foreground sm:text-sm">
+            <span className="block sm:mb-0 sm:inline">Processing </span>
+            <span
+              className="mt-0.5 block truncate font-medium text-foreground sm:mt-0 sm:inline"
+              title={fileName}
+            >
+              {fileName}
+            </span>
+          </div>
         ) : null}
       </div>
 
-      <div className="mx-auto grid max-w-3xl items-start justify-center gap-6 lg:max-w-none lg:grid-cols-[minmax(280px,320px)_minmax(300px,380px)] lg:justify-center lg:gap-8 xl:gap-10">
-        <div className="order-2 rounded-2xl border border-border/80 bg-card p-6 shadow-card sm:p-7 lg:order-1 lg:mx-auto lg:w-full lg:max-w-[320px]">
-          <div className="mb-6 text-center">
-            <p className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+      <div className="grid min-w-0 grid-cols-1 items-start justify-center gap-4 sm:gap-6 lg:grid-cols-[minmax(0,320px)_minmax(0,380px)] lg:gap-8 xl:gap-10">
+        <div className="order-2 min-w-0 rounded-2xl border border-border/80 bg-card p-4 shadow-card sm:p-6 lg:order-1 lg:mx-auto lg:w-full lg:max-w-[320px] lg:p-7">
+          <div className="mb-4 text-center sm:mb-6">
+            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground sm:text-sm">
               Document scan
             </p>
-            <p className="mt-1 text-lg font-bold text-foreground">Your resume</p>
+            <p className="mt-1 text-base font-bold text-foreground sm:text-lg">
+              Your resume
+            </p>
           </div>
 
           <ResumeScanMock active={messageIndex < steps.length} />
         </div>
 
-        <div className="order-1 mx-auto flex w-full max-w-[380px] min-w-0 flex-col gap-3 sm:gap-4 lg:order-2">
+        <div className="order-1 mx-auto flex w-full min-w-0 max-w-[380px] flex-col gap-2.5 sm:gap-3 md:gap-4 lg:order-2">
           {steps.map((step, idx) => {
             const done = messageIndex > idx;
             const active = messageIndex === idx;
@@ -142,17 +153,17 @@ export function ResumeImportProcessingView({
               <div
                 key={step}
                 className={cn(
-                  "flex items-center gap-4 rounded-2xl border px-4 py-3.5 text-left transition-all duration-500 sm:px-5 sm:py-4",
+                  "flex min-w-0 items-start gap-3 rounded-2xl border px-3 py-3 text-left transition-all duration-500 sm:items-center sm:gap-4 sm:px-5 sm:py-4",
                   done && "border-primary/15 bg-primary/[0.04] shadow-sm",
                   active &&
-                    "scale-[1.01] border-primary/40 bg-gradient-to-r from-primary/[0.08] to-transparent shadow-md",
+                    "border-primary/40 bg-gradient-to-r from-primary/[0.08] to-transparent shadow-md sm:scale-[1.01]",
                   upcoming && "border-border/60 bg-card/50 opacity-60",
                   !active && !done && pulseIndex === idx && "opacity-75",
                 )}
               >
                 <span
                   className={cn(
-                    "flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-all duration-300 sm:h-11 sm:w-11",
+                    "flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-all duration-300 sm:h-11 sm:w-11",
                     done
                       ? "bg-primary text-white shadow-md shadow-primary/25"
                       : active
@@ -165,14 +176,17 @@ export function ResumeImportProcessingView({
                   ) : active ? (
                     <Loader2 className="h-4 w-4 animate-spin sm:h-5 sm:w-5" />
                   ) : (
-                    <span className="text-sm font-semibold">{idx + 1}</span>
+                    <span className="text-xs font-semibold sm:text-sm">
+                      {idx + 1}
+                    </span>
                   )}
                 </span>
 
                 <div className="min-w-0 flex-1">
                   <p
                     className={cn(
-                      "text-sm font-semibold leading-snug sm:text-base",
+                      "text-xs font-semibold leading-snug sm:text-sm md:text-base",
+                      "[overflow-wrap:anywhere]",
                       done && "text-foreground",
                       active && "text-primary",
                       upcoming && "text-muted-foreground",
@@ -181,7 +195,7 @@ export function ResumeImportProcessingView({
                     {step.replace(/…$/, "")}
                   </p>
                   {active ? (
-                    <p className="mt-0.5 animate-fade-in text-xs text-muted-foreground sm:text-sm">
+                    <p className="mt-0.5 animate-fade-in text-[11px] text-muted-foreground sm:text-xs md:text-sm">
                       This usually takes a few seconds…
                     </p>
                   ) : null}

@@ -8,12 +8,21 @@ export const resumeEditorPage =
   "flex h-full min-h-0 flex-col overflow-hidden bg-background text-foreground";
 
 export const resumeEditorToolbar =
-  "sticky top-0 z-20 border-b border-border/60 bg-header/95 shadow-header backdrop-blur-md";
+  "sticky top-0 z-20 mx-4 mt-4 mb-4 overflow-hidden rounded-xl border border-border/60 bg-header/95 shadow-header backdrop-blur-md sm:mx-5 sm:mt-5 sm:mb-5 lg:mx-6";
 
-export const resumeEditorToolbarInner = "mx-auto max-w-full px-4 py-3";
+export const resumeEditorToolbarInner =
+  "mx-auto w-full max-w-full px-4 py-3";
 
 export const resumeEditorPanel =
   "resume-editor-fields order-2 flex min-h-0 min-w-0 w-full flex-1 flex-col overflow-y-auto overscroll-y-contain bg-card md:order-none md:w-1/2 md:border-r md:border-border/80";
+
+export const resumeEditorPanelMobileSheet =
+  "fixed left-1/2 top-1/2 z-[55] flex max-h-[min(85dvh,640px)] min-h-0 w-[min(calc(100%-2rem),440px)] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-2xl border border-border/80 bg-card shadow-2xl md:relative md:inset-auto md:z-auto md:max-h-none md:w-1/2 md:max-w-none md:translate-x-0 md:translate-y-0 md:rounded-none md:border-0 md:border-r md:shadow-none";
+
+export const resumeEditorMobileOverlay =
+  "pointer-events-none fixed inset-0 z-[50] bg-black/45 backdrop-blur-[1px] md:hidden";
+
+export const resumeEditorToolbarMobile = "py-2 sm:py-3";
 
 export const resumeEditorTabsRow =
   "border-b border-border/60 bg-gradient-to-r from-[#7367F0]/[0.05] via-card to-[#7367F0]/[0.08]";
@@ -59,8 +68,20 @@ export const resumeAddSectionButton =
 export const resumePreviewPanel =
   "order-1 flex min-h-0 w-full flex-1 flex-col overflow-auto overscroll-y-contain border-b border-border/60 bg-muted/20 md:order-none md:w-1/2 md:border-b-0";
 
+export const resumePreviewPanelMobile =
+  "order-1 flex min-h-0 w-full flex-1 flex-col overflow-auto overscroll-y-contain bg-muted/15 md:border-b-0";
+
 export const resumePreviewHeader =
-  "sticky top-0 z-10 flex items-center justify-between border-b border-border/60 bg-header/95 p-4 backdrop-blur-md";
+  "sticky top-0 z-10 hidden items-center justify-between border-b border-border/60 bg-header/95 p-4 backdrop-blur-md md:flex";
+
+export const resumePreviewZoomHeader =
+  "sticky top-0 z-20 flex items-center justify-between gap-2 bg-header/95 py-2 shadow-sm backdrop-blur-md";
+
+export const resumePreviewZoomHeaderDesktop =
+  "border-b border-border/60 px-3 sm:px-4";
+
+export const resumePreviewZoomHeaderMobile =
+  "mx-4 mb-4 overflow-hidden rounded-xl border border-border/60 px-3 shadow-header";
 
 export const resumeGripIcon =
   "h-4 w-4 shrink-0 text-muted-foreground/70";

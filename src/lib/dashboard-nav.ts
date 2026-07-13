@@ -308,7 +308,7 @@ const PEER_APPLICATION_NAV_ITEM: DashboardNavItem = {
 };
 
 const PEER_APPLY_NAV_ITEM: DashboardNavItem = {
-  title: "Become an interviewer",
+  title: "Become an Interviewer",
   href: "/dashboard/peer-interviews/interviewer/apply",
   icon: UserPlus,
   accent: accent.emerald,
@@ -325,13 +325,6 @@ function insertAfterPeerInterviews(
   const insertAt = peerIdx === -1 ? items.length : peerIdx + 1;
   return [...items.slice(0, insertAt), ...extras, ...items.slice(insertAt)];
 }
-
-const PEER_MY_BOOKINGS_NAV_ITEM: DashboardNavItem = {
-  title: "My Peer Bookings",
-  href: "/dashboard/peer-interviews/bookings",
-  icon: ClipboardList,
-  accent: accent.blue,
-};
 
 const PEER_EARNINGS_NAV_ITEM: DashboardNavItem = {
   title: "Peer — Earnings",
@@ -356,16 +349,10 @@ export function withPeerNavItems(
   const isApprovedInterviewer = peer?.isInterviewer === true;
 
   let next = items.filter(
-    (item) => item.href !== "/dashboard/peer-interviews/interviewer",
+    (item) =>
+      item.href !== "/dashboard/peer-interviews/interviewer" &&
+      item.href !== "/dashboard/peer-interviews/bookings",
   );
-
-  const candidateExtras: DashboardNavItem[] = [];
-  if (!next.some((item) => item.href === PEER_MY_BOOKINGS_NAV_ITEM.href)) {
-    candidateExtras.push(PEER_MY_BOOKINGS_NAV_ITEM);
-  }
-  if (candidateExtras.length > 0) {
-    next = insertAfterPeerInterviews(next, ...candidateExtras);
-  }
 
   if (isApprovedInterviewer) {
     next = insertAfterPeerInterviews(next, INTERVIEWER_DASHBOARD_NAV_ITEM);
@@ -437,7 +424,7 @@ const RECRUITER_APPLICATION_NAV_ITEM: DashboardNavItem = {
 };
 
 const RECRUITER_APPLY_NAV_ITEM: DashboardNavItem = {
-  title: "Become a recruiter",
+  title: "Become a Recruiter",
   href: "/dashboard/ix-recruiter/apply",
   icon: UserPlus,
   accent: accent.emerald,

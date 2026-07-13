@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useUser } from "@clerk/nextjs";
+import axios from "axios";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { IxOptInBanner } from "@/components/ix-score/IxOptInBanner";
@@ -10,29 +11,59 @@ import { IxCommunicationBreakdown } from "@/components/ix-score/IxCommunicationB
 import { IxSessionHistoryTable } from "@/components/ix-score/IxSessionHistoryTable";
 import { IxReportPdfActions } from "@/components/ix-score/IxReportPdfActions";
 import { IxReportPageHero } from "@/components/ix-score/IxReportPageHero";
+import { IxReportLockedGate } from "@/components/ix-score/IxReportLockedGate";
+import { useEntitlements } from "@/hooks/useEntitlements";
 import { ixScoreApi, type IxScoreSnapshot } from "@/lib/api";
 import { getApiErrorMessage } from "@/lib/api-error-message";
 
+function isIxEntitlementDenied(error: unknown): boolean {
+  if (!axios.isAxiosError(error)) return false;
+  if (error.response?.status === 403) return true;
+  const msg = getApiErrorMessage(error, "");
+  return /upgraded plan|upgrade/i.test(msg);
+}
+
 export default function IxReportPage() {
   const { user } = useUser();
+  const { canUse, loading: entitlementsLoading, data } = useEntitlements();
   const [snapshot, setSnapshot] = useState<IxScoreSnapshot | null>(null);
   const [loading, setLoading] = useState(true);
+  const [accessDenied, setAccessDenied] = useState(false);
+
+  const ixLockedByEntitlement =
+    !entitlementsLoading && data != null && !canUse("ixScore");
 
   const load = async () => {
     setLoading(true);
+    setAccessDenied(false);
     try {
-      const data = await ixScoreApi.getSnapshot(true);
-      setSnapshot(data);
+      const res = await ixScoreApi.getSnapshot(true);
+      setSnapshot(res);
     } catch (e) {
+      if (isIxEntitlementDenied(e)) {
+        setAccessDenied(true);
+        setSnapshot(null);
+        return;
+      }
       toast.error(getApiErrorMessage(e, "Failed to load iX Report"));
+      setSnapshot(null);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
+    if (entitlementsLoading) return;
+
+    if (!canUse("ixScore")) {
+      setAccessDenied(true);
+      setSnapshot(null);
+      setLoading(false);
+      return;
+    }
+
     void load();
-  }, []);
+  }, [entitlementsLoading, data?.entitlements.ixScore]);
 
   const candidateName =
     user?.fullName || user?.firstName || user?.username || "Candidate";
@@ -41,7 +72,7 @@ export default function IxReportPage() {
     user?.emailAddresses?.[0]?.emailAddress ??
     "";
 
-  if (loading) {
+  if (loading || entitlementsLoading) {
     return (
       <div className="flex min-h-[50vh] flex-col items-center justify-center gap-4">
         <div className="relative">
@@ -51,6 +82,10 @@ export default function IxReportPage() {
         <p className="text-sm text-muted-foreground">Loading your iX Report…</p>
       </div>
     );
+  }
+
+  if (ixLockedByEntitlement || accessDenied) {
+    return <IxReportLockedGate />;
   }
 
   if (!snapshot) {

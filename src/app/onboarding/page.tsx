@@ -3,9 +3,11 @@
 import { useEffect, useState } from "react";
 import { useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
-import { Loader2 } from "lucide-react";
+import { ArrowLeft, Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { InterviewTrixLogo } from "@/components/InterviewTrixLogo";
 import { CandidateOnboardingForm } from "@/components/onboarding/CandidateOnboardingForm";
+import { OnboardingPageGraphics } from "@/components/onboarding/OnboardingAnimatedGraphics";
 import {
   OnboardingPathChooser,
   type OnboardingPath,
@@ -100,16 +102,22 @@ export default function OnboardingPage() {
     const displayName =
       user?.firstName?.trim() || user?.fullName?.trim() || "there";
     return (
-      <OnboardingPathChooser
-        displayName={displayName}
-        onChoose={handleOnboardingPathChoice}
-      />
+      <div className="relative min-h-screen bg-background">
+        <OnboardingPageGraphics />
+        <div className="relative z-10">
+          <OnboardingPathChooser
+            displayName={displayName}
+            onChoose={handleOnboardingPathChoice}
+          />
+        </div>
+      </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background px-4 py-8 sm:px-6 sm:py-10">
-      <div className="mx-auto mb-8 flex justify-center">
+    <div className="relative min-h-screen bg-background px-4 py-8 sm:px-6 sm:py-10">
+      <OnboardingPageGraphics />
+      <div className="relative z-10 mx-auto mb-8 flex justify-center">
         <InterviewTrixLogo
           variant="onLightBg"
           className="h-8 w-auto dark:hidden"
@@ -119,7 +127,19 @@ export default function OnboardingPage() {
           className="hidden h-8 w-auto dark:block"
         />
       </div>
-      <CandidateOnboardingForm onBack={() => setOnboardingPath(null)} />
+
+      <div className="relative z-10 mx-auto w-full max-w-3xl space-y-4">
+        <Button
+          type="button"
+          variant="ghost"
+          onClick={() => setOnboardingPath(null)}
+          className="-ml-2 text-muted-foreground"
+        >
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Choose a different path
+        </Button>
+        <CandidateOnboardingForm />
+      </div>
     </div>
   );
 }

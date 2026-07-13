@@ -87,8 +87,8 @@ import { InterviewTypeFilterBar } from "@/components/dashboard/InterviewTypeFilt
 import { IxOptInNotice } from "@/components/ix-score/IxOptInNotice";
 import { RecentInterviewsList } from "@/components/dashboard/RecentInterviewsList";
 import { DashboardResumesList } from "@/components/dashboard/DashboardResumesList";
-import { SubscriptionExpiredDialog } from "@/components/SubscriptionExpiredDialog";
-import { useSubscriptionExpiredGate } from "@/hooks/useSubscriptionExpiredGate";
+import { PracticeSessionGateDialogs } from "@/components/upsell/PracticeSessionGateDialogs";
+import { usePracticeSessionGate } from "@/components/upsell/usePracticeSessionGate";
 
 const ONBOARDING_BANNER_DISMISSED_KEY = "dashboard-onboarding-banner-dismissed";
 
@@ -137,11 +137,10 @@ export default function DashboardPage() {
   >(null);
   const [videoUnavailableOpen, setVideoUnavailableOpen] = useState(false);
   const {
-    open: subscriptionExpiredOpen,
-    setOpen: setSubscriptionExpiredOpen,
-    checking: checkingSubscription,
-    navigateToNewSession,
-  } = useSubscriptionExpiredGate();
+    startPracticeSession,
+    checkingSubscription,
+    ...practiceGate
+  } = usePracticeSessionGate();
   const [downloadingResumeId, setDownloadingResumeId] = useState<string | null>(
     null,
   );
@@ -679,7 +678,9 @@ export default function DashboardPage() {
                 type="button"
                 disabled={checkingSubscription}
                 onClick={() =>
-                  navigateToNewSession("/dashboard/interviews/new")
+                  startPracticeSession("ai", {
+                    path: "/dashboard/interviews/new",
+                  })
                 }
                 className={institutePrimaryClass}
               >
@@ -695,7 +696,7 @@ export default function DashboardPage() {
         </CardHeader>
         <CardContent className="p-0">
           <RecentInterviewsList
-            sessionRows={recentSessions}
+            sessionRows={filteredRecentSessions}
             currentPage={currentPage}
             itemsPerPage={itemsPerPage}
             onPageChange={setCurrentPage}
@@ -807,10 +808,7 @@ export default function DashboardPage() {
         </DialogContent>
       </Dialog>
 
-      <SubscriptionExpiredDialog
-        open={subscriptionExpiredOpen}
-        onOpenChange={setSubscriptionExpiredOpen}
-      />
+      <PracticeSessionGateDialogs {...practiceGate} />
     </div>
   );
 }

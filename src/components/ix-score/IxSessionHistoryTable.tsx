@@ -36,6 +36,18 @@ const filterControlClass = "w-full min-w-0 bg-card";
 const filterDialogShell =
   "flex max-h-[min(88dvh,640px)] w-[calc(100%-2rem)] max-w-md flex-col gap-0 overflow-hidden p-0 fixed left-[50%] top-[50%] translate-x-[-50%] translate-y-[-50%] rounded-xl border border-border bg-card shadow-header";
 
+/** Candidate session history action: open the session/booking details page (not the report). */
+function sessionDetailsHref(row: IxSessionRow): string {
+  if (row.category === "peer" || row.source === "peer") {
+    return `/dashboard/peer-interviews/bookings/${row.id}`;
+  }
+  if (row.category === "systemDesign" || row.source === "system_design") {
+    return `/dashboard/system-design/${row.id}`;
+  }
+  // AI screening/coding have no separate details route — report is the session view.
+  return row.reportHref;
+}
+
 function ToolbarIconButton({
   label,
   active,
@@ -477,7 +489,7 @@ export function IxSessionHistoryTable({
                   Interview type
                 </th>
                 <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-[#a8aaae]">
-                  Date
+                  Scheduled on
                 </th>
                 <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-[#a8aaae]">
                   Status
@@ -487,7 +499,7 @@ export function IxSessionHistoryTable({
                 </th>
                 {showActionsColumn ? (
                   <th className="px-6 py-3 text-right text-[11px] font-semibold uppercase tracking-[0.06em] text-[#a8aaae]">
-                    {recruiterMode ? "Interview details" : "Report"}
+                    {recruiterMode ? "Interview details" : "Details"}
                   </th>
                 ) : null}
               </tr>
@@ -498,14 +510,20 @@ export function IxSessionHistoryTable({
                   key={`${row.category}-${row.id}`}
                   className="border-b border-border/70 last:border-0"
                 >
-                  <td className="px-6 py-4 text-sm font-medium text-foreground">
-                    {row.title}
+                  <td className="px-6 py-4">
+                    <p className="text-sm font-medium text-foreground">{row.title}</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      Created{" "}
+                      {formatDate(row.createdAt ?? row.completedAt)}
+                    </p>
                   </td>
                   <td className="px-4 py-4 text-sm text-muted-foreground">
                     {IX_CATEGORY_META[row.category].label}
                   </td>
                   <td className="px-4 py-4 text-sm text-muted-foreground">
-                    {formatDate(row.completedAt)}
+                    {formatDate(
+                      row.scheduledAt ?? row.createdAt ?? row.completedAt,
+                    )}
                   </td>
                   <td className="px-4 py-4">
                     {row.status === "processing" ? (
@@ -540,9 +558,9 @@ export function IxSessionHistoryTable({
                         <span className="text-sm text-muted-foreground">—</span>
                       ) : (
                         <Button asChild variant="ghost" size="sm">
-                          <Link href={row.reportHref}>
+                          <Link href={sessionDetailsHref(row)}>
                             <Eye className="mr-1 h-4 w-4" />
-                            View
+                            View details
                           </Link>
                         </Button>
                       )}

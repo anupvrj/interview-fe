@@ -242,7 +242,7 @@ export function ATSUploadHero({
                       disabled={uploading}
                       onClick={handleSkipJd}
                     >
-                      Skip for now
+                      Continue Without JD
                     </Button>
                   </div>
                 ) : (

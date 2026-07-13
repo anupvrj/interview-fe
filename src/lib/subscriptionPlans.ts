@@ -4,6 +4,7 @@
 
 export const SUBSCRIPTION_PLAN_IDS = [
   "free",
+  "trial",
   "general_pass",
   "tech_basic",
   "tech_pro",

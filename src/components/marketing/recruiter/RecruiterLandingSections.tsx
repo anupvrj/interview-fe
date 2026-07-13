@@ -530,7 +530,7 @@ export function RecruiterLandingSections({
       <section
         className={cn(
           appMarketingSection,
-          "relative overflow-hidden px-4 py-16 sm:px-6 sm:py-20 lg:py-24",
+          "relative overflow-hidden px-4 pb-16 pt-8 sm:px-6 sm:pb-20 sm:pt-10 lg:pb-24 lg:pt-12",
         )}
       >
         <div className="pointer-events-none absolute inset-0 overflow-hidden">
@@ -558,18 +558,10 @@ export function RecruiterLandingSections({
         </div>
 
         <div className="container relative z-10 mx-auto max-w-7xl">
-          <div className="mb-10 text-center sm:mb-12">
-            <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-muted px-3 py-1 text-sm font-medium text-primary">
-              <span>See It In Action</span>
-            </div>
-            <h2 className="mb-3 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl lg:text-5xl">
-              From search to{" "}
-              <span className="text-primary">shortlist</span>
+          <div className="mb-6 text-center sm:mb-8">
+            <h2 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl lg:text-5xl">
+              See It In <span className="text-primary">Action</span>
             </h2>
-            <p className="mx-auto max-w-2xl text-lg leading-relaxed text-gray-600">
-              Filter verified candidates, open full dossiers, and move the right
-              people through your pipeline.
-            </p>
           </div>
 
           <SeoVideoSection
