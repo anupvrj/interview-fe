@@ -1,6 +1,7 @@
 /**
  * Meridian Template Styles
  * Minimal centered black-and-white resume with an expertise grid.
+ * Matches meridian-preview.webp.
  */
 
 .meridian-template {
@@ -13,12 +14,25 @@
   color-adjust: exact !important;
 }
 
-.meridian-name {
-  font-size: 28px;
-  font-weight: 700;
-  color: #1a1a1a !important;
-  letter-spacing: 0.5px;
+.meridian-header {
   text-align: center;
+  margin-bottom: 12px;
+}
+
+.meridian-header-top {
+  border-bottom: 1px solid #1a1a1a !important;
+  padding-bottom: 8px;
+  margin-bottom: 6px;
+}
+
+.meridian-name {
+  font-size: 28px !important;
+  font-weight: 700 !important;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #1a1a1a !important;
+  text-align: center !important;
+  margin: 0 0 4px 0 !important;
   -webkit-print-color-adjust: exact !important;
   print-color-adjust: exact !important;
 }
@@ -26,37 +40,42 @@
 .meridian-job-title {
   font-style: normal !important;
   font-size: 15px !important;
-
-  font-weight: 600;
+  font-weight: 700 !important;
   text-transform: uppercase;
   letter-spacing: 2px;
   color: #1a1a1a !important;
-  text-align: center;
+  text-align: center !important;
+  margin: 0 !important;
   -webkit-print-color-adjust: exact !important;
   print-color-adjust: exact !important;
 }
 
 .meridian-contact {
   font-size: 10px;
-  color: #1a1a1a;
-  text-align: center;
+  font-weight: 400;
+  color: #1a1a1a !important;
+  text-align: center !important;
+  border-bottom: 1px solid #1a1a1a !important;
+  padding-bottom: 8px !important;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
 }
 
 .meridian-contact a,
 .meridian-contact a:visited {
-  color: #1a1a1a;
+  color: #1a1a1a !important;
   text-decoration: none;
 }
 
 .meridian-section-header,
 .meridian-template h2 {
   font-size: 12px !important;
-  font-weight: 700;
+  font-weight: 700 !important;
   text-transform: uppercase;
   text-align: left;
   letter-spacing: 0.6px;
   color: #1a1a1a !important;
-  border-bottom: 1px solid #cfcfcf !important;
+  border-bottom: 1px solid #1a1a1a !important;
   border-top: none !important;
   padding-bottom: 4px !important;
   margin-bottom: 10px !important;
@@ -70,31 +89,70 @@
   font-size: 11px;
   line-height: 1.5;
   color: #1a1a1a;
+  margin-top: 12px;
 }
 
-.meridian-experience-item {
+.meridian-experience-item,
+.meridian-education-item {
   margin-bottom: 12px;
   page-break-inside: avoid;
 }
 
-.meridian-job-title-exp {
+.meridian-job-header,
+.meridian-education-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 4px;
+}
+
+.meridian-job-title-container,
+.meridian-education-title-container {
+  flex: 1;
+  min-width: 0;
+}
+
+.meridian-job-title-line,
+.meridian-education-title-line {
   font-size: 12px;
+  line-height: 1.35;
+}
+
+.meridian-job-title-exp,
+.meridian-company,
+.meridian-degree {
+  font-size: 12px;
+  font-weight: 700 !important;
+  color: #1a1a1a !important;
+}
+
+.meridian-title-separator {
   font-weight: 700;
   color: #1a1a1a;
 }
 
-.meridian-company {
+.meridian-institution {
   font-size: 11px;
-  color: #4a4a4a;
-  margin-bottom: 3px;
+  font-weight: 400;
+  color: #1a1a1a;
+  margin-top: 2px;
+}
+
+.meridian-job-details-container,
+.meridian-education-details-container {
+  font-size: 11px;
+  text-align: right;
+  min-width: 120px;
+  flex-shrink: 0;
 }
 
 .meridian-job-date,
 .meridian-job-location,
-.meridian-job-meta {
+.meridian-job-meta,
+.meridian-education-date {
   font-size: 11px;
-  font-weight: 700;
-  color: #1a1a1a;
+  font-weight: 700 !important;
+  color: #1a1a1a !important;
   line-height: 1.3;
 }
 
@@ -107,37 +165,67 @@
 .meridian-description ul {
   margin: 2px 0;
   padding-left: 18px;
+  list-style-type: disc !important;
 }
 
 .meridian-description li {
   margin-bottom: 3px;
 }
 
-.meridian-degree {
-  font-size: 12px;
-  font-weight: 700;
-  color: #1a1a1a;
+/* Area of Expertise — three-column grid */
+.meridian-skills-container {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px 20px;
 }
 
-.meridian-institution {
-  font-size: 11px;
-  color: #4a4a4a;
-}
-
-.meridian-education-date {
-  font-size: 11px;
-  font-weight: 700;
-  color: #1a1a1a;
-}
-
-/* Area of Expertise grid */
 .meridian-skill-item {
   font-size: 11px;
+  font-weight: 400;
   color: #1a1a1a;
+  margin-bottom: 4px !important;
+}
+
+/* Key Achievements */
+.meridian-awards-list {
+  margin: 0;
+  padding-left: 18px;
+  list-style-type: disc !important;
+}
+
+.meridian-award-item {
+  font-size: 11px;
+  line-height: 1.5;
+  color: #1a1a1a;
+  margin-bottom: 6px;
 }
 
 .meridian-award-title {
-  font-weight: 700;
+  font-weight: 700 !important;
+  color: #1a1a1a !important;
+}
+
+/* Additional information */
+.meridian-skills-list {
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.5;
+  color: #1a1a1a;
+}
+
+.meridian-skills-list ul {
+  margin: 0;
+  padding-left: 18px;
+  list-style-type: disc !important;
+}
+
+.meridian-skills-list li {
+  margin-bottom: 4px;
+}
+
+.meridian-skill-label {
+  font-weight: 700 !important;
+  color: #1a1a1a !important;
 }
 
 @media print {
@@ -147,9 +235,6 @@
     color-adjust: exact !important;
   }
 
-  .meridian-template {
-  }
-
   .meridian-name,
   .meridian-job-title,
   .meridian-section-header,
@@ -157,9 +242,11 @@
     color: #1a1a1a !important;
   }
 
+  .meridian-header-top,
+  .meridian-contact,
   .meridian-section-header,
   .meridian-template h2 {
-    border-bottom-color: #cfcfcf !important;
+    border-bottom-color: #1a1a1a !important;
     border-bottom-style: solid !important;
   }
 

@@ -31,7 +31,7 @@
 .condensed-rule-header-top .condensed-rule-name {
   display: block;
   font-size: 24px !important;
-  font-weight: bold !important;
+  font-weight: 700 !important;
   color: #1a1a1a !important;
   letter-spacing: 0.2px;
   line-height: 1 !important;
@@ -44,7 +44,7 @@
 
 .condensed-rule-name {
   font-size: 24px !important;
-  font-weight: bold !important;
+  font-weight: 700 !important;
   color: #1a1a1a !important;
   letter-spacing: 0.2px;
   line-height: 1 !important;
@@ -96,7 +96,7 @@
 .condensed-rule-template h2[data-section-header],
 .condensed-rule-template h2 {
   font-size: 11px !important;
-  font-weight: bold !important;
+  font-weight: 700 !important;
   font-style: normal !important;
   text-transform: uppercase;
   text-align: left;
@@ -149,7 +149,7 @@
 .condensed-rule-company {
   display: inline;
   font-size: 11px !important;
-  font-weight: bold !important;
+  font-weight: 700 !important;
   color: #1a1a1a !important;
   font-style: normal !important;
 }
@@ -244,7 +244,7 @@
 .condensed-rule-degree {
   display: inline;
   font-size: 11px !important;
-  font-weight: bold !important;
+  font-weight: 700 !important;
   color: #1a1a1a !important;
 }
 
@@ -283,6 +283,11 @@
   padding: 0 0.35em;
 }
 
+.condensed-rule-inline-label {
+  font-weight: 700 !important;
+  color: #1a1a1a;
+}
+
 @media print {
   * {
     -webkit-print-color-adjust: exact !important;
@@ -294,7 +299,9 @@
   .condensed-rule-section-header,
   .condensed-rule-template h2,
   .condensed-rule-company,
-  .condensed-rule-degree {
+  .condensed-rule-degree,
+  .condensed-rule-inline-label {
+    font-weight: 700 !important;
     color: #1a1a1a !important;
   }
 

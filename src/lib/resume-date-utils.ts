@@ -84,6 +84,62 @@ export function normalizeExperienceList(
     .map((item) => normalizeExperienceEntry(item as Record<string, unknown>));
 }
 
+const MONTH_ABBR = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
+
+/** Month-name display for templates that use abbreviated dates (e.g. Jan 2023). */
+export function formatResumeDateAbbreviated(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+
+  const isoMonth = /^(\d{4})-(\d{2})$/.exec(trimmed);
+  if (isoMonth) {
+    const monthIdx = parseInt(isoMonth[2], 10) - 1;
+    if (monthIdx >= 0 && monthIdx < 12) {
+      return `${MONTH_ABBR[monthIdx]} ${isoMonth[1]}`;
+    }
+  }
+
+  const yearOnly = /^(\d{4})$/.exec(trimmed);
+  if (yearOnly) return yearOnly[1];
+
+  return trimmed;
+}
+
+export function formatExperienceDateRangeAbbreviated(exp: {
+  startDate?: unknown;
+  endDate?: unknown;
+  current?: boolean;
+}): string {
+  const start = formatResumeDateAbbreviated(coerceResumeDate(exp.startDate));
+  const rawEnd = coerceResumeDate(exp.endDate);
+  const rawEndLower = rawEnd.toLowerCase();
+  const isPresent =
+    Boolean(exp.current) ||
+    rawEndLower === "present" ||
+    rawEndLower === "current" ||
+    rawEndLower === "till date" ||
+    rawEndLower === "till present";
+
+  const end = isPresent ? "Present" : formatResumeDateAbbreviated(rawEnd);
+
+  if (start && end) return `${start} - ${end}`;
+  if (start) return start;
+  return end;
+}
+
 /** Human-friendly display for stored resume dates (keeps non-ISO values as-is). */
 export function formatResumeDateForDisplay(value: string): string {
   const trimmed = value.trim();
