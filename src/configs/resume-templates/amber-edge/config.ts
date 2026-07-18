@@ -54,7 +54,7 @@ export const amberedgeExtendedConfig: Partial<ExtendedResumeTemplate> = {
     },
     headerStyle: "left",
     sectionSpacing: 11,
-    padding: { top: 10, bottom: 10, left: 14, right: 14 },
+    padding: { top: 5, bottom: 10, left: 14, right: 14 },
     sectionHeader: {
       style: "border-bottom",
       borderWidth: 1.5,
@@ -70,6 +70,7 @@ export const amberedgeExtendedConfig: Partial<ExtendedResumeTemplate> = {
     skillsDisplay: { type: "bullets", showRatings: false, columns: 2 },
     timelineLayout: { type: "vertical", datePosition: "right" },
     contactDisplay: { type: "text", layout: "horizontal" },
+    useCSSClassesForHeader: true,
   },
   rendering: {
     pageBreak: { enabled: true, calculateDynamically: true },
@@ -87,7 +88,7 @@ export const amberedgeExtendedConfig: Partial<ExtendedResumeTemplate> = {
     { id: "experience", type: "experience", title: "Professional Experience", visible: true },
     { id: "projects", type: "projects", title: "Projects", visible: true },
     { id: "education", type: "education", title: "Education", visible: true },
-    { id: "interests", type: "interests", title: "Additional Information", visible: false },
+    { id: "interests", type: "interests", title: "Additional Information", visible: true },
   ],
 };
 

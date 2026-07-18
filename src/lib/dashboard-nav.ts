@@ -21,6 +21,7 @@ import {
   FlaskConical,
   UserPlus,
   ClipboardList,
+  Award,
 } from "lucide-react";
 import type { AccessRole, User as ApiUser } from "@/lib/api";
 import { isPathAllowedForRole, type ActiveRole } from "@/lib/roles";
@@ -128,6 +129,12 @@ const baseMenuItems: DashboardNavItem[] = [
     href: "/dashboard/peer-interviews",
     icon: UsersRound,
     accent: accent.violet,
+  },
+  {
+    title: "iX Report",
+    href: "/dashboard/ix-report",
+    icon: Award,
+    accent: accent.purple,
   },
   {
     title: "Interviewer Dashboard",
@@ -283,6 +290,12 @@ export function getDashboardNavItems(
         accent: accent.amber,
       },
       {
+        title: "iX Recruiters",
+        href: "/dashboard/super-admin/ix-recruiters",
+        icon: Briefcase,
+        accent: accent.rose,
+      },
+      {
         title: "Institution Admin",
         href: "/dashboard/institute",
         icon: Building2,
@@ -315,7 +328,7 @@ const PEER_APPLICATION_NAV_ITEM: DashboardNavItem = {
 };
 
 const PEER_APPLY_NAV_ITEM: DashboardNavItem = {
-  title: "Become an interviewer",
+  title: "Become an Interviewer",
   href: "/dashboard/peer-interviews/interviewer/apply",
   icon: UserPlus,
   accent: accent.emerald,
@@ -326,17 +339,12 @@ function insertAfterPeerInterviews(
   ...extras: DashboardNavItem[]
 ): DashboardNavItem[] {
   if (extras.length === 0) return items;
-  const peerIdx = items.findIndex((item) => item.href === "/dashboard/peer-interviews");
+  const peerIdx = items.findIndex(
+    (item) => item.href === "/dashboard/peer-interviews",
+  );
   const insertAt = peerIdx === -1 ? items.length : peerIdx + 1;
   return [...items.slice(0, insertAt), ...extras, ...items.slice(insertAt)];
 }
-
-const PEER_MY_BOOKINGS_NAV_ITEM: DashboardNavItem = {
-  title: "My Peer Bookings",
-  href: "/dashboard/peer-interviews/bookings",
-  icon: ClipboardList,
-  accent: accent.blue,
-};
 
 const PEER_EARNINGS_NAV_ITEM: DashboardNavItem = {
   title: "Peer — Earnings",
@@ -361,16 +369,10 @@ export function withPeerNavItems(
   const isApprovedInterviewer = peer?.isInterviewer === true;
 
   let next = items.filter(
-    (item) => item.href !== "/dashboard/peer-interviews/interviewer",
+    (item) =>
+      item.href !== "/dashboard/peer-interviews/interviewer" &&
+      item.href !== "/dashboard/peer-interviews/bookings",
   );
-
-  const candidateExtras: DashboardNavItem[] = [];
-  if (!next.some((item) => item.href === PEER_MY_BOOKINGS_NAV_ITEM.href)) {
-    candidateExtras.push(PEER_MY_BOOKINGS_NAV_ITEM);
-  }
-  if (candidateExtras.length > 0) {
-    next = insertAfterPeerInterviews(next, ...candidateExtras);
-  }
 
   if (isApprovedInterviewer) {
     next = insertAfterPeerInterviews(next, INTERVIEWER_DASHBOARD_NAV_ITEM);
@@ -397,16 +399,98 @@ export function withPeerNavItems(
     next = insertAfterPeerInterviews(next, PEER_APPLICATION_NAV_ITEM);
   }
 
-  const shouldShowApply = peer && !peer.isInterviewer && !peer.interviewerStatus;
+  const shouldShowApply =
+    peer && !peer.isInterviewer && !peer.interviewerStatus;
   if (!shouldShowApply) return next;
 
-  const profileIdx = next.findIndex((item) => item.href === "/dashboard/profile");
+  const profileIdx = next.findIndex(
+    (item) => item.href === "/dashboard/profile",
+  );
   if (profileIdx === -1) return [...next, PEER_APPLY_NAV_ITEM];
 
   return [
     ...next.slice(0, profileIdx + 1),
     PEER_APPLY_NAV_ITEM,
     ...next.slice(profileIdx + 1),
+  ];
+}
+
+const RECRUITER_DASHBOARD_NAV_ITEM: DashboardNavItem = {
+  title: "Recruiter Dashboard",
+  href: "/dashboard/ix-recruiter",
+  icon: Briefcase,
+  accent: accent.violet,
+};
+
+const HIRE_TALENT_NAV_ITEM: DashboardNavItem = {
+  title: "Hire iX Talent",
+  href: "/dashboard/ix-recruiter/candidates",
+  icon: UsersRound,
+  accent: accent.emerald,
+};
+
+const SHORTLISTED_TALENTS_NAV_ITEM: DashboardNavItem = {
+  title: "Shortlisted Talents",
+  href: "/dashboard/ix-recruiter/shortlisted",
+  icon: ClipboardList,
+  accent: accent.blue,
+};
+
+const RECRUITER_APPLICATION_NAV_ITEM: DashboardNavItem = {
+  title: "Recruiter application",
+  href: "/dashboard/ix-recruiter/apply",
+  icon: Briefcase,
+  accent: accent.amber,
+};
+
+const RECRUITER_APPLY_NAV_ITEM: DashboardNavItem = {
+  title: "Become a Recruiter",
+  href: "/dashboard/ix-recruiter/apply",
+  icon: UserPlus,
+  accent: accent.emerald,
+};
+
+/** Scope recruiter nav: approved recruiters get the workspace; pending users get application status only. */
+export function withRecruiterNavItems(
+  items: DashboardNavItem[],
+  recruiter: ApiUser["recruiter"] | null | undefined,
+): DashboardNavItem[] {
+  const status = recruiter?.recruiterStatus;
+  const isApprovedRecruiter = recruiter?.isRecruiter === true;
+
+  // Anchor recruiter entries right after the iX Report item when present.
+  const anchorIdx = items.findIndex(
+    (item) => item.href === "/dashboard/ix-report",
+  );
+  const insertAt = anchorIdx === -1 ? items.length : anchorIdx + 1;
+
+  if (isApprovedRecruiter) {
+    return [
+      ...items.slice(0, insertAt),
+      RECRUITER_DASHBOARD_NAV_ITEM,
+      HIRE_TALENT_NAV_ITEM,
+      SHORTLISTED_TALENTS_NAV_ITEM,
+      ...items.slice(insertAt),
+    ];
+  }
+
+  if (status === "pending" || status === "suspended") {
+    return [
+      ...items.slice(0, insertAt),
+      RECRUITER_APPLICATION_NAV_ITEM,
+      ...items.slice(insertAt),
+    ];
+  }
+
+  // No recruiter profile yet — offer to apply (placed after profile).
+  const profileIdx = items.findIndex(
+    (item) => item.href === "/dashboard/profile",
+  );
+  if (profileIdx === -1) return [...items, RECRUITER_APPLY_NAV_ITEM];
+  return [
+    ...items.slice(0, profileIdx + 1),
+    RECRUITER_APPLY_NAV_ITEM,
+    ...items.slice(profileIdx + 1),
   ];
 }
 
@@ -417,7 +501,10 @@ export function withPeerNavItems(
 export function filterNavByActiveRole(
   items: DashboardNavItem[],
   activeRole: ActiveRole | null,
-  profile: Pick<ApiUser, "institutionId" | "peer"> | null | undefined,
+  profile:
+    | Pick<ApiUser, "institutionId" | "peer" | "recruiter">
+    | null
+    | undefined,
 ): DashboardNavItem[] {
   if (!activeRole || activeRole === "super_admin") return items;
   return items.filter((item) =>

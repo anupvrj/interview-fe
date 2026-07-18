@@ -34,6 +34,18 @@ export function MarketingFooter({
             <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-6 w-full md:w-auto">
               <nav className="flex flex-wrap items-center justify-center md:justify-end gap-4 sm:gap-6">
                 <Link
+                  href="/hire-ix-talent"
+                  className="text-sm text-gray-300 hover:text-white transition-colors"
+                >
+                  Hire iX Talent
+                </Link>
+                <Link
+                  href="/become-peer-interviewer"
+                  className="text-sm text-gray-300 hover:text-white transition-colors"
+                >
+                  Become Interviewer
+                </Link>
+                <Link
                   href="/about-us"
                   className="text-sm text-gray-300 hover:text-white transition-colors"
                 >

@@ -29,8 +29,13 @@ import { PeerTimezoneBadge, PeerTimezoneSelect } from "@/components/peer/PeerTim
 import { usePeerTimezone } from "@/components/peer/usePeerTimezone";
 import { formatPeerSchedule } from "@/components/peer/peerSlotTime";
 import { DashboardStatCard } from "@/components/dashboard/DashboardStatCard";
+import { RecentInterviewsList } from "@/components/dashboard/RecentInterviewsList";
 import { appCard } from "@/lib/app-theme";
 import { isPeerInterviewExpired } from "@/lib/peer-booking-expiry";
+import {
+  buildPeerHistorySessionRows,
+  isPreviousPeerBooking,
+} from "@/lib/dashboard-recent-sessions";
 import { cn } from "@/lib/utils";
 import {
   peerApi,
@@ -73,6 +78,7 @@ export default function CandidateBookingsPage() {
   const [loading, setLoading] = useState(true);
   const [payingId, setPayingId] = useState<string | null>(null);
   const [razorpayLoaded, setRazorpayLoaded] = useState(false);
+  const [previousPage, setPreviousPage] = useState(1);
 
   const typeNames = useMemo(() => {
     const m: Record<string, string> = {};
@@ -81,6 +87,24 @@ export default function CandidateBookingsPage() {
   }, [types]);
 
   const stats = useMemo(() => computeStats(bookings), [bookings]);
+
+  const { activeBookings, previousBookings } = useMemo(() => {
+    const active: PeerBooking[] = [];
+    const previous: PeerBooking[] = [];
+    for (const booking of bookings) {
+      if (isPreviousPeerBooking(booking) || isPeerInterviewExpired(booking)) {
+        previous.push(booking);
+      } else {
+        active.push(booking);
+      }
+    }
+    return { activeBookings: active, previousBookings: previous };
+  }, [bookings]);
+
+  const previousSessionRows = useMemo(
+    () => buildPeerHistorySessionRows(previousBookings, typeNames),
+    [previousBookings, typeNames],
+  );
 
   const nextUpcoming = useMemo(() => {
     const now = Date.now();
@@ -164,7 +188,7 @@ export default function CandidateBookingsPage() {
         className="min-w-0"
         actions={
           <>
-            <Link href="/dashboard/peer-interviews" className="lg:hidden">
+            <Link href="/dashboard/peer-interviews/book" className="lg:hidden">
               <Button
                 size="icon"
                 variant="outline"
@@ -174,7 +198,7 @@ export default function CandidateBookingsPage() {
                 <Plus className="h-4 w-4" />
               </Button>
             </Link>
-            <Link href="/dashboard/peer-interviews" className="hidden lg:block">
+            <Link href="/dashboard/peer-interviews/book" className="hidden lg:block">
               <Button className="h-10 bg-[#7367F0] text-white hover:bg-[#6e62e5]">
                 Book new interview
               </Button>
@@ -196,7 +220,7 @@ export default function CandidateBookingsPage() {
           <p className="max-w-md text-sm text-muted-foreground">
             Find a verified interviewer, pick a slot, and get real mock interview practice.
           </p>
-          <Link href="/dashboard/peer-interviews">
+          <Link href="/dashboard/peer-interviews/book">
             <Button className="bg-[#7367F0] text-white hover:bg-[#6e62e5]">Find an interviewer</Button>
           </Link>
         </div>
@@ -310,24 +334,59 @@ export default function CandidateBookingsPage() {
             </div>
           ) : null}
 
+          {activeBookings.length > 0 ? (
+            <Card className="min-w-0 max-w-full overflow-hidden rounded-xl border border-border/60 bg-card shadow-card">
+              <CardHeader className="border-b border-border/60 px-4 py-4 sm:px-5">
+                <div className="min-w-0">
+                  <CardTitle className="text-base font-semibold text-foreground sm:text-lg">
+                    Active bookings
+                  </CardTitle>
+                  <CardDescription className="mt-1 text-xs sm:text-sm">
+                    Requests awaiting acceptance, payment, or your upcoming confirmed sessions.
+                  </CardDescription>
+                </div>
+              </CardHeader>
+              <CardContent className="min-w-0 max-w-full overflow-hidden p-0 pb-4">
+                <CandidateBookingsTable
+                  bookings={activeBookings}
+                  types={types}
+                  typeNames={typeNames}
+                  timezone={timezone}
+                  payingId={payingId}
+                  onPay={handlePay}
+                />
+              </CardContent>
+            </Card>
+          ) : null}
+
           <Card className="min-w-0 max-w-full overflow-hidden rounded-xl border border-border/60 bg-card shadow-card">
             <CardHeader className="border-b border-border/60 px-4 py-4 sm:px-5">
               <div className="min-w-0">
-                <CardTitle className="text-base font-semibold text-foreground sm:text-lg">Bookings</CardTitle>
+                <CardTitle className="text-base font-semibold text-foreground sm:text-lg">
+                  Previous peer interviews
+                </CardTitle>
                 <CardDescription className="mt-1 text-xs sm:text-sm">
-                  Filter by status or interview round. Pay once accepted, then join from here when
-                  it&apos;s time.
+                  Completed, past, and closed peer sessions — same layout as your dashboard history.
                 </CardDescription>
               </div>
             </CardHeader>
-            <CardContent className="min-w-0 max-w-full overflow-hidden p-0 pb-4">
-              <CandidateBookingsTable
-                bookings={bookings}
-                types={types}
-                typeNames={typeNames}
-                timezone={timezone}
-                payingId={payingId}
-                onPay={handlePay}
+            <CardContent className="min-w-0 max-w-full overflow-hidden p-0">
+              <RecentInterviewsList
+                sessionRows={previousSessionRows}
+                currentPage={previousPage}
+                itemsPerPage={10}
+                onPageChange={setPreviousPage}
+                onVideoUnavailable={() => undefined}
+                emptyDescription="Finished peer interviews will show up here with scores and report links."
+                emptyCtaHref="/dashboard/peer-interviews/book"
+                emptyCtaLabel="Book a peer interview"
+                tableHeaders={[
+                  "Interview",
+                  "Scheduled on",
+                  "Score",
+                  "Status",
+                  "Actions",
+                ]}
               />
             </CardContent>
           </Card>

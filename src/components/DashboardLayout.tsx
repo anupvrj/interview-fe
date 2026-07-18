@@ -25,10 +25,15 @@ import {
   filterNavByActiveRole,
   getDashboardNavItems,
   withPeerNavItems,
+  withRecruiterNavItems,
   type DashboardNavItem,
 } from "@/lib/dashboard-nav";
 import { SubscriptionExpiredBanner } from "@/components/SubscriptionExpiredBanner";
 import { SubscriptionPendingBanner } from "@/components/SubscriptionPendingBanner";
+import { TrialUpsellDialog, type TrialUpsellVariant } from "@/components/upsell/TrialUpsellDialog";
+import { useUpsellState } from "@/components/upsell/useUpsellState";
+import { useEntitlements } from "@/hooks/useEntitlements";
+import { POST_ONBOARDING_TRIAL_OFFER_KEY } from "@/lib/trialFeatures";
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -49,18 +54,11 @@ function isInterviewerBookingsNavPath(pathname: string | null): boolean {
   );
 }
 
-function isCandidateBookingsNavPath(pathname: string | null): boolean {
-  if (!pathname) return false;
-  return (
-    pathname === "/dashboard/peer-interviews/bookings" ||
-    pathname.startsWith("/dashboard/peer-interviews/bookings/")
-  );
-}
-
 function isInterviewerHubNavPath(pathname: string | null): boolean {
   if (!pathname) return false;
   if (pathname === "/dashboard/peer-interviews/interviewer/apply") return false;
-  if (pathname === "/dashboard/peer-interviews/interviewer/earnings") return false;
+  if (pathname === "/dashboard/peer-interviews/interviewer/earnings")
+    return false;
   if (pathname.startsWith("/dashboard/peer-interviews/interviewer/earnings/")) {
     return false;
   }
@@ -71,9 +69,9 @@ function isInterviewerHubNavPath(pathname: string | null): boolean {
 
 function isPeerInterviewsNavPath(pathname: string | null): boolean {
   if (!pathname?.startsWith("/dashboard/peer-interviews")) return false;
-  if (isCandidateBookingsNavPath(pathname)) return false;
   if (pathname === "/dashboard/peer-interviews/interviewer/apply") return false;
-  if (pathname === "/dashboard/peer-interviews/interviewer/earnings") return false;
+  if (pathname === "/dashboard/peer-interviews/interviewer/earnings")
+    return false;
   if (pathname.startsWith("/dashboard/peer-interviews/interviewer/earnings/")) {
     return false;
   }
@@ -89,19 +87,52 @@ function isPeerInterviewsNavPath(pathname: string | null): boolean {
 }
 
 function isSuperAdminPeerInterviewersPath(pathname: string | null): boolean {
-  return pathname?.startsWith("/dashboard/super-admin/peer-interviewers") ?? false;
+  return (
+    pathname?.startsWith("/dashboard/super-admin/peer-interviewers") ?? false
+  );
 }
 
 function isSuperAdminPeerBookingsPath(pathname: string | null): boolean {
   return pathname?.startsWith("/dashboard/super-admin/peer-bookings") ?? false;
 }
 
+function isSuperAdminIxRecruitersPath(pathname: string | null): boolean {
+  return pathname?.startsWith("/dashboard/super-admin/ix-recruiters") ?? false;
+}
+
+function isRecruiterDashboardNavPath(pathname: string | null): boolean {
+  return pathname === "/dashboard/ix-recruiter";
+}
+
+function isHireTalentNavPath(pathname: string | null): boolean {
+  return pathname?.startsWith("/dashboard/ix-recruiter/candidates") ?? false;
+}
+
+function isShortlistedTalentsNavPath(pathname: string | null): boolean {
+  return pathname?.startsWith("/dashboard/ix-recruiter/shortlisted") ?? false;
+}
+
+function isRecruiterApplyNavPath(pathname: string | null): boolean {
+  if (!pathname) return false;
+  return (
+    pathname === "/dashboard/ix-recruiter/apply" ||
+    pathname.startsWith("/dashboard/ix-recruiter/apply/")
+  );
+}
+
 function isSuperAdminHomePath(pathname: string | null): boolean {
   if (!pathname) return false;
-  if (isSuperAdminPeerInterviewersPath(pathname) || isSuperAdminPeerBookingsPath(pathname)) {
+  if (
+    isSuperAdminPeerInterviewersPath(pathname) ||
+    isSuperAdminPeerBookingsPath(pathname) ||
+    isSuperAdminIxRecruitersPath(pathname)
+  ) {
     return false;
   }
-  return pathname === "/dashboard/super-admin" || pathname.startsWith("/dashboard/super-admin/");
+  return (
+    pathname === "/dashboard/super-admin" ||
+    pathname.startsWith("/dashboard/super-admin/")
+  );
 }
 
 function resolveNavActive(
@@ -139,10 +170,6 @@ function resolveNavActive(
   if (item.href === "/dashboard/peer-interviews") {
     isActive = isPeerInterviewsNavPath(pathname);
   }
-  if (item.href === "/dashboard/peer-interviews/bookings") {
-    isActive =
-      activeRole === "candidate" && isCandidateBookingsNavPath(pathname);
-  }
   if (item.href === "/dashboard/peer-interviews/interviewer") {
     isActive = isInterviewerHubNavPath(pathname);
   }
@@ -152,13 +179,17 @@ function resolveNavActive(
   if (item.href === "/dashboard/peer-interviews/interviewer/earnings") {
     isActive =
       pathname === "/dashboard/peer-interviews/interviewer/earnings" ||
-      (pathname?.startsWith("/dashboard/peer-interviews/interviewer/earnings/") ?? false);
+      (pathname?.startsWith(
+        "/dashboard/peer-interviews/interviewer/earnings/",
+      ) ??
+        false);
   }
   if (item.href === "/dashboard/peer-interviews/interviewer/bookings") {
     isActive =
       isInterviewerBookingsNavPath(pathname) ||
       (activeRole === "interviewer" &&
-        (pathname?.startsWith("/dashboard/peer-interviews/bookings/") ?? false));
+        (pathname?.startsWith("/dashboard/peer-interviews/bookings/") ??
+          false));
   }
   if (item.href === "/dashboard/super-admin") {
     isActive = isSuperAdminHomePath(pathname);
@@ -168,6 +199,21 @@ function resolveNavActive(
   }
   if (item.href === "/dashboard/super-admin/peer-bookings") {
     isActive = isSuperAdminPeerBookingsPath(pathname);
+  }
+  if (item.href === "/dashboard/super-admin/ix-recruiters") {
+    isActive = isSuperAdminIxRecruitersPath(pathname);
+  }
+  if (item.href === "/dashboard/ix-recruiter") {
+    isActive = isRecruiterDashboardNavPath(pathname);
+  }
+  if (item.href === "/dashboard/ix-recruiter/candidates") {
+    isActive = isHireTalentNavPath(pathname);
+  }
+  if (item.href === "/dashboard/ix-recruiter/shortlisted") {
+    isActive = isShortlistedTalentsNavPath(pathname);
+  }
+  if (item.href === "/dashboard/ix-recruiter/apply") {
+    isActive = isRecruiterApplyNavPath(pathname);
   }
   return isActive;
 }
@@ -183,6 +229,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     ? String(profile.institutionId)
     : null;
   const peerNav = profile?.peer ?? null;
+  const recruiterNav = profile?.recruiter ?? null;
   const activeRole = roleCtx?.activeRole ?? null;
   const availableRoles = roleCtx?.availableRoles ?? [];
   const roleReady = roleCtx?.ready ?? false;
@@ -191,14 +238,27 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const [interviewsSubpathKind, setInterviewsSubpathKind] = useState<
     "general" | "coding_practice" | null
   >(null);
+  const [trialPromoOpen, setTrialPromoOpen] = useState(false);
+  const [trialPromoVariant, setTrialPromoVariant] =
+    useState<TrialUpsellVariant>("dashboard_promo");
+  const [skipDelayedTrialPromo, setSkipDelayedTrialPromo] = useState(false);
+  const { canUse, refresh: refreshEntitlements } = useEntitlements();
+  const {
+    shouldShowTrialPromo,
+    markTrialPromoShown,
+    dismissTrialPromo,
+    refresh: refreshUpsell,
+    data: upsellData,
+  } = useUpsellState();
 
   const interviewsDetailMatch =
-    /^\/dashboard\/interviews\/([^/]+)(?:\/|$)/.exec(pathname ?? "") ?? undefined;
+    /^\/dashboard\/interviews\/([^/]+)(?:\/|$)/.exec(pathname ?? "") ??
+    undefined;
   const interviewsPathSegment = interviewsDetailMatch?.[1];
   const isDashboardInterviewsDetailPath = Boolean(
     interviewsPathSegment &&
-      interviewsPathSegment !== "new" &&
-      pathname !== "/dashboard/interviews",
+    interviewsPathSegment !== "new" &&
+    pathname !== "/dashboard/interviews",
   );
 
   useEffect(() => {
@@ -225,6 +285,54 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     };
   }, [isDashboardInterviewsDetailPath, interviewsPathSegment, user]);
 
+  useEffect(() => {
+    if (!roleReady || !upsellData?.showTrialUpsell) return;
+    if (typeof window === "undefined") return;
+
+    const postOnboarding =
+      sessionStorage.getItem(POST_ONBOARDING_TRIAL_OFFER_KEY) === "1";
+    const queryOffer =
+      new URLSearchParams(window.location.search).get("trial_offer") === "1";
+
+    if (!postOnboarding && !queryOffer) return;
+
+    sessionStorage.removeItem(POST_ONBOARDING_TRIAL_OFFER_KEY);
+    if (queryOffer && pathname) {
+      router.replace(pathname);
+    }
+
+    setTrialPromoVariant("onboarding_complete");
+    setTrialPromoOpen(true);
+    setSkipDelayedTrialPromo(true);
+    markTrialPromoShown();
+  }, [
+    roleReady,
+    upsellData?.showTrialUpsell,
+    pathname,
+    router,
+    markTrialPromoShown,
+  ]);
+
+  useEffect(() => {
+    if (!roleReady || skipDelayedTrialPromo) return;
+    if (!shouldShowTrialPromo()) return;
+
+    const timer = window.setTimeout(() => {
+      if (shouldShowTrialPromo()) {
+        markTrialPromoShown();
+        setTrialPromoVariant("dashboard_promo");
+        setTrialPromoOpen(true);
+      }
+    }, 30_000);
+
+    return () => window.clearTimeout(timer);
+  }, [
+    roleReady,
+    skipDelayedTrialPromo,
+    shouldShowTrialPromo,
+    markTrialPromoShown,
+  ]);
+
   const isInstitutionView = activeRole === "institution_admin";
 
   // Send multi-role users without a chosen role to the role chooser.
@@ -244,15 +352,40 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     }
   }, [roleReady, activeRole, pathname, profile, router]);
 
-  const menuItems = useMemo(
-    () =>
-      filterNavByActiveRole(
-        withPeerNavItems(getDashboardNavItems(accessRole, institutionId), peerNav),
-        activeRole,
-        profile,
+  const menuItems = useMemo(() => {
+    const items = filterNavByActiveRole(
+      withRecruiterNavItems(
+        withPeerNavItems(
+          getDashboardNavItems(accessRole, institutionId),
+          peerNav,
+        ),
+        recruiterNav,
       ),
-    [accessRole, institutionId, peerNav, activeRole, profile],
-  );
+      activeRole,
+      profile,
+    );
+
+    return items.map((item) => {
+      if (item.href === "/dashboard/coding-interviews") {
+        return { ...item, locked: !canUse("codingRound") };
+      }
+      if (item.href === "/dashboard/system-design") {
+        return { ...item, locked: !canUse("systemDesign") };
+      }
+      if (item.href === "/dashboard/ix-report") {
+        return { ...item, locked: !canUse("ixScore") };
+      }
+      return item;
+    });
+  }, [
+    accessRole,
+    institutionId,
+    peerNav,
+    recruiterNav,
+    activeRole,
+    profile,
+    canUse,
+  ]);
 
   const institutionBase =
     isInstitutionView && institutionId
@@ -301,10 +434,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           )}
         >
           <Icon
-            className={cn(
-              "h-4 w-4",
-              isActive && "text-white",
-            )}
+            className={cn("h-4 w-4", isActive && "text-white")}
             strokeWidth={2}
           />
         </span>
@@ -517,6 +647,18 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           </div>
         </main>
       </div>
+
+      <TrialUpsellDialog
+        open={trialPromoOpen}
+        onOpenChange={setTrialPromoOpen}
+        variant={trialPromoVariant}
+        onDismiss={dismissTrialPromo}
+        onTrialStarted={() => {
+          void refreshEntitlements();
+          void refreshUpsell();
+        }}
+        hasPurchasedTrial={upsellData ? !upsellData.canPurchaseTrial : false}
+      />
     </div>
   );
 }

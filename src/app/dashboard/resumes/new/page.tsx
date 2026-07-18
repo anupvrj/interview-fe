@@ -27,6 +27,7 @@ import {
 import {
   buildSectionOrderForExtractedContent,
   mapExtractedSectionsToContent,
+  normalizeResumeImportContent,
   RESUME_IMPORT_PROCESSING_MESSAGES,
 } from "@/lib/resume-data-import";
 import { TemplatePreview } from "@/components/TemplatePreview";
@@ -276,22 +277,24 @@ export default function NewResumePage() {
       console.log("✅ Dummy content loaded:", dummyContent);
 
       // If no template-specific dummy content, use a basic structure
-      const contentToUse = dummyContent || {
-        personalInfo: {
-          fullName: "John Doe",
-          email: "john.doe@email.com",
-          phone: "+1 234-567-8900",
-          location: "San Francisco, CA",
-          linkedin: "john-doe",
-          github: "johndoe",
-          portfolio: "Software Engineer",
-        },
-        profileSummary:
-          "Experienced professional with a strong background in software development and project management.",
-        experience: [],
-        education: [],
-        skills: [],
-      };
+      const contentToUse = normalizeResumeImportContent(
+        (dummyContent || {
+          personalInfo: {
+            fullName: "John Doe",
+            email: "john.doe@email.com",
+            phone: "+1 234-567-8900",
+            location: "San Francisco, CA",
+            linkedin: "john-doe",
+            github: "johndoe",
+            portfolio: "Software Engineer",
+          },
+          profileSummary:
+            "Experienced professional with a strong background in software development and project management.",
+          experience: [],
+          education: [],
+          skills: [],
+        }) as Record<string, unknown>,
+      );
 
       // Prepare template config for backend
       const templateConfig =

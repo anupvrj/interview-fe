@@ -16,8 +16,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AppSelect } from "@/components/ui/app-select";
+import { JobRoleSelect } from "@/components/career/JobRoleSelect";
 import { cn } from "@/lib/utils";
-import { peerApi, type PeerIndustry, type PeerInterviewType } from "@/lib/api";
+import {
+  getRolesForIndustry,
+  industrySelectOptions,
+} from "@/lib/career-catalog";
+import { peerApi, type PeerInterviewType } from "@/lib/api";
 
 const controlClass = "app-control w-full bg-card";
 
@@ -35,7 +40,6 @@ export function InterviewerOnboardingForm({
   className?: string;
 }) {
   const { user } = useUser();
-  const [industries, setIndustries] = useState<PeerIndustry[]>([]);
   const [name, setName] = useState(initialName || user?.fullName || "");
   const [jobRole, setJobRole] = useState("");
   const [company, setCompany] = useState("");
@@ -49,13 +53,9 @@ export function InterviewerOnboardingForm({
   const [uploading, setUploading] = useState<"front" | "back" | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  useEffect(() => {
-    peerApi.listIndustries().then(setIndustries).catch(() => undefined);
-  }, []);
-
   const roleOptions = useMemo(
-    () => industries.find((item) => item.name === industry)?.roles ?? [],
-    [industries, industry],
+    () => getRolesForIndustry(industry),
+    [industry],
   );
 
   useEffect(() => {
@@ -257,19 +257,21 @@ export function InterviewerOnboardingForm({
                   }}
                   allowEmpty
                   emptyLabel="Select industry"
-                  options={industries.map((item) => ({ value: item.name, label: item.name }))}
+                  options={industrySelectOptions()}
                 />
               </FormField>
 
               <FormField label="Current role / title" htmlFor="apply-role">
-                <AppSelect
+                <JobRoleSelect
                   id="apply-role"
                   value={jobRole}
                   onChange={setJobRole}
+                  industry={industry || undefined}
                   disabled={!industry}
-                  allowEmpty
-                  emptyLabel={industry ? "Select role" : "Select industry first"}
-                  options={roleOptions.map((role) => ({ value: role, label: role }))}
+                  placeholder={
+                    industry ? "Type or select your role" : "Select industry first"
+                  }
+                  inputClassName="h-11 bg-card"
                 />
               </FormField>
 

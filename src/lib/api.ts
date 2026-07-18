@@ -12,6 +12,7 @@ export const API_URL =
 
 export type SubscriptionPlanSlug =
   | "free"
+  | "trial"
   | "general_pass"
   | "tech_basic"
   | "tech_pro"
@@ -22,6 +23,11 @@ export type SelfServePlanSlug =
   | "general_pass"
   | "tech_basic"
   | "tech_pro";
+
+export type InterviewCreditType =
+  | "aiMockInterview"
+  | "codingRound"
+  | "systemDesign";
 
 export const apiClient: AxiosInstance = axios.create({
   baseURL: API_URL,
@@ -130,12 +136,20 @@ export interface User {
   onboardingCompleted?: boolean;
   userType?: "student" | "fresher" | "experienced";
   experience?: number;
+  /** Contact phone number */
+  phone?: string;
   currentJob?: {
     company: string;
     role: string;
-    industry: string;
+    industry?: string;
   };
+  industry?: string;
+  /** @deprecated legacy multi-select; use `industry` */
   industries?: string[];
+  /** Technical / professional skills */
+  skills?: string[];
+  /** Candidate-managed job-seeking status (iX Talent) */
+  candidateStatus?: CandidateStatus | null;
   /** IANA timezone for peer interviews */
   peerTimezone?: string;
   resume?: {
@@ -171,7 +185,98 @@ export interface User {
       | "blocked"
       | null;
   };
+  /** Recruiter capability derived from a RecruiterProfile (iX Talent) */
+  recruiter?: {
+    isRecruiter: boolean;
+    recruiterStatus: RecruiterStatus | null;
+  };
+  /** Which interview types count toward the iX Report */
+  interviewOptIns?: InterviewOptIns;
 }
+
+export type CandidateStatus = "actively_looking" | "skilling_up" | "hired";
+
+export type InterviewOptIns = {
+  screening: boolean;
+  coding: boolean;
+  systemDesign: boolean;
+  peer: boolean;
+};
+
+export type IxCategoryKey = "screening" | "coding" | "systemDesign" | "peer";
+
+export interface IxCategorySnapshot {
+  score: number | null;
+  sessionCount: number;
+  lastSessionAt: string | null;
+  hasData: boolean;
+}
+
+export interface IxScoreSnapshot {
+  clerkId: string;
+  userId: string;
+  computedAt: string;
+  optIns: InterviewOptIns;
+  categories: Partial<Record<IxCategoryKey, IxCategorySnapshot>>;
+  overall: {
+    average: number | null;
+    rawSum: number;
+    maxRaw: number;
+    optedCount: number;
+    categoriesWithData: number;
+  };
+  communication: {
+    behavioral: number | null;
+    technical: number | null;
+    technicalLabel: string;
+    sessionCount: number;
+  };
+  reportPdfS3Key?: string;
+}
+
+export interface IxSessionRow {
+  id: string;
+  category: IxCategoryKey;
+  title: string;
+  completedAt: string;
+  /** When the interview/session/booking was created (not report generation time). */
+  createdAt?: string;
+  /** When the interview was scheduled to occur (peer start; else created). */
+  scheduledAt?: string;
+  overallScore: number;
+  reportHref: string;
+  source: "ai" | "coding" | "system_design" | "peer";
+  status: "completed" | "processing";
+  hasVideo?: boolean;
+  hasReportPdf?: boolean;
+}
+
+export type RecruiterSessionSource = IxSessionRow["source"];
+
+export type RecruiterSessionReportPayload =
+  | {
+      kind: "interview";
+      source: "ai" | "coding";
+      report: InterviewReport;
+      interview: {
+        interviewId: string;
+        metadata?: Interview["metadata"];
+        createdAt?: string;
+        status?: string;
+      };
+    }
+  | {
+      kind: "system_design";
+      source: "system_design";
+      report: Record<string, unknown>;
+      session: Record<string, unknown>;
+    }
+  | {
+      kind: "peer";
+      source: "peer";
+      report: PeerInterviewReport | null;
+      booking: Record<string, unknown>;
+    };
 
 /** Matches post-interview UX feedback form / API (session issues dropdown). */
 export type InterviewPostSessionChallenge =
@@ -408,6 +513,24 @@ export const userApi = {
     return response.data.data;
   },
 
+  /** Candidate self-managed job-seeking status (iX Talent) */
+  updateCandidateStatus: async (
+    candidateStatus: CandidateStatus,
+  ): Promise<{ candidateStatus: CandidateStatus }> => {
+    const response = await apiClient.patch<{
+      data: { candidateStatus: CandidateStatus };
+    }>("/users/me/candidate-status", { candidateStatus });
+    return response.data.data;
+  },
+
+  /** Contact phone visible to iX Talent recruiters */
+  updatePhone: async (phone: string): Promise<{ phone: string | null }> => {
+    const response = await apiClient.patch<{
+      data: { phone: string | null };
+    }>("/users/me/phone", { phone });
+    return response.data.data;
+  },
+
   /** Search institutions by name (min 2 chars on server); for optional profile affiliation */
   searchInstitutionsForAffiliation: async (
     q: string
@@ -473,11 +596,13 @@ export const userApi = {
     currentJob?: {
       company: string;
       role: string;
-      industry: string;
+      industry?: string;
     };
-    industries?: string[];
+    industry?: string;
+    skills?: string[];
     affiliationInstitutionId?: string | null;
     affiliationInstitutionName?: string | null;
+    interviewOptIns?: Partial<InterviewOptIns>;
   }): Promise<User> => {
     const response = await apiClient.post<{ data: User }>(
       "/users/me/onboarding",
@@ -493,9 +618,10 @@ export const userApi = {
     currentJob?: {
       company: string;
       role: string;
-      industry: string;
+      industry?: string;
     };
-    industries?: string[];
+    industry?: string;
+    skills?: string[];
     affiliationInstitutionId?: string | null;
     affiliationInstitutionName?: string | null;
   }): Promise<User> => {
@@ -931,10 +1057,13 @@ export interface InterviewLimitCheck {
   allowed: boolean;
   reason?: string;
   isExpired?: boolean;
-  creditsAvailable?: number; // New: credit-based system
-  minimumRequired?: number; // New: minimum credits required
-  interviewsUsed?: number; // Deprecated
-  interviewsLimit?: number; // Deprecated
+  creditsAvailable?: number;
+  minimumRequired?: number;
+  ratePerMinute?: number;
+  upgradePlan?: string;
+  gate?: "trial_required" | "upgrade_required" | "insufficient_credits";
+  interviewsUsed?: number;
+  interviewsLimit?: number;
 }
 
 export interface RazorpayOrder {
@@ -953,6 +1082,13 @@ export const paymentApi = {
     const response = await apiClient.post<{ data: RazorpayOrder }>(
       "/payments/create-order",
       { plan, billingCycle },
+    );
+    return response.data.data;
+  },
+
+  createTrialOrder: async (): Promise<RazorpayOrder> => {
+    const response = await apiClient.post<{ data: RazorpayOrder }>(
+      "/payments/create-trial-order",
     );
     return response.data.data;
   },
@@ -1040,10 +1176,84 @@ export const paymentApi = {
     return response.data.data;
   },
 
-  checkInterviewLimit: async (): Promise<InterviewLimitCheck> => {
+  checkInterviewLimit: async (
+    type: InterviewCreditType = "aiMockInterview",
+  ): Promise<InterviewLimitCheck> => {
     const response = await apiClient.get<{ data: InterviewLimitCheck }>(
       "/payments/check-limit",
+      { params: { type } },
     );
+    return response.data.data;
+  },
+};
+
+export type PlanEntitlements = {
+  aiMockInterview: boolean;
+  codingRound: boolean;
+  systemDesign: boolean;
+  behavioralMock: boolean;
+  resumeDesign: boolean;
+  resumeDownload: boolean;
+  atsChecker: boolean;
+  atsOptimizer: boolean;
+  oneClickResumeOptimizer: boolean;
+  detailedInterviewReport: boolean;
+  ixScore: boolean;
+  ixCertifiedBadge: boolean;
+  growthTracking: boolean;
+  targetCompanyPractice: boolean;
+  advancedAiModels: boolean;
+  whiteboard: boolean;
+  peerInterviewBooking: boolean;
+  freePeerInterviewsPerPeriod: number;
+};
+
+export type ResolvedEntitlements = {
+  plan: SubscriptionPlanSlug;
+  status: string;
+  periodEnd?: string;
+  needsRenewal: boolean;
+  entitlements: PlanEntitlements;
+  creditRates: {
+    aiMockInterview: number;
+    codingRound: number;
+    systemDesign: number;
+  };
+  creditsAvailable: number;
+  peerInterviewsRemaining: number;
+  trial: {
+    hasPurchased: boolean;
+    canPurchase: boolean;
+  };
+  isFreeTier: boolean;
+  hasActiveTrial: boolean;
+  canPurchaseTrial: boolean;
+  showTrialUpsell: boolean;
+};
+
+export const entitlementApi = {
+  getEntitlements: async (): Promise<ResolvedEntitlements> => {
+    const response = await apiClient.get<{ data: ResolvedEntitlements }>(
+      "/entitlements",
+    );
+    return response.data.data;
+  },
+};
+
+export type StartTrialResult = {
+  periodEnd: string;
+  creditsGranted: number;
+  subscriptionId: string;
+  entitlements: ResolvedEntitlements;
+};
+
+export const trialApi = {
+  startTrial: async (): Promise<StartTrialResult> => {
+    const response = await apiClient.post<{
+      success: boolean;
+      data: StartTrialResult;
+      message: string;
+    }>("/trial/start");
     return response.data.data;
   },
 };
@@ -3091,7 +3301,7 @@ export const peerApi = {
     start: string;
     end: string;
     availableForTypes: string[];
-    videoLink: string;
+    videoLink?: string;
     googleMeetSpaceName?: string;
     videoLinkSource?: "google_meet_api" | "manual";
   }) => unwrap<PeerSlot>(apiClient.post("/peer/slots", body)),
@@ -3112,7 +3322,7 @@ export const peerApi = {
       start: string;
       end: string;
       availableForTypes: string[];
-      videoLink: string;
+      videoLink?: string;
       googleMeetSpaceName?: string;
       videoLinkSource?: "google_meet_api" | "manual";
     },
@@ -3262,6 +3472,344 @@ export const peerApi = {
       unwrap<PeerBooking>(apiClient.post(`/admin/peer/bookings/${id}/refund`, body)),
     reassign: (id: string, newSlotId: string) =>
       unwrap<PeerBooking>(apiClient.post(`/admin/peer/bookings/${id}/reassign`, { newSlotId })),
+  },
+};
+
+export const ixScoreApi = {
+  getSnapshot: (refresh = false) =>
+    unwrap<IxScoreSnapshot>(
+      apiClient.get("/ix-score", { params: refresh ? { refresh: "true" } : {} }),
+    ),
+
+  listSessions: (params?: {
+    category?: IxCategoryKey | "all";
+    from?: string;
+    to?: string;
+    minScore?: number;
+    maxScore?: number;
+    page?: number;
+    limit?: number;
+  }) =>
+    unwrap<{
+      rows: IxSessionRow[];
+      total: number;
+      page: number;
+      limit: number;
+    }>(apiClient.get("/ix-score/sessions", { params })),
+
+  updateInterviewOptIns: (optIns: InterviewOptIns) =>
+    unwrap<IxScoreSnapshot>(
+      apiClient.put("/users/me/interview-opt-ins", optIns),
+    ),
+
+  getReportPdfUploadUrl: () =>
+    unwrap<{ uploadUrl: string; s3Key: string; expiresIn: number }>(
+      apiClient.get("/ix-score/report/pdf-upload-url"),
+    ),
+
+  confirmReportPdfUpload: (s3Key: string) =>
+    unwrap<{ stored: true; shareUrl?: string }>(
+      apiClient.post("/ix-score/report/confirm-pdf-upload", { s3Key }),
+    ),
+
+  getReportPdfShareUrl: () =>
+    unwrap<
+      | { stored: true; shareUrl: string; expiresIn: number }
+      | { stored: false; expiresIn: number }
+    >(apiClient.get("/ix-score/report/pdf-share-url")),
+
+  generateReportPDF: (body: {
+    htmlContent: string;
+    candidateName?: string;
+    padding?: {
+      top: number;
+      bottom: number;
+      left: number;
+      right: number;
+    };
+    templateCSS?: string;
+  }) =>
+    unwrap<{ downloadUrl: string; s3Key: string }>(
+      apiClient.post("/ix-score/report/generate-pdf", body, {
+        headers: { "Content-Type": "application/json" },
+        timeout: 120000,
+      }),
+    ),
+};
+
+// ---- iX Talent (Recruiter) -------------------------------------------------
+
+export type RecruiterStatus =
+  | "pending"
+  | "approved"
+  | "rejected"
+  | "suspended"
+  | "blocked";
+export type RecruiterType = "individual" | "company";
+export type HiringStatus =
+  | "shortlisted"
+  | "interviewing"
+  | "on_hold"
+  | "hired";
+
+export interface RecruiterCompanyDocs {
+  registrationCertKey?: string;
+  panCardKey?: string;
+  tradeCertKey?: string;
+}
+
+export interface RecruiterProfile {
+  _id: string;
+  clerkId: string;
+  recruiterType: RecruiterType;
+  firstName: string;
+  lastName: string;
+  recruiterRole: string;
+  workEmail: string;
+  companyName?: string;
+  companyDocs?: RecruiterCompanyDocs;
+  workIdKey?: string;
+  status: RecruiterStatus;
+  rejectionReason?: string;
+  suspensionReason?: string;
+  reviewedBy?: string;
+  approvedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface RecruiterAdminView extends RecruiterProfile {
+  stats: { totalHires: number; totalShortlisted: number };
+  documentUrls: {
+    registrationCertUrl?: string;
+    panCardUrl?: string;
+    tradeCertUrl?: string;
+    workIdUrl?: string;
+  };
+}
+
+export interface RecruiterApplyBody {
+  recruiterType: RecruiterType;
+  firstName: string;
+  lastName: string;
+  recruiterRole: string;
+  workEmail: string;
+  companyName?: string;
+  companyDocs?: RecruiterCompanyDocs;
+  workIdKey: string;
+}
+
+export interface TalentCandidateRow {
+  clerkId: string;
+  name: string;
+  email: string;
+  phone?: string;
+  role?: string;
+  company?: string;
+  industry?: string;
+  industries?: string[];
+  candidateStatus?: CandidateStatus | null;
+  experience?: number;
+  ixScore: number | null;
+  hiringStatus: HiringStatus | null;
+  hasResume: boolean;
+}
+
+export interface ShortlistedCandidateRow {
+  clerkId: string;
+  name: string;
+  email: string;
+  phone?: string;
+  role?: string;
+  company?: string;
+  candidateStatus?: CandidateStatus | null;
+  ixScore: number | null;
+  hiringStatus: HiringStatus;
+  shortlistedAt: string;
+  statusUpdatedAt: string;
+  hasResume: boolean;
+}
+
+export interface TalentCandidateDetail {
+  clerkId: string;
+  name: string;
+  email: string;
+  phone?: string;
+  role?: string;
+  company?: string;
+  industry?: string;
+  industries?: string[];
+  skills?: string[];
+  experience?: number;
+  userType?: string;
+  candidateStatus: CandidateStatus | null;
+  ixScore: number | null;
+  categories: Partial<Record<IxCategoryKey, IxCategorySnapshot>> | null;
+  overall: IxScoreSnapshot["overall"] | null;
+  communication: IxScoreSnapshot["communication"] | null;
+  sessions: IxSessionRow[];
+  hasResume: boolean;
+  profilePictureUrl?: string | null;
+  hiringStatus: HiringStatus | null;
+}
+
+export interface RecruiterDashboardStats {
+  shortlisted: number;
+  interviewing: number;
+  on_hold: number;
+  hired: number;
+  total: number;
+}
+
+export interface CandidateResumeLink {
+  url: string;
+  filename: string;
+  source: "uploaded" | "builder";
+}
+
+export const recruiterApi = {
+  // Onboarding / profile
+  uploadDocument: async (file: File): Promise<{ key: string }> => {
+    const blob = await snapshotFileForUpload(file);
+    const formData = new FormData();
+    formData.append("file", blob, file.name);
+    const r = await apiClient.post<{ data: { key: string } }>(
+      "/recruiter/uploads",
+      formData,
+    );
+    return r.data.data;
+  },
+  apply: (body: RecruiterApplyBody) =>
+    unwrap<RecruiterProfile>(apiClient.post("/recruiter/apply", body)),
+  getMyProfile: () =>
+    unwrap<RecruiterProfile | null>(apiClient.get("/recruiter/me")),
+
+  // Dashboard + pipeline
+  getDashboard: () =>
+    unwrap<RecruiterDashboardStats>(apiClient.get("/recruiter/dashboard")),
+  listShortlisted: (params: {
+    page?: number;
+    pageSize?: number;
+    hiringStatus?: string;
+    q?: string;
+  }) =>
+    unwrap<PeerPaginated<ShortlistedCandidateRow>>(
+      apiClient.get("/recruiter/shortlisted", { params }),
+    ),
+
+  // Candidate discovery
+  listCandidates: (params: {
+    page?: number;
+    pageSize?: number;
+    q?: string;
+    candidateStatus?: string;
+    role?: string;
+    industry?: string;
+    skills?: string;
+    minIxScore?: number;
+  }) =>
+    unwrap<PeerPaginated<TalentCandidateRow>>(
+      apiClient.get("/recruiter/candidates", { params }),
+    ),
+  getCandidate: (clerkId: string) =>
+    unwrap<TalentCandidateDetail>(
+      apiClient.get(`/recruiter/candidates/${clerkId}`),
+    ),
+  getCandidateResumeUrl: (clerkId: string) =>
+    unwrap<CandidateResumeLink>(
+      apiClient.get(`/recruiter/candidates/${clerkId}/resume-url`),
+    ),
+  getCandidateIxReport: (clerkId: string) =>
+    unwrap<{
+      candidate: { clerkId: string; name: string; email?: string };
+      snapshot: IxScoreSnapshot;
+    }>(apiClient.get(`/recruiter/candidates/${clerkId}/ix-report`)),
+  listCandidateSessions: (
+    clerkId: string,
+    params?: {
+      category?: IxCategoryKey | "all";
+      from?: string;
+      to?: string;
+      minScore?: number;
+      maxScore?: number;
+      page?: number;
+      limit?: number;
+    },
+  ) =>
+    unwrap<{
+      rows: IxSessionRow[];
+      total: number;
+      page: number;
+      limit: number;
+    }>(apiClient.get(`/recruiter/candidates/${clerkId}/sessions`, { params })),
+  getCandidateSessionReport: (
+    clerkId: string,
+    sessionId: string,
+    source: RecruiterSessionSource,
+  ) =>
+    unwrap<RecruiterSessionReportPayload>(
+      apiClient.get(
+        `/recruiter/candidates/${clerkId}/sessions/${sessionId}/report`,
+        { params: { source } },
+      ),
+    ),
+  getCandidateSessionVideoUrl: (
+    clerkId: string,
+    sessionId: string,
+    source: RecruiterSessionSource,
+  ) =>
+    unwrap<{ videoUrl: string; expiresIn: number }>(
+      apiClient.get(
+        `/recruiter/candidates/${clerkId}/sessions/${sessionId}/video-url`,
+        { params: { source } },
+      ),
+    ),
+  getCandidateSessionDownloadUrl: (
+    clerkId: string,
+    sessionId: string,
+    source: RecruiterSessionSource,
+    kind: "report" | "video",
+  ) =>
+    unwrap<{ downloadUrl: string; filename: string; expiresIn: number }>(
+      apiClient.get(
+        `/recruiter/candidates/${clerkId}/sessions/${sessionId}/download-url`,
+        { params: { source, kind } },
+      ),
+    ),
+
+  // Pipeline mutations
+  shortlist: (clerkId: string) =>
+    unwrap<{ hiringStatus: HiringStatus }>(
+      apiClient.post(`/recruiter/candidates/${clerkId}/shortlist`, {}),
+    ),
+  updateHiringStatus: (clerkId: string, hiringStatus: HiringStatus) =>
+    unwrap<{ hiringStatus: HiringStatus }>(
+      apiClient.patch(`/recruiter/candidates/${clerkId}/hiring-status`, {
+        hiringStatus,
+      }),
+    ),
+  removeFromShortlist: (clerkId: string) =>
+    unwrap<{ removed: boolean }>(
+      apiClient.delete(`/recruiter/candidates/${clerkId}/shortlist`),
+    ),
+
+  admin: {
+    listRecruiters: (status?: string) =>
+      unwrap<RecruiterProfile[]>(
+        apiClient.get("/admin/recruiters", {
+          params: status ? { status } : {},
+        }),
+      ),
+    getRecruiter: (id: string) =>
+      unwrap<RecruiterAdminView>(apiClient.get(`/admin/recruiters/${id}`)),
+    setRecruiterStatus: (
+      id: string,
+      action: "approve" | "reject" | "suspend" | "block" | "unblock",
+      reason?: string,
+    ) =>
+      unwrap<RecruiterProfile>(
+        apiClient.post(`/admin/recruiters/${id}/status`, { action, reason }),
+      ),
   },
 };
 

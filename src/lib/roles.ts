@@ -1,11 +1,18 @@
 import type { LucideIcon } from "lucide-react";
-import { Shield, Building2, CalendarClock, GraduationCap } from "lucide-react";
+import {
+  Shield,
+  Building2,
+  CalendarClock,
+  GraduationCap,
+  Briefcase,
+} from "lucide-react";
 import type { User } from "@/lib/api";
 
 export type ActiveRole =
   | "super_admin"
   | "institution_admin"
   | "interviewer"
+  | "recruiter"
   | "candidate";
 
 export type RoleMeta = {
@@ -34,6 +41,12 @@ export const ROLE_META: Record<ActiveRole, RoleMeta> = {
     description: "Manage your slots, bookings and peer interview sessions.",
     icon: CalendarClock,
   },
+  recruiter: {
+    role: "recruiter",
+    label: "Recruiter",
+    description: "Discover iX Talent, shortlist candidates and hire.",
+    icon: Briefcase,
+  },
   candidate: {
     role: "candidate",
     label: "Candidate",
@@ -47,12 +60,16 @@ export const ROLE_META: Record<ActiveRole, RoleMeta> = {
  * Frontend view-scoping only - the backend still enforces real permissions.
  */
 export function deriveAvailableRoles(
-  profile: Pick<User, "accessRole" | "peer"> | null | undefined,
+  profile: Pick<User, "accessRole" | "peer" | "recruiter"> | null | undefined,
 ): ActiveRole[] {
   const roles: ActiveRole[] = [];
   if (profile?.accessRole === "super_admin") roles.push("super_admin");
-  if (profile?.accessRole === "institution_admin") roles.push("institution_admin");
-  if (profile?.peer?.interviewerStatus === "approved") roles.push("interviewer");
+  if (profile?.accessRole === "institution_admin")
+    roles.push("institution_admin");
+  if (profile?.peer?.interviewerStatus === "approved")
+    roles.push("interviewer");
+  if (profile?.recruiter?.recruiterStatus === "approved")
+    roles.push("recruiter");
   // Every logged-in user is at least a candidate.
   roles.push("candidate");
   return roles;
@@ -72,6 +89,8 @@ export function roleHome(
         : "/dashboard/institute";
     case "interviewer":
       return "/dashboard/peer-interviews/interviewer";
+    case "recruiter":
+      return "/dashboard/ix-recruiter";
     case "candidate":
     default:
       return "/dashboard";
@@ -84,10 +103,18 @@ const INTERVIEWER_HUB = "/dashboard/peer-interviews/interviewer";
 const INTERVIEWER_APPLY = "/dashboard/peer-interviews/interviewer/apply";
 const PEER_CANDIDATE_HUB = "/dashboard/peer-interviews";
 const PEER_CANDIDATE_BOOKINGS = "/dashboard/peer-interviews/bookings";
+const RECRUITER_HUB = "/dashboard/ix-recruiter";
+const RECRUITER_APPLY = "/dashboard/ix-recruiter/apply";
+
+const PEER_CANDIDATE_BOOK = "/dashboard/peer-interviews/book";
 
 /** Candidate marketplace and booking list — not for the interviewer role view. */
 function isCandidatePeerMarketplacePath(pathname: string): boolean {
-  return pathname === PEER_CANDIDATE_HUB || pathname === PEER_CANDIDATE_BOOKINGS;
+  return (
+    pathname === PEER_CANDIDATE_HUB ||
+    pathname === PEER_CANDIDATE_BOOK ||
+    pathname === PEER_CANDIDATE_BOOKINGS
+  );
 }
 
 /** Candidate booking page: /dashboard/peer-interviews/interviewer/:interviewerId */
@@ -107,7 +134,10 @@ function matchesPrefix(pathname: string, prefixes: string[]): boolean {
  * Whether the given dashboard path is viewable under the active role.
  * super_admin can view everything. Non-dashboard paths are always allowed.
  */
-type RoleProfile = Pick<User, "institutionId" | "peer"> | null | undefined;
+type RoleProfile =
+  | Pick<User, "institutionId" | "peer" | "recruiter">
+  | null
+  | undefined;
 
 export function isPathAllowedForRole(
   role: ActiveRole,
@@ -143,6 +173,13 @@ export function isPathAllowedForRole(
     return pathname.startsWith("/dashboard/peer-interviews");
   }
 
+  if (role === "recruiter") {
+    // Recruiter workspace + own profile (handled above).
+    return (
+      pathname === RECRUITER_HUB || pathname.startsWith(`${RECRUITER_HUB}/`)
+    );
+  }
+
   // candidate: peer marketplace + apply; interviewer hub only while application is in review.
   if (matchesPrefix(pathname, SUPER_ADMIN_PREFIXES)) return false;
   if (matchesPrefix(pathname, INSTITUTE_PREFIXES)) return false;
@@ -163,12 +200,30 @@ export function isPathAllowedForRole(
     return isPublicPeerInterviewerProfilePath(pathname);
   }
 
+  // Recruiter apply is reachable by candidates; the recruiter hub only while the
+  // application is in review; all other iX Talent pages are recruiter-role only.
+  if (
+    pathname === RECRUITER_APPLY ||
+    pathname.startsWith(`${RECRUITER_APPLY}/`)
+  ) {
+    return true;
+  }
+  const recruiterStatus = profile?.recruiter?.recruiterStatus;
+  if (pathname === RECRUITER_HUB) {
+    return recruiterStatus === "pending" || recruiterStatus === "suspended";
+  }
+  if (pathname.startsWith(`${RECRUITER_HUB}/`)) {
+    return false;
+  }
+
   return true;
 }
 
 const STORAGE_PREFIX = "activeRole:";
 
-export function readStoredRole(userId: string | null | undefined): ActiveRole | null {
+export function readStoredRole(
+  userId: string | null | undefined,
+): ActiveRole | null {
   if (!userId || globalThis.window === undefined) return null;
   try {
     const value = globalThis.localStorage.getItem(`${STORAGE_PREFIX}${userId}`);

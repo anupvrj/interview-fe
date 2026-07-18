@@ -483,6 +483,30 @@ export function mapExtractedSectionsToContent(
   return sanitizeResumeStringFields(content);
 }
 
+/** Normalize imported/dummy resume content before persisting to the API. */
+export function normalizeResumeImportContent(
+  content: Record<string, unknown>,
+): Record<string, unknown> {
+  const normalized = { ...content };
+
+  if (Array.isArray(normalized.experience)) {
+    normalized.experience = normalizeExperienceList(normalized.experience);
+  } else if (!Array.isArray(normalized.experience)) {
+    normalized.experience = [];
+  }
+
+  if (Array.isArray(normalized.projects)) {
+    normalized.projects = normalizeProjectsList(normalized.projects);
+  } else if (normalized.projects != null) {
+    normalized.projects = normalizeProjectsList([normalized.projects]);
+  } else {
+    normalized.projects = [];
+  }
+
+  ensureResumePersonalInfo(normalized);
+  return sanitizeResumeStringFields(normalized);
+}
+
 export function buildSectionOrderForExtractedContent(
   extended: Pick<
     ExtendedResumeTemplate,

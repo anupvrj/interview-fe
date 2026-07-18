@@ -33,6 +33,32 @@ export function FormSection({
   );
 }
 
+export function StepBlock({
+  title,
+  description,
+  children,
+  className,
+}: Readonly<{
+  title: string;
+  description?: string;
+  children: React.ReactNode;
+  className?: string;
+}>) {
+  return (
+    <div className={cn("space-y-4", className)}>
+      <div>
+        <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+        {description ? (
+          <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
+            {description}
+          </p>
+        ) : null}
+      </div>
+      {children}
+    </div>
+  );
+}
+
 export function FormField({
   label,
   htmlFor,
@@ -65,4 +91,4 @@ export function FormField({
 }
 
 export const onboardingControlClass =
-  "h-11 rounded-[0.625rem] border-border/60 bg-card shadow-sm";
+  "h-11 w-full rounded-[0.625rem] border-border/60 bg-card text-sm shadow-sm sm:h-12";

@@ -24,6 +24,18 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.9,
     },
     {
+      url: `${baseUrl}/hire-ix-talent`,
+      lastModified: new Date(),
+      changeFrequency: "weekly",
+      priority: 0.85,
+    },
+    {
+      url: `${baseUrl}/become-peer-interviewer`,
+      lastModified: new Date(),
+      changeFrequency: "weekly",
+      priority: 0.85,
+    },
+    {
       url: `${baseUrl}/ai-job-search`,
       lastModified: new Date(),
       changeFrequency: "weekly",

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   CheckCheck,
   Copy,
@@ -10,6 +10,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -42,14 +44,29 @@ export function ATSIssueImproveDialog({
   const { resumeId, onApplyFix } = useATSIssueMagic();
   const [loading, setLoading] = useState(false);
   const [improvedContent, setImprovedContent] = useState("");
+  const [editedContent, setEditedContent] = useState("");
   const [sourceContent, setSourceContent] = useState("");
   const [copied, setCopied] = useState(false);
   const [inserted, setInserted] = useState(false);
   const [userPrompt, setUserPrompt] = useState("");
+  const suggestionSectionRef = useRef<HTMLDivElement>(null);
+  const scrollToSuggestionAfterRegenerate = useRef(false);
+
+  const scrollToSuggestion = useCallback(() => {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        suggestionSectionRef.current?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      });
+    });
+  }, []);
 
   const generate = useCallback(async () => {
     if (!resumeId) return;
 
+    scrollToSuggestionAfterRegenerate.current = true;
     setLoading(true);
     setCopied(false);
     setInserted(false);
@@ -61,10 +78,15 @@ export function ATSIssueImproveDialog({
         userPrompt: userPrompt.trim() || undefined,
       });
       setImprovedContent(result.improvedContent);
+      setEditedContent(result.improvedContent);
       setSourceContent(result.sourceContent);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Error improving ATS issue:", error);
-      toast.error("Could not generate improved content. Please try again.");
+      const message =
+        (error as { response?: { data?: { message?: string } } })?.response?.data
+          ?.message ||
+        "Could not generate improved content. Please try again.";
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -74,6 +96,7 @@ export function ATSIssueImproveDialog({
     if (!open || !resumeId) return;
 
     setImprovedContent("");
+    setEditedContent("");
     setSourceContent("");
     setUserPrompt("");
     setCopied(false);
@@ -90,12 +113,17 @@ export function ATSIssueImproveDialog({
         });
         if (!cancelled) {
           setImprovedContent(result.improvedContent);
+          setEditedContent(result.improvedContent);
           setSourceContent(result.sourceContent);
         }
-      } catch (error) {
+      } catch (error: unknown) {
         console.error("Error improving ATS issue:", error);
         if (!cancelled) {
-          toast.error("Could not generate improved content. Please try again.");
+          const message =
+            (error as { response?: { data?: { message?: string } } })?.response
+              ?.data?.message ||
+            "Could not generate improved content. Please try again.";
+          toast.error(message);
         }
       } finally {
         if (!cancelled) {
@@ -109,19 +137,29 @@ export function ATSIssueImproveDialog({
     };
   }, [open, resumeId, check.id, categoryLabel, issue]);
 
+  useEffect(() => {
+    if (!open || loading || !improvedContent) return;
+    if (!scrollToSuggestionAfterRegenerate.current) return;
+
+    scrollToSuggestionAfterRegenerate.current = false;
+    scrollToSuggestion();
+  }, [open, loading, improvedContent, scrollToSuggestion]);
+
   const handleCopy = async () => {
-    if (!improvedContent) return;
-    await navigator.clipboard.writeText(improvedContent);
+    const text = editedContent.trim();
+    if (!text) return;
+    await navigator.clipboard.writeText(text);
     setCopied(true);
     toast.success("Copied to clipboard");
     setTimeout(() => setCopied(false), 2000);
   };
 
   const handleInsert = () => {
-    if (!improvedContent || !onApplyFix) return;
+    const text = editedContent.trim();
+    if (!text || !onApplyFix) return;
 
     const original = sourceContent || issue.excerpt || issue.rewriteSuggestion || "";
-    const applied = onApplyFix(original, improvedContent);
+    const applied = onApplyFix(original, text);
     if (applied) {
       setInserted(true);
       toast.success("Inserted into resume");
@@ -139,8 +177,11 @@ export function ATSIssueImproveDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-xl">
-        <DialogHeader>
+      <DialogContent
+        overlayClassName="z-[80]"
+        className="z-[80] flex max-h-[min(85dvh,640px)] w-[calc(100%-2rem)] max-w-xl flex-col gap-0 overflow-hidden p-0 sm:max-w-xl"
+      >
+        <DialogHeader className="shrink-0 border-b border-border/60 px-4 py-4 text-left sm:px-6">
           <DialogTitle className="flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-primary" />
             AI fix for this feedback
@@ -150,7 +191,7 @@ export function ATSIssueImproveDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-y-contain px-4 py-4 sm:px-6">
           <div className="rounded-lg border border-border bg-muted/30 p-3">
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               Feedback
@@ -165,7 +206,7 @@ export function ATSIssueImproveDialog({
           </div>
 
           {(sourceContent || issue.excerpt) && (
-            <div className="rounded-lg border border-red-100 bg-red-50 dark:border-red-900/40 dark:bg-red-950/25 p-3">
+            <div className="rounded-lg border border-red-100 bg-red-50 p-3 dark:border-red-900/40 dark:bg-red-950/25">
               <p className="text-xs font-semibold uppercase tracking-wide text-red-700 dark:text-[#fd7070]">
                 Current content
               </p>
@@ -182,28 +223,36 @@ export function ATSIssueImproveDialog({
             disabled={loading}
           />
 
-          <div className="rounded-lg border border-green-200 bg-green-50 p-3 dark:border-green-900/40 dark:bg-green-950/25">
-            <p className="text-xs font-semibold uppercase tracking-wide text-green-700 dark:text-green-300">
+          <div ref={suggestionSectionRef} className="space-y-2 scroll-mt-4">
+            <Label
+              htmlFor="ats-issue-ai-suggestion"
+              className="text-xs font-semibold uppercase tracking-wide text-green-700 dark:text-green-300"
+            >
               AI suggestion
-            </p>
+            </Label>
             {loading ? (
-              <div className="mt-3 flex items-center gap-2 text-sm text-muted-foreground">
+              <div className="flex items-center gap-2 rounded-md border border-green-200 bg-green-50 px-3 py-6 text-sm text-muted-foreground dark:border-green-900/40 dark:bg-green-950/25">
                 <Loader2 className="h-4 w-4 animate-spin" />
                 Generating improved content…
               </div>
             ) : improvedContent ? (
-              <p className="mt-2 whitespace-pre-wrap text-sm text-green-900 dark:text-green-100">
-                {improvedContent}
-              </p>
+              <Textarea
+                id="ats-issue-ai-suggestion"
+                value={editedContent}
+                onChange={(e) => setEditedContent(e.target.value)}
+                rows={5}
+                className="min-h-[120px] border-green-200 bg-green-50 text-sm text-green-900 dark:border-green-900/40 dark:bg-green-950/25 dark:text-green-100"
+                placeholder="Edit the AI suggestion before inserting into your resume."
+              />
             ) : (
-              <p className="mt-2 text-sm text-muted-foreground">
+              <p className="rounded-md border border-dashed border-border bg-muted/20 px-3 py-6 text-sm text-muted-foreground">
                 No suggestion generated yet.
               </p>
             )}
           </div>
         </div>
 
-        <DialogFooter className="flex-col gap-2 sm:flex-row sm:justify-between">
+        <DialogFooter className="shrink-0 flex-col gap-2 border-t border-border/60 px-4 py-4 sm:flex-row sm:justify-between sm:px-6">
           <Button
             type="button"
             variant="outline"
@@ -224,7 +273,7 @@ export function ATSIssueImproveDialog({
               variant="outline"
               size="sm"
               onClick={() => void handleCopy()}
-              disabled={!improvedContent || loading}
+              disabled={!editedContent.trim() || loading}
             >
               {copied ? (
                 <CheckCheck className="mr-2 h-4 w-4" />
@@ -238,7 +287,7 @@ export function ATSIssueImproveDialog({
                 type="button"
                 size="sm"
                 onClick={handleInsert}
-                disabled={!improvedContent || loading || inserted}
+                disabled={!editedContent.trim() || loading || inserted}
               >
                 Insert into resume
               </Button>

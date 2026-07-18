@@ -3,24 +3,10 @@
 import { useState, useEffect } from "react";
 import { useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useDropzone } from "react-dropzone";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   Upload,
   FileText,
@@ -28,27 +14,51 @@ import {
   Loader2,
   CheckCircle,
   Crown,
-  Sparkles,
-  Briefcase,
   Globe,
-  Building2,
-  Zap,
   Target,
   Clock,
-  Mic,
-  BarChart3,
+  ArrowLeft,
+  ArrowRight,
+  Coins,
+  AlertCircle,
+  Check,
 } from "lucide-react";
-import { interviewApi, paymentApi, userApi, User } from "@/lib/api";
+import {
+  interviewApi,
+  paymentApi,
+  userApi,
+  User,
+  type Resume,
+} from "@/lib/api";
+import {
+  getActiveSavedResumeDisplay,
+  hasActiveSavedResume,
+  loadDefaultDesignedResume,
+} from "@/lib/active-saved-resume";
 import {
   PDF_RESUME_MAX_BYTES,
   pdfResumeDropzoneAccept,
   pdfResumeFileValidator,
 } from "@/lib/pdf-dropzone";
-import { PageHeader } from "@/components/app/PageHeader";
-import { appCard } from "@/lib/app-theme";
+import { PracticeLockedGate } from "@/components/upsell/PracticeLockedGate";
+import { useUpsellState } from "@/components/upsell/useUpsellState";
+import { JobRoleSelect } from "@/components/career/JobRoleSelect";
+import { AppSelect } from "@/components/ui/app-select";
+import {
+  FormField,
+} from "@/components/onboarding/onboarding-form-primitives";
+import {
+  appCard,
+  appCardElevated,
+  appPrimaryButton,
+  appSurfaceMuted,
+} from "@/lib/app-theme";
 import { cn } from "@/lib/utils";
 
-const disciplineOptionsByDepartment: Record<string, Array<{ value: string; label: string }>> = {
+const disciplineOptionsByDepartment: Record<
+  string,
+  Array<{ value: string; label: string }>
+> = {
   engineering: [
     { value: "cse", label: "CSE" },
     { value: "it", label: "IT" },
@@ -61,12 +71,136 @@ const disciplineOptionsByDepartment: Record<string, Array<{ value: string; label
   ],
 };
 
+const EXPERIENCE_OPTIONS = [
+  { value: "0", label: "Fresher" },
+  { value: "1", label: "1 year" },
+  { value: "2", label: "2 years" },
+  { value: "3", label: "3 years" },
+  { value: "4", label: "4 years" },
+  { value: "5", label: "5+ years" },
+] as const;
+
+const LANGUAGE_OPTIONS = [
+  { value: "en", label: "English" },
+  { value: "hi", label: "Hindi" },
+] as const;
+
+const DEPARTMENT_OPTIONS = [
+  { value: "engineering", label: "Engineering" },
+  { value: "management", label: "Management" },
+  { value: "commerce_finance", label: "Commerce & Finance" },
+  { value: "healthcare_pharma", label: "Healthcare & Pharma" },
+  { value: "marketing", label: "Marketing" },
+  { value: "sales", label: "Sales" },
+] as const;
+
+const STEPS = [
+  {
+    number: 1,
+    title: "Role",
+    icon: Target,
+    headline: "What role are you preparing for?",
+    description: "We'll tailor questions to your target role and company.",
+  },
+  {
+    number: 2,
+    title: "Background",
+    icon: Globe,
+    headline: "Tell us about your background",
+    description: "Experience and language shape how the AI panel interviews you.",
+  },
+  {
+    number: 3,
+    title: "Session",
+    icon: Clock,
+    headline: "Choose session length",
+    description: "Billed at 5 credits per minute.",
+  },
+  {
+    number: 4,
+    title: "Resume",
+    icon: FileText,
+    headline: "Add your resume",
+    description: "Personalized questions are built from your resume.",
+  },
+] as const;
+
+const controlClass =
+  "h-11 w-full rounded-[0.625rem] border-border/60 bg-card text-sm shadow-sm sm:h-12";
+
+function FieldError({ message }: { message: string }) {
+  return (
+    <p className="flex items-center gap-1.5 text-sm text-destructive">
+      <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+      {message}
+    </p>
+  );
+}
+
+function ResumeOptionCard({
+  selected,
+  onSelect,
+  icon: Icon,
+  title,
+  subtitle,
+}: {
+  selected: boolean;
+  onSelect: () => void;
+  icon: React.ComponentType<{ className?: string }>;
+  title: string;
+  subtitle?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      className={cn(
+        "flex w-full items-center gap-3 rounded-xl border p-3.5 text-left transition-all sm:p-4",
+        selected
+          ? "border-[#7367F0]/50 bg-[#7367F0]/[0.06] shadow-sm ring-1 ring-[#7367F0]/20"
+          : "border-border/70 bg-card hover:border-[#7367F0]/30 hover:bg-muted/20",
+      )}
+    >
+      <span
+        className={cn(
+          "flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition-colors",
+          selected
+            ? "border-[#7367F0] bg-[#7367F0]"
+            : "border-border bg-background",
+        )}
+      >
+        {selected ? (
+          <span className="h-2 w-2 rounded-full bg-white" />
+        ) : null}
+      </span>
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#7367F0]/10 text-[#7367F0]">
+        <Icon className="h-5 w-5" />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-sm font-semibold text-foreground">
+          {title}
+        </span>
+        {subtitle ? (
+          <span className="mt-0.5 block truncate text-xs text-muted-foreground">
+            {subtitle}
+          </span>
+        ) : null}
+      </span>
+      {selected ? (
+        <CheckCircle className="h-5 w-5 shrink-0 text-emerald-500" />
+      ) : null}
+    </button>
+  );
+}
+
 export default function NewInterviewPage() {
   const { user, isLoaded } = useUser();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [userProfile, setUserProfile] = useState<User | null>(null);
+  const [defaultDesignedResume, setDefaultDesignedResume] =
+    useState<Resume | null>(null);
   const [useSavedResume, setUseSavedResume] = useState(true);
   const [formData, setFormData] = useState({
     role: "",
@@ -80,13 +214,27 @@ export default function NewInterviewPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [limitCheck, setLimitCheck] = useState<any>(null);
   const [checkingLimit, setCheckingLimit] = useState(true);
+  const [subscriptionPlan, setSubscriptionPlan] = useState("free");
+  const [currentStep, setCurrentStep] = useState(1);
+  const {
+    canUse,
+    showTrialUpsell,
+    loading: entitlementsLoading,
+  } = useUpsellState();
+
+  const aiPracticeLocked =
+    !entitlementsLoading && !canUse("aiMockInterview");
 
   const loadUserProfile = async () => {
     if (!user) return;
     try {
-      const profile = await userApi.getMyProfile();
+      const [profile, designedDefault] = await Promise.all([
+        userApi.getMyProfile(),
+        loadDefaultDesignedResume(user.id),
+      ]);
       setUserProfile(profile);
-      if (profile.resume) {
+      setDefaultDesignedResume(designedDefault);
+      if (hasActiveSavedResume(profile, designedDefault)) {
         setUseSavedResume(true);
       }
     } catch (error) {
@@ -94,12 +242,23 @@ export default function NewInterviewPage() {
     }
   };
 
+  const activeSavedResume = getActiveSavedResumeDisplay(
+    userProfile,
+    defaultDesignedResume,
+  );
+  const savedResumeAvailable = hasActiveSavedResume(
+    userProfile,
+    defaultDesignedResume,
+  );
+
   const checkInterviewLimit = async () => {
     if (!user) return;
     setCheckingLimit(true);
     try {
-      const result = await paymentApi.checkInterviewLimit();
+      const result = await paymentApi.checkInterviewLimit("aiMockInterview");
       setLimitCheck(result);
+      const sub = await paymentApi.getSubscription();
+      setSubscriptionPlan(sub?.plan ?? "free");
     } catch (error: unknown) {
       console.error("Error checking limit:", error);
       try {
@@ -122,7 +281,7 @@ export default function NewInterviewPage() {
           return;
         }
       } catch {
-        // fall through — limitCheck stays null, retry UI shown
+        // fall through
       }
     } finally {
       setCheckingLimit(false);
@@ -176,27 +335,52 @@ export default function NewInterviewPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    if (currentStep < STEPS.length) {
+      if (validateStep(currentStep)) {
+        setCurrentStep((step) => step + 1);
+      }
+      return;
+    }
+
+    await submitInterview();
+  };
+
+  const validateStep = (step: number): boolean => {
+    const newErrors: Record<string, string> = {};
+
+    if (step === 1 && !formData.role.trim()) {
+      newErrors.role = "Role is required";
+    }
+
+    if (step === 4) {
+      if (!useSavedResume && !uploadedFile) {
+        newErrors.resume = "Please upload your resume or use saved resume";
+      }
+      if (useSavedResume && !savedResumeAvailable) {
+        newErrors.resume =
+          "No saved resume found. Set a default on your profile or upload a PDF.";
+      }
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const submitInterview = async () => {
     if (!user) {
       setErrors({ form: "Please sign in to continue" });
       return;
     }
 
-    const limitResult = await paymentApi.checkInterviewLimit();
-    if (!limitResult.allowed) {
-      setLimitCheck(limitResult);
+    if (!validateStep(1) || !validateStep(4)) {
+      if (!formData.role.trim()) setCurrentStep(1);
+      else setCurrentStep(4);
       return;
     }
 
-    const newErrors: Record<string, string> = {};
-    if (!formData.role.trim()) {
-      newErrors.role = "Role is required";
-    }
-    if (!useSavedResume && !uploadedFile) {
-      newErrors.resume = "Please upload your resume or use saved resume";
-    }
-
-    if (Object.keys(newErrors).length > 0) {
-      setErrors(newErrors);
+    const limitResult = await paymentApi.checkInterviewLimit("aiMockInterview");
+    if (!limitResult.allowed) {
+      setLimitCheck(limitResult);
       return;
     }
 
@@ -229,7 +413,7 @@ export default function NewInterviewPage() {
         targetCompany: formData.targetCompany,
         resume: useSavedResume ? undefined : uploadedFile || undefined,
         useSavedResume:
-          useSavedResume && userProfile?.resume ? true : undefined,
+          useSavedResume && savedResumeAvailable ? true : undefined,
         duration: parseInt(formData.duration),
       });
 
@@ -244,720 +428,527 @@ export default function NewInterviewPage() {
         await checkInterviewLimit();
       }
 
-      setErrors({
-        form: errorMessage,
-      });
+      setErrors({ form: errorMessage });
     } finally {
       setLoading(false);
     }
   };
 
-  return (
-    <div className="w-full max-w-6xl mx-auto space-y-4 lg:space-y-6">
-      <PageHeader
-        badge="AI Interview Practice"
-        title="Configure your AI Interview Practice"
-        description="Shortlist-ready answers come from rehearsals that mirror the company, round, and language you will face—wrapped with transcripts, scores, and discussion coaching you can review before the real panel."
-      />
+  const goBackStep = () => {
+    setErrors({});
+    setCurrentStep((step) => Math.max(step - 1, 1));
+  };
 
-      {/* Status Cards */}
-      {checkingLimit ? (
-        <Card className={cn(appCard)}>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-center gap-3 py-4">
-              <Loader2 className="h-6 w-6 animate-spin text-primary" />
-              <p className="text-muted-foreground font-medium">
-                Checking your interview limit...
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      ) : limitCheck && !limitCheck.allowed ? (
-        <Card
-          className={cn(
-            "border-2 shadow-xl",
-            limitCheck.isExpired
-              ? "border-amber-400 bg-gradient-to-br from-amber-50 via-orange-50 to-amber-50"
-              : "border-orange-400 bg-gradient-to-br from-orange-50 via-red-50 to-pink-50",
-          )}
-        >
-          <CardContent className="pt-6">
-            <div className="flex flex-col md:flex-row items-start gap-6">
-              <div className="flex-shrink-0">
+  const activeStep = STEPS[currentStep - 1];
+  const canUse30Min = ["tech_pro", "enterprise"].includes(subscriptionPlan);
+
+  const interviewForm = (
+    <div className="mx-auto w-full max-w-3xl space-y-4">
+      <div className={cn(appCardElevated, "overflow-hidden")}>
+        <div className="border-b border-border/60 bg-gradient-to-br from-[#7367F0]/10 via-transparent to-transparent px-5 py-5 sm:px-6">
+          <p className="text-center text-[11px] font-semibold uppercase tracking-[0.08em] text-[#7367F0]">
+            Step {currentStep} of {STEPS.length}
+          </p>
+          <h2 className="mt-2 text-center text-lg font-semibold text-foreground sm:text-xl">
+            {activeStep.headline}
+          </h2>
+          <p className="mx-auto mt-1 max-w-md text-center text-sm text-muted-foreground">
+            {activeStep.description}
+          </p>
+
+          <div className="mt-5 flex items-center gap-2">
+            {STEPS.map((step, index) => {
+              const done = currentStep > step.number;
+              const active = currentStep === step.number;
+              const StepIcon = step.icon;
+              return (
                 <div
-                  className={cn(
-                    "w-16 h-16 rounded-2xl flex items-center justify-center shadow-lg",
-                    limitCheck.isExpired
-                      ? "bg-gradient-to-br from-amber-500 to-orange-600"
-                      : "bg-gradient-to-br from-orange-500 to-red-500",
-                  )}
+                  key={step.number}
+                  className="flex min-w-0 flex-1 items-center gap-2"
                 >
-                  <Crown className="h-8 w-8 text-white" />
-                </div>
-              </div>
-              <div className="flex-1">
-                <h3 className="text-2xl font-bold text-foreground mb-3">
-                  {limitCheck.isExpired
-                    ? "Subscription expired"
-                    : "Not enough credits"}
-                </h3>
-                <p className="text-muted-foreground mb-4 text-lg">
-                  {limitCheck.reason ||
-                    "Purchase a plan or credits to continue interviewing."}
-                </p>
-                {limitCheck.creditsAvailable !== undefined &&
-                  limitCheck.minimumRequired !== undefined && (
-                    <div className="mb-6 p-4 bg-card/60 rounded-xl backdrop-blur-sm">
-                      <p className="text-sm text-muted-foreground mb-2">
-                        <span className="font-semibold">
-                          Available Credits:{" "}
-                        </span>
-                        <span className="font-bold text-orange-600 text-lg">
-                          {limitCheck.creditsAvailable}
-                        </span>
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        <span className="font-semibold">Required: </span>
-                        <span className="font-bold text-red-600 text-lg">
-                          {limitCheck.minimumRequired}
-                        </span>{" "}
-                        credits (30-min interview)
-                      </p>
-                      {!limitCheck.isExpired && (
-                        <p className="text-xs text-muted-foreground mt-2">
-                          Billing runs at 5 credits per minute—grab more credits
-                          to keep interviewing and unlock full scoring reports.
-                        </p>
-                      )}
-                    </div>
-                  )}
-                <div className="flex flex-col sm:flex-row gap-3">
-                  {limitCheck.isExpired ? (
-                    <Button
-                      onClick={() =>
-                        router.push("/dashboard/plan?renew=1")
-                      }
-                      size="lg"
-                      className="!bg-[#7367F0] hover:!bg-[#6358d8] text-white shadow-lg hover:shadow-xl transition-all"
-                    >
-                      <Crown className="h-5 w-5 mr-2" />
-                      Renew subscription
-                    </Button>
-                  ) : (
-                    <>
-                      <Button
-                        onClick={() => router.push("/dashboard/plan")}
-                        size="lg"
-                        className="!bg-emerald-600 hover:!bg-emerald-700 text-white shadow-lg hover:shadow-xl transition-all"
-                      >
-                        <Zap className="h-5 w-5 mr-2" />
-                        Purchase credits
-                      </Button>
-                      <Button
-                        onClick={() => router.push("/pricing")}
-                        size="lg"
-                        variant="outline"
-                        className="border-2 border-primary text-primary hover:bg-muted"
-                      >
-                        <Crown className="h-5 w-5 mr-2" />
-                        View plans
-                      </Button>
-                    </>
-                  )}
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      ) : limitCheck && limitCheck.allowed ? (
-        <Card className="border-2 border-green-400 bg-gradient-to-br from-green-50 to-emerald-50 shadow-lg">
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-primary rounded-xl flex items-center justify-center shadow-md">
-                <CheckCircle className="h-6 w-6 text-white" />
-              </div>
-              <div>
-                <p className="text-foreground font-semibold text-lg">
-                  You have{" "}
-                  <span className="font-bold text-green-600 text-xl">
-                    {limitCheck.creditsAvailable || 0}
-                  </span>{" "}
-                  credits available
-                </p>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Enough runway for a full rehearsal at 5 credits/min—reports and
-                  discussion feedback unlock when you wrap the session cleanly.
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      ) : !checkingLimit && !limitCheck ? (
-        <Card className={cn(appCard)}>
-          <CardContent className="pt-6">
-            <p className="text-muted-foreground mb-4">
-              Could not verify your interview access. Please try again.
-            </p>
-            <Button type="button" onClick={() => checkInterviewLimit()}>
-              Retry
-            </Button>
-          </CardContent>
-        </Card>
-      ) : null}
-
-      {/* Main Form - Only show if limit check allows */}
-      {limitCheck && limitCheck.allowed && (
-        <div className="grid lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
-          {/* Left Column - Form */}
-          <div className="lg:col-span-2 space-y-4 sm:space-y-6">
-            <Card className={cn(appCard, "overflow-hidden shadow-header")}>
-              <CardHeader className="pb-3 sm:pb-4 px-3 sm:px-6">
-                <div className="flex items-center gap-2 sm:gap-3 mb-2">
-                  <div className="w-8 h-8 sm:w-10 sm:h-10 bg-primary rounded-lg flex items-center justify-center flex-shrink-0">
-                    <Briefcase className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
-                  </div>
-                  <CardTitle className="text-base sm:text-xl lg:text-2xl">
-                    Interview Details
-                  </CardTitle>
-                </div>
-                <CardDescription className="text-xs sm:text-sm">
-                  Personalization is company + interview round + spoken
-                  language—those three inputs steer every follow-up.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="px-3 sm:px-6">
-                <form
-                  onSubmit={handleSubmit}
-                  className="space-y-4 sm:space-y-6"
-                >
-                  {/* Role Input */}
-                  <div className="space-y-2">
-                    <Label
-                      htmlFor="role"
-                      className="text-sm font-semibold text-foreground flex items-center gap-2"
-                    >
-                      <Target className="w-4 h-4 text-primary flex-shrink-0" />
-                      Role You're Applying For
-                      <span className="text-red-500">*</span>
-                    </Label>
-                    <Input
-                      id="role"
-                      placeholder="e.g., Software Developer"
-                      value={formData.role}
-                      onChange={(e) =>
-                        setFormData({ ...formData, role: e.target.value })
-                      }
-                      className={`h-11 sm:h-12 text-sm sm:text-base w-full ${
-                        errors.role
-                          ? "border-red-500 focus:ring-red-500"
-                          : "border-border focus:border-primary focus:ring-primary"
-                      } transition-all`}
-                    />
-                    {errors.role && (
-                      <p className="text-sm text-red-600 flex items-center gap-1">
-                        <X className="w-4 h-4" />
-                        {errors.role}
-                      </p>
+                  <div
+                    className={cn(
+                      "flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-xs font-semibold transition-colors",
+                      active &&
+                        "border-[#7367F0] bg-[#7367F0] text-white shadow-[0_2px_6px_rgba(115,103,240,0.35)]",
+                      done && "border-emerald-500 bg-emerald-500 text-white",
+                      !active &&
+                        !done &&
+                        "border-border bg-muted/40 text-muted-foreground",
+                    )}
+                  >
+                    {done ? (
+                      <Check className="h-4 w-4" />
+                    ) : (
+                      <StepIcon className="h-3.5 w-3.5" />
                     )}
                   </div>
-
-                  {/* Experience and Language Grid */}
-                  <div className="grid md:grid-cols-2 gap-3 sm:gap-4">
-                    <div className="space-y-2">
-                      <Label
-                        htmlFor="experience"
-                        className="text-sm font-semibold text-foreground flex items-center gap-2"
-                      >
-                        <Clock className="w-4 h-4 text-primary" />
-                        Years of Experience
-                      </Label>
-                      <Select
-                        value={formData.experience}
-                        onValueChange={(value) =>
-                          setFormData({ ...formData, experience: value })
-                        }
-                      >
-                        <SelectTrigger className="h-11 sm:h-12 text-sm sm:text-base w-full">
-                          <SelectValue placeholder="Select experience" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="0">Fresher</SelectItem>
-                          <SelectItem value="1">1 Year</SelectItem>
-                          <SelectItem value="2">2 Years</SelectItem>
-                          <SelectItem value="3">3 Years</SelectItem>
-                          <SelectItem value="4">4 Years</SelectItem>
-                          <SelectItem value="5">5+ Years</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label
-                        htmlFor="language"
-                        className="text-sm font-semibold text-foreground flex items-center gap-2"
-                      >
-                        <Globe className="w-4 h-4 text-green-600" />
-                        Interview Language
-                      </Label>
-                      <Select
-                        value={formData.language}
-                        onValueChange={(value) =>
-                          setFormData({ ...formData, language: value })
-                        }
-                      >
-                        <SelectTrigger className="h-11 sm:h-12 text-sm sm:text-base w-full">
-                          <SelectValue placeholder="Select language" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="en">English</SelectItem>
-                          <SelectItem value="hi">Hindi</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
-                  {/* Department and Discipline */}
-                  <div className="grid md:grid-cols-2 gap-3 sm:gap-4">
-                    <div className="space-y-2">
-                      <Label
-                        htmlFor="department"
-                        className="text-sm font-semibold text-foreground flex items-center gap-2"
-                      >
-                        <Briefcase className="w-4 h-4 text-indigo-600" />
-                        Department (Optional)
-                      </Label>
-                      <Select
-                        value={formData.department}
-                        onValueChange={(value) => {
-                          setFormData((prev) => ({
-                            ...prev,
-                            department: value,
-                            discipline:
-                              disciplineOptionsByDepartment[value]?.some(
-                                (option) => option.value === prev.discipline,
-                              )
-                                ? prev.discipline
-                                : "",
-                          }));
-                        }}
-                      >
-                        <SelectTrigger className="h-11 sm:h-12 text-sm sm:text-base w-full">
-                          <SelectValue placeholder="Select department" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="engineering">Engineering</SelectItem>
-                          <SelectItem value="management">Management</SelectItem>
-                          <SelectItem value="commerce_finance">
-                            Commerce & Finance
-                          </SelectItem>
-                          <SelectItem value="healthcare_pharma">
-                            Healthcare & Pharma
-                          </SelectItem>
-                          <SelectItem value="marketing">Marketing</SelectItem>
-                          <SelectItem value="sales">Sales</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label
-                        htmlFor="discipline"
-                        className="text-sm font-semibold text-foreground flex items-center gap-2"
-                      >
-                        <Building2 className="w-4 h-4 text-teal-600" />
-                        Discipline (Optional)
-                      </Label>
-                      <Select
-                        value={formData.discipline}
-                        onValueChange={(value) =>
-                          setFormData((prev) => ({ ...prev, discipline: value }))
-                        }
-                        disabled={!disciplineOptionsByDepartment[formData.department]}
-                      >
-                        <SelectTrigger className="h-11 sm:h-12 text-sm sm:text-base w-full">
-                          <SelectValue placeholder="Select discipline" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {(disciplineOptionsByDepartment[formData.department] ?? []).map(
-                            (option) => (
-                              <SelectItem key={option.value} value={option.value}>
-                                {option.label}
-                              </SelectItem>
-                            ),
-                          )}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
-                  {/* Interview Duration */}
-                  <div className="space-y-2">
-                    <Label
-                      htmlFor="duration"
-                      className="text-sm font-semibold text-foreground flex items-center gap-2"
-                    >
-                      <Clock className="w-4 h-4 text-purple-600" />
-                      Interview Duration
-                    </Label>
-                    <Select
-                      value={formData.duration}
-                      onValueChange={(value) =>
-                        setFormData({ ...formData, duration: value })
-                      }
-                    >
-                      <SelectTrigger className="h-11 sm:h-12 text-sm sm:text-base w-full">
-                        <SelectValue placeholder="Select duration" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="15">15 minutes</SelectItem>
-                        <SelectItem
-                          value="30"
-                          disabled={
-                            !["premium", "enterprise"].includes(
-                              userProfile?.subscription?.plan ?? "",
-                            )
-                          }
-                        >
-                          <span className="flex items-center gap-2">
-                            30 minutes
-                            {!["premium", "enterprise"].includes(
-                              userProfile?.subscription?.plan ?? "",
-                            ) && (
-                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-gradient-to-r from-yellow-400 to-amber-500 text-white">
-                                <Crown className="w-2.5 h-2.5" />
-                                PRO
-                              </span>
-                            )}
-                          </span>
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <p className="text-xs text-muted-foreground flex items-center gap-1">
-                      <Zap className="w-3 h-3" />
-                      {["premium", "enterprise"].includes(
-                        userProfile?.subscription?.plan ?? "",
-                      )
-                        ? "Choose 15 or 30 minutes for a deeper session"
-                        : "30-minute interviews available on Premium & Elite plans"}
-                    </p>
-                  </div>
-
-                  {/* Target Company */}
-                  <div className="space-y-2">
-                    <Label
-                      htmlFor="targetCompany"
-                      className="text-sm font-semibold text-foreground flex items-center gap-2"
-                    >
-                      <Building2 className="w-4 h-4 text-pink-600 flex-shrink-0" />
-                      Target Company (Optional)
-                    </Label>
-                    <Input
-                      id="targetCompany"
-                      placeholder="e.g., TCS, Amazon, Google"
-                      value={formData.targetCompany}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          targetCompany: e.target.value,
-                        })
-                      }
-                      className="h-11 sm:h-12 text-sm sm:text-base w-full border-border focus:border-primary focus:ring-primary transition-all"
-                    />
-                    <p className="text-xs text-muted-foreground flex items-center gap-1">
-                      <Zap className="w-3 h-3" />
-                      We'll tailor questions based on the company's interview
-                      pattern
-                    </p>
-                  </div>
-
-                  {/* Resume Selection */}
-                  <div className="space-y-2 sm:space-y-3">
-                    <Label className="text-xs sm:text-sm font-semibold text-foreground flex items-center gap-1.5">
-                      <FileText className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-primary flex-shrink-0" />
-                      Resume
-                      <span className="text-red-500">*</span>
-                    </Label>
-
-                    {/* Saved Resume Option */}
-                    {userProfile?.resume && (
-                      <div className="space-y-2">
-                        <div
-                          className={`relative border-2 rounded-lg p-2.5 sm:p-3 cursor-pointer transition-all ${
-                            useSavedResume
-                              ? "border-primary bg-primary-muted/30"
-                              : "border-border bg-card hover:border-primary/40"
-                          }`}
-                          onClick={() => {
-                            setUseSavedResume(true);
-                            setUploadedFile(null);
-                            setErrors({ ...errors, resume: "" });
-                          }}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter" || e.key === " ") {
-                              setUseSavedResume(true);
-                              setUploadedFile(null);
-                              setErrors({ ...errors, resume: "" });
-                            }
-                          }}
-                          role="button"
-                          tabIndex={0}
-                        >
-                          <div className="flex items-center gap-2 sm:gap-3">
-                            <div
-                              className={`w-4 h-4 sm:w-5 sm:h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
-                                useSavedResume
-                                  ? "border-primary bg-primary"
-                                  : "border-border"
-                              }`}
-                            >
-                              {useSavedResume && (
-                                <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-card" />
-                              )}
-                            </div>
-                            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-primary rounded-lg flex items-center justify-center flex-shrink-0">
-                              <FileText className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-xs sm:text-sm font-semibold text-foreground truncate">
-                                {userProfile.resume.filename}
-                              </p>
-                              <p className="text-xs text-muted-foreground truncate">
-                                {new Date(
-                                  userProfile.resume.uploadedAt,
-                                ).toLocaleDateString("en-IN", {
-                                  day: "numeric",
-                                  month: "short",
-                                  year: "numeric",
-                                })}
-                              </p>
-                            </div>
-                            {useSavedResume && (
-                              <CheckCircle className="w-5 h-5 sm:w-6 sm:h-6 text-green-500 flex-shrink-0" />
-                            )}
-                          </div>
-                        </div>
-                        <p className="text-xs text-muted-foreground pl-11 sm:pl-12">
-                          Or upload new below
-                        </p>
-                      </div>
+                  <span
+                    className={cn(
+                      "hidden truncate text-xs font-medium sm:block",
+                      active ? "text-foreground" : "text-muted-foreground",
                     )}
-
-                    {/* Upload New Resume Option */}
+                  >
+                    {step.title}
+                  </span>
+                  {index < STEPS.length - 1 ? (
                     <div
-                      className={`relative border-2 rounded-lg p-2.5 sm:p-3 cursor-pointer transition-all ${
-                        !useSavedResume
-                          ? "border-primary bg-primary-muted/30"
-                          : "border-border bg-card hover:border-primary/40"
-                      }`}
-                      onClick={() => {
-                        setUseSavedResume(false);
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" || e.key === " ") {
-                          setUseSavedResume(false);
-                        }
-                      }}
-                      role="button"
-                      tabIndex={0}
-                    >
-                      <div className="flex items-center gap-2 sm:gap-3">
-                        <div
-                          className={`w-4 h-4 sm:w-5 sm:h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
-                            !useSavedResume
-                              ? "border-primary bg-primary"
-                              : "border-border"
-                          }`}
-                        >
-                          {!useSavedResume && (
-                            <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-card" />
-                          )}
-                        </div>
-                        <div className="w-8 h-8 sm:w-10 sm:h-10 bg-primary rounded-lg flex items-center justify-center flex-shrink-0">
-                          <Upload className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
-                        </div>
-                        <span className="text-xs sm:text-sm font-semibold text-foreground flex-1">
-                          Upload new resume
-                        </span>
-                        {!useSavedResume && (
-                          <CheckCircle className="w-5 h-5 sm:w-6 sm:h-6 text-green-500 flex-shrink-0" />
-                        )}
-                      </div>
-                    </div>
-
-                    {/* File Upload Area */}
-                    {!useSavedResume && (
-                      <div className="mt-2">
-                        {!uploadedFile ? (
-                          <div
-                            {...getRootProps()}
-                            className={`border-2 border-dashed rounded-lg p-4 sm:p-6 text-center cursor-pointer transition-all ${
-                              isDragActive
-                                ? "border-primary bg-primary-muted/30"
-                                : errors.resume
-                                  ? "border-red-400 bg-red-50"
-                                  : "border-border bg-muted/20"
-                            }`}
-                          >
-                            <input {...getInputProps()} />
-                            <div className="flex flex-col items-center gap-2 sm:gap-3">
-                              <div className="w-12 h-12 sm:w-14 sm:h-14 bg-primary rounded-xl flex items-center justify-center">
-                                <Upload className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
-                              </div>
-                              <div>
-                                <p className="text-xs sm:text-sm font-semibold text-foreground mb-1">
-                                  {isDragActive ? "Drop here" : "Tap to upload"}
-                                </p>
-                                <p className="text-xs text-muted-foreground/80">
-                                  PDF only • Max 5 MB
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="border-2 border-green-400 bg-gradient-to-br from-green-50 to-emerald-50 rounded-lg p-2.5 sm:p-3">
-                            <div className="flex items-center gap-2 sm:gap-3">
-                              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-primary rounded-lg flex items-center justify-center flex-shrink-0">
-                                <FileText className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="text-xs sm:text-sm font-semibold text-foreground truncate">
-                                  {uploadedFile.name}
-                                </p>
-                                <p className="text-xs text-muted-foreground">
-                                  {(uploadedFile.size / 1024 / 1024).toFixed(2)}{" "}
-                                  MB
-                                </p>
-                              </div>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => setUploadedFile(null)}
-                                className="h-8 w-8 sm:h-9 sm:w-9 rounded-lg hover:bg-red-100 hover:text-red-600 flex-shrink-0"
-                              >
-                                <X className="w-4 h-4" />
-                              </Button>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                    {errors.resume && (
-                      <p className="text-sm text-red-600 flex items-center gap-1 mt-2">
-                        <X className="w-4 h-4" />
-                        {errors.resume}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Form Error */}
-                  {errors.form && (
-                    <div className="p-4 bg-red-50 border-2 border-red-200 rounded-xl text-sm text-red-700 flex items-start gap-2">
-                      <X className="w-5 h-5 flex-shrink-0 mt-0.5" />
-                      <span>{errors.form}</span>
-                    </div>
-                  )}
-
-                  {/* Submit Button */}
-                  <div className="pt-2 sm:pt-3">
-                    <Button
-                      type="submit"
-                      size="lg"
-                      className="w-full h-11 sm:h-12 text-sm sm:text-base font-semibold !bg-primary hover:!bg-slate-900 text-white shadow-lg hover:shadow-xl transition-all"
-                      disabled={loading || (limitCheck && !limitCheck.allowed)}
-                    >
-                      {loading ? (
-                        <>
-                          <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin mr-2" />
-                          Creating...
-                        </>
-                      ) : (
-                        <>
-                          <Zap className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
-                          Start Interview
-                        </>
+                      className={cn(
+                        "mx-1 h-px min-w-[1rem] flex-1",
+                        done ? "bg-emerald-400/70" : "bg-border",
                       )}
-                    </Button>
-                  </div>
-                </form>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Right Column - Info Card */}
-          <div className="lg:col-span-1">
-            <Card className={cn(appCard, "sticky top-8 shadow-header")}>
-              <CardHeader className="pb-4">
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
-                    <Sparkles className="w-5 h-5 text-white" />
-                  </div>
-                  <CardTitle className="text-xl">What happens next?</CardTitle>
+                    />
+                  ) : null}
                 </div>
-              </CardHeader>
-              <CardContent>
-                <ul className="space-y-4">
-                  <li className="flex items-start gap-3">
-                    <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center flex-shrink-0 shadow-md">
-                      <FileText className="w-4 h-4 text-white" />
-                    </div>
-                    <div>
-                      <p className="font-semibold text-foreground text-sm mb-1">
-                        Resume Analysis
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        AI analyzes your resume and prepares personalized
-                        questions
-                      </p>
-                    </div>
-                  </li>
-                  <li className="flex items-start gap-3">
-                    <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center flex-shrink-0 shadow-md">
-                      <Target className="w-4 h-4 text-white" />
-                    </div>
-                    <div>
-                      <p className="font-semibold text-foreground text-sm mb-1">
-                        Interview Session
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        10-15 tailored questions based on your role and
-                        experience
-                      </p>
-                    </div>
-                  </li>
-                  <li className="flex items-start gap-3">
-                    <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center flex-shrink-0 shadow-md">
-                      <Mic className="w-4 h-4 text-white" />
-                    </div>
-                    <div>
-                      <p className="font-semibold text-foreground text-sm mb-1">
-                        Voice Response
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        Answer using your voice (microphone required)
-                      </p>
-                    </div>
-                  </li>
-                  <li className="flex items-start gap-3">
-                    <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center flex-shrink-0 shadow-md">
-                      <BarChart3 className="w-4 h-4 text-white" />
-                    </div>
-                    <div>
-                      <p className="font-semibold text-foreground text-sm mb-1">
-                        Detailed Feedback
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        Get scores, behavioral analysis, and improvement
-                        suggestions
-                      </p>
-                    </div>
-                  </li>
-                </ul>
-              </CardContent>
-            </Card>
+              );
+            })}
           </div>
         </div>
-      )}
+
+        <form onSubmit={handleSubmit} className="px-5 py-6 sm:px-6">
+          {currentStep === 1 ? (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:items-start">
+              <FormField label="Role you're applying for" htmlFor="role">
+                <JobRoleSelect
+                  id="role"
+                  className="w-full"
+                  value={formData.role}
+                  onChange={(value) =>
+                    setFormData({ ...formData, role: value })
+                  }
+                  placeholder="e.g. Software Engineer, Product Manager"
+                  inputClassName={cn(
+                    controlClass,
+                    errors.role &&
+                      "border-destructive focus-visible:ring-destructive",
+                  )}
+                />
+                {errors.role ? <FieldError message={errors.role} /> : null}
+              </FormField>
+
+              <FormField
+                label="Target company"
+                htmlFor="targetCompany"
+                optional
+                hint="We'll match questions to the company's typical interview pattern."
+              >
+                <Input
+                  id="targetCompany"
+                  placeholder="e.g. Amazon, Google, TCS"
+                  value={formData.targetCompany}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      targetCompany: e.target.value,
+                    })
+                  }
+                  className={controlClass}
+                />
+              </FormField>
+            </div>
+          ) : null}
+
+          {currentStep === 2 ? (
+            <div className="grid gap-4 sm:grid-cols-2">
+              <FormField label="Years of experience" htmlFor="experience">
+                <AppSelect
+                  id="experience"
+                  value={formData.experience}
+                  onChange={(value) =>
+                    setFormData({ ...formData, experience: value })
+                  }
+                  options={EXPERIENCE_OPTIONS}
+                  className={controlClass}
+                />
+              </FormField>
+
+              <FormField label="Interview language" htmlFor="language">
+                <AppSelect
+                  id="language"
+                  value={formData.language}
+                  onChange={(value) =>
+                    setFormData({ ...formData, language: value })
+                  }
+                  options={LANGUAGE_OPTIONS}
+                  className={controlClass}
+                />
+              </FormField>
+
+              <FormField label="Department" htmlFor="department" optional>
+                <AppSelect
+                  id="department"
+                  value={formData.department}
+                  onChange={(value) => {
+                    setFormData((prev) => ({
+                      ...prev,
+                      department: value,
+                      discipline: disciplineOptionsByDepartment[value]?.some(
+                        (option) => option.value === prev.discipline,
+                      )
+                        ? prev.discipline
+                        : "",
+                    }));
+                  }}
+                  options={DEPARTMENT_OPTIONS}
+                  allowEmpty
+                  emptyLabel="Not specified"
+                  placeholder="Select department"
+                  className={controlClass}
+                />
+              </FormField>
+
+              <FormField label="Discipline" htmlFor="discipline" optional>
+                <AppSelect
+                  id="discipline"
+                  value={formData.discipline}
+                  onChange={(value) =>
+                    setFormData((prev) => ({ ...prev, discipline: value }))
+                  }
+                  options={
+                    disciplineOptionsByDepartment[formData.department] ?? []
+                  }
+                  disabled={!disciplineOptionsByDepartment[formData.department]}
+                  allowEmpty
+                  emptyLabel="Not specified"
+                  placeholder="Select discipline"
+                  className={controlClass}
+                />
+              </FormField>
+            </div>
+          ) : null}
+
+          {currentStep === 3 ? (
+            <div className="flex flex-wrap justify-center gap-3 sm:justify-start">
+              {(["15", "30"] as const).map((duration) => {
+                const is30 = duration === "30";
+                const disabled = is30 && !canUse30Min;
+                const selected = formData.duration === duration;
+                return (
+                  <button
+                    key={duration}
+                    type="button"
+                    disabled={disabled}
+                    onClick={() => setFormData({ ...formData, duration })}
+                    className={cn(
+                      "relative flex min-w-[9rem] flex-col items-start rounded-xl border px-5 py-4 text-left transition-all",
+                      selected
+                        ? "border-[#7367F0]/50 bg-[#7367F0]/[0.08] ring-1 ring-[#7367F0]/25"
+                        : "border-border/70 bg-card hover:border-[#7367F0]/30",
+                      disabled && "cursor-not-allowed opacity-50",
+                    )}
+                  >
+                    <span className="text-base font-semibold text-foreground">
+                      {duration} min
+                    </span>
+                    <span className="mt-1 text-xs text-muted-foreground">
+                      {duration === "15"
+                        ? "Standard session · 75 credits"
+                        : "Extended depth · 150 credits"}
+                    </span>
+                    {is30 && !canUse30Min ? (
+                      <span className="mt-2 inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-300">
+                        <Crown className="h-3 w-3" />
+                        Tech Pro
+                      </span>
+                    ) : null}
+                  </button>
+                );
+              })}
+            </div>
+          ) : null}
+
+          {currentStep === 4 ? (
+            <div className="space-y-3">
+              {savedResumeAvailable && activeSavedResume ? (
+                <ResumeOptionCard
+                  selected={useSavedResume}
+                  onSelect={() => {
+                    setUseSavedResume(true);
+                    setUploadedFile(null);
+                    setErrors((prev) => ({ ...prev, resume: "" }));
+                  }}
+                  icon={FileText}
+                  title={activeSavedResume.title}
+                  subtitle={activeSavedResume.subtitle}
+                />
+              ) : null}
+
+              <ResumeOptionCard
+                selected={!useSavedResume}
+                onSelect={() => setUseSavedResume(false)}
+                icon={Upload}
+                title="Upload a new resume"
+                subtitle="PDF only · Max 5 MB"
+              />
+
+              {!useSavedResume ? (
+                <div className="pt-1">
+                  {!uploadedFile ? (
+                    <div
+                      {...getRootProps()}
+                      className={cn(
+                        "cursor-pointer rounded-xl border-2 border-dashed px-6 py-8 text-center transition-all",
+                        isDragActive
+                          ? "border-[#7367F0]/50 bg-[#7367F0]/[0.06]"
+                          : errors.resume
+                            ? "border-destructive/40 bg-destructive/5"
+                            : "border-border/70 bg-muted/15 hover:border-[#7367F0]/35 hover:bg-[#7367F0]/[0.04]",
+                      )}
+                    >
+                      <input {...getInputProps()} />
+                      <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-[#7367F0]/10 text-[#7367F0]">
+                        <Upload className="h-6 w-6" />
+                      </div>
+                      <p className="text-sm font-medium text-foreground">
+                        {isDragActive
+                          ? "Drop your PDF here"
+                          : "Drag & drop or click to upload"}
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        PDF only · Max 5 MB
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-3 rounded-xl border border-emerald-500/30 bg-emerald-500/[0.06] p-3.5">
+                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#7367F0]/10 text-[#7367F0]">
+                        <FileText className="h-5 w-5" />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold text-foreground">
+                          {uploadedFile.name}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {(uploadedFile.size / 1024 / 1024).toFixed(2)} MB
+                        </p>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => setUploadedFile(null)}
+                        className="h-9 w-9 shrink-0 text-muted-foreground hover:text-destructive"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              ) : null}
+
+              {errors.resume ? <FieldError message={errors.resume} /> : null}
+
+              <p className="pt-1 text-xs text-muted-foreground">
+                You&apos;ll need a working microphone for the live session.
+              </p>
+            </div>
+          ) : null}
+
+          {errors.form ? (
+            <div className="mt-6 flex items-start gap-2.5 rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+              <span>{errors.form}</span>
+            </div>
+          ) : null}
+
+          <div className="mt-8 flex flex-col-reverse gap-3 border-t border-border/60 pt-6 sm:flex-row sm:items-center sm:justify-between">
+            {currentStep > 1 ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="lg"
+                onClick={goBackStep}
+                disabled={loading}
+                className="w-full sm:w-auto"
+              >
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Back
+              </Button>
+            ) : (
+              <span className="hidden sm:block" />
+            )}
+
+            <Button
+              type="submit"
+              size="lg"
+              className={cn(
+                "h-12 w-full px-8 text-base font-semibold sm:ml-auto sm:w-auto",
+                appPrimaryButton,
+              )}
+              disabled={loading || (limitCheck && !limitCheck.allowed)}
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                  Creating session…
+                </>
+              ) : currentStep < STEPS.length ? (
+                <>
+                  Continue
+                  <ArrowRight className="ml-2 h-5 w-5" />
+                </>
+              ) : (
+                <>
+                  Start interview
+                  <ArrowRight className="ml-2 h-5 w-5" />
+                </>
+              )}
+            </Button>
+          </div>
+        </form>
+      </div>
+
+      <div className={cn(appSurfaceMuted, "px-4 py-3.5 text-center sm:px-5")}>
+        <p className="text-xs leading-relaxed text-muted-foreground sm:text-sm">
+          Sessions use{" "}
+          <span className="font-medium text-foreground">5 credits/min</span>.
+          Wrap cleanly to unlock transcripts, scores, and discussion coaching in
+          your report.
+        </p>
+      </div>
+    </div>
+  );
+
+  if (!isLoaded) {
+    return (
+      <div className="flex min-h-[40vh] items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-[#7367F0]" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="mx-auto w-full max-w-3xl space-y-6">
+      <div className="flex items-center">
+        <Button variant="ghost" asChild className="-ml-2 text-muted-foreground">
+          <Link href="/dashboard/interviews">
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to interviews
+          </Link>
+        </Button>
+      </div>
+
+      {checkingLimit ? (
+        <div
+          className={cn(
+            appCard,
+            "flex items-center justify-center gap-3 px-6 py-8",
+          )}
+        >
+          <Loader2 className="h-5 w-5 animate-spin text-[#7367F0]" />
+          <p className="text-sm font-medium text-muted-foreground">
+            Checking your credits…
+          </p>
+        </div>
+      ) : !aiPracticeLocked && limitCheck && !limitCheck.allowed ? (
+        <div
+          className={cn(
+            appCardElevated,
+            "overflow-hidden border-amber-500/25",
+          )}
+        >
+          <div className="flex flex-col gap-5 p-5 sm:flex-row sm:items-start sm:p-6">
+            <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-amber-500/15 text-amber-600 dark:text-amber-400">
+              <Crown className="h-7 w-7" />
+            </span>
+            <div className="min-w-0 flex-1 space-y-3">
+              <div>
+                <h3 className="text-lg font-semibold text-foreground sm:text-xl">
+                  {limitCheck.isExpired
+                    ? "Subscription expired"
+                    : limitCheck.gate === "upgrade_required"
+                      ? "Upgrade required"
+                      : "Not enough credits"}
+                </h3>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {limitCheck.reason ||
+                    "Purchase a plan to continue interviewing."}
+                </p>
+              </div>
+
+              {limitCheck.creditsAvailable !== undefined &&
+              limitCheck.minimumRequired !== undefined ? (
+                <div className="flex flex-wrap gap-4 rounded-xl border border-border/60 bg-muted/20 px-4 py-3">
+                  <div className="flex items-center gap-2 text-sm">
+                    <Coins className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-muted-foreground">Available</span>
+                    <span className="font-semibold tabular-nums text-foreground">
+                      {limitCheck.creditsAvailable}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className="text-muted-foreground">Required</span>
+                    <span className="font-semibold tabular-nums text-amber-600 dark:text-amber-400">
+                      {limitCheck.minimumRequired}
+                    </span>
+                  </div>
+                </div>
+              ) : null}
+
+              <div className="flex flex-wrap gap-2">
+                {limitCheck.isExpired ? (
+                  <Button
+                    onClick={() => router.push("/dashboard/plan?renew=1")}
+                    className={appPrimaryButton}
+                  >
+                    Renew subscription
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={() => router.push("/pricing")}
+                    className={appPrimaryButton}
+                  >
+                    View plans
+                  </Button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : !aiPracticeLocked && limitCheck && limitCheck.allowed ? (
+        <div
+          className={cn(
+            appCard,
+            "flex flex-col gap-3 border-emerald-500/25 bg-emerald-500/[0.04] px-5 py-4 sm:flex-row sm:items-center sm:justify-between",
+          )}
+        >
+          <div className="flex items-center gap-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+              <CheckCircle className="h-5 w-5" />
+            </span>
+            <div>
+              <p className="text-sm font-semibold text-foreground">
+                Ready to practice
+              </p>
+              <p className="text-xs text-muted-foreground">
+                <span className="font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">
+                  {limitCheck.creditsAvailable || 0}
+                </span>{" "}
+                credits available · 5 credits/min
+              </p>
+            </div>
+          </div>
+        </div>
+      ) : !aiPracticeLocked && !limitCheck ? (
+        <div className={cn(appCard, "px-5 py-5")}>
+          <p className="mb-3 text-sm text-muted-foreground">
+            Could not verify your interview access. Please try again.
+          </p>
+          <Button type="button" variant="outline" onClick={() => checkInterviewLimit()}>
+            Retry
+          </Button>
+        </div>
+      ) : null}
+
+      {!checkingLimit &&
+        (aiPracticeLocked ? (
+          <PracticeLockedGate
+            type="ai"
+            showTrialUpsell={showTrialUpsell}
+            background={interviewForm}
+          />
+        ) : limitCheck && limitCheck.allowed ? (
+          interviewForm
+        ) : null)}
     </div>
   );
 }

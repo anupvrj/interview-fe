@@ -7,7 +7,7 @@ import { SeoVideoPlayer } from "./SeoVideoPlayer";
 
 export type SeoVideoSectionProps = Readonly<{
   content: MarketingVideoContent;
-  /** Hero: player only. Feature: same player layout (transcript always SEO-hidden). */
+  /** Hero: player only. Feature: same player layout. Transcripts stay in JSON-LD only. */
   variant?: "hero" | "feature";
   className?: string;
   playerClassName?: string;
@@ -31,7 +31,6 @@ export function SeoVideoSection({
   children,
 }: SeoVideoSectionProps) {
   const headingId = `${content.id}-heading`;
-  const transcriptId = `${content.id}-transcript`;
 
   return (
     <section
@@ -58,7 +57,6 @@ export function SeoVideoSection({
       <meta itemProp="contentUrl" content={content.videoUrl} />
       <meta itemProp="embedUrl" content={content.embedUrl} />
       <meta itemProp="uploadDate" content={content.uploadDate} />
-      <meta itemProp="transcript" content={content.transcript} />
       {content.duration ? (
         <meta itemProp="duration" content={content.duration} />
       ) : null}
@@ -71,7 +69,6 @@ export function SeoVideoSection({
         videoUrl={content.videoUrl}
         title={content.name}
         thumbnailUrl={content.thumbnailUrl}
-        captionsUrl={captionsUrl ?? content.captionsUrl}
         className={playerClassName}
         autoPlay={autoPlay}
         loop={loop}
@@ -81,11 +78,8 @@ export function SeoVideoSection({
         {children}
       </SeoVideoPlayer>
 
-      {/* Transcript: in DOM + JSON-LD for crawlers/AEO; sr-only keeps it out of the visual UX. */}
-      <div id={transcriptId} className="sr-only">
-        <h3>Video transcript</h3>
-        <p itemProp="transcript">{content.transcript}</p>
-      </div>
+      {/* Transcript in JSON-LD + meta only — not shown in the UI. */}
+      <meta itemProp="transcript" content={content.transcript} />
     </section>
   );
 }

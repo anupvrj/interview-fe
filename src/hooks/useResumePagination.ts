@@ -20,6 +20,7 @@ import {
   measureTextLineBounds,
   resolveTailSliverMaxPx,
   snapResumePageBreaksToLineBounds,
+  cutSplitsTextLine,
 } from "@/lib/snap-resume-page-breaks";
 
 /** Same shape as `PageBand` from the pagination engine (preview + PDF slices). */
@@ -47,6 +48,9 @@ const MAX_EMPTY_DOM_RETRIES = 16;
 
 /** Tall content but only one band (DOM mid-reflow) — retry this many times. */
 const MAX_UNDERPAGED_RETRIES = 4;
+
+/** Reserve px at the bottom of each page band so clip overflow does not slice text. */
+const PAGE_BOTTOM_CLIP_SAFETY_PX = 6;
 
 /** Wait for web fonts + two animation frames so measurements reflect final layout. */
 async function waitForLayoutSettle(): Promise<void> {
@@ -191,7 +195,10 @@ export function useResumePagination({
       })
       .map(({ node: _n, ...rest }) => rest);
 
-    const integerLimit = Math.floor(pageHeightLimitRef.current);
+    const integerLimit = Math.max(
+      120,
+      Math.floor(pageHeightLimitRef.current) - PAGE_BOTTOM_CLIP_SAFETY_PX,
+    );
 
     const atomicIfFitsOnOnePage: PaginationAtomicIfFitsBox[] =
       atomicIfFitsNodes.map((node) => {
@@ -219,9 +226,33 @@ export function useResumePagination({
         trimmedPages,
         fullHeight,
       );
+      trimmedPages = trimTrailingEmptySliverPages(trimmedPages, elements);
+      trimmedPages = snapResumePageBreaksToLineBounds(
+        container,
+        trimmedPages,
+        fullHeight,
+      );
     }
 
     trimmedPages = trimTrailingEmptySliverPages(trimmedPages, elements);
+
+    const finalTextLines = measureTextLineBounds(container);
+    const hasMidLinePageCut =
+      snapRef.current &&
+      finalTextLines.length > 0 &&
+      trimmedPages.length > 1 &&
+      trimmedPages.slice(0, -1).some((page) =>
+        cutSplitsTextLine(page.offsetY + page.height, finalTextLines),
+      );
+
+    if (
+      hasMidLinePageCut &&
+      underPagedRetriesRef.current < MAX_UNDERPAGED_RETRIES
+    ) {
+      underPagedRetriesRef.current += 1;
+      requestAnimationFrame(() => measureNowRef.current(keyForPass));
+      return;
+    }
 
     // Under-paged guard: content clearly spans >1 page but we only got one band
     // (DOM still reflowing). Retry instead of committing a clipped single page.

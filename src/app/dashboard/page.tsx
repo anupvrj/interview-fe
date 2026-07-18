@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { readStoredRole } from "@/lib/roles";
@@ -59,10 +59,18 @@ import {
   Resume,
   interviewApi,
   interviewScheduleApi,
+  peerApi,
   resumeApi,
+  systemDesignApi,
   userApi,
 } from "@/lib/api";
 import { getPeerInterviewUnlockStatus } from "@/lib/peer-interviews";
+import {
+  buildDashboardRecentSessions,
+  countDashboardSessionsByFilter,
+  filterDashboardSessions,
+  type DashboardSessionFilter,
+} from "@/lib/dashboard-recent-sessions";
 import {
   cn,
   getInterviewCreditsUsed,
@@ -77,10 +85,12 @@ import {
   DashboardStatCard,
 } from "@/components/dashboard/DashboardStatCard";
 import { DashboardWelcomeHero } from "@/components/dashboard/DashboardWelcomeHero";
+import { InterviewTypeFilterBar } from "@/components/dashboard/InterviewTypeFilterBar";
+import { IxOptInNotice } from "@/components/ix-score/IxOptInNotice";
 import { RecentInterviewsList } from "@/components/dashboard/RecentInterviewsList";
 import { DashboardResumesList } from "@/components/dashboard/DashboardResumesList";
-import { SubscriptionExpiredDialog } from "@/components/SubscriptionExpiredDialog";
-import { useSubscriptionExpiredGate } from "@/hooks/useSubscriptionExpiredGate";
+import { PracticeSessionGateDialogs } from "@/components/upsell/PracticeSessionGateDialogs";
+import { usePracticeSessionGate } from "@/components/upsell/usePracticeSessionGate";
 
 const ONBOARDING_BANNER_DISMISSED_KEY = "dashboard-onboarding-banner-dismissed";
 
@@ -88,6 +98,12 @@ export default function DashboardPage() {
   const { user, isLoaded } = useUser();
   const router = useRouter();
   const [interviews, setInterviews] = useState<Interview[]>([]);
+  const [systemDesignSessions, setSystemDesignSessions] = useState<
+    Awaited<ReturnType<typeof systemDesignApi.listMySessions>>
+  >([]);
+  const [peerBookings, setPeerBookings] = useState<
+    Awaited<ReturnType<typeof peerApi.listMyBookings>>
+  >([]);
   const [resumes, setResumes] = useState<Resume[]>([]);
   const [loading, setLoading] = useState(true);
   const [profileCompletion, setProfileCompletion] = useState<number>(0);
@@ -98,7 +114,19 @@ export default function DashboardPage() {
     improvement: 0,
   });
   const [currentPage, setCurrentPage] = useState(1);
+  const [interviewTypeFilter, setInterviewTypeFilter] =
+    useState<DashboardSessionFilter>("all");
   const itemsPerPage = 10;
+
+  const recentSessions = useMemo(
+    () =>
+      buildDashboardRecentSessions({
+        interviews,
+        systemDesignSessions,
+        peerBookings,
+      }),
+    [interviews, systemDesignSessions, peerBookings],
+  );
   const [resumePage, setResumePage] = useState(1);
   const resumeItemsPerPage = 8;
   const [scheduledInterviews, setScheduledInterviews] = useState<any[]>([]);
@@ -111,13 +139,22 @@ export default function DashboardPage() {
   >(null);
   const [videoUnavailableOpen, setVideoUnavailableOpen] = useState(false);
   const {
-    open: subscriptionExpiredOpen,
-    setOpen: setSubscriptionExpiredOpen,
-    checking: checkingSubscription,
-    navigateToNewSession,
-  } = useSubscriptionExpiredGate();
+    startPracticeSession,
+    checkingSubscription,
+    ...practiceGate
+  } = usePracticeSessionGate();
   const [downloadingResumeId, setDownloadingResumeId] = useState<string | null>(
     null,
+  );
+
+  const interviewTypeCounts = useMemo(
+    () => countDashboardSessionsByFilter(recentSessions),
+    [recentSessions],
+  );
+
+  const filteredRecentSessions = useMemo(
+    () => filterDashboardSessions(recentSessions, interviewTypeFilter),
+    [recentSessions, interviewTypeFilter],
   );
 
   useEffect(() => {
@@ -174,6 +211,18 @@ export default function DashboardPage() {
 
       const userInterviews = await interviewApi.list(user.id);
       setInterviews(userInterviews);
+
+      try {
+        const [sdSessions, bookings] = await Promise.all([
+          systemDesignApi.listMySessions().catch(() => []),
+          peerApi.listMyBookings().catch(() => []),
+        ]);
+        setSystemDesignSessions(sdSessions);
+        setPeerBookings(bookings);
+      } catch {
+        setSystemDesignSessions([]);
+        setPeerBookings([]);
+      }
 
       try {
         const userResumes = await resumeApi.list(user.id);
@@ -331,9 +380,12 @@ export default function DashboardPage() {
   });
   const totalTokensSpent = dailyData.reduce((sum, d) => sum + d.credits, 0);
   const activeDays = dailyData.filter((d) => d.interviews > 0).length;
+
   return (
     <div className="w-full max-w-7xl mx-auto space-y-4 lg:space-y-6">
       <DashboardWelcomeHero firstName={user?.firstName || "User"} />
+
+      <IxOptInNotice />
 
       {scheduledInterviews.length > 0 && (
         <Card className="rounded-md border-2 border-amber-200 bg-gradient-to-br from-amber-50/80 to-card shadow-lg dark:border-amber-900/40 dark:from-amber-950/30 dark:to-card">
@@ -602,10 +654,18 @@ export default function DashboardPage() {
                 Recent Interviews
               </CardTitle>
               <CardDescription className="mt-1 text-sm">
-                Your latest practice sessions with scores and reports.
+                AI, coding, system design, and peer sessions with scores and reports.
               </CardDescription>
             </div>
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
+              <InterviewTypeFilterBar
+                value={interviewTypeFilter}
+                onChange={(next) => {
+                  setInterviewTypeFilter(next);
+                  setCurrentPage(1);
+                }}
+                counts={interviewTypeCounts}
+              />
               <Link
                 href="/dashboard/interviews"
                 className={cn(
@@ -620,7 +680,9 @@ export default function DashboardPage() {
                 type="button"
                 disabled={checkingSubscription}
                 onClick={() =>
-                  navigateToNewSession("/dashboard/interviews/new")
+                  startPracticeSession("ai", {
+                    path: "/dashboard/interviews/new",
+                  })
                 }
                 className={institutePrimaryClass}
               >
@@ -636,11 +698,12 @@ export default function DashboardPage() {
         </CardHeader>
         <CardContent className="p-0">
           <RecentInterviewsList
-            interviews={interviews}
+            sessionRows={filteredRecentSessions}
             currentPage={currentPage}
             itemsPerPage={itemsPerPage}
             onPageChange={setCurrentPage}
             onVideoUnavailable={() => setVideoUnavailableOpen(true)}
+            emptyDescription="Start an AI interview, coding round, system design session, or book a peer interview."
           />
         </CardContent>
       </Card>
@@ -747,10 +810,7 @@ export default function DashboardPage() {
         </DialogContent>
       </Dialog>
 
-      <SubscriptionExpiredDialog
-        open={subscriptionExpiredOpen}
-        onOpenChange={setSubscriptionExpiredOpen}
-      />
+      <PracticeSessionGateDialogs {...practiceGate} />
     </div>
   );
 }

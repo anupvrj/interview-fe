@@ -229,7 +229,16 @@ export function DashboardResumesList({
                         </span>
                       </p>
                     ) : (
-                      <span className="text-sm text-muted-foreground">—</span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8 whitespace-nowrap px-3 text-xs font-semibold"
+                        asChild
+                      >
+                        <Link href={`/dashboard/resumes/${resume.resumeId}/edit`}>
+                          Check ATS Score
+                        </Link>
+                      </Button>
                     )}
                   </td>
 
@@ -245,7 +254,7 @@ export function DashboardResumesList({
                   </td>
 
                   <td className="px-5 py-3.5 align-top">
-                    <div className="flex flex-wrap items-center gap-0.5">
+                    <div className="inline-flex flex-nowrap items-center gap-0.5">
                       <IconActionButton
                         title="Download PDF"
                         onClick={() => onDownload(resume.resumeId)}

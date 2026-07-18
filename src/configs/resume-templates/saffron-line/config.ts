@@ -2,7 +2,7 @@
  * Saffron Line Template Configuration
  *
  * Full-width header (photo, name, contact) on top, then two columns below.
- * Left: summary, skills, languages; right: experience, education.
+ * Left: summary, education, skills, languages; right: experience, projects.
  * Serif headings with saffron section rules — no vertical column divider.
  *
  * @template saffron-line
@@ -25,7 +25,7 @@ export const saffronlineTemplate: ResumeTemplate = {
   colors: {
     primary: "#2b2b2b",
     secondary: "#6a6a6a",
-    accent: "#c0871f",
+    accent: "#F0A23B",
     text: "#2b2b2b",
     background: "#ffffff",
   },
@@ -44,6 +44,7 @@ export const saffronlineTemplate: ResumeTemplate = {
 
 const SIDEBAR_TYPES = [
   "profileSummary",
+  "education",
   "skills",
   "languages",
   "certificates",
@@ -51,7 +52,6 @@ const SIDEBAR_TYPES = [
 ] as const;
 const MAIN_TYPES = [
   "experience",
-  "education",
   "projects",
   "awards",
   "achievements",
@@ -69,17 +69,17 @@ export const saffronlineExtendedConfig: Partial<ExtendedResumeTemplate> = {
     colors: {
       primary: "#2b2b2b",
       secondary: "#6a6a6a",
-      accent: "#c0871f",
+      accent: "#F0A23B",
       text: "#2b2b2b",
       background: "#ffffff",
     },
     headerStyle: "left",
     sectionSpacing: 12,
-    padding: { top: 8, bottom: 8, left: 8, right: 8 },
+    padding: { top: 5, bottom: 8, left: 8, right: 8 },
     sectionHeader: {
       style: "border-bottom",
-      borderWidth: 1.5,
-      borderColor: "#c0871f",
+      borderWidth: 2.5,
+      borderColor: "#F0A23B",
       textAlign: "left",
       fontSize: 12,
       fontWeight: "bold",
@@ -94,7 +94,7 @@ export const saffronlineExtendedConfig: Partial<ExtendedResumeTemplate> = {
     useCSSClassesForHeader: true,
     headerLayout: {
       type: "with-profile-picture",
-      titlePosition: "below",
+      titlePosition: "inline",
     },
     languageDisplay: {
       showRatings: false,
@@ -116,12 +116,11 @@ export const saffronlineExtendedConfig: Partial<ExtendedResumeTemplate> = {
   defaultSectionOrder: [
     { id: "personalInfo", type: "personalInfo", title: "Personal Information", visible: true },
     { id: "profileSummary", type: "profileSummary", title: "Summary", visible: true },
-    { id: "skills", type: "skills", title: "Skills", visible: true },
-    { id: "languages", type: "languages", title: "Languages", visible: false },
-    { id: "certificates", type: "certificates", title: "Certificates", visible: false },
-    { id: "experience", type: "experience", title: "Professional Experience", visible: true },
     { id: "education", type: "education", title: "Education", visible: true },
-    { id: "projects", type: "projects", title: "Projects", visible: false },
+    { id: "skills", type: "skills", title: "Skills", visible: true },
+    { id: "languages", type: "languages", title: "Languages", visible: true },
+    { id: "experience", type: "experience", title: "Work Experience", visible: true },
+    { id: "projects", type: "projects", title: "Projects", visible: true },
   ],
 };
 

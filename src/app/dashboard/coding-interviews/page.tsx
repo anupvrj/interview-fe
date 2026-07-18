@@ -41,8 +41,9 @@ import { appHeroBullet, appHeroCaption } from "@/lib/app-theme";
 import { CodingRoundHeroPreview } from "@/components/coding-interviews/CodingRoundHeroPreview";
 import { DashboardStatCard } from "@/components/dashboard/DashboardStatCard";
 import { RecentInterviewsList } from "@/components/dashboard/RecentInterviewsList";
-import { SubscriptionExpiredDialog } from "@/components/SubscriptionExpiredDialog";
-import { useSubscriptionExpiredGate } from "@/hooks/useSubscriptionExpiredGate";
+import { PracticeSessionGateDialogs } from "@/components/upsell/PracticeSessionGateDialogs";
+import { PracticeLockedGate } from "@/components/upsell/PracticeLockedGate";
+import { usePracticeSessionGate } from "@/components/upsell/usePracticeSessionGate";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -55,11 +56,13 @@ export default function CodingInterviewsPage() {
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [deleteBusy, setDeleteBusy] = useState(false);
   const {
-    open: subscriptionExpiredOpen,
-    setOpen: setSubscriptionExpiredOpen,
-    checking: checkingSubscription,
-    navigateToNewSession,
-  } = useSubscriptionExpiredGate();
+    startPracticeSession,
+    checkingSubscription,
+    canUse,
+    showTrialUpsell,
+    entitlementsLoading,
+    ...practiceGate
+  } = usePracticeSessionGate();
 
   const refreshRows = async () => {
     try {
@@ -119,6 +122,8 @@ export default function CodingInterviewsPage() {
         ) / scoredRows.length
       : 0;
   const totalCreditsUsed = sumInterviewCreditsUsed(rows);
+  const codingPracticeLocked =
+    !entitlementsLoading && !canUse("codingRound");
 
   if (!isLoaded || loading) {
     return (
@@ -212,7 +217,9 @@ export default function CodingInterviewsPage() {
                   size="lg"
                   disabled={checkingSubscription}
                   onClick={() =>
-                    navigateToNewSession("/dashboard/coding-interviews/new")
+                    startPracticeSession("coding", {
+                      path: "/dashboard/coding-interviews/new",
+                    })
                   }
                   className={cn(
                     institutePrimaryClass,
@@ -248,6 +255,10 @@ export default function CodingInterviewsPage() {
         </div>
       </section>
 
+      {codingPracticeLocked ? (
+        <PracticeLockedGate type="coding" showTrialUpsell={showTrialUpsell} />
+      ) : (
+        <>
       {rows.length > 0 && (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-2 xl:grid-cols-4">
           <DashboardStatCard
@@ -319,7 +330,9 @@ export default function CodingInterviewsPage() {
               type="button"
               disabled={checkingSubscription}
               onClick={() =>
-                navigateToNewSession("/dashboard/coding-interviews/new")
+                startPracticeSession("coding", {
+                  path: "/dashboard/coding-interviews/new",
+                })
               }
               className={institutePrimaryClass}
             >
@@ -345,6 +358,8 @@ export default function CodingInterviewsPage() {
           />
         </CardContent>
       </Card>
+        </>
+      )}
 
       <Dialog
         open={!!deleteConfirmId}
@@ -410,10 +425,7 @@ export default function CodingInterviewsPage() {
         </DialogContent>
       </Dialog>
 
-      <SubscriptionExpiredDialog
-        open={subscriptionExpiredOpen}
-        onOpenChange={setSubscriptionExpiredOpen}
-      />
+      <PracticeSessionGateDialogs {...practiceGate} />
     </div>
   );
 }

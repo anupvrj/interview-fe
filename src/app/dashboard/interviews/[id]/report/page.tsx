@@ -46,6 +46,8 @@ import {
   institutePrimaryClass,
   instituteSecondaryClass,
 } from "@/components/institute/InstituteChrome";
+import { LockedFeatureOverlay } from "@/components/upsell/LockedFeatureOverlay";
+import { useEntitlements } from "@/hooks/useEntitlements";
 
 export default function ReportPage() {
   const params = useParams();
@@ -58,6 +60,8 @@ export default function ReportPage() {
   const [error, setError] = useState<string>("");
   const [shareBusy, setShareBusy] = useState(false);
   const [pdfDownloading, setPdfDownloading] = useState(false);
+  const { canUse } = useEntitlements();
+  const reportLocked = !canUse("detailedInterviewReport");
 
   useEffect(() => {
     loadReport();
@@ -753,6 +757,40 @@ export default function ReportPage() {
   }
 
   if (error || !report || !interview) {
+    if (reportLocked) {
+      return (
+        <div className="mx-auto w-full max-w-4xl space-y-4 p-4">
+          <Link
+            href={practiceHubHref(interview)}
+            className="inline-flex w-fit items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            <span>{practiceHubLabel(interview)}</span>
+          </Link>
+          <LockedFeatureOverlay
+            title="Detailed interview report"
+            description="Unlock full scoring, behavioral analysis, and improvement tips with General Pass or higher."
+            badge="General Pass"
+            ctaLabel="Upgrade to General Pass"
+            ctaHref="/checkout?plan=general_pass"
+            preview={
+              <div className="grid grid-cols-3 gap-4 p-6">
+                {[72, 85, 68].map((score) => (
+                  <div
+                    key={score}
+                    className="rounded-lg border bg-card p-4 text-center"
+                  >
+                    <p className="text-3xl font-bold">{score}</p>
+                    <p className="text-xs text-muted-foreground">Score</p>
+                  </div>
+                ))}
+              </div>
+            }
+          />
+        </div>
+      );
+    }
+
     return (
       <div className="flex min-h-[50vh] items-center justify-center p-4">
         <Card className="max-w-md overflow-hidden rounded-xl border border-border/60 shadow-card">

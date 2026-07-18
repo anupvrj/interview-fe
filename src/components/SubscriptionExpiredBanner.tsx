@@ -29,6 +29,8 @@ export function SubscriptionExpiredBanner() {
     subscription?.status === "expired" ||
     !!subscription?.expiredPlanId;
 
+  const isTrialExpired = subscription?.expiredPlanId === "trial";
+
   // Plan page has its own full-screen renewal gate
   if (pathname === "/dashboard/plan") {
     return null;
@@ -45,17 +47,23 @@ export function SubscriptionExpiredBanner() {
           <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
           <div>
             <p className="text-sm font-semibold text-amber-950 dark:text-amber-100">
-              Your subscription has expired
+              {isTrialExpired
+                ? "Your trial has ended"
+                : "Your subscription has expired"}
             </p>
             <p className="text-sm text-amber-900/80 dark:text-amber-200/80">
-              Premium access is paused. Renew a monthly plan to restore credits
-              and features — active subscriptions auto-renew via Razorpay.
+              {isTrialExpired
+                ? "You're on the Free plan — edit resumes, download PDFs, and run ATS checks. Upgrade to unlock AI interviews and detailed reports."
+                : "Premium access is paused. Renew a monthly plan to restore credits and features — active subscriptions auto-renew via Razorpay."}
             </p>
           </div>
         </div>
-        <Link href="/dashboard/plan?renew=1" className="shrink-0">
+        <Link
+          href={isTrialExpired ? "/pricing" : "/dashboard/plan?renew=1"}
+          className="shrink-0"
+        >
           <Button size="sm" className="w-full sm:w-auto">
-            Renew subscription
+            {isTrialExpired ? "Upgrade plan" : "Renew subscription"}
             <ArrowRight className="ml-2 h-4 w-4" />
           </Button>
         </Link>

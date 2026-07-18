@@ -38,11 +38,11 @@ import {
   X,
   Check,
   Palette,
-  FlaskConical,
   Upload,
   LayoutGrid,
   Undo2,
   Redo2,
+  RefreshCw,
 } from "lucide-react";
 import { Resume, ResumeTemplate, resumeApi, apiClient } from "@/lib/api";
 import {
@@ -66,6 +66,9 @@ import {
   resumeEditorFormArea,
   resumeEditorPage,
   resumeEditorPanel,
+  resumeEditorPanelMobileSheet,
+  resumeEditorMobileOverlay,
+  resumeEditorToolbarMobile,
   resumeEditorTabActive,
   resumeEditorTabBase,
   resumeEditorTabInactive,
@@ -75,6 +78,7 @@ import {
   resumeEntryCard,
   resumePreviewHeader,
   resumePreviewPanel,
+  resumePreviewPanelMobile,
   resumePrimaryCta,
   resumeSaveButton,
   resumeSectionCardClass,
@@ -91,6 +95,8 @@ import {
   resolveLayoutPaddingMm,
 } from "@/lib/resume-page-dimensions";
 import { ATSReportView } from "@/components/ats-checker/ATSReportView";
+import { TrialUpsellDialog } from "@/components/upsell/TrialUpsellDialog";
+import { useEntitlements } from "@/hooks/useEntitlements";
 import { applyAtsIssueFixToResume } from "@/lib/atsIssueApply";
 import {
   assignSectionColumnOnReorder,
@@ -101,7 +107,13 @@ import { ProfilePictureCropper } from "@/components/ProfilePictureCropper";
 import { ChangeTemplateDialog } from "@/components/resume-editor/ChangeTemplateDialog";
 import { ImportResumeDialog } from "@/components/resume-editor/ImportResumeDialog";
 import { RearrangeSectionsDialog } from "@/components/resume-editor/RearrangeSectionsDialog";
-import { ResumeSectionDragHandle } from "@/components/resume-editor/ResumeSectionDragHandle";
+import { ResumeSectionCardHeader } from "@/components/resume-editor/ResumeSectionCardHeader";
+import { SectionNameField } from "@/components/resume-editor/SectionNameField";
+import {
+  ResumeEditorMobileChrome,
+  ResumeEditorMobileEditBar,
+} from "@/components/resume-editor/ResumeEditorMobileChrome";
+import { ResumeEditorTitle } from "@/components/resume-editor/ResumeEditorTitle";
 import { TemplateStyleLoader } from "@/components/TemplateStyleLoader";
 import {
   canDeleteEmptyResumePage,
@@ -112,6 +124,7 @@ import { buildResumeTemplateApplication } from "@/lib/applyResumeTemplate";
 import { debugResumePagination } from "@/lib/debug-resume-pagination";
 import { waitForResumePaginationSettled } from "@/lib/wait-for-resume-pagination";
 import { useResumeEditorHistory } from "@/hooks/useResumeEditorHistory";
+import { useMobileResumeEditor } from "@/hooks/useMobileResumeEditor";
 import type { ResumeEditorLayout } from "@/lib/resume-editor-history";
 
 interface Section {
@@ -176,6 +189,8 @@ export default function EditResumePage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const [trialUpsellOpen, setTrialUpsellOpen] = useState(false);
+  const { canUse, data: entitlements } = useEntitlements();
   const [hasChanges, setHasChanges] = useState(false);
   const [autoSaving, setAutoSaving] = useState(false);
   const [refreshingATS, setRefreshingATS] = useState(false);
@@ -185,10 +200,6 @@ export default function EditResumePage() {
   const [previewKey, setPreviewKey] = useState(0);
   const previewRef = useRef<ResumePreviewHandle>(null);
   const [zoomLevel, setZoomLevel] = useState(100);
-  const [editingSectionTitle, setEditingSectionTitle] = useState<string | null>(
-    null,
-  );
-  const [sectionTitleValue, setSectionTitleValue] = useState("");
   const [draggedSection, setDraggedSection] = useState<string | null>(null);
   const [layout, setLayoutState] = useState<{
     type: "single" | "double";
@@ -266,6 +277,31 @@ export default function EditResumePage() {
   // Initialize sections as empty - will be populated from database
   const [sections, setSectionsState] = useState<Section[]>([]);
   const [viewMode, setViewMode] = useState<"edit" | "ats">("edit");
+  const mobileEditor = useMobileResumeEditor();
+  const {
+    isMobile,
+    sectionPickerOpen,
+    setSectionPickerOpen,
+    editingSectionId,
+    editingLayout,
+    editingAddSections,
+    mobileEditOpen,
+    openSectionPicker,
+    startSectionEdit,
+    startLayoutEdit,
+    startAddSectionsEdit,
+    finishMobileEdit,
+    returnToSectionPicker,
+    closeMobileEditing,
+  } = mobileEditor;
+  const showMobileEditPanel =
+    isMobile && (mobileEditOpen || viewMode === "ats");
+
+  useEffect(() => {
+    if (isMobile && editingLayout) {
+      setLayoutExpanded(true);
+    }
+  }, [isMobile, editingLayout]);
 
   // Delete section dialog state
   const [changeTemplateOpen, setChangeTemplateOpen] = useState(false);
@@ -1512,6 +1548,10 @@ export default function EditResumePage() {
   );
 
   const handleDownload = async () => {
+    if (!canUse("resumeDownload")) {
+      setTrialUpsellOpen(true);
+      return;
+    }
     try {
       setDownloading(true);
       await ensureResumePersisted();
@@ -1711,8 +1751,15 @@ export default function EditResumePage() {
           console.error("❌ Error capturing thumbnail:", error);
         }
       }, 8000); // Extended delay to ensure profile pictures and all images are fully loaded
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Error generating PDF:", error);
+      const err = error as {
+        response?: { status?: number; data?: { gate?: string } };
+      };
+      if (err.response?.status === 403) {
+        setTrialUpsellOpen(true);
+        return;
+      }
       alert("Failed to generate PDF. Please try again.");
     } finally {
       setDownloading(false);
@@ -1938,62 +1985,80 @@ export default function EditResumePage() {
     setSectionToDelete(null);
   };
 
-  const startEditingSectionTitle = (
-    sectionId: string,
-    currentTitle: string,
-  ) => {
-    setEditingSectionTitle(sectionId);
-    setSectionTitleValue(currentTitle);
+  const openSectionForEdit = (sectionId: string) => {
+    setSections((prev) => {
+      const target = prev.find((s) => s.id === sectionId);
+      if (!target || target.expanded) return prev;
+      return expandOnlySection(prev, sectionId);
+    });
   };
 
-  const saveSectionTitle = (sectionId: string) => {
-    const section = sections.find((s) => s.id === sectionId);
+  const updateSectionTitle = useCallback(
+    (sectionId: string, title: string) => {
+      const section = sections.find((s) => s.id === sectionId);
+      const trimmed = title.trim();
+      if (!section || !trimmed || trimmed === section.title) return;
 
-    beginHistoryTransaction();
-    try {
-      setSectionsState(
-        sections.map((s) =>
-          s.id === sectionId ? { ...s, title: sectionTitleValue } : s,
-        ),
-      );
-
-      // If it's a custom section, also update the title in customSections
-      if (section?.type === "custom" && resume) {
-        const currentCustomSections = resume.content.customSections || [];
-        const existingIndex = currentCustomSections.findIndex(
-          (cs: any) => cs.id === sectionId,
+      beginHistoryTransaction();
+      try {
+        setSectionsState((prev) =>
+          prev.map((s) =>
+            s.id === sectionId ? { ...s, title: trimmed } : s,
+          ),
         );
 
-        let updatedCustomSections;
-        if (existingIndex >= 0) {
-          updatedCustomSections = [...currentCustomSections];
-          updatedCustomSections[existingIndex] = {
-            ...updatedCustomSections[existingIndex],
-            title: sectionTitleValue,
-          };
-        } else {
-          updatedCustomSections = [
-            ...currentCustomSections,
-            {
-              id: sectionId,
-              title: sectionTitleValue,
-              content: "",
-            },
-          ];
+        if (section.type === "custom" && resume) {
+          const currentCustomSections = resume.content.customSections || [];
+          const existingIndex = currentCustomSections.findIndex(
+            (cs: { id: string }) => cs.id === sectionId,
+          );
+
+          let updatedCustomSections;
+          if (existingIndex >= 0) {
+            updatedCustomSections = [...currentCustomSections];
+            updatedCustomSections[existingIndex] = {
+              ...updatedCustomSections[existingIndex],
+              title: trimmed,
+            };
+          } else {
+            updatedCustomSections = [
+              ...currentCustomSections,
+              {
+                id: sectionId,
+                title: trimmed,
+                content: "",
+              },
+            ];
+          }
+
+          updateContent({
+            customSections: updatedCustomSections,
+          });
         }
 
-        updateContent({
-          customSections: updatedCustomSections,
-        });
+        setHasChanges(true);
+      } finally {
+        endHistoryTransaction();
       }
+    },
+    [
+      beginHistoryTransaction,
+      endHistoryTransaction,
+      resume,
+      sections,
+      updateContent,
+    ],
+  );
 
-      setEditingSectionTitle(null);
-      setSectionTitleValue("");
-      setHasChanges(true);
-    } finally {
-      endHistoryTransaction();
-    }
+  const focusMobileSectionAfterAdd = (
+    sectionId: string,
+    sectionType: Section["type"],
+  ) => {
+    if (!isMobile || !editingAddSections) return;
+    setLayoutExpanded(false);
+    startSectionEdit(sectionId);
   };
+
   const addSection = (type: Section["type"]) => {
     // Convert type to readable title
     const titleMap: Record<Section["type"], string> = {
@@ -2024,15 +2089,17 @@ export default function EditResumePage() {
     if (!isMultipleAllowed) {
       const existingSectionIndex = sections.findIndex((s) => s.type === type);
       if (existingSectionIndex >= 0) {
+        const existingSectionId = sections[existingSectionIndex].id;
         setSections((prev) =>
           expandOnlySection(
             prev.map((s, idx) =>
               idx === existingSectionIndex ? { ...s, visible: true } : s,
             ),
-            prev[existingSectionIndex].id,
+            existingSectionId,
           ),
         );
         setHasChanges(true);
+        focusMobileSectionAfterAdd(existingSectionId, type);
         return;
       }
     }
@@ -2071,14 +2138,14 @@ export default function EditResumePage() {
       }
 
       setHasChanges(true);
+      focusMobileSectionAfterAdd(sectionId, type);
     } finally {
       endHistoryTransaction();
     }
   };
 
   const [dragOverId, setDragOverId] = useState<string | null>(null);
-  const [editingPersonalInfo, setEditingPersonalInfo] = useState(false);
-  const [layoutExpanded, setLayoutExpanded] = useState(true);
+  const [layoutExpanded, setLayoutExpanded] = useState(false);
   const profilePictureInputRef = useRef<HTMLInputElement>(null);
   const [cropperOpen, setCropperOpen] = useState(false);
   const [imageToCrop, setImageToCrop] = useState<string | null>(null);
@@ -2153,6 +2220,60 @@ export default function EditResumePage() {
     handleDragEnd();
   };
 
+  const handleMobilePickSection = (sectionId: string) => {
+    const picked = sections.find((s) => s.id === sectionId);
+    setSections(expandOnlySection(sections, sectionId));
+    setLayoutExpanded(false);
+    startSectionEdit(sectionId);
+  };
+
+  const handleMobilePickLayout = () => {
+    setLayoutExpanded(true);
+    startLayoutEdit();
+  };
+
+  const handleMobilePickAddSections = () => {
+    startAddSectionsEdit();
+  };
+
+  const handleMobileDone = () => {
+    if (viewMode === "ats") {
+      setViewMode("edit");
+      return;
+    }
+    returnToSectionPicker();
+    bumpPreviewKey("mobileDone");
+  };
+
+  const handleMobilePickerDone = () => {
+    closeMobileEditing();
+    bumpPreviewKey("mobilePickerDone");
+  };
+
+  useEffect(() => {
+    if (
+      !isMobile ||
+      !mobileEditOpen ||
+      viewMode !== "edit" ||
+      !editingSectionId
+    ) {
+      return;
+    }
+    setSections((prev) => {
+      const target = prev.find((section) => section.id === editingSectionId);
+      if (!target || target.expanded) return prev;
+      return expandOnlySection(prev, editingSectionId);
+    });
+  }, [isMobile, mobileEditOpen, viewMode, editingSectionId]);
+
+  const mobileEditBarTitle = editingLayout
+    ? "Layout & typography"
+    : editingAddSections
+      ? "Add more sections"
+      : sections.find((s) => s.id === editingSectionId)?.title ?? "Edit section";
+
+  const visibleSectionsForPicker = sections.filter((s) => s.visible);
+
   if (
     !mounted ||
     !isLoaded ||
@@ -2178,9 +2299,98 @@ export default function EditResumePage() {
     <div className={resumeEditorPage} suppressHydrationWarning>
       {/* Top Header Bar */}
       <div className={resumeEditorToolbar}>
-        <div className={resumeEditorToolbarInner}>
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-4">
+        <div className={cn(resumeEditorToolbarInner, "md:py-3", resumeEditorToolbarMobile)}>
+          <div className="flex flex-col gap-2 md:flex-row md:items-center md:gap-3 lg:gap-4">
             {/* Left Section: Back Button + Title + Save Status */}
+            {isMobile ? (
+              <div className="flex min-w-0 flex-1 items-start gap-1.5">
+                <Link
+                  href="/dashboard/resumes"
+                  className="shrink-0 pt-0.5"
+                >
+                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                    <ArrowLeft className="h-4 w-4" />
+                  </Button>
+                </Link>
+
+                <div className="min-w-0 flex-1">
+                  <ResumeEditorTitle
+                    compact
+                    value={resume.title}
+                    onChange={(title) => {
+                      setResume({ ...resume, title });
+                      setHasChanges(true);
+                    }}
+                  />
+                  <p className="mt-0.5 flex min-h-[0.875rem] min-w-0 items-center truncate text-[10px] text-muted-foreground">
+                    {autoSaving ? (
+                      <>
+                        <Loader2 className="mr-1 h-2.5 w-2.5 shrink-0 animate-spin" />
+                        Saving...
+                      </>
+                    ) : hasChanges ? (
+                      "Unsaved"
+                    ) : lastSaved ? (
+                      `Saved ${new Date(lastSaved).toLocaleTimeString([], {
+                        hour: "numeric",
+                        minute: "2-digit",
+                      })}`
+                    ) : (
+                      "\u00A0"
+                    )}
+                  </p>
+                </div>
+
+                <div className="ml-auto flex shrink-0 items-center gap-0.5 self-center">
+                  {displayAtsScore === null ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleCheckATS}
+                      disabled={refreshingATS || autoSaving || saving}
+                      className="h-7 whitespace-nowrap px-2 text-[10px] font-semibold"
+                    >
+                      {refreshingATS ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        "Check ATS"
+                      )}
+                    </Button>
+                  ) : (
+                    <>
+                      <div
+                        className={cn(
+                          resumeAtsScoreShell,
+                          resumeAtsScoreTone(displayAtsScore),
+                          "gap-0.5 px-1.5 py-0.5 text-[10px]",
+                        )}
+                      >
+                        <span className="font-bold tabular-nums">
+                          {displayAtsScore}
+                        </span>
+                        <span className="opacity-70">/100</span>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        className="h-7 w-7 shrink-0"
+                        onClick={handleCheckATS}
+                        disabled={refreshingATS || autoSaving || saving}
+                        aria-label="Recheck ATS score"
+                      >
+                        {refreshingATS ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                          <RefreshCw className="h-3 w-3" />
+                        )}
+                      </Button>
+                    </>
+                  )}
+                </div>
+              </div>
+            ) : (
             <div className="flex min-w-0 flex-1 items-start gap-4">
               <Link href="/dashboard/resumes" className="shrink-0 pt-0.5">
                 <Button variant="ghost" size="icon" className="flex-shrink-0">
@@ -2188,14 +2398,12 @@ export default function EditResumePage() {
                 </Button>
               </Link>
               <div className="min-w-0 flex-1">
-                <Input
+                <ResumeEditorTitle
                   value={resume.title}
-                  onChange={(e) => {
-                    setResume({ ...resume, title: e.target.value });
+                  onChange={(title) => {
+                    setResume({ ...resume, title });
                     setHasChanges(true);
                   }}
-                  className="h-auto max-w-xs min-w-0 border-0 bg-transparent p-0 text-lg font-semibold focus-visible:ring-0"
-                  placeholder="Resume Title"
                 />
                 <p className="mt-0.5 flex min-h-[1.1rem] items-center text-xs text-muted-foreground">
                   {autoSaving ? (
@@ -2213,24 +2421,60 @@ export default function EditResumePage() {
                 </p>
               </div>
             </div>
+            )}
 
-            {/* Middle Section: ATS Score */}
-            <div className="flex shrink-0 items-center justify-center">
-              <div
-                className={cn(resumeAtsScoreShell, resumeAtsScoreTone(displayAtsScore))}
-              >
-                <span className="whitespace-nowrap">ATS Score:</span>
-                <span className="text-xl font-bold">
-                  {displayAtsScore ?? "-"}
-                </span>
-                {displayAtsScore !== null ? (
-                  <span className="text-xs opacity-70">/100</span>
-                ) : null}
-              </div>
+            {/* Middle Section: ATS Score — desktop toolbar */}
+            <div className="hidden shrink-0 items-center justify-center md:flex">
+              {displayAtsScore === null ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleCheckATS}
+                  disabled={refreshingATS || autoSaving || saving}
+                  className="h-9 whitespace-nowrap px-4 text-sm font-semibold"
+                >
+                  {refreshingATS ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Checking ATS…
+                    </>
+                  ) : (
+                    "Check ATS Score"
+                  )}
+                </Button>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <div
+                    className={cn(
+                      resumeAtsScoreShell,
+                      resumeAtsScoreTone(displayAtsScore),
+                    )}
+                  >
+                    <span className="whitespace-nowrap">ATS Score:</span>
+                    <span className="text-xl font-bold">{displayAtsScore}</span>
+                    <span className="text-xs opacity-70">/100</span>
+                  </div>
+                  <IconTooltipButton
+                    onClick={handleCheckATS}
+                    variant="outline"
+                    label={
+                      refreshingATS ? "Rechecking ATS…" : "Recheck ATS score"
+                    }
+                    disabled={refreshingATS || autoSaving || saving}
+                  >
+                    {refreshingATS ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <RefreshCw className="h-4 w-4" />
+                    )}
+                  </IconTooltipButton>
+                </div>
+              )}
             </div>
 
-            {/* Right Section: Action Buttons */}
-            <div className="flex w-full shrink-0 items-center justify-start gap-2 lg:ml-auto lg:w-auto lg:justify-end">
+            {/* Right Section: Action Buttons — desktop only */}
+            <div className="hidden w-full shrink-0 items-center justify-start gap-2 lg:ml-auto lg:flex lg:w-auto lg:justify-end">
               <div className="flex w-full items-center justify-start gap-1.5 sm:w-auto">
                 <IconTooltipButton
                   onClick={handleUndo}
@@ -2247,18 +2491,6 @@ export default function EditResumePage() {
                   disabled={!editorHistory.canRedo || autoSaving || saving}
                 >
                   <Redo2 className="h-4 w-4" />
-                </IconTooltipButton>
-                <IconTooltipButton
-                  onClick={handleCheckATS}
-                  variant="outline"
-                  label={refreshingATS ? "Checking ATS…" : "Check ATS"}
-                  disabled={refreshingATS || autoSaving || saving}
-                >
-                  {refreshingATS ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <FlaskConical className="h-4 w-4" />
-                  )}
                 </IconTooltipButton>
                 <IconTooltipButton
                   onClick={() => setImportResumeOpen(true)}
@@ -2331,12 +2563,88 @@ export default function EditResumePage() {
         </div>
       </div>
 
-      {/* Main Content: preview on top on mobile; side-by-side from md */}
+      {isMobile && resume ? (
+        <ResumeEditorMobileChrome
+          sectionPickerOpen={sectionPickerOpen}
+          onSectionPickerOpenChange={(open) => {
+            if (open) {
+              openSectionPicker();
+            } else {
+              handleMobilePickerDone();
+            }
+          }}
+          sections={visibleSectionsForPicker.map((s) => ({
+            id: s.id,
+            title: s.title,
+            type: s.type,
+          }))}
+          onPickSection={handleMobilePickSection}
+          onPickLayout={handleMobilePickLayout}
+          onPickAddSections={handleMobilePickAddSections}
+          onOpenSections={openSectionPicker}
+          onPickerDone={handleMobilePickerDone}
+          viewMode={viewMode}
+          onViewModeChange={(mode) => {
+            setViewMode(mode);
+            if (mode === "ats") {
+              finishMobileEdit();
+            }
+          }}
+          canUndo={editorHistory.canUndo}
+          onUndo={handleUndo}
+          canRedo={editorHistory.canRedo}
+          onRedo={handleRedo}
+          onImport={() => setImportResumeOpen(true)}
+          onRearrange={() => setRearrangeSectionsOpen(true)}
+          rearrangeDisabled={!layout || sections.length === 0}
+          onChangeTemplate={() => setChangeTemplateOpen(true)}
+          changingTemplate={changingTemplate}
+          onSave={handleSave}
+          saving={saving}
+          hasChanges={hasChanges}
+          autoSaving={autoSaving}
+          onDownload={handleDownload}
+          downloading={downloading}
+          refreshingATS={refreshingATS}
+          actionsDisabled={autoSaving || saving}
+        />
+      ) : null}
+
+      {/* Main Content: mobile = live preview canvas; md+ = side-by-side */}
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden md:flex-row">
-        {/* Left Panel: Edit Form (below preview on mobile) */}
-        <div className={resumeEditorPanel}>
+        {isMobile && showMobileEditPanel ? (
+          <div className={resumeEditorMobileOverlay} aria-hidden />
+        ) : null}
+        {/* Edit panel — centered popup on mobile when editing */}
+        <div
+          className={cn(
+            resumeEditorPanel,
+            isMobile && showMobileEditPanel && resumeEditorPanelMobileSheet,
+            isMobile && showMobileEditPanel && "overflow-hidden",
+            isMobile && !showMobileEditPanel && "hidden",
+          )}
+        >
+          {isMobile && mobileEditOpen && viewMode === "edit" ? (
+            <ResumeEditorMobileEditBar
+              title={mobileEditBarTitle}
+              onDone={handleMobileDone}
+            />
+          ) : null}
+          {isMobile && viewMode === "ats" ? (
+            <ResumeEditorMobileEditBar
+              title="ATS Report"
+              onDone={handleMobileDone}
+            />
+          ) : null}
+          <div
+            className={cn(
+              isMobile &&
+                showMobileEditPanel &&
+                "min-h-0 flex-1 overflow-y-auto overscroll-y-contain touch-pan-y",
+            )}
+          >
           {/* Toggle between Edit Resume and ATS Report */}
-          <div className={resumeEditorTabsRow}>
+          <div className={cn(resumeEditorTabsRow, isMobile && "hidden")}>
             <div className="flex">
               <button
                 onClick={() => setViewMode("edit")}
@@ -2396,17 +2704,25 @@ export default function EditResumePage() {
             ) : (
               <div className="p-6 text-center text-muted-foreground">
                 <p>
-                  No ATS feedback yet. Click <strong>Check ATS</strong> in the
-                  header to run a score and report.
+                  No ATS feedback yet. Click <strong>Check ATS Score</strong> in
+                  the header to run a score and report.
                 </p>
               </div>
             )
           ) : (
-            <div className={resumeEditorFormArea}>
-              {/* Layout Controls */}
+            <div
+              className={cn(
+                resumeEditorFormArea,
+                isMobile && mobileEditOpen && "pb-10",
+              )}
+            >
+              {/* Layout & typography — above all sections */}
+              {(!isMobile || editingLayout) && layout && (
               <Card className={resumeSectionCardClass(false, false)}>
                 <div className={resumeSectionHeader}>
-                  <Label className="text-sm font-semibold">Layout</Label>
+                  <p className="text-sm font-semibold text-foreground">
+                    Layout &amp; typography
+                  </p>
                   <Button
                     size="icon"
                     variant="ghost"
@@ -2422,59 +2738,10 @@ export default function EditResumePage() {
                 </div>
                 {layoutExpanded && (
                   <CardContent className={resumeSectionContent}>
-                    {/* Column Type Selection - Hidden from user */}
-                    {/* <div className="flex gap-2">
-                      <Button
-                        variant={
-                          layout.type === "single" ? "default" : "outline"
-                        }
-                        size="sm"
-                        onClick={() => {
-                          setLayout({ ...layout, type: "single" });
-                          setHasChanges(true);
-                        }}
-                        className="flex-1"
-                      >
-                        Single Column
-                      </Button>
-                      <Button
-                        variant={
-                          layout.type === "double" ? "default" : "outline"
-                        }
-                        size="sm"
-                        onClick={() => {
-                          setLayout({ ...layout, type: "double" });
-                          setHasChanges(true);
-                          // Redistribute sections evenly when switching to double column
-                          const visibleSections = sections.filter(
-                            (s) => s.visible
-                          );
-                          const hiddenSections = sections.filter(
-                            (s) => !s.visible
-                          );
-
-                          // Alternate sections between columns
-                          const reordered: Section[] = [];
-                          for (let i = 0; i < visibleSections.length; i += 2) {
-                            reordered.push(visibleSections[i]);
-                            if (i + 1 < visibleSections.length) {
-                              reordered.push(visibleSections[i + 1]);
-                            }
-                          }
-
-                          setSections([...reordered, ...hiddenSections]);
-                        }}
-                        className="flex-1"
-                      >
-                        Double Column
-                      </Button>
-                    </div> */}
-
-                    {/* Column Width Controls (only for double column) */}
                     {layout.type === "double" && (
-                      <div className="space-y-2 pt-2 border-t">
+                      <div className="space-y-2 border-b border-border/60 pb-3">
                         <Label className="text-xs text-muted-foreground">
-                          Column Widths
+                          Column widths
                         </Label>
                         <div className="flex items-center gap-2">
                           <div className="flex-1 space-y-1">
@@ -2621,20 +2888,18 @@ export default function EditResumePage() {
                       </div>
                     )}
 
-                    {layout && (
-                      <LayoutPaddingControls
-                        padding={resolveLayoutPaddingMm(layout.padding)}
-                        onChange={(padding) => {
-                          setLayout({
-                            ...layout,
-                            padding,
-                          });
-                          setHasChanges(true);
-                        }}
-                      />
-                    )}
+                    <LayoutPaddingControls
+                      padding={resolveLayoutPaddingMm(layout.padding)}
+                      onChange={(padding) => {
+                        setLayout({
+                          ...layout,
+                          padding,
+                        });
+                        setHasChanges(true);
+                      }}
+                    />
 
-                    {effectiveTypography && layout && (
+                    {effectiveTypography && (
                       <LayoutTypographyControls
                         typography={effectiveTypography}
                         fontFamilyOptions={fontFamilyOptions}
@@ -2661,9 +2926,18 @@ export default function EditResumePage() {
                   </CardContent>
                 )}
               </Card>
+              )}
+
               {/* Render sections in order from sections array */}
               {sections
                 .filter((s) => s.visible)
+                .filter((s) => {
+                  if (!isMobile || !mobileEditOpen || viewMode !== "edit") {
+                    return true;
+                  }
+                  if (editingLayout || editingAddSections) return false;
+                  return s.id === editingSectionId;
+                })
                 .map((section) => {
                   // Personal Information Section - Compact view with expandable edit
                   if (section.type === "personalInfo") {
@@ -2693,76 +2967,16 @@ export default function EditResumePage() {
                           opacity: draggedSection === section.id ? 0.5 : 1,
                         }}
                       >
-                        <div className={resumeSectionHeader}>
-                          <div className="flex items-center gap-2 flex-1">
-                            <ResumeSectionDragHandle
-                              sectionId={section.id}
-                              onDragStart={handleDragStart}
-                              onDragEnd={handleDragEnd}
-                            />
-                            <h3 className="font-semibold text-sm flex-1">
-                              {section.title}
-                            </h3>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() =>
-                                setEditingPersonalInfo(!editingPersonalInfo)
-                              }
-                              className="h-7 text-xs"
-                            >
-                              {editingPersonalInfo ? "Done" : "Edit"}
-                            </Button>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className="h-6 w-6"
-                              onClick={() => toggleSection(section.id)}
-                            >
-                              {section.expanded ? (
-                                <ChevronUp className="w-4 h-4" />
-                              ) : (
-                                <ChevronDown className="w-4 h-4" />
-                              )}
-                            </Button>
-                          </div>
-                        </div>
+                        <ResumeSectionCardHeader
+                          section={section}
+                          onDragStart={handleDragStart}
+                          onDragEnd={handleDragEnd}
+                          onOpenForEdit={openSectionForEdit}
+                          onToggle={toggleSection}
+                          showDelete={false}
+                        />
 
-                        {/* Compact View (when not editing) */}
-                        {!editingPersonalInfo && (
-                          <CardContent className="p-4">
-                            <div className="flex items-start gap-4">
-                              <div className="flex-1">
-                                <h4 className="font-semibold text-base mb-1">
-                                  {personalInfo.fullName || "Your Name"}
-                                </h4>
-                                <p className="text-sm text-muted-foreground mb-3">
-                                  {personalInfo.portfolio || "Your Title"}
-                                </p>
-                                <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
-                                  {personalInfo.email && (
-                                    <span>{personalInfo.email}</span>
-                                  )}
-                                  {personalInfo.phone && (
-                                    <span>{personalInfo.phone}</span>
-                                  )}
-                                  {personalInfo.location && (
-                                    <span>{personalInfo.location}</span>
-                                  )}
-                                  {personalInfo.github && (
-                                    <span>{personalInfo.github}</span>
-                                  )}
-                                  {personalInfo.linkedin && (
-                                    <span>{personalInfo.linkedin}</span>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          </CardContent>
-                        )}
-
-                        {/* Expanded Edit View */}
-                        {editingPersonalInfo && (
+                        {section.expanded && (
                           <CardContent className={resumeSectionContent}>
                             {/* Profile Picture Upload */}
                             <div className="flex items-center gap-4">
@@ -3671,92 +3885,21 @@ export default function EditResumePage() {
                           opacity: draggedSection === section.id ? 0.5 : 1,
                         }}
                       >
-                        <div className={resumeSectionHeader}>
-                          <div className="flex items-center gap-2 flex-1">
-                            <ResumeSectionDragHandle
-                              sectionId={section.id}
-                              onDragStart={handleDragStart}
-                              onDragEnd={handleDragEnd}
-                            />
-                            {editingSectionTitle === section.id ? (
-                              <div className="flex items-center gap-2 flex-1">
-                                <Input
-                                  value={sectionTitleValue}
-                                  onChange={(e) =>
-                                    setSectionTitleValue(e.target.value)
-                                  }
-                                  className="h-8 text-sm font-semibold"
-                                  onKeyDown={(e) => {
-                                    if (e.key === "Enter") {
-                                      saveSectionTitle(section.id);
-                                    } else if (e.key === "Escape") {
-                                      setEditingSectionTitle(null);
-                                    }
-                                  }}
-                                  autoFocus
-                                />
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  className="h-6 w-6"
-                                  onClick={() => saveSectionTitle(section.id)}
-                                >
-                                  <Check className="w-3 h-3" />
-                                </Button>
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  className="h-6 w-6"
-                                  onClick={() => setEditingSectionTitle(null)}
-                                >
-                                  <X className="w-3 h-3" />
-                                </Button>
-                              </div>
-                            ) : (
-                              <>
-                                <h3 className="font-semibold text-sm flex-1">
-                                  {section.title}
-                                </h3>
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  className="h-6 w-6"
-                                  onClick={() =>
-                                    startEditingSectionTitle(
-                                      section.id,
-                                      section.title,
-                                    )
-                                  }
-                                >
-                                  <Edit className="w-3 h-3" />
-                                </Button>
-                              </>
-                            )}
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-950/30"
-                              onClick={() => deleteSection(section.id)}
-                              title="Delete Section"
-                            >
-                              <Trash2 className="w-3 h-3" />
-                            </Button>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className="h-6 w-6"
-                              onClick={() => toggleSection(section.id)}
-                            >
-                              {section.expanded ? (
-                                <ChevronUp className="w-4 h-4" />
-                              ) : (
-                                <ChevronDown className="w-4 h-4" />
-                              )}
-                            </Button>
-                          </div>
-                        </div>
+                        <ResumeSectionCardHeader
+                          section={section}
+                          onDragStart={handleDragStart}
+                          onDragEnd={handleDragEnd}
+                          onOpenForEdit={openSectionForEdit}
+                          onToggle={toggleSection}
+                          onDelete={deleteSection}
+                        />
                         {section.expanded && (
                           <CardContent className="p-4">
+                            <SectionNameField
+                              sectionId={section.id}
+                              title={section.title}
+                              onTitleChange={updateSectionTitle}
+                            />
                             <Label htmlFor="profileSummary" className="text-xs">
                               Profile Summary
                             </Label>
@@ -3799,92 +3942,21 @@ export default function EditResumePage() {
                           opacity: draggedSection === section.id ? 0.5 : 1,
                         }}
                       >
-                        <div className={resumeSectionHeader}>
-                          <div className="flex items-center gap-2 flex-1">
-                            <ResumeSectionDragHandle
-                              sectionId={section.id}
-                              onDragStart={handleDragStart}
-                              onDragEnd={handleDragEnd}
-                            />
-                            {editingSectionTitle === section.id ? (
-                              <div className="flex items-center gap-2 flex-1">
-                                <Input
-                                  value={sectionTitleValue}
-                                  onChange={(e) =>
-                                    setSectionTitleValue(e.target.value)
-                                  }
-                                  className="h-8 text-sm font-semibold"
-                                  onKeyDown={(e) => {
-                                    if (e.key === "Enter") {
-                                      saveSectionTitle(section.id);
-                                    } else if (e.key === "Escape") {
-                                      setEditingSectionTitle(null);
-                                    }
-                                  }}
-                                  autoFocus
-                                />
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  className="h-6 w-6"
-                                  onClick={() => saveSectionTitle(section.id)}
-                                >
-                                  <Check className="w-3 h-3" />
-                                </Button>
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  className="h-6 w-6"
-                                  onClick={() => setEditingSectionTitle(null)}
-                                >
-                                  <X className="w-3 h-3" />
-                                </Button>
-                              </div>
-                            ) : (
-                              <>
-                                <h3 className="font-semibold text-sm flex-1">
-                                  {section.title}
-                                </h3>
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  className="h-6 w-6"
-                                  onClick={() =>
-                                    startEditingSectionTitle(
-                                      section.id,
-                                      section.title,
-                                    )
-                                  }
-                                >
-                                  <Edit className="w-3 h-3" />
-                                </Button>
-                              </>
-                            )}
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-950/30"
-                              onClick={() => deleteSection(section.id)}
-                              title="Delete Section"
-                            >
-                              <Trash2 className="w-3 h-3" />
-                            </Button>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className="h-6 w-6"
-                              onClick={() => toggleSection(section.id)}
-                            >
-                              {section.expanded ? (
-                                <ChevronUp className="w-4 h-4" />
-                              ) : (
-                                <ChevronDown className="w-4 h-4" />
-                              )}
-                            </Button>
-                          </div>
-                        </div>
+                        <ResumeSectionCardHeader
+                          section={section}
+                          onDragStart={handleDragStart}
+                          onDragEnd={handleDragEnd}
+                          onOpenForEdit={openSectionForEdit}
+                          onToggle={toggleSection}
+                          onDelete={deleteSection}
+                        />
                         {section.expanded && (
                           <CardContent className={resumeSectionContent}>
+                            <SectionNameField
+                              sectionId={section.id}
+                              title={section.title}
+                              onTitleChange={updateSectionTitle}
+                            />
                             {resume.content.experience.map((exp, index) => (
                               <div
                                 key={exp.id || index}
@@ -4060,92 +4132,21 @@ export default function EditResumePage() {
                           opacity: draggedSection === section.id ? 0.5 : 1,
                         }}
                       >
-                        <div className={resumeSectionHeader}>
-                          <div className="flex items-center gap-2 flex-1">
-                            <ResumeSectionDragHandle
-                              sectionId={section.id}
-                              onDragStart={handleDragStart}
-                              onDragEnd={handleDragEnd}
-                            />
-                            {editingSectionTitle === section.id ? (
-                              <div className="flex items-center gap-2 flex-1">
-                                <Input
-                                  value={sectionTitleValue}
-                                  onChange={(e) =>
-                                    setSectionTitleValue(e.target.value)
-                                  }
-                                  className="h-8 text-sm font-semibold"
-                                  onKeyDown={(e) => {
-                                    if (e.key === "Enter") {
-                                      saveSectionTitle(section.id);
-                                    } else if (e.key === "Escape") {
-                                      setEditingSectionTitle(null);
-                                    }
-                                  }}
-                                  autoFocus
-                                />
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  className="h-6 w-6"
-                                  onClick={() => saveSectionTitle(section.id)}
-                                >
-                                  <Check className="w-3 h-3" />
-                                </Button>
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  className="h-6 w-6"
-                                  onClick={() => setEditingSectionTitle(null)}
-                                >
-                                  <X className="w-3 h-3" />
-                                </Button>
-                              </div>
-                            ) : (
-                              <>
-                                <h3 className="font-semibold text-sm flex-1">
-                                  {section.title}
-                                </h3>
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  className="h-6 w-6"
-                                  onClick={() =>
-                                    startEditingSectionTitle(
-                                      section.id,
-                                      section.title,
-                                    )
-                                  }
-                                >
-                                  <Edit className="w-3 h-3" />
-                                </Button>
-                              </>
-                            )}
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-950/30"
-                              onClick={() => deleteSection(section.id)}
-                              title="Delete Section"
-                            >
-                              <Trash2 className="w-3 h-3" />
-                            </Button>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className="h-6 w-6"
-                              onClick={() => toggleSection(section.id)}
-                            >
-                              {section.expanded ? (
-                                <ChevronUp className="w-4 h-4" />
-                              ) : (
-                                <ChevronDown className="w-4 h-4" />
-                              )}
-                            </Button>
-                          </div>
-                        </div>
+                        <ResumeSectionCardHeader
+                          section={section}
+                          onDragStart={handleDragStart}
+                          onDragEnd={handleDragEnd}
+                          onOpenForEdit={openSectionForEdit}
+                          onToggle={toggleSection}
+                          onDelete={deleteSection}
+                        />
                         {section.expanded && (
                           <CardContent className={resumeSectionContent}>
+                            <SectionNameField
+                              sectionId={section.id}
+                              title={section.title}
+                              onTitleChange={updateSectionTitle}
+                            />
                             {resume.content.education.map((edu, index) => (
                               <div
                                 key={edu.id || index}
@@ -4401,92 +4402,21 @@ export default function EditResumePage() {
                           opacity: draggedSection === section.id ? 0.5 : 1,
                         }}
                       >
-                        <div className={resumeSectionHeader}>
-                          <div className="flex items-center gap-2 flex-1">
-                            <ResumeSectionDragHandle
-                              sectionId={section.id}
-                              onDragStart={handleDragStart}
-                              onDragEnd={handleDragEnd}
-                            />
-                            {editingSectionTitle === section.id ? (
-                              <div className="flex items-center gap-2 flex-1">
-                                <Input
-                                  value={sectionTitleValue}
-                                  onChange={(e) =>
-                                    setSectionTitleValue(e.target.value)
-                                  }
-                                  className="h-8 text-sm font-semibold"
-                                  onKeyDown={(e) => {
-                                    if (e.key === "Enter") {
-                                      saveSectionTitle(section.id);
-                                    } else if (e.key === "Escape") {
-                                      setEditingSectionTitle(null);
-                                    }
-                                  }}
-                                  autoFocus
-                                />
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  className="h-6 w-6"
-                                  onClick={() => saveSectionTitle(section.id)}
-                                >
-                                  <Check className="w-3 h-3" />
-                                </Button>
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  className="h-6 w-6"
-                                  onClick={() => setEditingSectionTitle(null)}
-                                >
-                                  <X className="w-3 h-3" />
-                                </Button>
-                              </div>
-                            ) : (
-                              <>
-                                <h3 className="font-semibold text-sm flex-1">
-                                  {section.title}
-                                </h3>
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  className="h-6 w-6"
-                                  onClick={() =>
-                                    startEditingSectionTitle(
-                                      section.id,
-                                      section.title,
-                                    )
-                                  }
-                                >
-                                  <Edit className="w-3 h-3" />
-                                </Button>
-                              </>
-                            )}
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-950/30"
-                              onClick={() => deleteSection(section.id)}
-                              title="Delete Section"
-                            >
-                              <Trash2 className="w-3 h-3" />
-                            </Button>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className="h-6 w-6"
-                              onClick={() => toggleSection(section.id)}
-                            >
-                              {section.expanded ? (
-                                <ChevronUp className="w-4 h-4" />
-                              ) : (
-                                <ChevronDown className="w-4 h-4" />
-                              )}
-                            </Button>
-                          </div>
-                        </div>
+                        <ResumeSectionCardHeader
+                          section={section}
+                          onDragStart={handleDragStart}
+                          onDragEnd={handleDragEnd}
+                          onOpenForEdit={openSectionForEdit}
+                          onToggle={toggleSection}
+                          onDelete={deleteSection}
+                        />
                         {section.expanded && (
                           <CardContent className={resumeSectionContent}>
+                            <SectionNameField
+                              sectionId={section.id}
+                              title={section.title}
+                              onTitleChange={updateSectionTitle}
+                            />
                             {isExecutiveTemplate ? (
                               // Executive Template: Skill items with ratings
                               <ExecutiveSkills
@@ -4564,92 +4494,21 @@ export default function EditResumePage() {
                           opacity: draggedSection === section.id ? 0.5 : 1,
                         }}
                       >
-                        <div className={resumeSectionHeader}>
-                          <div className="flex items-center gap-2 flex-1">
-                            <ResumeSectionDragHandle
-                              sectionId={section.id}
-                              onDragStart={handleDragStart}
-                              onDragEnd={handleDragEnd}
-                            />
-                            {editingSectionTitle === section.id ? (
-                              <div className="flex items-center gap-2 flex-1">
-                                <Input
-                                  value={sectionTitleValue}
-                                  onChange={(e) =>
-                                    setSectionTitleValue(e.target.value)
-                                  }
-                                  className="h-8 text-sm font-semibold"
-                                  onKeyDown={(e) => {
-                                    if (e.key === "Enter") {
-                                      saveSectionTitle(section.id);
-                                    } else if (e.key === "Escape") {
-                                      setEditingSectionTitle(null);
-                                    }
-                                  }}
-                                  autoFocus
-                                />
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  className="h-6 w-6"
-                                  onClick={() => saveSectionTitle(section.id)}
-                                >
-                                  <Check className="w-3 h-3" />
-                                </Button>
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  className="h-6 w-6"
-                                  onClick={() => setEditingSectionTitle(null)}
-                                >
-                                  <X className="w-3 h-3" />
-                                </Button>
-                              </div>
-                            ) : (
-                              <>
-                                <h3 className="font-semibold text-sm flex-1">
-                                  {section.title}
-                                </h3>
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  className="h-6 w-6"
-                                  onClick={() =>
-                                    startEditingSectionTitle(
-                                      section.id,
-                                      section.title,
-                                    )
-                                  }
-                                >
-                                  <Edit className="w-3 h-3" />
-                                </Button>
-                              </>
-                            )}
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-950/30"
-                              onClick={() => deleteSection(section.id)}
-                              title="Delete Section"
-                            >
-                              <Trash2 className="w-3 h-3" />
-                            </Button>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className="h-6 w-6"
-                              onClick={() => toggleSection(section.id)}
-                            >
-                              {section.expanded ? (
-                                <ChevronUp className="w-4 h-4" />
-                              ) : (
-                                <ChevronDown className="w-4 h-4" />
-                              )}
-                            </Button>
-                          </div>
-                        </div>
+                        <ResumeSectionCardHeader
+                          section={section}
+                          onDragStart={handleDragStart}
+                          onDragEnd={handleDragEnd}
+                          onOpenForEdit={openSectionForEdit}
+                          onToggle={toggleSection}
+                          onDelete={deleteSection}
+                        />
                         {section.expanded && (
                           <CardContent className={resumeSectionContent}>
+                            <SectionNameField
+                              sectionId={section.id}
+                              title={section.title}
+                              onTitleChange={updateSectionTitle}
+                            />
                             {(resume.content.projects || []).map(
                               (project, index) => (
                                 <div
@@ -4846,92 +4705,21 @@ export default function EditResumePage() {
                         onDragLeave={handleDragLeave}
                         onDrop={(e) => handleDrop(e, section.id)}
                       >
-                        <div className={resumeSectionHeader}>
-                          <div className="flex items-center gap-2 flex-1">
-                            <ResumeSectionDragHandle
-                              sectionId={section.id}
-                              onDragStart={handleDragStart}
-                              onDragEnd={handleDragEnd}
-                            />
-                            {editingSectionTitle === section.id ? (
-                              <div className="flex items-center gap-2 flex-1">
-                                <Input
-                                  value={sectionTitleValue}
-                                  onChange={(e) =>
-                                    setSectionTitleValue(e.target.value)
-                                  }
-                                  className="h-8 text-sm font-semibold"
-                                  onKeyDown={(e) => {
-                                    if (e.key === "Enter") {
-                                      saveSectionTitle(section.id);
-                                    } else if (e.key === "Escape") {
-                                      setEditingSectionTitle(null);
-                                    }
-                                  }}
-                                  autoFocus
-                                />
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  className="h-6 w-6"
-                                  onClick={() => saveSectionTitle(section.id)}
-                                >
-                                  <Check className="w-3 h-3" />
-                                </Button>
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  className="h-6 w-6"
-                                  onClick={() => setEditingSectionTitle(null)}
-                                >
-                                  <X className="w-3 h-3" />
-                                </Button>
-                              </div>
-                            ) : (
-                              <>
-                                <h3 className="font-semibold text-sm flex-1">
-                                  {section.title}
-                                </h3>
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  className="h-6 w-6"
-                                  onClick={() =>
-                                    startEditingSectionTitle(
-                                      section.id,
-                                      section.title,
-                                    )
-                                  }
-                                >
-                                  <Edit className="w-3 h-3" />
-                                </Button>
-                              </>
-                            )}
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-950/30"
-                              onClick={() => deleteSection(section.id)}
-                              title="Delete Section"
-                            >
-                              <Trash2 className="w-3 h-3" />
-                            </Button>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className="h-6 w-6"
-                              onClick={() => toggleSection(section.id)}
-                            >
-                              {section.expanded ? (
-                                <ChevronUp className="w-4 h-4" />
-                              ) : (
-                                <ChevronDown className="w-4 h-4" />
-                              )}
-                            </Button>
-                          </div>
-                        </div>
+                        <ResumeSectionCardHeader
+                          section={section}
+                          onDragStart={handleDragStart}
+                          onDragEnd={handleDragEnd}
+                          onOpenForEdit={openSectionForEdit}
+                          onToggle={toggleSection}
+                          onDelete={deleteSection}
+                        />
                         {section.expanded && (
                           <CardContent className="p-4 space-y-3">
+                            <SectionNameField
+                              sectionId={section.id}
+                              title={section.title}
+                              onTitleChange={updateSectionTitle}
+                            />
                             {(resume.content.certificates || []).map(
                               (cert, index) => {
                                 const today = new Date()
@@ -5217,92 +5005,21 @@ export default function EditResumePage() {
                         onDragLeave={handleDragLeave}
                         onDrop={(e) => handleDrop(e, section.id)}
                       >
-                        <div className={resumeSectionHeader}>
-                          <div className="flex items-center gap-2 flex-1">
-                            <ResumeSectionDragHandle
-                              sectionId={section.id}
-                              onDragStart={handleDragStart}
-                              onDragEnd={handleDragEnd}
-                            />
-                            {editingSectionTitle === section.id ? (
-                              <div className="flex items-center gap-2 flex-1">
-                                <Input
-                                  value={sectionTitleValue}
-                                  onChange={(e) =>
-                                    setSectionTitleValue(e.target.value)
-                                  }
-                                  className="h-8 text-sm font-semibold"
-                                  onKeyDown={(e) => {
-                                    if (e.key === "Enter") {
-                                      saveSectionTitle(section.id);
-                                    } else if (e.key === "Escape") {
-                                      setEditingSectionTitle(null);
-                                    }
-                                  }}
-                                  autoFocus
-                                />
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  className="h-6 w-6"
-                                  onClick={() => saveSectionTitle(section.id)}
-                                >
-                                  <Check className="w-3 h-3" />
-                                </Button>
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  className="h-6 w-6"
-                                  onClick={() => setEditingSectionTitle(null)}
-                                >
-                                  <X className="w-3 h-3" />
-                                </Button>
-                              </div>
-                            ) : (
-                              <>
-                                <h3 className="font-semibold text-sm flex-1">
-                                  {section.title}
-                                </h3>
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  className="h-6 w-6"
-                                  onClick={() =>
-                                    startEditingSectionTitle(
-                                      section.id,
-                                      section.title,
-                                    )
-                                  }
-                                >
-                                  <Edit className="w-3 h-3" />
-                                </Button>
-                              </>
-                            )}
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-950/30"
-                              onClick={() => deleteSection(section.id)}
-                              title="Delete Section"
-                            >
-                              <Trash2 className="w-3 h-3" />
-                            </Button>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className="h-6 w-6"
-                              onClick={() => toggleSection(section.id)}
-                            >
-                              {section.expanded ? (
-                                <ChevronUp className="w-4 h-4" />
-                              ) : (
-                                <ChevronDown className="w-4 h-4" />
-                              )}
-                            </Button>
-                          </div>
-                        </div>
+                        <ResumeSectionCardHeader
+                          section={section}
+                          onDragStart={handleDragStart}
+                          onDragEnd={handleDragEnd}
+                          onOpenForEdit={openSectionForEdit}
+                          onToggle={toggleSection}
+                          onDelete={deleteSection}
+                        />
                         {section.expanded && (
                           <CardContent className="p-4">
+                            <SectionNameField
+                              sectionId={section.id}
+                              title={section.title}
+                              onTitleChange={updateSectionTitle}
+                            />
                             <Label className="text-xs">Interests</Label>
                             <RichTextEditor
                               value={resume.content.interests || ""}
@@ -5349,92 +5066,21 @@ export default function EditResumePage() {
                         onDragLeave={handleDragLeave}
                         onDrop={(e) => handleDrop(e, section.id)}
                       >
-                        <div className={resumeSectionHeader}>
-                          <div className="flex items-center gap-2 flex-1 min-w-0">
-                            <ResumeSectionDragHandle
-                              sectionId={section.id}
-                              onDragStart={handleDragStart}
-                              onDragEnd={handleDragEnd}
-                            />
-                            {editingSectionTitle === section.id ? (
-                              <div className="flex items-center gap-2 flex-1">
-                                <Input
-                                  value={sectionTitleValue}
-                                  onChange={(e) =>
-                                    setSectionTitleValue(e.target.value)
-                                  }
-                                  className="h-8 text-sm font-semibold"
-                                  onKeyDown={(e) => {
-                                    if (e.key === "Enter") {
-                                      saveSectionTitle(section.id);
-                                    } else if (e.key === "Escape") {
-                                      setEditingSectionTitle(null);
-                                    }
-                                  }}
-                                  autoFocus
-                                />
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  className="h-6 w-6"
-                                  onClick={() => saveSectionTitle(section.id)}
-                                >
-                                  <Check className="w-3 h-3" />
-                                </Button>
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  className="h-6 w-6"
-                                  onClick={() => setEditingSectionTitle(null)}
-                                >
-                                  <X className="w-3 h-3" />
-                                </Button>
-                              </div>
-                            ) : (
-                              <>
-                                <h3 className="font-semibold text-sm flex-1">
-                                  {section.title}
-                                </h3>
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  className="h-6 w-6"
-                                  onClick={() =>
-                                    startEditingSectionTitle(
-                                      section.id,
-                                      section.title,
-                                    )
-                                  }
-                                >
-                                  <Edit className="w-3 h-3" />
-                                </Button>
-                              </>
-                            )}
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-950/30"
-                              onClick={() => deleteSection(section.id)}
-                              title="Delete Section"
-                            >
-                              <Trash2 className="w-3 h-3" />
-                            </Button>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className="h-6 w-6"
-                              onClick={() => toggleSection(section.id)}
-                            >
-                              {section.expanded ? (
-                                <ChevronUp className="w-4 h-4" />
-                              ) : (
-                                <ChevronDown className="w-4 h-4" />
-                              )}
-                            </Button>
-                          </div>
-                        </div>
+                        <ResumeSectionCardHeader
+                          section={section}
+                          onDragStart={handleDragStart}
+                          onDragEnd={handleDragEnd}
+                          onOpenForEdit={openSectionForEdit}
+                          onToggle={toggleSection}
+                          onDelete={deleteSection}
+                        />
                         {section.expanded && (
                           <CardContent className={resumeSectionContent}>
+                            <SectionNameField
+                              sectionId={section.id}
+                              title={section.title}
+                              onTitleChange={updateSectionTitle}
+                            />
                             <RichTextEditor
                               key={`${section.id}-${
                                 customContent.length > 0 ? "loaded" : "empty"
@@ -5496,41 +5142,21 @@ export default function EditResumePage() {
                         onDragLeave={handleDragLeave}
                         onDrop={(e) => handleDrop(e, section.id)}
                       >
-                        <div className="flex items-center justify-between p-2 border-b bg-muted/20">
-                          <div className="flex items-center gap-2 flex-1">
-                            <ResumeSectionDragHandle
-                              sectionId={section.id}
-                              onDragStart={handleDragStart}
-                              onDragEnd={handleDragEnd}
-                            />
-                            <h3 className="font-semibold text-sm text-muted-foreground">
-                              {section.title}
-                            </h3>
-                          </div>
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="h-6 w-6"
-                            onClick={() => toggleSection(section.id)}
-                          >
-                            {section.expanded ? (
-                              <ChevronUp className="w-4 h-4" />
-                            ) : (
-                              <ChevronDown className="w-4 h-4" />
-                            )}
-                          </Button>
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-950/30"
-                            onClick={() => deleteSection(section.id)}
-                            title="Delete Section"
-                          >
-                            <Trash2 className="w-3 h-3" />
-                          </Button>
-                        </div>
+                        <ResumeSectionCardHeader
+                          section={section}
+                          onDragStart={handleDragStart}
+                          onDragEnd={handleDragEnd}
+                          onOpenForEdit={openSectionForEdit}
+                          onToggle={toggleSection}
+                          onDelete={deleteSection}
+                        />
                         {section.expanded && (
                           <CardContent className="p-2">
+                            <SectionNameField
+                              sectionId={section.id}
+                              title={section.title}
+                              onTitleChange={updateSectionTitle}
+                            />
                             <div className="text-xs text-muted-foreground text-center py-1">
                               <p>
                                 Column Placeholder for column alignment (5px
@@ -5557,92 +5183,21 @@ export default function EditResumePage() {
                         onDragLeave={handleDragLeave}
                         onDrop={(e) => handleDrop(e, section.id)}
                       >
-                        <div className={resumeSectionHeader}>
-                          <div className="flex items-center gap-2 flex-1">
-                            <ResumeSectionDragHandle
-                              sectionId={section.id}
-                              onDragStart={handleDragStart}
-                              onDragEnd={handleDragEnd}
-                            />
-                            {editingSectionTitle === section.id ? (
-                              <div className="flex items-center gap-2 flex-1">
-                                <Input
-                                  value={sectionTitleValue}
-                                  onChange={(e) =>
-                                    setSectionTitleValue(e.target.value)
-                                  }
-                                  className="h-8 text-sm font-semibold"
-                                  onKeyDown={(e) => {
-                                    if (e.key === "Enter") {
-                                      saveSectionTitle(section.id);
-                                    } else if (e.key === "Escape") {
-                                      setEditingSectionTitle(null);
-                                    }
-                                  }}
-                                  autoFocus
-                                />
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  className="h-6 w-6"
-                                  onClick={() => saveSectionTitle(section.id)}
-                                >
-                                  <Check className="w-3 h-3" />
-                                </Button>
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  className="h-6 w-6"
-                                  onClick={() => setEditingSectionTitle(null)}
-                                >
-                                  <X className="w-3 h-3" />
-                                </Button>
-                              </div>
-                            ) : (
-                              <>
-                                <h3 className="font-semibold text-sm flex-1">
-                                  {section.title}
-                                </h3>
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  className="h-6 w-6"
-                                  onClick={() =>
-                                    startEditingSectionTitle(
-                                      section.id,
-                                      section.title,
-                                    )
-                                  }
-                                >
-                                  <Edit className="w-3 h-3" />
-                                </Button>
-                              </>
-                            )}
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-950/30"
-                              onClick={() => deleteSection(section.id)}
-                              title="Delete Section"
-                            >
-                              <Trash2 className="w-3 h-3" />
-                            </Button>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className="h-6 w-6"
-                              onClick={() => toggleSection(section.id)}
-                            >
-                              {section.expanded ? (
-                                <ChevronUp className="w-4 h-4" />
-                              ) : (
-                                <ChevronDown className="w-4 h-4" />
-                              )}
-                            </Button>
-                          </div>
-                        </div>
+                        <ResumeSectionCardHeader
+                          section={section}
+                          onDragStart={handleDragStart}
+                          onDragEnd={handleDragEnd}
+                          onOpenForEdit={openSectionForEdit}
+                          onToggle={toggleSection}
+                          onDelete={deleteSection}
+                        />
                         {section.expanded && (
                           <CardContent className="p-4">
+                            <SectionNameField
+                              sectionId={section.id}
+                              title={section.title}
+                              onTitleChange={updateSectionTitle}
+                            />
                             <Label className="text-xs">Declaration</Label>
                             <RichTextEditor
                               value={resume.content.declaration || ""}
@@ -5679,92 +5234,21 @@ export default function EditResumePage() {
                         onDragLeave={handleDragLeave}
                         onDrop={(e) => handleDrop(e, section.id)}
                       >
-                        <div className={resumeSectionHeader}>
-                          <div className="flex items-center gap-2 flex-1">
-                            <ResumeSectionDragHandle
-                              sectionId={section.id}
-                              onDragStart={handleDragStart}
-                              onDragEnd={handleDragEnd}
-                            />
-                            {editingSectionTitle === section.id ? (
-                              <div className="flex items-center gap-2 flex-1">
-                                <Input
-                                  value={sectionTitleValue}
-                                  onChange={(e) =>
-                                    setSectionTitleValue(e.target.value)
-                                  }
-                                  className="h-8 text-sm font-semibold"
-                                  onKeyDown={(e) => {
-                                    if (e.key === "Enter") {
-                                      saveSectionTitle(section.id);
-                                    } else if (e.key === "Escape") {
-                                      setEditingSectionTitle(null);
-                                    }
-                                  }}
-                                  autoFocus
-                                />
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  className="h-6 w-6"
-                                  onClick={() => saveSectionTitle(section.id)}
-                                >
-                                  <Check className="w-3 h-3" />
-                                </Button>
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  className="h-6 w-6"
-                                  onClick={() => setEditingSectionTitle(null)}
-                                >
-                                  <X className="w-3 h-3" />
-                                </Button>
-                              </div>
-                            ) : (
-                              <>
-                                <h3 className="font-semibold text-sm flex-1">
-                                  {section.title}
-                                </h3>
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  className="h-6 w-6"
-                                  onClick={() =>
-                                    startEditingSectionTitle(
-                                      section.id,
-                                      section.title,
-                                    )
-                                  }
-                                >
-                                  <Edit className="w-3 h-3" />
-                                </Button>
-                              </>
-                            )}
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-950/30"
-                              onClick={() => deleteSection(section.id)}
-                              title="Delete Section"
-                            >
-                              <Trash2 className="w-3 h-3" />
-                            </Button>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className="h-6 w-6"
-                              onClick={() => toggleSection(section.id)}
-                            >
-                              {section.expanded ? (
-                                <ChevronUp className="w-4 h-4" />
-                              ) : (
-                                <ChevronDown className="w-4 h-4" />
-                              )}
-                            </Button>
-                          </div>
-                        </div>
+                        <ResumeSectionCardHeader
+                          section={section}
+                          onDragStart={handleDragStart}
+                          onDragEnd={handleDragEnd}
+                          onOpenForEdit={openSectionForEdit}
+                          onToggle={toggleSection}
+                          onDelete={deleteSection}
+                        />
                         {section.expanded && (
                           <CardContent className="p-4">
+                            <SectionNameField
+                              sectionId={section.id}
+                              title={section.title}
+                              onTitleChange={updateSectionTitle}
+                            />
                             <LanguagesEditor
                               languages={
                                 Array.isArray(resume.content.languages)
@@ -5804,92 +5288,21 @@ export default function EditResumePage() {
                         onDragLeave={handleDragLeave}
                         onDrop={(e) => handleDrop(e, section.id)}
                       >
-                        <div className={resumeSectionHeader}>
-                          <div className="flex items-center gap-2 flex-1">
-                            <ResumeSectionDragHandle
-                              sectionId={section.id}
-                              onDragStart={handleDragStart}
-                              onDragEnd={handleDragEnd}
-                            />
-                            {editingSectionTitle === section.id ? (
-                              <div className="flex items-center gap-2 flex-1">
-                                <Input
-                                  value={sectionTitleValue}
-                                  onChange={(e) =>
-                                    setSectionTitleValue(e.target.value)
-                                  }
-                                  className="h-8 text-sm font-semibold"
-                                  onKeyDown={(e) => {
-                                    if (e.key === "Enter") {
-                                      saveSectionTitle(section.id);
-                                    } else if (e.key === "Escape") {
-                                      setEditingSectionTitle(null);
-                                    }
-                                  }}
-                                  autoFocus
-                                />
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  className="h-6 w-6"
-                                  onClick={() => saveSectionTitle(section.id)}
-                                >
-                                  <Check className="w-3 h-3" />
-                                </Button>
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  className="h-6 w-6"
-                                  onClick={() => setEditingSectionTitle(null)}
-                                >
-                                  <X className="w-3 h-3" />
-                                </Button>
-                              </div>
-                            ) : (
-                              <>
-                                <h3 className="font-semibold text-sm flex-1">
-                                  {section.title}
-                                </h3>
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  className="h-6 w-6"
-                                  onClick={() =>
-                                    startEditingSectionTitle(
-                                      section.id,
-                                      section.title,
-                                    )
-                                  }
-                                >
-                                  <Edit className="w-3 h-3" />
-                                </Button>
-                              </>
-                            )}
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-950/30"
-                              onClick={() => deleteSection(section.id)}
-                              title="Delete Section"
-                            >
-                              <Trash2 className="w-3 h-3" />
-                            </Button>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className="h-6 w-6"
-                              onClick={() => toggleSection(section.id)}
-                            >
-                              {section.expanded ? (
-                                <ChevronUp className="w-4 h-4" />
-                              ) : (
-                                <ChevronDown className="w-4 h-4" />
-                              )}
-                            </Button>
-                          </div>
-                        </div>
+                        <ResumeSectionCardHeader
+                          section={section}
+                          onDragStart={handleDragStart}
+                          onDragEnd={handleDragEnd}
+                          onOpenForEdit={openSectionForEdit}
+                          onToggle={toggleSection}
+                          onDelete={deleteSection}
+                        />
                         {section.expanded && (
                           <CardContent className="p-4 space-y-3">
+                            <SectionNameField
+                              sectionId={section.id}
+                              title={section.title}
+                              onTitleChange={updateSectionTitle}
+                            />
                             {(resume.content.awards || []).map(
                               (award, index) => (
                                 <div
@@ -6095,92 +5508,21 @@ export default function EditResumePage() {
                         onDragLeave={handleDragLeave}
                         onDrop={(e) => handleDrop(e, section.id)}
                       >
-                        <div className={resumeSectionHeader}>
-                          <div className="flex items-center gap-2 flex-1">
-                            <ResumeSectionDragHandle
-                              sectionId={section.id}
-                              onDragStart={handleDragStart}
-                              onDragEnd={handleDragEnd}
-                            />
-                            {editingSectionTitle === section.id ? (
-                              <div className="flex items-center gap-2 flex-1">
-                                <Input
-                                  value={sectionTitleValue}
-                                  onChange={(e) =>
-                                    setSectionTitleValue(e.target.value)
-                                  }
-                                  className="h-8 text-sm font-semibold"
-                                  onKeyDown={(e) => {
-                                    if (e.key === "Enter") {
-                                      saveSectionTitle(section.id);
-                                    } else if (e.key === "Escape") {
-                                      setEditingSectionTitle(null);
-                                    }
-                                  }}
-                                  autoFocus
-                                />
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  className="h-6 w-6"
-                                  onClick={() => saveSectionTitle(section.id)}
-                                >
-                                  <Check className="w-3 h-3" />
-                                </Button>
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  className="h-6 w-6"
-                                  onClick={() => setEditingSectionTitle(null)}
-                                >
-                                  <X className="w-3 h-3" />
-                                </Button>
-                              </div>
-                            ) : (
-                              <>
-                                <h3 className="font-semibold text-sm flex-1">
-                                  {section.title}
-                                </h3>
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  className="h-6 w-6"
-                                  onClick={() =>
-                                    startEditingSectionTitle(
-                                      section.id,
-                                      section.title,
-                                    )
-                                  }
-                                >
-                                  <Edit className="w-3 h-3" />
-                                </Button>
-                              </>
-                            )}
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-950/30"
-                              onClick={() => deleteSection(section.id)}
-                              title="Delete Section"
-                            >
-                              <Trash2 className="w-3 h-3" />
-                            </Button>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className="h-6 w-6"
-                              onClick={() => toggleSection(section.id)}
-                            >
-                              {section.expanded ? (
-                                <ChevronUp className="w-4 h-4" />
-                              ) : (
-                                <ChevronDown className="w-4 h-4" />
-                              )}
-                            </Button>
-                          </div>
-                        </div>
+                        <ResumeSectionCardHeader
+                          section={section}
+                          onDragStart={handleDragStart}
+                          onDragEnd={handleDragEnd}
+                          onOpenForEdit={openSectionForEdit}
+                          onToggle={toggleSection}
+                          onDelete={deleteSection}
+                        />
                         {section.expanded && (
                           <CardContent className="p-4 space-y-3">
+                            <SectionNameField
+                              sectionId={section.id}
+                              title={section.title}
+                              onTitleChange={updateSectionTitle}
+                            />
                             {(resume.content.references || []).map(
                               (ref, index) => (
                                 <div
@@ -6421,92 +5763,21 @@ export default function EditResumePage() {
                         onDragLeave={handleDragLeave}
                         onDrop={(e) => handleDrop(e, section.id)}
                       >
-                        <div className={resumeSectionHeader}>
-                          <div className="flex items-center gap-2 flex-1">
-                            <ResumeSectionDragHandle
-                              sectionId={section.id}
-                              onDragStart={handleDragStart}
-                              onDragEnd={handleDragEnd}
-                            />
-                            {editingSectionTitle === section.id ? (
-                              <div className="flex items-center gap-2 flex-1">
-                                <Input
-                                  value={sectionTitleValue}
-                                  onChange={(e) =>
-                                    setSectionTitleValue(e.target.value)
-                                  }
-                                  className="h-8 text-sm font-semibold"
-                                  onKeyDown={(e) => {
-                                    if (e.key === "Enter") {
-                                      saveSectionTitle(section.id);
-                                    } else if (e.key === "Escape") {
-                                      setEditingSectionTitle(null);
-                                    }
-                                  }}
-                                  autoFocus
-                                />
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  className="h-6 w-6"
-                                  onClick={() => saveSectionTitle(section.id)}
-                                >
-                                  <Check className="w-3 h-3" />
-                                </Button>
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  className="h-6 w-6"
-                                  onClick={() => setEditingSectionTitle(null)}
-                                >
-                                  <X className="w-3 h-3" />
-                                </Button>
-                              </div>
-                            ) : (
-                              <>
-                                <h3 className="font-semibold text-sm flex-1">
-                                  {section.title}
-                                </h3>
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  className="h-6 w-6"
-                                  onClick={() =>
-                                    startEditingSectionTitle(
-                                      section.id,
-                                      section.title,
-                                    )
-                                  }
-                                >
-                                  <Edit className="w-3 h-3" />
-                                </Button>
-                              </>
-                            )}
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-950/30"
-                              onClick={() => deleteSection(section.id)}
-                              title="Delete Section"
-                            >
-                              <Trash2 className="w-3 h-3" />
-                            </Button>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className="h-6 w-6"
-                              onClick={() => toggleSection(section.id)}
-                            >
-                              {section.expanded ? (
-                                <ChevronUp className="w-4 h-4" />
-                              ) : (
-                                <ChevronDown className="w-4 h-4" />
-                              )}
-                            </Button>
-                          </div>
-                        </div>
+                        <ResumeSectionCardHeader
+                          section={section}
+                          onDragStart={handleDragStart}
+                          onDragEnd={handleDragEnd}
+                          onOpenForEdit={openSectionForEdit}
+                          onToggle={toggleSection}
+                          onDelete={deleteSection}
+                        />
                         {section.expanded && (
                           <CardContent className={resumeSectionContent}>
+                            <SectionNameField
+                              sectionId={section.id}
+                              title={section.title}
+                              onTitleChange={updateSectionTitle}
+                            />
                             <Button
                               size="sm"
                               onClick={() => {
@@ -6670,92 +5941,21 @@ export default function EditResumePage() {
                         onDragLeave={handleDragLeave}
                         onDrop={(e) => handleDrop(e, section.id)}
                       >
-                        <div className={resumeSectionHeader}>
-                          <div className="flex items-center gap-2 flex-1">
-                            <ResumeSectionDragHandle
-                              sectionId={section.id}
-                              onDragStart={handleDragStart}
-                              onDragEnd={handleDragEnd}
-                            />
-                            {editingSectionTitle === section.id ? (
-                              <div className="flex items-center gap-2 flex-1">
-                                <Input
-                                  value={sectionTitleValue}
-                                  onChange={(e) =>
-                                    setSectionTitleValue(e.target.value)
-                                  }
-                                  className="h-8 text-sm font-semibold"
-                                  onKeyDown={(e) => {
-                                    if (e.key === "Enter") {
-                                      saveSectionTitle(section.id);
-                                    } else if (e.key === "Escape") {
-                                      setEditingSectionTitle(null);
-                                    }
-                                  }}
-                                  autoFocus
-                                />
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  className="h-6 w-6"
-                                  onClick={() => saveSectionTitle(section.id)}
-                                >
-                                  <Check className="w-3 h-3" />
-                                </Button>
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  className="h-6 w-6"
-                                  onClick={() => setEditingSectionTitle(null)}
-                                >
-                                  <X className="w-3 h-3" />
-                                </Button>
-                              </div>
-                            ) : (
-                              <>
-                                <h3 className="font-semibold text-sm flex-1">
-                                  {section.title}
-                                </h3>
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  className="h-6 w-6"
-                                  onClick={() =>
-                                    startEditingSectionTitle(
-                                      section.id,
-                                      section.title,
-                                    )
-                                  }
-                                >
-                                  <Edit className="w-3 h-3" />
-                                </Button>
-                              </>
-                            )}
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-950/30"
-                              onClick={() => deleteSection(section.id)}
-                              title="Delete Section"
-                            >
-                              <Trash2 className="w-3 h-3" />
-                            </Button>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className="h-6 w-6"
-                              onClick={() => toggleSection(section.id)}
-                            >
-                              {section.expanded ? (
-                                <ChevronUp className="w-4 h-4" />
-                              ) : (
-                                <ChevronDown className="w-4 h-4" />
-                              )}
-                            </Button>
-                          </div>
-                        </div>
+                        <ResumeSectionCardHeader
+                          section={section}
+                          onDragStart={handleDragStart}
+                          onDragEnd={handleDragEnd}
+                          onOpenForEdit={openSectionForEdit}
+                          onToggle={toggleSection}
+                          onDelete={deleteSection}
+                        />
                         {section.expanded && (
                           <CardContent className={resumeSectionContent}>
+                            <SectionNameField
+                              sectionId={section.id}
+                              title={section.title}
+                              onTitleChange={updateSectionTitle}
+                            />
                             <Button
                               size="sm"
                               onClick={() => {
@@ -6950,92 +6150,21 @@ export default function EditResumePage() {
                         onDragLeave={handleDragLeave}
                         onDrop={(e) => handleDrop(e, section.id)}
                       >
-                        <div className={resumeSectionHeader}>
-                          <div className="flex items-center gap-2 flex-1">
-                            <ResumeSectionDragHandle
-                              sectionId={section.id}
-                              onDragStart={handleDragStart}
-                              onDragEnd={handleDragEnd}
-                            />
-                            {editingSectionTitle === section.id ? (
-                              <div className="flex items-center gap-2 flex-1">
-                                <Input
-                                  value={sectionTitleValue}
-                                  onChange={(e) =>
-                                    setSectionTitleValue(e.target.value)
-                                  }
-                                  className="h-8 text-sm font-semibold"
-                                  onKeyDown={(e) => {
-                                    if (e.key === "Enter") {
-                                      saveSectionTitle(section.id);
-                                    } else if (e.key === "Escape") {
-                                      setEditingSectionTitle(null);
-                                    }
-                                  }}
-                                  autoFocus
-                                />
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  className="h-6 w-6"
-                                  onClick={() => saveSectionTitle(section.id)}
-                                >
-                                  <Check className="w-3 h-3" />
-                                </Button>
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  className="h-6 w-6"
-                                  onClick={() => setEditingSectionTitle(null)}
-                                >
-                                  <X className="w-3 h-3" />
-                                </Button>
-                              </div>
-                            ) : (
-                              <>
-                                <h3 className="font-semibold text-sm flex-1">
-                                  {section.title}
-                                </h3>
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  className="h-6 w-6"
-                                  onClick={() =>
-                                    startEditingSectionTitle(
-                                      section.id,
-                                      section.title,
-                                    )
-                                  }
-                                >
-                                  <Edit className="w-3 h-3" />
-                                </Button>
-                              </>
-                            )}
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-950/30"
-                              onClick={() => deleteSection(section.id)}
-                              title="Delete Section"
-                            >
-                              <Trash2 className="w-3 h-3" />
-                            </Button>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className="h-6 w-6"
-                              onClick={() => toggleSection(section.id)}
-                            >
-                              {section.expanded ? (
-                                <ChevronUp className="w-4 h-4" />
-                              ) : (
-                                <ChevronDown className="w-4 h-4" />
-                              )}
-                            </Button>
-                          </div>
-                        </div>
+                        <ResumeSectionCardHeader
+                          section={section}
+                          onDragStart={handleDragStart}
+                          onDragEnd={handleDragEnd}
+                          onOpenForEdit={openSectionForEdit}
+                          onToggle={toggleSection}
+                          onDelete={deleteSection}
+                        />
                         {section.expanded && (
                           <CardContent className={resumeSectionContent}>
+                            <SectionNameField
+                              sectionId={section.id}
+                              title={section.title}
+                              onTitleChange={updateSectionTitle}
+                            />
                             <Button
                               size="sm"
                               onClick={() => {
@@ -7189,7 +6318,8 @@ export default function EditResumePage() {
                   return null;
                 })}
 
-              {/* Add Section Button */}
+              {/* Add more sections — separate from layout */}
+              {(!isMobile || editingAddSections) && (
               <Card className={resumeAddSectionsCard}>
                 <CardContent className="p-4">
                   <div className="space-y-2">
@@ -7295,12 +6425,20 @@ export default function EditResumePage() {
                   </div>
                 </CardContent>
               </Card>
+              )}
             </div>
           )}
+          </div>
         </div>
 
-        {/* Right Panel: Preview (on top on mobile) */}
-        <div className={resumePreviewPanel}>
+        {/* Preview — full canvas on mobile */}
+        <div
+          className={cn(
+            resumePreviewPanel,
+            isMobile && resumePreviewPanelMobile,
+            isMobile && "flex min-h-0 flex-1 flex-col",
+          )}
+        >
           <div className={resumePreviewHeader}>
             <h3 className="flex items-center gap-2 text-sm font-semibold">
               <Eye className="h-4 w-4 text-primary" />
@@ -7308,7 +6446,7 @@ export default function EditResumePage() {
             </h3>
             <div className="text-xs text-muted-foreground">Live Preview</div>
           </div>
-          <div className="p-4">
+          <div className={cn("p-4", isMobile && "min-h-0 flex-1 p-0")}>
             {template && previewResume ? (
               <>
                 <TemplateStyleLoader templateId={template.id} />
@@ -7321,6 +6459,7 @@ export default function EditResumePage() {
                 layout={layout || undefined}
                 zoomLevel={zoomLevel}
                 onZoomChange={setZoomLevel}
+                compact={isMobile}
                 onPageDelete={handlePreviewPageDelete}
                 onPaginationSnapshot={handlePaginationSnapshot}
                 onRefresh={handlePreviewRefresh}
@@ -7415,6 +6554,14 @@ export default function EditResumePage() {
         cancelText="Cancel"
         onConfirm={handleConfirmPageDelete}
         variant="destructive"
+      />
+      <TrialUpsellDialog
+        open={trialUpsellOpen}
+        onOpenChange={setTrialUpsellOpen}
+        variant="resume_download"
+        hasPurchasedTrial={
+          entitlements ? !entitlements.canPurchaseTrial : false
+        }
       />
     </div>
   );
