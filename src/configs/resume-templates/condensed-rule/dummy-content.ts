@@ -101,7 +101,16 @@ export const condensedruleDummyContent = {
     "Safety Compliance",
   ],
 
-  projects: [],
+  projects: [
+    {
+      name: "Regional Grid Modernization",
+      description:
+        "<ul><li>Led cross-functional delivery of substation upgrades across 12 sites with zero safety incidents.</li><li>Reduced outage duration by 18% through improved commissioning workflows and vendor coordination.</li></ul>",
+      technologies: ["Infrastructure Delivery"],
+      startDate: "2021",
+      endDate: "2023",
+    },
+  ],
   certificates: [
     {
       name: "Certified Maintenance and Reliability Professional",
