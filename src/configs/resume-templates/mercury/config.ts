@@ -120,8 +120,7 @@ export const mercuryExtendedConfig: Partial<ExtendedResumeTemplate> = {
       enabled: true,
       calculateDynamically: true,
     },
-    /** Page 1 is flush; page 2+ use 5mm top gutter (see MERCURY_CONTINUATION_TOP_MM). */
-    continuationPageTopPaddingMm: 5,
+    /** Page 1 is flush; page 2+ use MERCURY_CONTINUATION_TOP_MM in resume-page-dimensions. */
     dataStructure: "legacy",
     features: {
       showPresent: true,
