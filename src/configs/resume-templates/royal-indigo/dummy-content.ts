@@ -102,20 +102,6 @@ export const royalindigoDummyContent = {
         "Received the 'Engineering Excellence' Award for outstanding contributions to project innovation, Borcelle Technologies.",
     },
   ],
-  certificates: [
-    { name: "Professional Engineer (PE) License", issuer: "", date: "" },
-    { name: "Project Management Professional (PMP)", issuer: "", date: "" },
-  ],
-  achievements: [],
-  awards: [
-    {
-      title: "Engineering Excellence Award",
-      issuer: "Borcelle Technologies",
-      date: "",
-      description:
-        "Received the 'Engineering Excellence' Award for outstanding contributions to project innovation, Borcelle Technologies.",
-    },
-  ],
   languages: [
     { name: "English", level: 5 },
     { name: "Malay", level: 4 },
