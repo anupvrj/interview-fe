@@ -134,6 +134,7 @@ export interface User {
   affiliationInstitutionId?: string | null;
   affiliationInstitutionName?: string;
   onboardingCompleted?: boolean;
+  welcomeSignupIntent?: "candidate" | "recruiter" | "interviewer";
   userType?: "student" | "fresher" | "experienced";
   experience?: number;
   /** Contact phone number */
@@ -500,6 +501,15 @@ export const userApi = {
       email,
       name,
     });
+    return response.data.data;
+  },
+
+  sendWelcomeSignup: async (
+    signupPath: "candidate" | "recruiter" | "interviewer",
+  ): Promise<{ sent: boolean; alreadySent: boolean }> => {
+    const response = await apiClient.post<{
+      data: { sent: boolean; alreadySent: boolean };
+    }>("/users/me/welcome-signup", { signupPath });
     return response.data.data;
   },
 
@@ -3811,6 +3821,141 @@ export const recruiterApi = {
         apiClient.post(`/admin/recruiters/${id}/status`, { action, reason }),
       ),
   },
+};
+
+// ─── Notification Hub (Super Admin) ──────────────────────────────────────────
+export type NotificationChannelKey = "email" | "whatsapp";
+
+export interface NotificationTemplate {
+  _id: string;
+  eventType: string;
+  channel: NotificationChannelKey;
+  name: string;
+  subject?: string;
+  content: string;
+  expectedVariables: string[];
+  isActive: boolean;
+  emailTheme?: Partial<EmailThemeSettings>;
+  useCustomEmailTheme?: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface EmailThemeSettings {
+  desktopMaxWidth: number;
+  mobileBreakpoint: number;
+  contentPadding: number;
+  mobileContentPadding: number;
+  fontFamily: string;
+  bodyFontSize: number;
+  lineHeight: number;
+  h1FontSize: number;
+  h2FontSize: number;
+  h3FontSize: number;
+  eyebrowFontSize: number;
+  footerFontSize: number;
+  taglineFontSize: number;
+  copyrightFontSize: number;
+  brandColor: string;
+  brandLightColor: string;
+  bodyTextColor: string;
+  mutedTextColor: string;
+  backgroundColor: string;
+  scaleTypographyOnMobile: boolean;
+  stackButtonsOnMobile: boolean;
+}
+
+export interface NotificationConfig {
+  _id: string;
+  configKey: string;
+  adminEmails: string[];
+  alertToggles: {
+    checkoutFailures: boolean;
+    contactForm: boolean;
+  };
+  channelToggles: {
+    email: boolean;
+    whatsapp: boolean;
+  };
+  emailTheme?: Partial<EmailThemeSettings>;
+}
+
+export interface UpdateNotificationTemplateInput {
+  name?: string;
+  subject?: string;
+  content?: string;
+  expectedVariables?: string[];
+  isActive?: boolean;
+  emailTheme?: Partial<EmailThemeSettings>;
+  useCustomEmailTheme?: boolean;
+}
+
+export interface UpdateNotificationConfigInput {
+  adminEmails?: string[];
+  alertToggles?: Partial<NotificationConfig["alertToggles"]>;
+  channelToggles?: Partial<NotificationConfig["channelToggles"]>;
+  emailTheme?: Partial<EmailThemeSettings>;
+}
+
+export interface TemplatePreviewResult {
+  subject: string;
+  html: string;
+  variables: Record<string, string>;
+}
+
+export interface SendTestTemplateResult {
+  subject: string;
+  sentTo: string;
+}
+
+export const notificationAdminApi = {
+  listTemplates: (channel?: NotificationChannelKey) =>
+    unwrap<NotificationTemplate[]>(
+      apiClient.get("/admin/notifications/templates", {
+        params: channel ? { channel } : {},
+      }),
+    ),
+  getTemplate: (id: string) =>
+    unwrap<NotificationTemplate>(
+      apiClient.get(`/admin/notifications/templates/${id}`),
+    ),
+  updateTemplate: (id: string, input: UpdateNotificationTemplateInput) =>
+    unwrap<NotificationTemplate>(
+      apiClient.put(`/admin/notifications/templates/${id}`, input),
+    ),
+  previewTemplate: (
+    id: string,
+    input: Pick<
+      UpdateNotificationTemplateInput,
+      "subject" | "content" | "emailTheme" | "useCustomEmailTheme"
+    > & { variables?: Record<string, string> },
+  ) =>
+    unwrap<TemplatePreviewResult>(
+      apiClient.post(`/admin/notifications/templates/${id}/preview`, input),
+    ),
+  getTemplateSampleVariables: (id: string) =>
+    unwrap<Record<string, string>>(
+      apiClient.get(`/admin/notifications/templates/${id}/sample-variables`),
+    ),
+  sendTestTemplate: (
+    id: string,
+    input: Pick<
+      UpdateNotificationTemplateInput,
+      "subject" | "content" | "emailTheme" | "useCustomEmailTheme"
+    > & {
+      to: string;
+      variables?: Record<string, string>;
+    },
+  ) =>
+    unwrap<SendTestTemplateResult>(
+      apiClient.post(`/admin/notifications/templates/${id}/send-test`, input),
+    ),
+  getConfig: () =>
+    unwrap<NotificationConfig>(apiClient.get("/admin/notifications/config")),
+  updateConfig: (input: UpdateNotificationConfigInput) =>
+    unwrap<NotificationConfig>(
+      apiClient.put("/admin/notifications/config", input),
+    ),
 };
 
 export default apiClient;

@@ -79,6 +79,10 @@ export default function OnboardingPage() {
   }, [isLoaded, user]);
 
   const handleOnboardingPathChoice = (path: OnboardingPath) => {
+    void userApi.sendWelcomeSignup(path).catch((error) => {
+      console.error("Failed to send welcome email:", error);
+    });
+
     if (path === "interviewer") {
       router.replace("/dashboard/peer-interviews/interviewer");
       return;
