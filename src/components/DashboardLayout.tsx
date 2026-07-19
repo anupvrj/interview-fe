@@ -120,12 +120,19 @@ function isRecruiterApplyNavPath(pathname: string | null): boolean {
   );
 }
 
+function isSuperAdminNotificationHubPath(pathname: string | null): boolean {
+  return (
+    pathname?.startsWith("/dashboard/super-admin/notification-hub") ?? false
+  );
+}
+
 function isSuperAdminHomePath(pathname: string | null): boolean {
   if (!pathname) return false;
   if (
     isSuperAdminPeerInterviewersPath(pathname) ||
     isSuperAdminPeerBookingsPath(pathname) ||
-    isSuperAdminIxRecruitersPath(pathname)
+    isSuperAdminIxRecruitersPath(pathname) ||
+    isSuperAdminNotificationHubPath(pathname)
   ) {
     return false;
   }
@@ -202,6 +209,9 @@ function resolveNavActive(
   }
   if (item.href === "/dashboard/super-admin/ix-recruiters") {
     isActive = isSuperAdminIxRecruitersPath(pathname);
+  }
+  if (item.href === "/dashboard/super-admin/notification-hub") {
+    isActive = isSuperAdminNotificationHubPath(pathname);
   }
   if (item.href === "/dashboard/ix-recruiter") {
     isActive = isRecruiterDashboardNavPath(pathname);

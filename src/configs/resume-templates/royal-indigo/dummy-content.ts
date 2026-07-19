@@ -87,14 +87,19 @@ export const royalindigoDummyContent = {
     "Process Optimization",
   ],
 
-  projects: [
+  projects: [],
+  certificates: [
+    { name: "Professional Engineer (PE) License", issuer: "", date: "" },
+    { name: "Project Management Professional (PMP)", issuer: "", date: "" },
+  ],
+  achievements: [],
+  awards: [
     {
-      name: "Smart Manufacturing Platform",
+      title: "Engineering Excellence Award",
+      issuer: "Borcelle Technologies",
+      date: "",
       description:
-        "<ul><li>Led development of IoT monitoring dashboards that reduced downtime by 15%.</li><li>Integrated predictive maintenance models with existing SCADA systems.</li></ul>",
-      technologies: ["Industrial IoT"],
-      startDate: "2022",
-      endDate: "2023",
+        "Received the 'Engineering Excellence' Award for outstanding contributions to project innovation, Borcelle Technologies.",
     },
   ],
   certificates: [

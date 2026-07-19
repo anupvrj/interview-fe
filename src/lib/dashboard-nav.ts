@@ -21,6 +21,7 @@ import {
   UserPlus,
   ClipboardList,
   Award,
+  Bell,
 } from "lucide-react";
 import type { AccessRole, User as ApiUser } from "@/lib/api";
 import { isPathAllowedForRole, type ActiveRole } from "@/lib/roles";
@@ -280,6 +281,12 @@ export function getDashboardNavItems(
         href: "/dashboard/institute",
         icon: Building2,
         accent: accent.indigo,
+      },
+      {
+        title: "Notification Hub",
+        href: "/dashboard/super-admin/notification-hub",
+        icon: Bell,
+        accent: accent.violet,
       },
       {
         title: "Super Admin",
