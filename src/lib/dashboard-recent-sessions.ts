@@ -253,7 +253,7 @@ export function buildPeerHistorySessionRows(
 ): DashboardRecentSessionRow[] {
   return bookings
     .map((booking) => {
-      const row = mapPeerBooking(booking);
+      const row = mapPeerBooking(booking, typeNames);
       const typeLabel =
         typeNames[booking.interviewType] ||
         booking.interviewType.replace(/_/g, " ");
