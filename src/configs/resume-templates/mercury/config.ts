@@ -30,7 +30,7 @@ export const mercuryTemplate: ResumeTemplate = {
     accent: "#666666",
     text: "#3d3d3d",
     background: "#ffffff",
-    headerBackground: "#f5f5f5",
+    headerBackground: "#e5e6e3",
   },
   layout: {
     headerStyle: "full-width",
@@ -53,7 +53,7 @@ export const mercuryExtendedConfig: Partial<ExtendedResumeTemplate> = {
   style: {
     fontFamily:
       "'Rockwell Std', 'Zilla Slab', 'Roboto Slab', Rockwell, 'Courier New', serif",
-    fontSize: { heading: 32, subheading: 18, body: 11, small: 10 },
+    fontSize: { heading: 32, subheading: 18, body: 11, small: 11 },
     lineHeight: 1.5,
     colors: {
       primary: "#3d3d3d",
@@ -61,26 +61,27 @@ export const mercuryExtendedConfig: Partial<ExtendedResumeTemplate> = {
       accent: "#666666",
       text: "#3d3d3d",
       background: "#ffffff",
-      headerBackground: "#f5f5f5",
+      headerBackground: "#e5e6e3",
     },
     headerStyle: "full-width",
     sectionSpacing: 14,
-    padding: { top: 20, bottom: 20, left: 0, right: 0 },
+    padding: { top: 0, bottom: 20, left: 0, right: 0 },
     sectionHeader: {
       style: "background",
-      backgroundColor: "#efefef",
+      backgroundColor: "#f2f2f2",
       textAlign: "center",
       fontSize: 13,
       fontWeight: "bold",
-      marginBottom: "12px",
-      paddingTop: "6px",
-      paddingBottom: "6px",
+      marginBottom: "15px",
+      paddingTop: "8px",
+      paddingBottom: "8px",
       paddingLeft: "0px",
       paddingRight: "0px",
-      textTransform: "uppercase",
+      textTransform: "none",
       borderRadius: "0px",
-      letterSpacing: "1px",
+      letterSpacing: "0.3px",
     },
+    useCSSClassesForHeader: true,
     skillsDisplay: {
       type: "bullets",
       showRatings: false,
@@ -119,6 +120,8 @@ export const mercuryExtendedConfig: Partial<ExtendedResumeTemplate> = {
       enabled: true,
       calculateDynamically: true,
     },
+    /** Page 1 is flush; page 2+ use 5mm top gutter (see MERCURY_CONTINUATION_TOP_MM). */
+    continuationPageTopPaddingMm: 5,
     dataStructure: "legacy",
     features: {
       showPresent: true,

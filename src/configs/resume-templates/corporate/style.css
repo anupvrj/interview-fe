@@ -9,29 +9,29 @@
   color: #000000;
   background-color: #ffffff;
   line-height: 1.4;
+  box-sizing: border-box;
 }
 
 /* Header Styles - Centered */
 .corporate-header {
   text-align: center;
-  margin-bottom: 24px;
-  padding-bottom: 16px;
+  margin-bottom: 20px;
+  padding-bottom: 12px;
 }
 
 .corporate-name {
   font-size: 22px;
   font-weight: bold;
   color: #000000;
-  margin-bottom: 8px;
+  margin: 0 0 8px 0;
   letter-spacing: 0.5px;
 }
 
 .corporate-job-title {
   font-style: normal !important;
   font-size: 16px !important;
-
   color: #7f8c8d;
-  margin-bottom: 12px;
+  margin: 0 0 12px 0;
 }
 
 .corporate-contact {
@@ -54,24 +54,30 @@
   align-items: center;
   justify-content: center;
   box-sizing: border-box;
+  width: 100%;
 }
+
 .corporate-section-header-wrapper--border-top-bottom {
+  margin-top: 14px;
   margin-bottom: 10px;
-  padding: 6px 12px;
+  padding: 8px 16px;
   border-top: 2px solid #000000;
   border-bottom: 2px solid #000000;
   min-height: 2.5em;
 }
-.corporate-section-header {
+
+.corporate-section-header,
+.corporate-template h2[data-section-header].corporate-section-header {
   margin: 0;
   padding: 0;
   font-size: 12px;
   font-weight: bold;
-  line-height: 1;
+  line-height: 1.2;
   text-transform: uppercase;
   text-align: center;
   border: none;
   color: #000000;
+  letter-spacing: 0.4px;
 }
 
 /* Profile Summary */
@@ -175,9 +181,15 @@
   margin: 16px 0;
 }
 
+.corporate-section {
+  margin-bottom: 10px;
+}
+
 /* Print Styles */
 @media print {
-  .corporate-template {
+  .corporate-section-header-wrapper--border-top-bottom {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 
   .corporate-section {

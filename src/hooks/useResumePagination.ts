@@ -30,6 +30,8 @@ interface PaginationOptions {
   resume: Resume | null;
   sections: any[];
   pageHeightLimit: number; // Max content height per page in pixels
+  /** Reduced height budget for page 2+ (e.g. Mercury 5mm continuation top gutter). */
+  continuationPageHeightLimit?: number;
   /** Snap cuts to text line bounds when true (PaginatedPreview enables for all templates). */
   snapPageBreaksToLineBounds?: boolean;
   /**
@@ -70,6 +72,7 @@ export function useResumePagination({
   resume,
   sections,
   pageHeightLimit,
+  continuationPageHeightLimit,
   snapPageBreaksToLineBounds = false,
   measureKey,
 }: PaginationOptions) {
@@ -92,6 +95,8 @@ export function useResumePagination({
   sectionsRef.current = sections;
   const pageHeightLimitRef = useRef(pageHeightLimit);
   pageHeightLimitRef.current = pageHeightLimit;
+  const continuationPageHeightLimitRef = useRef(continuationPageHeightLimit);
+  continuationPageHeightLimitRef.current = continuationPageHeightLimit;
   const snapRef = useRef(snapPageBreaksToLineBounds);
   snapRef.current = snapPageBreaksToLineBounds;
   const measureKeyRef = useRef(measureKey);
@@ -199,6 +204,14 @@ export function useResumePagination({
       120,
       Math.floor(pageHeightLimitRef.current) - PAGE_BOTTOM_CLIP_SAFETY_PX,
     );
+    const continuationLimit =
+      continuationPageHeightLimitRef.current != null
+        ? Math.max(
+            120,
+            Math.floor(continuationPageHeightLimitRef.current) -
+              PAGE_BOTTOM_CLIP_SAFETY_PX,
+          )
+        : undefined;
 
     const atomicIfFitsOnOnePage: PaginationAtomicIfFitsBox[] =
       atomicIfFitsNodes.map((node) => {
@@ -218,6 +231,7 @@ export function useResumePagination({
       integerLimit,
       atomicIfFitsOnOnePage,
       tailSliverMaxPx,
+      continuationLimit,
     );
 
     if (snapRef.current) {

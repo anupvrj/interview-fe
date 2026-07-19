@@ -395,9 +395,165 @@ function sanitizeResumeStringFields(
   return content;
 }
 
+export type ExecutiveSkillItem = {
+  id: string;
+  name: string;
+  level: number;
+};
+
+/** Coerce imported/legacy skills into Executive `{ id, name, level }` items. */
+export function normalizeExecutiveSkillItems(
+  skills: unknown,
+): ExecutiveSkillItem[] {
+  if (skills == null) return [];
+
+  if (typeof skills === "object" && !Array.isArray(skills)) {
+    const record = skills as Record<string, unknown>;
+    if (Array.isArray(record.content)) {
+      return normalizeExecutiveSkillItems(record.content);
+    }
+    if (record.technical != null || record.soft != null) {
+      return normalizeExecutiveSkillItems([
+        ...(Array.isArray(record.technical)
+          ? record.technical
+          : record.technical
+            ? [record.technical]
+            : []),
+        ...(Array.isArray(record.soft)
+          ? record.soft
+          : record.soft
+            ? [record.soft]
+            : []),
+      ]);
+    }
+  }
+
+  if (typeof skills === "string") {
+    const trimmed = skills.trim();
+    if (!trimmed) return [];
+
+    if (trimmed.includes("<li") || trimmed.includes("<p")) {
+      try {
+        if (typeof DOMParser !== "undefined") {
+          const doc = new DOMParser().parseFromString(trimmed, "text/html");
+          const listItems = Array.from(doc.querySelectorAll("ul > li, ol > li"))
+            .map((el) => el.textContent?.trim() || "")
+            .filter(Boolean);
+          if (listItems.length > 0) {
+            return normalizeExecutiveSkillItems(listItems);
+          }
+        }
+      } catch {
+        /* fall through to plain-text parsing */
+      }
+    }
+
+    return trimmed
+      .split(/[,;\n|•]+/)
+      .map((skill) => skill.replace(/^[-•*\s]+/, "").trim())
+      .filter(Boolean)
+      .map((name) => ({
+        id: createEntryId(),
+        name,
+        level: 3,
+      }));
+  }
+
+  if (!Array.isArray(skills)) return [];
+
+  return skills.flatMap((item) => {
+    if (typeof item === "string") {
+      const name = item.trim();
+      if (!name) return [];
+      return [{ id: createEntryId(), name, level: 3 }];
+    }
+
+    if (item && typeof item === "object" && !Array.isArray(item)) {
+      const record = item as Record<string, unknown>;
+      const name = String(
+        record.name ?? record.title ?? record.skill ?? record.label ?? "",
+      ).trim();
+      if (!name) return [];
+
+      const rawLevel = Number(
+        record.level ?? record.rating ?? record.proficiency ?? 3,
+      );
+      const level = Number.isFinite(rawLevel)
+        ? Math.min(5, Math.max(1, Math.round(rawLevel)))
+        : 3;
+
+      return [
+        {
+          id: String(record.id ?? createEntryId()),
+          name,
+          level,
+        },
+      ];
+    }
+
+    return [];
+  });
+}
+
+/** Read Executive skills from `sections` or fall back to top-level `content.skills`. */
+export function getExecutiveSkillsFromContent(
+  content: Record<string, unknown>,
+): ExecutiveSkillItem[] {
+  const sections = content.sections;
+  if (Array.isArray(sections)) {
+    const skillsSection = sections.find(
+      (section) =>
+        section &&
+        typeof section === "object" &&
+        !Array.isArray(section) &&
+        (section as { type?: string }).type === "skills",
+    ) as { items?: unknown } | undefined;
+
+    if (Array.isArray(skillsSection?.items) && skillsSection.items.length > 0) {
+      return normalizeExecutiveSkillItems(skillsSection.items);
+    }
+  }
+
+  return normalizeExecutiveSkillItems(content.skills);
+}
+
+/** Mirror imported `content.skills` into Executive's `content.sections` structure. */
+export function syncExecutiveSkillsSection(
+  content: Record<string, unknown>,
+  sectionTitle = RESUME_SECTION_TITLES.skills,
+): void {
+  const items = normalizeExecutiveSkillItems(content.skills);
+  if (items.length === 0) return;
+
+  const sections = Array.isArray(content.sections)
+    ? [...(content.sections as Record<string, unknown>[])]
+    : [];
+  const skillsIndex = sections.findIndex(
+    (section) => section?.type === "skills",
+  );
+
+  const skillsSection = {
+    type: "skills",
+    title:
+      skillsIndex >= 0
+        ? String(sections[skillsIndex]?.title ?? sectionTitle)
+        : sectionTitle,
+    items,
+  };
+
+  if (skillsIndex >= 0) {
+    sections[skillsIndex] = { ...sections[skillsIndex], ...skillsSection };
+  } else {
+    sections.push(skillsSection);
+  }
+
+  content.sections = sections;
+}
+
 /** Maps LLM extraction output to resume `content` — same rules as resume creation. */
 export function mapExtractedSectionsToContent(
   sections: Record<string, ExtractedSectionPayload>,
+  options?: { templateId?: string },
 ): Record<string, unknown> {
   const content: Record<string, unknown> = {};
 
@@ -478,6 +634,10 @@ export function mapExtractedSectionsToContent(
   }
   if (!Array.isArray(content.education)) {
     content.education = [];
+  }
+
+  if (options?.templateId === "executive") {
+    syncExecutiveSkillsSection(content);
   }
 
   return sanitizeResumeStringFields(content);
@@ -598,7 +758,9 @@ export async function importResumeFromExtractedText(
     templateId,
     resumeText,
   );
-  const content = mapExtractedSectionsToContent(extracted.sections);
+  const content = mapExtractedSectionsToContent(extracted.sections, {
+    templateId,
+  });
   const layoutType =
     options?.layout?.type ??
     (extended.rendering?.layout?.type === "header-plus-columns" ||
@@ -637,7 +799,9 @@ export async function importResumeFromLinkedIn(
     handle.trim(),
     templateId,
   );
-  const content = mapExtractedSectionsToContent(extracted.sections);
+  const content = mapExtractedSectionsToContent(extracted.sections, {
+    templateId,
+  });
   const layoutType =
     options?.layout?.type ??
     (extended.rendering?.layout?.type === "header-plus-columns" ||
