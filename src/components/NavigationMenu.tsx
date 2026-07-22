@@ -54,6 +54,12 @@ export const navLinksHome = [
   { href: "/", label: "Home", match: (path: string) => path === "/" },
 ] as const;
 
+export const navLinkDashboard = {
+  href: "/dashboard",
+  label: "Dashboard",
+  match: (path: string) => path.startsWith("/dashboard"),
+} as const;
+
 export const navLinkBecomeInterviewer = {
   href: "/become-peer-interviewer",
   label: "Become Interviewer",
@@ -441,16 +447,26 @@ export function PublicMobileNav() {
         </div>
 
         <div className="flex-1 overflow-y-auto py-2">
-          {navLinksHome.map((item) => (
+          {isLoaded && user ? (
             <Link
-              key={item.href}
-              href={item.href}
-              onClick={navigateFromMobileDrawer(item.href)}
-              className={mobileLinkClass(item.match(pathname))}
+              href={navLinkDashboard.href}
+              onClick={navigateFromMobileDrawer(navLinkDashboard.href)}
+              className={mobileLinkClass(navLinkDashboard.match(pathname))}
             >
-              {item.label}
+              {navLinkDashboard.label}
             </Link>
-          ))}
+          ) : (
+            navLinksHome.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={navigateFromMobileDrawer(item.href)}
+                className={mobileLinkClass(item.match(pathname))}
+              >
+                {item.label}
+              </Link>
+            ))
+          )}
 
           <button
             type="button"
