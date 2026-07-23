@@ -1198,6 +1198,98 @@
   will-change: transform;
 }
 
+@keyframes about-orbit-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes about-card-shine {
+  0% {
+    transform: translateX(-120%) rotate(18deg);
+  }
+  100% {
+    transform: translateX(220%) rotate(18deg);
+  }
+}
+
+@keyframes about-nav-progress {
+  from {
+    width: 0%;
+  }
+  to {
+    width: 100%;
+  }
+}
+
+.animate-about-orbit-spin {
+  animation: about-orbit-spin 20s linear infinite;
+}
+
+.animate-about-card-shine {
+  animation: about-card-shine 3s ease-in-out infinite;
+}
+
+.animate-about-nav-progress {
+  animation: about-nav-progress 4.2s linear;
+}
+
+@keyframes about-pipeline-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.35);
+  }
+  50% {
+    box-shadow: 0 0 0 10px rgba(239, 68, 68, 0);
+  }
+}
+
+@keyframes about-prep-pulse {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.04);
+  }
+}
+
+@keyframes about-flow-travel {
+  0% {
+    left: 4%;
+    opacity: 1;
+  }
+  22% {
+    left: 22%;
+    opacity: 1;
+  }
+  28% {
+    left: 28%;
+    opacity: 0.25;
+  }
+  100% {
+    left: 28%;
+    opacity: 0.25;
+  }
+}
+
+.animate-about-pipeline-glow {
+  animation: about-pipeline-glow 2s ease-in-out infinite;
+}
+
+.animate-about-prep-pulse {
+  animation: about-prep-pulse 2.4s ease-in-out infinite;
+}
+
+.animate-about-flow-travel {
+  animation: about-flow-travel 4s ease-in-out infinite;
+}
+
 /* Stacked feature scroll — card layering on homepage */
 .stacked-feature-track {
   position: relative;
