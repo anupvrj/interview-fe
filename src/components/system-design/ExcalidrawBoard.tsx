@@ -24,6 +24,8 @@ interface ExcalidrawBoardProps {
   readOnly?: boolean;
   /** Hide the top-left main menu (hamburger); uses scoped CSS on the wrapper. */
   hideMainMenu?: boolean;
+  /** Fires on real scene edits — used to signal candidate liveness (throttled downstream). */
+  onActivity?: () => void;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -34,6 +36,12 @@ type AnyExcalidrawApi = any;
  * with no further edits (user stopped drawing / panning / typing).
  */
 const WHITEBOARD_SAVE_DEBOUNCE_MS = 1600;
+
+/**
+ * Safety-net autosave interval: covers crashes / hard reloads where the debounce
+ * timer and `beforeunload` never fire. No-op when the scene fingerprint is unchanged.
+ */
+const WHITEBOARD_SAVE_INTERVAL_MS = 20_000;
 
 /** Tracks real scene edits vs viewport-only churn. Uses Excalidraw's element-version hash + files map. */
 function fingerprintScene(
@@ -56,6 +64,7 @@ export default function ExcalidrawBoard({
   onExportRef,
   readOnly = false,
   hideMainMenu = false,
+  onActivity,
 }: ExcalidrawBoardProps) {
   const [excalidrawApi, setExcalidrawApi] = useState<AnyExcalidrawApi>(null);
   const apiRef = useRef<AnyExcalidrawApi>(null);
@@ -152,15 +161,32 @@ export default function ExcalidrawBoard({
       if (saveTimerRef.current !== null) window.clearTimeout(saveTimerRef.current);
       void flushPersist(true);
     };
+    // `visibilitychange` (tab hidden) and `pagehide` (mobile / bfcache / crash) are
+    // more reliable than `beforeunload` alone, which is skipped in several teardown paths.
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "hidden") void flushPersist(false);
+    };
     window.addEventListener("beforeunload", onUnload);
+    window.addEventListener("pagehide", onUnload);
+    document.addEventListener("visibilitychange", onVisibilityChange);
     return () => {
       window.removeEventListener("beforeunload", onUnload);
+      window.removeEventListener("pagehide", onUnload);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
       if (saveTimerRef.current !== null) {
         window.clearTimeout(saveTimerRef.current);
       }
       void flushPersist(false);
     };
   }, [flushPersist]);
+
+  useEffect(() => {
+    if (readOnly) return undefined;
+    const id = window.setInterval(() => {
+      void flushPersist(false);
+    }, WHITEBOARD_SAVE_INTERVAL_MS);
+    return () => window.clearInterval(id);
+  }, [flushPersist, readOnly]);
 
   useEffect(() => {
     const api = excalidrawApi;
@@ -195,6 +221,7 @@ export default function ExcalidrawBoard({
     if (!api || readOnly) return undefined;
     const tickle = () => {
       scheduleDebouncedAutosave();
+      onActivity?.();
     };
     const unsubChange = api.onChange(tickle);
     const unsubPointerUp = api.onPointerUp(() => {
@@ -204,7 +231,7 @@ export default function ExcalidrawBoard({
       unsubChange();
       unsubPointerUp();
     };
-  }, [excalidrawApi, readOnly, scheduleDebouncedAutosave]);
+  }, [excalidrawApi, readOnly, scheduleDebouncedAutosave, onActivity]);
 
   useEffect(() => {
     if (!onExportRef) return;

@@ -53,6 +53,7 @@ import type { AIInterviewerPersona } from "@/lib/aiPersonas";
 import { AiPersonaAvatar } from "@/components/interview/AiPersonaAvatar";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { supportsDisplayMediaCapture } from "@/lib/codingSessionRecording";
 
 /** Hard fallback minutes added on top of target (used if AI never sends interview_complete). */
 const EXTRA_BUFFER_MINUTES = 5;
@@ -1578,78 +1579,103 @@ export function RealtimeInterviewClient({
       return;
     }
     try {
-      // Request screen capture (user will select tab/window/screen)
-      // Try to get display media with flexible constraints
-      // Include the current tab in the picker using selfBrowserSurface (prevents "hall of mirrors")
-      const screenStream = await navigator.mediaDevices.getDisplayMedia({
-        video: {
-          displaySurface: "browser", // Prefer browser tab
-          width: { ideal: 1920, max: 3840 },
-          height: { ideal: 1080, max: 2160 },
-          frameRate: { ideal: 30, max: 60 },
-        } as MediaTrackConstraints,
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
-          sampleRate: 48000,
-          suppressLocalAudioPlayback: false,
-        } as MediaTrackConstraints,
-        // Allow current tab to appear in the picker (prevents "hall of mirrors" exclusion)
-        selfBrowserSurface: "include" as any,
-        // Prefer current tab to be pre-selected
-        preferCurrentTab: true as any,
-      } as any);
-
-      // Log what was selected and check for tab audio
-      const selectedVideoTrack = screenStream.getVideoTracks()[0];
-      const initialScreenAudioTracks = screenStream.getAudioTracks();
+      const canCaptureDisplay = supportsDisplayMediaCapture();
+      let screenStream: MediaStream | null = null;
+      let videoTrack: MediaStreamTrack;
       let displayType = "unknown";
 
-      if (selectedVideoTrack && (selectedVideoTrack as any).getSettings) {
-        const settings = (selectedVideoTrack as any).getSettings();
-        displayType = settings.displaySurface || "unknown";
-        console.log("📺 Screen capture selected:", {
-          displaySurface: displayType,
-          width: settings.width,
-          height: settings.height,
-          frameRate: settings.frameRate,
-          hasAudio: initialScreenAudioTracks.length > 0,
-        });
-      }
+      if (canCaptureDisplay) {
+        // Request screen capture (user will select tab/window/screen)
+        // Try to get display media with flexible constraints
+        // Include the current tab in the picker using selfBrowserSurface (prevents "hall of mirrors")
+        screenStream = await navigator.mediaDevices.getDisplayMedia({
+          video: {
+            displaySurface: "browser", // Prefer browser tab
+            width: { ideal: 1920, max: 3840 },
+            height: { ideal: 1080, max: 2160 },
+            frameRate: { ideal: 30, max: 60 },
+          } as MediaTrackConstraints,
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+            sampleRate: 48000,
+            suppressLocalAudioPlayback: false,
+          } as MediaTrackConstraints,
+          // Allow current tab to appear in the picker (prevents "hall of mirrors" exclusion)
+          selfBrowserSurface: "include" as any,
+          // Prefer current tab to be pre-selected
+          preferCurrentTab: true as any,
+        } as any);
 
-      // Check if we have tab audio (required for AI voice via screen capture)
-      if (initialScreenAudioTracks.length === 0 && displayType !== "browser") {
-        // User selected window or screen, which doesn't support tab audio
-        console.warn(
-          "⚠️ No tab audio available - tab audio only works when sharing a browser tab",
-        );
+        // Log what was selected and check for tab audio
+        const selectedVideoTrack = screenStream.getVideoTracks()[0];
+        const initialScreenAudioTracks = screenStream.getAudioTracks();
 
-        // Ask user to cancel and try again with a tab
-        const shouldRetry = globalThis.confirm(
-          "⚠️ Tab audio is not available.\n\n" +
-            "To capture the AI's voice, share THIS browser tab (not window or screen), with tab audio enabled if your browser offers it.\n\n" +
-            "Click OK to continue anyway (AI voice may not be captured fully), or Cancel to stop and try recording again.",
-        );
-
-        if (!shouldRetry) {
-          // User wants to retry - stop the current stream and return
-          screenStream.getTracks().forEach((track) => track.stop());
-          return;
+        if (selectedVideoTrack && (selectedVideoTrack as any).getSettings) {
+          const settings = (selectedVideoTrack as any).getSettings();
+          displayType = settings.displaySurface || "unknown";
+          console.log("📺 Screen capture selected:", {
+            displaySurface: displayType,
+            width: settings.width,
+            height: settings.height,
+            frameRate: settings.frameRate,
+            hasAudio: initialScreenAudioTracks.length > 0,
+          });
         }
-      } else if (displayType === "browser") {
+
+        // Check if we have tab audio (required for AI voice via screen capture)
+        if (
+          initialScreenAudioTracks.length === 0 &&
+          displayType !== "browser"
+        ) {
+          // User selected window or screen, which doesn't support tab audio
+          console.warn(
+            "⚠️ No tab audio available - tab audio only works when sharing a browser tab",
+          );
+
+          // Ask user to cancel and try again with a tab
+          const shouldRetry = globalThis.confirm(
+            "⚠️ Tab audio is not available.\n\n" +
+              "To capture the AI's voice, share THIS browser tab (not window or screen), with tab audio enabled if your browser offers it.\n\n" +
+              "Click OK to continue anyway (AI voice may not be captured fully), or Cancel to stop and try recording again.",
+          );
+
+          if (!shouldRetry) {
+            // User wants to retry - stop the current stream and return
+            screenStream.getTracks().forEach((track) => track.stop());
+            return;
+          }
+        } else if (displayType === "browser") {
+          console.log(
+            "✅ Browser tab selected - perfect! Tab audio should be available.",
+          );
+        } else if (displayType === "window" || displayType === "monitor") {
+          console.log(
+            `ℹ️ ${
+              displayType === "window" ? "Window" : "Screen"
+            } selected - tab audio not available, but AI voice will be captured via AudioContext.`,
+          );
+        }
+
+        screenStreamRef.current = screenStream;
+        videoTrack = screenStream.getVideoTracks()[0];
+      } else {
+        if (!mediaStreamRef.current) {
+          throw new Error(
+            "Camera not ready. Please allow camera access and try again.",
+          );
+        }
+        videoTrack = mediaStreamRef.current.getVideoTracks()[0];
+        if (!videoTrack || videoTrack.readyState !== "live") {
+          throw new Error(
+            "Camera not available. Please enable your camera and try again.",
+          );
+        }
         console.log(
-          "✅ Browser tab selected - perfect! Tab audio should be available.",
-        );
-      } else if (displayType === "window" || displayType === "monitor") {
-        console.log(
-          `ℹ️ ${
-            displayType === "window" ? "Window" : "Screen"
-          } selected - tab audio not available, but AI voice will be captured via AudioContext.`,
+          "📱 Screen capture unavailable — recording camera and audio instead",
         );
       }
-
-      screenStreamRef.current = screenStream;
 
       // Use the existing microphone stream from mediaStreamRef (already in use for interview)
       // This avoids requesting a second microphone stream which might fail or be muted
@@ -1688,24 +1714,21 @@ export function RealtimeInterviewClient({
         }
       }
 
-      // Combine screen video with microphone audio
-      const videoTrack = screenStream.getVideoTracks()[0];
+      // Combine video with microphone audio
       if (!videoTrack) {
-        throw new Error("No video track in screen capture. Please try again.");
+        throw new Error("No video track available for recording. Please try again.");
       }
 
       // Verify video track is active
       if (videoTrack.readyState !== "live") {
-        throw new Error(
-          "Screen capture video track is not live. Please try again.",
-        );
+        throw new Error("Video track is not live. Please try again.");
       }
 
       const audioTracks: MediaStreamTrack[] = [];
 
       // Check for tab audio first (PRIMARY source for AI voice - highest quality)
-      const screenAudioTracks = screenStream.getAudioTracks();
-      let hasTabAudio = screenAudioTracks.length > 0;
+      const screenAudioTracks = screenStream?.getAudioTracks() ?? [];
+      const hasTabAudio = screenAudioTracks.length > 0;
 
       if (hasTabAudio) {
         audioTracks.push(...screenAudioTracks);
@@ -1819,32 +1842,33 @@ export function RealtimeInterviewClient({
         console.warn("No audio track available for recording");
       }
 
-      // Monitor video track for issues
-      videoTrack.addEventListener("ended", () => {
-        console.warn("Screen capture video track ended unexpectedly");
-        if (
-          mediaRecorderRef.current &&
-          mediaRecorderRef.current.state !== "inactive"
-        ) {
-          stopRecording();
-        }
-      });
+      // Monitor video track for issues (screen share only — camera stays live for the interview)
+      if (screenStream) {
+        videoTrack.addEventListener("ended", () => {
+          console.warn("Screen capture video track ended unexpectedly");
+          if (
+            mediaRecorderRef.current &&
+            mediaRecorderRef.current.state !== "inactive"
+          ) {
+            stopRecording();
+          }
+        });
 
-      videoTrack.addEventListener("mute", () => {
-        console.warn("Screen capture video track muted");
-      });
+        videoTrack.addEventListener("mute", () => {
+          console.warn("Screen capture video track muted");
+        });
 
-
-      // Handle screen share stop (user clicks stop sharing)
-      screenStream.getVideoTracks()[0].addEventListener("ended", () => {
-        console.log("🛑 Screen sharing stopped by user");
-        if (
-          mediaRecorderRef.current &&
-          mediaRecorderRef.current.state !== "inactive"
-        ) {
-          stopRecording();
-        }
-      });
+        // Handle screen share stop (user clicks stop sharing)
+        screenStream.getVideoTracks()[0].addEventListener("ended", () => {
+          console.log("🛑 Screen sharing stopped by user");
+          if (
+            mediaRecorderRef.current &&
+            mediaRecorderRef.current.state !== "inactive"
+          ) {
+            stopRecording();
+          }
+        });
+      }
 
 
       // Check if MediaRecorder is supported
@@ -1967,13 +1991,18 @@ export function RealtimeInterviewClient({
 
       if (activeVideoTracks.length === 0) {
         throw new Error(
-          "No video track available. Please ensure screen sharing is active.",
+          supportsDisplayMediaCapture()
+            ? "No video track available. Please ensure screen sharing is active."
+            : "No video track available. Please ensure your camera is enabled.",
         );
       }
 
       mediaRecorderRef.current = mediaRecorder;
       mediaRecorder.start(1000); // Collect data every second
       setIsRecording(true);
+      if (!canCaptureDisplay) {
+        toast.success("Recording started — capturing your camera and audio.");
+      }
       console.log("🔴 Recording started with MediaRecorder", {
         state: mediaRecorder.state,
         streamActive: combinedStream.active,
@@ -2032,14 +2061,18 @@ export function RealtimeInterviewClient({
 
       if (requireSessionRecording && isUserDeniedOrCancelled) {
         setError(
-          "Screen recording is required for this interview. Please allow screen sharing and use the record button to try again.",
+          supportsDisplayMediaCapture()
+            ? "Screen recording is required for this interview. Please allow screen sharing and use the record button to try again."
+            : "Recording is required for this interview. Please allow camera access and use the record button to try again.",
         );
         return;
       }
 
       if (isUserDeniedOrCancelled) {
         toast.info(
-          "Screen recording wasn't started — that's OK. Continue your interview anytime; use the red record button if you want to try again.",
+          supportsDisplayMediaCapture()
+            ? "Screen recording wasn't started — that's OK. Continue your interview anytime; use the red record button if you want to try again."
+            : "Recording wasn't started — that's OK. Continue your interview anytime; use the red record button if you want to try again.",
         );
         return;
       }
@@ -2047,11 +2080,15 @@ export function RealtimeInterviewClient({
       if (name === "NotFoundError" || name === "NotReadableError") {
         if (requireSessionRecording) {
           setError(
-            "Could not access the screen for required recording. Close other apps using the display and try again.",
+            supportsDisplayMediaCapture()
+              ? "Could not access the screen for required recording. Close other apps using the display and try again."
+              : "Could not access the camera for required recording. Check permissions and try again.",
           );
         } else {
           setActiveError(
-            "Couldn't access screen capture. Your interview continues — try the record button again when ready.",
+            supportsDisplayMediaCapture()
+              ? "Couldn't access screen capture. Your interview continues — try the record button again when ready."
+              : "Couldn't access the camera for recording. Your interview continues — try the record button again when ready.",
           );
         }
         return;
@@ -2077,6 +2114,7 @@ export function RealtimeInterviewClient({
     if (launchingInterviewRef.current) return;
     launchingInterviewRef.current = true;
     recordingOptInResolvedRef.current = true;
+    const canCaptureDisplay = supportsDisplayMediaCapture();
     try {
       try {
         sessionStorage.setItem(
@@ -2087,7 +2125,10 @@ export function RealtimeInterviewClient({
         /* ignore quota / private mode */
       }
 
-      if (choice === "yes") {
+      // Desktop: capture screen before the interview starts so tab audio is available.
+      // Mobile: screen capture is unavailable — start the interview first so AI audio
+      // can be routed through AudioContext, then record camera + mic.
+      if (choice === "yes" && canCaptureDisplay) {
         await startRecording();
       }
 
@@ -2097,6 +2138,10 @@ export function RealtimeInterviewClient({
       }
 
       await startInterview();
+
+      if (choice === "yes" && !canCaptureDisplay) {
+        await startRecording();
+      }
     } catch (e) {
       console.error("Launch interview failed:", e);
     } finally {
@@ -3085,7 +3130,9 @@ export function RealtimeInterviewClient({
                         ? "Stop recording"
                         : !mediaStreamRef.current
                           ? "Waiting for camera and microphone"
-                          : "Record session — share this browser tab for best audio"
+                          : supportsDisplayMediaCapture()
+                            ? "Record session — share this browser tab for best audio"
+                            : "Record session — captures your camera and audio"
                   }
                 >
                   {isUploadingRecording ? (

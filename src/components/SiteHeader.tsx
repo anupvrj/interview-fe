@@ -39,11 +39,14 @@ function ProfileControl({ className }: { className?: string }) {
         <Button
           size="sm"
           asChild
-          className={cn(institutePrimaryClass, "h-9 px-3 text-xs sm:text-sm")}
+          className={cn(
+            institutePrimaryClass,
+            "h-8 shrink-0 px-2.5 text-[11px] sm:h-9 sm:px-3 sm:text-xs",
+          )}
         >
           <Link href="/sign-up">
-            <span className="hidden min-[420px]:inline">Start New Interview</span>
-            <span className="min-[420px]:hidden">Get started</span>
+            <span className="hidden sm:inline">Start New Interview</span>
+            <span className="sm:hidden">Get started</span>
           </Link>
         </Button>
       </SignedOut>
@@ -62,15 +65,19 @@ export function SiteHeader({
     <header className="fixed top-0 z-50 w-full border-b border-border/60 bg-header/95 shadow-header backdrop-blur-sm">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         {/* Mobile: hamburger left · logo center · profile right */}
-        <div className="grid h-14 grid-cols-3 items-center sm:h-16 lg:hidden">
-          <div className="justify-self-start">{mobileNav}</div>
+        <div className="relative flex h-14 items-center justify-between gap-2 sm:h-16 lg:hidden">
+          <div className="relative z-10 shrink-0">{mobileNav}</div>
           <Link
             href="/"
-            className="justify-self-center transition-opacity hover:opacity-80"
+            className="absolute left-1/2 top-1/2 z-0 max-w-[calc(100%-9.5rem)] -translate-x-1/2 -translate-y-1/2 transition-opacity hover:opacity-80"
           >
-            <InterviewTrixLogo variant="onLightBg" className="h-7 w-auto" priority />
+            <InterviewTrixLogo
+              variant="onLightBg"
+              className="h-6 w-auto max-w-full sm:h-7"
+              priority
+            />
           </Link>
-          <div className="justify-self-end">
+          <div className="relative z-10 shrink-0">
             <ProfileControl />
           </div>
         </div>

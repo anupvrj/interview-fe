@@ -10,12 +10,10 @@ import {
   useState,
 } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { isAxiosError } from "axios";
 import { useUser } from "@clerk/nextjs";
 import {
   systemDesignApi,
   type SystemDesignSession,
-  type SystemDesignChatMessage,
 } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import {
@@ -33,10 +31,8 @@ import {
   ChevronUp,
   Loader2,
   MessageCircle,
-  MessagesSquare,
   Mic,
   MicOff,
-  Send,
   Trophy,
   Video,
   Wand2,
@@ -63,12 +59,6 @@ const ExcalidrawBoard = dynamic(
     ),
   },
 );
-
-const HINT_PROMPTS = [
-  "I'm not sure, could you give me a hint?",
-  "Could you clarify the question?",
-  "Let me think out loud...",
-];
 
 const SCREEN_RECORD_DISPLAY_OPTIONS = {
   video: {
@@ -120,48 +110,6 @@ function useInterviewElapsed(
   return `${mm}:${ss}`;
 }
 
-function ChatBubble({ msg }: { msg: SystemDesignChatMessage }) {
-  const isUser = msg.role === "user";
-  return (
-    <div className={cn("flex gap-2.5", isUser && "flex-row-reverse")}>
-      <div
-        className={cn(
-          "flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold",
-          isUser ? "bg-violet-600/80 text-white" : "bg-card/10 text-gray-300",
-        )}
-      >
-        {isUser ? "You" : "AI"}
-      </div>
-      <div
-        className={cn(
-          "max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed",
-          isUser
-            ? "rounded-tr-none bg-violet-600/80 text-white"
-            : "rounded-tl-none bg-card/[0.08] text-gray-200",
-        )}
-      >
-        {msg.content.split("\n").map((line, i) => {
-          const boldReplaced = line.split(/\*\*(.*?)\*\*/g).map((part, j) =>
-            j % 2 === 1 ? (
-              <strong key={j} className="font-semibold">
-                {part}
-              </strong>
-            ) : (
-              part
-            ),
-          );
-          return (
-            <span key={i}>
-              {boldReplaced}
-              {i < msg.content.split("\n").length - 1 && <br />}
-            </span>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
 export default function SystemDesignSessionPage() {
   const params = useParams<{ sessionId: string | string[] }>();
   const sessionId =
@@ -193,10 +141,6 @@ export default function SystemDesignSessionPage() {
   const [session, setSession] = useState<SystemDesignSession | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const [messages, setMessages] = useState<SystemDesignChatMessage[]>([]);
-  const [inputText, setInputText] = useState("");
-  const [chatBusy, setChatBusy] = useState(false);
-
   const [evaluating, setEvaluating] = useState(false);
   const [finalizing, setFinalizing] = useState(false);
   const [finalized, setFinalized] = useState(false);
@@ -207,9 +151,7 @@ export default function SystemDesignSessionPage() {
   const [leavePageConfirmOpen, setLeavePageConfirmOpen] = useState(false);
   const [recordingStarting, setRecordingStarting] = useState(false);
   const [preStartLeaveOpen, setPreStartLeaveOpen] = useState(false);
-  const [textChatPanelOpen, setTextChatPanelOpen] = useState(false);
 
-  const chatEndRef = useRef<HTMLDivElement>(null);
   const exportFnRef = useRef<(() => Promise<string | null>) | null>(null);
   const voiceDiagramBridgeRef = useRef<SystemDesignVoiceDiagramBridge | null>(
     null,
@@ -250,60 +192,11 @@ export default function SystemDesignSessionPage() {
       .getSession(sessionId)
       .then((s) => {
         setSession(s);
-        setMessages(s.chatHistory ?? []);
         if (s.status === "completed") setFinalized(true);
       })
       .catch(() => toast.error("Session not found"))
       .finally(() => setLoading(false));
   }, [isLoaded, user, sessionId]);
-
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
-
-  const sendMessage = useCallback(
-    async (text: string) => {
-      const trimmed = text.trim();
-      if (!trimmed || chatBusy || finalized) return;
-      setMessages((prev) => [
-        ...prev,
-        { role: "user", content: trimmed, timestamp: new Date().toISOString() },
-      ]);
-      setInputText("");
-      setChatBusy(true);
-      try {
-        const reply = await systemDesignApi.chat(sessionId, trimmed);
-        setMessages((prev) => [
-          ...prev,
-          {
-            role: "assistant",
-            content: reply,
-            timestamp: new Date().toISOString(),
-          },
-        ]);
-      } catch (e: unknown) {
-        setMessages((prev) =>
-          prev.at(-1)?.role === "user" ? prev.slice(0, -1) : prev,
-        );
-        setInputText(trimmed);
-        let msg = "Could not send message. Please try again.";
-        if (isAxiosError(e)) {
-          const body = e.response?.data as { message?: unknown } | undefined;
-          const m = body?.message;
-          if (typeof m === "string" && m.trim()) msg = m.trim();
-          else if (e.code === "ECONNABORTED") msg = "Request timed out — try again.";
-          else if (e.message?.toLowerCase().includes("network")) msg = "Network error — check your connection.";
-          else if (e.response?.status === 413) msg = "Message too long — try shortening it.";
-          else if (e.response?.status === 503 || e.response?.status === 502)
-            msg = "Service unavailable — try again in a moment.";
-        }
-        toast.error(msg);
-      } finally {
-        setChatBusy(false);
-      }
-    },
-    [sessionId, chatBusy, finalized],
-  );
 
   const handleGetFeedback = useCallback(async () => {
     if (evaluating || finalized) return;
@@ -505,6 +398,29 @@ export default function SystemDesignSessionPage() {
     reportHref,
   ]);
 
+  /**
+   * Backend force-ended the interview (e.g. candidate inactivity). It already
+   * finalized + scored the session, so we only stop/upload the recording and
+   * navigate — no client finalize (the backend guard makes it safe regardless).
+   */
+  const handleForceEnd = useCallback(
+    (reason: string) => {
+      if (finalized) return;
+      setFinalized(true);
+      setEndInterviewConfirmOpen(false);
+      void stopMediaRecorderAndUpload().catch((e) =>
+        console.warn("Recording stop on force-end:", e),
+      );
+      toast.info(
+        reason === "inactivity"
+          ? "Interview ended — no activity detected. Your report is ready."
+          : "Interview ended. Your report is ready.",
+      );
+      router.push(reportHref);
+    },
+    [finalized, stopMediaRecorderAndUpload, router, reportHref],
+  );
+
   const openLeaveSessionDialog = useCallback(() => {
     setEndInterviewConfirmOpen(false);
     setLeavePageConfirmOpen(true);
@@ -520,6 +436,24 @@ export default function SystemDesignSessionPage() {
     };
     window.addEventListener("beforeunload", onBeforeUnload);
     return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [isLoaded, loading, session, finalized, recordingStarted]);
+
+  /**
+   * Browser back button / trackpad swipe-back: `beforeunload` does NOT fire for
+   * SPA history navigation, so guard `popstate` too. We keep a sentinel entry on
+   * the stack; each back attempt re-pushes it (so the interview page stays) and
+   * opens the end-interview confirmation instead of silently leaving.
+   */
+  useEffect(() => {
+    if (!isLoaded || loading || !session || finalized || !recordingStarted)
+      return undefined;
+    window.history.pushState(null, "", window.location.href);
+    const onPopState = () => {
+      window.history.pushState(null, "", window.location.href);
+      setEndInterviewConfirmOpen(true);
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
   }, [isLoaded, loading, session, finalized, recordingStarted]);
 
   const leaveToSessions = useCallback(() => {
@@ -843,6 +777,7 @@ export default function SystemDesignSessionPage() {
                       }
                       diagramBridgeRef={voiceDiagramBridgeRef}
                       onDiagramChannelReady={setVoiceDiagramReady}
+                      onForceEnd={handleForceEnd}
                       reuseMicStreamRef={mediaStreamRef}
                       compact
                       className="flex min-h-0 w-full flex-1 flex-col"
@@ -985,6 +920,9 @@ export default function SystemDesignSessionPage() {
               onExportRef={(fn) => {
                 exportFnRef.current = fn;
               }}
+              onActivity={() => {
+                voiceDiagramBridgeRef.current?.sendWhiteboardActivity();
+              }}
               readOnly={
                 finalized ||
                 (recordingStarted && !voiceDiagramReady)
@@ -1004,106 +942,6 @@ export default function SystemDesignSessionPage() {
                     : "Tap Start New Session in the AI Interviewer panel to unlock voice-linked edits"}
               </div>
             </div>
-          )}
-
-          {!finalized && (
-            <>
-              {textChatPanelOpen ? (
-                <button
-                  type="button"
-                  aria-label="Close text chat"
-                  className="absolute inset-0 z-[60] bg-black/20"
-                  onClick={() => setTextChatPanelOpen(false)}
-                />
-              ) : null}
-              <div className="pointer-events-none absolute bottom-[5.5rem] left-4 z-[70] flex max-w-[min(384px,calc(100%-2rem))] flex-col-reverse items-start gap-2 sm:left-5">
-                <Button
-                  type="button"
-                  size="icon"
-                  title={textChatPanelOpen ? "Hide text chat" : "Text chat"}
-                  aria-expanded={textChatPanelOpen}
-                  aria-label="Text chat"
-                  className="pointer-events-auto h-12 w-12 shrink-0 rounded-full border border-white/15 bg-violet-600 text-white shadow-lg shadow-black/30 hover:bg-violet-500"
-                  onClick={() => setTextChatPanelOpen((o) => !o)}
-                >
-                  <MessagesSquare className="h-6 w-6" aria-hidden />
-                </Button>
-
-                {textChatPanelOpen ? (
-                  <div className="pointer-events-auto flex max-h-[min(420px,calc(100vh-12rem))] w-[min(384px,calc(100vw-2rem))] flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#0b1220] shadow-2xl shadow-black/50">
-                    <div className="flex shrink-0 items-center justify-between border-b border-white/10 px-3 py-2">
-                      <span className="text-xs font-semibold uppercase tracking-wide text-gray-300">
-                        Text chat
-                      </span>
-                      <button
-                        type="button"
-                        aria-label="Close"
-                        className="rounded-lg p-1 text-gray-400 transition-colors hover:bg-card/10 hover:text-white"
-                        onClick={() => setTextChatPanelOpen(false)}
-                      >
-                        <X className="h-4 w-4" aria-hidden />
-                      </button>
-                    </div>
-                    <div className="min-h-[120px] flex-1 overflow-y-auto overscroll-contain px-3 py-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-card/[0.12] [&::-webkit-scrollbar]:w-1.5">
-                      <div className="space-y-3 py-1">
-                        {messages.map((m, i) => (
-                          <ChatBubble key={i} msg={m} />
-                        ))}
-                        {chatBusy && (
-                          <div className="flex items-center gap-2 text-xs text-gray-400">
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                            AI is thinking…
-                          </div>
-                        )}
-                        <div ref={chatEndRef} />
-                      </div>
-                    </div>
-                    <div className="shrink-0 border-t border-white/10 px-3 py-2 space-y-1.5">
-                      {HINT_PROMPTS.map((p) => (
-                        <button
-                          key={p}
-                          type="button"
-                          disabled={chatBusy}
-                          onClick={() => void sendMessage(p)}
-                          className="w-full rounded-lg border border-white/10 bg-card/[0.04] px-2.5 py-1.5 text-left text-[11px] text-gray-300 transition-colors hover:bg-card/[0.08] disabled:opacity-50"
-                        >
-                          {p}
-                        </button>
-                      ))}
-                    </div>
-                    <div className="shrink-0 border-t border-white/10 px-3 py-2.5">
-                      <div className="flex items-end gap-2 rounded-xl border border-white/10 bg-card/[0.05] px-2.5 py-2 focus-within:border-violet-500/50">
-                        <textarea
-                          className="max-h-24 min-h-[2.5rem] flex-1 resize-none bg-transparent text-sm text-white placeholder-gray-500 focus:outline-none"
-                          placeholder="Message the AI interviewer…"
-                          rows={2}
-                          value={inputText}
-                          disabled={chatBusy}
-                          onChange={(e) => setInputText(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter" && !e.shiftKey) {
-                              e.preventDefault();
-                              void sendMessage(inputText);
-                            }
-                          }}
-                        />
-                        <button
-                          type="button"
-                          disabled={chatBusy || !inputText.trim()}
-                          onClick={() => void sendMessage(inputText)}
-                          className="mb-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-violet-600 text-white transition-colors hover:bg-violet-500 disabled:opacity-40"
-                        >
-                          <Send className="h-4 w-4" />
-                        </button>
-                      </div>
-                      <p className="mt-1 text-[10px] text-gray-400">
-                        Enter sends · Shift+Enter newline
-                      </p>
-                    </div>
-                  </div>
-                ) : null}
-              </div>
-            </>
           )}
 
           {finalized && (

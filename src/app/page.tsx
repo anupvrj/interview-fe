@@ -158,7 +158,7 @@ export default function LandingPage() {
   const usersCount = useCountUp(3000, 2000, "+", "", 0);
   const resumesCount = useCountUp(3000, 2000, "+", "", 200);
   const interviewsCount = useCountUp(5000, 2200, "+", "", 400);
-  
+
   const resumeTemplates = [
     "/resume-template-images/atlantic-blue-template-design.webp",
     "/resume-template-images/Mercury-template-design.webp",

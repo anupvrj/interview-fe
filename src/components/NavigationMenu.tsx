@@ -54,6 +54,12 @@ export const navLinksHome = [
   { href: "/", label: "Home", match: (path: string) => path === "/" },
 ] as const;
 
+export const navLinkDashboard = {
+  href: "/dashboard",
+  label: "Dashboard",
+  match: (path: string) => path.startsWith("/dashboard"),
+} as const;
+
 export const navLinkBecomeInterviewer = {
   href: "/become-peer-interviewer",
   label: "Become Interviewer",
@@ -451,6 +457,16 @@ export function PublicMobileNav() {
               {item.label}
             </Link>
           ))}
+
+          {isLoaded && user ? (
+            <Link
+              href={navLinkDashboard.href}
+              onClick={navigateFromMobileDrawer(navLinkDashboard.href)}
+              className={mobileLinkClass(navLinkDashboard.match(pathname))}
+            >
+              {navLinkDashboard.label}
+            </Link>
+          ) : null}
 
           <button
             type="button"

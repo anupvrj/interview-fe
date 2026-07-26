@@ -120,12 +120,19 @@ function isRecruiterApplyNavPath(pathname: string | null): boolean {
   );
 }
 
+function isSuperAdminNotificationHubPath(pathname: string | null): boolean {
+  return (
+    pathname?.startsWith("/dashboard/super-admin/notification-hub") ?? false
+  );
+}
+
 function isSuperAdminHomePath(pathname: string | null): boolean {
   if (!pathname) return false;
   if (
     isSuperAdminPeerInterviewersPath(pathname) ||
     isSuperAdminPeerBookingsPath(pathname) ||
-    isSuperAdminIxRecruitersPath(pathname)
+    isSuperAdminIxRecruitersPath(pathname) ||
+    isSuperAdminNotificationHubPath(pathname)
   ) {
     return false;
   }
@@ -202,6 +209,9 @@ function resolveNavActive(
   }
   if (item.href === "/dashboard/super-admin/ix-recruiters") {
     isActive = isSuperAdminIxRecruitersPath(pathname);
+  }
+  if (item.href === "/dashboard/super-admin/notification-hub") {
+    isActive = isSuperAdminNotificationHubPath(pathname);
   }
   if (item.href === "/dashboard/ix-recruiter") {
     isActive = isRecruiterDashboardNavPath(pathname);
@@ -488,11 +498,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             </Button>
           </div>
           <Link
-            href={
-              isInstitutionView && institutionId
-                ? `/dashboard/institute/${institutionId}`
-                : "/dashboard"
-            }
+            href="/"
             className="justify-self-center transition-opacity hover:opacity-80"
           >
             <InterviewTrixLogo
@@ -530,11 +536,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           <div className="flex h-full max-lg:h-full lg:h-screen flex-col">
             <div className="hidden shrink-0 border-b border-sidebar-border/80 px-4 py-5 lg:block">
               <Link
-                href={
-                  isInstitutionView && institutionId
-                    ? `/dashboard/institute/${institutionId}`
-                    : "/"
-                }
+                href="/"
                 className={cn(
                   "flex items-center transition-opacity hover:opacity-80",
                   sidebarOpen ? "justify-start" : "justify-center",
