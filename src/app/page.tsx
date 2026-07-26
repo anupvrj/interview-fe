@@ -2,9 +2,6 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { useUser } from "@clerk/nextjs";
-import { useRouter } from "next/navigation";
-import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -54,7 +51,6 @@ import { SystemDesignHeroPreview } from "@/components/system-design/SystemDesign
 import { AiJobSearchNotifyButton } from "@/components/AiJobSearchNotifyButton";
 import { appMarketingSection, appMarketingSectionAlt, appMarketingSectionPurple, appMarketingSectionLight } from "@/lib/app-theme";
 import { cn } from "@/lib/utils";
-import { useIsMobileViewport } from "@/hooks/useIsMobileViewport";
 
 // Count-up when stats section scrolls into view
 function useCountUp(
@@ -145,9 +141,6 @@ function renderHighlightedText(
 }
 
 export default function LandingPage() {
-  const router = useRouter();
-  const { user, isLoaded } = useUser();
-  const isMobileViewport = useIsMobileViewport();
   const [currentSlide, setCurrentSlide] = useState(0);
   const [displayedText, setDisplayedText] = useState("");
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -165,11 +158,6 @@ export default function LandingPage() {
   const usersCount = useCountUp(3000, 2000, "+", "", 0);
   const resumesCount = useCountUp(3000, 2000, "+", "", 200);
   const interviewsCount = useCountUp(5000, 2200, "+", "", 400);
-
-  useEffect(() => {
-    if (!isLoaded || !user || !isMobileViewport) return;
-    router.replace("/dashboard");
-  }, [isLoaded, user, isMobileViewport, router]);
 
   const resumeTemplates = [
     "/resume-template-images/atlantic-blue-template-design.webp",
@@ -316,14 +304,6 @@ export default function LandingPage() {
       clearInterval(scrollInterval);
     };
   }, [currentJobIndex]);
-
-  if (isLoaded && user && isMobileViewport) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-background scroll-smooth selection:bg-info-muted">
