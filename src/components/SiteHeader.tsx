@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { SignedIn, SignedOut, useUser } from "@clerk/nextjs";
+import { SignedIn, SignedOut } from "@clerk/nextjs";
 import { InterviewTrixLogo } from "@/components/InterviewTrixLogo";
 import {
   PublicDesktopNav,
@@ -15,7 +15,6 @@ import {
   instituteSecondaryClass,
 } from "@/components/institute/InstituteChrome";
 import { cn } from "@/lib/utils";
-import { useIsMobileViewport } from "@/hooks/useIsMobileViewport";
 
 export type SiteHeaderProps = {
   mobileNav?: ReactNode;
@@ -62,11 +61,6 @@ export function SiteHeader({
   mobileNav = <PublicMobileNav />,
   desktopNav = <PublicDesktopNav />,
 }: SiteHeaderProps) {
-  const { user, isLoaded } = useUser();
-  const isMobileViewport = useIsMobileViewport();
-  const logoHref =
-    isLoaded && user && isMobileViewport ? "/dashboard" : "/";
-
   return (
     <header className="fixed top-0 z-50 w-full border-b border-border/60 bg-header/95 shadow-header backdrop-blur-sm">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
@@ -74,7 +68,7 @@ export function SiteHeader({
         <div className="relative flex h-14 items-center justify-between gap-2 sm:h-16 lg:hidden">
           <div className="relative z-10 shrink-0">{mobileNav}</div>
           <Link
-            href={logoHref}
+            href="/"
             className="absolute left-1/2 top-1/2 z-0 max-w-[calc(100%-9.5rem)] -translate-x-1/2 -translate-y-1/2 transition-opacity hover:opacity-80"
           >
             <InterviewTrixLogo

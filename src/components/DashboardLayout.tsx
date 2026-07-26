@@ -498,11 +498,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             </Button>
           </div>
           <Link
-            href={
-              isInstitutionView && institutionId
-                ? `/dashboard/institute/${institutionId}`
-                : "/dashboard"
-            }
+            href="/"
             className="justify-self-center transition-opacity hover:opacity-80"
           >
             <InterviewTrixLogo
@@ -540,11 +536,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           <div className="flex h-full max-lg:h-full lg:h-screen flex-col">
             <div className="hidden shrink-0 border-b border-sidebar-border/80 px-4 py-5 lg:block">
               <Link
-                href={
-                  isInstitutionView && institutionId
-                    ? `/dashboard/institute/${institutionId}`
-                    : "/"
-                }
+                href="/"
                 className={cn(
                   "flex items-center transition-opacity hover:opacity-80",
                   sidebarOpen ? "justify-start" : "justify-center",

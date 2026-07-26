@@ -447,6 +447,17 @@ export function PublicMobileNav() {
         </div>
 
         <div className="flex-1 overflow-y-auto py-2">
+          {navLinksHome.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              onClick={navigateFromMobileDrawer(item.href)}
+              className={mobileLinkClass(item.match(pathname))}
+            >
+              {item.label}
+            </Link>
+          ))}
+
           {isLoaded && user ? (
             <Link
               href={navLinkDashboard.href}
@@ -455,18 +466,7 @@ export function PublicMobileNav() {
             >
               {navLinkDashboard.label}
             </Link>
-          ) : (
-            navLinksHome.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={navigateFromMobileDrawer(item.href)}
-                className={mobileLinkClass(item.match(pathname))}
-              >
-                {item.label}
-              </Link>
-            ))
-          )}
+          ) : null}
 
           <button
             type="button"
