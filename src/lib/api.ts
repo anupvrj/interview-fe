@@ -2616,6 +2616,8 @@ export interface SystemDesignSession {
   createdAt: string;
   updatedAt: string;
   completedAt?: string;
+  /** Why the session ended (e.g. auto-ended for candidate inactivity); null when normal. */
+  endReason?: string | null;
   whiteboardSnapshot?: string | null;
   recordingPhaseStartedAt?: string | null;
   recordingS3Key?: string | null;
@@ -2656,6 +2658,7 @@ export interface SystemDesignReportSessionLite {
   completedAt?: string;
   score?: number;
   scoreReport?: SystemDesignScoreReport;
+  endReason?: string | null;
   whiteboardSnapshot?: string | null;
   recordingS3Key?: string | null;
   recordingVideoUrl?: string | null;
