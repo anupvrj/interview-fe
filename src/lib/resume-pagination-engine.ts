@@ -83,13 +83,16 @@ export function computePageBands(
   integerLimit: number,
   atomicIfFitsOnOnePage: PaginationAtomicIfFitsBox[] = [],
   tailSliverMaxPx: number = DEFAULT_TAIL_SLIVER_MAX_PX,
+  continuationPageLimit?: number,
 ): PageBand[] {
   const newPages: PageBand[] = [];
   let currentY = 0;
   let pageNum = 1;
 
   while (currentY < fullHeight - BREAKPOINT_PADDING_PX) {
-    let targetEndY = Math.min(currentY + integerLimit, fullHeight);
+    const pageLimit =
+      pageNum === 1 ? integerLimit : (continuationPageLimit ?? integerLimit);
+    let targetEndY = Math.min(currentY + pageLimit, fullHeight);
     let safeEndY = targetEndY;
 
     const straddlingElements = elements.filter((el) => {
@@ -261,6 +264,7 @@ export function runResumePagination(
   integerLimit: number,
   atomicIfFitsOnOnePage: PaginationAtomicIfFitsBox[] = [],
   tailSliverMaxPx: number = DEFAULT_TAIL_SLIVER_MAX_PX,
+  continuationPageLimit?: number,
 ): PageBand[] {
   let pages = computePageBands(
     fullHeight,
@@ -268,6 +272,7 @@ export function runResumePagination(
     integerLimit,
     atomicIfFitsOnOnePage,
     tailSliverMaxPx,
+    continuationPageLimit,
   );
   pages = trimTrailingEmptySliverPages(pages, elements);
 

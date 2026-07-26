@@ -48,7 +48,7 @@ import { Resume, ResumeTemplate, resumeApi, apiClient } from "@/lib/api";
 import {
   normalizeExperienceList,
 } from "@/lib/resume-date-utils";
-import { ensureResumePersonalInfo } from "@/lib/resume-data-import";
+import { ensureResumePersonalInfo, getExecutiveSkillsFromContent } from "@/lib/resume-data-import";
 import { isATSReportV3 } from "@/types/atsReport";
 import { ResumePreview, type ResumePreviewHandle } from "@/components/ResumePreview";
 import { RichTextEditor } from "@/components/RichTextEditor";
@@ -92,6 +92,7 @@ import { captureAndUploadThumbnail } from "@/lib/resume-thumbnail";
 import { generateResumePdfViaServer } from "@/lib/resume-pdf-export";
 import {
   mergeLayoutPaddingWithTemplateStyle,
+  resolveEffectiveLayoutPaddingMm,
   resolveLayoutPaddingMm,
 } from "@/lib/resume-page-dimensions";
 import { ATSReportView } from "@/components/ats-checker/ATSReportView";
@@ -877,10 +878,10 @@ export default function EditResumePage() {
 
       // Load layout from database or use default
       if (resumeData.layout) {
-        // For Mercury template, ensure 20mm left/right padding
+        // Mercury: no page padding so header/section bars stay full width (content uses 55px in CSS)
         const defaultPadding =
           resumeData.templateId === "mercury"
-            ? { top: 20, bottom: 20, left: 20, right: 20 }
+            ? { top: 0, bottom: 20, left: 0, right: 0 }
             : { top: 8, bottom: 8, left: 8, right: 8 };
 
         setLayout({
@@ -889,7 +890,15 @@ export default function EditResumePage() {
             left: 60,
             right: 40,
           },
-          padding: resumeData.layout.padding || defaultPadding,
+          padding:
+            resumeData.templateId === "mercury"
+              ? {
+                  top: 0,
+                  bottom: resumeData.layout.padding?.bottom ?? 20,
+                  left: 0,
+                  right: 0,
+                }
+              : resumeData.layout.padding || defaultPadding,
           fontSize: (
             resumeData.layout as {
               fontSize?: {
@@ -907,11 +916,12 @@ export default function EditResumePage() {
               .dismissedEmptyTrailingPages ?? 0,
         });
 
-        // If Mercury template has wrong padding, update it
+        // Mercury uses full-width header/section bars; horizontal padding lives in template CSS.
         if (resumeData.templateId === "mercury" && resumeData.layout.padding) {
           if (
-            resumeData.layout.padding.left !== 20 ||
-            resumeData.layout.padding.right !== 20
+            resumeData.layout.padding.left !== 0 ||
+            resumeData.layout.padding.right !== 0 ||
+            resumeData.layout.padding.top !== 0
           ) {
             const updatedLayout = {
               ...resumeData.layout,
@@ -921,9 +931,10 @@ export default function EditResumePage() {
                 right: 40,
               },
               padding: {
-                ...resumeData.layout.padding,
-                left: 20,
-                right: 20,
+                top: 0,
+                bottom: resumeData.layout.padding.bottom ?? 20,
+                left: 0,
+                right: 0,
               },
             };
             setLayout(updatedLayout as any);
@@ -987,7 +998,7 @@ export default function EditResumePage() {
         // Set default layout if not provided
         const defaultPadding =
           resumeData.templateId === "mercury"
-            ? { top: 20, bottom: 20, left: 20, right: 20 }
+            ? { top: 0, bottom: 20, left: 0, right: 0 }
             : { top: 8, bottom: 8, left: 8, right: 8 };
 
         setLayout({
@@ -1651,11 +1662,10 @@ export default function EditResumePage() {
           ({
             id: templateId,
           } as ResumeTemplate);
-        const pdfPadding = resolveLayoutPaddingMm(
-          mergeLayoutPaddingWithTemplateStyle(
-            resume?.layout?.padding ?? layout?.padding,
-            getTemplateStyle(getExtendedTemplate(pdfTemplate)).padding,
-          ),
+        const pdfPadding = resolveEffectiveLayoutPaddingMm(
+          templateId,
+          resume?.layout?.padding ?? layout?.padding,
+          getTemplateStyle(getExtendedTemplate(pdfTemplate)).padding,
         );
 
         let downloadUrl: string;
@@ -2889,11 +2899,33 @@ export default function EditResumePage() {
                     )}
 
                     <LayoutPaddingControls
-                      padding={resolveLayoutPaddingMm(layout.padding)}
+                      padding={
+                        template?.id === "mercury"
+                          ? resolveEffectiveLayoutPaddingMm(
+                              template.id,
+                              layout.padding,
+                              getTemplateStyle(getExtendedTemplate(template)).padding,
+                            )
+                          : resolveLayoutPaddingMm(
+                              mergeLayoutPaddingWithTemplateStyle(
+                                layout.padding,
+                                getTemplateStyle(getExtendedTemplate(template)).padding,
+                              ),
+                            )
+                      }
                       onChange={(padding) => {
+                        const nextPadding =
+                          template?.id === "mercury"
+                            ? {
+                                top: 0,
+                                left: 0,
+                                right: 0,
+                                bottom: padding.bottom,
+                              }
+                            : padding;
                         setLayout({
                           ...layout,
-                          padding,
+                          padding: nextPadding,
                         });
                         setHasChanges(true);
                       }}
@@ -4343,11 +4375,9 @@ export default function EditResumePage() {
                     // Get skills based on structure
                     let skillsData: any = null;
                     if (isExecutiveTemplate) {
-                      // For Executive: Get from sections array or initialize
-                      const skillsSection = (
-                        resume.content as any
-                      ).sections?.find((s: any) => s.type === "skills");
-                      skillsData = skillsSection?.items || [];
+                      skillsData = getExecutiveSkillsFromContent(
+                        resume.content as Record<string, unknown>,
+                      );
                     } else {
                       // For other templates: Get from new single skills field (with backward compatibility)
                       const skillsField = resume.content.skills;

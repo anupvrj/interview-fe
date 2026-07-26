@@ -17,9 +17,11 @@ import {
   A4_HEIGHT_MM,
   A4_WIDTH_MM,
   ATLANTIC_BLUE_PAGINATED_PAGE_BG,
-  mergeLayoutPaddingWithTemplateStyle,
+  getPageViewportTopMm,
+  getTemplateContinuationTopMm,
+  pageContentHeightPx,
   pageVerticalGuttersMm,
-  resolveLayoutPaddingMm,
+  resolveEffectiveLayoutPaddingMm,
 } from "@/lib/resume-page-dimensions";
 import { debugResumePagination } from "@/lib/debug-resume-pagination";
 import { buildResumeContentMeasureKey } from "@/lib/resume-content-measure-key";
@@ -91,13 +93,12 @@ export const PaginatedPreview: React.FC<PaginatedPreviewProps> = ({
   /** Same padding merge as ResumeRenderer + server PDF (no double-counting @page). */
   const paddingMm = useMemo(() => {
     const templatePadding = getTemplateStyle(getExtendedTemplate(template)).padding;
-    return resolveLayoutPaddingMm(
-      mergeLayoutPaddingWithTemplateStyle(
-        currentLayout.padding as
-          | { top: number; bottom: number; left: number; right: number }
-          | undefined,
-        templatePadding,
-      ),
+    return resolveEffectiveLayoutPaddingMm(
+      template.id,
+      currentLayout.padding as
+        | { top: number; bottom: number; left: number; right: number }
+        | undefined,
+      templatePadding,
     );
   }, [
     template,
@@ -157,12 +158,21 @@ export const PaginatedPreview: React.FC<PaginatedPreviewProps> = ({
   ]);
 
   const isAtlanticBlue = template.id === "atlantic-blue";
-  const pageHeightLimit = (CONTENT_HEIGHT_MM / A4_HEIGHT_MM) * 1122.5;
+  const continuationTopMm = getTemplateContinuationTopMm(
+    template.id,
+    paddingMm.top,
+  );
+  const pageHeightLimit = pageContentHeightPx(CONTENT_HEIGHT_MM);
+  const continuationPageHeightLimit =
+    continuationTopMm > 0
+      ? pageContentHeightPx(CONTENT_HEIGHT_MM - continuationTopMm)
+      : undefined;
 
   const { pages, pagesKey, isPaginating, measuringRef } = useResumePagination({
     resume,
     sections: sections || [],
     pageHeightLimit,
+    continuationPageHeightLimit,
     /** Snap page cuts to line boundaries for all templates (rich text / multi-line items). */
     snapPageBreaksToLineBounds: true,
     measureKey: rendererKey,
@@ -323,9 +333,16 @@ export const PaginatedPreview: React.FC<PaginatedPreviewProps> = ({
             {visiblePages.map((page, index) => {
               const isContinuationPage = index > 0;
               const topBleed = isContinuationPage ? PAGE_CLIP_BLEED_PX : 0;
-              const continuationPad = isContinuationPage
-                ? CONTINUATION_PAGE_TOP_PAD_PX
-                : 0;
+              const pageViewportTopMm = getPageViewportTopMm(
+                template.id,
+                isContinuationPage,
+                TOP_MARGIN_MM,
+                continuationTopMm,
+              );
+              const continuationPadPx =
+                isContinuationPage && continuationTopMm === 0
+                  ? CONTINUATION_PAGE_TOP_PAD_PX
+                  : 0;
 
               return (
               <div
@@ -355,11 +372,11 @@ export const PaginatedPreview: React.FC<PaginatedPreviewProps> = ({
                   <div
                     style={{
                       position: "absolute",
-                      top: `${TOP_MARGIN_MM}mm`,
+                      top: `${pageViewportTopMm}mm`,
                       left: 0,
                       width: `${A4_WIDTH_MM}mm`,
-                      height: `${page.height + topBleed + continuationPad}px`,
-                      paddingTop: `${continuationPad}px`,
+                      height: `${page.height + topBleed + continuationPadPx}px`,
+                      paddingTop: `${continuationPadPx}px`,
                       boxSizing: "border-box",
                       overflow: "hidden",
                       background: isAtlanticBlue

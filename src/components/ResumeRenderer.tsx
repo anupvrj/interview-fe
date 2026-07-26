@@ -8,7 +8,8 @@
 import React, { useRef, useMemo } from "react";
 import { Resume, ResumeTemplate } from "@/lib/api";
 import { ATLANTIC_BLUE_INNER_PADDING_PX } from "@/configs/resume-templates/atlantic-blue/column-insets";
-import { mergeLayoutPaddingWithTemplateStyle } from "@/lib/resume-page-dimensions";
+import { resolveEffectiveLayoutPaddingMm } from "@/lib/resume-page-dimensions";
+import { getExecutiveSkillsFromContent } from "@/lib/resume-data-import";
 import { getExtendedTemplate } from "@/lib/templateConfigs";
 import { isListedInTemplateColumnAssignment } from "@/lib/sectionColumnUtils";
 import { getTemplateStyle, TemplateStyleConfig } from "@/lib/templateRenderer";
@@ -431,7 +432,8 @@ export function ResumeRenderer({
   // Merge custom layout (padding, user font size, font family) into template style
   const templateStyle = {
     ...baseTemplateStyle,
-    padding: mergeLayoutPaddingWithTemplateStyle(
+    padding: resolveEffectiveLayoutPaddingMm(
+      template.id,
       resumeLayout.padding,
       baseTemplateStyle.padding,
     ),
@@ -459,6 +461,8 @@ export function ResumeRenderer({
   const isCobaltStream = template.id === "cobalt-stream";
   const isAmberEdge = template.id === "amber-edge";
   const isMeridian = template.id === "meridian";
+  const isMercury = template.id === "mercury";
+  const isCorporate = template.id === "corporate";
   const formatRoyalIndigoDateRange = formatExperienceDateRangeAbbreviated;
   const useCssExpTypography =
     isEmberTimeline || isConfidentGrid || isCondensedRule || isRoyalIndigo || isCobaltStream || isAmberEdge || isMeridian || isSaffronLine;
@@ -836,6 +840,33 @@ export function ResumeRenderer({
     // Apply style based on configuration
     switch (headerConfig.style) {
       case "border-top-bottom":
+        if (isCorporate) {
+          return (
+            <div className="corporate-section-header-wrapper corporate-section-header-wrapper--border-top-bottom">
+              <h2
+                data-section-header
+                data-section-id={sectionId}
+                className={templateClassName}
+              >
+                {showSectionIcon && (
+                  <>
+                    {React.createElement(getSectionIcon(sectionType!), {
+                      size: sectionIconSize,
+                      style: {
+                        marginRight: isSaffronLine ? "6px" : "8px",
+                        display: "inline",
+                      },
+                    })}
+                  </>
+                )}
+                {headerConfig.textTransform === "uppercase"
+                  ? headerTitle.toUpperCase()
+                  : headerTitle}
+              </h2>
+            </div>
+          );
+        }
+
         return (
           <h2
             data-section-header
@@ -899,37 +930,41 @@ export function ResumeRenderer({
             data-section-header
             data-section-id={sectionId}
             className={templateClassName}
-            style={{
-              ...baseStyle,
-              backgroundColor: isInSidebar
-                ? template.id === "atlantic-blue"
-                  ? "transparent"
-                  : "rgba(255, 255, 255, 0.1)"
-                : headerConfig.backgroundColor ||
-                  templateStyle.colors.sectionHeaderBg ||
-                  "#f0f0f0",
-              padding: isInSidebar
-                ? template.id === "atlantic-blue"
-                  ? "0"
-                  : "8px 12px"
-                : `${headerConfig.paddingTop || "8px"} ${headerConfig.paddingRight || "12px"
-                  } ${headerConfig.paddingBottom || "8px"} ${headerConfig.paddingLeft || "12px"
-                  }`,
-              borderRadius:
-                headerConfig.borderRadius !== undefined
-                  ? `${headerConfig.borderRadius}px`
-                  : isInSidebar
-                    ? template.id === "atlantic-blue"
-                      ? "0px"
-                      : "4px"
-                    : "0px",
-              boxShadow:
-                isInSidebar && template.id === "atlantic-blue"
-                  ? "none"
-                  : isInSidebar
-                    ? "0 2px 4px rgba(0, 0, 0, 0.2)"
-                    : "none",
-            }}
+            style={
+              useCssHeaderClasses && isMercury
+                ? {}
+                : {
+                    ...baseStyle,
+                    backgroundColor: isInSidebar
+                      ? template.id === "atlantic-blue"
+                        ? "transparent"
+                        : "rgba(255, 255, 255, 0.1)"
+                      : headerConfig.backgroundColor ||
+                        templateStyle.colors.sectionHeaderBg ||
+                        "#f0f0f0",
+                    padding: isInSidebar
+                      ? template.id === "atlantic-blue"
+                        ? "0"
+                        : "8px 12px"
+                      : `${headerConfig.paddingTop || "8px"} ${headerConfig.paddingRight || "12px"
+                        } ${headerConfig.paddingBottom || "8px"} ${headerConfig.paddingLeft || "12px"
+                        }`,
+                    borderRadius:
+                      headerConfig.borderRadius !== undefined
+                        ? `${headerConfig.borderRadius}px`
+                        : isInSidebar
+                          ? template.id === "atlantic-blue"
+                            ? "0px"
+                            : "4px"
+                          : "0px",
+                    boxShadow:
+                      isInSidebar && template.id === "atlantic-blue"
+                        ? "none"
+                        : isInSidebar
+                          ? "0 2px 4px rgba(0, 0, 0, 0.2)"
+                          : "none",
+                  }
+            }
           >
             {showSectionIcon && (
               <>
@@ -1690,6 +1725,39 @@ export function ResumeRenderer({
             pairs.push(contactItems.slice(i, i + 2));
           }
 
+          if (template.id === "mercury") {
+            return (
+              <div className="mercury-contact-info">
+                {pairs.map((pair, pairIndex) => (
+                  <div key={pairIndex} className="mercury-contact-row">
+                    {pair.map((item, itemIndex) => {
+                      const IconComponent = item.icon;
+                      const content = (
+                        <div className="mercury-contact-item">
+                          <IconComponent size={12} />
+                          <span>{item.value}</span>
+                        </div>
+                      );
+
+                      return item.href ? (
+                        <a
+                          key={itemIndex}
+                          href={item.href}
+                          className="mercury-contact-item no-underline"
+                        >
+                          <IconComponent size={12} />
+                          <span>{item.value}</span>
+                        </a>
+                      ) : (
+                        <div key={itemIndex}>{content}</div>
+                      );
+                    })}
+                  </div>
+                ))}
+              </div>
+            );
+          }
+
           return (
             <div style={{ marginTop: "8px" }}>
               {pairs.map((pair, pairIndex) => (
@@ -2044,14 +2112,15 @@ export function ResumeRenderer({
           const headerBackground =
             templateStyle.colors.headerBackground ||
             (template.id === "mercury"
-              ? "#f5f5f5"
+              ? "#e5e6e3"
               : template.id === "confident-grid"
                 ? "#d8e5ec"
                 : "transparent");
           const usesCssHeaderBand =
             template.id === "saffron-line" ||
             template.id === "navy-frame" ||
-            template.id === "confident-grid";
+            template.id === "confident-grid" ||
+            template.id === "mercury";
 
           return (
             <div
@@ -2110,7 +2179,7 @@ export function ResumeRenderer({
               <div
                 className={`${template.id}-header-content`}
                 style={
-                  isSaffronLine || isConfidentGrid
+                  isSaffronLine || isConfidentGrid || isMercury
                     ? { flex: 1 }
                     : { flex: 1, paddingTop: "10px" }
                 }
@@ -2163,6 +2232,21 @@ export function ResumeRenderer({
                       )}
                     </p>
                   </div>
+                ) : isMercury ? (
+                  <>
+                    <h1 className={`${template.id}-name`}>
+                      {personalInfoDisplayText(
+                        personalInfo.fullName,
+                        RESUME_DISPLAY_PLACEHOLDERS.fullName,
+                      )}
+                    </h1>
+                    <p className={`${template.id}-job-title`}>
+                      {personalInfoDisplayText(
+                        personalInfo.portfolio,
+                        RESUME_DISPLAY_PLACEHOLDERS.portfolio,
+                      )}
+                    </p>
+                  </>
                 ) : (
                   <>
                 <h1
@@ -3258,12 +3342,11 @@ export function ResumeRenderer({
         let skillsData: any = null;
         let skillItems: any[] = [];
 
-        // Executive template: Get from sections array
+        // Executive template: sections array with fallback to imported `content.skills`
         if (resume.templateId === "executive") {
-          const skillsSection = (resume.content as any).sections?.find(
-            (s: any) => s.type === "skills",
+          skillItems = getExecutiveSkillsFromContent(
+            resume.content as Record<string, unknown>,
           );
-          skillItems = skillsSection?.items || [];
         } else {
           // Other templates: Get from direct skills field (new structure: single field)
           skillsData = resume.content.skills;
@@ -3520,6 +3603,10 @@ export function ResumeRenderer({
           }
 
           if (!skillsData) return null;
+        }
+
+        if (resume.templateId === "executive" && skillItems.length === 0) {
+          return null;
         }
 
         if (isConfidentGrid && resume.templateId !== "executive") {
@@ -5413,7 +5500,9 @@ export function ResumeRenderer({
       style={{
         width: "210mm",
         minHeight: "auto",
-        padding: `${templateStyle.padding.top}mm ${templateStyle.padding.right}mm ${templateStyle.padding.bottom}mm ${templateStyle.padding.left}mm`,
+        padding: isMercury
+          ? `0mm 0mm ${templateStyle.padding.bottom}mm 0mm`
+          : `${templateStyle.padding.top}mm ${templateStyle.padding.right}mm ${templateStyle.padding.bottom}mm ${templateStyle.padding.left}mm`,
         ...(isConfidentGrid
           ? ({
               ["--cg-pad-top" as string]: `${templateStyle.padding.top}mm`,
@@ -5702,6 +5791,108 @@ export function ResumeRenderer({
           }
           .resume-content a:not(.no-underline) { text-decoration: underline !important; color: inherit; }
           .resume-content a.no-underline { text-decoration: none !important; color: inherit; }
+          .mercury-template .mercury-header-section {
+            background-color: #e5e6e3 !important;
+            padding: 45px 55px !important;
+            width: 100% !important;
+            margin: 0 !important;
+            box-sizing: border-box !important;
+          }
+          .mercury-template.resume-content,
+          .resume-content.mercury-template {
+            padding-top: 0 !important;
+            padding-left: 0 !important;
+            padding-right: 0 !important;
+          }
+          .mercury-template .mercury-name {
+            font-size: 32px !important;
+            font-weight: 700 !important;
+            color: #3d3d3d !important;
+            letter-spacing: -0.5px !important;
+            margin: 0 0 8px 0 !important;
+          }
+          .mercury-template .mercury-job-title {
+            font-size: 18px !important;
+            font-weight: 400 !important;
+            font-style: normal !important;
+            color: #5a5a5a !important;
+            margin: 0 0 12px 0 !important;
+          }
+          .mercury-template .mercury-contact-item,
+          .mercury-template .mercury-contact-item span {
+            font-size: 11px !important;
+            color: #5a5a5a !important;
+          }
+          .mercury-template .mercury-section-header,
+          .mercury-template h2[data-section-header] {
+            background-color: #f2f2f2 !important;
+            font-size: 13px !important;
+            font-weight: 700 !important;
+            font-family: 'Rockwell Std', 'Zilla Slab', 'Roboto Slab', Rockwell, 'Courier New', serif !important;
+            text-transform: none !important;
+            letter-spacing: 0.3px !important;
+            color: #3d3d3d !important;
+            padding: 8px 0 !important;
+            margin-top: 25px !important;
+            margin-bottom: 15px !important;
+            text-align: center !important;
+            width: 100% !important;
+            border-radius: 0 !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          .mercury-template .mercury-section:first-of-type .mercury-section-header,
+          .mercury-template .mercury-section:first-of-type h2[data-section-header] {
+            margin-top: 25px !important;
+          }
+          .mercury-template .mercury-job-title-line,
+          .mercury-template .mercury-degree,
+          .mercury-template .mercury-award-title {
+            font-size: 12px !important;
+            font-weight: 700 !important;
+            color: #3d3d3d !important;
+          }
+          .mercury-template .mercury-company-line,
+          .mercury-template .mercury-institution,
+          .mercury-template .mercury-award-org,
+          .mercury-template .mercury-timeline-sidebar {
+            font-size: 11px !important;
+            color: #3d3d3d !important;
+          }
+          .mercury-template .mercury-job-description,
+          .mercury-template .mercury-language-name,
+          .mercury-template .mercury-skills-grid {
+            font-size: 11px !important;
+            color: #3d3d3d !important;
+          }
+          .corporate-template .corporate-section-header-wrapper--border-top-bottom {
+            margin-top: 14px !important;
+            margin-bottom: 10px !important;
+            padding: 8px 16px !important;
+            border-top: 2px solid #000000 !important;
+            border-bottom: 2px solid #000000 !important;
+          }
+          .corporate-template .corporate-section-header,
+          .corporate-template h2[data-section-header].corporate-section-header {
+            font-size: 12px !important;
+            font-weight: 700 !important;
+            line-height: 1.2 !important;
+            letter-spacing: 0.4px !important;
+            text-transform: uppercase !important;
+            border: none !important;
+            margin: 0 !important;
+            padding: 0 !important;
+          }
+          .corporate-template .corporate-name {
+            font-size: 22px !important;
+            font-weight: 700 !important;
+          }
+          .corporate-template .corporate-job-title {
+            font-size: 16px !important;
+            font-weight: 400 !important;
+            font-style: normal !important;
+            color: #7f8c8d !important;
+          }
         `,
         }}
       />

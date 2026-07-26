@@ -8,6 +8,13 @@
   font-family: 'Rockwell Std', 'Zilla Slab', 'Roboto Slab', Rockwell, 'Courier New', serif;
   color: #3d3d3d;
   background-color: #ffffff;
+  box-sizing: border-box;
+}
+
+.mercury-template.mercury-template {
+  padding-top: 0 !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
 }
 
 .mercury-page {
@@ -20,8 +27,13 @@
   display: flex;
   align-items: center;
   gap: 30px;
-  background-color: #f5f5f5;
+  background-color: #e5e6e3;
   padding: 45px 55px;
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
 }
 
 .mercury-profile-picture {
@@ -43,22 +55,22 @@
 
 .mercury-header-content {
   flex: 1;
+  padding-top: 10px;
 }
 
 .mercury-name {
   font-size: 32px;
   font-weight: bold;
   color: #3d3d3d;
-  margin-bottom: 8px;
+  margin: 0 0 8px 0;
   letter-spacing: -0.5px;
 }
 
 .mercury-job-title {
   font-style: normal !important;
   font-size: 18px !important;
-
   color: #5a5a5a;
-  margin-bottom: 12px;
+  margin: 0 0 12px 0;
   font-weight: normal;
 }
 
@@ -93,23 +105,34 @@
 }
 
 /* Add horizontal padding to section content (but not the full-width gray bars) */
-.mercury-section > div:not(.mercury-section-header),
+.mercury-section > div:not(.mercury-section-header):not(h2),
 .mercury-section > .resume-content {
   padding: 0 55px;
 }
 
 /* Section Header Styles - Gray Bar */
-.mercury-section-header {
-  background-color: #efefef;
+.mercury-section-header,
+.mercury-template h2[data-section-header] {
+  background-color: #f2f2f2;
   text-align: center;
   font-size: 13px;
   font-weight: bold;
-  text-transform: uppercase;
+  text-transform: none;
   padding: 8px 0;
   margin-top: 25px;
   margin-bottom: 15px;
-  letter-spacing: 1px;
+  letter-spacing: 0.3px;
   width: 100%;
+  color: #3d3d3d;
+  border-radius: 0;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+/* White gap between the profile header band and the first section heading */
+.mercury-section:first-of-type .mercury-section-header,
+.mercury-section:first-of-type h2[data-section-header] {
+  margin-top: 25px;
 }
 
 /* Timeline Layouts (Grid-based Date/Location on Left) */
@@ -248,7 +271,9 @@
 
 /* Print Overrides */
 @media print {
-  .mercury-header-section {
+  .mercury-header-section,
+  .mercury-section-header,
+  .mercury-template h2[data-section-header] {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
