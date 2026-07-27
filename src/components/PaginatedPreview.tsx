@@ -18,9 +18,8 @@ import {
   A4_HEIGHT_MM,
   A4_WIDTH_MM,
   ATLANTIC_BLUE_PAGINATED_PAGE_BG,
-  mergeLayoutPaddingWithTemplateStyle,
   pageVerticalGuttersMm,
-  resolveLayoutPaddingMm,
+  resolveEffectiveLayoutPaddingMm,
 } from "@/lib/resume-page-dimensions";
 import { debugResumePagination } from "@/lib/debug-resume-pagination";
 import { buildResumeContentMeasureKey } from "@/lib/resume-content-measure-key";
@@ -133,13 +132,12 @@ export const PaginatedPreview: React.FC<PaginatedPreviewProps> = ({
 
   const paddingMm = useMemo(() => {
     const templatePadding = getTemplateStyle(getExtendedTemplate(template)).padding;
-    return resolveLayoutPaddingMm(
-      mergeLayoutPaddingWithTemplateStyle(
-        currentLayout.padding as
-          | { top: number; bottom: number; left: number; right: number }
-          | undefined,
-        templatePadding,
-      ),
+    return resolveEffectiveLayoutPaddingMm(
+      template.id,
+      currentLayout.padding as
+        | { top: number; bottom: number; left: number; right: number }
+        | undefined,
+      templatePadding,
     );
   }, [template, currentLayout.type, currentLayout.padding?.top, currentLayout.padding?.bottom, currentLayout.padding?.left, currentLayout.padding?.right]);
 

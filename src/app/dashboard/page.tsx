@@ -36,6 +36,8 @@ import {
   Coins,
   Lock,
   UsersRound,
+  ChevronLeft,
+  ChevronRight,
   Percent,
   X,
   FileCheck,
