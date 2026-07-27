@@ -106,7 +106,7 @@
 
 .atlantic-blue-left-column .atlantic-blue-name {
   font-family: var(--ab-font-display);
-  font-size: 28px;
+  font-size: var(--resume-heading-font-size, 28px);
   font-weight: 700;
   color: var(--ab-sidebar-text) !important;
   margin: 0 0 8px 0;
@@ -117,7 +117,7 @@
 .atlantic-blue-left-column .atlantic-blue-job-title {
   font-style: normal !important;
   font-family: var(--ab-font-body);
-  font-size: 15px !important;
+  font-size: var(--resume-subheading-font-size, 15px) !important;
   font-weight: 400;
   color: var(--ab-sidebar-muted) !important;
   margin: 0;
@@ -152,7 +152,7 @@
 .atlantic-blue-left-column .atlantic-blue-contact-item,
 .atlantic-blue-left-column a {
   color: var(--ab-sidebar-text) !important;
-  font-size: 11px;
+  font-size: var(--resume-small-font-size, 11px);
   line-height: 1.45;
 }
 
@@ -167,7 +167,7 @@
   background-color: var(--ab-sidebar-accent) !important;
   color: var(--ab-sidebar-text) !important;
   text-align: left !important;
-  font-size: 11px !important;
+  font-size: var(--resume-section-header-font-size, 11px) !important;
   font-weight: 700 !important;
   letter-spacing: 0.06em !important;
   text-transform: uppercase !important;
@@ -194,7 +194,7 @@
   background-color: var(--ab-section-bar) !important;
   color: var(--ab-section-bar-text) !important;
   text-align: left !important;
-  font-size: 11px !important;
+  font-size: var(--resume-section-header-font-size, 11px) !important;
   font-weight: 700 !important;
   letter-spacing: 0.06em !important;
   text-transform: uppercase !important;
@@ -249,7 +249,7 @@
 }
 
 .atlantic-blue-name {
-  font-size: 28px;
+  font-size: var(--resume-heading-font-size, 28px);
   font-weight: bold;
   color: #2c3e50;
   margin-bottom: 8px;
@@ -257,7 +257,7 @@
 
 .atlantic-blue-job-title {
   font-style: normal !important;
-  font-size: 18px !important;
+  font-size: var(--resume-subheading-font-size, 18px) !important;
   color: #3498db !important;
   margin-bottom: 12px;
 }
@@ -269,13 +269,13 @@
 }
 
 .atlantic-blue-date-location {
-  font-size: 10px;
+  font-size: var(--resume-small-font-size, 10px);
   color: #666666;
   margin-bottom: 8px;
 }
 
 .atlantic-blue-description {
-  font-size: 11px;
+  font-size: var(--resume-body-font-size, 11px);
   color: #000000;
   line-height: 1.5;
 }

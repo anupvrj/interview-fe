@@ -18,7 +18,7 @@
 }
 
 .clean-slate-name {
-  font-size: 28px;
+  font-size: var(--resume-heading-font-size, 28px);
   font-weight: bold;
   color: #000000;
   margin-bottom: 8px;
@@ -26,7 +26,7 @@
 
 .clean-slate-job-title {
   font-style: normal !important;
-  font-size: 16px !important;
+  font-size: var(--resume-subheading-font-size, 16px) !important;
 
   color: #333333;
   margin-bottom: 12px;
@@ -36,7 +36,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
-  font-size: 11px;
+  font-size: var(--resume-small-font-size, 11px);
   color: #555555;
   margin-top: 12px;
 }
@@ -54,7 +54,7 @@
 
 /* Section Header Styles */
 .clean-slate-section-header {
-  font-size: 13px;
+  font-size: var(--resume-section-header-font-size, 13px);
   font-weight: bold;
   text-transform: uppercase;
   text-align: center;
@@ -67,7 +67,7 @@
 
 /* Profile Summary */
 .clean-slate-summary {
-  font-size: 11px;
+  font-size: var(--resume-body-font-size, 11px);
   line-height: 1.6;
   color: #000000;
   margin-bottom: 16px;
@@ -87,24 +87,24 @@
 }
 
 .clean-slate-job-title {
-  font-size: 12px;
+  font-size: var(--resume-subheading-font-size, 12px);
   font-weight: bold;
   color: #000000;
 }
 
 .clean-slate-job-date {
-  font-size: 10px;
+  font-size: var(--resume-small-font-size, 10px);
   color: #666666;
 }
 
 .clean-slate-company {
-  font-size: 11px;
+  font-size: var(--resume-body-font-size, 11px);
   color: #333333;
   margin-bottom: 6px;
 }
 
 .clean-slate-description {
-  font-size: 11px;
+  font-size: var(--resume-body-font-size, 11px);
   line-height: 1.5;
   color: #000000;
 }
@@ -130,14 +130,14 @@
 }
 
 .clean-slate-skill-category-name {
-  font-size: 11px;
+  font-size: var(--resume-degree-font-size, 11px);
   font-weight: bold;
   color: #000000;
   margin-bottom: 4px;
 }
 
 .clean-slate-skill-list {
-  font-size: 11px;
+  font-size: var(--resume-body-font-size, 11px);
   color: #333333;
   line-height: 1.5;
 }
@@ -148,20 +148,20 @@
 }
 
 .clean-slate-degree {
-  font-size: 12px;
+  font-size: var(--resume-degree-font-size, 12px);
   font-weight: bold;
   color: #000000;
   margin-bottom: 4px;
 }
 
 .clean-slate-institution {
-  font-size: 11px;
+  font-size: var(--resume-body-font-size, 11px);
   color: #333333;
   margin-bottom: 4px;
 }
 
 .clean-slate-education-date {
-  font-size: 10px;
+  font-size: var(--resume-small-font-size, 10px);
   color: #666666;
 }
 
@@ -171,21 +171,21 @@
 }
 
 .clean-slate-project-title {
-  font-size: 12px;
+  font-size: var(--resume-degree-font-size, 12px);
   font-weight: bold;
   color: #000000;
   margin-bottom: 4px;
 }
 
 .clean-slate-project-description {
-  font-size: 11px;
+  font-size: var(--resume-body-font-size, 11px);
   color: #333333;
   line-height: 1.5;
   margin-bottom: 4px;
 }
 
 .clean-slate-project-tech {
-  font-size: 10px;
+  font-size: var(--resume-body-font-size, 10px);
   color: #666666;
   font-style: italic;
 }

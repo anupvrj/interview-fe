@@ -5422,6 +5422,14 @@ export function ResumeRenderer({
               ["--cg-pad-bottom" as string]: `${templateStyle.padding.bottom}mm`,
             } as React.CSSProperties)
           : {}),
+        ...({
+            ["--resume-heading-font-size" as string]: `${templateStyle.fontSize.heading}px`,
+            ["--resume-subheading-font-size" as string]: `${templateStyle.fontSize.subheading}px`,
+            ["--resume-section-header-font-size" as string]: `${templateStyle.sectionHeader.fontSize}px`,
+            ["--resume-body-font-size" as string]: `${templateStyle.fontSize.body}px`,
+            ["--resume-small-font-size" as string]: `${templateStyle.fontSize.small}px`,
+            ["--resume-degree-font-size" as string]: `${templateStyle.fontSize.body + 1}px`,
+          } as React.CSSProperties),
         backgroundColor: "white",
         color: templateStyle.colors.text,
         fontFamily: templateStyle.fontFamily,
@@ -5566,7 +5574,7 @@ export function ResumeRenderer({
           }
           .saffron-line-template .saffron-line-section-header,
           .saffron-line-template h2[data-section-header] {
-            font-size: 12px !important;
+            font-size: var(--resume-section-header-font-size, 12px) !important;
             font-weight: 700 !important;
             font-family: Georgia, 'Times New Roman', serif !important;
             text-transform: uppercase !important;
@@ -5589,13 +5597,13 @@ export function ResumeRenderer({
             flex-shrink: 0 !important;
           }
           .saffron-line-template .saffron-line-name {
-            font-size: 28px !important;
+            font-size: var(--resume-heading-font-size, 28px) !important;
             font-weight: 700 !important;
             color: #2b2b2b !important;
           }
           .saffron-line-template .saffron-line-job-title {
             font-style: italic !important;
-            font-size: 15px !important;
+            font-size: var(--resume-subheading-font-size, 15px) !important;
             color: #2b2b2b !important;
             font-weight: 400 !important;
           }

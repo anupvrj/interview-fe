@@ -5,54 +5,30 @@ import {
   isResumePaginationDebugEnabled,
 } from "@/lib/debug-resume-pagination";
 import {
-  runResumePagination,
-  trimTrailingEmptySliverPages,
-  type PageBand,
-  type PaginationAtomicIfFitsBox,
-  type PaginationElementInput,
-} from "@/lib/resume-pagination-engine";
-import {
   getLastGoodPagesForResume,
   setLastGoodPagesForResume,
 } from "@/lib/resume-pagination-last-good-cache";
-import { resolvePaginationStraddleColumn } from "@/lib/resolve-pagination-straddle-column";
+import type { PageBand } from "@/lib/resume-pagination-engine";
 import {
-  measureTextLineBounds,
-  resolveTailSliverMaxPx,
-  snapResumePageBreaksToLineBounds,
-  cutSplitsTextLine,
-} from "@/lib/snap-resume-page-breaks";
+  buildMeasuredUnits,
+  type MeasuredUnit,
+} from "@/lib/resume-pagination/buildMeasuredUnits";
+import { packUnitsIntoPages } from "@/lib/resume-pagination/packUnitsIntoPages";
 
-/** Same shape as `PageBand` from the pagination engine (preview + PDF slices). */
+/** Same shape as `PageBand` (preview + PDF slices); kept for snapshot back-compat. */
 export type PageData = PageBand;
 
 interface PaginationOptions {
   resume: Resume | null;
   sections: any[];
-  pageHeightLimit: number; // Max content height per page in pixels
-  /** Snap cuts to text line bounds when true (PaginatedPreview enables for all templates). */
-  snapPageBreaksToLineBounds?: boolean;
-  /**
-   * Single key encoding every input that affects layout: section order/visibility,
-   * resume content, typography, padding, template, column layout. A change schedules
-   * a remeasure. The returned `pagesKey` reports which key the current `pages` belong to.
-   */
+  pageHeightLimit: number; // A4 content height per page (px)
   measureKey: string;
 }
 
-/** Coalesce rapid resume/section updates (typing, paste, drag) into one measure pass. */
 const PAGINATION_DEBOUNCE_MS = 120;
-
-/** Measure DOM not painted yet — retry up to this many frames before giving up. */
 const MAX_EMPTY_DOM_RETRIES = 16;
-
-/** Tall content but only one band (DOM mid-reflow) — retry this many times. */
 const MAX_UNDERPAGED_RETRIES = 4;
 
-/** Reserve px at the bottom of each page band so clip overflow does not slice text. */
-const PAGE_BOTTOM_CLIP_SAFETY_PX = 6;
-
-/** Wait for web fonts + two animation frames so measurements reflect final layout. */
 async function waitForLayoutSettle(): Promise<void> {
   if (typeof document !== "undefined" && "fonts" in document) {
     try {
@@ -66,34 +42,49 @@ async function waitForLayoutSettle(): Promise<void> {
   });
 }
 
+interface PaginationState {
+  pages: PageData[];
+  /** Visible unit ids per page (drives display:none rendering). */
+  pageUnits: string[][];
+  /** All known unit ids (used to decide which nodes are hideable). */
+  allUnitIds: string[];
+  pagesKey: string;
+}
+
+const EMPTY_STATE: PaginationState = { pages: [], pageUnits: [], allUnitIds: [], pagesKey: "" };
+
+function isTwoColumnLayout(units: MeasuredUnit[]): boolean {
+  return units.some((u) => u.column === "left" || u.column === "right");
+}
+
+/** Pack a single column's units; returns per-page unit-id lists. */
+function packColumn(units: MeasuredUnit[], pageHeightPx: number) {
+  return packUnitsIntoPages(units, pageHeightPx);
+}
+
 export function useResumePagination({
   resume,
   sections,
   pageHeightLimit,
-  snapPageBreaksToLineBounds = false,
   measureKey,
 }: PaginationOptions) {
   const measuringRef = useRef<HTMLDivElement>(null);
 
-  const [pages, setPages] = useState<PageData[]>(() =>
-    resume?.resumeId ? getLastGoodPagesForResume(resume.resumeId) ?? [] : [],
+  const [state, setState] = useState<PaginationState>(() =>
+    resume?.resumeId
+      ? { pages: getLastGoodPagesForResume(resume.resumeId) ?? [], pageUnits: [], allUnitIds: [], pagesKey: "" }
+      : EMPTY_STATE,
   );
-  /** The `measureKey` for which `pages` were last computed. */
-  const [pagesKey, setPagesKey] = useState("");
-  /** True only while there is nothing valid to show yet (first load / resume switch). */
   const [isPaginating, setIsPaginating] = useState(false);
 
-  // Latest inputs kept in refs so the measure routine + effects stay referentially stable.
-  const pagesRef = useRef<PageData[]>(pages);
-  pagesRef.current = pages;
+  const stateRef = useRef(state);
+  stateRef.current = state;
   const resumeRef = useRef(resume);
   resumeRef.current = resume;
   const sectionsRef = useRef(sections);
   sectionsRef.current = sections;
   const pageHeightLimitRef = useRef(pageHeightLimit);
   pageHeightLimitRef.current = pageHeightLimit;
-  const snapRef = useRef(snapPageBreaksToLineBounds);
-  snapRef.current = snapPageBreaksToLineBounds;
   const measureKeyRef = useRef(measureKey);
   measureKeyRef.current = measureKey;
 
@@ -102,165 +93,99 @@ export function useResumePagination({
   const underPagedRetriesRef = useRef(0);
   const measureNowRef = useRef<(keyForPass: string) => void>(() => {});
 
-  // Seed from cache on resume switch so we never flash the previous resume's bands.
   useLayoutEffect(() => {
     if (!resume?.resumeId) {
-      setPages([]);
-      setPagesKey("");
+      setState(EMPTY_STATE);
       return;
     }
     const cached = getLastGoodPagesForResume(resume.resumeId);
-    setPages(cached?.length ? cached : []);
-    setPagesKey("");
+    setState({ pages: cached?.length ? cached : [], pageUnits: [], allUnitIds: [], pagesKey: "" });
   }, [resume?.resumeId]);
 
   /**
-   * Synchronous measure + paginate against the live measure DOM. Commits a new
-   * `pages`/`pagesKey` pair only when it produces a stable, non-degenerate result.
-   * Self-retries (capped) while the DOM is still painting/reflowing.
+   * Measure the intact ResumeRenderer render into atomic units, then greedy bin-pack
+   * whole units per column into fixed-height A4 pages. The renderer stays whole on
+   * every page; PaginatedPreview hides the units that don't belong on a page via
+   * display:none, so they collapse out of flow and the remaining units pack to the
+   * top with no clipping and no gaps. Container CSS (timeline rails, grids, sidebar
+   * backgrounds) is preserved by construction.
    */
   const measureNow = useCallback((keyForPass: string) => {
-    // Abandon stale passes — a newer key has been scheduled.
     if (keyForPass !== measureKeyRef.current) return;
-
     const container = measuringRef.current;
     const activeResume = resumeRef.current;
     if (!container || !activeResume) return;
 
-    const containerRect = container.getBoundingClientRect();
     const fullHeight = Math.ceil(container.scrollHeight);
-
-    const headerNodes = Array.from(
-      container.querySelectorAll("[data-section-header]"),
-    );
-    const itemNodes = Array.from(container.querySelectorAll("[data-item-id]"));
     const activeSections = sectionsRef.current;
+    const { units, columnBudgets } = buildMeasuredUnits(
+      container,
+      pageHeightLimitRef.current,
+    );
 
-    // DOM not painted yet (no measurable nodes but sections are visible) → retry.
     if (
-      headerNodes.length === 0 &&
-      itemNodes.length === 0 &&
+      units.length === 0 &&
       activeSections.some((s: { visible?: boolean }) => s.visible !== false)
     ) {
       if (emptyDomRetriesRef.current < MAX_EMPTY_DOM_RETRIES) {
         emptyDomRetriesRef.current += 1;
         requestAnimationFrame(() => measureNowRef.current(keyForPass));
-      } else if (pagesRef.current.length === 0) {
+      } else if (stateRef.current.pages.length === 0) {
         setIsPaginating(false);
       }
       return;
     }
 
-    const atomicIfFitsNodes = Array.from(
-      container.querySelectorAll("[data-pagination-atomic-if-fits]"),
-    ) as HTMLElement[];
+    const twoColumn = isTwoColumnLayout(units);
+    const allUnitIds = units.map((u) => u.id);
 
-    const straddleColumnRoot = resolvePaginationStraddleColumn(container);
+    let pageUnits: string[][];
+    let pages: PageData[];
 
-    type MeasuredEl = PaginationElementInput & { node: HTMLElement };
-
-    const elements: PaginationElementInput[] = (
-      [...headerNodes, ...itemNodes].map((node) => {
-        const elementNode = node as HTMLElement;
-        const rect = elementNode.getBoundingClientRect();
-        const isHeader = elementNode.hasAttribute("data-section-header");
-        const textContent = elementNode.textContent?.trim() || "";
-        const hasRenderableChild =
-          elementNode.querySelector(
-            "img,svg,canvas,p,li,h1,h2,h3,h4,h5,h6,a,span,table",
-          ) !== null;
-        const useForStraddlingRules =
-          straddleColumnRoot === null ||
-          straddleColumnRoot.contains(elementNode);
-
-        return {
-          node: elementNode,
-          top: Math.floor(rect.top - containerRect.top),
-          bottom: Math.ceil(rect.bottom - containerRect.top),
-          height: Math.ceil(rect.height),
-          kind: (isHeader ? "header" : "item") as "header" | "item",
-          hasMeaningfulContent: isHeader
-            ? textContent.length > 0 || hasRenderableChild
-            : true,
-          useForStraddlingRules,
-        };
-      }) as MeasuredEl[]
-    )
-      .sort((a, b) => {
-        if (a.top !== b.top) return a.top - b.top;
-        const order =
-          a.node.compareDocumentPosition(b.node) &
-          Node.DOCUMENT_POSITION_FOLLOWING;
-        return order ? -1 : 1;
-      })
-      .map(({ node: _n, ...rest }) => rest);
-
-    const integerLimit = Math.max(
-      120,
-      Math.floor(pageHeightLimitRef.current) - PAGE_BOTTOM_CLIP_SAFETY_PX,
-    );
-
-    const atomicIfFitsOnOnePage: PaginationAtomicIfFitsBox[] =
-      atomicIfFitsNodes.map((node) => {
-        const r = node.getBoundingClientRect();
-        return {
-          top: Math.floor(r.top - containerRect.top),
-          bottom: Math.ceil(r.bottom - containerRect.top),
-        };
-      });
-
-    const textLines = measureTextLineBounds(container);
-    const tailSliverMaxPx = resolveTailSliverMaxPx(textLines);
-
-    let trimmedPages = runResumePagination(
-      fullHeight,
-      elements,
-      integerLimit,
-      atomicIfFitsOnOnePage,
-      tailSliverMaxPx,
-    );
-
-    if (snapRef.current) {
-      trimmedPages = snapResumePageBreaksToLineBounds(
-        container,
-        trimmedPages,
-        fullHeight,
-      );
-      trimmedPages = trimTrailingEmptySliverPages(trimmedPages, elements);
-      trimmedPages = snapResumePageBreaksToLineBounds(
-        container,
-        trimmedPages,
-        fullHeight,
-      );
+    if (twoColumn) {
+      const left = units.filter((u) => u.column === "left");
+      const right = units.filter((u) => u.column === "right");
+      // "single"-column units (e.g. Saffron Line's full-width personalInfo header) sit
+      // above both columns on page 1 only. They are not part of left/right packing; if
+      // we omitted them they would have no page assignment and vanish from every page.
+      const single = units.filter((u) => u.column === "single");
+      const leftPages = packColumn(left, columnBudgets.left);
+      const rightPages = packColumn(right, columnBudgets.right);
+      const pageCount = Math.max(leftPages.length, rightPages.length, 1);
+      const singleIds = single.map((u) => u.id);
+      pageUnits = [];
+      pages = [];
+      for (let i = 0; i < pageCount; i++) {
+        const li = leftPages[i]?.unitIds ?? [];
+        const ri = rightPages[i]?.unitIds ?? [];
+        const si = i === 0 ? singleIds : [];
+        pageUnits.push([...si, ...li, ...ri]);
+        // Representative Y-window for snapshot/page-delete back-compat: prefer the
+        // main (right) column, fall back to the left column.
+        const rep = rightPages[i] ?? leftPages[i];
+        pages.push({
+          pageNumber: i + 1,
+          offsetY: rep?.offsetY ?? 0,
+          height: rep?.height ?? 0,
+        });
+      }
+    } else {
+      const packed = packColumn(units, columnBudgets.single);
+      pageUnits = packed.map((p) => p.unitIds);
+      pages = packed.map((p) => ({
+        pageNumber: p.pageNumber,
+        offsetY: p.offsetY,
+        height: p.height,
+      }));
     }
 
-    trimmedPages = trimTrailingEmptySliverPages(trimmedPages, elements);
-
-    const finalTextLines = measureTextLineBounds(container);
-    const hasMidLinePageCut =
-      snapRef.current &&
-      finalTextLines.length > 0 &&
-      trimmedPages.length > 1 &&
-      trimmedPages.slice(0, -1).some((page) =>
-        cutSplitsTextLine(page.offsetY + page.height, finalTextLines),
-      );
-
-    if (
-      hasMidLinePageCut &&
-      underPagedRetriesRef.current < MAX_UNDERPAGED_RETRIES
-    ) {
-      underPagedRetriesRef.current += 1;
-      requestAnimationFrame(() => measureNowRef.current(keyForPass));
-      return;
-    }
-
-    // Under-paged guard: content clearly spans >1 page but we only got one band
-    // (DOM still reflowing). Retry instead of committing a clipped single page.
-    const lastBand = trimmedPages[trimmedPages.length - 1];
+    // Under-paged guard: content clearly spans >1 page but we only got one (DOM reflowing).
+    const minBudget = Math.min(columnBudgets.left, columnBudgets.right, columnBudgets.single);
+    const lastBand = pages[pages.length - 1];
     const spanEnd = lastBand ? lastBand.offsetY + lastBand.height : 0;
     if (
-      trimmedPages.length === 1 &&
-      fullHeight > integerLimit + 48 &&
+      pages.length === 1 &&
+      fullHeight > minBudget + 48 &&
       fullHeight > spanEnd + 32 &&
       underPagedRetriesRef.current < MAX_UNDERPAGED_RETRIES
     ) {
@@ -277,35 +202,27 @@ export function useResumePagination({
       debugResumePagination("pagination:measure", {
         keyHead: keyForPass.slice(0, 80),
         fullHeight,
-        integerLimit,
-        headerCount: headerNodes.length,
-        itemCount: itemNodes.length,
-        pagesCount: trimmedPages.length,
+        twoColumn,
+        unitsCount: units.length,
+        pagesCount: pages.length,
       });
     }
 
-    // Atomic commit: bands + the key (and therefore the content) they describe.
-    setPages(trimmedPages);
-    setPagesKey(keyForPass);
+    setState({ pages, pageUnits, allUnitIds, pagesKey: keyForPass });
     setIsPaginating(false);
-
-    if (activeResume.resumeId && trimmedPages.length > 0) {
-      setLastGoodPagesForResume(activeResume.resumeId, trimmedPages);
+    if (activeResume.resumeId && pages.length > 0) {
+      setLastGoodPagesForResume(activeResume.resumeId, pages);
     }
   }, []);
 
   measureNowRef.current = measureNow;
 
-  // Single scheduler: remeasure whenever the layout-affecting key changes.
   useLayoutEffect(() => {
     if (!resume?.resumeId || !measureKey) return;
-
     let cancelled = false;
-    // Keep the last good pages on screen; only show the spinner when nothing exists yet.
-    setIsPaginating(pagesRef.current.length === 0);
+    setIsPaginating(stateRef.current.pages.length === 0);
     emptyDomRetriesRef.current = 0;
     underPagedRetriesRef.current = 0;
-
     const timer = globalThis.setTimeout(() => {
       void (async () => {
         await waitForLayoutSettle();
@@ -313,19 +230,16 @@ export function useResumePagination({
         measureNowRef.current(measureKey);
       })();
     }, PAGINATION_DEBOUNCE_MS);
-
     return () => {
       cancelled = true;
       globalThis.clearTimeout(timer);
     };
   }, [measureKey, resume?.resumeId]);
 
-  // Catch async layout growth (fonts, images, TipTap reflow) that doesn't change measureKey.
   useEffect(() => {
     if (!resume?.resumeId) return;
     const el = measuringRef.current;
     if (!el || typeof ResizeObserver === "undefined") return;
-
     let debounce: ReturnType<typeof setTimeout> | null = null;
     const ro = new ResizeObserver(() => {
       if (debounce) globalThis.clearTimeout(debounce);
@@ -334,7 +248,6 @@ export function useResumePagination({
         const node = measuringRef.current;
         if (!node) return;
         const h = Math.ceil(node.scrollHeight);
-        // Ignore the resize caused by our own just-completed measure.
         if (Math.abs(h - lastMeasuredHeightRef.current) < 2) return;
         void (async () => {
           await waitForLayoutSettle();
@@ -345,9 +258,7 @@ export function useResumePagination({
         })();
       }, PAGINATION_DEBOUNCE_MS);
     });
-
     ro.observe(el, { box: "border-box" });
-
     return () => {
       ro.disconnect();
       if (debounce) globalThis.clearTimeout(debounce);
@@ -355,8 +266,10 @@ export function useResumePagination({
   }, [resume?.resumeId]);
 
   return {
-    pages,
-    pagesKey,
+    pages: state.pages,
+    pageUnits: state.pageUnits,
+    allUnitIds: state.allUnitIds,
+    pagesKey: state.pagesKey,
     isPaginating,
     measuringRef,
   };
