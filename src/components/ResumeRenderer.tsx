@@ -411,10 +411,6 @@ export function ResumeRenderer({
 }: ResumeRendererProps) {
   const extendedTemplate = getExtendedTemplate(template);
 
-  // --- V2 ENGINE ROUTER ---
-  // If the template is Mercury (or configured to use ProfileHeaderLayout), use the new V2 engine.
-  // This isolates Mercury from the legacy renderer to prevent regressions.
-
   const baseTemplateStyle = getTemplateStyle(extendedTemplate);
   const resumeLayout = layout || resume.layout || { type: "single" };
   const layoutTypo = resumeLayout as {

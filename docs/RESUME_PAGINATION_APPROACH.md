@@ -40,4 +40,3 @@ This approach keeps the renderer byte-identical (no per-unit render path, no sec
 ## Follow-ups (deferred)
 
 - **`data-item-body-block` markers in `ResumeRenderer`**: splitting item bodies at paragraph/`<li>` boundaries so long bullet lists flow across pages instead of being moved whole. Requires splitting the body HTML render (a structural renderer change), so it was deferred to keep the initial ship renderer-untouched. Without it, an item body taller than a full page is placed alone via `isOnEmptyPage` and clipped by the page box's `overflow: hidden` safety net (same overflow behavior as today).
-- **Retire the old band engine**: `resume-pagination-engine.ts`, `snap-resume-page-breaks.ts`, `resolve-pagination-straddle-column.ts`, and their tests are no longer used by the hook (single and two-column now both use the unit packer + display:none). They can be deleted once the new engine is verified across all 18 templates.

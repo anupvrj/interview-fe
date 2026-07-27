@@ -8,15 +8,17 @@ import {
   getLastGoodPagesForResume,
   setLastGoodPagesForResume,
 } from "@/lib/resume-pagination-last-good-cache";
-import type { PageBand } from "@/lib/resume-pagination-engine";
 import {
   buildMeasuredUnits,
   type MeasuredUnit,
 } from "@/lib/resume-pagination/buildMeasuredUnits";
-import { packUnitsIntoPages } from "@/lib/resume-pagination/packUnitsIntoPages";
+import {
+  packUnitsIntoPages,
+  type PackedPage,
+} from "@/lib/resume-pagination/packUnitsIntoPages";
 
-/** Same shape as `PageBand` (preview + PDF slices); kept for snapshot back-compat. */
-export type PageData = PageBand;
+/** Preview/PDF page slice from the unit packer. */
+export type PageData = PackedPage;
 
 interface PaginationOptions {
   resume: Resume | null;
@@ -159,12 +161,14 @@ export function useResumePagination({
         const li = leftPages[i]?.unitIds ?? [];
         const ri = rightPages[i]?.unitIds ?? [];
         const si = i === 0 ? singleIds : [];
-        pageUnits.push([...si, ...li, ...ri]);
+        const unitIds = [...si, ...li, ...ri];
+        pageUnits.push(unitIds);
         // Representative Y-window for snapshot/page-delete back-compat: prefer the
         // main (right) column, fall back to the left column.
         const rep = rightPages[i] ?? leftPages[i];
         pages.push({
           pageNumber: i + 1,
+          unitIds,
           offsetY: rep?.offsetY ?? 0,
           height: rep?.height ?? 0,
         });
@@ -172,11 +176,7 @@ export function useResumePagination({
     } else {
       const packed = packColumn(units, columnBudgets.single);
       pageUnits = packed.map((p) => p.unitIds);
-      pages = packed.map((p) => ({
-        pageNumber: p.pageNumber,
-        offsetY: p.offsetY,
-        height: p.height,
-      }));
+      pages = packed;
     }
 
     // Under-paged guard: content clearly spans >1 page but we only got one (DOM reflowing).
