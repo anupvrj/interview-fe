@@ -1,5 +1,5 @@
 import type { ResumeTemplate } from "@/lib/api";
-import type { PageBand } from "@/lib/resume-pagination-engine";
+import type { PackedPage } from "@/lib/resume-pagination/packUnitsIntoPages";
 import {
   collectPageSectionPresence,
   resolveSectionPrimaryPage,
@@ -344,7 +344,7 @@ function buildSingleRearrangePage(
 export function groupSectionsIntoPagesFromPagination(
   partition: Omit<RearrangePartition, "hiddenSections">,
   measureContainer: HTMLElement | null,
-  pages: Pick<PageBand, "pageNumber" | "offsetY" | "height">[],
+  pages: Pick<PackedPage, "pageNumber" | "offsetY" | "height">[],
 ): RearrangePageLayout[] {
   if (!measureContainer || pages.length === 0) {
     return [];

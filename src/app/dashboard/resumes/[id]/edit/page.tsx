@@ -322,6 +322,7 @@ export default function EditResumePage() {
   const paginationSnapshotRef = useRef<ResumePaginationSnapshot>({
     pages: [],
     rawPages: [],
+    pageUnits: [],
     measureRoot: null,
     isCalculated: false,
   });

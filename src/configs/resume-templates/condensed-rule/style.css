@@ -30,7 +30,7 @@
 
 .condensed-rule-header-top .condensed-rule-name {
   display: block;
-  font-size: 24px !important;
+  font-size: var(--resume-heading-font-size, 24px) !important;
   font-weight: 700 !important;
   color: #1a1a1a !important;
   letter-spacing: 0.2px;
@@ -43,7 +43,7 @@
 }
 
 .condensed-rule-name {
-  font-size: 24px !important;
+  font-size: var(--resume-heading-font-size, 24px) !important;
   font-weight: 700 !important;
   color: #1a1a1a !important;
   letter-spacing: 0.2px;
@@ -64,7 +64,7 @@
 
 .condensed-rule-job-title {
   font-style: italic !important;
-  font-size: 14px !important;
+  font-size: var(--resume-subheading-font-size, 14px) !important;
   color: #1a1a1a !important;
   font-weight: 400 !important;
   margin: 0 !important;
@@ -76,7 +76,7 @@
 }
 
 .condensed-rule-contact {
-  font-size: 9.5px !important;
+  font-size: var(--resume-small-font-size, 9.5px) !important;
   font-weight: 400 !important;
   color: #555555 !important;
   line-height: 1.4;
@@ -95,7 +95,7 @@
 .condensed-rule-section-header,
 .condensed-rule-template h2[data-section-header],
 .condensed-rule-template h2 {
-  font-size: 11px !important;
+  font-size: var(--resume-section-header-font-size, 11px) !important;
   font-weight: 700 !important;
   font-style: normal !important;
   text-transform: uppercase;
@@ -118,7 +118,7 @@
 }
 
 .condensed-rule-summary {
-  font-size: 10.5px;
+  font-size: var(--resume-body-font-size, 10.5px);
   font-weight: 400;
   line-height: 1.45;
   color: #1a1a1a;
@@ -148,7 +148,7 @@
 
 .condensed-rule-company {
   display: inline;
-  font-size: 11px !important;
+  font-size: var(--resume-body-font-size, 11px) !important;
   font-weight: 700 !important;
   color: #1a1a1a !important;
   font-style: normal !important;
@@ -161,7 +161,7 @@
 
 .condensed-rule-job-title-exp {
   display: inline;
-  font-size: 11px !important;
+  font-size: var(--resume-degree-font-size, 11px) !important;
   font-weight: 400 !important;
   font-style: italic !important;
   color: #1a1a1a !important;
@@ -176,7 +176,7 @@
 
 .condensed-rule-job-date,
 .condensed-rule-education-date {
-  font-size: 9.5px;
+  font-size: var(--resume-small-font-size, 9.5px);
   font-weight: 400;
   color: #555555;
   line-height: 1.3;
@@ -184,14 +184,14 @@
 
 .condensed-rule-job-location,
 .condensed-rule-education-location {
-  font-size: 9.5px;
+  font-size: var(--resume-small-font-size, 9.5px);
   font-weight: 400;
   color: #555555;
   line-height: 1.3;
 }
 
 .condensed-rule-description {
-  font-size: 10.5px;
+  font-size: var(--resume-body-font-size, 10.5px);
   font-weight: 400;
   line-height: 1.45;
   color: #1a1a1a;
@@ -243,14 +243,14 @@
 
 .condensed-rule-degree {
   display: inline;
-  font-size: 11px !important;
+  font-size: var(--resume-degree-font-size, 11px) !important;
   font-weight: 700 !important;
   color: #1a1a1a !important;
 }
 
 .condensed-rule-institution {
   display: inline;
-  font-size: 11px !important;
+  font-size: var(--resume-body-font-size, 11px) !important;
   font-weight: 400 !important;
   font-style: italic !important;
   color: #1a1a1a !important;
@@ -264,7 +264,7 @@
 
 .condensed-rule-project-subtitle {
   display: inline;
-  font-size: 11px !important;
+  font-size: var(--resume-degree-font-size, 11px) !important;
   font-weight: 400 !important;
   font-style: italic !important;
   color: #1a1a1a !important;
@@ -272,7 +272,7 @@
 
 /* ── Skills / Languages / Certificates: inline pipe-separated ── */
 .condensed-rule-inline-list {
-  font-size: 10.5px;
+  font-size: var(--resume-body-font-size, 10.5px);
   font-weight: 400;
   line-height: 1.45;
   color: #1a1a1a;

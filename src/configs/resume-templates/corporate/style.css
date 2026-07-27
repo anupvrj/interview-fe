@@ -20,7 +20,7 @@
 }
 
 .corporate-name {
-  font-size: 22px;
+  font-size: var(--resume-heading-font-size, 22px);
   font-weight: bold;
   color: #000000;
   margin: 0 0 8px 0;
@@ -29,7 +29,7 @@
 
 .corporate-job-title {
   font-style: normal !important;
-  font-size: 16px !important;
+  font-size: var(--resume-subheading-font-size, 16px) !important;
   color: #7f8c8d;
   margin: 0 0 12px 0;
 }
@@ -39,7 +39,7 @@
   justify-content: center;
   flex-wrap: wrap;
   gap: 12px;
-  font-size: 11px;
+  font-size: var(--resume-small-font-size, 11px);
   color: #34495e;
   margin-top: 12px;
 }
@@ -70,7 +70,7 @@
 .corporate-template h2[data-section-header].corporate-section-header {
   margin: 0;
   padding: 0;
-  font-size: 12px;
+  font-size: var(--resume-section-header-font-size, 12px);
   font-weight: bold;
   line-height: 1.2;
   text-transform: uppercase;
@@ -82,7 +82,7 @@
 
 /* Profile Summary */
 .corporate-summary {
-  font-size: 11px;
+  font-size: var(--resume-body-font-size, 11px);
   line-height: 1.6;
   color: #000000;
   margin-bottom: 16px;
@@ -103,24 +103,24 @@
 }
 
 .corporate-job-title-exp {
-  font-size: 11px;
+  font-size: var(--resume-degree-font-size, 11px);
   font-weight: bold;
   color: #000000;
 }
 
 .corporate-job-date {
-  font-size: 10px;
+  font-size: var(--resume-small-font-size, 10px);
   color: #7f8c8d;
 }
 
 .corporate-company {
-  font-size: 11px;
+  font-size: var(--resume-body-font-size, 11px);
   color: #34495e;
   margin-bottom: 6px;
 }
 
 .corporate-description {
-  font-size: 11px;
+  font-size: var(--resume-body-font-size, 11px);
   line-height: 1.5;
   color: #000000;
 }
@@ -136,7 +136,7 @@
 
 /* Skills Styles */
 .corporate-skills-list {
-  font-size: 11px;
+  font-size: var(--resume-body-font-size, 11px);
   color: #000000;
   line-height: 1.6;
 }
@@ -157,20 +157,20 @@
 }
 
 .corporate-degree {
-  font-size: 11px;
+  font-size: var(--resume-degree-font-size, 11px);
   font-weight: bold;
   color: #000000;
   margin-bottom: 4px;
 }
 
 .corporate-institution {
-  font-size: 11px;
+  font-size: var(--resume-body-font-size, 11px);
   color: #34495e;
   margin-bottom: 4px;
 }
 
 .corporate-education-date {
-  font-size: 10px;
+  font-size: var(--resume-small-font-size, 10px);
   color: #7f8c8d;
 }
 

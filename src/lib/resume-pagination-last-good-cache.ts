@@ -1,8 +1,8 @@
-import type { PageBand } from "@/lib/resume-pagination-engine";
+import type { PackedPage } from "@/lib/resume-pagination/packUnitsIntoPages";
 
-const lastGoodPagesByResumeId = new Map<string, PageBand[]>();
+const lastGoodPagesByResumeId = new Map<string, PackedPage[]>();
 
-export function getLastGoodPagesForResume(resumeId: string): PageBand[] | undefined {
+export function getLastGoodPagesForResume(resumeId: string): PackedPage[] | undefined {
   const rows = lastGoodPagesByResumeId.get(resumeId);
   if (!rows?.length) return undefined;
   return rows.map((p) => ({ ...p }));
@@ -10,7 +10,7 @@ export function getLastGoodPagesForResume(resumeId: string): PageBand[] | undefi
 
 export function setLastGoodPagesForResume(
   resumeId: string,
-  pages: PageBand[],
+  pages: PackedPage[],
 ): void {
   if (pages.length === 0) {
     return;

@@ -46,7 +46,7 @@
 }
 
 .navy-frame-name {
-  font-size: 26px !important;
+  font-size: var(--resume-heading-font-size, 26px) !important;
   font-weight: 700 !important;
   text-transform: uppercase !important;
   letter-spacing: 0.5px !important;
@@ -73,7 +73,7 @@
   display: flex;
   align-items: baseline;
   gap: 6px;
-  font-size: 10px;
+  font-size: var(--resume-small-font-size, 10px);
   line-height: 1.45;
   color: #1f2937 !important;
 }
@@ -99,7 +99,7 @@
 /* Section headers */
 .navy-frame-section-header,
 .navy-frame-template h2 {
-  font-size: 12px !important;
+  font-size: var(--resume-section-header-font-size, 12px) !important;
   font-weight: 700;
   text-transform: uppercase;
   text-align: left;
@@ -116,7 +116,7 @@
 }
 
 .navy-frame-summary {
-  font-size: 11px;
+  font-size: var(--resume-body-font-size, 11px);
   line-height: 1.5;
   color: #1f2937;
 }
@@ -127,13 +127,13 @@
 }
 
 .navy-frame-job-title-exp {
-  font-size: 12px;
+  font-size: var(--resume-degree-font-size, 12px);
   font-weight: 700;
   color: #1f2937;
 }
 
 .navy-frame-company {
-  font-size: 11px;
+  font-size: var(--resume-body-font-size, 11px);
   color: #5a6b7d;
   margin-bottom: 3px;
 }
@@ -141,14 +141,14 @@
 .navy-frame-job-date,
 .navy-frame-job-location,
 .navy-frame-job-meta {
-  font-size: 11px;
+  font-size: var(--resume-small-font-size, 11px);
   font-weight: 700;
   color: #1f2937;
   line-height: 1.3;
 }
 
 .navy-frame-description {
-  font-size: 11px;
+  font-size: var(--resume-body-font-size, 11px);
   line-height: 1.5;
   color: #1f2937;
 }
@@ -163,24 +163,24 @@
 }
 
 .navy-frame-degree {
-  font-size: 12px;
+  font-size: var(--resume-degree-font-size, 12px);
   font-weight: 700;
   color: #1f2937;
 }
 
 .navy-frame-institution {
-  font-size: 11px;
+  font-size: var(--resume-body-font-size, 11px);
   color: #5a6b7d;
 }
 
 .navy-frame-education-date {
-  font-size: 11px;
+  font-size: var(--resume-small-font-size, 11px);
   font-weight: 700;
   color: #1f2937;
 }
 
 .navy-frame-skill-item {
-  font-size: 11px;
+  font-size: var(--resume-body-font-size, 11px);
   color: #1f2937;
   position: relative;
   padding-left: 12px;
