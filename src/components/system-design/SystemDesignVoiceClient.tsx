@@ -16,6 +16,7 @@ import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { pickRandomPersona } from "@/lib/aiPersonas";
 import type { AIInterviewerPersona } from "@/lib/aiPersonas";
+import { BENIGN_ACTIVE_INTERVIEW_WS_CLOSE_CODES } from "@/lib/interviewWebSocketPolicy";
 
 const TARGET_SAMPLE_RATE = 24000;
 const GEMINI_MIC_FRAME_SAMPLES_24K = 720;
@@ -109,6 +110,11 @@ export const SystemDesignVoiceClient = forwardRef<
   /** After user clicks Start New Session: connect then auto-run mic + greeting. */
   const pendingConnectThenStartRef = useRef(false);
   const voiceActiveRef = useRef(false);
+  /** Silent auto-reconnect on benign WS drops (mirrors the mock-interview client). */
+  const autoReconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const reconnectAttemptRef = useRef(0);
+  /** Manual reconnect (not a drop) resets the attempt counter. */
+  const MAX_AUTO_RECONNECT_ATTEMPTS = 5;
   /** Latest onForceEnd — kept in a ref so the WS handler never sees a stale closure. */
   const onForceEndRef = useRef<Props["onForceEnd"]>(onForceEnd);
   useEffect(() => {
@@ -331,6 +337,11 @@ export const SystemDesignVoiceClient = forwardRef<
 
   const cleanupAll = () => {
     releaseVoiceCodecResources();
+    if (autoReconnectTimerRef.current) {
+      clearTimeout(autoReconnectTimerRef.current);
+      autoReconnectTimerRef.current = null;
+    }
+    reconnectAttemptRef.current = 0;
     const ws = wsRef.current;
     if (ws) {
       try {
@@ -352,6 +363,10 @@ export const SystemDesignVoiceClient = forwardRef<
   useImperativeHandle(ref, () => ({
     flushAndDisconnect: async () => {
       voiceActiveRef.current = false;
+      if (autoReconnectTimerRef.current) {
+        clearTimeout(autoReconnectTimerRef.current);
+        autoReconnectTimerRef.current = null;
+      }
 
       await new Promise<void>((resolve) => {
         let settled = false;
@@ -753,6 +768,8 @@ export const SystemDesignVoiceClient = forwardRef<
             void ensurePlaybackContext();
             setConnected(true);
             setConnecting(false);
+            // Successful (re)connect — clear the auto-reconnect backoff.
+            reconnectAttemptRef.current = 0;
             if (pendingConnectThenStartRef.current) {
               pendingConnectThenStartRef.current = false;
               void startVoiceInterview();
@@ -760,6 +777,7 @@ export const SystemDesignVoiceClient = forwardRef<
           } else if (data.type === "reconnected") {
             void ensurePlaybackContext();
             setConnected(true);
+            reconnectAttemptRef.current = 0;
             setStatusLine("Voice session resumed");
           } else if (data.type === "reconnecting") {
             setStatusLine("Reconnecting…");
@@ -830,14 +848,44 @@ export const SystemDesignVoiceClient = forwardRef<
         }
       };
 
-      ws.onclose = () => {
+      ws.onclose = (event) => {
         flushWaitSettleRef.current?.();
         stopHeartbeat();
         setConnected(false);
         connectionInitiated.current = false;
         wsRef.current = null;
         pendingConnectThenStartRef.current = false;
-        if (!voiceActiveRef.current) setStartupInFlight(false);
+        if (!voiceActiveRef.current) {
+          setStartupInFlight(false);
+          return;
+        }
+
+        // Voice interview is active — a drop here would silently kill the session.
+        // Benign proxy/rotation/abnormal closes auto-reconnect; the backend resumes
+        // continuity from Mongo (loadContinuityInstruction) so the AI does not re-greet.
+        const code = event.code;
+        const treatAsBenign =
+          BENIGN_ACTIVE_INTERVIEW_WS_CLOSE_CODES.has(code) || code === 0;
+        if (!treatAsBenign) {
+          setError("Something went wrong at server side. Tap Resume to reconnect.");
+          return;
+        }
+        if (reconnectAttemptRef.current >= MAX_AUTO_RECONNECT_ATTEMPTS) {
+          setStatusLine(null);
+          setError("Connection lost. Tap Resume to reconnect without losing progress.");
+          return;
+        }
+
+        reconnectAttemptRef.current += 1;
+        setStatusLine("Reconnecting…");
+        if (autoReconnectTimerRef.current) clearTimeout(autoReconnectTimerRef.current);
+        autoReconnectTimerRef.current = setTimeout(() => {
+          autoReconnectTimerRef.current = null;
+          if (!voiceActiveRef.current || connectionInitiated.current) return;
+          // Re-run mic + start_interview once the fresh socket reports "connected".
+          pendingConnectThenStartRef.current = true;
+          connectWebSocket();
+        }, 2000);
       };
     } catch (e) {
       connectionInitiated.current = false;

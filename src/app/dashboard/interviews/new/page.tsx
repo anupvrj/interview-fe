@@ -210,6 +210,7 @@ export default function NewInterviewPage() {
     discipline: "",
     targetCompany: "",
     duration: "15",
+    jobDescription: "",
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [limitCheck, setLimitCheck] = useState<any>(null);
@@ -415,6 +416,7 @@ export default function NewInterviewPage() {
         useSavedResume:
           useSavedResume && savedResumeAvailable ? true : undefined,
         duration: parseInt(formData.duration),
+        jobDescription: formData.jobDescription.trim() || undefined,
       });
 
       router.push(`/interview/${response.data.interviewId}/realtime`);
@@ -545,6 +547,35 @@ export default function NewInterviewPage() {
                   className={controlClass}
                 />
               </FormField>
+
+              <div className="sm:col-span-2">
+                <FormField
+                  label="Job description"
+                  htmlFor="jobDescription"
+                  optional
+                  hint="Paste the JD to make the interview JD-driven — questions align to the listed skills and responsibilities."
+                >
+                  <textarea
+                    id="jobDescription"
+                    rows={5}
+                    maxLength={5000}
+                    placeholder="Paste the job description here (optional)…"
+                    value={formData.jobDescription}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        jobDescription: e.target.value,
+                      })
+                    }
+                    className={cn(
+                      "w-full rounded-[0.625rem] border border-border/60 bg-card p-3 text-sm shadow-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-[#7367F0]/40",
+                    )}
+                  />
+                  <p className="text-right text-xs text-muted-foreground">
+                    {formData.jobDescription.length}/5000
+                  </p>
+                </FormField>
+              </div>
             </div>
           ) : null}
 

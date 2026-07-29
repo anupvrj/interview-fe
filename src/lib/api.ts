@@ -478,6 +478,8 @@ export interface CreateInterviewRequest {
   useSavedResume?: boolean;
   /** Interview duration in minutes: 15 (default) or 30 (premium & enterprise). */
   duration?: number;
+  /** Optional pasted job description — makes the interview JD-driven. */
+  jobDescription?: string;
 }
 
 export interface CreateInterviewResponse {
@@ -670,6 +672,9 @@ export const interviewApi = {
     }
     if (data.duration) {
       formData.append("duration", data.duration.toString());
+    }
+    if (data.jobDescription && data.jobDescription.trim()) {
+      formData.append("jobDescription", data.jobDescription.trim());
     }
     if (data.resume) {
       const resumeBlob = await snapshotFileForUpload(data.resume);
