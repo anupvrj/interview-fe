@@ -120,6 +120,13 @@ function isRecruiterApplyNavPath(pathname: string | null): boolean {
   );
 }
 
+function isSuperAdminSystemDesignProblemsPath(pathname: string | null): boolean {
+  return (
+    pathname?.startsWith("/dashboard/super-admin/system-design-problems") ??
+    false
+  );
+}
+
 function isSuperAdminNotificationHubPath(pathname: string | null): boolean {
   return (
     pathname?.startsWith("/dashboard/super-admin/notification-hub") ?? false
@@ -132,6 +139,7 @@ function isSuperAdminHomePath(pathname: string | null): boolean {
     isSuperAdminPeerInterviewersPath(pathname) ||
     isSuperAdminPeerBookingsPath(pathname) ||
     isSuperAdminIxRecruitersPath(pathname) ||
+    isSuperAdminSystemDesignProblemsPath(pathname) ||
     isSuperAdminNotificationHubPath(pathname)
   ) {
     return false;
@@ -209,6 +217,9 @@ function resolveNavActive(
   }
   if (item.href === "/dashboard/super-admin/ix-recruiters") {
     isActive = isSuperAdminIxRecruitersPath(pathname);
+  }
+  if (item.href === "/dashboard/super-admin/system-design-problems") {
+    isActive = isSuperAdminSystemDesignProblemsPath(pathname);
   }
   if (item.href === "/dashboard/super-admin/notification-hub") {
     isActive = isSuperAdminNotificationHubPath(pathname);

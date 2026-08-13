@@ -2,12 +2,11 @@
 
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import {
-  Briefcase,
   Code2,
+  Compass,
   FileEdit,
   FileText,
   Network,
-  Sparkles,
   UsersRound,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -46,12 +45,6 @@ const floatingIcons = [
     shell: "bg-violet-400/10 border-violet-300/15",
     animation: "float-1 17s ease-in-out infinite 0.5s",
   },
-  {
-    Icon: Briefcase,
-    className: "left-[70%] top-[64%] text-rose-200/50",
-    shell: "bg-rose-400/10 border-rose-300/15",
-    animation: "float-0 16s ease-in-out infinite 1s",
-  },
 ] as const;
 
 const featurePills = [
@@ -60,7 +53,6 @@ const featurePills = [
   { label: "Coding", dot: "bg-cyan-400" },
   { label: "System design", dot: "bg-indigo-400" },
   { label: "Peer sessions", dot: "bg-violet-400" },
-  { label: "Job hunt", dot: "bg-rose-400" },
 ] as const;
 
 type PreviewCard = {
@@ -197,7 +189,7 @@ function HeroPreviewCarousel() {
 
 export function DashboardWelcomeHero({
   firstName,
-  description = "Your hub for resumes, AI Interview Practice and coding practice, peer sessions, and job hunt—InterviewTrix as your end-to-end career partner.",
+  description = "Your hub for resumes, AI Interview Practice and coding practice, peer sessions, and system design—InterviewTrix as your end-to-end career partner.",
 }: {
   firstName: string;
   description?: string;
@@ -258,7 +250,7 @@ export function DashboardWelcomeHero({
       <div className="relative z-10 flex flex-col gap-4 p-5 sm:p-6 lg:flex-row lg:items-center lg:justify-between lg:gap-8 lg:p-8">
         <div className="min-w-0 max-w-2xl space-y-3">
           <div className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.1em] text-white/90 backdrop-blur-sm">
-            <Sparkles className="h-3.5 w-3.5 text-amber-200" />
+            <Compass className="h-3.5 w-3.5 text-amber-200" />
             Career hub
           </div>
 

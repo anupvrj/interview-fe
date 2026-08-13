@@ -67,6 +67,14 @@ import {
 } from "@/lib/pdf-dropzone";
 import { institutePrimaryClass } from "@/components/institute/InstituteChrome";
 import { DashboardStatCard } from "@/components/dashboard/DashboardStatCard";
+import { IndustryRoleFields } from "@/components/career/IndustryRoleFields";
+import { JobRoleSelect } from "@/components/career/JobRoleSelect";
+import { AppSelect } from "@/components/ui/app-select";
+import { industrySelectOptions } from "@/lib/career-catalog";
+import {
+  partitionLegacyProfileSkills,
+  resolveUserIndustry,
+} from "@/lib/user-industry";
 
 const profileCardClass =
   "overflow-hidden rounded-xl border border-border/60 bg-card shadow-card";
@@ -84,13 +92,14 @@ const profileSectionLabelClass =
 
 const profileFormLabelClass = "block text-sm font-medium text-foreground";
 
-import { IndustryRoleFields } from "@/components/career/IndustryRoleFields";
-import { AppSelect } from "@/components/ui/app-select";
-import { industrySelectOptions } from "@/lib/career-catalog";
-import {
-  partitionLegacyProfileSkills,
-  resolveUserIndustry,
-} from "@/lib/user-industry";
+function profileUserTypeLabel(
+  userType?: User["userType"] | "" | null,
+): string {
+  if (!userType) return "Not set";
+  if (userType === "experienced") return "Experienced";
+  if (userType === "fresher") return "Fresher";
+  return "Student";
+}
 
 function designedResumeTemplateLabel(templateId: string): string {
   return TEMPLATES_CATALOG.find((t) => t.id === templateId)?.name ?? templateId;
@@ -172,6 +181,8 @@ export default function ProfilePage() {
   const [profileData, setProfileData] = useState({
     userType: "" as "student" | "fresher" | "experienced" | "",
     experience: 0,
+    targetJobRole: "",
+    targetCompany: "",
     currentJob: {
       company: "",
       role: "",
@@ -208,6 +219,8 @@ export default function ProfilePage() {
       setProfileData({
         userType: profile.userType || "",
         experience: profile.experience || 0,
+        targetJobRole: profile.targetJobRole || "",
+        targetCompany: profile.targetCompany || "",
         currentJob: {
           company: profile.currentJob?.company || "",
           role: profile.currentJob?.role || "",
@@ -236,6 +249,8 @@ export default function ProfilePage() {
           profileData.userType === "experienced"
             ? profileData.experience
             : undefined,
+        targetJobRole: (profileData.targetJobRole ?? "").trim() || "",
+        targetCompany: (profileData.targetCompany ?? "").trim() || "",
         currentJob:
           profileData.userType === "experienced" &&
           profileData.currentJob.company
@@ -490,8 +505,8 @@ export default function ProfilePage() {
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
         <DashboardStatCard
           theme="violet"
-          label="Account"
-          value={user?.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : "Student"}
+          label="Profile type"
+          value={profileUserTypeLabel(user?.userType)}
           hint={user?.createdAt ? `Since ${formatDate(user.createdAt)}` : "Member"}
           icon={UserIcon}
         />
@@ -558,14 +573,16 @@ export default function ProfilePage() {
                       {displayEmail}
                     </CardDescription>
                     <div className="mt-3 flex flex-wrap items-center gap-2">
-                      <span className="inline-flex items-center rounded-full border border-[#7367F0]/20 bg-[#7367F0]/10 px-2.5 py-0.5 text-xs font-semibold capitalize text-[#7367F0]">
-                        {user?.role || "student"}
-                      </span>
-                      {user?.createdAt && (
+                      {user?.userType ? (
+                        <span className="inline-flex items-center rounded-full border border-[#7367F0]/20 bg-[#7367F0]/10 px-2.5 py-0.5 text-xs font-semibold text-[#7367F0]">
+                          {profileUserTypeLabel(user.userType)}
+                        </span>
+                      ) : null}
+                      {user?.createdAt ? (
                         <span className="text-xs text-muted-foreground">
                           Member since {formatDate(user.createdAt)}
                         </span>
-                      )}
+                      ) : null}
                     </div>
                   </div>
                 </div>
@@ -691,10 +708,8 @@ export default function ProfilePage() {
                     }
                   />
                   <ProfileField
-                    label="Account type"
-                    value={
-                      <span className="capitalize">{user?.role || "Student"}</span>
-                    }
+                    label="Profile type"
+                    value={profileUserTypeLabel(user?.userType)}
                   />
                 </div>
               )}
@@ -783,6 +798,54 @@ export default function ProfilePage() {
                         />
                       </div>
                     )}
+                  </div>
+
+                  <div className="space-y-4 rounded-xl border border-[#7367F0]/20 bg-[#7367F0]/[0.04] p-4">
+                    <div>
+                      <p className={profileSectionLabelClass}>Interview targets</p>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        Pre-fills role and company when you start practice sessions.
+                      </p>
+                    </div>
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div className={profileFormFieldClass}>
+                        <Label htmlFor="profile-target-role" className={profileFormLabelClass}>
+                          Role you are applying for
+                        </Label>
+                        <JobRoleSelect
+                          id="profile-target-role"
+                          value={profileData.targetJobRole ?? ""}
+                          onChange={(value) =>
+                            setProfileData((prev) => ({
+                              ...prev,
+                              targetJobRole: value,
+                            }))
+                          }
+                          industry={profileData.industry}
+                          disabled={savingProfile}
+                          placeholder="e.g. Software Engineer"
+                          inputClassName={profileInputClass}
+                        />
+                      </div>
+                      <div className={profileFormFieldClass}>
+                        <Label htmlFor="profile-target-company" className={profileFormLabelClass}>
+                          Target company
+                        </Label>
+                        <Input
+                          id="profile-target-company"
+                          className={profileInputClass}
+                          value={profileData.targetCompany ?? ""}
+                          onChange={(e) =>
+                            setProfileData((prev) => ({
+                              ...prev,
+                              targetCompany: e.target.value,
+                            }))
+                          }
+                          disabled={savingProfile}
+                          placeholder="e.g. Amazon, Google, TCS"
+                        />
+                      </div>
+                    </div>
                   </div>
 
                   {profileData.userType === "experienced" && (
@@ -909,6 +972,8 @@ export default function ProfilePage() {
                           setProfileData({
                             userType: user.userType || "",
                             experience: user.experience || 0,
+                            targetJobRole: user.targetJobRole || "",
+                            targetCompany: user.targetCompany || "",
                             currentJob: {
                               company: user.currentJob?.company || "",
                               role: user.currentJob?.role || "",
@@ -935,7 +1000,7 @@ export default function ProfilePage() {
                       label="User type"
                       value={
                         <span className="capitalize">
-                          {user?.userType || "Not set"}
+                          {profileUserTypeLabel(user?.userType)}
                         </span>
                       }
                     />
@@ -961,6 +1026,20 @@ export default function ProfilePage() {
                         </>
                       }
                     />
+                  </div>
+
+                  <div className="space-y-3">
+                    <p className={profileSectionLabelClass}>Interview targets</p>
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <ProfileField
+                        label="Role you are applying for"
+                        value={user?.targetJobRole?.trim() || "Not set"}
+                      />
+                      <ProfileField
+                        label="Target company"
+                        value={user?.targetCompany?.trim() || "Not set"}
+                      />
+                    </div>
                   </div>
 
                   {user?.userType === "experienced" && (

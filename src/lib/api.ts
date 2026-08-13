@@ -137,6 +137,10 @@ export interface User {
   welcomeSignupIntent?: "candidate" | "recruiter" | "interviewer";
   userType?: "student" | "fresher" | "experienced";
   experience?: number;
+  /** Role the candidate is preparing / interviewing for */
+  targetJobRole?: string;
+  /** Company the candidate is targeting */
+  targetCompany?: string;
   /** Contact phone number */
   phone?: string;
   currentJob?: {
@@ -603,6 +607,8 @@ export const userApi = {
   completeOnboarding: async (data: {
     userType: "student" | "fresher" | "experienced";
     experience?: number;
+    targetJobRole?: string;
+    targetCompany?: string;
     currentJob?: {
       company: string;
       role: string;
@@ -625,6 +631,8 @@ export const userApi = {
     name?: string;
     userType?: "student" | "fresher" | "experienced";
     experience?: number;
+    targetJobRole?: string;
+    targetCompany?: string;
     currentJob?: {
       company: string;
       role: string;
@@ -2561,8 +2569,24 @@ export type SystemDesignDifficulty = "easy" | "medium" | "hard";
 export interface SystemDesignProblemSummary {
   id: string;
   title: string;
+  shortTitle?: string;
   difficulty: SystemDesignDifficulty;
   category: string;
+  adminRating?: number;
+  askedAt?: string[];
+}
+
+export interface SystemDesignProblemDetail extends SystemDesignProblemSummary {
+  scenario: string;
+  coreRequirements: string[];
+  scaleRequirements: string[];
+  considerations: string[];
+  outOfScopeFunctional?: string[];
+  outOfScopeNonFunctional?: string[];
+  coreEntities?: string[];
+  apiHints?: string[];
+  askedAt?: string[];
+  analog?: string;
 }
 
 export interface SystemDesignChatMessage {
@@ -2672,6 +2696,14 @@ export const systemDesignApi = {
       data: { problems: SystemDesignProblemSummary[] };
     }>("/system-design/problems");
     return r.data.data.problems;
+  },
+
+  getProblem: async (problemId: string): Promise<SystemDesignProblemDetail> => {
+    const r = await apiClient.get<{
+      success: boolean;
+      data: { problem: SystemDesignProblemDetail };
+    }>(`/system-design/problems/${encodeURIComponent(problemId)}`);
+    return r.data.data.problem;
   },
 
   createSession: async (problemId?: string): Promise<SystemDesignSession> => {
@@ -3910,6 +3942,152 @@ export interface SendTestTemplateResult {
   subject: string;
   sentTo: string;
 }
+
+export interface AdminSystemDesignLevelExpectations {
+  mid?: string;
+  senior?: string;
+  staff?: string;
+}
+
+export interface AdminSystemDesignProblemStats {
+  attemptCount: number;
+  completedCount: number;
+  averageScore: number | null;
+}
+
+export interface AdminSystemDesignProblemListItem {
+  problemId: string;
+  title: string;
+  shortTitle: string;
+  category: string;
+  difficulty: SystemDesignDifficulty;
+  askedAt: string[];
+  adminRating?: number;
+  sortOrder: number;
+  isActive: boolean;
+  attemptCount: number;
+  completedCount: number;
+  averageScore: number | null;
+  updatedAt: string;
+}
+
+export interface AdminSystemDesignProblemDetail {
+  problemId: string;
+  knowledgeDocId: string;
+  legacyAliases: string[];
+  title: string;
+  shortTitle: string;
+  analog?: string;
+  category: string;
+  difficulty: SystemDesignDifficulty;
+  askedAt: string[];
+  scenario: string;
+  descriptionHtml?: string;
+  coreRequirements: string[];
+  outOfScopeFunctional: string[];
+  scaleRequirements: string[];
+  outOfScopeNonFunctional: string[];
+  coreEntities: string[];
+  apiHints: string[];
+  considerations: string[];
+  levelExpectations: AdminSystemDesignLevelExpectations;
+  sourcePath: string;
+  contentHash: string;
+  corpusVersion: string;
+  adminRating?: number;
+  sortOrder: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  stats: AdminSystemDesignProblemStats;
+}
+
+export interface AdminSystemDesignProblemListResponse {
+  items: AdminSystemDesignProblemListItem[];
+  total: number;
+  page: number;
+  limit: number;
+  summary: {
+    totalActive: number;
+    totalAttempts: number;
+    avgCompletionRate: number | null;
+    avgScore: number | null;
+  };
+}
+
+export interface AdminSystemDesignProblemUpsertBody {
+  problemId?: string;
+  knowledgeDocId?: string;
+  legacyAliases?: string[];
+  title: string;
+  shortTitle: string;
+  analog?: string;
+  category: string;
+  difficulty: SystemDesignDifficulty;
+  askedAt?: string[];
+  scenario: string;
+  descriptionHtml?: string;
+  coreRequirements?: string[];
+  outOfScopeFunctional?: string[];
+  scaleRequirements?: string[];
+  outOfScopeNonFunctional?: string[];
+  coreEntities?: string[];
+  apiHints?: string[];
+  considerations?: string[];
+  levelExpectations?: AdminSystemDesignLevelExpectations;
+  adminRating?: number;
+  sortOrder?: number;
+  isActive?: boolean;
+}
+
+export interface AdminSystemDesignProblemListQuery {
+  search?: string;
+  category?: string;
+  difficulty?: SystemDesignDifficulty;
+  isActive?: boolean;
+  page?: number;
+  limit?: number;
+  sortBy?: "title" | "attemptCount" | "averageScore" | "adminRating" | "updatedAt";
+  sortDir?: "asc" | "desc";
+}
+
+export const adminSystemDesignApi = {
+  list: (params?: AdminSystemDesignProblemListQuery) =>
+    unwrap<AdminSystemDesignProblemListResponse>(
+      apiClient.get("/admin/system-design-problems", { params }),
+    ),
+  get: (problemId: string) =>
+    unwrap<AdminSystemDesignProblemDetail>(
+      apiClient.get(`/admin/system-design-problems/${encodeURIComponent(problemId)}`),
+    ),
+  create: (body: AdminSystemDesignProblemUpsertBody) =>
+    unwrap<AdminSystemDesignProblemDetail>(
+      apiClient.post("/admin/system-design-problems", body),
+    ),
+  update: (problemId: string, body: AdminSystemDesignProblemUpsertBody) =>
+    unwrap<AdminSystemDesignProblemDetail>(
+      apiClient.put(
+        `/admin/system-design-problems/${encodeURIComponent(problemId)}`,
+        body,
+      ),
+    ),
+  remove: (problemId: string) =>
+    unwrap<void>(
+      apiClient.delete(
+        `/admin/system-design-problems/${encodeURIComponent(problemId)}`,
+      ),
+    ),
+  restore: (problemId: string) =>
+    unwrap<AdminSystemDesignProblemDetail>(
+      apiClient.post(
+        `/admin/system-design-problems/${encodeURIComponent(problemId)}/restore`,
+      ),
+    ),
+  listCategories: () =>
+    unwrap<{ categories: string[] }>(
+      apiClient.get("/admin/system-design-problems/categories"),
+    ).then((r) => r.categories ?? []),
+};
 
 export const notificationAdminApi = {
   listTemplates: (channel?: NotificationChannelKey) =>

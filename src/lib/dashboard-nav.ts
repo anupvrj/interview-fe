@@ -15,6 +15,7 @@ import {
   Settings,
   Receipt,
   Layers,
+  LayoutGrid,
   Code2,
   Network,
   BarChart2,
@@ -143,12 +144,6 @@ const baseMenuItems: DashboardNavItem[] = [
     accent: accent.cyan,
   },
   {
-    title: "Job Board",
-    href: "/dashboard/job-board",
-    icon: Briefcase,
-    accent: accent.rose,
-  },
-  {
     title: "Analytics",
     href: "/dashboard/analytics",
     icon: BarChart3,
@@ -251,13 +246,14 @@ export function getDashboardNavItems(
 
   let items = [...baseMenuItems];
 
-  if (accessRole !== "super_admin") {
-    // Peer Interviews is now open to all users; Job Board remains gated.
-    items = items.filter((item) => item.href !== "/dashboard/job-board");
-  }
-
   if (isPlatformAdmin(accessRole)) {
     items.push(
+      {
+        title: "System Design Problems",
+        href: "/dashboard/super-admin/system-design-problems",
+        icon: LayoutGrid,
+        accent: accent.indigo,
+      },
       {
         title: "Peer — Interviewers",
         href: "/dashboard/super-admin/peer-interviewers",

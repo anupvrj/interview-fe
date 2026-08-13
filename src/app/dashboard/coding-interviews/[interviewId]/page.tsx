@@ -38,13 +38,19 @@ import {
   combineScreenAndMicForRecording,
   pickRecorderMimeType,
 } from "@/lib/codingSessionRecording";
+import { HorizontalResizeHandle } from "@/components/layout/HorizontalResizeHandle";
+import {
+  HORIZONTAL_SPLITTER_PX,
+  useHorizontalPaneResize,
+} from "@/hooks/useHorizontalPaneResize";
+import { useMediaMinWidth } from "@/hooks/useMediaMinWidth";
+import { useWorkspaceRowWidth } from "@/hooks/useWorkspaceRowWidth";
 import { cn } from "@/lib/utils";
 import {
   Braces,
   CheckCircle2,
   Check,
   FileText,
-  GripVertical,
   Loader2,
   MessageCircle,
   Play,
@@ -73,25 +79,47 @@ function draftKey(problemId: string, lang: Lang) {
   return `${problemId}::${lang}`;
 }
 
-/** `w-64` aside + problem | splitter | editor (xl row). */
-const ASIDE_WIDTH_XL_PX = 256;
+/** Resizable aside + problem | splitter | editor (xl row). */
+const ASIDE_MIN_XL_PX = 200;
+const ASIDE_DEFAULT_XL_PX = 256;
+const ASIDE_MAX_XL_PX = 420;
 const PROBLEM_PANE_MIN_PX = 280;
+const PROBLEM_PANE_DEFAULT_PX = 560;
 const EDITOR_PANE_MIN_XL_PX = 400;
-const COL_SPLITTER_PX = 8;
 
-function maxProblemPaneWidth(rowInnerWidthPx: number): number {
+function maxProblemPaneWidth(
+  rowInnerWidthPx: number,
+  asideWidthPx: number,
+): number {
   if (rowInnerWidthPx < 1) {
     return typeof window !== "undefined"
       ? Math.max(PROBLEM_PANE_MIN_PX, Math.floor(window.innerWidth * 0.4))
-      : 560;
+      : PROBLEM_PANE_DEFAULT_PX;
   }
   return Math.max(
     PROBLEM_PANE_MIN_PX,
     rowInnerWidthPx -
-      ASIDE_WIDTH_XL_PX -
-      COL_SPLITTER_PX -
+      asideWidthPx -
+      2 * HORIZONTAL_SPLITTER_PX -
       EDITOR_PANE_MIN_XL_PX,
   );
+}
+
+function maxAsideWidth(
+  rowInnerWidthPx: number,
+  problemPaneWidthPx: number,
+): number {
+  if (rowInnerWidthPx < 1) {
+    return ASIDE_MAX_XL_PX;
+  }
+  const computed = Math.max(
+    ASIDE_MIN_XL_PX,
+    rowInnerWidthPx -
+      problemPaneWidthPx -
+      2 * HORIZONTAL_SPLITTER_PX -
+      EDITOR_PANE_MIN_XL_PX,
+  );
+  return Math.min(ASIDE_MAX_XL_PX, computed);
 }
 
 type CodingRunCase = {
@@ -578,16 +606,63 @@ export default function CodingInterviewSessionPage() {
   const autostartAttemptedRef = useRef(false);
   const startCodingInFlightRef = useRef(false);
   const handleStartCodingRef = useRef<() => Promise<void>>(async () => {});
-  const [problemPaneWidthPx, setProblemPaneWidthPx] = useState(560);
-  const [workspaceRowWidthPx, setWorkspaceRowWidthPx] = useState(0);
-  const [isXlWorkspaceRow, setIsXlWorkspaceRow] = useState(false);
-
   const problemPaneStorageKey = `coding-problem-pane-w-${interviewId}`;
+  const asideStorageKey = `coding-aside-w-${interviewId}`;
   const codingWorkspaceRowRef = useRef<HTMLDivElement>(null);
-  const colSplitDragRef = useRef<{ startX: number; startW: number } | null>(
-    null,
+  const asideWidthRef = useRef(ASIDE_DEFAULT_XL_PX);
+  const problemPaneWidthRef = useRef(PROBLEM_PANE_DEFAULT_PX);
+
+  const isXlWorkspaceRow = useMediaMinWidth(1280);
+  const workspaceRowWidthPx = useWorkspaceRowWidth(
+    codingWorkspaceRowRef,
+    Boolean(interview?.codingRound?.codingPhaseStartedAt),
   );
-  const problemPaneWidthRef = useRef(560);
+
+  const getMaxAsideWidth = useCallback(() => {
+    const rowW =
+      workspaceRowWidthPx > 0
+        ? workspaceRowWidthPx
+        : typeof window !== "undefined"
+          ? window.innerWidth
+          : 1280;
+    return maxAsideWidth(rowW, problemPaneWidthRef.current);
+  }, [workspaceRowWidthPx]);
+
+  const getMaxProblemPaneWidth = useCallback(() => {
+    const rowW =
+      workspaceRowWidthPx > 0
+        ? workspaceRowWidthPx
+        : typeof window !== "undefined"
+          ? window.innerWidth
+          : 1280;
+    return maxProblemPaneWidth(rowW, asideWidthRef.current);
+  }, [workspaceRowWidthPx]);
+
+  const asideResize = useHorizontalPaneResize({
+    storageKey: asideStorageKey,
+    defaultWidth: ASIDE_DEFAULT_XL_PX,
+    minWidth: ASIDE_MIN_XL_PX,
+    getMaxWidth: getMaxAsideWidth,
+    enabled: isXlWorkspaceRow,
+  });
+
+  const problemPaneResize = useHorizontalPaneResize({
+    storageKey: problemPaneStorageKey,
+    defaultWidth: PROBLEM_PANE_DEFAULT_PX,
+    minWidth: PROBLEM_PANE_MIN_PX,
+    getMaxWidth: getMaxProblemPaneWidth,
+    enabled: isXlWorkspaceRow,
+  });
+
+  const problemPaneWidthPx = problemPaneResize.widthPx;
+
+  useEffect(() => {
+    asideWidthRef.current = asideResize.widthPx;
+  }, [asideResize.widthPx]);
+
+  useEffect(() => {
+    problemPaneWidthRef.current = problemPaneWidthPx;
+  }, [problemPaneWidthPx]);
 
   const load = useCallback(async () => {
     try {
@@ -651,33 +726,6 @@ export default function CodingInterviewSessionPage() {
   useEffect(() => {
     setRunPanel(null);
   }, [activeId]);
-
-  useEffect(() => {
-    const mq = window.matchMedia("(min-width: 1280px)");
-    const sync = () => setIsXlWorkspaceRow(mq.matches);
-    sync();
-    mq.addEventListener("change", sync);
-    return () => mq.removeEventListener("change", sync);
-  }, []);
-
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(problemPaneStorageKey);
-      if (raw) {
-        const n = Number.parseInt(raw, 10);
-        if (!Number.isNaN(n) && n >= PROBLEM_PANE_MIN_PX) {
-          setProblemPaneWidthPx(n);
-          problemPaneWidthRef.current = n;
-        }
-      }
-    } catch {
-      /* ignore */
-    }
-  }, [problemPaneStorageKey]);
-
-  useEffect(() => {
-    problemPaneWidthRef.current = problemPaneWidthPx;
-  }, [problemPaneWidthPx]);
 
   useEffect(() => {
     const id = setInterval(() => bump((x) => x + 1), 1000);
@@ -919,109 +967,6 @@ export default function CodingInterviewSessionPage() {
       document.body.style.overflow = prev;
     };
   }, [loading]);
-
-  useEffect(() => {
-    if (!codingStarted) return;
-    const el = codingWorkspaceRowRef.current;
-    if (!el) return;
-    /**
-     * Observe a stable-width wrapper (overflow-hidden). Observing a scroll
-     * container causes scrollbar show/hide to flip contentRect width and can
-     * loop with problem-pane clamp updates — tab freeze when a modal opens
-     * after the last submit.
-     */
-    let raf = 0;
-    const ro = new ResizeObserver((entries) => {
-      const entry = entries[0];
-      if (!entry) return;
-      const w = Math.round(
-        entry.contentRect.width ||
-          (entry.borderBoxSize?.[0]?.inlineSize ?? 0),
-      );
-      if (w < 1) return;
-      if (raf) cancelAnimationFrame(raf);
-      raf = requestAnimationFrame(() => {
-        raf = 0;
-        setWorkspaceRowWidthPx((prev) =>
-          Math.abs(prev - w) < 2 ? prev : w,
-        );
-      });
-    });
-    ro.observe(el);
-    return () => {
-      if (raf) cancelAnimationFrame(raf);
-      ro.disconnect();
-    };
-  }, [codingStarted]);
-
-  useEffect(() => {
-    if (!isXlWorkspaceRow || workspaceRowWidthPx < 1) return;
-    const max = maxProblemPaneWidth(workspaceRowWidthPx);
-    setProblemPaneWidthPx((prev) => {
-      const clamped = Math.min(
-        Math.max(prev, PROBLEM_PANE_MIN_PX),
-        max,
-      );
-      problemPaneWidthRef.current = clamped;
-      return clamped;
-    });
-  }, [workspaceRowWidthPx, isXlWorkspaceRow]);
-
-  const onColSplitPointerDown = useCallback(
-    (e: React.PointerEvent<HTMLButtonElement>) => {
-      e.preventDefault();
-      e.currentTarget.setPointerCapture(e.pointerId);
-      colSplitDragRef.current = {
-        startX: e.clientX,
-        startW: problemPaneWidthRef.current,
-      };
-    },
-    [],
-  );
-
-  const onColSplitPointerMove = useCallback(
-    (e: React.PointerEvent<HTMLButtonElement>) => {
-      if (
-        !e.currentTarget.hasPointerCapture(e.pointerId) ||
-        colSplitDragRef.current == null
-      ) {
-        return;
-      }
-      const dx = e.clientX - colSplitDragRef.current.startX;
-      const raw = colSplitDragRef.current.startW + dx;
-      const rowW =
-        workspaceRowWidthPx > 0
-          ? workspaceRowWidthPx
-          : typeof window !== "undefined"
-            ? window.innerWidth
-            : 1280;
-      const max = maxProblemPaneWidth(rowW);
-      const next = Math.round(
-        Math.min(max, Math.max(PROBLEM_PANE_MIN_PX, raw)),
-      );
-      problemPaneWidthRef.current = next;
-      setProblemPaneWidthPx(next);
-    },
-    [workspaceRowWidthPx],
-  );
-
-  const onColSplitPointerUp = useCallback(
-    (e: React.PointerEvent<HTMLButtonElement>) => {
-      if (e.currentTarget.hasPointerCapture(e.pointerId)) {
-        e.currentTarget.releasePointerCapture(e.pointerId);
-      }
-      colSplitDragRef.current = null;
-      try {
-        localStorage.setItem(
-          problemPaneStorageKey,
-          String(problemPaneWidthRef.current),
-        );
-      } catch {
-        /* ignore */
-      }
-    },
-    [problemPaneStorageKey],
-  );
 
   const budgetMin = interview?.metadata?.codingPhaseDurationMinutes ?? 60;
   const budgetSec = budgetMin * 60;
@@ -1409,11 +1354,16 @@ export default function CodingInterviewSessionPage() {
           <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto overflow-x-hidden xl:flex-row xl:overflow-hidden">
           <aside
             className={cn(
-              "flex shrink-0 flex-col border-white/10 bg-card/[0.04] shadow-lg shadow-black/20 xl:h-auto xl:border-r",
-              voiceEmbedOpen
-                ? "min-h-0 xl:h-full xl:w-80 xl:max-h-none xl:self-stretch"
-                : "max-h-[38vh] xl:max-h-none xl:w-64",
+              "flex shrink-0 flex-col border-white/10 bg-card/[0.04] shadow-lg shadow-black/20 xl:h-auto",
+              isXlWorkspaceRow
+                ? "min-h-0 xl:h-full xl:max-h-none xl:self-stretch xl:shrink-0 xl:border-r-0"
+                : voiceEmbedOpen
+                  ? "min-h-0 xl:h-full xl:w-80 xl:max-h-none xl:self-stretch xl:border-r"
+                  : "max-h-[38vh] xl:max-h-none xl:w-64 xl:border-r",
             )}
+            style={
+              isXlWorkspaceRow ? { width: asideResize.widthPx } : undefined
+            }
           >
             <div className="shrink-0 border-b border-white/10 p-3">
               <h3 className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-gray-300/90">
@@ -1514,6 +1464,13 @@ export default function CodingInterviewSessionPage() {
             </div>
           </aside>
 
+          {isXlWorkspaceRow ? (
+            <HorizontalResizeHandle
+              label="Drag to resize sidebar and problem panels"
+              {...asideResize.handleProps}
+            />
+          ) : null}
+
           <main
             className={cn(
               "flex min-h-0 min-w-0 w-full flex-1 flex-col border-white/10 bg-card/[0.04] shadow-lg shadow-black/20",
@@ -1556,20 +1513,12 @@ export default function CodingInterviewSessionPage() {
             </div>
           </main>
 
-          <button
-            type="button"
-            aria-label="Drag to resize problem and editor panels"
-            className="hidden min-h-0 w-2 shrink-0 cursor-col-resize touch-none flex-col items-center justify-center border-x border-white/10 bg-card/[0.06] hover:bg-card/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 xl:flex"
-            onPointerDown={onColSplitPointerDown}
-            onPointerMove={onColSplitPointerMove}
-            onPointerUp={onColSplitPointerUp}
-            onPointerCancel={onColSplitPointerUp}
-          >
-            <GripVertical
-              className="h-10 w-3.5 text-gray-500 hover:text-gray-300"
-              aria-hidden
+          {isXlWorkspaceRow ? (
+            <HorizontalResizeHandle
+              label="Drag to resize problem and editor panels"
+              {...problemPaneResize.handleProps}
             />
-          </button>
+          ) : null}
 
           <section className="flex min-h-0 w-full min-w-0 shrink-0 flex-col border-t border-white/10 bg-card/[0.04] shadow-lg shadow-black/20 xl:h-full xl:min-h-0 xl:min-w-[400px] xl:flex-1 xl:max-w-none xl:self-stretch xl:border-l xl:border-t-0">
             <div className="flex min-h-0 flex-1 flex-col p-3 sm:p-4">

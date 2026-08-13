@@ -23,22 +23,12 @@ import {
 } from "@/components/ui/dialog";
 import {
   Plus,
-  TrendingUp,
-  Clock,
   CalendarClock,
-  Award,
   PlayCircle,
-  FileText,
-  FileEdit,
   Loader2,
-  Target,
-  CheckCircle,
-  Coins,
   Lock,
   UsersRound,
-  Percent,
   X,
-  FileCheck,
   Sparkles,
 } from "lucide-react";
 import {
@@ -54,11 +44,9 @@ import {
 } from "recharts";
 import {
   Interview,
-  Resume,
   interviewApi,
   interviewScheduleApi,
   peerApi,
-  resumeApi,
   systemDesignApi,
   userApi,
 } from "@/lib/api";
@@ -80,13 +68,12 @@ import {
 } from "@/components/institute/InstituteChrome";
 import {
   DashboardInsightTile,
-  DashboardStatCard,
 } from "@/components/dashboard/DashboardStatCard";
 import { DashboardWelcomeHero } from "@/components/dashboard/DashboardWelcomeHero";
+import { DashboardPracticeHubCards } from "@/components/dashboard/DashboardPracticeHubCards";
 import { InterviewTypeFilterBar } from "@/components/dashboard/InterviewTypeFilterBar";
 import { IxOptInNotice } from "@/components/ix-score/IxOptInNotice";
 import { RecentInterviewsList } from "@/components/dashboard/RecentInterviewsList";
-import { DashboardResumesList } from "@/components/dashboard/DashboardResumesList";
 import { PracticeSessionGateDialogs } from "@/components/upsell/PracticeSessionGateDialogs";
 import { usePracticeSessionGate } from "@/components/upsell/usePracticeSessionGate";
 
@@ -102,7 +89,6 @@ export default function DashboardPage() {
   const [peerBookings, setPeerBookings] = useState<
     Awaited<ReturnType<typeof peerApi.listMyBookings>>
   >([]);
-  const [resumes, setResumes] = useState<Resume[]>([]);
   const [loading, setLoading] = useState(true);
   const [profileCompletion, setProfileCompletion] = useState<number>(0);
   const [stats, setStats] = useState({
@@ -125,8 +111,6 @@ export default function DashboardPage() {
       }),
     [interviews, systemDesignSessions, peerBookings],
   );
-  const [resumePage, setResumePage] = useState(1);
-  const resumeItemsPerPage = 8;
   const [scheduledInterviews, setScheduledInterviews] = useState<any[]>([]);
   const [startingScheduleId, setStartingScheduleId] = useState<string | null>(
     null,
@@ -141,10 +125,6 @@ export default function DashboardPage() {
     checkingSubscription,
     ...practiceGate
   } = usePracticeSessionGate();
-  const [downloadingResumeId, setDownloadingResumeId] = useState<string | null>(
-    null,
-  );
-
   const interviewTypeCounts = useMemo(
     () => countDashboardSessionsByFilter(recentSessions),
     [recentSessions],
@@ -223,14 +203,6 @@ export default function DashboardPage() {
       }
 
       try {
-        const userResumes = await resumeApi.list(user.id);
-        setResumes(userResumes);
-      } catch (err) {
-        console.error("Error loading resumes:", err);
-        setResumes([]);
-      }
-
-      try {
         const schedules = await interviewScheduleApi.listMine();
         setScheduledInterviews(schedules || []);
       } catch {
@@ -303,40 +275,6 @@ export default function DashboardPage() {
     }
   };
 
-  const handleResumeDownload = async (resumeId: string) => {
-    try {
-      setDownloadingResumeId(resumeId);
-      const pdfUrl = await resumeApi.downloadPDF(resumeId);
-      globalThis.open(pdfUrl, "_blank");
-    } catch (error: any) {
-      const shouldOpenEditor =
-        error?.message?.includes("PDF not found") ||
-        error?.response?.status === 404;
-      if (
-        shouldOpenEditor &&
-        globalThis.confirm(
-          "PDF is not generated yet. Open editor to generate/download it?",
-        )
-      ) {
-        router.push(`/dashboard/resumes/${resumeId}/edit`);
-        return;
-      }
-      alert("Could not download resume PDF. Please try again.");
-    } finally {
-      setDownloadingResumeId(null);
-    }
-  };
-
-  const resumesWithAts = resumes.filter(
-    (r) => typeof r.atsScore === "number" && Number.isFinite(r.atsScore),
-  );
-  const avgAts =
-    resumesWithAts.length > 0
-      ? Math.round(
-          resumesWithAts.reduce((s, r) => s + (r.atsScore ?? 0), 0) /
-            resumesWithAts.length,
-        )
-      : 0;
   const lastNDays = 14;
   const now = new Date();
   const dayKeys = Array.from({ length: lastNDays }, (_, idx) => {
@@ -384,6 +322,8 @@ export default function DashboardPage() {
       <DashboardWelcomeHero firstName={user?.firstName || "User"} />
 
       <IxOptInNotice />
+
+      <DashboardPracticeHubCards />
 
       {scheduledInterviews.length > 0 && (
         <Card className="rounded-md border-2 border-amber-200 bg-gradient-to-br from-amber-50/80 to-card shadow-lg dark:border-amber-900/40 dark:from-amber-950/30 dark:to-card">
@@ -491,68 +431,6 @@ export default function DashboardPage() {
           </button>
         </div>
       )}
-
-      {/* Stats */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4">
-        <DashboardStatCard
-          theme="purple"
-          label="Total Interviews"
-          value={stats.totalInterviews}
-          icon={FileText}
-          hint={
-            <>
-              <Clock className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
-              <span>All time</span>
-            </>
-          }
-        />
-        <DashboardStatCard
-          theme="emerald"
-          label="Average Score"
-          value={stats.averageScore}
-          icon={Target}
-          progress={stats.averageScore}
-          hint={
-            <>
-              <Percent className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
-              <span>Out of 100</span>
-            </>
-          }
-        />
-        <DashboardStatCard
-          theme="cyan"
-          label="Completed"
-          value={stats.completedInterviews}
-          icon={Award}
-          hint={
-            <>
-              <CheckCircle className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
-              <span>Finished interviews</span>
-            </>
-          }
-        />
-        <DashboardStatCard
-          theme="amber"
-          label="Improvement"
-          value={
-            stats.improvement !== undefined && !isNaN(stats.improvement) ? (
-              <>
-                {stats.improvement > 0 ? "+" : ""}
-                {stats.improvement}%
-              </>
-            ) : (
-              "0%"
-            )
-          }
-          icon={TrendingUp}
-          hint={
-            <>
-              <TrendingUp className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
-              <span>Last 3 sessions</span>
-            </>
-          }
-        />
-      </div>
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
         <Card className="rounded-xl border border-border/80 bg-card shadow-card xl:col-span-2">
@@ -702,84 +580,6 @@ export default function DashboardPage() {
             onPageChange={setCurrentPage}
             onVideoUnavailable={() => setVideoUnavailableOpen(true)}
             emptyDescription="Start an AI interview, coding round, system design session, or book a peer interview."
-          />
-        </CardContent>
-      </Card>
-
-      {/* Resume quick stats */}
-      {resumes.length > 0 && (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-2">
-          <DashboardStatCard
-            theme="emerald"
-            label="Total resumes"
-            value={resumes.length}
-            icon={FileEdit}
-            hint={
-              <>
-                <FileText className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
-                <span>In builder</span>
-              </>
-            }
-          />
-          <DashboardStatCard
-            theme="violet"
-            label="Average ATS"
-            value={resumesWithAts.length > 0 ? `${avgAts}/100` : "—"}
-            icon={FileCheck}
-            progress={resumesWithAts.length > 0 ? avgAts : undefined}
-            hint={
-              <>
-                <Percent className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
-                <span>
-                  {resumesWithAts.length > 0
-                    ? `${resumesWithAts.length} scored`
-                    : "No ATS run yet"}
-                </span>
-              </>
-            }
-          />
-        </div>
-      )}
-
-      {/* Your resumes */}
-      <Card className="overflow-hidden rounded-xl border border-border/60 bg-card shadow-card">
-        <CardHeader className="border-b border-border/60 px-5 py-4">
-          <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
-            <div>
-              <CardTitle className="text-lg font-semibold text-foreground">
-                Your resumes
-              </CardTitle>
-              <CardDescription className="mt-1 text-sm">
-                Build and refine resumes with ATS scoring before you apply.
-              </CardDescription>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <Link
-                href="/dashboard/resumes"
-                className={cn(
-                  buttonVariants({ variant: "outline" }),
-                  instituteSecondaryClass,
-                  "h-9 px-3 text-xs no-underline sm:h-10 sm:px-4 sm:text-sm",
-                )}
-              >
-                View all
-              </Link>
-              <Link href="/dashboard/resumes/new">
-                <Button className={institutePrimaryClass}>
-                  <Plus className="mr-2 h-4 w-4" /> New resume
-                </Button>
-              </Link>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="p-0">
-          <DashboardResumesList
-            resumes={resumes}
-            currentPage={resumePage}
-            itemsPerPage={resumeItemsPerPage}
-            onPageChange={setResumePage}
-            onDownload={handleResumeDownload}
-            downloadingResumeId={downloadingResumeId}
           />
         </CardContent>
       </Card>

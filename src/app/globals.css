@@ -979,6 +979,12 @@
   display: none !important;
 }
 
+/* Pre-start: keep toolbar visible but non-interactive (transparent click shield above UI) */
+.excalidraw-container:has(.excalidraw-prestart-shield) .excalidraw .layer-ui__wrapper {
+  opacity: 0.72;
+  filter: saturate(0.8);
+}
+
 /* Auth pages — flatten Clerk card chrome, modernize controls */
 .auth-clerk-root .cl-cardBox,
 .auth-clerk-root .cl-card {
