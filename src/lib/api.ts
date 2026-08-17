@@ -4089,6 +4089,174 @@ export const adminSystemDesignApi = {
     ).then((r) => r.categories ?? []),
 };
 
+export type CodingDifficulty = "easy" | "medium" | "hard";
+export type CodingLanguage = "javascript" | "java" | "c" | "cpp" | "python";
+export type CompanyTierTag =
+  | "FAANG"
+  | "TIER1"
+  | "TIER2"
+  | "STARTUP"
+  | "SERVICE";
+
+export interface AdminCodingTestCase {
+  input: string;
+  expectedOutput: string;
+  compareMode?: "exact" | "trim";
+}
+
+export interface AdminCodingProblemStats {
+  attemptCount: number;
+  averageSubmitScore: number | null;
+}
+
+export interface AdminCodingProblemListItem {
+  problemId: string;
+  title: string;
+  categories: string[];
+  difficulty: CodingDifficulty;
+  companyTierTags: CompanyTierTag[];
+  publicTestCount: number;
+  hiddenTestCount: number;
+  isActive: boolean;
+  attemptCount: number;
+  averageSubmitScore: number | null;
+  updatedAt: string;
+}
+
+export interface AdminCodingProblemDetail {
+  problemId: string;
+  title: string;
+  statement: string;
+  categories: string[];
+  difficulty: CodingDifficulty;
+  companyTierTags: CompanyTierTag[];
+  skillTags: string[];
+  starterCode: Partial<Record<CodingLanguage, string>>;
+  referenceSolution: Partial<Record<CodingLanguage, string>>;
+  publicTests: AdminCodingTestCase[];
+  hiddenTests: AdminCodingTestCase[];
+  timeLimitMs?: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  stats: AdminCodingProblemStats;
+}
+
+export interface AdminCodingProblemListResponse {
+  items: AdminCodingProblemListItem[];
+  total: number;
+  page: number;
+  limit: number;
+  summary: {
+    totalActive: number;
+    totalAttempts: number;
+  };
+}
+
+export interface AdminCodingProblemUpsertBody {
+  problemId?: string;
+  title: string;
+  statement: string;
+  categories?: string[];
+  difficulty: CodingDifficulty;
+  companyTierTags?: CompanyTierTag[];
+  skillTags?: string[];
+  starterCode?: Partial<Record<CodingLanguage, string>>;
+  referenceSolution?: Partial<Record<CodingLanguage, string>>;
+  publicTests?: AdminCodingTestCase[];
+  hiddenTests?: AdminCodingTestCase[];
+  timeLimitMs?: number;
+  isActive?: boolean;
+}
+
+export interface AdminCodingProblemListQuery {
+  search?: string;
+  category?: string;
+  difficulty?: CodingDifficulty;
+  isActive?: boolean;
+  page?: number;
+  limit?: number;
+  sortBy?: "title" | "attemptCount" | "averageSubmitScore" | "updatedAt";
+  sortDir?: "asc" | "desc";
+}
+
+export interface AdminCodingValidateTestsBody {
+  language: CodingLanguage;
+  code?: string;
+  visibility?: "public" | "hidden" | "all";
+}
+
+export interface AdminCodingValidateTestsResult {
+  passed: number;
+  total: number;
+  results: Array<{
+    index: number;
+    passed: boolean;
+    expected?: string;
+    actual?: string;
+    stderr?: string;
+    compileOutput?: string;
+    status?: string;
+    error?: string;
+    visibility: "public" | "hidden";
+  }>;
+}
+
+export interface AdminCodingStarterTemplateItem {
+  id: string;
+  label: string;
+  starters: Partial<Record<CodingLanguage, string>>;
+}
+
+export const adminCodingProblemApi = {
+  list: (params?: AdminCodingProblemListQuery) =>
+    unwrap<AdminCodingProblemListResponse>(
+      apiClient.get("/admin/coding-problems", { params }),
+    ),
+  get: (problemId: string) =>
+    unwrap<AdminCodingProblemDetail>(
+      apiClient.get(`/admin/coding-problems/${encodeURIComponent(problemId)}`),
+    ),
+  create: (body: AdminCodingProblemUpsertBody) =>
+    unwrap<AdminCodingProblemDetail>(
+      apiClient.post("/admin/coding-problems", body),
+    ),
+  update: (problemId: string, body: AdminCodingProblemUpsertBody) =>
+    unwrap<AdminCodingProblemDetail>(
+      apiClient.put(
+        `/admin/coding-problems/${encodeURIComponent(problemId)}`,
+        body,
+      ),
+    ),
+  remove: (problemId: string) =>
+    unwrap<void>(
+      apiClient.delete(
+        `/admin/coding-problems/${encodeURIComponent(problemId)}`,
+      ),
+    ),
+  restore: (problemId: string) =>
+    unwrap<AdminCodingProblemDetail>(
+      apiClient.post(
+        `/admin/coding-problems/${encodeURIComponent(problemId)}/restore`,
+      ),
+    ),
+  listCategories: () =>
+    unwrap<{ categories: string[] }>(
+      apiClient.get("/admin/coding-problems/categories"),
+    ).then((r) => r.categories ?? []),
+  listStarterTemplates: () =>
+    unwrap<{ templates: AdminCodingStarterTemplateItem[] }>(
+      apiClient.get("/admin/coding-problems/starter-templates"),
+    ).then((r) => r.templates ?? []),
+  validateTests: (problemId: string, body: AdminCodingValidateTestsBody) =>
+    unwrap<AdminCodingValidateTestsResult>(
+      apiClient.post(
+        `/admin/coding-problems/${encodeURIComponent(problemId)}/validate-tests`,
+        body,
+      ),
+    ),
+};
+
 export const notificationAdminApi = {
   listTemplates: (channel?: NotificationChannelKey) =>
     unwrap<NotificationTemplate[]>(

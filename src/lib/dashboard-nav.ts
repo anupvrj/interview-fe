@@ -255,6 +255,12 @@ export function getDashboardNavItems(
         accent: accent.indigo,
       },
       {
+        title: "Coding Problems",
+        href: "/dashboard/super-admin/coding-problems",
+        icon: Code2,
+        accent: accent.violet,
+      },
+      {
         title: "Peer — Interviewers",
         href: "/dashboard/super-admin/peer-interviewers",
         icon: Users,

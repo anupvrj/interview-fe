@@ -127,6 +127,12 @@ function isSuperAdminSystemDesignProblemsPath(pathname: string | null): boolean 
   );
 }
 
+function isSuperAdminCodingProblemsPath(pathname: string | null): boolean {
+  return (
+    pathname?.startsWith("/dashboard/super-admin/coding-problems") ?? false
+  );
+}
+
 function isSuperAdminNotificationHubPath(pathname: string | null): boolean {
   return (
     pathname?.startsWith("/dashboard/super-admin/notification-hub") ?? false
@@ -140,6 +146,7 @@ function isSuperAdminHomePath(pathname: string | null): boolean {
     isSuperAdminPeerBookingsPath(pathname) ||
     isSuperAdminIxRecruitersPath(pathname) ||
     isSuperAdminSystemDesignProblemsPath(pathname) ||
+    isSuperAdminCodingProblemsPath(pathname) ||
     isSuperAdminNotificationHubPath(pathname)
   ) {
     return false;
@@ -220,6 +227,9 @@ function resolveNavActive(
   }
   if (item.href === "/dashboard/super-admin/system-design-problems") {
     isActive = isSuperAdminSystemDesignProblemsPath(pathname);
+  }
+  if (item.href === "/dashboard/super-admin/coding-problems") {
+    isActive = isSuperAdminCodingProblemsPath(pathname);
   }
   if (item.href === "/dashboard/super-admin/notification-hub") {
     isActive = isSuperAdminNotificationHubPath(pathname);
