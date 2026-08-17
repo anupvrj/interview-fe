@@ -58,6 +58,12 @@ export function MarketingFooter({
                   Terms of Service
                 </Link>
                 <Link
+                  href="/privacy"
+                  className="text-sm text-gray-300 hover:text-white transition-colors"
+                >
+                  Privacy Policy
+                </Link>
+                <Link
                   href="/refund"
                   className="text-sm text-gray-300 hover:text-white transition-colors"
                 >
