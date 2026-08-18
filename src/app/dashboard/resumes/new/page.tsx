@@ -428,7 +428,9 @@ export default function NewResumePage() {
         },
       };
 
-      const content = mapExtractedSectionsToContent(extractedData.sections);
+      const content = mapExtractedSectionsToContent(extractedData.sections, {
+        templateId: selectedTemplate,
+      });
       const sectionOrder = buildSectionOrderForExtractedContent(
         extended,
         content,
@@ -524,7 +526,9 @@ export default function NewResumePage() {
         },
       };
 
-      const content = mapExtractedSectionsToContent(extractedData.sections);
+      const content = mapExtractedSectionsToContent(extractedData.sections, {
+        templateId: selectedTemplate,
+      });
       const sectionOrder = buildSectionOrderForExtractedContent(
         extended,
         content,
