@@ -51,6 +51,7 @@ import {
   appSurfaceMuted,
 } from "@/lib/app-theme";
 import { cn } from "@/lib/utils";
+import { mergeInterviewFormDefaults } from "@/lib/interview-form-defaults";
 import { UpgradeUpsellDialog } from "@/components/upsell/UpgradeUpsellDialog";
 import { TrialUpsellDialog } from "@/components/upsell/TrialUpsellDialog";
 import { useUpsellState } from "@/components/upsell/useUpsellState";
@@ -220,6 +221,7 @@ export default function NewCodingInterviewPage() {
       ]);
       setUserProfile(profile);
       setDefaultDesignedResume(designedDefault);
+      setFormData((prev) => mergeInterviewFormDefaults(prev, profile));
       if (hasActiveSavedResume(profile, designedDefault)) {
         setUseSavedResume(true);
       } else {

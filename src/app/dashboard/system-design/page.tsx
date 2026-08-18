@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useUser } from "@clerk/nextjs";
 import {
@@ -32,13 +31,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { toast } from "sonner";
 
 import {
@@ -50,13 +42,7 @@ import { DashboardStatCard } from "@/components/dashboard/DashboardStatCard";
 import { PracticeSessionGateDialogs } from "@/components/upsell/PracticeSessionGateDialogs";
 import { PracticeLockedGate } from "@/components/upsell/PracticeLockedGate";
 import { usePracticeSessionGate } from "@/components/upsell/usePracticeSessionGate";
-import { fetchSubscriptionExpired } from "@/lib/subscriptionAccess";
-
-import {
-  systemDesignApi,
-  type SystemDesignSession,
-  type SystemDesignProblemSummary,
-} from "@/lib/api";
+import { systemDesignApi, type SystemDesignSession } from "@/lib/api";
 import { getProblemById } from "@/lib/systemDesignProblems";
 import { cn, formatDate } from "@/lib/utils";
 
@@ -86,93 +72,11 @@ const getStatusBadge = (status: string) => {
   return badges[status as keyof typeof badges] || badges.active;
 };
 
-function ProblemPickerBody(
-  props: Readonly<{
-    problemsLoading: boolean;
-    problems: SystemDesignProblemSummary[];
-    createBusyProblemId: string | null;
-    createRandomBusy: boolean;
-    onPick: (problemId?: string) => void;
-  }>,
-) {
-  const {
-    problemsLoading,
-    problems,
-    createBusyProblemId,
-    createRandomBusy,
-    onPick,
-  } = props;
-
-  if (problemsLoading) {
-    return (
-      <div className="flex items-center justify-center gap-2 py-8 text-sm text-muted-foreground">
-        <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-        Loading problems…
-      </div>
-    );
-  }
-
-  if (problems.length === 0) {
-    return (
-      <p className="rounded-lg border border-dashed border-border bg-muted/20 p-4 text-sm text-muted-foreground">
-        No problems are available right now. Please try again later.
-      </p>
-    );
-  }
-
-  return (
-    <ul className="max-h-[55vh] space-y-2 overflow-y-auto pr-1">
-      {problems.map((p) => {
-        const busy = createBusyProblemId === p.id;
-        return (
-          <li key={p.id}>
-            <button
-              type="button"
-              disabled={!!createBusyProblemId || createRandomBusy || busy}
-              onClick={() => {
-                onPick(p.id);
-              }}
-              className={cn(
-                "flex w-full flex-col items-stretch gap-1 rounded-lg border border-[#7367F0]/15 bg-card p-3 text-left text-sm transition hover:border-[#7367F0]/30 hover:bg-[#7367F0]/5",
-                busy && "opacity-70",
-              )}
-            >
-              <div className="flex items-start justify-between gap-2">
-                <span className="font-semibold text-foreground">{p.title}</span>
-                {busy ? (
-                  <Loader2
-                    className="mt-0.5 h-4 w-4 shrink-0 animate-spin text-[#7367F0]"
-                    aria-hidden
-                  />
-                ) : null}
-              </div>
-              <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-                <span className="rounded bg-slate-100 px-1.5 py-0.5 font-medium capitalize">
-                  {p.difficulty}
-                </span>
-                <span>{p.category}</span>
-              </div>
-            </button>
-          </li>
-        );
-      })}
-    </ul>
-  );
-}
-
 export default function SystemDesignDashboardPage() {
-  const router = useRouter();
   const { user, isLoaded } = useUser();
 
   const [sessions, setSessions] = useState<SystemDesignSession[]>([]);
-  const [problems, setProblems] = useState<SystemDesignProblemSummary[]>([]);
   const [sessionsLoading, setSessionsLoading] = useState(true);
-  const [problemsLoading, setProblemsLoading] = useState(false);
-  const [problemDialogOpen, setProblemDialogOpen] = useState(false);
-  const [createBusyProblemId, setCreateBusyProblemId] = useState<string | null>(
-    null,
-  );
-  const [createRandomBusy, setCreateRandomBusy] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const practiceGate = usePracticeSessionGate();
   const {
@@ -181,7 +85,6 @@ export default function SystemDesignDashboardPage() {
     canUse,
     showTrialUpsell,
     entitlementsLoading,
-    setSubscriptionExpiredOpen,
   } = practiceGate;
 
   const refreshSessions = useCallback(async () => {
@@ -202,19 +105,6 @@ export default function SystemDesignDashboardPage() {
     localStorage.setItem("clerk-user-id", user.id);
     refreshSessions().finally(() => setSessionsLoading(false));
   }, [isLoaded, user, refreshSessions]);
-
-  useEffect(() => {
-    if (!problemDialogOpen || !user) return;
-    setProblemsLoading(true);
-    systemDesignApi
-      .listProblems()
-      .then(setProblems)
-      .catch(() => {
-        setProblems([]);
-        toast.error("Could not load problems");
-      })
-      .finally(() => setProblemsLoading(false));
-  }, [problemDialogOpen, user]);
 
   const totalPages = Math.ceil(sessions.length / ITEMS_PER_PAGE) || 1;
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
@@ -254,33 +144,8 @@ export default function SystemDesignDashboardPage() {
 
   const openProblemPicker = () => {
     startPracticeSession("system_design", {
-      onProceed: () => setProblemDialogOpen(true),
+      path: "/dashboard/system-design/new",
     });
-  };
-
-  const startSession = async (problemId?: string) => {
-    const expired = await fetchSubscriptionExpired();
-    if (expired) {
-      setSubscriptionExpiredOpen(true);
-      return;
-    }
-
-    if (problemId) setCreateBusyProblemId(problemId);
-    else setCreateRandomBusy(true);
-    try {
-      const session = await systemDesignApi.createSession(problemId);
-      setProblemDialogOpen(false);
-      router.push(`/dashboard/system-design/${session.sessionId}`);
-      void refreshSessions();
-    } catch (e: unknown) {
-      const msg =
-        (e as { response?: { data?: { message?: string } } })?.response?.data
-          ?.message ?? "Could not start session";
-      toast.error(msg);
-    } finally {
-      setCreateBusyProblemId(null);
-      setCreateRandomBusy(false);
-    }
   };
 
   if (!isLoaded || sessionsLoading) {
@@ -701,42 +566,6 @@ export default function SystemDesignDashboardPage() {
       </Card>
         </>
       )}
-
-      <Dialog open={problemDialogOpen} onOpenChange={setProblemDialogOpen}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Choose a system design problem</DialogTitle>
-            <DialogDescription>
-              Select a prompt to start a new whiteboard session. You can also
-              let us pick one at random.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-3 pt-2">
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full justify-center border-dashed"
-              disabled={createRandomBusy || problemsLoading}
-              onClick={() => void startSession()}
-            >
-              {createRandomBusy ? (
-                <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-              ) : (
-                "Surprise me (random problem)"
-              )}
-            </Button>
-
-            <ProblemPickerBody
-              problemsLoading={problemsLoading}
-              problems={problems}
-              createBusyProblemId={createBusyProblemId}
-              createRandomBusy={createRandomBusy}
-              onPick={startSession}
-            />
-          </div>
-        </DialogContent>
-      </Dialog>
 
       <PracticeSessionGateDialogs {...practiceGate} />
     </div>
