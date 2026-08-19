@@ -9,6 +9,7 @@ import { AppSelect } from "@/components/ui/app-select";
 import { StringListEditor } from "@/components/system-design-admin/StringListEditor";
 import { CodeTabsEditor } from "@/components/coding-admin/CodeTabsEditor";
 import { TestCaseEditor } from "@/components/coding-admin/TestCaseEditor";
+import { StatementEditor } from "@/components/coding-admin/StatementEditor";
 import { ValidateTestsPanel } from "@/components/coding-admin/ValidateTestsPanel";
 import {
   COMPANY_TIER_OPTIONS,
@@ -168,11 +169,9 @@ export function CodingProblemForm({
       </Section>
 
       <Section title="Problem statement">
-        <textarea
-          className="min-h-[200px] w-full rounded-md border bg-card px-3 py-2 text-sm leading-relaxed"
+        <StatementEditor
           value={value.statement}
-          onChange={(e) => onChange({ statement: e.target.value })}
-          placeholder="Describe the problem, constraints, examples…"
+          onChange={(statement) => onChange({ statement })}
         />
       </Section>
 

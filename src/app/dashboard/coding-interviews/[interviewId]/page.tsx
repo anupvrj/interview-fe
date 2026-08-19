@@ -39,6 +39,7 @@ import {
   pickRecorderMimeType,
 } from "@/lib/codingSessionRecording";
 import { HorizontalResizeHandle } from "@/components/layout/HorizontalResizeHandle";
+import { CodingProblemStatement } from "@/components/coding/CodingProblemStatement";
 import {
   HORIZONTAL_SPLITTER_PX,
   useHorizontalPaneResize,
@@ -149,8 +150,11 @@ function ProblemDescriptionDark({
         <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-300/90">
           Problem description
         </h3>
-        <div className="rounded-xl border border-white/10 bg-card/[0.04] px-4 py-3 text-sm leading-relaxed text-gray-200 whitespace-pre-wrap shadow-lg shadow-black/20">
-          {problem.statement}
+        <div className="rounded-xl border border-white/10 bg-card/[0.04] px-4 py-3 shadow-lg shadow-black/20">
+          <CodingProblemStatement
+            statement={problem.statement}
+            variant="dark"
+          />
         </div>
         <p className="mt-2 text-xs leading-snug text-gray-400">
           The starter code is an{" "}
