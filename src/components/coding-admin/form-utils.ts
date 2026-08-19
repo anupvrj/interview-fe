@@ -5,34 +5,38 @@ import type {
   CodingDifficulty,
   CompanyTierTag,
 } from "@/lib/api";
+import {
+  getPublicCaseCount,
+  isDesignProblem,
+  isSnippetFunctionProblem,
+} from "@/lib/coding-problem-mode";
 
 export type CodingProblemFormValues = AdminCodingProblemUpsertBody & {
   problemId?: string;
 };
 
 export function isSnippetProblemForm(form: CodingProblemFormValues): boolean {
-  if (form.executionMode !== "snippet") return false;
-  return (
-    !!form.designMeta?.className ||
-    !!form.snippetMeta?.entryPoint ||
-    (form.snippetMeta?.publicCases?.length ?? 0) > 0
-  );
+  return isSnippetFunctionProblem(form) || isDesignProblem(form);
 }
 
 export function snippetPublicCaseCount(form: CodingProblemFormValues): number {
-  return (
-    form.designMeta?.publicCases?.length ??
-    form.snippetMeta?.publicCases?.length ??
-    0
-  );
+  if (isDesignProblem(form)) {
+    return form.designMeta!.publicCases.length;
+  }
+  if (isSnippetFunctionProblem(form)) {
+    return form.snippetMeta!.publicCases.length;
+  }
+  return 0;
 }
 
 export function snippetHiddenCaseCount(form: CodingProblemFormValues): number {
-  return (
-    form.designMeta?.hiddenCases?.length ??
-    form.snippetMeta?.hiddenCases?.length ??
-    0
-  );
+  if (isDesignProblem(form)) {
+    return form.designMeta!.hiddenCases?.length ?? 0;
+  }
+  if (isSnippetFunctionProblem(form)) {
+    return form.snippetMeta!.hiddenCases?.length ?? 0;
+  }
+  return 0;
 }
 
 const PROBLEM_ID_RE = /^[a-z0-9]+(?:[-_][a-z0-9]+)*$/;
@@ -132,8 +136,17 @@ export function validateCodingProblemForm(
   if (!form.difficulty) return "Difficulty is required";
 
   if (isSnippetProblemForm(form)) {
-    if (snippetPublicCaseCount(form) < 1) {
+    if (getPublicCaseCount(form) < 1) {
       return "Snippet mode requires at least one public case in snippetMeta or designMeta";
+    }
+    const publicCases = isDesignProblem(form)
+      ? (form.designMeta?.publicCases ?? [])
+      : (form.snippetMeta?.publicCases ?? []);
+    for (let i = 0; i < publicCases.length; i++) {
+      const testCase = publicCases[i]!;
+      if (!testCase.expectedOutput.trim()) {
+        return `Public test ${i + 1}: expected output is required`;
+      }
     }
   } else {
     const pub = form.publicTests ?? [];

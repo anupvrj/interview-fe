@@ -7,12 +7,10 @@ import { useParams, useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import {
   ArrowLeft,
-  CheckCircle2,
   Loader2,
   Play,
   RotateCcw,
   Send,
-  XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -26,6 +24,18 @@ import {
 } from "@/components/ui/select";
 import { isPlatformAdmin } from "@/lib/dashboard-nav";
 import { CodingProblemStatement } from "@/components/coding/CodingProblemStatement";
+import { PlaygroundCasePanel } from "@/components/coding/PlaygroundCasePanel";
+import {
+  CodingRunResultsPanel,
+  type CodingRunPayload,
+} from "@/components/coding/CodingRunResultsPanel";
+import {
+  getPublicCaseCount,
+  getPublicCaseView,
+  isDesignProblem,
+  isSnippetFunctionProblem,
+  playgroundModeLabel,
+} from "@/lib/coding-problem-mode";
 import {
   adminCodingProblemApi,
   userApi,
@@ -118,22 +128,41 @@ export default function CodingProblemPlaygroundPage() {
     void loadProblem();
   }, [authorized, loadProblem]);
 
-  const isSnippetMode =
-    problem?.executionMode === "snippet" && !!problem.snippetMeta?.entryPoint;
+  const publicCaseCount = problem ? getPublicCaseCount(problem) : 0;
 
-  const publicCaseCount = isSnippetMode
-    ? problem!.snippetMeta!.publicCases.length
-    : problem?.publicTests.length ?? 0;
+  useEffect(() => {
+    if (activeCase >= publicCaseCount && publicCaseCount > 0) {
+      setActiveCase(0);
+    }
+  }, [publicCaseCount, activeCase]);
 
-  const selectedCaseInputs = useMemo(() => {
-    if (!problem || !isSnippetMode) return [];
-    const c = problem.snippetMeta!.publicCases[activeCase];
-    if (!c) return [];
-    return Object.entries(c.inputs).map(([name, value]) => ({
-      name,
-      value: Array.isArray(value) ? JSON.stringify(value) : String(value),
-    }));
-  }, [problem, isSnippetMode, activeCase]);
+  const isDesignMode = problem ? isDesignProblem(problem) : false;
+  const usesHarness = problem
+    ? isSnippetFunctionProblem(problem) || isDesignMode
+    : false;
+
+  const activeCaseView = useMemo(
+    () => (problem ? getPublicCaseView(problem, activeCase) : null),
+    [problem, activeCase],
+  );
+
+  const runPayload: CodingRunPayload | null = runResult
+    ? {
+        passed: runResult.passed,
+        total: runResult.total,
+        results: runResult.results.map((r) => ({
+          index: r.index,
+          passed: r.passed,
+          expected: r.expected,
+          actual: r.actual,
+          stderr: r.stderr,
+          compileOutput: r.compileOutput,
+          status: r.status,
+          error: r.error,
+          visibility: r.visibility,
+        })),
+      }
+    : null;
 
   const runTests = async (visibility: "public" | "all") => {
     if (!problem || !code.trim()) {
@@ -186,8 +215,6 @@ export default function CodingProblemPlaygroundPage() {
 
   if (!problem) return null;
 
-  const resultForCase = runResult?.results[activeCase];
-
   return (
     <div className="flex h-[calc(100vh-4rem)] flex-col bg-[#1a1a1a] text-[#eff1f6]">
       <header className="flex shrink-0 items-center gap-3 border-b border-[#3a3a3a] px-4 py-2">
@@ -206,9 +233,9 @@ export default function CodingProblemPlaygroundPage() {
         <span className={cn("text-xs capitalize", DIFFICULTY_CLASS[problem.difficulty])}>
           {problem.difficulty}
         </span>
-        {isSnippetMode ? (
+        {usesHarness ? (
           <Badge variant="outline" className="border-[#4ade80]/40 text-[#86efac]">
-            Function template
+            {playgroundModeLabel(problem)}
           </Badge>
         ) : (
           <Badge variant="outline" className="border-[#94a3b8]/40 text-[#94a3b8]">
@@ -346,80 +373,45 @@ export default function CodingProblemPlaygroundPage() {
 
             {bottomTab === "testcase" ? (
               <div className="flex min-h-0 flex-1 flex-col p-3">
-                <div className="mb-3 flex gap-2">
-                  {Array.from({ length: publicCaseCount }).map((_, i) => (
-                    <button
-                      key={i}
-                      type="button"
-                      onClick={() => setActiveCase(i)}
-                      className={cn(
-                        "rounded px-3 py-1 text-xs",
-                        activeCase === i
-                          ? "bg-[#3a3a3a] text-white"
-                          : "text-[#9ca3af] hover:bg-[#2d2d2d]",
-                      )}
-                    >
-                      Case {i + 1}
-                    </button>
-                  ))}
-                </div>
-                <div className="space-y-2 overflow-y-auto">
-                  {isSnippetMode ? (
-                    selectedCaseInputs.map((inp) => (
-                      <div key={inp.name} className="space-y-1">
-                        <label className="text-xs text-[#9ca3af]">{inp.name} =</label>
-                        <div className="rounded-md border border-[#3a3a3a] bg-[#282828] px-3 py-2 font-mono text-sm">
-                          {inp.value}
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="rounded-md border border-[#3a3a3a] bg-[#282828] p-3 font-mono text-xs whitespace-pre-wrap">
-                      {problem.publicTests[activeCase]?.input ?? "—"}
+                {publicCaseCount > 0 ? (
+                  <>
+                    <div className="mb-3 flex flex-wrap gap-2">
+                      {Array.from({ length: publicCaseCount }).map((_, i) => (
+                        <button
+                          key={i}
+                          type="button"
+                          onClick={() => setActiveCase(i)}
+                          className={cn(
+                            "rounded px-3 py-1 text-xs",
+                            activeCase === i
+                              ? "bg-[#3a3a3a] text-white"
+                              : "text-[#9ca3af] hover:bg-[#2d2d2d]",
+                          )}
+                        >
+                          Case {i + 1}
+                        </button>
+                      ))}
                     </div>
-                  )}
-                </div>
+                    <PlaygroundCasePanel testCase={activeCaseView} className="min-h-0 flex-1" />
+                  </>
+                ) : (
+                  <p className="text-sm text-[#9ca3af]">
+                    No public test cases found for this problem.
+                  </p>
+                )}
               </div>
             ) : (
               <div className="min-h-0 flex-1 overflow-y-auto p-3">
-                {!runResult ? (
+                {!runPayload ? (
                   <p className="text-sm text-[#9ca3af]">
                     Run your code to see results here.
                   </p>
                 ) : (
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-2 text-sm">
-                      {runResult.passed === runResult.total ? (
-                        <CheckCircle2 className="h-5 w-5 text-emerald-400" />
-                      ) : (
-                        <XCircle className="h-5 w-5 text-rose-400" />
-                      )}
-                      <span className="font-semibold">
-                        {runResult.passed === runResult.total ? "Accepted" : "Wrong Answer"}
-                      </span>
-                      <span className="text-[#9ca3af]">
-                        {runResult.passed}/{runResult.total} passed
-                      </span>
-                    </div>
-                    {resultForCase ? (
-                      <div className="space-y-2 rounded-md border border-[#3a3a3a] bg-[#282828] p-3 text-xs font-mono">
-                        <div>
-                          <span className="text-[#9ca3af]">Expected: </span>
-                          {resultForCase.expected ?? "—"}
-                        </div>
-                        <div>
-                          <span className="text-[#9ca3af]">Output: </span>
-                          {resultForCase.actual ?? "—"}
-                        </div>
-                        {resultForCase.error ? (
-                          <div className="text-rose-400">{resultForCase.error}</div>
-                        ) : null}
-                        {resultForCase.stderr ? (
-                          <div className="text-amber-300">{resultForCase.stderr}</div>
-                        ) : null}
-                      </div>
-                    ) : null}
-                  </div>
+                  <CodingRunResultsPanel
+                    payload={runPayload}
+                    theme="dark"
+                    showVisibility
+                  />
                 )}
               </div>
             )}

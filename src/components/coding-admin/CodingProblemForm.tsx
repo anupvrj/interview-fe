@@ -11,7 +11,7 @@ import { StringListEditor } from "@/components/system-design-admin/StringListEdi
 import { CodeTabsEditor } from "@/components/coding-admin/CodeTabsEditor";
 import { TestCaseEditor } from "@/components/coding-admin/TestCaseEditor";
 import { StatementEditor } from "@/components/coding-admin/StatementEditor";
-import { SnippetCaseViewer } from "@/components/coding-admin/SnippetCaseViewer";
+import { SnippetCaseEditor } from "@/components/coding-admin/SnippetCaseEditor";
 import { ValidateTestsPanel } from "@/components/coding-admin/ValidateTestsPanel";
 import {
   COMPANY_TIER_OPTIONS,
@@ -205,18 +205,13 @@ export function CodingProblemForm({
 
       <Section title="Public test cases">
         {snippetMode ? (
-          <>
-            <SnippetCaseViewer
-              variant="public"
-              snippetMeta={value.snippetMeta}
-              designMeta={value.designMeta}
-            />
-            <p className="text-xs text-muted-foreground">
-              Snippet/design cases are imported via reseed scripts. Edit
-              statement, starter code, and metadata here; use the playground to
-              validate runs.
-            </p>
-          </>
+          <SnippetCaseEditor
+            variant="public"
+            snippetMeta={value.snippetMeta}
+            designMeta={value.designMeta}
+            onSnippetMetaChange={(snippetMeta) => onChange({ snippetMeta })}
+            onDesignMetaChange={(designMeta) => onChange({ designMeta })}
+          />
         ) : (
           <TestCaseEditor
             label="Public tests (visible on Run)"
@@ -230,10 +225,12 @@ export function CodingProblemForm({
 
       <Section title="Hidden test cases">
         {snippetMode ? (
-          <SnippetCaseViewer
+          <SnippetCaseEditor
             variant="hidden"
             snippetMeta={value.snippetMeta}
             designMeta={value.designMeta}
+            onSnippetMetaChange={(snippetMeta) => onChange({ snippetMeta })}
+            onDesignMetaChange={(designMeta) => onChange({ designMeta })}
           />
         ) : (
           <TestCaseEditor
