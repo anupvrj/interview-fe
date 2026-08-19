@@ -25,6 +25,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { isPlatformAdmin } from "@/lib/dashboard-nav";
+import { CodingProblemStatement } from "@/components/coding/CodingProblemStatement";
 import {
   adminCodingProblemApi,
   userApi,
@@ -220,9 +221,10 @@ export default function CodingProblemPlaygroundPage() {
         {/* Left — problem description */}
         <section className="min-h-0 overflow-y-auto border-b border-[#3a3a3a] p-5 lg:border-b-0 lg:border-r">
           <h1 className="mb-3 text-xl font-semibold">{problem.title}</h1>
-          <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed text-[#d1d5db]">
-            {problem.statement}
-          </pre>
+          <CodingProblemStatement
+            statement={problem.statement}
+            variant="admin"
+          />
         </section>
 
         {/* Right — editor + tests */}

@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import type { AdminCodingProblemDetail } from "@/lib/api";
+import { CodingProblemStatement } from "@/components/coding/CodingProblemStatement";
 import { Loader2 } from "lucide-react";
 
 function countPublicTests(problem: AdminCodingProblemDetail): number {
@@ -70,9 +71,9 @@ export function CodingProblemViewDialog({
               <p className="mb-1 text-xs font-medium text-muted-foreground">
                 Statement
               </p>
-              <pre className="whitespace-pre-wrap rounded-md bg-muted/40 p-3 text-xs">
-                {problem.statement}
-              </pre>
+              <div className="rounded-md bg-muted/40 p-3 text-xs">
+                <CodingProblemStatement statement={problem.statement} />
+              </div>
             </div>
             <div>
               <p className="mb-1 text-xs font-medium text-muted-foreground">
