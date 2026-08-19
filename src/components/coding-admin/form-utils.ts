@@ -5,10 +5,39 @@ import type {
   CodingDifficulty,
   CompanyTierTag,
 } from "@/lib/api";
+import {
+  getPublicCaseCount,
+  isDesignProblem,
+  isSnippetFunctionProblem,
+} from "@/lib/coding-problem-mode";
 
 export type CodingProblemFormValues = AdminCodingProblemUpsertBody & {
   problemId?: string;
 };
+
+export function isSnippetProblemForm(form: CodingProblemFormValues): boolean {
+  return isSnippetFunctionProblem(form) || isDesignProblem(form);
+}
+
+export function snippetPublicCaseCount(form: CodingProblemFormValues): number {
+  if (isDesignProblem(form)) {
+    return form.designMeta!.publicCases.length;
+  }
+  if (isSnippetFunctionProblem(form)) {
+    return form.snippetMeta!.publicCases.length;
+  }
+  return 0;
+}
+
+export function snippetHiddenCaseCount(form: CodingProblemFormValues): number {
+  if (isDesignProblem(form)) {
+    return form.designMeta!.hiddenCases?.length ?? 0;
+  }
+  if (isSnippetFunctionProblem(form)) {
+    return form.snippetMeta!.hiddenCases?.length ?? 0;
+  }
+  return 0;
+}
 
 const PROBLEM_ID_RE = /^[a-z0-9]+(?:[-_][a-z0-9]+)*$/;
 
@@ -61,6 +90,9 @@ export function detailToFormValues(
     referenceSolution: detail.referenceSolution ?? {},
     publicTests: detail.publicTests ?? [],
     hiddenTests: detail.hiddenTests ?? [],
+    executionMode: detail.executionMode,
+    snippetMeta: detail.snippetMeta,
+    designMeta: detail.designMeta,
     timeLimitMs: detail.timeLimitMs,
     isActive: detail.isActive,
   };
@@ -81,6 +113,9 @@ export function formToUpsertBody(
     referenceSolution: form.referenceSolution ?? {},
     publicTests: form.publicTests ?? [],
     hiddenTests: form.hiddenTests ?? [],
+    executionMode: form.executionMode,
+    snippetMeta: form.snippetMeta,
+    designMeta: form.designMeta,
     timeLimitMs: form.timeLimitMs,
     isActive: form.isActive !== false,
   };
@@ -99,13 +134,29 @@ export function validateCodingProblemForm(
   if (!form.title?.trim()) return "Title is required";
   if (!form.statement?.trim()) return "Statement is required";
   if (!form.difficulty) return "Difficulty is required";
-  const pub = form.publicTests ?? [];
-  if (pub.length < 1) return "At least one public test case is required";
-  for (let i = 0; i < pub.length; i++) {
-    const tc = pub[i]!;
-    if (!tc.input.trim()) return `Public test ${i + 1}: input is required`;
-    if (!tc.expectedOutput.trim()) {
-      return `Public test ${i + 1}: expected output is required`;
+
+  if (isSnippetProblemForm(form)) {
+    if (getPublicCaseCount(form) < 1) {
+      return "Snippet mode requires at least one public case in snippetMeta or designMeta";
+    }
+    const publicCases = isDesignProblem(form)
+      ? (form.designMeta?.publicCases ?? [])
+      : (form.snippetMeta?.publicCases ?? []);
+    for (let i = 0; i < publicCases.length; i++) {
+      const testCase = publicCases[i]!;
+      if (!testCase.expectedOutput.trim()) {
+        return `Public test ${i + 1}: expected output is required`;
+      }
+    }
+  } else {
+    const pub = form.publicTests ?? [];
+    if (pub.length < 1) return "At least one public test case is required";
+    for (let i = 0; i < pub.length; i++) {
+      const tc = pub[i]!;
+      if (!tc.input.trim()) return `Public test ${i + 1}: input is required`;
+      if (!tc.expectedOutput.trim()) {
+        return `Public test ${i + 1}: expected output is required`;
+      }
     }
   }
   const starter = form.starterCode ?? {};
@@ -116,7 +167,10 @@ export function validateCodingProblemForm(
 }
 
 export function hiddenTestsWarning(form: CodingProblemFormValues): string | null {
-  if ((form.hiddenTests ?? []).length === 0) {
+  const hiddenCount = isSnippetProblemForm(form)
+    ? snippetHiddenCaseCount(form)
+    : (form.hiddenTests ?? []).length;
+  if (hiddenCount === 0) {
     return "No hidden test cases — submit will only judge public tests. Continue?";
   }
   return null;

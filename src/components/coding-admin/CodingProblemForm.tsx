@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AppSelect } from "@/components/ui/app-select";
@@ -10,9 +11,11 @@ import { StringListEditor } from "@/components/system-design-admin/StringListEdi
 import { CodeTabsEditor } from "@/components/coding-admin/CodeTabsEditor";
 import { TestCaseEditor } from "@/components/coding-admin/TestCaseEditor";
 import { StatementEditor } from "@/components/coding-admin/StatementEditor";
+import { SnippetCaseEditor } from "@/components/coding-admin/SnippetCaseEditor";
 import { ValidateTestsPanel } from "@/components/coding-admin/ValidateTestsPanel";
 import {
   COMPANY_TIER_OPTIONS,
+  isSnippetProblemForm,
   type CodingProblemFormValues,
 } from "@/components/coding-admin/form-utils";
 import {
@@ -77,6 +80,8 @@ export function CodingProblemForm({
     const t = templates.find((x) => x.id === templateId);
     if (t) onChange({ starterCode: { ...value.starterCode, ...t.starters } });
   };
+
+  const snippetMode = isSnippetProblemForm(value);
 
   const toggleTier = (tier: CompanyTierTag) => {
     const set = new Set(value.companyTierTags ?? []);
@@ -199,27 +204,56 @@ export function CodingProblemForm({
       </Section>
 
       <Section title="Public test cases">
-        <TestCaseEditor
-          label="Public tests (visible on Run)"
-          hint="Use \\n for newlines in stdin. Shown to candidates."
-          variant="public"
-          cases={value.publicTests ?? []}
-          onChange={(publicTests) => onChange({ publicTests })}
-        />
+        {snippetMode ? (
+          <SnippetCaseEditor
+            variant="public"
+            snippetMeta={value.snippetMeta}
+            designMeta={value.designMeta}
+            onSnippetMetaChange={(snippetMeta) => onChange({ snippetMeta })}
+            onDesignMetaChange={(designMeta) => onChange({ designMeta })}
+          />
+        ) : (
+          <TestCaseEditor
+            label="Public tests (visible on Run)"
+            hint="Use \\n for newlines in stdin. Shown to candidates."
+            variant="public"
+            cases={value.publicTests ?? []}
+            onChange={(publicTests) => onChange({ publicTests })}
+          />
+        )}
       </Section>
 
       <Section title="Hidden test cases">
-        <TestCaseEditor
-          label="Hidden tests (Submit only)"
-          hint="Not shown to candidates. Used for final scoring."
-          variant="hidden"
-          cases={value.hiddenTests ?? []}
-          onChange={(hiddenTests) => onChange({ hiddenTests })}
-        />
+        {snippetMode ? (
+          <SnippetCaseEditor
+            variant="hidden"
+            snippetMeta={value.snippetMeta}
+            designMeta={value.designMeta}
+            onSnippetMetaChange={(snippetMeta) => onChange({ snippetMeta })}
+            onDesignMetaChange={(designMeta) => onChange({ designMeta })}
+          />
+        ) : (
+          <TestCaseEditor
+            label="Hidden tests (Submit only)"
+            hint="Not shown to candidates. Used for final scoring."
+            variant="hidden"
+            cases={value.hiddenTests ?? []}
+            onChange={(hiddenTests) => onChange({ hiddenTests })}
+          />
+        )}
       </Section>
 
       <Section title="Execution" defaultOpen={false}>
-        <div>
+        <div className="space-y-3">
+          <div>
+            <Label className="text-xs text-muted-foreground">Execution mode</Label>
+            <div className="mt-2">
+              <Badge variant="outline">
+                {value.executionMode === "snippet" ? "Snippet / function" : "Stdin I/O"}
+              </Badge>
+            </div>
+          </div>
+          <div>
           <Label className="text-xs text-muted-foreground">
             Time limit (ms, optional)
           </Label>
@@ -235,6 +269,7 @@ export function CodingProblemForm({
               })
             }
           />
+          </div>
         </div>
       </Section>
 
