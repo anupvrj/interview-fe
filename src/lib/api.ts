@@ -4201,6 +4201,9 @@ export interface AdminCodingProblemUpsertBody {
   referenceSolution?: Partial<Record<CodingLanguage, string>>;
   publicTests?: AdminCodingTestCase[];
   hiddenTests?: AdminCodingTestCase[];
+  executionMode?: "stdin" | "snippet";
+  snippetMeta?: AdminCodingSnippetMeta;
+  designMeta?: AdminCodingDesignMeta;
   timeLimitMs?: number;
   isActive?: boolean;
 }
