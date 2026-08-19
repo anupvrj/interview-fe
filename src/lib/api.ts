@@ -4135,6 +4135,22 @@ export interface AdminCodingProblemDetail {
   referenceSolution: Partial<Record<CodingLanguage, string>>;
   publicTests: AdminCodingTestCase[];
   hiddenTests: AdminCodingTestCase[];
+  executionMode?: "stdin" | "snippet";
+  snippetMeta?: {
+    entryPoint: string;
+    params: Array<{ name: string; type: string }>;
+    returnType: "integer" | "integer[]" | "string" | "boolean" | "void";
+    outputParam?: string;
+    outputSlice?: { param: string; lengthExpr: string };
+    publicCases: Array<{
+      inputs: Record<string, number | number[] | string | boolean>;
+      expectedOutput: string;
+    }>;
+    hiddenCases: Array<{
+      inputs: Record<string, number | number[] | string | boolean>;
+      expectedOutput: string;
+    }>;
+  };
   timeLimitMs?: number;
   isActive: boolean;
   createdAt: string;
@@ -4199,6 +4215,7 @@ export interface AdminCodingValidateTestsResult {
     status?: string;
     error?: string;
     visibility: "public" | "hidden";
+    inputs?: Array<{ name: string; value: string }>;
   }>;
 }
 

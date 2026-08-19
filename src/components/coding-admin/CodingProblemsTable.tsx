@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Eye, Loader2, Pencil, Search, Trash2, X } from "lucide-react";
+import { Eye, Loader2, Pencil, Play, Search, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -167,6 +167,19 @@ export function CodingProblemsTable({
                   </td>
                   <td className="p-3">
                     <div className="flex gap-1">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        title="Try problem"
+                        asChild
+                      >
+                        <Link
+                          href={`/dashboard/super-admin/coding-problems/${encodeURIComponent(item.problemId)}/playground`}
+                        >
+                          <Play className="h-4 w-4" />
+                        </Link>
+                      </Button>
                       <Button
                         type="button"
                         variant="ghost"
