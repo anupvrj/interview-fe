@@ -10,6 +10,22 @@ import { Badge } from "@/components/ui/badge";
 import type { AdminCodingProblemDetail } from "@/lib/api";
 import { Loader2 } from "lucide-react";
 
+function countPublicTests(problem: AdminCodingProblemDetail): number {
+  return (
+    problem.designMeta?.publicCases?.length ??
+    problem.snippetMeta?.publicCases?.length ??
+    problem.publicTests.length
+  );
+}
+
+function countHiddenTests(problem: AdminCodingProblemDetail): number {
+  return (
+    problem.designMeta?.hiddenCases?.length ??
+    problem.snippetMeta?.hiddenCases?.length ??
+    problem.hiddenTests.length
+  );
+}
+
 interface CodingProblemViewDialogProps {
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
@@ -44,10 +60,10 @@ export function CodingProblemViewDialog({
                 {problem.isActive ? "Active" : "Inactive"}
               </Badge>
               <Badge variant="outline">
-                public: {problem.publicTests.length}
+                public: {countPublicTests(problem)}
               </Badge>
               <Badge variant="outline">
-                hidden: {problem.hiddenTests.length}
+                hidden: {countHiddenTests(problem)}
               </Badge>
             </div>
             <div>
