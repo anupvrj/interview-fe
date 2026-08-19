@@ -4123,6 +4123,39 @@ export interface AdminCodingProblemListItem {
   updatedAt: string;
 }
 
+export interface AdminCodingFunctionCase {
+  inputs: Record<string, unknown>;
+  expectedOutput: string;
+}
+
+export interface AdminCodingSnippetMeta {
+  entryPoint: string;
+  params: Array<{ name: string; type: string }>;
+  returnType: string;
+  outputParam?: string;
+  outputSlice?: { param: string; lengthExpr: string };
+  publicCases: AdminCodingFunctionCase[];
+  hiddenCases: AdminCodingFunctionCase[];
+}
+
+export interface AdminCodingDesignCase {
+  operations: string[];
+  args: unknown[][];
+  expectedOutput: string;
+}
+
+export interface AdminCodingDesignMeta {
+  className: string;
+  constructorParams?: Array<{ name: string; type: string }>;
+  methods: Array<{
+    name: string;
+    params: Array<{ name: string; type: string }>;
+    returnType: string;
+  }>;
+  publicCases: AdminCodingDesignCase[];
+  hiddenCases: AdminCodingDesignCase[];
+}
+
 export interface AdminCodingProblemDetail {
   problemId: string;
   title: string;
@@ -4136,21 +4169,8 @@ export interface AdminCodingProblemDetail {
   publicTests: AdminCodingTestCase[];
   hiddenTests: AdminCodingTestCase[];
   executionMode?: "stdin" | "snippet";
-  snippetMeta?: {
-    entryPoint: string;
-    params: Array<{ name: string; type: string }>;
-    returnType: "integer" | "integer[]" | "string" | "boolean" | "void";
-    outputParam?: string;
-    outputSlice?: { param: string; lengthExpr: string };
-    publicCases: Array<{
-      inputs: Record<string, number | number[] | string | boolean>;
-      expectedOutput: string;
-    }>;
-    hiddenCases: Array<{
-      inputs: Record<string, number | number[] | string | boolean>;
-      expectedOutput: string;
-    }>;
-  };
+  snippetMeta?: AdminCodingSnippetMeta;
+  designMeta?: AdminCodingDesignMeta;
   timeLimitMs?: number;
   isActive: boolean;
   createdAt: string;
