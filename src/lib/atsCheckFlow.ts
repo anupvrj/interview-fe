@@ -116,7 +116,7 @@ export async function runATSAnalysis(
   try {
     const extractedData = await resumeDataExtractionApi.extractResumeData(
       "classic",
-      resumeText,
+      { resumeText },
     );
     const content = mapExtractedSectionsToContent(extractedData.sections);
     await resumeApi.update(newResume.resumeId, { content });

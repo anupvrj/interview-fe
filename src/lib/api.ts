@@ -1540,6 +1540,7 @@ export const resumeApi = {
       content?: Partial<Resume["content"]>;
       sectionOrder?: Resume["sectionOrder"];
       layout?: Resume["layout"];
+      atsScoringContext?: Resume["atsScoringContext"];
       /** Set true for ATS checker so it does not count toward resume limit */
       forAtsCheckOnly?: boolean;
     },
@@ -1782,10 +1783,105 @@ export const resumeApi = {
 };
 
 // Resume Data Extraction API
+export interface JDRequirements {
+  jobTitle?: string;
+  seniorityLevel?: string;
+  requiredYears: number | null;
+  preferredYears: number | null;
+  mustHaveSkills: string[];
+  niceToHaveSkills: string[];
+  education: Array<{
+    level: string;
+    field?: string;
+    fields?: string[];
+    allowRelatedFields?: boolean;
+    mandatory: boolean;
+  }>;
+  certifications: string[];
+  responsibilities: string[];
+  otherRequirements: string[];
+}
+
+export interface ChatCollectedProfile {
+  personalInfo?: {
+    fullName?: string;
+    email?: string;
+    phone?: string;
+    location?: string;
+    linkedin?: string;
+    github?: string;
+    portfolio?: string;
+  };
+  profileSummary?: string;
+  experience?: Array<{
+    company?: string;
+    position?: string;
+    startDate?: string;
+    endDate?: string;
+    current?: boolean;
+    description?: string;
+    location?: string;
+  }>;
+  education?: Array<{
+    institution?: string;
+    degree?: string;
+    field?: string;
+    startDate?: string;
+    endDate?: string;
+    description?: string;
+  }>;
+  skills?: string[];
+  projects?: Array<{
+    name?: string;
+    description?: string;
+    technologies?: string[];
+  }>;
+  certificates?: Array<{
+    title?: string;
+    issuer?: string;
+    issueDate?: string;
+  }>;
+}
+
+export interface ResumeBuilderChatMessage {
+  role: "assistant" | "user";
+  content: string;
+  createdAt: string;
+}
+
+export type ResumeBuilderChatMode = "bulk" | "guided" | "voice";
+
+export interface ResumeBuilderChatSessionResponse {
+  sessionId: string;
+  phase: string;
+  mode: ResumeBuilderChatMode | null;
+  status: "active" | "ready_for_build" | "finalized";
+  messages: ResumeBuilderChatMessage[];
+  collectedProfile: ChatCollectedProfile;
+  assistantMessage?: string;
+}
+
+export type ResumeImportBuildOptions = {
+  jobDescription?: string;
+  jdRequirements?: JDRequirements;
+};
+
 export const resumeDataExtractionApi = {
+  analyzeJobDescription: async (
+    jobDescription: string,
+  ): Promise<{ requirements: JDRequirements; summary: string }> => {
+    const response = await apiClient.post("/analyze-job-description", {
+      jobDescription,
+    });
+    return response.data.data;
+  },
+
   extractResumeData: async (
     templateId: string,
-    resumeText?: string,
+    options: {
+      resumeText?: string;
+      chatProfile?: ChatCollectedProfile;
+    } & ResumeImportBuildOptions = {},
   ): Promise<{
     sections: Record<
       string,
@@ -1797,14 +1893,18 @@ export const resumeDataExtractionApi = {
     >;
     templateId: string;
   }> => {
+    const { resumeText, chatProfile, jobDescription, jdRequirements } = options;
     const response = await apiClient.post(
       "/extract-resume-data",
       {
         templateId,
         resumeText: resumeText || undefined,
+        chatProfile: chatProfile || undefined,
+        jobDescription: jobDescription || undefined,
+        jdRequirements: jdRequirements || undefined,
       },
       {
-        timeout: 180000, // 180 seconds (3 minutes) for AI extraction
+        timeout: 180000,
       },
     );
     return response.data.data;
@@ -1813,6 +1913,7 @@ export const resumeDataExtractionApi = {
   importLinkedInProfile: async (
     handle: string,
     templateId: string,
+    options: ResumeImportBuildOptions = {},
   ): Promise<{
     sections: Record<
       string,
@@ -1829,10 +1930,84 @@ export const resumeDataExtractionApi = {
       {
         handle,
         templateId,
+        jobDescription: options.jobDescription || undefined,
+        jdRequirements: options.jdRequirements || undefined,
       },
       {
-        timeout: 180000, // 180 seconds (3 minutes) for fetch + AI enhancement
+        timeout: 180000,
       },
+    );
+    return response.data.data;
+  },
+};
+
+/**
+ * Build the WSS URL for the Resume Builder voice agent. Auth is via the `userId`
+ * query param (WS clients can't attach auth headers).
+ */
+export function buildResumeVoiceWsUrl(
+  sessionId: string,
+  userId: string,
+  geminiVoice?: string,
+): string {
+  const baseHost = API_URL.replace(/\/api$/, "").replace(/^https?:\/\//, "");
+  const wsProtocol =
+    typeof globalThis !== "undefined" &&
+    globalThis.location?.protocol === "https:"
+      ? "wss:"
+      : "ws:";
+  const voiceParam = geminiVoice
+    ? `&geminiVoice=${encodeURIComponent(geminiVoice)}`
+    : "";
+  return (
+    `${wsProtocol}//${baseHost}/api/resume-builder/voice/sessions/${encodeURIComponent(sessionId)}/realtime/gemini?` +
+    `userId=${encodeURIComponent(userId)}${voiceParam}`
+  );
+}
+
+export const resumeBuilderChatApi = {
+  createSession: async (
+    templateId: string,
+    mode?: ResumeBuilderChatMode,
+  ): Promise<ResumeBuilderChatSessionResponse> => {
+    const response = await apiClient.post("/resume-builder/chat/sessions", {
+      templateId,
+      mode,
+    });
+    return response.data.data;
+  },
+
+  getSession: async (
+    sessionId: string,
+  ): Promise<ResumeBuilderChatSessionResponse> => {
+    const response = await apiClient.get(
+      `/resume-builder/chat/sessions/${sessionId}`,
+    );
+    return response.data.data;
+  },
+
+  sendMessage: async (
+    sessionId: string,
+    content: string,
+    action?: "skip" | "skip_and_build",
+  ): Promise<ResumeBuilderChatSessionResponse> => {
+    const response = await apiClient.post(
+      `/resume-builder/chat/sessions/${sessionId}/messages`,
+      { content, action },
+      { timeout: 30000 },
+    );
+    return response.data.data;
+  },
+
+  finalizeSession: async (
+    sessionId: string,
+  ): Promise<{
+    sessionId: string;
+    status: string;
+    collectedProfile: ChatCollectedProfile;
+  }> => {
+    const response = await apiClient.post(
+      `/resume-builder/chat/sessions/${sessionId}/finalize`,
     );
     return response.data.data;
   },
