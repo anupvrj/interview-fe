@@ -135,9 +135,24 @@ function matchesPrefix(pathname: string, prefixes: string[]): boolean {
  * super_admin can view everything. Non-dashboard paths are always allowed.
  */
 type RoleProfile =
-  | Pick<User, "institutionId" | "peer" | "recruiter">
+  | Pick<User, "accessRole" | "institutionId" | "peer" | "recruiter">
   | null
   | undefined;
+
+/** When a URL requires a specific role view, return it so the UI can sync without redirecting away. */
+export function roleRequiredForPath(
+  pathname: string | null,
+  profile: Pick<User, "accessRole"> | null | undefined,
+): ActiveRole | null {
+  if (!pathname) return null;
+  if (
+    profile?.accessRole === "super_admin" &&
+    matchesPrefix(pathname, SUPER_ADMIN_PREFIXES)
+  ) {
+    return "super_admin";
+  }
+  return null;
+}
 
 export function isPathAllowedForRole(
   role: ActiveRole,
@@ -145,6 +160,15 @@ export function isPathAllowedForRole(
   profile: RoleProfile,
 ): boolean {
   if (!pathname || !pathname.startsWith("/dashboard")) return true;
+
+  // Platform admins may open super-admin tools even while another role is active.
+  if (
+    profile?.accessRole === "super_admin" &&
+    matchesPrefix(pathname, SUPER_ADMIN_PREFIXES)
+  ) {
+    return true;
+  }
+
   if (role === "super_admin") return true;
 
   // Profile is always reachable from any role.
@@ -217,6 +241,32 @@ export function isPathAllowedForRole(
   }
 
   return true;
+}
+
+/** Pick stored role, or the only available role for single-role users. */
+export function resolveInitialActiveRole(
+  profile: Pick<User, "accessRole" | "peer" | "recruiter">,
+  userId: string,
+): ActiveRole | null {
+  const roles = deriveAvailableRoles(profile);
+  const stored = readStoredRole(userId);
+  if (stored && roles.includes(stored)) return stored;
+  if (roles.length === 1) {
+    writeStoredRole(userId, roles[0]);
+    return roles[0];
+  }
+  return null;
+}
+
+/** When the URL implies a role view (e.g. super-admin tools), return it if allowed. */
+export function resolvePathScopedActiveRole(
+  pathname: string | null,
+  profile: Pick<User, "accessRole">,
+): ActiveRole | null {
+  const required = roleRequiredForPath(pathname, profile);
+  if (!required) return null;
+  const roles = deriveAvailableRoles(profile);
+  return roles.includes(required) ? required : null;
 }
 
 const STORAGE_PREFIX = "activeRole:";

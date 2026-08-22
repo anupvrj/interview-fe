@@ -1,15 +1,22 @@
 import { MetadataRoute } from "next";
+import { getSiteUrl } from "@/lib/seo/site-url";
+import { fetchBlogSitemapEntries } from "@/lib/blog/server";
 
-export default function sitemap(): MetadataRoute.Sitemap {
-  const baseUrl =
-    process.env.NEXT_PUBLIC_APP_URL || "https://interviewtrix.com";
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  const baseUrl = getSiteUrl();
 
-  return [
+  const staticEntries: MetadataRoute.Sitemap = [
     {
       url: baseUrl,
       lastModified: new Date(),
       changeFrequency: "daily",
       priority: 1,
+    },
+    {
+      url: `${baseUrl}/blogs`,
+      lastModified: new Date(),
+      changeFrequency: "daily",
+      priority: 0.85,
     },
     {
       url: `${baseUrl}/ai-resume-builder`,
@@ -78,4 +85,19 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.5,
     },
   ];
+
+  let blogEntries: MetadataRoute.Sitemap = [];
+  try {
+    const posts = await fetchBlogSitemapEntries();
+    blogEntries = posts.map((post) => ({
+      url: `${baseUrl}/blogs/${post.slug}`,
+      lastModified: new Date(post.updatedAt),
+      changeFrequency: "monthly" as const,
+      priority: 0.7,
+    }));
+  } catch {
+    blogEntries = [];
+  }
+
+  return [...staticEntries, ...blogEntries];
 }

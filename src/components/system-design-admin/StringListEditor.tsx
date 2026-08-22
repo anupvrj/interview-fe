@@ -13,6 +13,7 @@ interface StringListEditorProps {
   readonly onChange: (value: string[]) => void;
   readonly placeholder?: string;
   readonly disabled?: boolean;
+  readonly stacked?: boolean;
 }
 
 const FIELD_LABEL =
@@ -31,6 +32,7 @@ export function StringListEditor({
   onChange,
   placeholder = "Enter item…",
   disabled,
+  stacked = false,
 }: StringListEditorProps) {
   const updateItem = (index: number, text: string) => {
     const next = [...value];
@@ -62,10 +64,12 @@ export function StringListEditor({
   return (
     <div
       className={cn(
-        "grid grid-cols-1 gap-2 md:grid-cols-[11rem_minmax(0,1fr)] md:gap-x-5 lg:grid-cols-[12rem_minmax(0,1fr)]",
+        "grid grid-cols-1 gap-2",
+        !stacked &&
+          "md:grid-cols-[11rem_minmax(0,1fr)] md:gap-x-5 lg:grid-cols-[12rem_minmax(0,1fr)]",
       )}
     >
-      <Label className={cn(FIELD_LABEL, "md:pt-1")}>{label}</Label>
+      <Label className={cn(FIELD_LABEL, !stacked && "md:pt-1")}>{label}</Label>
       <div className="min-w-0 space-y-2">
         {!disabled ? (
           <div className="flex flex-wrap justify-end gap-2">

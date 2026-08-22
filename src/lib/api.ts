@@ -5,6 +5,7 @@ import axios, {
 } from "axios";
 import type { ATSReportV3 } from "@/types/atsReport";
 export { isATSReportV3 } from "@/types/atsReport";
+import { inferImageContentType } from "@/lib/image-upload";
 
 /** Base URL for API (includes `/api` path). Use for `<img src>` and other non-axios URLs. */
 export const API_URL =
@@ -63,6 +64,13 @@ async function snapshotFileForUpload(file: File): Promise<Blob> {
   const buffer = await file.arrayBuffer();
   return new Blob([buffer], {
     type: file.type || "application/octet-stream",
+  });
+}
+
+async function snapshotImageForUpload(file: File): Promise<Blob> {
+  const buffer = await file.arrayBuffer();
+  return new Blob([buffer], {
+    type: inferImageContentType(file),
   });
 }
 
@@ -4294,6 +4302,162 @@ export const adminCodingProblemApi = {
         `/admin/coding-problems/${encodeURIComponent(problemId)}/validate-tests`,
         body,
       ),
+    ),
+};
+
+// --- Blog CMS ---
+
+export type BlogStatus = "draft" | "published" | "archived";
+
+export interface AdminBlogListItem {
+  id: string;
+  slug: string;
+  title: string;
+  excerpt: string;
+  thumbnailUrl: string;
+  categories: string[];
+  status: BlogStatus;
+  authorName: string;
+  publishedAt: string | null;
+  readingTimeMinutes: number;
+  isActive: boolean;
+  updatedAt: string;
+}
+
+export interface AdminBlogDetail extends AdminBlogListItem {
+  content: string;
+  seoTitle: string;
+  metaDescription: string;
+  focusKeyword: string;
+  keywords: string[];
+  canonicalUrl: string;
+  authorId: string;
+  createdAt: string;
+}
+
+export interface AdminBlogListResponse {
+  items: AdminBlogListItem[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+export interface AdminBlogUpsertBody {
+  slug?: string;
+  title: string;
+  excerpt?: string;
+  content?: string;
+  thumbnailUrl?: string;
+  categories?: string[];
+  status?: BlogStatus;
+  seoTitle?: string;
+  metaDescription?: string;
+  focusKeyword?: string;
+  keywords?: string[];
+  canonicalUrl?: string;
+}
+
+export interface AdminBlogListQuery {
+  search?: string;
+  category?: string;
+  status?: BlogStatus;
+  isActive?: boolean;
+  page?: number;
+  limit?: number;
+  sortBy?: "title" | "publishedAt" | "updatedAt";
+  sortDir?: "asc" | "desc";
+}
+
+export interface PublicBlogListItem {
+  slug: string;
+  title: string;
+  excerpt: string;
+  thumbnailUrl: string;
+  categories: string[];
+  authorName: string;
+  publishedAt: string;
+  readingTimeMinutes: number;
+  updatedAt: string;
+}
+
+export interface PublicBlogDetail extends PublicBlogListItem {
+  content: string;
+  seoTitle: string;
+  metaDescription: string;
+  focusKeyword: string;
+  keywords: string[];
+  canonicalUrl: string;
+}
+
+export interface PublicBlogListResponse {
+  items: PublicBlogListItem[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+export interface BlogImageUploadBody {
+  filename: string;
+  contentType: string;
+}
+
+export interface BlogImageUploadResponse {
+  uploadUrl: string;
+  publicUrl: string;
+  s3Key: string;
+}
+
+export const adminBlogApi = {
+  list: (params?: AdminBlogListQuery) =>
+    unwrap<AdminBlogListResponse>(apiClient.get("/admin/blogs", { params })),
+  get: (blogId: string) =>
+    unwrap<AdminBlogDetail>(
+      apiClient.get(`/admin/blogs/${encodeURIComponent(blogId)}`),
+    ),
+  create: (body: AdminBlogUpsertBody) =>
+    unwrap<AdminBlogDetail>(apiClient.post("/admin/blogs", body)),
+  update: (blogId: string, body: AdminBlogUpsertBody) =>
+    unwrap<AdminBlogDetail>(
+      apiClient.put(`/admin/blogs/${encodeURIComponent(blogId)}`, body),
+    ),
+  remove: (blogId: string) =>
+    unwrap<void>(apiClient.delete(`/admin/blogs/${encodeURIComponent(blogId)}`)),
+  restore: (blogId: string) =>
+    unwrap<AdminBlogDetail>(
+      apiClient.post(`/admin/blogs/${encodeURIComponent(blogId)}/restore`),
+    ),
+  publish: (blogId: string) =>
+    unwrap<AdminBlogDetail>(
+      apiClient.post(`/admin/blogs/${encodeURIComponent(blogId)}/publish`),
+    ),
+  listCategories: () =>
+    unwrap<{ categories: string[] }>(
+      apiClient.get("/admin/blogs/categories"),
+    ).then((r) => r.categories ?? []),
+  getUploadUrl: (body: BlogImageUploadBody) =>
+    unwrap<BlogImageUploadResponse>(
+      apiClient.post("/admin/blogs/upload-image", body),
+    ),
+  uploadImage: async (file: File): Promise<{ publicUrl: string; s3Key: string }> => {
+    const blob = await snapshotImageForUpload(file);
+    const formData = new FormData();
+    formData.append("file", blob, file.name);
+    return unwrap<{ publicUrl: string; s3Key: string }>(
+      apiClient.post("/admin/blogs/upload-image", formData),
+    );
+  },
+};
+
+export const blogApi = {
+  list: (params?: { page?: number; limit?: number; category?: string }) =>
+    unwrap<PublicBlogListResponse>(apiClient.get("/blogs", { params })),
+  getBySlug: (slug: string) =>
+    unwrap<PublicBlogDetail>(
+      apiClient.get(`/blogs/${encodeURIComponent(slug)}`),
+    ),
+  listCategories: () =>
+    unwrap<{ categories: string[] }>(apiClient.get("/blogs/categories")).then(
+      (r) => r.categories ?? [],
     ),
 };
 

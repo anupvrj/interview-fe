@@ -2,10 +2,41 @@ import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { InterviewTrixLogo } from "@/components/InterviewTrixLogo";
 import { SocialLinks } from "@/components/SocialLinks";
+import {
+  FOOTER_IMPORTANT_LINKS,
+  FOOTER_POLICY_LINKS,
+  FOOTER_PRODUCT_LINKS,
+  type FooterLink,
+} from "@/lib/marketing-footer-links";
 
 interface MarketingFooterProps {
   as?: "section" | "footer";
   className?: string;
+}
+
+function FooterLinkColumn({
+  title,
+  links,
+}: Readonly<{ title: string; links: FooterLink[] }>) {
+  return (
+    <nav aria-label={title}>
+      <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-white">
+        {title}
+      </h2>
+      <ul className="space-y-3">
+        {links.map((item) => (
+          <li key={item.href}>
+            <Link
+              href={item.href}
+              className="text-sm leading-snug text-gray-300 transition-colors hover:text-white"
+            >
+              {item.label}
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </nav>
+  );
 }
 
 export function MarketingFooter({
@@ -15,74 +46,45 @@ export function MarketingFooter({
   return (
     <Tag
       className={cn(
-        "py-8 sm:py-10 px-4 sm:px-6 bg-slate-900",
+        "bg-slate-900 px-4 py-10 sm:px-6 sm:py-12 lg:py-14",
         className,
       )}
     >
       <div className="container mx-auto max-w-6xl">
-        <div className="flex flex-col gap-6 md:gap-4">
-          <div className="flex flex-col md:flex-row items-center md:items-center justify-between gap-4 md:gap-6">
+        <div className="grid grid-cols-1 gap-10 sm:grid-cols-2 sm:gap-8 lg:grid-cols-4 lg:gap-10">
+          {/* Footer menu 1 — logo & social */}
+          <div className="flex flex-col items-center text-center sm:items-start sm:text-left">
             <Link
               href="/"
-              className="inline-flex items-center hover:opacity-90 transition-opacity"
+              className="inline-flex transition-opacity hover:opacity-90"
             >
               <InterviewTrixLogo
                 variant="white"
-                className="h-7 sm:h-8 lg:h-10 w-auto"
+                className="h-8 w-auto sm:h-9"
               />
             </Link>
-            <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-6 w-full md:w-auto">
-              <nav className="flex flex-wrap items-center justify-center md:justify-end gap-4 sm:gap-6">
-                <Link
-                  href="/hire-ix-talent"
-                  className="text-sm text-gray-300 hover:text-white transition-colors"
-                >
-                  Hire iX Talent
-                </Link>
-                <Link
-                  href="/become-peer-interviewer"
-                  className="text-sm text-gray-300 hover:text-white transition-colors"
-                >
-                  Become Interviewer
-                </Link>
-                <Link
-                  href="/about-us"
-                  className="text-sm text-gray-300 hover:text-white transition-colors"
-                >
-                  About us
-                </Link>
-                <Link
-                  href="/terms"
-                  className="text-sm text-gray-300 hover:text-white transition-colors"
-                >
-                  Terms of Service
-                </Link>
-                <Link
-                  href="/privacy"
-                  className="text-sm text-gray-300 hover:text-white transition-colors"
-                >
-                  Privacy Policy
-                </Link>
-                <Link
-                  href="/refund"
-                  className="text-sm text-gray-300 hover:text-white transition-colors"
-                >
-                  Refund policy
-                </Link>
-                <Link
-                  href="/contact"
-                  className="text-sm text-gray-300 hover:text-white transition-colors"
-                >
-                  Contact us
-                </Link>
-              </nav>
-              <SocialLinks className="md:ml-0 shrink-0" />
-            </div>
+            <p className="mt-6 text-sm font-semibold uppercase tracking-wider text-white">
+              Follow us
+            </p>
+            <SocialLinks
+              className="mt-3 justify-center sm:justify-start"
+              iconClassName="h-5 w-5"
+            />
           </div>
+
+          {/* Footer menu 2 — important links */}
+          <FooterLinkColumn title="Important Links" links={FOOTER_IMPORTANT_LINKS} />
+
+          {/* Footer menu 3 — products */}
+          <FooterLinkColumn title="Our Products" links={FOOTER_PRODUCT_LINKS} />
+
+          {/* Footer menu 4 — policies */}
+          <FooterLinkColumn title="Policies" links={FOOTER_POLICY_LINKS} />
         </div>
-        <div className="mt-6 pt-6 border-t border-white/10">
-          <p className="text-sm text-gray-400 text-center">
-            © 2026 Interview Trix. All rights reserved.
+
+        <div className="mt-10 border-t border-white/10 pt-6 sm:mt-12">
+          <p className="text-center text-sm text-gray-400">
+            © {new Date().getFullYear()} Interview Trix. All rights reserved.
           </p>
         </div>
       </div>

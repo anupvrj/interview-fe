@@ -2,12 +2,13 @@ import Script from "next/script";
 
 interface StructuredDataProps {
   data: object;
+  id?: string;
 }
 
-export function StructuredData({ data }: StructuredDataProps) {
+export function StructuredData({ data, id = "structured-data" }: StructuredDataProps) {
   return (
     <Script
-      id="structured-data"
+      id={id}
       type="application/ld+json"
       dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }}
     />
@@ -89,5 +90,45 @@ export function createFAQSchema(faqs: { question: string; answer: string }[]) {
         text: faq.answer,
       },
     })),
+  };
+}
+
+export function createBlogPostingSchema(post: {
+  title: string;
+  description: string;
+  url: string;
+  image?: string;
+  datePublished: string;
+  dateModified: string;
+  authorName: string;
+  keywords?: string[];
+}) {
+  const siteUrl = process.env.NEXT_PUBLIC_APP_URL || "https://interviewtrix.com";
+  return {
+    "@context": "https://schema.org",
+    "@type": "BlogPosting",
+    headline: post.title,
+    description: post.description,
+    ...(post.image ? { image: post.image } : {}),
+    datePublished: post.datePublished,
+    dateModified: post.dateModified,
+    author: {
+      "@type": "Person",
+      name: post.authorName,
+    },
+    publisher: {
+      ...organizationSchema,
+      logo: {
+        "@type": "ImageObject",
+        url: `${siteUrl}/brand/interviewtrix-logo.png`,
+      },
+    },
+    mainEntityOfPage: {
+      "@type": "WebPage",
+      "@id": post.url,
+    },
+    ...(post.keywords?.length
+      ? { keywords: post.keywords.join(", ") }
+      : {}),
   };
 }
