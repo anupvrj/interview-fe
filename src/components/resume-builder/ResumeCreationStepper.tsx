@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 export type ResumeCreationStepId =
   | "template"
   | "import"
+  | "jobDescription"
   | "processing";
 
 export type ResumeCreationStep = {
@@ -16,6 +17,7 @@ export type ResumeCreationStep = {
 export const RESUME_CREATION_STEPS: ResumeCreationStep[] = [
   { id: "template", label: "Template" },
   { id: "import", label: "Import" },
+  { id: "jobDescription", label: "Target Job" },
   { id: "processing", label: "Build" },
 ];
 
