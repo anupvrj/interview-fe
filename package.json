@@ -32,6 +32,7 @@
     "@radix-ui/react-toast": "^1.2.2",
     "@tiptap/extension-bullet-list": "^3.13.0",
     "@tiptap/extension-color": "^3.13.0",
+    "@tiptap/extension-image": "^3.30.2",
     "@tiptap/extension-link": "^3.19.0",
     "@tiptap/extension-list-item": "^3.13.0",
     "@tiptap/extension-ordered-list": "^3.13.0",

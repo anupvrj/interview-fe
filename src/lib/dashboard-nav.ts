@@ -18,6 +18,7 @@ import {
   LayoutGrid,
   Code2,
   Network,
+  Newspaper,
   BarChart2,
   UserPlus,
   ClipboardList,
@@ -259,6 +260,12 @@ export function getDashboardNavItems(
         href: "/dashboard/super-admin/coding-problems",
         icon: Code2,
         accent: accent.violet,
+      },
+      {
+        title: "Blog CMS",
+        href: "/dashboard/super-admin/blogs",
+        icon: Newspaper,
+        accent: accent.blue,
       },
       {
         title: "Peer — Interviewers",

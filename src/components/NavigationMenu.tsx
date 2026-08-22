@@ -78,6 +78,12 @@ export const navLinkPricing = {
   match: (path: string) => path.startsWith("/pricing"),
 } as const;
 
+export const navLinkBlog = {
+  href: "/blogs",
+  label: "Blog",
+  match: (path: string) => path.startsWith("/blogs"),
+} as const;
+
 /** @deprecated Use navLinksHome */
 export const navLinksBeforePractice = navLinksHome;
 
@@ -325,6 +331,12 @@ export function PublicDesktopNav() {
       />
 
       <NavLink
+        href={navLinkBlog.href}
+        label={navLinkBlog.label}
+        active={navLinkBlog.match(pathname)}
+      />
+
+      <NavLink
         href={navLinkPricing.href}
         label={navLinkPricing.label}
         active={navLinkPricing.match(pathname)}
@@ -562,6 +574,14 @@ export function PublicMobileNav() {
             className={mobileLinkClass(navLinkHireTalent.match(pathname))}
           >
             {navLinkHireTalent.label}
+          </Link>
+
+          <Link
+            href={navLinkBlog.href}
+            onClick={navigateFromMobileDrawer(navLinkBlog.href)}
+            className={mobileLinkClass(navLinkBlog.match(pathname))}
+          >
+            {navLinkBlog.label}
           </Link>
 
           <Link

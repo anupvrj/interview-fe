@@ -64,17 +64,21 @@ export function CodingProblemsTable({
 
   return (
     <div className={appTableShell}>
-      <div className="flex flex-col gap-3 border-b p-4 sm:flex-row sm:flex-wrap sm:items-center">
-        <div className="relative min-w-[200px] flex-1">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+      <div className="flex flex-wrap items-center gap-3 border-b p-4">
+        <div className="flex h-11 min-w-[min(100%,280px)] flex-1 basis-[240px] overflow-hidden rounded-[0.625rem] border border-input bg-card shadow-sm focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20">
           <Input
-            className="h-10 pl-9"
+            className="h-11 min-w-0 flex-1 rounded-none border-0 bg-transparent px-4 shadow-none focus-visible:border-transparent focus-visible:ring-0"
             placeholder="Search title or ID…"
             value={search}
             onChange={(e) => onSearchChange(e.target.value)}
+            aria-label="Search coding problems"
           />
+          <span className="flex w-11 shrink-0 items-center justify-center border-l border-input bg-muted/30 text-muted-foreground">
+            <Search className="h-4 w-4" aria-hidden />
+          </span>
         </div>
         <AppSelect
+          className="h-11 w-full shrink-0 sm:w-[180px]"
           value={category || "all"}
           onChange={(v) => onCategoryChange(v === "all" ? "" : v)}
           options={[
@@ -83,6 +87,7 @@ export function CodingProblemsTable({
           ]}
         />
         <AppSelect
+          className="h-11 w-full shrink-0 sm:w-[160px]"
           value={difficulty}
           onChange={(v) =>
             onDifficultyChange(v as CodingDifficultyFilter)
@@ -95,6 +100,7 @@ export function CodingProblemsTable({
           ]}
         />
         <AppSelect
+          className="h-11 w-full shrink-0 sm:w-[140px]"
           value={activeFilter}
           onChange={(v) => onActiveFilterChange(v as CodingActiveFilter)}
           options={[

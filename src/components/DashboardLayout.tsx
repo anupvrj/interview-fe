@@ -13,7 +13,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { ProfileMenu } from "@/components/app/ProfileMenu";
 import { useActiveRole } from "@/components/roles/ActiveRoleProvider";
 import { RoleSwitcher } from "@/components/roles/RoleSwitcher";
-import { isPathAllowedForRole, roleHome, type ActiveRole } from "@/lib/roles";
+import { isPathAllowedForRole, roleHome, roleRequiredForPath, type ActiveRole } from "@/lib/roles";
 import {
   appNavIconWrap,
   appNavItemActive,
@@ -366,22 +366,46 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
   const isInstitutionView = activeRole === "institution_admin";
 
-  // Send multi-role users without a chosen role to the role chooser.
+  // Align active role with the current path before any select-role redirect.
   useEffect(() => {
-    if (!roleReady) return;
-    if (!activeRole && availableRoles.length > 1) {
-      router.replace("/select-role");
-    }
-  }, [roleReady, activeRole, availableRoles.length, router]);
+    if (!roleReady || !profile) return;
 
-  // Keep navigation within the active role's allowed area.
-  useEffect(() => {
-    if (!roleReady || !activeRole || !pathname) return;
-    if (!pathname.startsWith("/dashboard")) return;
+    const requiredRole = pathname?.startsWith("/dashboard")
+      ? roleRequiredForPath(pathname, profile)
+      : null;
+
+    if (
+      requiredRole &&
+      activeRole !== requiredRole &&
+      availableRoles.includes(requiredRole) &&
+      roleCtx?.setActiveRoleSilent
+    ) {
+      roleCtx.setActiveRoleSilent(requiredRole);
+      return;
+    }
+
+    if (!activeRole && availableRoles.length > 1) {
+      if (requiredRole && availableRoles.includes(requiredRole)) {
+        return;
+      }
+      router.replace("/select-role");
+      return;
+    }
+
+    if (!activeRole || !pathname?.startsWith("/dashboard")) return;
+
     if (!isPathAllowedForRole(activeRole, pathname, profile)) {
       router.replace(roleHome(activeRole, profile));
     }
-  }, [roleReady, activeRole, pathname, profile, router]);
+  }, [
+    roleReady,
+    activeRole,
+    pathname,
+    profile,
+    router,
+    availableRoles,
+    roleCtx,
+  ]);
 
   const menuItems = useMemo(() => {
     const items = filterNavByActiveRole(
