@@ -131,7 +131,13 @@ export default function InterviewsPage() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  if (!isLoaded || loading) {
+  const waitingForFirstData =
+    isLoaded &&
+    (interviewsLoading || schedulesLoading) &&
+    interviews.length === 0 &&
+    scheduled.length === 0;
+
+  if (!isLoaded || waitingForFirstData) {
     return (
       <div className="flex min-h-[400px] items-center justify-center">
         <div className="text-center">

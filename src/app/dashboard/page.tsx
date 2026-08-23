@@ -44,8 +44,8 @@ import {
 } from "recharts";
 import {
   interviewScheduleApi,
-  userApi,
 } from "@/lib/api";
+import { useActiveRole } from "@/components/roles/ActiveRoleProvider";
 import { useInterviewsQuery } from "@/hooks/queries/useInterviewsQuery";
 import { useSystemDesignSessionsQuery } from "@/hooks/queries/useSystemDesignSessionsQuery";
 import { usePeerBookingsQuery } from "@/hooks/queries/usePeerBookingsQuery";
@@ -83,13 +83,16 @@ const ONBOARDING_BANNER_DISMISSED_KEY = "dashboard-onboarding-banner-dismissed";
 export default function DashboardPage() {
   const { user, isLoaded } = useUser();
   const router = useRouter();
-  const { data: interviews = [] } = useInterviewsQuery();
+  const roleCtx = useActiveRole();
+  const profile = roleCtx?.profile ?? null;
+  const roleReady = roleCtx?.ready ?? false;
+  const { data: interviews = [], isLoading: interviewsLoading } =
+    useInterviewsQuery();
   const { data: systemDesignSessions = [] } = useSystemDesignSessionsQuery();
   const { data: peerBookings = [] } = usePeerBookingsQuery();
   const { data: scheduledInterviews = [] } = useInterviewSchedulesQuery();
   const { invalidate } = useDashboardInvalidation();
-  const [initLoading, setInitLoading] = useState(true);
-  const [profileCompletion, setProfileCompletion] = useState<number>(0);
+  const profileCompletion = profile?.profileCompletionPercentage ?? 0;
   const [currentPage, setCurrentPage] = useState(1);
   const [interviewTypeFilter, setInterviewTypeFilter] =
     useState<DashboardSessionFilter>("all");
@@ -170,52 +173,21 @@ export default function DashboardPage() {
   }, []);
 
   useEffect(() => {
-    if (isLoaded && user) {
-      initializeUser();
+    if (!roleReady || !user || !profile) return;
+    if (
+      readStoredRole(user.id) === "institution_admin" &&
+      profile.institutionId
+    ) {
+      router.replace(`/dashboard/institute/${String(profile.institutionId)}`);
     }
-  }, [isLoaded, user]);
+  }, [roleReady, user, profile, router]);
 
-  const initializeUser = async () => {
-    try {
-      if (!user) return;
+  const waitingForFirstData =
+    roleReady &&
+    interviewsLoading &&
+    interviews.length === 0;
 
-      const createdUser = await userApi.createOrGetUser(
-        user.id,
-        user.primaryEmailAddress?.emailAddress || "",
-        user.fullName || user.firstName || "User",
-      );
-
-      if (!createdUser.onboardingCompleted) {
-        router.push("/onboarding");
-        return;
-      }
-
-      try {
-        const profile = await userApi.getMyProfile();
-        if (
-          readStoredRole(user.id) === "institution_admin" &&
-          profile.institutionId
-        ) {
-          router.replace(
-            `/dashboard/institute/${String(profile.institutionId)}`,
-          );
-          return;
-        }
-        const completion = profile.profileCompletionPercentage || 0;
-        setProfileCompletion(completion);
-      } catch (error) {
-        console.error("Error fetching profile:", error);
-      }
-    } catch (error) {
-      console.error("Error initializing user:", error);
-    } finally {
-      setInitLoading(false);
-    }
-  };
-
-  const loading = initLoading;
-
-  if (!isLoaded || loading) {
+  if (!isLoaded || !roleReady || waitingForFirstData) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
