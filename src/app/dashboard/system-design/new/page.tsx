@@ -28,10 +28,12 @@ import {
 } from "@/lib/api";
 import { fetchSubscriptionExpired } from "@/lib/subscriptionAccess";
 import { cn } from "@/lib/utils";
+import { useDashboardInvalidation } from "@/hooks/useDashboardInvalidation";
 
 export default function SystemDesignNewSessionPage() {
   const router = useRouter();
   const { user, isLoaded } = useUser();
+  const { invalidate } = useDashboardInvalidation();
 
   const [problems, setProblems] = useState<SystemDesignProblemSummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -106,6 +108,7 @@ export default function SystemDesignNewSessionPage() {
 
       try {
         const session = await systemDesignApi.createSession(problemId);
+        await invalidate(["systemDesignSessions", "entitlements"]);
         router.push(`/dashboard/system-design/${session.sessionId}`);
       } catch (e: unknown) {
         const msg =

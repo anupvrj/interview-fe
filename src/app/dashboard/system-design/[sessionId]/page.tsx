@@ -27,6 +27,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
+import { invalidateAfterSystemDesignSessionFromStorage } from "@/lib/invalidate-queries";
 import {
   ChevronDown,
   ChevronUp,
@@ -490,6 +491,7 @@ export default function SystemDesignSessionPage() {
       setEndInterviewConfirmOpen(false);
       setFinalizing(false);
       toast.success("Session completed! Your score is ready.");
+      await invalidateAfterSystemDesignSessionFromStorage();
       router.push(reportHref);
     } catch {
       toast.error("Could not finalize session. Please try again.");
@@ -522,6 +524,7 @@ export default function SystemDesignSessionPage() {
           ? "Interview ended — no activity detected. Your report is ready."
           : "Interview ended. Your report is ready.",
       );
+      void invalidateAfterSystemDesignSessionFromStorage();
       router.push(reportHref);
     },
     [finalized, stopMediaRecorderAndUpload, router, reportHref],
@@ -569,6 +572,7 @@ export default function SystemDesignSessionPage() {
       } catch {
         /* still leave */
       }
+      await invalidateAfterSystemDesignSessionFromStorage();
       router.push("/dashboard/system-design");
     })();
   }, [router, stopMediaRecorderAndUpload]);

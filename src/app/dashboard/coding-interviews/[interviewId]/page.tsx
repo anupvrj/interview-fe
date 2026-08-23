@@ -34,6 +34,7 @@ import {
   Interview,
   interviewApi,
 } from "@/lib/api";
+import { invalidateAfterCodingSessionCompleteFromStorage } from "@/lib/invalidate-queries";
 import {
   combineScreenAndMicForRecording,
   pickRecorderMimeType,
@@ -883,6 +884,7 @@ export default function CodingInterviewSessionPage() {
       await new Promise((r) => setTimeout(r, 900));
       await codingInterviewApi.markDone(interviewId);
       setExitConfirmOpen(false);
+      await invalidateAfterCodingSessionCompleteFromStorage();
       router.push(`/dashboard/interviews/${interviewId}/processing`);
     } catch (e: unknown) {
       const msg =

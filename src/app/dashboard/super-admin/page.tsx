@@ -47,6 +47,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { userApi, adminApi, User } from "@/lib/api";
+import { ClientCacheAdminCard } from "@/components/admin/ClientCacheAdminCard";
 import {
   formatDate,
   getScoreColor,
@@ -536,6 +537,8 @@ export default function SuperAdminPage() {
           InterviewTrix internal admin - manage institutions and platform users
         </p>
       </div>
+
+      <ClientCacheAdminCard />
 
       <Card className="overflow-hidden rounded-xl border border-border/60 bg-card shadow-card">
         <CardHeader className="border-b border-border/60 px-5 py-4">

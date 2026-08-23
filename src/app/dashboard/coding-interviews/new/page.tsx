@@ -31,6 +31,7 @@ import {
   User,
   type Resume,
 } from "@/lib/api";
+import { useDashboardInvalidation } from "@/hooks/useDashboardInvalidation";
 import {
   getActiveSavedResumeDisplay,
   hasActiveSavedResume,
@@ -190,6 +191,7 @@ function ResumeOptionCard({
 export default function NewCodingInterviewPage() {
   const { user, isLoaded } = useUser();
   const router = useRouter();
+  const { invalidate } = useDashboardInvalidation();
   const [loading, setLoading] = useState(false);
   const [userProfile, setUserProfile] = useState<User | null>(null);
   const [defaultDesignedResume, setDefaultDesignedResume] =
@@ -403,6 +405,7 @@ export default function NewCodingInterviewPage() {
         useSavedResume:
           useSavedResume && savedResumeAvailable ? true : undefined,
       });
+      await invalidate(["codingInterviews", "entitlements"]);
       router.push(
         `/dashboard/coding-interviews/${res.data.interviewId}?autostart=1`,
       );
