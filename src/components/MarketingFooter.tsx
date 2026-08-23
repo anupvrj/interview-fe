@@ -59,8 +59,9 @@ export function MarketingFooter({
               className="inline-flex transition-opacity hover:opacity-90"
             >
               <InterviewTrixLogo
-                variant="white"
-                className="h-8 w-auto sm:h-9"
+                variant="footer"
+                unoptimized
+                className="h-auto w-[146px] sm:w-[164px]"
               />
             </Link>
             <p className="mt-6 text-sm font-semibold uppercase tracking-wider text-white">

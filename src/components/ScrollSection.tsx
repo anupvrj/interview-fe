@@ -21,26 +21,24 @@ export function ScrollSection({
       (entries) => {
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
-            // Add a small delay for smoother transition when clicking
-            setTimeout(() => {
-              setIsVisible(true);
-            }, 150);
+            setIsVisible(true);
           }
         });
       },
       {
-        threshold: 0.1,
-        rootMargin: "0px 0px -50px 0px",
-      }
+        threshold: 0.05,
+        rootMargin: "0px 0px 120px 0px",
+      },
     );
 
-    if (sectionRef.current) {
-      observer.observe(sectionRef.current);
+    const node = sectionRef.current;
+    if (node) {
+      observer.observe(node);
     }
 
     return () => {
-      if (sectionRef.current) {
-        observer.unobserve(sectionRef.current);
+      if (node) {
+        observer.unobserve(node);
       }
     };
   }, []);
@@ -54,7 +52,7 @@ export function ScrollSection({
         // Wait for scroll to complete, then animate
         setTimeout(() => {
           setIsVisible(true);
-        }, 400);
+        }, 150);
       }
     };
 
@@ -72,7 +70,7 @@ export function ScrollSection({
         if (isInView && window.location.hash === `#${id}`) {
           setTimeout(() => {
             setIsVisible(true);
-          }, 200);
+          }, 100);
         }
       }
     };
@@ -89,10 +87,10 @@ export function ScrollSection({
     <section
       ref={sectionRef}
       id={id}
-      className={`${className} transition-all duration-1000 ease-out ${
+      className={`${className} transition-all duration-500 ease-out ${
         isVisible
           ? "opacity-100 translate-y-0"
-          : "opacity-0 translate-y-8"
+          : "opacity-0 translate-y-4"
       }`}
     >
       {children}

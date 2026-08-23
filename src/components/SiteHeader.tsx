@@ -31,7 +31,7 @@ function ProfileControl({ className }: { className?: string }) {
           asChild
           className={cn(
             instituteSecondaryClass,
-            "hidden h-9 px-3 text-xs lg:inline-flex lg:text-sm",
+            "hidden h-9 px-3 text-xs xl:inline-flex xl:text-sm",
           )}
         >
           <Link href="/sign-in">Sign in</Link>
@@ -77,7 +77,7 @@ export function SiteHeader({
               priority
             />
           </Link>
-          <div className="relative z-10 shrink-0">
+          <div className="relative z-[1] shrink-0">
             <ProfileControl />
           </div>
         </div>

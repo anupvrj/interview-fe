@@ -6,6 +6,7 @@ import axios, {
 import type { ATSReportV3 } from "@/types/atsReport";
 export { isATSReportV3 } from "@/types/atsReport";
 import { inferImageContentType } from "@/lib/image-upload";
+import { getSignInUrlWithRedirect } from "@/lib/post-sign-in-redirect";
 
 /** Base URL for API (includes `/api` path). Use for `<img src>` and other non-axios URLs. */
 export const API_URL =
@@ -120,7 +121,8 @@ apiClient.interceptors.response.use(
     if (error.response?.status === 401) {
       // Redirect to login if unauthorized
       if (typeof window !== "undefined") {
-        window.location.href = "/sign-in";
+        const returnPath = `${window.location.pathname}${window.location.search}`;
+        window.location.href = getSignInUrlWithRedirect(returnPath);
       }
     }
     return Promise.reject(error);

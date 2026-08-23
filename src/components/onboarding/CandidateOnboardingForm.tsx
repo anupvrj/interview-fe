@@ -30,6 +30,7 @@ import {
   onboardingControlClass,
 } from "@/components/onboarding/onboarding-form-primitives";
 import { isPaidPlanId } from "@/lib/pricingPageContent";
+import { consumePostSignInReturnUrl } from "@/lib/post-sign-in-redirect";
 import { POST_ONBOARDING_TRIAL_OFFER_KEY } from "@/lib/trialFeatures";
 import { userApi } from "@/lib/api";
 import {
@@ -273,9 +274,8 @@ export function CandidateOnboardingForm() {
   });
 
   const redirectAfterComplete = () => {
-    const returnUrl = localStorage.getItem("resumeBuilderReturnUrl");
+    const returnUrl = consumePostSignInReturnUrl();
     if (returnUrl) {
-      localStorage.removeItem("resumeBuilderReturnUrl");
       router.push(returnUrl);
       return;
     }

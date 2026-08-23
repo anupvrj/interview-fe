@@ -17,8 +17,7 @@ export function StructuredData({ data, id = "structured-data" }: StructuredDataP
 
 /** Organization `sameAs` for JSON-LD — keep in sync with `SocialLinks.tsx` hrefs */
 export const ORGANIZATION_SAME_AS = [
-  "https://www.instagram.com/interviewtrix/",
-  "https://www.reddit.com/user/interviewtrix/",
+  "https://www.instagram.com/interviewtrix_official/",
   "https://x.com/InterviewTrix",
   "https://www.youtube.com/@interviewtrix_official",
   "https://www.linkedin.com/company/interview-trix/",

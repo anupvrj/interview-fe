@@ -1,20 +1,155 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { CheckCircle2, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const SNIPPET = `function twoSum(nums, target) {
-  const map = new Map();
-  for (let i = 0; i < nums.length; i++) {
-    const complement = target - nums[i];
-    if (map.has(complement)) {
-      return [map.get(complement), i];
+type CodeToken = { text: string; className?: string };
+
+type CodeLine = {
+  className?: string;
+  tokens: CodeToken[];
+};
+
+const TWO_SUM_LINES: CodeLine[] = [
+  {
+    tokens: [
+      { text: "function", className: "text-purple-400" },
+      { text: " " },
+      { text: "twoSum", className: "text-primary/70" },
+      { text: "(" },
+      { text: "nums", className: "text-amber-200" },
+      { text: ", " },
+      { text: "target", className: "text-amber-200" },
+      { text: ") {" },
+    ],
+  },
+  {
+    className: "pl-4 text-muted-foreground",
+    tokens: [
+      { text: "const", className: "text-purple-400" },
+      { text: " map = " },
+      { text: "new", className: "text-purple-400" },
+      { text: " Map();" },
+    ],
+  },
+  {
+    className: "pl-4 text-muted-foreground",
+    tokens: [
+      { text: "for", className: "text-purple-400" },
+      { text: " (" },
+      { text: "let", className: "text-purple-400" },
+      { text: " i = " },
+      { text: "0", className: "text-sky-300" },
+      { text: "; i < nums.length; i++) {" },
+    ],
+  },
+  {
+    className: "pl-8 text-muted-foreground",
+    tokens: [
+      { text: "const", className: "text-purple-400" },
+      { text: " complement = target - nums[i];" },
+    ],
+  },
+  {
+    className: "pl-8 text-muted-foreground",
+    tokens: [
+      { text: "if", className: "text-purple-400" },
+      { text: " (map.has(complement)) {" },
+    ],
+  },
+  {
+    className: "pl-12 text-muted-foreground",
+    tokens: [
+      { text: "return", className: "text-purple-400" },
+      { text: " [map.get(complement), i];" },
+    ],
+  },
+  {
+    className: "pl-8 text-muted-foreground",
+    tokens: [{ text: "}" }],
+  },
+  {
+    className: "pl-8 text-muted-foreground",
+    tokens: [{ text: "map.set(nums[i], i);" }],
+  },
+  {
+    className: "pl-4 text-muted-foreground",
+    tokens: [{ text: "}" }],
+  },
+  {
+    className: "pl-4 text-muted-foreground",
+    tokens: [
+      { text: "return", className: "text-purple-400" },
+      { text: " [];" },
+    ],
+  },
+  {
+    className: "pl-4 text-muted-foreground",
+    tokens: [{ text: "}" }],
+  },
+];
+
+function lineText(line: CodeLine) {
+  return line.tokens.map((token) => token.text).join("");
+}
+
+const SNIPPET = TWO_SUM_LINES.map(lineText).join("\n");
+
+function HighlightedTwoSumCode({
+  charLimit = SNIPPET.length,
+  showCursor = false,
+}: {
+  charLimit?: number;
+  showCursor?: boolean;
+}) {
+  let remaining = charLimit;
+  let cursorPlaced = !showCursor;
+  const lines: ReactNode[] = [];
+
+  TWO_SUM_LINES.forEach((line, lineIndex) => {
+    if (remaining <= 0) return;
+
+    const content = lineText(line);
+    const lineBudget = Math.min(remaining, content.length);
+    remaining -= lineBudget;
+
+    if (lineBudget <= 0) return;
+
+    let tokenRemaining = lineBudget;
+    const renderedTokens = line.tokens.flatMap((token, tokenIndex) => {
+      if (tokenRemaining <= 0) return [];
+      const take = Math.min(tokenRemaining, token.text.length);
+      tokenRemaining -= take;
+      if (take <= 0) return [];
+      return (
+        <span key={`${lineIndex}-${tokenIndex}`} className={token.className}>
+          {token.text.slice(0, take)}
+        </span>
+      );
+    });
+
+    const isPartialLine = lineBudget < content.length;
+    if (!isPartialLine && lineIndex < TWO_SUM_LINES.length - 1 && remaining > 0) {
+      remaining -= 1;
     }
-    map.set(nums[i], i);
-  }
-  return [];
-}`;
+
+    const shouldShowCursor =
+      showCursor && !cursorPlaced && (isPartialLine || remaining <= 0);
+    if (shouldShowCursor) cursorPlaced = true;
+
+    lines.push(
+      <p key={lineIndex} className={cn("m-0", line.className)}>
+        {renderedTokens}
+        {shouldShowCursor ? (
+          <span className="ml-0.5 inline-block h-3 w-2 animate-pulse bg-sky-400 align-middle sm:h-3.5" />
+        ) : null}
+      </p>,
+    );
+  });
+
+  return <div className="space-y-0.5 leading-snug">{lines}</div>;
+}
 
 const TYPING_MS = 22;
 const PAUSE_AFTER_CODE_MS = 450;
@@ -36,44 +171,6 @@ type Phase =
   | "run_hidden"
   | "hidden_ok"
   | "ready";
-
-function HighlightedTwoSumCode() {
-  return (
-    <div className="space-y-0.5 leading-snug">
-      <p className="m-0">
-        <span className="text-purple-400">function</span>{" "}
-        <span className="text-primary/70">twoSum</span>(
-        <span className="text-amber-200">nums</span>,{" "}
-        <span className="text-amber-200">target</span>) {"{"}
-      </p>
-      <p className="m-0 pl-4 text-muted-foreground">
-        <span className="text-purple-400">const</span> map ={" "}
-        <span className="text-purple-400">new</span> Map();
-      </p>
-      <p className="m-0 pl-4 text-muted-foreground">
-        <span className="text-purple-400">for</span> (
-        <span className="text-purple-400">let</span> i ={" "}
-        <span className="text-sky-300">0</span>; i {"<"} nums.length; i++) {"{"}
-      </p>
-      <p className="m-0 pl-8 text-muted-foreground">
-        <span className="text-purple-400">const</span> complement = target - nums[i];
-      </p>
-      <p className="m-0 pl-8 text-muted-foreground">
-        <span className="text-purple-400">if</span> (map.has(complement)) {"{"}
-      </p>
-      <p className="m-0 pl-12 text-muted-foreground">
-        <span className="text-purple-400">return</span> [map.get(complement), i];
-      </p>
-      <p className="m-0 pl-8 text-muted-foreground">{"}"}</p>
-      <p className="m-0 pl-8 text-muted-foreground">map.set(nums[i], i);</p>
-      <p className="m-0 pl-4 text-muted-foreground">{"}"}</p>
-      <p className="m-0 pl-4 text-muted-foreground">
-        <span className="text-purple-400">return</span> [];
-      </p>
-      <p className="m-0 pl-4 text-muted-foreground">{"}"}</p>
-    </div>
-  );
-}
 
 function TerminalSizer() {
   return (
@@ -127,7 +224,11 @@ function TerminalOutput({ phase }: { phase: Phase }) {
   );
 }
 
-export function CodingRoundHeroPreview() {
+export function CodingRoundHeroPreview({
+  className,
+}: {
+  className?: string;
+}) {
   const [typedLen, setTypedLen] = useState(0);
   const [codeDone, setCodeDone] = useState(false);
   const [phase, setPhase] = useState<Phase>("idle");
@@ -180,7 +281,6 @@ export function CodingRoundHeroPreview() {
     };
   }, []);
 
-  const typedSlice = SNIPPET.slice(0, typedLen);
   const showCursor = !codeDone && typedLen < SNIPPET.length;
 
   const showTerminal = codeDone && phase !== "idle";
@@ -194,7 +294,12 @@ export function CodingRoundHeroPreview() {
   })();
 
   return (
-    <div className="w-full max-w-[600px] overflow-hidden rounded-xl border-2 border-border bg-slate-900 shadow-2xl sm:max-w-[700px] sm:rounded-xl sm:border-4">
+    <div
+      className={cn(
+        "w-full max-w-[600px] overflow-hidden rounded-xl border-2 border-border bg-slate-900 shadow-2xl sm:max-w-[700px] sm:rounded-xl sm:border-4",
+        className,
+      )}
+    >
       <div className="flex items-center gap-2 border-b border-slate-700 bg-slate-800 px-3 py-1.5">
         <div className="flex gap-1.5">
           <span className="h-3 w-3 rounded-full bg-red-500/90" />
@@ -213,19 +318,11 @@ export function CodingRoundHeroPreview() {
         </div>
 
         <div className="absolute inset-0 overflow-hidden p-3 sm:p-4">
-          {!codeDone ? (
-            <pre className="m-0 whitespace-pre-wrap break-all text-foreground/70 leading-snug">
-              {typedSlice}
-              {showCursor ? (
-                <span className="ml-0.5 inline-block h-3 w-2 animate-pulse bg-sky-400 align-middle sm:h-3.5" />
-              ) : null}
-            </pre>
-          ) : (
-            <>
-              <HighlightedTwoSumCode />
-              {showTerminal ? <TerminalOutput phase={phase} /> : null}
-            </>
-          )}
+          <HighlightedTwoSumCode
+            charLimit={typedLen}
+            showCursor={showCursor}
+          />
+          {showTerminal ? <TerminalOutput phase={phase} /> : null}
         </div>
       </div>
 
