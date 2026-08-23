@@ -42,6 +42,8 @@ import {
   type PeerBooking,
   type PeerInterviewType,
 } from "@/lib/api";
+import { usePeerBookingsQuery } from "@/hooks/queries/usePeerBookingsQuery";
+import { useDashboardInvalidation } from "@/hooks/useDashboardInvalidation";
 
 declare global {
   interface Window {
@@ -73,9 +75,12 @@ export default function CandidateBookingsPage() {
   const { isLoaded, user } = useUser();
   const { timezone, setTimezone, saving: savingTimezone, timezoneLabel, loading: tzLoading } =
     usePeerTimezone();
-  const [bookings, setBookings] = useState<PeerBooking[]>([]);
+  const { data: bookings = [], isLoading: bookingsLoading } =
+    usePeerBookingsQuery();
+  const { invalidate } = useDashboardInvalidation();
   const [types, setTypes] = useState<PeerInterviewType[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [typesLoading, setTypesLoading] = useState(true);
+  const loading = bookingsLoading || typesLoading;
   const [payingId, setPayingId] = useState<string | null>(null);
   const [razorpayLoaded, setRazorpayLoaded] = useState(false);
   const [previousPage, setPreviousPage] = useState(1);
@@ -113,23 +118,19 @@ export default function CandidateBookingsPage() {
       .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime())[0];
   }, [bookings]);
 
-  const load = async () => {
-    setLoading(true);
+  const loadInterviewTypes = async () => {
+    setTypesLoading(true);
     try {
-      const [b, t] = await Promise.all([
-        peerApi.listMyBookings(),
-        peerApi.listInterviewTypes(),
-      ]);
-      setBookings(b);
+      const t = await peerApi.listInterviewTypes();
       setTypes(t);
     } finally {
-      setLoading(false);
+      setTypesLoading(false);
     }
   };
 
   useEffect(() => {
     if (!isLoaded || !user) return;
-    void load();
+    void loadInterviewTypes();
   }, [isLoaded, user]);
 
   const handlePay = async (booking: PeerBooking) => {
@@ -160,7 +161,7 @@ export default function CandidateBookingsPage() {
               razorpaySignature: resp.razorpay_signature,
             });
             toast.success("Payment confirmed! Your interview is booked.");
-            await load();
+            await invalidate(["peerBookings", "entitlements"]);
           } catch (e: any) {
             toast.error(e?.response?.data?.message || "Payment verification failed");
           }

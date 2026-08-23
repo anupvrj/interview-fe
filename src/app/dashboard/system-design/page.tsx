@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useUser } from "@clerk/nextjs";
 import {
@@ -43,6 +43,7 @@ import { PracticeSessionGateDialogs } from "@/components/upsell/PracticeSessionG
 import { PracticeLockedGate } from "@/components/upsell/PracticeLockedGate";
 import { usePracticeSessionGate } from "@/components/upsell/usePracticeSessionGate";
 import { systemDesignApi, type SystemDesignSession } from "@/lib/api";
+import { useSystemDesignSessionsQuery } from "@/hooks/queries/useSystemDesignSessionsQuery";
 import { getProblemById } from "@/lib/systemDesignProblems";
 import { cn, formatDate } from "@/lib/utils";
 
@@ -75,8 +76,8 @@ const getStatusBadge = (status: string) => {
 export default function SystemDesignDashboardPage() {
   const { user, isLoaded } = useUser();
 
-  const [sessions, setSessions] = useState<SystemDesignSession[]>([]);
-  const [sessionsLoading, setSessionsLoading] = useState(true);
+  const { data: sessions = [], isLoading: sessionsLoading } =
+    useSystemDesignSessionsQuery();
   const [currentPage, setCurrentPage] = useState(1);
   const practiceGate = usePracticeSessionGate();
   const {
@@ -87,24 +88,10 @@ export default function SystemDesignDashboardPage() {
     entitlementsLoading,
   } = practiceGate;
 
-  const refreshSessions = useCallback(async () => {
-    try {
-      const rows = await systemDesignApi.listMySessions();
-      setSessions(rows);
-    } catch {
-      setSessions([]);
-    }
-  }, []);
-
   useEffect(() => {
-    if (!isLoaded) return;
-    if (!user) {
-      setSessionsLoading(false);
-      return;
-    }
+    if (!isLoaded || !user) return;
     localStorage.setItem("clerk-user-id", user.id);
-    refreshSessions().finally(() => setSessionsLoading(false));
-  }, [isLoaded, user, refreshSessions]);
+  }, [isLoaded, user]);
 
   const totalPages = Math.ceil(sessions.length / ITEMS_PER_PAGE) || 1;
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;

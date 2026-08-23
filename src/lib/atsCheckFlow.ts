@@ -1,5 +1,7 @@
 import { extractTextFromPDF } from "@/lib/pdf-utils";
 import { isATSReportV3, resumeApi, resumeDataExtractionApi } from "@/lib/api";
+import { getQueryClient } from "@/lib/query-client";
+import { invalidateResumes } from "@/lib/invalidate-queries";
 import type { ATSReportV3 } from "@/types/atsReport";
 
 export const PENDING_ATS_STORAGE_KEY = "ats-checker-pending-upload";
@@ -87,6 +89,7 @@ export async function runATSAnalysis(
     content: { personalInfo: {} },
     forAtsCheckOnly: true,
   });
+  await invalidateResumes(getQueryClient(), userId);
 
   if (resumeText) {
     try {

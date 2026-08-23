@@ -2529,6 +2529,17 @@ export const adminApi = {
   cancelInterviewSchedule: async (scheduleId: string): Promise<void> => {
     await apiClient.delete(`/admin/interview-schedules/${scheduleId}`);
   },
+
+  invalidateClientCache: async (): Promise<{
+    version: number;
+    updatedAt: string;
+  }> => {
+    const response = await apiClient.post<{
+      success: boolean;
+      data: { version: number; updatedAt: string };
+    }>("/admin/client-cache/invalidate");
+    return response.data.data;
+  },
 };
 
 /** Scheduled interviews (candidate: list mine, start). */
@@ -4689,3 +4700,16 @@ export const notificationAdminApi = {
 };
 
 export default apiClient;
+
+export const configApi = {
+  getClientCacheVersion: async (): Promise<{
+    version: number;
+    updatedAt: string;
+  }> => {
+    const response = await apiClient.get<{
+      success: boolean;
+      data: { version: number; updatedAt: string };
+    }>("/config/client-cache");
+    return response.data.data;
+  },
+};

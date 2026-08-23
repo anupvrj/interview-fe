@@ -1,3 +1,6 @@
+"use client";
+
+import { ClientCacheVersionMonitor } from "@/components/ClientCacheVersionMonitor";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { DashboardToaster } from "@/components/DashboardToaster";
 import { DashboardThemeProvider } from "@/components/dashboard-theme";
@@ -9,6 +12,7 @@ export default function Layout({
   return (
     <DashboardThemeProvider>
       <ActiveRoleProvider>
+        <ClientCacheVersionMonitor />
         <DashboardLayout>{children}</DashboardLayout>
         <DashboardToaster />
       </ActiveRoleProvider>

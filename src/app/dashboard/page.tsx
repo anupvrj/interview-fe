@@ -43,13 +43,14 @@ import {
   YAxis,
 } from "recharts";
 import {
-  Interview,
-  interviewApi,
   interviewScheduleApi,
-  peerApi,
-  systemDesignApi,
   userApi,
 } from "@/lib/api";
+import { useInterviewsQuery } from "@/hooks/queries/useInterviewsQuery";
+import { useSystemDesignSessionsQuery } from "@/hooks/queries/useSystemDesignSessionsQuery";
+import { usePeerBookingsQuery } from "@/hooks/queries/usePeerBookingsQuery";
+import { useInterviewSchedulesQuery } from "@/hooks/queries/useInterviewSchedulesQuery";
+import { useDashboardInvalidation } from "@/hooks/useDashboardInvalidation";
 import { getPeerInterviewUnlockStatus } from "@/lib/peer-interviews";
 import {
   buildDashboardRecentSessions,
@@ -82,21 +83,13 @@ const ONBOARDING_BANNER_DISMISSED_KEY = "dashboard-onboarding-banner-dismissed";
 export default function DashboardPage() {
   const { user, isLoaded } = useUser();
   const router = useRouter();
-  const [interviews, setInterviews] = useState<Interview[]>([]);
-  const [systemDesignSessions, setSystemDesignSessions] = useState<
-    Awaited<ReturnType<typeof systemDesignApi.listMySessions>>
-  >([]);
-  const [peerBookings, setPeerBookings] = useState<
-    Awaited<ReturnType<typeof peerApi.listMyBookings>>
-  >([]);
-  const [loading, setLoading] = useState(true);
+  const { data: interviews = [] } = useInterviewsQuery();
+  const { data: systemDesignSessions = [] } = useSystemDesignSessionsQuery();
+  const { data: peerBookings = [] } = usePeerBookingsQuery();
+  const { data: scheduledInterviews = [] } = useInterviewSchedulesQuery();
+  const { invalidate } = useDashboardInvalidation();
+  const [initLoading, setInitLoading] = useState(true);
   const [profileCompletion, setProfileCompletion] = useState<number>(0);
-  const [stats, setStats] = useState({
-    totalInterviews: 0,
-    averageScore: 0,
-    completedInterviews: 0,
-    improvement: 0,
-  });
   const [currentPage, setCurrentPage] = useState(1);
   const [interviewTypeFilter, setInterviewTypeFilter] =
     useState<DashboardSessionFilter>("all");
@@ -111,7 +104,6 @@ export default function DashboardPage() {
       }),
     [interviews, systemDesignSessions, peerBookings],
   );
-  const [scheduledInterviews, setScheduledInterviews] = useState<any[]>([]);
   const [startingScheduleId, setStartingScheduleId] = useState<string | null>(
     null,
   );
@@ -134,6 +126,38 @@ export default function DashboardPage() {
     () => filterDashboardSessions(recentSessions, interviewTypeFilter),
     [recentSessions, interviewTypeFilter],
   );
+
+  const stats = useMemo(() => {
+    const completed = interviews.filter((i) => i.status === "completed");
+    const totalScore = completed.reduce(
+      (sum, i) => sum + (i.report?.overallScore || 0),
+      0,
+    );
+    const avgScore =
+      completed.length > 0 ? Math.round(totalScore / completed.length) : 0;
+    const scores = completed.map((i) => i.report?.overallScore || 0);
+
+    let improvement = 0;
+    if (scores.length >= 3) {
+      const recentScores = scores.slice(-3);
+      const initialScores = scores.slice(0, 3);
+      const recentAvg =
+        recentScores.reduce((a, b) => a + b, 0) / recentScores.length;
+      const initialAvg =
+        initialScores.reduce((a, b) => a + b, 0) / initialScores.length;
+      improvement = recentAvg - initialAvg;
+      if (Number.isNaN(improvement) || !Number.isFinite(improvement)) {
+        improvement = 0;
+      }
+    }
+
+    return {
+      totalInterviews: interviews.length,
+      averageScore: avgScore,
+      completedInterviews: completed.length,
+      improvement: Math.round(improvement),
+    };
+  }, [interviews]);
 
   useEffect(() => {
     try {
@@ -161,16 +185,13 @@ export default function DashboardPage() {
         user.fullName || user.firstName || "User",
       );
 
-      // Check if onboarding is completed
       if (!createdUser.onboardingCompleted) {
         router.push("/onboarding");
         return;
       }
 
-      let profile: Awaited<ReturnType<typeof userApi.getMyProfile>> | null =
-        null;
       try {
-        profile = await userApi.getMyProfile();
+        const profile = await userApi.getMyProfile();
         if (
           readStoredRole(user.id) === "institution_admin" &&
           profile.institutionId
@@ -181,73 +202,18 @@ export default function DashboardPage() {
           return;
         }
         const completion = profile.profileCompletionPercentage || 0;
-        console.log("📊 Profile completion:", completion);
         setProfileCompletion(completion);
       } catch (error) {
         console.error("Error fetching profile:", error);
       }
-
-      const userInterviews = await interviewApi.list(user.id);
-      setInterviews(userInterviews);
-
-      try {
-        const [sdSessions, bookings] = await Promise.all([
-          systemDesignApi.listMySessions().catch(() => []),
-          peerApi.listMyBookings().catch(() => []),
-        ]);
-        setSystemDesignSessions(sdSessions);
-        setPeerBookings(bookings);
-      } catch {
-        setSystemDesignSessions([]);
-        setPeerBookings([]);
-      }
-
-      try {
-        const schedules = await interviewScheduleApi.listMine();
-        setScheduledInterviews(schedules || []);
-      } catch {
-        setScheduledInterviews([]);
-      }
-
-      const completed = userInterviews.filter((i) => i.status === "completed");
-      const totalScore = completed.reduce(
-        (sum, i) => sum + (i.report?.overallScore || 0),
-        0,
-      );
-      const avgScore =
-        completed.length > 0 ? Math.round(totalScore / completed.length) : 0;
-
-      const scores = completed.map((i) => i.report?.overallScore || 0);
-
-      // Calculate improvement only if we have enough data
-      let improvement = 0;
-      if (scores.length >= 3) {
-        const recentScores = scores.slice(-3);
-        const initialScores = scores.slice(0, 3);
-        const recentAvg =
-          recentScores.reduce((a, b) => a + b, 0) / recentScores.length;
-        const initialAvg =
-          initialScores.reduce((a, b) => a + b, 0) / initialScores.length;
-        improvement = recentAvg - initialAvg;
-
-        // Check for NaN and set to 0 if invalid
-        if (isNaN(improvement) || !isFinite(improvement)) {
-          improvement = 0;
-        }
-      }
-
-      setStats({
-        totalInterviews: userInterviews.length,
-        averageScore: avgScore,
-        completedInterviews: completed.length,
-        improvement: Math.round(improvement),
-      });
     } catch (error) {
       console.error("Error initializing user:", error);
     } finally {
-      setLoading(false);
+      setInitLoading(false);
     }
   };
+
+  const loading = initLoading;
 
   if (!isLoaded || loading) {
     return (
@@ -264,6 +230,7 @@ export default function DashboardPage() {
     try {
       setStartingScheduleId(scheduleId);
       const { interviewId } = await interviewScheduleApi.start(scheduleId);
+      await invalidate(["interviewSchedules", "interviews", "entitlements"]);
       router.push(`/interview/${interviewId}/realtime`);
     } catch (e: any) {
       alert(

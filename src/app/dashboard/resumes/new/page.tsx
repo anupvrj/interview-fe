@@ -5,6 +5,7 @@ import { useUser } from "@clerk/nextjs";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { userApi, ResumeTemplate, resumeApi } from "@/lib/api";
+import { useDashboardInvalidation } from "@/hooks/useDashboardInvalidation";
 import { useDropzone } from "react-dropzone";
 import { Button } from "@/components/ui/button";
 import {
@@ -86,6 +87,7 @@ type Step = "template" | "import" | "jobDescription" | "processing";
 export default function NewResumePage() {
   const { user, isLoaded } = useUser();
   const router = useRouter();
+  const { invalidate } = useDashboardInvalidation();
   const searchParams = useSearchParams();
   const [step, setStep] = useState<Step>("template");
   const [importSource, setImportSource] = useState<ResumeImportSource | null>(
@@ -394,6 +396,7 @@ export default function NewResumePage() {
           : {}),
       });
 
+      await invalidate(["resumes"]);
       router.push(`/dashboard/resumes/${resume.resumeId}/edit`);
     } catch (error: any) {
       console.error("Error building resume:", error);
@@ -534,6 +537,7 @@ export default function NewResumePage() {
       });
 
       console.log("✅ Resume created with dummy content:", resume.resumeId);
+      await invalidate(["resumes"]);
       router.push(`/dashboard/resumes/${resume.resumeId}/edit`);
     } catch (error: any) {
       console.error("❌ Error creating resume with dummy content:", error);
