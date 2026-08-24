@@ -42,6 +42,7 @@ interface RichTextEditorProps {
   readonly onChange: (value: string) => void;
   readonly placeholder?: string;
   readonly className?: string;
+  readonly showAiRefine?: boolean;
 }
 
 export function RichTextEditor({
@@ -49,6 +50,7 @@ export function RichTextEditor({
   onChange,
   placeholder = "Enter text...",
   className = "",
+  showAiRefine = true,
 }: RichTextEditorProps) {
   const [isRefining, setIsRefining] = useState(false);
   const [showLinkDialog, setShowLinkDialog] = useState(false);
@@ -429,6 +431,7 @@ export function RichTextEditor({
         <EditorContent editor={editor} />
 
         {/* AI Refine Button - Positioned in bottom-right corner */}
+        {showAiRefine ? (
         <Button
           type="button"
           variant="outline"
@@ -444,6 +447,7 @@ export function RichTextEditor({
             <Sparkles className="w-4 h-4" />
           )}
         </Button>
+        ) : null}
       </div>
 
       {/* Link Dialog */}

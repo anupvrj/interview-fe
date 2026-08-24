@@ -42,6 +42,10 @@ import {
   X,
 } from "lucide-react";
 import { interviewApi, codingInterviewApi, Interview } from "@/lib/api";
+import {
+  invalidateAfterAiInterviewSessionFromStorage,
+  invalidateAfterCodingSessionCompleteFromStorage,
+} from "@/lib/invalidate-queries";
 import { normalizeInterviewDurationMinutes } from "@/lib/interviewDuration";
 import { formatDuration } from "@/lib/utils";
 import { BENIGN_ACTIVE_INTERVIEW_WS_CLOSE_CODES } from "@/lib/interviewWebSocketPolicy";
@@ -432,6 +436,11 @@ export function RealtimeInterviewClient({
       ) {
         notifyCodingDiscussionExit("close");
         return;
+      }
+      if (interview?.metadata?.interviewKind === "coding_practice") {
+        await invalidateAfterCodingSessionCompleteFromStorage();
+      } else {
+        await invalidateAfterAiInterviewSessionFromStorage();
       }
       router.push("/dashboard");
     } catch (err: any) {
@@ -1541,8 +1550,10 @@ export function RealtimeInterviewClient({
       }
 
       if (isCodingPractice) {
+        await invalidateAfterCodingSessionCompleteFromStorage();
         router.push(`/dashboard/interviews/${interviewId}/processing`);
       } else {
+        await invalidateAfterAiInterviewSessionFromStorage();
         router.push(`/dashboard/interviews/${interviewId}/feedback`);
       }
     } catch (error: any) {

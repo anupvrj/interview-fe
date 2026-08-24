@@ -40,7 +40,9 @@ import {
   Award,
 } from "lucide-react";
 import Image from "next/image";
-import { Resume, resumeApi } from "@/lib/api";
+import { resumeApi } from "@/lib/api";
+import { useResumesQuery } from "@/hooks/queries/useResumesQuery";
+import { useDashboardInvalidation } from "@/hooks/useDashboardInvalidation";
 import { cn } from "@/lib/utils";
 import {
   institutePrimaryClass,
@@ -56,8 +58,8 @@ const RESUME_ITEMS_PER_PAGE = 10;
 export default function ResumesPage() {
   const { user, isLoaded } = useUser();
   const router = useRouter();
-  const [resumes, setResumes] = useState<Resume[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: resumes = [], isLoading: loading } = useResumesQuery();
+  const { invalidate } = useDashboardInvalidation();
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
@@ -83,7 +85,6 @@ export default function ResumesPage() {
   useEffect(() => {
     if (isLoaded && user) {
       localStorage.setItem("clerk-user-id", user.id);
-      loadResumes();
     }
   }, [isLoaded, user]);
 
@@ -191,19 +192,6 @@ export default function ResumesPage() {
     };
   }, []);
 
-  const loadResumes = async (opts?: { silent?: boolean }) => {
-    if (!user) return;
-    try {
-      if (!opts?.silent) setLoading(true);
-      const data = await resumeApi.list(user.id);
-      setResumes(data);
-    } catch (error) {
-      console.error("Error loading resumes:", error);
-    } finally {
-      if (!opts?.silent) setLoading(false);
-    }
-  };
-
   const handleCreateResumeClick = async () => {
     if (!user) return;
     try {
@@ -233,7 +221,7 @@ export default function ResumesPage() {
     try {
       setDeletingId(resumeToDelete);
       await resumeApi.delete(resumeToDelete);
-      await loadResumes();
+      await invalidate(["resumes"]);
       setDeleteDialogOpen(false);
       setResumeToDelete(null);
     } catch (error) {
@@ -248,7 +236,7 @@ export default function ResumesPage() {
     try {
       setDuplicatingId(resumeId);
       await resumeApi.duplicate(resumeId);
-      await loadResumes({ silent: true });
+      await invalidate(["resumes"]);
     } catch (error) {
       console.error("Error duplicating resume:", error);
       alert("Failed to duplicate resume. Please try again.");

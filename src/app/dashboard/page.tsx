@@ -23,24 +23,12 @@ import {
 } from "@/components/ui/dialog";
 import {
   Plus,
-  TrendingUp,
-  Clock,
   CalendarClock,
-  Award,
   PlayCircle,
-  FileText,
-  FileEdit,
   Loader2,
-  Target,
-  CheckCircle,
-  Coins,
   Lock,
   UsersRound,
-  ChevronLeft,
-  ChevronRight,
-  Percent,
   X,
-  FileCheck,
   Sparkles,
 } from "lucide-react";
 import {
@@ -55,15 +43,14 @@ import {
   YAxis,
 } from "recharts";
 import {
-  Interview,
-  Resume,
-  interviewApi,
   interviewScheduleApi,
-  peerApi,
-  resumeApi,
-  systemDesignApi,
-  userApi,
 } from "@/lib/api";
+import { useActiveRole } from "@/components/roles/ActiveRoleProvider";
+import { useInterviewsQuery } from "@/hooks/queries/useInterviewsQuery";
+import { useSystemDesignSessionsQuery } from "@/hooks/queries/useSystemDesignSessionsQuery";
+import { usePeerBookingsQuery } from "@/hooks/queries/usePeerBookingsQuery";
+import { useInterviewSchedulesQuery } from "@/hooks/queries/useInterviewSchedulesQuery";
+import { useDashboardInvalidation } from "@/hooks/useDashboardInvalidation";
 import { getPeerInterviewUnlockStatus } from "@/lib/peer-interviews";
 import {
   buildDashboardRecentSessions,
@@ -82,13 +69,12 @@ import {
 } from "@/components/institute/InstituteChrome";
 import {
   DashboardInsightTile,
-  DashboardStatCard,
 } from "@/components/dashboard/DashboardStatCard";
 import { DashboardWelcomeHero } from "@/components/dashboard/DashboardWelcomeHero";
+import { DashboardPracticeHubCards } from "@/components/dashboard/DashboardPracticeHubCards";
 import { InterviewTypeFilterBar } from "@/components/dashboard/InterviewTypeFilterBar";
 import { IxOptInNotice } from "@/components/ix-score/IxOptInNotice";
 import { RecentInterviewsList } from "@/components/dashboard/RecentInterviewsList";
-import { DashboardResumesList } from "@/components/dashboard/DashboardResumesList";
 import { PracticeSessionGateDialogs } from "@/components/upsell/PracticeSessionGateDialogs";
 import { usePracticeSessionGate } from "@/components/upsell/usePracticeSessionGate";
 
@@ -97,22 +83,16 @@ const ONBOARDING_BANNER_DISMISSED_KEY = "dashboard-onboarding-banner-dismissed";
 export default function DashboardPage() {
   const { user, isLoaded } = useUser();
   const router = useRouter();
-  const [interviews, setInterviews] = useState<Interview[]>([]);
-  const [systemDesignSessions, setSystemDesignSessions] = useState<
-    Awaited<ReturnType<typeof systemDesignApi.listMySessions>>
-  >([]);
-  const [peerBookings, setPeerBookings] = useState<
-    Awaited<ReturnType<typeof peerApi.listMyBookings>>
-  >([]);
-  const [resumes, setResumes] = useState<Resume[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [profileCompletion, setProfileCompletion] = useState<number>(0);
-  const [stats, setStats] = useState({
-    totalInterviews: 0,
-    averageScore: 0,
-    completedInterviews: 0,
-    improvement: 0,
-  });
+  const roleCtx = useActiveRole();
+  const profile = roleCtx?.profile ?? null;
+  const roleReady = roleCtx?.ready ?? false;
+  const { data: interviews = [], isLoading: interviewsLoading } =
+    useInterviewsQuery();
+  const { data: systemDesignSessions = [] } = useSystemDesignSessionsQuery();
+  const { data: peerBookings = [] } = usePeerBookingsQuery();
+  const { data: scheduledInterviews = [] } = useInterviewSchedulesQuery();
+  const { invalidate } = useDashboardInvalidation();
+  const profileCompletion = profile?.profileCompletionPercentage ?? 0;
   const [currentPage, setCurrentPage] = useState(1);
   const [interviewTypeFilter, setInterviewTypeFilter] =
     useState<DashboardSessionFilter>("all");
@@ -127,9 +107,6 @@ export default function DashboardPage() {
       }),
     [interviews, systemDesignSessions, peerBookings],
   );
-  const [resumePage, setResumePage] = useState(1);
-  const resumeItemsPerPage = 8;
-  const [scheduledInterviews, setScheduledInterviews] = useState<any[]>([]);
   const [startingScheduleId, setStartingScheduleId] = useState<string | null>(
     null,
   );
@@ -143,10 +120,6 @@ export default function DashboardPage() {
     checkingSubscription,
     ...practiceGate
   } = usePracticeSessionGate();
-  const [downloadingResumeId, setDownloadingResumeId] = useState<string | null>(
-    null,
-  );
-
   const interviewTypeCounts = useMemo(
     () => countDashboardSessionsByFilter(recentSessions),
     [recentSessions],
@@ -156,6 +129,38 @@ export default function DashboardPage() {
     () => filterDashboardSessions(recentSessions, interviewTypeFilter),
     [recentSessions, interviewTypeFilter],
   );
+
+  const stats = useMemo(() => {
+    const completed = interviews.filter((i) => i.status === "completed");
+    const totalScore = completed.reduce(
+      (sum, i) => sum + (i.report?.overallScore || 0),
+      0,
+    );
+    const avgScore =
+      completed.length > 0 ? Math.round(totalScore / completed.length) : 0;
+    const scores = completed.map((i) => i.report?.overallScore || 0);
+
+    let improvement = 0;
+    if (scores.length >= 3) {
+      const recentScores = scores.slice(-3);
+      const initialScores = scores.slice(0, 3);
+      const recentAvg =
+        recentScores.reduce((a, b) => a + b, 0) / recentScores.length;
+      const initialAvg =
+        initialScores.reduce((a, b) => a + b, 0) / initialScores.length;
+      improvement = recentAvg - initialAvg;
+      if (Number.isNaN(improvement) || !Number.isFinite(improvement)) {
+        improvement = 0;
+      }
+    }
+
+    return {
+      totalInterviews: interviews.length,
+      averageScore: avgScore,
+      completedInterviews: completed.length,
+      improvement: Math.round(improvement),
+    };
+  }, [interviews]);
 
   useEffect(() => {
     try {
@@ -168,118 +173,21 @@ export default function DashboardPage() {
   }, []);
 
   useEffect(() => {
-    if (isLoaded && user) {
-      initializeUser();
+    if (!roleReady || !user || !profile) return;
+    if (
+      readStoredRole(user.id) === "institution_admin" &&
+      profile.institutionId
+    ) {
+      router.replace(`/dashboard/institute/${String(profile.institutionId)}`);
     }
-  }, [isLoaded, user]);
+  }, [roleReady, user, profile, router]);
 
-  const initializeUser = async () => {
-    try {
-      if (!user) return;
+  const waitingForFirstData =
+    roleReady &&
+    interviewsLoading &&
+    interviews.length === 0;
 
-      const createdUser = await userApi.createOrGetUser(
-        user.id,
-        user.primaryEmailAddress?.emailAddress || "",
-        user.fullName || user.firstName || "User",
-      );
-
-      // Check if onboarding is completed
-      if (!createdUser.onboardingCompleted) {
-        router.push("/onboarding");
-        return;
-      }
-
-      let profile: Awaited<ReturnType<typeof userApi.getMyProfile>> | null =
-        null;
-      try {
-        profile = await userApi.getMyProfile();
-        if (
-          readStoredRole(user.id) === "institution_admin" &&
-          profile.institutionId
-        ) {
-          router.replace(
-            `/dashboard/institute/${String(profile.institutionId)}`,
-          );
-          return;
-        }
-        const completion = profile.profileCompletionPercentage || 0;
-        console.log("📊 Profile completion:", completion);
-        setProfileCompletion(completion);
-      } catch (error) {
-        console.error("Error fetching profile:", error);
-      }
-
-      const userInterviews = await interviewApi.list(user.id);
-      setInterviews(userInterviews);
-
-      try {
-        const [sdSessions, bookings] = await Promise.all([
-          systemDesignApi.listMySessions().catch(() => []),
-          peerApi.listMyBookings().catch(() => []),
-        ]);
-        setSystemDesignSessions(sdSessions);
-        setPeerBookings(bookings);
-      } catch {
-        setSystemDesignSessions([]);
-        setPeerBookings([]);
-      }
-
-      try {
-        const userResumes = await resumeApi.list(user.id);
-        setResumes(userResumes);
-      } catch (err) {
-        console.error("Error loading resumes:", err);
-        setResumes([]);
-      }
-
-      try {
-        const schedules = await interviewScheduleApi.listMine();
-        setScheduledInterviews(schedules || []);
-      } catch {
-        setScheduledInterviews([]);
-      }
-
-      const completed = userInterviews.filter((i) => i.status === "completed");
-      const totalScore = completed.reduce(
-        (sum, i) => sum + (i.report?.overallScore || 0),
-        0,
-      );
-      const avgScore =
-        completed.length > 0 ? Math.round(totalScore / completed.length) : 0;
-
-      const scores = completed.map((i) => i.report?.overallScore || 0);
-
-      // Calculate improvement only if we have enough data
-      let improvement = 0;
-      if (scores.length >= 3) {
-        const recentScores = scores.slice(-3);
-        const initialScores = scores.slice(0, 3);
-        const recentAvg =
-          recentScores.reduce((a, b) => a + b, 0) / recentScores.length;
-        const initialAvg =
-          initialScores.reduce((a, b) => a + b, 0) / initialScores.length;
-        improvement = recentAvg - initialAvg;
-
-        // Check for NaN and set to 0 if invalid
-        if (isNaN(improvement) || !isFinite(improvement)) {
-          improvement = 0;
-        }
-      }
-
-      setStats({
-        totalInterviews: userInterviews.length,
-        averageScore: avgScore,
-        completedInterviews: completed.length,
-        improvement: Math.round(improvement),
-      });
-    } catch (error) {
-      console.error("Error initializing user:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  if (!isLoaded || loading) {
+  if (!isLoaded || !roleReady || waitingForFirstData) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
@@ -294,6 +202,7 @@ export default function DashboardPage() {
     try {
       setStartingScheduleId(scheduleId);
       const { interviewId } = await interviewScheduleApi.start(scheduleId);
+      await invalidate(["interviewSchedules", "interviews", "entitlements"]);
       router.push(`/interview/${interviewId}/realtime`);
     } catch (e: any) {
       alert(
@@ -305,40 +214,6 @@ export default function DashboardPage() {
     }
   };
 
-  const handleResumeDownload = async (resumeId: string) => {
-    try {
-      setDownloadingResumeId(resumeId);
-      const pdfUrl = await resumeApi.downloadPDF(resumeId);
-      globalThis.open(pdfUrl, "_blank");
-    } catch (error: any) {
-      const shouldOpenEditor =
-        error?.message?.includes("PDF not found") ||
-        error?.response?.status === 404;
-      if (
-        shouldOpenEditor &&
-        globalThis.confirm(
-          "PDF is not generated yet. Open editor to generate/download it?",
-        )
-      ) {
-        router.push(`/dashboard/resumes/${resumeId}/edit`);
-        return;
-      }
-      alert("Could not download resume PDF. Please try again.");
-    } finally {
-      setDownloadingResumeId(null);
-    }
-  };
-
-  const resumesWithAts = resumes.filter(
-    (r) => typeof r.atsScore === "number" && Number.isFinite(r.atsScore),
-  );
-  const avgAts =
-    resumesWithAts.length > 0
-      ? Math.round(
-          resumesWithAts.reduce((s, r) => s + (r.atsScore ?? 0), 0) /
-            resumesWithAts.length,
-        )
-      : 0;
   const lastNDays = 14;
   const now = new Date();
   const dayKeys = Array.from({ length: lastNDays }, (_, idx) => {
@@ -386,6 +261,8 @@ export default function DashboardPage() {
       <DashboardWelcomeHero firstName={user?.firstName || "User"} />
 
       <IxOptInNotice />
+
+      <DashboardPracticeHubCards />
 
       {scheduledInterviews.length > 0 && (
         <Card className="rounded-md border-2 border-amber-200 bg-gradient-to-br from-amber-50/80 to-card shadow-lg dark:border-amber-900/40 dark:from-amber-950/30 dark:to-card">
@@ -493,68 +370,6 @@ export default function DashboardPage() {
           </button>
         </div>
       )}
-
-      {/* Stats */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4">
-        <DashboardStatCard
-          theme="purple"
-          label="Total Interviews"
-          value={stats.totalInterviews}
-          icon={FileText}
-          hint={
-            <>
-              <Clock className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
-              <span>All time</span>
-            </>
-          }
-        />
-        <DashboardStatCard
-          theme="emerald"
-          label="Average Score"
-          value={stats.averageScore}
-          icon={Target}
-          progress={stats.averageScore}
-          hint={
-            <>
-              <Percent className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
-              <span>Out of 100</span>
-            </>
-          }
-        />
-        <DashboardStatCard
-          theme="cyan"
-          label="Completed"
-          value={stats.completedInterviews}
-          icon={Award}
-          hint={
-            <>
-              <CheckCircle className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
-              <span>Finished interviews</span>
-            </>
-          }
-        />
-        <DashboardStatCard
-          theme="amber"
-          label="Improvement"
-          value={
-            stats.improvement !== undefined && !isNaN(stats.improvement) ? (
-              <>
-                {stats.improvement > 0 ? "+" : ""}
-                {stats.improvement}%
-              </>
-            ) : (
-              "0%"
-            )
-          }
-          icon={TrendingUp}
-          hint={
-            <>
-              <TrendingUp className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
-              <span>Last 3 sessions</span>
-            </>
-          }
-        />
-      </div>
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
         <Card className="rounded-xl border border-border/80 bg-card shadow-card xl:col-span-2">
@@ -704,84 +519,6 @@ export default function DashboardPage() {
             onPageChange={setCurrentPage}
             onVideoUnavailable={() => setVideoUnavailableOpen(true)}
             emptyDescription="Start an AI interview, coding round, system design session, or book a peer interview."
-          />
-        </CardContent>
-      </Card>
-
-      {/* Resume quick stats */}
-      {resumes.length > 0 && (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-2">
-          <DashboardStatCard
-            theme="emerald"
-            label="Total resumes"
-            value={resumes.length}
-            icon={FileEdit}
-            hint={
-              <>
-                <FileText className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
-                <span>In builder</span>
-              </>
-            }
-          />
-          <DashboardStatCard
-            theme="violet"
-            label="Average ATS"
-            value={resumesWithAts.length > 0 ? `${avgAts}/100` : "—"}
-            icon={FileCheck}
-            progress={resumesWithAts.length > 0 ? avgAts : undefined}
-            hint={
-              <>
-                <Percent className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
-                <span>
-                  {resumesWithAts.length > 0
-                    ? `${resumesWithAts.length} scored`
-                    : "No ATS run yet"}
-                </span>
-              </>
-            }
-          />
-        </div>
-      )}
-
-      {/* Your resumes */}
-      <Card className="overflow-hidden rounded-xl border border-border/60 bg-card shadow-card">
-        <CardHeader className="border-b border-border/60 px-5 py-4">
-          <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
-            <div>
-              <CardTitle className="text-lg font-semibold text-foreground">
-                Your resumes
-              </CardTitle>
-              <CardDescription className="mt-1 text-sm">
-                Build and refine resumes with ATS scoring before you apply.
-              </CardDescription>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <Link
-                href="/dashboard/resumes"
-                className={cn(
-                  buttonVariants({ variant: "outline" }),
-                  instituteSecondaryClass,
-                  "h-9 px-3 text-xs no-underline sm:h-10 sm:px-4 sm:text-sm",
-                )}
-              >
-                View all
-              </Link>
-              <Link href="/dashboard/resumes/new">
-                <Button className={institutePrimaryClass}>
-                  <Plus className="mr-2 h-4 w-4" /> New resume
-                </Button>
-              </Link>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="p-0">
-          <DashboardResumesList
-            resumes={resumes}
-            currentPage={resumePage}
-            itemsPerPage={resumeItemsPerPage}
-            onPageChange={setResumePage}
-            onDownload={handleResumeDownload}
-            downloadingResumeId={downloadingResumeId}
           />
         </CardContent>
       </Card>

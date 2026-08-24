@@ -7,6 +7,7 @@ const isPublicRoute = createRouteMatcher([
   "/sign-up(.*)",
   "/onboarding(.*)",
   "/api/webhooks(.*)",
+  "/api/revalidate",
   "/ai-resume-builder(.*)",
   "/ai-job-search(.*)",
   "/ai-job-search",
@@ -19,8 +20,10 @@ const isPublicRoute = createRouteMatcher([
   "/contact(.*)",
   "/refund(.*)",
   "/terms(.*)",
+  "/privacy(.*)",
   "/hire-ix-talent(.*)",
   "/become-peer-interviewer(.*)",
+  "/blogs(.*)",
   "/robots.txt",
   "/sitemap.xml",
 ]);
@@ -34,9 +37,15 @@ export default clerkMiddleware(
       return NextResponse.next();
     }
 
-    // Protect private routes
+    // Protect private routes — preserve the intended destination for post-login redirect
     if (!isPublicRoute(request)) {
-      await auth.protect();
+      const { userId } = await auth();
+      if (!userId) {
+        const signInUrl = new URL("/sign-in", request.url);
+        const returnPath = `${request.nextUrl.pathname}${request.nextUrl.search}`;
+        signInUrl.searchParams.set("redirect_url", returnPath);
+        return NextResponse.redirect(signInUrl);
+      }
     }
 
     return NextResponse.next();

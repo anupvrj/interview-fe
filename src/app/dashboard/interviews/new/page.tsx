@@ -30,6 +30,7 @@ import {
   User,
   type Resume,
 } from "@/lib/api";
+import { useDashboardInvalidation } from "@/hooks/useDashboardInvalidation";
 import {
   getActiveSavedResumeDisplay,
   hasActiveSavedResume,
@@ -54,6 +55,7 @@ import {
   appSurfaceMuted,
 } from "@/lib/app-theme";
 import { cn } from "@/lib/utils";
+import { mergeInterviewFormDefaults } from "@/lib/interview-form-defaults";
 
 const disciplineOptionsByDepartment: Record<
   string,
@@ -196,6 +198,7 @@ function ResumeOptionCard({
 export default function NewInterviewPage() {
   const { user, isLoaded } = useUser();
   const router = useRouter();
+  const { invalidate } = useDashboardInvalidation();
   const [loading, setLoading] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [userProfile, setUserProfile] = useState<User | null>(null);
@@ -234,6 +237,7 @@ export default function NewInterviewPage() {
       ]);
       setUserProfile(profile);
       setDefaultDesignedResume(designedDefault);
+      setFormData((prev) => mergeInterviewFormDefaults(prev, profile));
       if (hasActiveSavedResume(profile, designedDefault)) {
         setUseSavedResume(true);
       }
@@ -417,6 +421,7 @@ export default function NewInterviewPage() {
         duration: parseInt(formData.duration),
       });
 
+      await invalidate(["interviews", "entitlements"]);
       router.push(`/interview/${response.data.interviewId}/realtime`);
     } catch (error: any) {
       console.error("Error creating interview:", error);

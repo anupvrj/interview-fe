@@ -7,16 +7,20 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { AuthCardLayout } from "@/components/app/AuthCardLayout";
 import { clerkAuthAppearance } from "@/lib/clerk-appearance";
+import { storePostSignInReturnUrl } from "@/lib/post-sign-in-redirect";
 
 export default function SignInPage() {
   const searchParams = useSearchParams();
+  const redirectUrl = searchParams.get("redirect_url");
+  const signUpHref = redirectUrl
+    ? `/sign-up?redirect_url=${encodeURIComponent(redirectUrl)}`
+    : "/sign-up";
 
   useEffect(() => {
-    const redirectUrl = searchParams.get("redirect_url");
     if (redirectUrl) {
-      localStorage.setItem("resumeBuilderReturnUrl", redirectUrl);
+      storePostSignInReturnUrl(redirectUrl);
     }
-  }, [searchParams]);
+  }, [redirectUrl]);
 
   return (
     <AuthCardLayout
@@ -27,7 +31,7 @@ export default function SignInPage() {
           <p>
             Don&apos;t have an account?{" "}
             <Link
-              href="/sign-up"
+              href={signUpHref}
               className="font-semibold text-primary hover:underline"
             >
               Sign up

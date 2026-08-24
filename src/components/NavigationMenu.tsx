@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, type MouseEvent } from "react";
+import { createPortal } from "react-dom";
 import { ChevronDown, Menu, X } from "lucide-react";
 import { useUser } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
@@ -9,7 +10,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 
 const navLinkClass =
-  "text-sm font-medium text-muted-foreground transition-colors hover:text-foreground lg:text-[0.9375rem]";
+  "text-sm font-medium text-muted-foreground transition-colors hover:text-foreground lg:text-[13px] xl:text-[0.9375rem]";
 
 export const mockInterviewNavItems = [
   {
@@ -333,13 +334,19 @@ export function PublicDesktopNav() {
   );
 }
 
+/** Portaled above SiteHeader (`z-50`) — must be literal Tailwind classes for JIT. */
 export function PublicMobileNav() {
   const router = useRouter();
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mockInterviewsOpen, setMockInterviewsOpen] = useState(false);
   const [resumeOpen, setResumeOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const { user, isLoaded } = useUser();
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const navigateFromMobileDrawer =
     (href: string) => (e: MouseEvent<HTMLAnchorElement>) => {
@@ -352,11 +359,30 @@ export function PublicMobileNav() {
       }, 0);
     };
 
+  const mobileMenuBorderClass = "border-primary-foreground/20";
+  const mobileMenuSubBorderClass = "border-primary-foreground/15";
+
   const mobileLinkClass = (active: boolean) =>
     cn(
-      "flex items-center border-b border-border/60 px-4 py-3.5 text-sm font-medium transition-colors hover:bg-muted/40",
-      active ? "text-foreground" : "text-muted-foreground",
+      "flex items-center border-b px-4 py-3.5 text-sm font-medium transition-colors hover:bg-primary-foreground/10",
+      mobileMenuBorderClass,
+      active ? "text-primary-foreground" : "text-primary-foreground/90",
     );
+
+  const mobileSubmenuToggleClass = (active: boolean) =>
+    cn(
+      "flex w-full items-center justify-between border-b px-4 py-3.5 text-left text-sm font-medium transition-colors hover:bg-primary-foreground/10",
+      mobileMenuBorderClass,
+      active ? "text-primary-foreground" : "text-primary-foreground/90",
+    );
+
+  const mobileSubmenuPanelClass = cn(
+    "border-b bg-primary-foreground/10",
+    mobileMenuBorderClass,
+  );
+
+  const mobileSubmenuLinkClass =
+    "block border-b px-6 py-3 last:border-b-0 transition-colors hover:bg-primary-foreground/10";
 
   useEffect(() => {
     if (!mobileMenuOpen) return;
@@ -393,53 +419,55 @@ export function PublicMobileNav() {
     setResumeOpen(false);
   }, [pathname]);
 
-  return (
-    <>
-      <div id="mobile-menu-button" className="lg:hidden">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          className="h-9 w-9 p-0"
-          aria-label="Toggle menu"
-          aria-expanded={mobileMenuOpen}
-        >
-          {mobileMenuOpen ? (
-            <X className="h-5 w-5" />
-          ) : (
-            <Menu className="h-5 w-5" />
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [mobileMenuOpen]);
+
+  const closeMobileMenu = () => {
+    setMobileMenuOpen(false);
+    setMockInterviewsOpen(false);
+    setResumeOpen(false);
+  };
+
+  const mobileMenuPortal =
+    mounted &&
+    createPortal(
+      <>
+        {mobileMenuOpen ? (
+          <div
+            className="fixed inset-0 z-[100] bg-black/30 lg:hidden"
+            onClick={closeMobileMenu}
+            aria-hidden
+          />
+        ) : null}
+
+        <nav
+          id="mobile-menu"
+          className={cn(
+            "fixed left-0 top-0 z-[110] flex h-dvh w-80 max-w-[85vw] flex-col bg-primary text-primary-foreground shadow-2xl transition-transform duration-300 ease-in-out lg:hidden",
+            mobileMenuOpen ? "translate-x-0" : "-translate-x-full",
           )}
-        </Button>
-      </div>
-
-      {mobileMenuOpen ? (
+          onClick={(e) => e.stopPropagation()}
+          aria-label="Mobile navigation"
+          aria-hidden={!mobileMenuOpen}
+        >
         <div
-          className="fixed inset-0 z-[60] bg-black/30 lg:hidden"
-          onClick={() => {
-            setMobileMenuOpen(false);
-            setMockInterviewsOpen(false);
-            setResumeOpen(false);
-          }}
-          aria-hidden
-        />
-      ) : null}
-
-      <nav
-        id="mobile-menu"
-        className={cn(
-          "fixed left-0 top-0 z-[70] flex h-screen w-80 max-w-[85vw] flex-col bg-card shadow-2xl transition-transform duration-300 ease-in-out lg:hidden",
-          mobileMenuOpen ? "translate-x-0" : "-translate-x-full",
-        )}
-        onClick={(e) => e.stopPropagation()}
-        aria-label="Mobile navigation"
-      >
-        <div className="flex items-center justify-between border-b border-border/60 px-4 py-4">
-          <span className="text-sm font-semibold text-foreground">Menu</span>
+          className={cn(
+            "flex items-center justify-between border-b px-4 py-4",
+            mobileMenuBorderClass,
+          )}
+        >
+          <span className="text-sm font-semibold text-primary-foreground">Menu</span>
           <Button
             variant="ghost"
             size="sm"
-            className="h-8 w-8 p-0"
-            onClick={() => setMobileMenuOpen(false)}
+            className="h-8 w-8 p-0 text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground"
+            onClick={closeMobileMenu}
             aria-label="Close menu"
           >
             <X className="h-4 w-4" />
@@ -471,12 +499,7 @@ export function PublicMobileNav() {
           <button
             type="button"
             onClick={() => setResumeOpen((open) => !open)}
-            className={cn(
-              "flex w-full items-center justify-between border-b border-border/60 px-4 py-3.5 text-left text-sm font-medium transition-colors hover:bg-muted/40",
-              isResumeActive(pathname)
-                ? "text-foreground"
-                : "text-muted-foreground",
-            )}
+            className={mobileSubmenuToggleClass(isResumeActive(pathname))}
             aria-expanded={resumeOpen}
           >
             <span>Resume</span>
@@ -489,18 +512,18 @@ export function PublicMobileNav() {
           </button>
 
           {resumeOpen ? (
-            <div className="border-b border-border/60 bg-muted/20">
+            <div className={mobileSubmenuPanelClass}>
               {resumeNavItems.map((item) => (
                 <Link
                   key={item.href}
                   href={item.href}
                   onClick={navigateFromMobileDrawer(item.href)}
-                  className="block border-b border-border/40 px-6 py-3 last:border-b-0 hover:bg-muted/40"
+                  className={cn(mobileSubmenuLinkClass, mobileMenuSubBorderClass)}
                 >
-                  <span className="block text-sm font-medium text-foreground">
+                  <span className="block text-sm font-medium text-primary-foreground">
                     {item.label}
                   </span>
-                  <span className="mt-0.5 block text-xs text-muted-foreground">
+                  <span className="mt-0.5 block text-xs text-primary-foreground/75">
                     {item.description}
                   </span>
                 </Link>
@@ -511,12 +534,7 @@ export function PublicMobileNav() {
           <button
             type="button"
             onClick={() => setMockInterviewsOpen((open) => !open)}
-            className={cn(
-              "flex w-full items-center justify-between border-b border-border/60 px-4 py-3.5 text-left text-sm font-medium transition-colors hover:bg-muted/40",
-              isMockInterviewActive(pathname)
-                ? "text-foreground"
-                : "text-muted-foreground",
-            )}
+            className={mobileSubmenuToggleClass(isMockInterviewActive(pathname))}
             aria-expanded={mockInterviewsOpen}
           >
             <span>Mock Interviews</span>
@@ -529,18 +547,18 @@ export function PublicMobileNav() {
           </button>
 
           {mockInterviewsOpen ? (
-            <div className="border-b border-border/60 bg-muted/20">
+            <div className={mobileSubmenuPanelClass}>
               {mockInterviewNavItems.map((item) => (
                 <Link
                   key={item.href}
                   href={item.href}
                   onClick={navigateFromMobileDrawer(item.href)}
-                  className="block border-b border-border/40 px-6 py-3 last:border-b-0 hover:bg-muted/40"
+                  className={cn(mobileSubmenuLinkClass, mobileMenuSubBorderClass)}
                 >
-                  <span className="block text-sm font-medium text-foreground">
+                  <span className="block text-sm font-medium text-primary-foreground">
                     {item.label}
                   </span>
-                  <span className="mt-0.5 block text-xs text-muted-foreground">
+                  <span className="mt-0.5 block text-xs text-primary-foreground/75">
                     {item.description}
                   </span>
                 </Link>
@@ -583,6 +601,30 @@ export function PublicMobileNav() {
           ) : null}
         </div>
       </nav>
+      </>,
+      document.body,
+    );
+
+  return (
+    <>
+      <div id="mobile-menu-button" className="lg:hidden">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          className="h-9 w-9 p-0"
+          aria-label="Toggle menu"
+          aria-expanded={mobileMenuOpen}
+        >
+          {mobileMenuOpen ? (
+            <X className="h-5 w-5" />
+          ) : (
+            <Menu className="h-5 w-5" />
+          )}
+        </Button>
+      </div>
+
+      {mobileMenuPortal}
     </>
   );
 }
