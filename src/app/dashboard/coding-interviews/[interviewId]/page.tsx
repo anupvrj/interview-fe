@@ -34,23 +34,33 @@ import {
   Interview,
   interviewApi,
 } from "@/lib/api";
+import { invalidateAfterCodingSessionCompleteFromStorage } from "@/lib/invalidate-queries";
 import {
   combineScreenAndMicForRecording,
   pickRecorderMimeType,
 } from "@/lib/codingSessionRecording";
+import { HorizontalResizeHandle } from "@/components/layout/HorizontalResizeHandle";
+import { CodingProblemStatement } from "@/components/coding/CodingProblemStatement";
+import {
+  HORIZONTAL_SPLITTER_PX,
+  useHorizontalPaneResize,
+} from "@/hooks/useHorizontalPaneResize";
+import { useMediaMinWidth } from "@/hooks/useMediaMinWidth";
+import { useWorkspaceRowWidth } from "@/hooks/useWorkspaceRowWidth";
 import { cn } from "@/lib/utils";
 import {
+  CodingRunResultsPanel,
+  type CodingRunPayload,
+} from "@/components/coding/CodingRunResultsPanel";
+import {
   Braces,
-  CheckCircle2,
   Check,
   FileText,
-  GripVertical,
   Loader2,
   MessageCircle,
   Play,
   Send,
   Video,
-  XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { RealtimeInterviewClient } from "@/components/interview/RealtimeInterviewClient";
@@ -73,347 +83,52 @@ function draftKey(problemId: string, lang: Lang) {
   return `${problemId}::${lang}`;
 }
 
-/** `w-64` aside + problem | splitter | editor (xl row). */
-const ASIDE_WIDTH_XL_PX = 256;
+/** Resizable aside + problem | splitter | editor (xl row). */
+const ASIDE_MIN_XL_PX = 200;
+const ASIDE_DEFAULT_XL_PX = 256;
+const ASIDE_MAX_XL_PX = 420;
 const PROBLEM_PANE_MIN_PX = 280;
+const PROBLEM_PANE_DEFAULT_PX = 560;
 const EDITOR_PANE_MIN_XL_PX = 400;
-const COL_SPLITTER_PX = 8;
 
-function maxProblemPaneWidth(rowInnerWidthPx: number): number {
+function maxProblemPaneWidth(
+  rowInnerWidthPx: number,
+  asideWidthPx: number,
+): number {
   if (rowInnerWidthPx < 1) {
     return typeof window !== "undefined"
       ? Math.max(PROBLEM_PANE_MIN_PX, Math.floor(window.innerWidth * 0.4))
-      : 560;
+      : PROBLEM_PANE_DEFAULT_PX;
   }
   return Math.max(
     PROBLEM_PANE_MIN_PX,
     rowInnerWidthPx -
-      ASIDE_WIDTH_XL_PX -
-      COL_SPLITTER_PX -
+      asideWidthPx -
+      2 * HORIZONTAL_SPLITTER_PX -
       EDITOR_PANE_MIN_XL_PX,
   );
 }
 
-type CodingRunCase = {
-  index: number;
-  passed: boolean;
-  expected?: string;
-  actual?: string;
-  stderr?: string;
-  compileOutput?: string;
-  status?: string;
-  error?: string;
-};
-
-type CodingRunPayload = {
-  results: CodingRunCase[];
-  passed: number;
-  total: number;
-};
+function maxAsideWidth(
+  rowInnerWidthPx: number,
+  problemPaneWidthPx: number,
+): number {
+  if (rowInnerWidthPx < 1) {
+    return ASIDE_MAX_XL_PX;
+  }
+  const computed = Math.max(
+    ASIDE_MIN_XL_PX,
+    rowInnerWidthPx -
+      problemPaneWidthPx -
+      2 * HORIZONTAL_SPLITTER_PX -
+      EDITOR_PANE_MIN_XL_PX,
+  );
+  return Math.min(ASIDE_MAX_XL_PX, computed);
+}
 
 type RunPanelState =
   | { type: "structured"; payload: CodingRunPayload }
   | { type: "text"; message: string };
-
-function displayOut(s: string | undefined) {
-  if (s === undefined) return "—";
-  if (s === "") return "(empty)";
-  return s;
-}
-
-function CodingRunResultsPanel({
-  payload,
-  theme = "light",
-}: Readonly<{ payload: CodingRunPayload; theme?: "light" | "dark" }>) {
-  const { results, passed, total } = payload;
-  const failed = total - passed;
-  const allPass = total > 0 && passed === total;
-  const allFail = total > 0 && passed === 0;
-  const dark = theme === "dark";
-
-  return (
-    <section
-      aria-label="Test run results"
-      className={cn(
-        "rounded-lg border overflow-hidden text-sm",
-        dark
-          ? cn(
-              allPass && "border-emerald-500/40 bg-emerald-500/10",
-              !allPass && !allFail && total > 0 && "border-amber-500/35 bg-amber-500/10",
-              allFail && "border-red-500/40 bg-red-500/10",
-              total === 0 && "border-white/10 bg-card/[0.04]",
-            )
-          : cn(
-              allPass && "border-emerald-200 bg-emerald-50/40",
-              !allPass && !allFail && total > 0 && "border-amber-200 bg-amber-50/30",
-              allFail && "border-red-200 bg-red-50/30",
-              total === 0 && "border-border bg-muted/20",
-            ),
-      )}
-    >
-      <div
-        className={cn(
-          "px-3 py-2 border-b flex flex-wrap items-center gap-2",
-          dark
-            ? cn(
-                allPass && "border-emerald-500/30 bg-emerald-500/15",
-                !allPass && !allFail && total > 0 && "border-amber-500/25 bg-amber-500/10",
-                allFail && "border-red-500/30 bg-red-500/15",
-                total === 0 && "border-white/10 bg-card/[0.06]",
-              )
-            : cn(
-                allPass && "border-emerald-200/80 bg-emerald-50/80",
-                !allPass && !allFail && total > 0 && "border-amber-200/80 bg-amber-50/60",
-                allFail && "border-red-200/80 bg-red-50/60",
-                total === 0 && "border-border bg-slate-100/80",
-              ),
-        )}
-      >
-        {total === 0 ? (
-          <span
-            className={cn(
-              "font-medium",
-              dark ? "text-gray-400" : "text-foreground",
-            )}
-          >
-            No tests were run.
-          </span>
-        ) : (
-          <>
-            <span
-              className={cn(
-                "font-semibold tabular-nums",
-                dark
-                  ? allPass
-                    ? "text-emerald-400"
-                    : "text-white"
-                  : allPass
-                    ? "text-emerald-800"
-                    : "text-foreground",
-              )}
-            >
-              {passed} / {total} passed
-            </span>
-            {failed > 0 && (
-              <span
-                className={cn(
-                  "font-medium tabular-nums",
-                  dark ? "text-red-400" : "text-red-700",
-                )}
-              >
-                {failed} failed
-              </span>
-            )}
-            {allPass && (
-              <span
-                className={cn(
-                  "text-xs sm:text-sm",
-                  dark ? "text-emerald-400/90" : "text-emerald-700",
-                )}
-              >
-                All sample tests passed — you can submit when ready.
-              </span>
-            )}
-          </>
-        )}
-      </div>
-      <ul
-        className={cn(
-          "max-h-56 overflow-y-auto",
-          dark ? "divide-y divide-white/10" : "divide-y divide-slate-200/80",
-        )}
-      >
-        {results.map((r) => (
-          <li
-            key={r.index}
-            className={cn(
-              "px-3 py-3 space-y-2",
-              dark
-                ? r.passed
-                  ? "bg-card/[0.03]"
-                  : "bg-card/[0.06]"
-                : r.passed
-                  ? "bg-card/60"
-                  : "bg-card/80",
-            )}
-          >
-            <div className="flex flex-wrap items-center gap-2">
-              {r.passed ? (
-                <CheckCircle2
-                  className={cn(
-                    "h-5 w-5 shrink-0",
-                    dark ? "text-emerald-400" : "text-emerald-600",
-                  )}
-                  aria-hidden
-                />
-              ) : (
-                <XCircle
-                  className={cn(
-                    "h-5 w-5 shrink-0",
-                    dark ? "text-red-400" : "text-red-600",
-                  )}
-                  aria-hidden
-                />
-              )}
-              <span
-                className={cn(
-                  "text-sm font-medium",
-                  dark ? "text-white" : "text-foreground",
-                )}
-              >
-                Test {r.index + 1}
-              </span>
-              <span
-                className={cn(
-                  "text-sm font-semibold uppercase tracking-wide",
-                  r.passed
-                    ? dark
-                      ? "text-emerald-400"
-                      : "text-emerald-700"
-                    : dark
-                      ? "text-red-400"
-                      : "text-red-700",
-                )}
-              >
-                {r.passed ? "Passed" : "Failed"}
-              </span>
-              {r.status ? (
-                <Badge
-                  variant="outline"
-                  className={cn(
-                    "text-xs font-normal",
-                    dark &&
-                      "border-white/20 bg-card/[0.06] text-gray-200",
-                  )}
-                >
-                  {r.status}
-                </Badge>
-              ) : null}
-            </div>
-
-            {(r.expected !== undefined || r.actual !== undefined) && (
-              <div className="grid gap-2 sm:grid-cols-2 text-xs">
-                <div>
-                  <div
-                    className={cn(
-                      "font-sans text-xs font-medium mb-0.5",
-                      dark ? "text-gray-400" : "text-muted-foreground",
-                    )}
-                  >
-                    Expected
-                  </div>
-                  <pre
-                    className={cn(
-                      "whitespace-pre-wrap break-words rounded border px-2 py-1.5 font-mono text-xs",
-                      dark
-                        ? r.passed
-                          ? "border-emerald-500/35 bg-black/35 text-emerald-200/95"
-                          : "border-white/15 bg-black/35 text-gray-200"
-                        : r.passed
-                          ? "border-emerald-200 bg-emerald-50/80 text-emerald-900"
-                          : "border-border bg-muted/20 text-foreground",
-                    )}
-                  >
-                    {displayOut(r.expected)}
-                  </pre>
-                </div>
-                <div>
-                  <div
-                    className={cn(
-                      "font-sans text-xs font-medium mb-0.5",
-                      dark ? "text-gray-400" : "text-muted-foreground",
-                    )}
-                  >
-                    Your output
-                  </div>
-                  <pre
-                    className={cn(
-                      "whitespace-pre-wrap break-words rounded border px-2 py-1.5 font-mono text-xs",
-                      dark
-                        ? r.passed
-                          ? "border-emerald-500/35 bg-black/35 text-emerald-200/95"
-                          : "border-red-500/40 bg-red-500/10 text-red-200"
-                        : r.passed
-                          ? "border-emerald-200 bg-emerald-50/80 text-emerald-900"
-                          : "border-red-200 bg-red-50/90 text-red-900",
-                    )}
-                  >
-                    {displayOut(r.actual)}
-                  </pre>
-                </div>
-              </div>
-            )}
-
-            {r.error ? (
-              <div
-                className={cn(
-                  "rounded border px-2 py-1.5 text-xs",
-                  dark
-                    ? "border-red-900/60 bg-red-950/40 text-red-200"
-                    : "border-red-200 bg-red-50 text-red-900",
-                )}
-              >
-                <span
-                  className={cn(
-                    "font-semibold",
-                    dark ? "text-red-300" : "text-red-800",
-                  )}
-                >
-                  Note:{" "}
-                </span>
-                {r.error}
-              </div>
-            ) : null}
-            {r.stderr ? (
-              <div>
-                <div
-                  className={cn(
-                    "font-sans font-medium text-xs mb-0.5",
-                    dark ? "text-gray-400" : "text-muted-foreground",
-                  )}
-                >
-                  stderr
-                </div>
-                <pre
-                  className={cn(
-                    "whitespace-pre-wrap break-words rounded border px-2 py-1.5 font-mono text-xs max-h-24 overflow-y-auto",
-                    dark
-                      ? "border-primary/35 bg-primary/10 text-primary-foreground/90"
-                      : "border-amber-200 bg-amber-50/80 text-amber-950",
-                  )}
-                >
-                  {r.stderr.trim() || "(empty)"}
-                </pre>
-              </div>
-            ) : null}
-            {r.compileOutput ? (
-              <div>
-                <div
-                  className={cn(
-                    "font-sans font-medium text-xs mb-0.5",
-                    dark ? "text-gray-400" : "text-muted-foreground",
-                  )}
-                >
-                  Compiler output
-                </div>
-                <pre
-                  className={cn(
-                    "whitespace-pre-wrap break-words rounded border px-2 py-1.5 font-mono text-xs max-h-24 overflow-y-auto",
-                    dark
-                      ? "border-white/15 bg-black/35 text-gray-300"
-                      : "border-border bg-slate-100 text-foreground",
-                  )}
-                >
-                  {r.compileOutput.trim() || "(empty)"}
-                </pre>
-              </div>
-            ) : null}
-          </li>
-        ))}
-      </ul>
-    </section>
-  );
-}
 
 function ProblemDescriptionDark({
   problem,
@@ -436,8 +151,11 @@ function ProblemDescriptionDark({
         <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-300/90">
           Problem description
         </h3>
-        <div className="rounded-xl border border-white/10 bg-card/[0.04] px-4 py-3 text-sm leading-relaxed text-gray-200 whitespace-pre-wrap shadow-lg shadow-black/20">
-          {problem.statement}
+        <div className="rounded-xl border border-white/10 bg-card/[0.04] px-4 py-3 shadow-lg shadow-black/20">
+          <CodingProblemStatement
+            statement={problem.statement}
+            variant="dark"
+          />
         </div>
         <p className="mt-2 text-xs leading-snug text-gray-400">
           The starter code is an{" "}
@@ -578,16 +296,63 @@ export default function CodingInterviewSessionPage() {
   const autostartAttemptedRef = useRef(false);
   const startCodingInFlightRef = useRef(false);
   const handleStartCodingRef = useRef<() => Promise<void>>(async () => {});
-  const [problemPaneWidthPx, setProblemPaneWidthPx] = useState(560);
-  const [workspaceRowWidthPx, setWorkspaceRowWidthPx] = useState(0);
-  const [isXlWorkspaceRow, setIsXlWorkspaceRow] = useState(false);
-
   const problemPaneStorageKey = `coding-problem-pane-w-${interviewId}`;
+  const asideStorageKey = `coding-aside-w-${interviewId}`;
   const codingWorkspaceRowRef = useRef<HTMLDivElement>(null);
-  const colSplitDragRef = useRef<{ startX: number; startW: number } | null>(
-    null,
+  const asideWidthRef = useRef(ASIDE_DEFAULT_XL_PX);
+  const problemPaneWidthRef = useRef(PROBLEM_PANE_DEFAULT_PX);
+
+  const isXlWorkspaceRow = useMediaMinWidth(1280);
+  const workspaceRowWidthPx = useWorkspaceRowWidth(
+    codingWorkspaceRowRef,
+    Boolean(interview?.codingRound?.codingPhaseStartedAt),
   );
-  const problemPaneWidthRef = useRef(560);
+
+  const getMaxAsideWidth = useCallback(() => {
+    const rowW =
+      workspaceRowWidthPx > 0
+        ? workspaceRowWidthPx
+        : typeof window !== "undefined"
+          ? window.innerWidth
+          : 1280;
+    return maxAsideWidth(rowW, problemPaneWidthRef.current);
+  }, [workspaceRowWidthPx]);
+
+  const getMaxProblemPaneWidth = useCallback(() => {
+    const rowW =
+      workspaceRowWidthPx > 0
+        ? workspaceRowWidthPx
+        : typeof window !== "undefined"
+          ? window.innerWidth
+          : 1280;
+    return maxProblemPaneWidth(rowW, asideWidthRef.current);
+  }, [workspaceRowWidthPx]);
+
+  const asideResize = useHorizontalPaneResize({
+    storageKey: asideStorageKey,
+    defaultWidth: ASIDE_DEFAULT_XL_PX,
+    minWidth: ASIDE_MIN_XL_PX,
+    getMaxWidth: getMaxAsideWidth,
+    enabled: isXlWorkspaceRow,
+  });
+
+  const problemPaneResize = useHorizontalPaneResize({
+    storageKey: problemPaneStorageKey,
+    defaultWidth: PROBLEM_PANE_DEFAULT_PX,
+    minWidth: PROBLEM_PANE_MIN_PX,
+    getMaxWidth: getMaxProblemPaneWidth,
+    enabled: isXlWorkspaceRow,
+  });
+
+  const problemPaneWidthPx = problemPaneResize.widthPx;
+
+  useEffect(() => {
+    asideWidthRef.current = asideResize.widthPx;
+  }, [asideResize.widthPx]);
+
+  useEffect(() => {
+    problemPaneWidthRef.current = problemPaneWidthPx;
+  }, [problemPaneWidthPx]);
 
   const load = useCallback(async () => {
     try {
@@ -651,33 +416,6 @@ export default function CodingInterviewSessionPage() {
   useEffect(() => {
     setRunPanel(null);
   }, [activeId]);
-
-  useEffect(() => {
-    const mq = window.matchMedia("(min-width: 1280px)");
-    const sync = () => setIsXlWorkspaceRow(mq.matches);
-    sync();
-    mq.addEventListener("change", sync);
-    return () => mq.removeEventListener("change", sync);
-  }, []);
-
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(problemPaneStorageKey);
-      if (raw) {
-        const n = Number.parseInt(raw, 10);
-        if (!Number.isNaN(n) && n >= PROBLEM_PANE_MIN_PX) {
-          setProblemPaneWidthPx(n);
-          problemPaneWidthRef.current = n;
-        }
-      }
-    } catch {
-      /* ignore */
-    }
-  }, [problemPaneStorageKey]);
-
-  useEffect(() => {
-    problemPaneWidthRef.current = problemPaneWidthPx;
-  }, [problemPaneWidthPx]);
 
   useEffect(() => {
     const id = setInterval(() => bump((x) => x + 1), 1000);
@@ -920,109 +658,6 @@ export default function CodingInterviewSessionPage() {
     };
   }, [loading]);
 
-  useEffect(() => {
-    if (!codingStarted) return;
-    const el = codingWorkspaceRowRef.current;
-    if (!el) return;
-    /**
-     * Observe a stable-width wrapper (overflow-hidden). Observing a scroll
-     * container causes scrollbar show/hide to flip contentRect width and can
-     * loop with problem-pane clamp updates — tab freeze when a modal opens
-     * after the last submit.
-     */
-    let raf = 0;
-    const ro = new ResizeObserver((entries) => {
-      const entry = entries[0];
-      if (!entry) return;
-      const w = Math.round(
-        entry.contentRect.width ||
-          (entry.borderBoxSize?.[0]?.inlineSize ?? 0),
-      );
-      if (w < 1) return;
-      if (raf) cancelAnimationFrame(raf);
-      raf = requestAnimationFrame(() => {
-        raf = 0;
-        setWorkspaceRowWidthPx((prev) =>
-          Math.abs(prev - w) < 2 ? prev : w,
-        );
-      });
-    });
-    ro.observe(el);
-    return () => {
-      if (raf) cancelAnimationFrame(raf);
-      ro.disconnect();
-    };
-  }, [codingStarted]);
-
-  useEffect(() => {
-    if (!isXlWorkspaceRow || workspaceRowWidthPx < 1) return;
-    const max = maxProblemPaneWidth(workspaceRowWidthPx);
-    setProblemPaneWidthPx((prev) => {
-      const clamped = Math.min(
-        Math.max(prev, PROBLEM_PANE_MIN_PX),
-        max,
-      );
-      problemPaneWidthRef.current = clamped;
-      return clamped;
-    });
-  }, [workspaceRowWidthPx, isXlWorkspaceRow]);
-
-  const onColSplitPointerDown = useCallback(
-    (e: React.PointerEvent<HTMLButtonElement>) => {
-      e.preventDefault();
-      e.currentTarget.setPointerCapture(e.pointerId);
-      colSplitDragRef.current = {
-        startX: e.clientX,
-        startW: problemPaneWidthRef.current,
-      };
-    },
-    [],
-  );
-
-  const onColSplitPointerMove = useCallback(
-    (e: React.PointerEvent<HTMLButtonElement>) => {
-      if (
-        !e.currentTarget.hasPointerCapture(e.pointerId) ||
-        colSplitDragRef.current == null
-      ) {
-        return;
-      }
-      const dx = e.clientX - colSplitDragRef.current.startX;
-      const raw = colSplitDragRef.current.startW + dx;
-      const rowW =
-        workspaceRowWidthPx > 0
-          ? workspaceRowWidthPx
-          : typeof window !== "undefined"
-            ? window.innerWidth
-            : 1280;
-      const max = maxProblemPaneWidth(rowW);
-      const next = Math.round(
-        Math.min(max, Math.max(PROBLEM_PANE_MIN_PX, raw)),
-      );
-      problemPaneWidthRef.current = next;
-      setProblemPaneWidthPx(next);
-    },
-    [workspaceRowWidthPx],
-  );
-
-  const onColSplitPointerUp = useCallback(
-    (e: React.PointerEvent<HTMLButtonElement>) => {
-      if (e.currentTarget.hasPointerCapture(e.pointerId)) {
-        e.currentTarget.releasePointerCapture(e.pointerId);
-      }
-      colSplitDragRef.current = null;
-      try {
-        localStorage.setItem(
-          problemPaneStorageKey,
-          String(problemPaneWidthRef.current),
-        );
-      } catch {
-        /* ignore */
-      }
-    },
-    [problemPaneStorageKey],
-  );
-
   const budgetMin = interview?.metadata?.codingPhaseDurationMinutes ?? 60;
   const budgetSec = budgetMin * 60;
   const codingStartMs = interview?.codingRound?.codingPhaseStartedAt
@@ -1249,6 +884,7 @@ export default function CodingInterviewSessionPage() {
       await new Promise((r) => setTimeout(r, 900));
       await codingInterviewApi.markDone(interviewId);
       setExitConfirmOpen(false);
+      await invalidateAfterCodingSessionCompleteFromStorage();
       router.push(`/dashboard/interviews/${interviewId}/processing`);
     } catch (e: unknown) {
       const msg =
@@ -1409,11 +1045,16 @@ export default function CodingInterviewSessionPage() {
           <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto overflow-x-hidden xl:flex-row xl:overflow-hidden">
           <aside
             className={cn(
-              "flex shrink-0 flex-col border-white/10 bg-card/[0.04] shadow-lg shadow-black/20 xl:h-auto xl:border-r",
-              voiceEmbedOpen
-                ? "min-h-0 xl:h-full xl:w-80 xl:max-h-none xl:self-stretch"
-                : "max-h-[38vh] xl:max-h-none xl:w-64",
+              "flex shrink-0 flex-col border-white/10 bg-card/[0.04] shadow-lg shadow-black/20 xl:h-auto",
+              isXlWorkspaceRow
+                ? "min-h-0 xl:h-full xl:max-h-none xl:self-stretch xl:shrink-0 xl:border-r-0"
+                : voiceEmbedOpen
+                  ? "min-h-0 xl:h-full xl:w-80 xl:max-h-none xl:self-stretch xl:border-r"
+                  : "max-h-[38vh] xl:max-h-none xl:w-64 xl:border-r",
             )}
+            style={
+              isXlWorkspaceRow ? { width: asideResize.widthPx } : undefined
+            }
           >
             <div className="shrink-0 border-b border-white/10 p-3">
               <h3 className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-gray-300/90">
@@ -1514,6 +1155,13 @@ export default function CodingInterviewSessionPage() {
             </div>
           </aside>
 
+          {isXlWorkspaceRow ? (
+            <HorizontalResizeHandle
+              label="Drag to resize sidebar and problem panels"
+              {...asideResize.handleProps}
+            />
+          ) : null}
+
           <main
             className={cn(
               "flex min-h-0 min-w-0 w-full flex-1 flex-col border-white/10 bg-card/[0.04] shadow-lg shadow-black/20",
@@ -1556,20 +1204,12 @@ export default function CodingInterviewSessionPage() {
             </div>
           </main>
 
-          <button
-            type="button"
-            aria-label="Drag to resize problem and editor panels"
-            className="hidden min-h-0 w-2 shrink-0 cursor-col-resize touch-none flex-col items-center justify-center border-x border-white/10 bg-card/[0.06] hover:bg-card/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 xl:flex"
-            onPointerDown={onColSplitPointerDown}
-            onPointerMove={onColSplitPointerMove}
-            onPointerUp={onColSplitPointerUp}
-            onPointerCancel={onColSplitPointerUp}
-          >
-            <GripVertical
-              className="h-10 w-3.5 text-gray-500 hover:text-gray-300"
-              aria-hidden
+          {isXlWorkspaceRow ? (
+            <HorizontalResizeHandle
+              label="Drag to resize problem and editor panels"
+              {...problemPaneResize.handleProps}
             />
-          </button>
+          ) : null}
 
           <section className="flex min-h-0 w-full min-w-0 shrink-0 flex-col border-t border-white/10 bg-card/[0.04] shadow-lg shadow-black/20 xl:h-full xl:min-h-0 xl:min-w-[400px] xl:flex-1 xl:max-w-none xl:self-stretch xl:border-l xl:border-t-0">
             <div className="flex min-h-0 flex-1 flex-col p-3 sm:p-4">
@@ -1643,6 +1283,7 @@ export default function CodingInterviewSessionPage() {
                   <CodingRunResultsPanel
                     payload={runPanel.payload}
                     theme="dark"
+                    successHint="All sample tests passed — you can submit when ready."
                   />
                 ) : null}
                 {runPanel?.type === "text" ? (

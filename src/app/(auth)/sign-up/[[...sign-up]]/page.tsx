@@ -3,10 +3,25 @@
 import { SignUp } from "@clerk/nextjs";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+import { useSearchParams } from "next/navigation";
+import { useEffect } from "react";
 import { AuthCardLayout } from "@/components/app/AuthCardLayout";
 import { clerkAuthAppearance } from "@/lib/clerk-appearance";
+import { storePostSignInReturnUrl } from "@/lib/post-sign-in-redirect";
 
 export default function SignUpPage() {
+  const searchParams = useSearchParams();
+  const redirectUrl = searchParams.get("redirect_url");
+  const signInHref = redirectUrl
+    ? `/sign-in?redirect_url=${encodeURIComponent(redirectUrl)}`
+    : "/sign-in";
+
+  useEffect(() => {
+    if (redirectUrl) {
+      storePostSignInReturnUrl(redirectUrl);
+    }
+  }, [redirectUrl]);
+
   return (
     <AuthCardLayout
       title="Get started free"
@@ -16,7 +31,7 @@ export default function SignUpPage() {
           <p>
             Already have an account?{" "}
             <Link
-              href="/sign-in"
+              href={signInHref}
               className="font-semibold text-primary hover:underline"
             >
               Sign in

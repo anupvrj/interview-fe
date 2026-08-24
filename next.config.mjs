@@ -11,6 +11,18 @@ const nextConfig = {
   },
   images: {
     domains: ["img.clerk.com"],
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "interview-trix-public.s3.ap-south-1.amazonaws.com",
+        pathname: "/blog/**",
+      },
+      {
+        protocol: "https",
+        hostname: "*.cloudfront.net",
+        pathname: "/blog/**",
+      },
+    ],
   },
   env: {
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,

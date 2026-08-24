@@ -21,7 +21,15 @@ interface ExcalidrawBoardProps {
   /** JSON from `serializeAsJSON(..., "database")` — loaded from session on resume. */
   initialSnapshotJson?: string | null;
   onExportRef?: (fn: () => Promise<string | null>) => void;
+  /** Disables autosave and change handlers. */
   readOnly?: boolean;
+  /**
+   * Excalidraw view mode (hides toolbar when true). Defaults to `readOnly` when omitted.
+   * Use `false` during pre-start preview so the toolbar remains visible under the overlay.
+   */
+  viewModeEnabled?: boolean;
+  /** Centered overlay rendered above the canvas but below Excalidraw UI (z-index). */
+  overlay?: React.ReactNode;
   /** Hide the top-left main menu (hamburger); uses scoped CSS on the wrapper. */
   hideMainMenu?: boolean;
   /** Fires on real scene edits — used to signal candidate liveness (throttled downstream). */
@@ -63,9 +71,12 @@ export default function ExcalidrawBoard({
   initialSnapshotJson = null,
   onExportRef,
   readOnly = false,
+  viewModeEnabled,
+  overlay,
   hideMainMenu = false,
   onActivity,
 }: ExcalidrawBoardProps) {
+  const isViewMode = viewModeEnabled ?? readOnly;
   const [excalidrawApi, setExcalidrawApi] = useState<AnyExcalidrawApi>(null);
   const apiRef = useRef<AnyExcalidrawApi>(null);
   const saveTimerRef = useRef<number | null>(null);
@@ -268,7 +279,7 @@ export default function ExcalidrawBoard({
   return (
     <div
       className={cn(
-        "excalidraw-container h-full min-h-0 w-full min-w-0",
+        "excalidraw-container relative h-full min-h-0 w-full min-w-0",
         hideMainMenu && "excalidraw-hide-main-menu",
       )}
       style={{ background: "#ffffff" }}
@@ -276,10 +287,25 @@ export default function ExcalidrawBoard({
       <Excalidraw
         key={sessionId}
         excalidrawAPI={handleApiReady}
-        viewModeEnabled={readOnly}
+        viewModeEnabled={isViewMode}
         initialData={initialData}
         UIOptions={uiOptions}
       />
+      {overlay ? (
+        <div className="excalidraw-prestart-shell absolute inset-0 z-[10]">
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-0 bg-[#0b1220]/25"
+          />
+          <div
+            aria-hidden
+            className="excalidraw-prestart-shield absolute inset-0 z-[1] cursor-not-allowed bg-transparent"
+          />
+          <div className="pointer-events-none absolute inset-0 z-[2] flex flex-col items-center justify-center px-4">
+            {overlay}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

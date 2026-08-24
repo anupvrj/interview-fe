@@ -24,3 +24,7 @@ export function setLastGoodPagesForResume(
 export function clearLastGoodPagesForResume(resumeId: string): void {
   lastGoodPagesByResumeId.delete(resumeId);
 }
+
+export function clearAllLastGoodPages(): void {
+  lastGoodPagesByResumeId.clear();
+}

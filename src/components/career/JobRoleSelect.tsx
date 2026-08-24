@@ -44,6 +44,7 @@ export function JobRoleSelect({
   inputClassName,
   suggestionLimit = 10,
 }: Readonly<JobRoleSelectProps>) {
+  const safeValue = value ?? "";
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [dropdownPos, setDropdownPos] = useState<DropdownPosition>({
@@ -56,8 +57,8 @@ export function JobRoleSelect({
   const listRef = useRef<HTMLUListElement>(null);
 
   const suggestions = useMemo(
-    () => filterJobRoleSuggestions(value, industry, suggestionLimit),
-    [value, industry, suggestionLimit],
+    () => filterJobRoleSuggestions(safeValue, industry, suggestionLimit),
+    [safeValue, industry, suggestionLimit],
   );
 
   useEffect(() => {
@@ -149,7 +150,7 @@ export function JobRoleSelect({
         <Input
           ref={inputRef}
           id={id}
-          value={value}
+          value={safeValue}
           disabled={disabled}
           placeholder={placeholder}
           autoComplete="off"
@@ -162,7 +163,7 @@ export function JobRoleSelect({
           onKeyDown={(event) => {
             if (event.key === "Enter") {
               event.preventDefault();
-              onChange(value.trim());
+              onChange(safeValue.trim());
               setOpen(false);
             }
             if (event.key === "Escape") {

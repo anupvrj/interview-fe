@@ -52,6 +52,17 @@ import { AiJobSearchNotifyButton } from "@/components/AiJobSearchNotifyButton";
 import { appMarketingSection, appMarketingSectionAlt, appMarketingSectionPurple, appMarketingSectionLight } from "@/lib/app-theme";
 import { cn } from "@/lib/utils";
 
+const stackedFeatureCtaRowClass =
+  "flex flex-row items-stretch gap-2 pt-4 sm:items-start sm:gap-4";
+const stackedFeatureCtaLinkClass = "min-w-0 flex-1 sm:flex-initial sm:w-auto";
+const stackedFeatureCtaButtonClass =
+  "w-full whitespace-nowrap px-2.5 text-xs h-11 sm:h-12 sm:px-6 sm:text-base";
+const stackedFeatureSectionTitleClass =
+  "text-center lg:text-left text-3xl sm:text-4xl md:text-5xl font-semibold tracking-tight text-slate-900 leading-tight";
+const stackedFeatureBadgeWrapClass = "flex justify-center lg:justify-start";
+const stackedFeatureBadgeClass =
+  "inline-flex items-center gap-2 px-3 py-1 bg-muted rounded-full text-primary font-medium text-sm";
+
 // Count-up when stats section scrolls into view
 function useCountUp(
   end: number,
@@ -402,14 +413,14 @@ export default function LandingPage() {
               </div>
 
               {/* Quick Stats */}
-              <div className="flex flex-wrap items-center justify-center lg:justify-start gap-6 pt-2 text-sm text-gray-500 font-medium">
-                <div className="flex items-center gap-2">
-                  <Check className="w-4 h-4 text-primary" />
-                  <span>No credit card required</span>
+              <div className="flex flex-nowrap items-center justify-center lg:justify-start gap-3 sm:gap-6 pt-2 text-xs sm:text-sm text-gray-500 font-medium">
+                <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+                  <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-primary shrink-0" />
+                  <span className="whitespace-nowrap">No credit card required</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Check className="w-4 h-4 text-primary" />
-                  <span>5,000+ students trained</span>
+                <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+                  <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-primary shrink-0" />
+                  <span className="whitespace-nowrap">5,000+ students trained</span>
                 </div>
               </div>
             </div>
@@ -628,12 +639,14 @@ export default function LandingPage() {
             {/* Left Section - Marketing Content */}
             <div className="space-y-6 lg:order-1">
               {/* Badge */}
-              <div className="inline-flex items-center gap-2 px-3 py-1 bg-muted rounded-full text-primary font-medium text-sm">
-                <span>AI-Powered Writing • Live ATS Analysis</span>
+              <div className={stackedFeatureBadgeWrapClass}>
+                <div className={stackedFeatureBadgeClass}>
+                  <span>AI-Powered Writing • Live ATS Analysis</span>
+                </div>
               </div>
 
               {/* Headline */}
-              <h2 id="build-resume-heading" className="text-3xl sm:text-4xl md:text-5xl font-semibold tracking-tight text-slate-900 leading-tight">
+              <h2 id="build-resume-heading" className={stackedFeatureSectionTitleClass}>
                 Build an <span className="text-primary">ATS-Proof Resume</span> using AI
               </h2>
 
@@ -700,21 +713,27 @@ export default function LandingPage() {
               </div>
 
               {/* CTA Buttons */}
-              <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 pt-4">
-                <Link href="/dashboard/resumes/new" className="w-full sm:w-auto">
+              <div className={stackedFeatureCtaRowClass}>
+                <Link href="/dashboard/resumes/new" className={stackedFeatureCtaLinkClass}>
                   <Button
                     size="lg"
-                    className="w-full sm:w-auto text-white font-medium shadow-sm transition-all h-12 px-6 hover:opacity-90 !bg-primary"
+                    className={cn(
+                      stackedFeatureCtaButtonClass,
+                      "text-white font-medium shadow-sm transition-all hover:opacity-90 !bg-primary",
+                    )}
                   >
                     Build Free Resume
-                    <ArrowRight className="w-4 h-4 ml-2" />
+                    <ArrowRight className="w-3.5 h-3.5 ml-1 sm:w-4 sm:h-4 sm:ml-2" />
                   </Button>
                 </Link>
-                <Link href="/ai-resume-builder" className="w-full sm:w-auto">
+                <Link href="/ai-resume-builder" className={stackedFeatureCtaLinkClass}>
                   <Button
                     variant="outline"
                     size="lg"
-                    className="w-full sm:w-auto border-gray-200 text-gray-700 font-medium h-12 px-6 hover:!bg-slate-900 hover:!text-white transition-all"
+                    className={cn(
+                      stackedFeatureCtaButtonClass,
+                      "border-gray-200 text-gray-700 font-medium hover:!bg-slate-900 hover:!text-white transition-all",
+                    )}
                   >
                     Browse 50+ Templates
                   </Button>
@@ -807,12 +826,14 @@ export default function LandingPage() {
             {/* Left Section - Marketing Content */}
             <div className="space-y-6 lg:order-1">
               {/* Badge */}
-              <div className="inline-flex items-center gap-2 px-3 py-1 bg-muted rounded-full text-primary font-medium text-sm">
-                <span>Live AI Mock Interviews • Advanced Proctoring</span>
+              <div className={stackedFeatureBadgeWrapClass}>
+                <div className={stackedFeatureBadgeClass}>
+                  <span>Live AI Mock Interviews • Advanced Proctoring</span>
+                </div>
               </div>
 
               {/* Headline */}
-              <h2 id="start-interview-heading" className="text-3xl sm:text-4xl md:text-5xl font-semibold tracking-tight text-slate-900 leading-tight">
+              <h2 id="start-interview-heading" className={stackedFeatureSectionTitleClass}>
                 Master <span className="text-primary">AI Interview Practice</span>
               </h2>
 
@@ -879,23 +900,29 @@ export default function LandingPage() {
               </div>
 
               {/* CTA Buttons */}
-              <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 pt-4">
-                <Link href="/ai-interview-coach" className="w-full sm:w-auto">
+              <div className={stackedFeatureCtaRowClass}>
+                <Link href="/ai-interview-coach" className={stackedFeatureCtaLinkClass}>
                   <Button
                     size="lg"
-                    className="w-full sm:w-auto bg-primary hover:bg-slate-900 text-white font-medium shadow-sm transition-all h-12 px-6"
+                    className={cn(
+                      stackedFeatureCtaButtonClass,
+                      "bg-primary hover:bg-slate-900 text-white font-medium shadow-sm transition-all",
+                    )}
                   >
                     Start Mock Interview
-                    <ArrowRight className="w-4 h-4 ml-2" />
+                    <ArrowRight className="w-3.5 h-3.5 ml-1 sm:w-4 sm:h-4 sm:ml-2" />
                   </Button>
                 </Link>
-                <Link href="#sample-analytics-preview" className="w-full sm:w-auto">
+                <Link href="/ai-interview-coach" className={stackedFeatureCtaLinkClass}>
                   <Button
                     variant="outline"
                     size="lg"
-                    className="w-full sm:w-auto border-gray-200 text-gray-700 font-medium h-12 px-6 hover:!bg-slate-900 hover:!text-white transition-all"
+                    className={cn(
+                      stackedFeatureCtaButtonClass,
+                      "border-gray-200 text-gray-700 font-medium hover:!bg-slate-900 hover:!text-white transition-all",
+                    )}
                   >
-                    View Sample Analytics
+                    Know more
                   </Button>
                 </Link>
               </div>
@@ -904,7 +931,7 @@ export default function LandingPage() {
             {/* Right Side - Product UI Demo */}
             <div
               id="sample-analytics-preview"
-              className="relative scroll-mt-24 lg:order-2 lg:pl-8"
+              className="relative w-full min-w-0 scroll-mt-24 lg:order-2 lg:pl-8"
             >
               <InterviewPracticeHeroPreview />
             </div>
@@ -920,17 +947,19 @@ export default function LandingPage() {
         <div className="container mx-auto max-w-7xl">
           <div className="grid lg:grid-cols-2 gap-16 items-center">
             {/* Left Side - Animated Preview */}
-            <div className="order-2 flex justify-center lg:order-1 lg:justify-start shake-vertical">
-              <CodingRoundHeroPreview />
+            <div className="order-2 w-full min-w-0 lg:order-1 lg:w-auto shake-vertical">
+              <CodingRoundHeroPreview className="max-w-none sm:max-w-none lg:max-w-[600px] xl:max-w-[700px]" />
             </div>
 
             {/* Right Side - Marketing Content */}
             <div className="order-1 space-y-6 lg:order-2">
-              <div className="inline-flex items-center gap-2 px-3 py-1 bg-muted rounded-full text-primary font-medium text-sm">
-                <span>Live IDE • Public + Hidden Tests</span>
+              <div className={stackedFeatureBadgeWrapClass}>
+                <div className={stackedFeatureBadgeClass}>
+                  <span>Live IDE • Public + Hidden Tests</span>
+                </div>
               </div>
 
-              <h2 id="practice-coding-heading" className="text-3xl sm:text-4xl md:text-5xl font-semibold tracking-tight text-slate-900 leading-tight">
+              <h2 id="practice-coding-heading" className={stackedFeatureSectionTitleClass}>
                 Practice the <span className="text-primary">Coding Round</span>
               </h2>
 
@@ -994,14 +1023,32 @@ export default function LandingPage() {
                 </div>
               </div>
 
-              <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 pt-4">
-                <Link href="/ai-coding-practice" className="w-full sm:w-auto">
+              <div className={stackedFeatureCtaRowClass}>
+                <Link
+                  href="/dashboard/coding-interviews/new"
+                  className={stackedFeatureCtaLinkClass}
+                >
                   <Button
                     size="lg"
-                    className="w-full sm:w-auto bg-primary hover:bg-slate-900 text-white font-medium shadow-sm transition-all h-12 px-6"
+                    className={cn(
+                      stackedFeatureCtaButtonClass,
+                      "bg-primary hover:bg-slate-900 text-white font-medium shadow-sm transition-all",
+                    )}
                   >
                     Start Coding Round
-                    <ArrowRight className="w-4 h-4 ml-2" />
+                    <ArrowRight className="w-3.5 h-3.5 ml-1 sm:w-4 sm:h-4 sm:ml-2" />
+                  </Button>
+                </Link>
+                <Link href="/ai-coding-practice" className={stackedFeatureCtaLinkClass}>
+                  <Button
+                    variant="outline"
+                    size="lg"
+                    className={cn(
+                      stackedFeatureCtaButtonClass,
+                      "border-gray-200 text-gray-700 font-medium hover:!bg-slate-900 hover:!text-white transition-all",
+                    )}
+                  >
+                    Know more
                   </Button>
                 </Link>
               </div>
@@ -1019,11 +1066,13 @@ export default function LandingPage() {
           <div className="grid lg:grid-cols-2 gap-16 items-center">
             {/* Left Side - Marketing Content */}
             <div className="space-y-6 lg:order-1">
-              <div className="inline-flex items-center gap-2 px-3 py-1 bg-muted rounded-full text-primary font-medium text-sm">
-                <span>Live Whiteboard • Voice-Driven</span>
+              <div className={stackedFeatureBadgeWrapClass}>
+                <div className={stackedFeatureBadgeClass}>
+                  <span>Live Whiteboard • Voice-Driven</span>
+                </div>
               </div>
 
-              <h2 id="practice-system-design-heading" className="text-3xl sm:text-4xl md:text-5xl font-semibold tracking-tight text-slate-900 leading-tight">
+              <h2 id="practice-system-design-heading" className={stackedFeatureSectionTitleClass}>
                 Practice Live <span className="text-primary">System Design</span>
               </h2>
 
@@ -1087,14 +1136,17 @@ export default function LandingPage() {
                 </div>
               </div>
 
-              <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 pt-4">
-                <Link href="/ai-system-design" className="w-full sm:w-auto">
+              <div className={stackedFeatureCtaRowClass}>
+                <Link href="/ai-system-design" className={stackedFeatureCtaLinkClass}>
                   <Button
                     size="lg"
-                    className="w-full sm:w-auto bg-primary hover:bg-slate-900 text-white font-medium shadow-sm transition-all h-12 px-6"
+                    className={cn(
+                      stackedFeatureCtaButtonClass,
+                      "bg-primary hover:bg-slate-900 text-white font-medium shadow-sm transition-all",
+                    )}
                   >
                     Start System Design
-                    <ArrowRight className="w-4 h-4 ml-2" />
+                    <ArrowRight className="w-3.5 h-3.5 ml-1 sm:w-4 sm:h-4 sm:ml-2" />
                   </Button>
                 </Link>
               </div>
@@ -1570,8 +1622,7 @@ export default function LandingPage() {
         <div className="container mx-auto max-w-4xl">
           <div className="relative overflow-hidden rounded-3xl border border-primary/40 bg-primary p-8 shadow-header sm:p-12 lg:p-16 text-primary-foreground">
             {/* Limited Time Offer Badge */}
-            <div className="mb-4 flex items-center justify-center gap-2">
-              <Sparkles className="h-4 w-4 text-primary-foreground/90" />
+            <div className="mb-4 flex items-center justify-center">
               <span className="text-sm text-primary-foreground/90">Start today</span>
             </div>
 
@@ -1586,21 +1637,21 @@ export default function LandingPage() {
             </p>
 
             {/* CTA Buttons */}
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-8 sm:mb-10">
-              <Link href="/sign-up" className="w-full sm:w-auto">
+            <div className="mb-8 flex flex-row items-stretch justify-center gap-2 sm:mb-10 sm:gap-4">
+              <Link href="/sign-up" className="min-w-0 flex-1 sm:flex-initial sm:w-auto">
                 <Button
                   size="lg"
-                  className="h-12 w-full bg-primary-foreground px-6 text-base font-medium text-primary shadow-lg transition-all hover:bg-primary-foreground/90 hover:shadow-xl sm:h-14 sm:w-auto sm:px-8 sm:text-lg"
+                  className="h-11 w-full whitespace-nowrap px-2.5 text-xs font-medium bg-primary-foreground text-primary shadow-lg transition-all hover:bg-primary-foreground/90 hover:shadow-xl sm:h-14 sm:w-auto sm:px-8 sm:text-lg"
                 >
                   Start Your Free Trial
-                  <ArrowRight className="w-5 h-5 ml-2" />
+                  <ArrowRight className="w-3.5 h-3.5 ml-1 sm:w-5 sm:h-5 sm:ml-2" />
                 </Button>
               </Link>
-              <Link href="/contact" className="w-full sm:w-auto">
+              <Link href="/contact" className="min-w-0 flex-1 sm:flex-initial sm:w-auto">
                 <Button
                   size="lg"
                   variant="secondary"
-                  className="h-12 w-full px-6 text-base font-medium shadow-lg transition-all hover:shadow-xl sm:h-14 sm:w-auto sm:px-8 sm:text-lg"
+                  className="h-11 w-full whitespace-nowrap px-2.5 text-xs font-medium shadow-lg transition-all hover:shadow-xl sm:h-14 sm:w-auto sm:px-8 sm:text-lg"
                 >
                   Schedule a Demo
                 </Button>

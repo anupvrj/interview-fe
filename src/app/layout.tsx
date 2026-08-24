@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { ClerkProvider } from "@clerk/nextjs";
 import { AppGoogleAnalytics } from "@/components/AppGoogleAnalytics";
 import { UserProvider } from "@/components/UserProvider";
+import { QueryProvider } from "@/components/QueryProvider";
 import { TemplateRegistryInitializer } from "@/components/TemplateRegistryInitializer";
 import { getGaMeasurementId } from "@/config/google-analytics";
 import { getClarityProjectId } from "@/config/microsoft-clarity";
@@ -112,7 +113,9 @@ export default function RootLayout({
           <AppGoogleAnalytics gaId={gaMeasurementId} />
           <AppMicrosoftClarity projectId={clarityProjectId} />
           <TemplateRegistryInitializer />
-          <UserProvider>{children}</UserProvider>
+          <QueryProvider>
+            <UserProvider>{children}</UserProvider>
+          </QueryProvider>
           <AppToaster />
         </body>
       </html>
