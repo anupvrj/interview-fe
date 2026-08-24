@@ -82,9 +82,9 @@ export const atsCheckerDemoVideo: MarketingVideoContent = {
 export const aiInterviewCoachDemoVideo: MarketingVideoContent = {
   ...aiInterviewDemoVideo,
   id: "ai-interview-coach-demo",
-  name: "Interview Trix AI Interview Coach Demo",
+  name: "Interview Trix AI Mock Interview Demo",
   description:
-    "Watch a live AI mock interview on Interview Trix: voice-first practice, real-time feedback, company-specific questions, and a detailed scorecard to help you get shortlisted.",
+    "Watch a free AI mock interview on Interview Trix: voice-first mock interview practice, real-time feedback, company-specific questions, and a detailed scorecard.",
   embedUrl: `${getSiteUrl()}/ai-interview-coach`,
   pagePath: "/ai-interview-coach",
 };
