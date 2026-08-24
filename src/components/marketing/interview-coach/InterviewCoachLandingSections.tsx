@@ -247,11 +247,12 @@ export function InterviewCoachLandingSections() {
           <div className="mb-8 text-center sm:mb-10">
             <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-muted px-3 py-1 text-sm font-medium text-primary">
               <Sparkles className="h-3.5 w-3.5" />
-              <span>AI interview practice at a glance</span>
+              <span>AI mock interview practice at a glance</span>
             </div>
             <h2 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl lg:text-4xl">
-              Trusted practice{" "}
-              <span className="text-primary">across industries</span>
+              Trusted{" "}
+              <span className="text-primary">mock interview practice</span>{" "}
+              across industries
             </h2>
           </div>
 
@@ -399,7 +400,7 @@ export function InterviewCoachLandingSections() {
         <div className="container relative z-10 mx-auto max-w-7xl">
           <div className="mb-12 text-center sm:mb-16">
             <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-muted px-3 py-1 text-sm font-medium text-primary">
-              <span>Why AI Interview Coach</span>
+              <span>Why AI Mock Interview Practice</span>
             </div>
             <h2 className="mb-4 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl lg:text-5xl">
               Don&apos;t just practice.{" "}
@@ -555,11 +556,11 @@ export function InterviewCoachLandingSections() {
               <span>See It In Action</span>
             </div>
             <h2 className="mb-3 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl lg:text-5xl">
-              Watch voice mock interviews{" "}
+              Watch AI mock interviews{" "}
               <span className="text-primary">in action</span>
             </h2>
             <p className="mx-auto max-w-2xl text-lg leading-relaxed text-gray-600">
-              See realistic AI interview practice live—adaptive questions,
+              See realistic AI mock interview practice live—adaptive questions,
               instant feedback, and detailed reports that help you earn verified
               iX Scores recruiters search for.
             </p>
@@ -619,9 +620,8 @@ export function InterviewCoachLandingSections() {
             <span className="text-primary">Rehearse to win.</span>
           </h2>
           <p className="mx-auto mb-8 max-w-2xl text-lg leading-relaxed text-gray-600 sm:mb-10 sm:text-xl">
-            Transform how you sound and show up—with a voice-based AI mock
-            interview and a report that tells you exactly what to improve before
-            offer week.
+            Transform how you show up—with an AI mock interview and a report
+            that tells you exactly what to improve before offer week.
           </p>
           <Button
             asChild
@@ -629,7 +629,7 @@ export function InterviewCoachLandingSections() {
             className="h-auto bg-primary px-8 py-4 text-base font-semibold text-white shadow-lg transition-all hover:bg-slate-900 hover:shadow-xl sm:py-5 sm:text-lg"
           >
             <Link href="/dashboard/interviews/new">
-              Start Interview
+              Start Mock Interview
               <ArrowRight className="ml-2 h-5 w-5" />
             </Link>
           </Button>

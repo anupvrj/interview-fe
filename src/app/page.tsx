@@ -40,6 +40,7 @@ import { ScrollSection } from "@/components/ScrollSection";
 import { SiteHeader } from "@/components/SiteHeader";
 import { MarketingFooter } from "@/components/MarketingFooter";
 import { WhyFeatureCardsMarquee } from "@/components/marketing/WhyFeatureCardsMarquee";
+import { MarketingSectionFloatingIcons } from "@/components/marketing/MarketingSectionFloatingIcons";
 import { SeoVideoSection } from "@/components/seo/SeoVideoSection";
 import { aiInterviewDemoVideo } from "@/lib/seo/marketing-video-content";
 import {
@@ -57,8 +58,12 @@ const stackedFeatureCtaRowClass =
 const stackedFeatureCtaLinkClass = "min-w-0 flex-1 sm:flex-initial sm:w-auto";
 const stackedFeatureCtaButtonClass =
   "w-full whitespace-nowrap px-2.5 text-xs h-11 sm:h-12 sm:px-6 sm:text-base";
+const marketingSectionTitleClass =
+  "text-3xl font-bold tracking-tight sm:text-4xl lg:text-5xl";
+const whyUsSectionBackgroundClass =
+  "relative overflow-hidden border-y border-[#7367F0]/20 bg-gradient-to-br from-[#7367F0]/[0.16] via-[#7367F0]/[0.06] to-[#7367F0]/[0.22]";
 const stackedFeatureSectionTitleClass =
-  "text-center lg:text-left text-3xl sm:text-4xl md:text-5xl font-semibold tracking-tight text-slate-900 leading-tight";
+  `${marketingSectionTitleClass} text-center lg:text-left text-slate-900`;
 const stackedFeatureBadgeWrapClass = "flex justify-center lg:justify-start";
 const stackedFeatureBadgeClass =
   "inline-flex items-center gap-2 px-3 py-1 bg-muted rounded-full text-primary font-medium text-sm";
@@ -539,81 +544,17 @@ export default function LandingPage() {
       <ScrollSection
         id="why-us"
         className={cn(
-          "relative overflow-hidden border-y border-[#7367F0]/20 bg-gradient-to-br from-[#7367F0]/[0.16] via-[#7367F0]/[0.06] to-[#7367F0]/[0.22]",
+          whyUsSectionBackgroundClass,
           "scroll-mt-20 px-4 py-12 sm:px-6 sm:py-16 lg:py-20",
         )}
       >
-        <div className="pointer-events-none absolute inset-0 overflow-hidden">
-          {[...Array(10)].map((_, i) => (
-            <div
-              key={`why-float-a-${i}`}
-              className="absolute"
-              style={{
-                left: `${(i * 11) % 92}%`,
-                top: `${(i * 17) % 88}%`,
-                opacity: 0.14,
-                animation: `float-${i % 3} ${6 + (i % 3) * 2}s ease-in-out infinite`,
-                animationDelay: `${i * 0.45}s`,
-              }}
-            >
-              {i % 4 === 0 ? (
-                <FileText className="h-10 w-10 text-primary sm:h-14 sm:w-14" />
-              ) : i % 4 === 1 ? (
-                <Mic className="h-10 w-10 text-primary sm:h-14 sm:w-14" />
-              ) : i % 4 === 2 ? (
-                <Code className="h-10 w-10 text-primary sm:h-14 sm:w-14" />
-              ) : (
-                <Video className="h-10 w-10 text-primary sm:h-14 sm:w-14" />
-              )}
-            </div>
-          ))}
-          {[...Array(8)].map((_, i) => (
-            <div
-              key={`why-float-b-${i}`}
-              className="absolute"
-              style={{
-                left: `${(i * 14 + 6) % 90}%`,
-                top: `${(i * 19 + 8) % 85}%`,
-                opacity: 0.11,
-                animation: `float-${(i + 1) % 3} ${7 + (i % 2) * 2}s ease-in-out infinite`,
-                animationDelay: `${i * 0.6}s`,
-              }}
-            >
-              {i % 3 === 0 ? (
-                <Search className="h-8 w-8 text-primary sm:h-11 sm:w-11" />
-              ) : i % 3 === 1 ? (
-                <Award className="h-8 w-8 text-primary sm:h-11 sm:w-11" />
-              ) : (
-                <MessageSquare className="h-8 w-8 text-primary sm:h-11 sm:w-11" />
-              )}
-            </div>
-          ))}
-          {[...Array(6)].map((_, i) => (
-            <div
-              key={`why-float-c-${i}`}
-              className="absolute"
-              style={{
-                left: `${(i * 18 + 3) % 88}%`,
-                top: `${(i * 23 + 5) % 90}%`,
-                opacity: 0.09,
-                animation: `float-${i % 3} ${8 + (i % 2) * 2}s ease-in-out infinite`,
-                animationDelay: `${i * 0.75}s`,
-              }}
-            >
-              {i % 2 === 0 ? (
-                <Sparkles className="h-7 w-7 text-primary sm:h-10 sm:w-10" />
-              ) : (
-                <Brain className="h-7 w-7 text-primary sm:h-10 sm:w-10" />
-              )}
-            </div>
-          ))}
-        </div>
+        <MarketingSectionFloatingIcons />
         <div className="relative z-10 container mx-auto max-w-7xl">
           <div className="mb-12 text-center">
             <div className="mb-4 inline-flex items-center gap-2 px-3 py-1 bg-muted rounded-full text-primary font-medium text-sm">
               <span>Why Interview Trix</span>
             </div>
-            <h2 className="mb-4 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl lg:text-5xl">
+            <h2 className={`mb-4 ${marketingSectionTitleClass} text-slate-900`}>
               Don&apos;t just apply.{" "}
               <span className="text-primary">Win.</span>
             </h2>
@@ -1390,11 +1331,12 @@ export default function LandingPage() {
       <section
         id="stats-section"
         className={cn(
-          appMarketingSectionAlt,
+          whyUsSectionBackgroundClass,
           "px-4 py-8 sm:px-6 sm:py-12 md:py-16 lg:py-20",
         )}
       >
-        <div className="container mx-auto max-w-6xl">
+        <MarketingSectionFloatingIcons />
+        <div className="relative z-10 container mx-auto max-w-6xl">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
             {/* Card 1: Users */}
             <div className="bg-white rounded-xl shadow-md border border-gray-100 p-6 sm:p-8 flex items-center gap-4 sm:gap-6 hover:shadow-lg transition-all">
@@ -1496,19 +1438,20 @@ export default function LandingPage() {
         <div className="container mx-auto max-w-6xl relative z-10">
           {/* Header */}
           <div className="text-center mb-8 sm:mb-12">
-            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-slate-900 mb-3 sm:mb-4">
-              Transform your career—together
+            <h2 className={`${marketingSectionTitleClass} text-slate-900 mb-3 sm:mb-4`}>
+              <span className="text-primary">Transform</span> your{" "}
+              <span className="text-primary">career</span>—together
             </h2>
             <p className="text-lg sm:text-xl text-primary mb-4 sm:mb-6">
               Job seekers and teams use Interview Trix as an end-to-end career partner. Here&apos;s what they say.
             </p>
-            <div className="flex items-center justify-center gap-2 sm:gap-3">
+            <div className="flex flex-col items-center justify-center gap-2 sm:flex-row sm:gap-3">
               <div className="flex items-center gap-1">
                 {[...Array(5)].map((_, i) => (
                   <Star key={i} className="w-5 h-5 sm:w-6 sm:h-6 fill-yellow-400 text-yellow-400" />
                 ))}
               </div>
-              <span className="text-base sm:text-lg text-primary font-medium">
+              <span className="text-base sm:text-lg text-primary font-medium text-center">
                 4.9/5 based on our user reviews
               </span>
             </div>
@@ -1617,17 +1560,20 @@ export default function LandingPage() {
 
       {/* New CTA Card Section */}
       <section
-        className={cn(appMarketingSectionAlt, "px-4 py-12 sm:px-6 sm:py-16 lg:py-20")}
+        className={cn(appMarketingSectionLight, "px-4 py-12 sm:px-6 sm:py-16 lg:py-20")}
       >
         <div className="container mx-auto max-w-4xl">
           <div className="relative overflow-hidden rounded-3xl border border-primary/40 bg-primary p-8 shadow-header sm:p-12 lg:p-16 text-primary-foreground">
             {/* Limited Time Offer Badge */}
             <div className="mb-4 flex items-center justify-center">
-              <span className="text-sm text-primary-foreground/90">Start today</span>
+              <div className="inline-flex items-center gap-2 px-3 py-1 bg-primary-foreground rounded-full text-primary font-medium text-sm">
+                <Zap className="h-3.5 w-3.5" />
+                <span>Start today</span>
+              </div>
             </div>
 
             {/* Main Heading */}
-            <h2 className="mb-4 text-center text-3xl font-bold text-primary-foreground sm:mb-6 sm:text-4xl lg:text-5xl">
+            <h2 className={`mb-4 text-center ${marketingSectionTitleClass} text-primary-foreground sm:mb-6`}>
               Transform your career now
             </h2>
 
@@ -1643,7 +1589,7 @@ export default function LandingPage() {
                   size="lg"
                   className="h-11 w-full whitespace-nowrap px-2.5 text-xs font-medium bg-primary-foreground text-primary shadow-lg transition-all hover:bg-primary-foreground/90 hover:shadow-xl sm:h-14 sm:w-auto sm:px-8 sm:text-lg"
                 >
-                  Start Your Free Trial
+                  Start Free Trial
                   <ArrowRight className="w-3.5 h-3.5 ml-1 sm:w-5 sm:h-5 sm:ml-2" />
                 </Button>
               </Link>
