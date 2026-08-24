@@ -1,8 +1,12 @@
 import { MetadataRoute } from "next";
-import { getSiteUrl } from "@/lib/seo/site-url";
+import { getSiteUrl, isSearchIndexable } from "@/lib/seo/site-url";
 import { fetchBlogSitemapEntries } from "@/lib/blog/server";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  if (!isSearchIndexable()) {
+    return [];
+  }
+
   const baseUrl = getSiteUrl();
 
   const staticEntries: MetadataRoute.Sitemap = [

@@ -12,7 +12,7 @@ import {
   createBlogPostingSchema,
 } from "@/components/StructuredData";
 import { fetchBlogBySlug } from "@/lib/blog/server";
-import { getSiteUrl } from "@/lib/seo/site-url";
+import { getSearchRobots, getSiteUrl } from "@/lib/seo/site-url";
 
 type PageProps = {
   params: Promise<{ slug: string }>;
@@ -55,7 +55,7 @@ export async function generateMetadata({
       description: post.metaDescription || post.excerpt,
       images: post.thumbnailUrl ? [post.thumbnailUrl] : undefined,
     },
-    robots: { index: true, follow: true },
+    robots: getSearchRobots(),
   };
 }
 
