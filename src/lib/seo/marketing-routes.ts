@@ -30,7 +30,7 @@ export const PRODUCT_MARKETING_ROUTES: MarketingRoute[] = [
     path: "/ai-interview-coach",
     name: "AI Mock Interview Practice",
     description:
-      "Free AI mock interviews online with voice practice, company-specific questions, and instant feedback reports.",
+      "AI mock interviews online with company-specific questions and instant feedback reports.",
     sitemap: { changeFrequency: "weekly", priority: 0.9 },
   },
   {

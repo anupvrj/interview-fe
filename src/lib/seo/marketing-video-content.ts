@@ -84,7 +84,7 @@ export const aiInterviewCoachDemoVideo: MarketingVideoContent = {
   id: "ai-interview-coach-demo",
   name: "Interview Trix AI Mock Interview Demo",
   description:
-    "Watch a free AI mock interview on Interview Trix: voice-first mock interview practice, real-time feedback, company-specific questions, and a detailed scorecard.",
+    "Watch an AI mock interview on Interview Trix: realistic mock interview practice, real-time feedback, company-specific questions, and a detailed scorecard.",
   embedUrl: `${getSiteUrl()}/ai-interview-coach`,
   pagePath: "/ai-interview-coach",
 };

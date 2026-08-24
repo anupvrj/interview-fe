@@ -81,7 +81,7 @@ export function InterviewCoachLandingHero() {
       <div className="container relative z-10 mx-auto max-w-7xl">
         <div className="mb-10 flex justify-center sm:mb-12 lg:hidden">
           <CircleHeroImage
-            alt="Candidate practicing a voice-based AI mock interview"
+            alt="Candidate practicing an AI mock interview"
             className="w-[min(68vw,260px)] sm:w-[min(60vw,300px)]"
             priority
           />
@@ -90,7 +90,7 @@ export function InterviewCoachLandingHero() {
         <div className="grid items-center gap-10 sm:gap-12 lg:grid-cols-2 lg:gap-16">
           <div className="space-y-4 text-center sm:space-y-5 md:space-y-6 lg:max-w-xl lg:text-left">
             <div className="inline-flex items-center rounded-full bg-muted px-3 py-1 text-sm font-medium text-primary">
-              <span>Free AI Mock Interview Practice</span>
+              <span>AI Mock Interview Practice</span>
             </div>
 
             <h1 className="mb-4 text-[1.22rem] font-bold leading-tight tracking-tight text-slate-900 sm:mb-6 sm:text-[1.46rem] md:text-[1.625rem] lg:text-[2.15rem] xl:text-[2.28rem]">
@@ -98,13 +98,13 @@ export function InterviewCoachLandingHero() {
                 Practice{" "}
                 <span className="text-primary">AI Mock Interviews</span>
               </span>
-              <span className="block">with Real Voice Feedback</span>
+              <span className="block">with Instant AI Feedback</span>
             </h1>
 
             <p className="mx-auto max-w-xl px-2 text-base leading-relaxed text-gray-600 sm:px-0 sm:text-lg lg:text-xl">
-              Run free, voice-based AI mock interviews with company-specific
-              questions, instant feedback, and a detailed scorecard—so nothing
-              surprises you on interview day.
+              Run AI mock interviews with company-specific questions,
+              instant feedback, and a detailed scorecard—so nothing surprises
+              you on interview day.
             </p>
 
             <div className="flex flex-col items-center justify-center gap-3 px-2 pt-2 sm:flex-row sm:gap-4 sm:px-0 lg:justify-start">
@@ -150,7 +150,7 @@ export function InterviewCoachLandingHero() {
 
           <div className="hidden justify-center py-2 lg:flex lg:justify-end lg:py-3 xl:py-4">
             <CircleHeroImage
-              alt="Candidate practicing a voice-based AI mock interview"
+              alt="Candidate practicing an AI mock interview"
               className="w-[min(34vw,380px)] xl:w-[min(32vw,400px)]"
               priority
             />

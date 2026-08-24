@@ -16,7 +16,7 @@ export const mockInterviewNavItems = [
   {
     href: "/ai-interview-coach",
     label: "AI Mock Interview",
-    description: "Free voice mock interviews with AI feedback",
+    description: "Mock interviews with AI feedback",
   },
   {
     href: "/ai-coding-practice",

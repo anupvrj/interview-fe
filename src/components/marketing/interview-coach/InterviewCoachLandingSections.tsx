@@ -556,7 +556,7 @@ export function InterviewCoachLandingSections() {
               <span>See It In Action</span>
             </div>
             <h2 className="mb-3 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl lg:text-5xl">
-              Watch voice mock interviews{" "}
+              Watch AI mock interviews{" "}
               <span className="text-primary">in action</span>
             </h2>
             <p className="mx-auto max-w-2xl text-lg leading-relaxed text-gray-600">
@@ -620,9 +620,8 @@ export function InterviewCoachLandingSections() {
             <span className="text-primary">Rehearse to win.</span>
           </h2>
           <p className="mx-auto mb-8 max-w-2xl text-lg leading-relaxed text-gray-600 sm:mb-10 sm:text-xl">
-            Transform how you sound and show up—with a voice-based AI mock
-            interview and a report that tells you exactly what to improve before
-            offer week.
+            Transform how you show up—with an AI mock interview and a report
+            that tells you exactly what to improve before offer week.
           </p>
           <Button
             asChild
