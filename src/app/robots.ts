@@ -1,8 +1,17 @@
 import { MetadataRoute } from "next";
+import { getSiteUrl, isSearchIndexable } from "@/lib/seo/site-url";
 
 export default function robots(): MetadataRoute.Robots {
-  const baseUrl =
-    process.env.NEXT_PUBLIC_APP_URL || "https://interviewtrix.com";
+  if (!isSearchIndexable()) {
+    return {
+      rules: [
+        { userAgent: "*", disallow: "/" },
+        { userAgent: "Googlebot", disallow: "/" },
+      ],
+    };
+  }
+
+  const baseUrl = getSiteUrl();
 
   return {
     rules: [

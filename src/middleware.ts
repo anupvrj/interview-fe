@@ -1,5 +1,16 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
+import { isSearchIndexable } from "@/lib/seo/site-url";
+
+function withSearchHeaders(response: NextResponse): NextResponse {
+  if (!isSearchIndexable()) {
+    response.headers.set(
+      "X-Robots-Tag",
+      "noindex, nofollow, noarchive, nosnippet",
+    );
+  }
+  return response;
+}
 
 const isPublicRoute = createRouteMatcher([
   "/",
@@ -34,7 +45,7 @@ export default clerkMiddleware(
     // instances. auth.protect() on that request runs before the session exists and can
     // throw in Edge → Vercel MIDDLEWARE_INVOCATION_FAILED. Let the handshake finish first.
     if (request.nextUrl.searchParams.has("__clerk_handshake")) {
-      return NextResponse.next();
+      return withSearchHeaders(NextResponse.next());
     }
 
     // Protect private routes — preserve the intended destination for post-login redirect
@@ -44,11 +55,11 @@ export default clerkMiddleware(
         const signInUrl = new URL("/sign-in", request.url);
         const returnPath = `${request.nextUrl.pathname}${request.nextUrl.search}`;
         signInUrl.searchParams.set("redirect_url", returnPath);
-        return NextResponse.redirect(signInUrl);
+        return withSearchHeaders(NextResponse.redirect(signInUrl));
       }
     }
 
-    return NextResponse.next();
+    return withSearchHeaders(NextResponse.next());
   },
   {
     debug: false,
