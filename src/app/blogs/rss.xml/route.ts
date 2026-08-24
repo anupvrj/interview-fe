@@ -1,5 +1,5 @@
 import { fetchPublishedBlogs } from "@/lib/blog/server";
-import { getSiteUrl } from "@/lib/seo/site-url";
+import { getSiteUrl, isSearchIndexable } from "@/lib/seo/site-url";
 
 function escapeXml(value: string): string {
   return value
@@ -11,6 +11,10 @@ function escapeXml(value: string): string {
 }
 
 export async function GET() {
+  if (!isSearchIndexable()) {
+    return new Response("Not found", { status: 404 });
+  }
+
   const siteUrl = getSiteUrl();
   let items: Awaited<ReturnType<typeof fetchPublishedBlogs>>["items"] = [];
 

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { getSiteUrl } from "@/lib/seo/site-url";
+import { getSearchRobots, getSiteUrl } from "@/lib/seo/site-url";
 
 const siteUrl = getSiteUrl();
 
@@ -31,10 +31,7 @@ export const metadata: Metadata = {
   alternates: {
     canonical: `${siteUrl}/blogs`,
   },
-  robots: {
-    index: true,
-    follow: true,
-  },
+  robots: getSearchRobots(),
 };
 
 export default function BlogsLayout({

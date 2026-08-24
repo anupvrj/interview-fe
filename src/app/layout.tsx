@@ -13,6 +13,7 @@ import {
   organizationSchema,
   webApplicationSchema,
 } from "@/components/StructuredData";
+import { getSearchRobots } from "@/lib/seo/site-url";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -64,17 +65,7 @@ export const metadata: Metadata = {
       "From ATS-optimized resumes to AI Interview Practice and detailed performance reports — everything you need to get shortlisted and hired.",
     creator: "@interviewtrix",
   },
-  robots: {
-    index: true,
-    follow: true,
-    googleBot: {
-      index: true,
-      follow: true,
-      "max-video-preview": -1,
-      "max-image-preview": "large",
-      "max-snippet": -1,
-    },
-  },
+  robots: getSearchRobots(),
   verification: {
     google: "your-google-verification-code", // Replace with actual code from Google Search Console
   },
