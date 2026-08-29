@@ -184,6 +184,9 @@ export function RealtimeInterviewClient({
   const timerStartedRef = useRef(false);
   // AudioWorkletNode is the primary processor; ScriptProcessorNode used as fallback only.
   const audioProcessorRef = useRef<AudioWorkletNode | ScriptProcessorNode | null>(null);
+  // Resumes mic capture when the tab regains focus (backgrounding auto-suspends
+  // the AudioContext); the server-side silence keepalive covers the idle gap.
+  const visibilityResumeHandlerRef = useRef<(() => void) | null>(null);
   const audioQueueRef = useRef<Int16Array[]>([]);
   const audioBufferRef = useRef<Int16Array[]>([]);
   const audioBufferTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -581,6 +584,13 @@ export function RealtimeInterviewClient({
     }
     if (timerRef.current) clearInterval(timerRef.current);
     if (websocketRef.current) websocketRef.current.close();
+    if (visibilityResumeHandlerRef.current) {
+      document.removeEventListener(
+        "visibilitychange",
+        visibilityResumeHandlerRef.current,
+      );
+      visibilityResumeHandlerRef.current = null;
+    }
     if (audioProcessorRef.current) audioProcessorRef.current.disconnect();
     if (audioContextRef.current) audioContextRef.current.close();
 
@@ -1223,10 +1233,13 @@ export function RealtimeInterviewClient({
       console.log(`🎵 ScriptProcessor fallback: ${browserSampleRate}Hz → ${TARGET_SAMPLE_RATE}Hz`);
 
       const source = audioContext.createMediaStreamSource(mediaStreamRef.current!);
-      // 1024 samples @ 48kHz = ~21ms → resampled to ~21ms @ 24kHz, within Live API 20–40ms limit.
-      // Previous 2048 (42ms) slightly exceeded the 40ms max and could trigger 1007.
+      // 1024 samples @ 48kHz = ~21ms → resampled to ~21ms @ 24kHz. We accumulate
+      // these into ~30ms frames (GEMINI_MIC_FRAME_SAMPLES_24K) before sending so the
+      // fallback matches the AudioWorklet path and Google's 20–40ms guidance —
+      // unbatched sub-frame sends correlate with unstable WSS / 1007.
       const processor = audioContext.createScriptProcessor(1024, 1, 1);
 
+      const pendingMicSamples: number[] = [];
       processor.onaudioprocess = (e) => {
         if (!isInterviewActiveRef.current || !isMicOnRef.current) return;
         const inputData = e.inputBuffer.getChannelData(0);
@@ -1241,15 +1254,18 @@ export function RealtimeInterviewClient({
             resampled[i] = inputData[i0] * (1 - (src - i0)) + inputData[i1] * (src - i0);
           }
         }
-        const pcm16 = new Int16Array(resampled.length);
         for (let i = 0; i < resampled.length; i++) {
           const s = Math.max(-1, Math.min(1, resampled[i]));
-          pcm16[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
+          pendingMicSamples.push(s < 0 ? s * 0x8000 : s * 0x7fff);
         }
-        const bytes = new Uint8Array(pcm16.buffer);
-        let binary = "";
-        for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCodePoint(bytes[i]);
-        sendAudioChunk(btoa(binary));
+        while (pendingMicSamples.length >= GEMINI_MIC_FRAME_SAMPLES_24K) {
+          const frame = new Int16Array(GEMINI_MIC_FRAME_SAMPLES_24K);
+          for (let i = 0; i < GEMINI_MIC_FRAME_SAMPLES_24K; i++) {
+            frame[i] = pendingMicSamples[i]!;
+          }
+          pendingMicSamples.splice(0, GEMINI_MIC_FRAME_SAMPLES_24K);
+          sendAudioChunk(pcm16ToBase64(frame));
+        }
       };
 
       source.connect(processor);
@@ -1276,6 +1292,32 @@ export function RealtimeInterviewClient({
           );
         }
       };
+
+      // Backgrounding a tab suspends the AudioContext and silences the mic. When
+      // the tab is shown again, force a resume so capture reliably restarts. The
+      // upstream stays alive during the gap via the backend silence keepalive, so
+      // the interview is not aborted while the user is away.
+      if (visibilityResumeHandlerRef.current) {
+        document.removeEventListener(
+          "visibilitychange",
+          visibilityResumeHandlerRef.current,
+        );
+      }
+      const onVisibility = () => {
+        if (
+          document.visibilityState === "visible" &&
+          audioContextRef.current &&
+          audioContextRef.current.state === "suspended"
+        ) {
+          audioContextRef.current
+            .resume()
+            .catch((err) =>
+              console.warn("AudioContext resume on focus failed:", err),
+            );
+        }
+      };
+      visibilityResumeHandlerRef.current = onVisibility;
+      document.addEventListener("visibilitychange", onVisibility);
 
       // Try AudioWorklet first; fall back to deprecated ScriptProcessorNode
       if (audioContext.audioWorklet) {
