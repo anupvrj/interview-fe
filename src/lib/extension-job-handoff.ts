@@ -11,6 +11,8 @@ export const MIN_JOB_DESCRIPTION_CHARS = 50;
 
 export type JobDetails = Record<string, string>;
 
+export type JobCaptureIntent = "resume" | "practice-interview";
+
 export type PendingJobCapture = {
   v: 1;
   sourceUrl: string;
@@ -20,7 +22,25 @@ export type PendingJobCapture = {
   jobDescription: string;
   details?: JobDetails;
   capturedAt: string;
+  /** Distinguishes tailor-resume vs practice-interview handoff. */
+  intent?: JobCaptureIntent;
 };
+
+function normalizeIntent(value: unknown): JobCaptureIntent | undefined {
+  if (value === "resume" || value === "practice-interview") return value;
+  return undefined;
+}
+
+export function isPracticeInterviewCapture(
+  capture: PendingJobCapture,
+): boolean {
+  return capture.intent === "practice-interview";
+}
+
+/** Tailor-resume handoff, including legacy payloads with no intent. */
+export function isResumeHandoffCapture(capture: PendingJobCapture): boolean {
+  return capture.intent !== "practice-interview";
+}
 
 function isPendingJobCapture(value: unknown): value is PendingJobCapture {
   if (!value || typeof value !== "object") return false;
@@ -36,7 +56,8 @@ export function parsePendingJobCapture(raw: string | null): PendingJobCapture | 
   if (!raw) return null;
   try {
     const parsed: unknown = JSON.parse(raw);
-    return isPendingJobCapture(parsed) ? parsed : null;
+    if (!isPendingJobCapture(parsed)) return null;
+    return { ...parsed, intent: normalizeIntent(parsed.intent) };
   } catch {
     return null;
   }
@@ -45,6 +66,17 @@ export function parsePendingJobCapture(raw: string | null): PendingJobCapture | 
 export function loadPendingJobCapture(): PendingJobCapture | null {
   if (typeof window === "undefined") return null;
   return parsePendingJobCapture(sessionStorage.getItem(PENDING_JOB_STORAGE_KEY));
+}
+
+export function loadPendingJobCaptureFor(
+  kind: JobCaptureIntent,
+): PendingJobCapture | null {
+  const capture = loadPendingJobCapture();
+  if (!capture) return null;
+  if (kind === "practice-interview") {
+    return isPracticeInterviewCapture(capture) ? capture : null;
+  }
+  return isResumeHandoffCapture(capture) ? capture : null;
 }
 
 export function savePendingJobCapture(payload: PendingJobCapture): void {
@@ -74,6 +106,7 @@ export function normalizeCapturedJob(
     location: capture.location.trim(),
     jobDescription: trimJobDescriptionForSend(capture.jobDescription),
     details: capture.details,
+    intent: normalizeIntent(capture.intent),
   };
 }
 

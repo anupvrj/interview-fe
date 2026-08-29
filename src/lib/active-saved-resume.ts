@@ -6,13 +6,24 @@ export type ActiveSavedResumeDisplay = {
   subtitle: string;
 };
 
+function hasUploadedProfileResume(profile: User | null): boolean {
+  return Boolean(profile?.resume?.s3Key);
+}
+
+/** Designed resume marked default on the profile page, even if PDF is still generating. */
+export function isDefaultDesignedResume(
+  resume: Resume | null | undefined,
+): resume is Resume {
+  return Boolean(resume?.isDefault);
+}
+
 export function hasActiveSavedResume(
   profile: User | null,
   defaultDesignedResume: Resume | null,
 ): boolean {
-  return Boolean(
-    profile?.resume ||
-    (defaultDesignedResume?.pdfS3Key && defaultDesignedResume.isDefault),
+  return (
+    hasUploadedProfileResume(profile) ||
+    Boolean(defaultDesignedResume && isDefaultDesignedResume(defaultDesignedResume))
   );
 }
 
@@ -20,17 +31,17 @@ export function getActiveSavedResumeDisplay(
   profile: User | null,
   defaultDesignedResume: Resume | null,
 ): ActiveSavedResumeDisplay | null {
-  if (profile?.resume) {
+  if (hasUploadedProfileResume(profile) && profile?.resume) {
     return {
       title: profile.resume.filename,
       subtitle: `Uploaded PDF · ${formatDate(profile.resume.uploadedAt)}`,
     };
   }
 
-  if (defaultDesignedResume?.pdfS3Key && defaultDesignedResume.isDefault) {
+  if (isDefaultDesignedResume(defaultDesignedResume)) {
     return {
       title: defaultDesignedResume.title?.trim() || "Designed resume",
-      subtitle: `Designed resume · Updated ${formatDate(defaultDesignedResume.updatedAt)}`,
+      subtitle: `Default resume · Updated ${formatDate(defaultDesignedResume.updatedAt)}`,
     };
   }
 
@@ -41,5 +52,5 @@ export async function loadDefaultDesignedResume(
   userId: string,
 ): Promise<Resume | null> {
   const resumes = await resumeApi.list(userId);
-  return resumes.find((resume) => resume.isDefault && resume.pdfS3Key) ?? null;
+  return resumes.find((resume) => resume.isDefault) ?? null;
 }

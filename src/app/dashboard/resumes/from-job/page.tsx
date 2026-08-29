@@ -31,7 +31,7 @@ import {
   FROM_JOB_TAILORING_MESSAGES,
   MIN_JOB_DESCRIPTION_CHARS,
   clearPendingJobCapture,
-  loadPendingJobCapture,
+  loadPendingJobCaptureFor,
   normalizeCapturedJob,
   savePendingJobCapture,
   tailoredResumeTitle,
@@ -156,7 +156,7 @@ export default function FromJobResumePage() {
       return true;
     };
 
-    if (apply(loadPendingJobCapture())) {
+    if (apply(loadPendingJobCaptureFor("resume"))) {
       setCaptureReady(true);
       return;
     }
@@ -164,7 +164,7 @@ export default function FromJobResumePage() {
     let ticks = 0;
     const timer = window.setInterval(() => {
       ticks += 1;
-      if (apply(loadPendingJobCapture()) || ticks >= 20) {
+      if (apply(loadPendingJobCaptureFor("resume")) || ticks >= 20) {
         window.clearInterval(timer);
         setCaptureReady(true);
       }

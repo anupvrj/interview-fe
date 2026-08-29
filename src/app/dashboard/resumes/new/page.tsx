@@ -49,7 +49,7 @@ import { ResumeBuilderJobDescriptionStep } from "@/components/resume-builder/Res
 import { ResumeCreationStepper } from "@/components/resume-builder/ResumeCreationStepper";
 import { ResumeEnhanceChoiceDialog } from "@/components/resume-builder/ResumeEnhanceChoiceDialog";
 import { trimJobDescriptionForSend } from "@/lib/job-description-limits";
-import { loadPendingJobCapture } from "@/lib/extension-job-handoff";
+import { loadPendingJobCaptureFor } from "@/lib/extension-job-handoff";
 import type { ResumeImportSource } from "@/components/resume-builder/ResumeBuilderImportChoiceCards";
 import type {
   ChatCollectedProfile,
@@ -124,7 +124,7 @@ export default function NewResumePage() {
   const [enhanceChoiceOpen, setEnhanceChoiceOpen] = useState(false);
 
   useEffect(() => {
-    const pending = loadPendingJobCapture();
+    const pending = loadPendingJobCaptureFor("resume");
     if (pending?.jobDescription) {
       setJobDescription(pending.jobDescription);
     }
