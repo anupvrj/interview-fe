@@ -41,6 +41,10 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import { resumeApi } from "@/lib/api";
+import {
+  downloadPdfFromUrl,
+  resumePdfFilenameFromResume,
+} from "@/lib/download-pdf";
 import { useResumesQuery } from "@/hooks/queries/useResumesQuery";
 import { useDashboardInvalidation } from "@/hooks/useDashboardInvalidation";
 import { cn } from "@/lib/utils";
@@ -253,7 +257,11 @@ export default function ResumesPage() {
     try {
       setDownloadingId(resumeId);
       const pdfUrl = await resumeApi.downloadPDF(resumeId);
-      window.open(pdfUrl, "_blank");
+      const listed = resumes.find((r) => r.resumeId === resumeId);
+      await downloadPdfFromUrl(
+        pdfUrl,
+        resumePdfFilenameFromResume(listed),
+      );
     } catch (error: any) {
       console.error("Error downloading PDF:", error);
 
