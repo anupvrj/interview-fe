@@ -7,6 +7,7 @@ import type { ATSReportV3 } from "@/types/atsReport";
 export { isATSReportV3 } from "@/types/atsReport";
 import { inferImageContentType } from "@/lib/image-upload";
 import { getSignInUrlWithRedirect } from "@/lib/post-sign-in-redirect";
+import { trimJobDescriptionForSend } from "@/lib/job-description-limits";
 
 /** Base URL for API (includes `/api` path). Use for `<img src>` and other non-axios URLs. */
 export const API_URL =
@@ -1596,6 +1597,7 @@ export const resumeApi = {
       layout?: Resume["layout"];
       isDefault?: boolean;
       pdfS3Key?: string;
+      atsScoringContext?: Resume["atsScoringContext"];
     },
   ): Promise<Resume> => {
     const response = await apiClient.put<{ data: Resume }>(
@@ -1684,6 +1686,35 @@ export const resumeApi = {
       {
         timeout: 300000,
       },
+    );
+    return response.data.data;
+  },
+
+  /**
+   * Retarget an existing resume to a job description via the section-by-section
+   * tailoring pipeline. Returns tailored content WITHOUT persisting so the
+   * editor can apply it as an undoable change.
+   */
+  tailorToJobDescription: async (
+    resumeId: string,
+    options: { jobDescription: string },
+  ): Promise<{
+    content: Resume["content"];
+    profileSummary?: string;
+    sectionOrder: NonNullable<Resume["sectionOrder"]>;
+    jobDescription: string;
+  }> => {
+    const response = await apiClient.post<{
+      data: {
+        content: Resume["content"];
+        profileSummary?: string;
+        sectionOrder: NonNullable<Resume["sectionOrder"]>;
+        jobDescription: string;
+      };
+    }>(
+      `/resumes/${resumeId}/tailor-to-jd`,
+      { jobDescription: trimJobDescriptionForSend(options.jobDescription) },
+      { timeout: 300000 },
     );
     return response.data.data;
   },
@@ -1866,6 +1897,8 @@ export interface ResumeBuilderChatSessionResponse {
 export type ResumeImportBuildOptions = {
   jobDescription?: string;
   jdRequirements?: JDRequirements;
+  /** When false, keep uploaded wording (structure only). Default true. */
+  enhance?: boolean;
 };
 
 export const resumeDataExtractionApi = {
@@ -1873,7 +1906,7 @@ export const resumeDataExtractionApi = {
     jobDescription: string,
   ): Promise<{ requirements: JDRequirements; summary: string }> => {
     const response = await apiClient.post("/analyze-job-description", {
-      jobDescription,
+      jobDescription: trimJobDescriptionForSend(jobDescription),
     });
     return response.data.data;
   },
@@ -1895,15 +1928,19 @@ export const resumeDataExtractionApi = {
     >;
     templateId: string;
   }> => {
-    const { resumeText, chatProfile, jobDescription, jdRequirements } = options;
+    const { resumeText, chatProfile, jobDescription, jdRequirements, enhance } =
+      options;
     const response = await apiClient.post(
       "/extract-resume-data",
       {
         templateId,
         resumeText: resumeText || undefined,
         chatProfile: chatProfile || undefined,
-        jobDescription: jobDescription || undefined,
+        jobDescription: jobDescription
+          ? trimJobDescriptionForSend(jobDescription)
+          : undefined,
         jdRequirements: jdRequirements || undefined,
+        enhance: enhance !== false,
       },
       {
         timeout: 180000,
@@ -1932,7 +1969,9 @@ export const resumeDataExtractionApi = {
       {
         handle,
         templateId,
-        jobDescription: options.jobDescription || undefined,
+        jobDescription: options.jobDescription
+          ? trimJobDescriptionForSend(options.jobDescription)
+          : undefined,
         jdRequirements: options.jdRequirements || undefined,
       },
       {

@@ -43,12 +43,16 @@ import {
   Undo2,
   Redo2,
   RefreshCw,
+  Target,
 } from "lucide-react";
 import { Resume, ResumeTemplate, resumeApi, apiClient } from "@/lib/api";
 import {
   normalizeExperienceList,
 } from "@/lib/resume-date-utils";
-import { ensureResumePersonalInfo } from "@/lib/resume-data-import";
+import {
+  ensureResumePersonalInfo,
+  normalizeProjectsList,
+} from "@/lib/resume-data-import";
 import { isATSReportV3 } from "@/types/atsReport";
 import { ResumePreview, type ResumePreviewHandle } from "@/components/ResumePreview";
 import { RichTextEditor } from "@/components/RichTextEditor";
@@ -105,9 +109,11 @@ import {
 } from "@/lib/sectionColumnUtils";
 import { ProfilePictureCropper } from "@/components/ProfilePictureCropper";
 import { ChangeTemplateDialog } from "@/components/resume-editor/ChangeTemplateDialog";
+import { MatchJobDescriptionDialog } from "@/components/resume-editor/MatchJobDescriptionDialog";
 import { ImportResumeDialog } from "@/components/resume-editor/ImportResumeDialog";
 import { RearrangeSectionsDialog } from "@/components/resume-editor/RearrangeSectionsDialog";
 import { ResumeSectionCardHeader } from "@/components/resume-editor/ResumeSectionCardHeader";
+import { ExperienceEntriesEditor } from "@/components/resume-editor/ExperienceEntriesEditor";
 import { SectionNameField } from "@/components/resume-editor/SectionNameField";
 import {
   ResumeEditorMobileChrome,
@@ -175,6 +181,28 @@ function withFirstVisibleExpanded(sections: Section[]): Section[] {
   });
 }
 
+/**
+ * Coerce an experience/project description (string or array) into HTML suitable
+ * for the rich-text editor. Mirrors ResumeRenderer: a single array element that
+ * is already a list (<ul>/<ol>) is passed through as-is, so tailored content
+ * stored as ["<ul>...</ul>"] is not wrapped into invalid `<p><ul>...</ul></p>`.
+ */
+function descriptionToEditorHtml(description: unknown): string {
+  if (typeof description === "string") return description;
+  if (Array.isArray(description)) {
+    const items = description.map((d) => String(d).trim()).filter(Boolean);
+    if (items.length === 0) return "";
+    if (
+      items.length === 1 &&
+      (/<ul[\s>]/i.test(items[0]) || /<ol[\s>]/i.test(items[0]))
+    ) {
+      return items[0];
+    }
+    return items.map((item) => `<p>${item}</p>`).join("");
+  }
+  return description == null ? "" : String(description);
+}
+
 export default function EditResumePage() {
   const { user, isLoaded } = useUser();
   const router = useRouter();
@@ -198,6 +226,10 @@ export default function EditResumePage() {
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [profilePictureFileName, setProfilePictureFileName] = useState("");
   const [previewKey, setPreviewKey] = useState(0);
+  // Bumped whenever content is applied wholesale (import / JD tailoring) so the
+  // per-row rich-text editors remount and re-seed from the new values instead
+  // of keeping their stale TipTap document.
+  const [applyNonce, setApplyNonce] = useState(0);
   const previewRef = useRef<ResumePreviewHandle>(null);
   const [zoomLevel, setZoomLevel] = useState(100);
   const [draggedSection, setDraggedSection] = useState<string | null>(null);
@@ -308,6 +340,14 @@ export default function EditResumePage() {
   const [changingTemplate, setChangingTemplate] = useState(false);
   const [importResumeOpen, setImportResumeOpen] = useState(false);
   const [rearrangeSectionsOpen, setRearrangeSectionsOpen] = useState(false);
+  const [matchJobOpen, setMatchJobOpen] = useState(false);
+  const [matchingJob, setMatchingJob] = useState(false);
+  // Remembers the JD last used to tailor this session so reopening the dialog
+  // reflects the latest input instead of the stale creation-time JD.
+  const [lastMatchedJd, setLastMatchedJd] = useState<string | null>(null);
+  // Confirmation before the (irreversible-after-reload) overwrite tailoring.
+  const [confirmMatchOpen, setConfirmMatchOpen] = useState(false);
+  const [pendingMatchJd, setPendingMatchJd] = useState<string | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [sectionToDelete, setSectionToDelete] = useState<{
     id: string;
@@ -1372,6 +1412,12 @@ export default function EditResumePage() {
       ) as Resume["content"]["experience"];
     }
 
+    if (Array.isArray(updatedResume.content.projects)) {
+      updatedResume.content.projects = normalizeProjectsList(
+        updatedResume.content.projects,
+      ) as Resume["content"]["projects"];
+    }
+
     ensureResumePersonalInfo(
       updatedResume.content as unknown as Record<string, unknown>,
     );
@@ -1401,6 +1447,72 @@ export default function EditResumePage() {
     setLastSaved(new Date());
     invalidateAtsScoreDisplay();
     bumpPreviewKey("importResume");
+    // Force per-row rich-text editors to remount so they pick up new content.
+    setApplyNonce((prev) => prev + 1);
+  };
+
+  // Step 1: user submits the JD -> stage it and ask for confirmation, since
+  // tailoring overwrites the current resume content.
+  const handleRequestMatchJobDescription = (jobDescription: string) => {
+    setPendingMatchJd(jobDescription);
+    setConfirmMatchOpen(true);
+  };
+
+  // Step 2: confirmed -> run the tailoring/overwrite.
+  const handleMatchJobDescription = async (jobDescription: string) => {
+    if (!resume) return;
+
+    // Remember this input so the dialog reflects it on reopen (overrides the
+    // stale creation-time JD), even if the request below fails.
+    setLastMatchedJd(jobDescription);
+
+    try {
+      setMatchingJob(true);
+      const result = await resumeApi.tailorToJobDescription(resumeId, {
+        jobDescription,
+      });
+
+      // Persist the tailored content plus the JD used, so a reload reflects the
+      // latest job description (and ATS re-checks use it). Merge to keep any
+      // retained rawPdfText.
+      const nextAtsContext = {
+        ...resume.atsScoringContext,
+        lastJobDescription: jobDescription,
+      };
+      await resumeApi.update(resumeId, {
+        content: result.content,
+        profileSummary: result.profileSummary,
+        sectionOrder: result.sectionOrder,
+        atsScoringContext: nextAtsContext,
+        pdfS3Key: "",
+      });
+
+      const updatedResume: Resume = {
+        ...resume,
+        content: result.content,
+        profileSummary: result.profileSummary ?? resume.profileSummary,
+        sectionOrder: result.sectionOrder,
+        atsScoringContext: nextAtsContext,
+        pdfS3Key: undefined,
+      };
+
+      handleResumeImported(updatedResume);
+      setMatchJobOpen(false);
+    } catch (error: any) {
+      const serverMessage = error?.response?.data?.message;
+      console.error("Error tailoring resume to job description:", {
+        status: error?.response?.status,
+        serverMessage,
+        error,
+      });
+      alert(
+        serverMessage
+          ? `Failed to tailor resume: ${serverMessage}`
+          : "Failed to tailor resume to the job description. Please try again.",
+      );
+    } finally {
+      setMatchingJob(false);
+    }
   };
 
   const handleSectionsRearranged = (reordered: SectionWithColumn[]) => {
@@ -2504,6 +2616,28 @@ export default function EditResumePage() {
                   <Upload className="h-4 w-4" />
                 </IconTooltipButton>
                 <IconTooltipButton
+                  onClick={() => setMatchJobOpen(true)}
+                  variant="outline"
+                  label={
+                    matchingJob
+                      ? "Tailoring to job…"
+                      : "Match with job description"
+                  }
+                  disabled={
+                    refreshingATS ||
+                    autoSaving ||
+                    saving ||
+                    changingTemplate ||
+                    matchingJob
+                  }
+                >
+                  {matchingJob ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Target className="h-4 w-4" />
+                  )}
+                </IconTooltipButton>
+                <IconTooltipButton
                   onClick={() => setRearrangeSectionsOpen(true)}
                   variant="outline"
                   label="Rearrange sections"
@@ -2596,6 +2730,8 @@ export default function EditResumePage() {
           canRedo={editorHistory.canRedo}
           onRedo={handleRedo}
           onImport={() => setImportResumeOpen(true)}
+          onMatchJobDescription={() => setMatchJobOpen(true)}
+          matchingJob={matchingJob}
           onRearrange={() => setRearrangeSectionsOpen(true)}
           rearrangeDisabled={!layout || sections.length === 0}
           onChangeTemplate={() => setChangeTemplateOpen(true)}
@@ -3958,158 +4094,21 @@ export default function EditResumePage() {
                               title={section.title}
                               onTitleChange={updateSectionTitle}
                             />
-                            {resume.content.experience.map((exp, index) => (
-                              <div
-                                key={exp.id || index}
-                                className={resumeEntryCard}
-                              >
-                                <div className="grid grid-cols-2 gap-3">
-                                  <div>
-                                    <Label className="text-xs">
-                                      Position *
-                                    </Label>
-                                    <Input
-                                      value={exp.position}
-                                      onChange={(e) => {
-                                        const updated = [
-                                          ...resume.content.experience,
-                                        ];
-                                        updated[index] = {
-                                          ...exp,
-                                          position: e.target.value,
-                                        };
-                                        updateContent({ experience: updated });
-                                      }}
-                                      className={RESUME_FIELD_INPUT_CLASS}
-                                    />
-                                  </div>
-                                  <div>
-                                    <Label className="text-xs">Company *</Label>
-                                    <Input
-                                      value={exp.company}
-                                      onChange={(e) => {
-                                        const updated = [
-                                          ...resume.content.experience,
-                                        ];
-                                        updated[index] = {
-                                          ...exp,
-                                          company: e.target.value,
-                                        };
-                                        updateContent({ experience: updated });
-                                      }}
-                                      className={RESUME_FIELD_INPUT_CLASS}
-                                    />
-                                  </div>
-                                  <div>
-                                    <Label className="text-xs">
-                                      Start Date
-                                    </Label>
-                                    <Input
-                                      value={exp.startDate}
-                                      onChange={(e) => {
-                                        const updated = [
-                                          ...resume.content.experience,
-                                        ];
-                                        updated[index] = {
-                                          ...exp,
-                                          startDate: e.target.value,
-                                        };
-                                        updateContent({ experience: updated });
-                                      }}
-                                      className={RESUME_FIELD_INPUT_CLASS}
-                                      placeholder="MM/YYYY"
-                                    />
-                                  </div>
-                                  <div>
-                                    <Label className="text-xs">End Date</Label>
-                                    <Input
-                                      value={exp.endDate || ""}
-                                      onChange={(e) => {
-                                        const updated = [
-                                          ...resume.content.experience,
-                                        ];
-                                        const value = e.target.value;
-                                        updated[index] = {
-                                          ...exp,
-                                          endDate: value,
-                                          current:
-                                            value.toLowerCase() === "present" ||
-                                            !value,
-                                        };
-                                        updateContent({ experience: updated });
-                                      }}
-                                      className={RESUME_FIELD_INPUT_CLASS}
-                                      placeholder="MM/YYYY or Present"
-                                    />
-                                  </div>
-                                </div>
-                                <div>
-                                  <Label className="text-xs">Description</Label>
-                                  <RichTextEditor
-                                    value={
-                                      typeof exp.description === "string"
-                                        ? exp.description
-                                        : Array.isArray(exp.description)
-                                          ? exp.description
-                                              .map((d) => `<p>${d}</p>`)
-                                              .join("")
-                                          : ""
-                                    }
-                                    onChange={(html) => {
-                                      const updated = [
-                                        ...resume.content.experience,
-                                      ];
-                                      updated[index] = {
-                                        ...exp,
-                                        description: html,
-                                      };
-                                      updateContent({ experience: updated });
-                                    }}
-                                    placeholder="Enter job description with formatting..."
-                                    className="mt-1"
-                                  />
-                                </div>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => {
-                                    const updated =
-                                      resume.content.experience.filter(
-                                        (_, i) => i !== index,
-                                      );
-                                    updateContent({ experience: updated });
-                                  }}
-                                  className="w-full border-red-300 text-red-700 hover:bg-red-950/30"
-                                >
-                                  <Trash2 className="w-4 h-4 mr-2" />
-                                  Remove
-                                </Button>
-                              </div>
-                            ))}
-                            <Button
-                              size="sm"
-                              onClick={() => {
-                                const nanoid = () =>
-                                  Math.random().toString(36).substring(2, 9);
-                                updateContent({
-                                  experience: [
-                                    ...resume.content.experience,
-                                    {
-                                      id: nanoid(),
-                                      company: "",
-                                      position: "",
-                                      startDate: "",
-                                      current: false,
-                                      description: [""],
-                                    },
-                                  ],
-                                });
+                            <ExperienceEntriesEditor
+                              experience={resume.content.experience}
+                              applyNonce={applyNonce}
+                              onChange={(experience) =>
+                                updateContent({ experience })
+                              }
+                              onReorderStart={() => {
+                                isDraggingRef.current = true;
+                                recordImmediateHistory();
                               }}
-                              className={resumePrimaryCta}
-                            >
-                              <Plus className="w-4 h-4 mr-2" />
-                              Add Experience
-                            </Button>
+                              onReorderEnd={() => {
+                                isDraggingRef.current = false;
+                                setHasChanges(true);
+                              }}
+                            />
                           </CardContent>
                         )}
                       </Card>
@@ -4513,7 +4512,7 @@ export default function EditResumePage() {
                             {(resume.content.projects || []).map(
                               (project, index) => (
                                 <div
-                                  key={project.id || index}
+                                  key={`${project.id || index}-${applyNonce}`}
                                   className={resumeEntryCard}
                                 >
                                   <div className="grid grid-cols-2 gap-3">
@@ -4606,7 +4605,10 @@ export default function EditResumePage() {
                                       Description
                                     </Label>
                                     <RichTextEditor
-                                      value={project.description || ""}
+                                      preferredContentType="list"
+                                      value={descriptionToEditorHtml(
+                                        project.description,
+                                      )}
                                       onChange={(html) => {
                                         const updated = [
                                           ...(resume.content.projects || []),
@@ -6483,6 +6485,37 @@ export default function EditResumePage() {
         currentTemplateId={resume?.templateId}
         onSelectTemplate={handleChangeTemplate}
         applying={changingTemplate}
+      />
+      <MatchJobDescriptionDialog
+        open={matchJobOpen}
+        onOpenChange={setMatchJobOpen}
+        onSubmit={handleRequestMatchJobDescription}
+        applying={matchingJob}
+        initialJobDescription={
+          lastMatchedJd ?? resume?.atsScoringContext?.lastJobDescription ?? ""
+        }
+      />
+      <ConfirmationDialog
+        open={confirmMatchOpen}
+        onOpenChange={(open) => {
+          if (matchingJob) return;
+          setConfirmMatchOpen(open);
+          if (!open) setPendingMatchJd(null);
+        }}
+        title="Tailor and overwrite this resume?"
+        description="AI will rewrite your profile summary, skills, experience, projects, and certificates to match this job description, replacing the current content. You can undo it while editing, but this cannot be reversed after you reload or leave the page."
+        confirmText="Tailor my resume"
+        cancelText="Cancel"
+        variant="destructive"
+        isLoading={matchingJob}
+        onConfirm={() => {
+          // Close the confirmation immediately, then run tailoring in the
+          // background (progress is shown on the toolbar button + match dialog).
+          const jd = pendingMatchJd;
+          setConfirmMatchOpen(false);
+          setPendingMatchJd(null);
+          if (jd) void handleMatchJobDescription(jd);
+        }}
       />
       {resume && template ? (
         <ImportResumeDialog

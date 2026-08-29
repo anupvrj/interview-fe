@@ -15,6 +15,7 @@ import {
   Check,
   FileText,
   Settings2,
+  Target,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -58,6 +59,8 @@ type ResumeEditorMobileChromeProps = {
   canRedo: boolean;
   onRedo: () => void;
   onImport: () => void;
+  onMatchJobDescription: () => void;
+  matchingJob?: boolean;
   onRearrange: () => void;
   rearrangeDisabled?: boolean;
   onChangeTemplate: () => void;
@@ -111,6 +114,8 @@ export function ResumeEditorMobileChrome({
   canRedo,
   onRedo,
   onImport,
+  onMatchJobDescription,
+  matchingJob,
   onRearrange,
   rearrangeDisabled,
   onChangeTemplate,
@@ -155,6 +160,17 @@ export function ResumeEditorMobileChrome({
       icon: <Upload className="h-4 w-4" />,
       onClick: onImport,
       disabled,
+    },
+    {
+      id: "job-match",
+      label: matchingJob ? "Tailoring to job…" : "Match with job description",
+      icon: matchingJob ? (
+        <Loader2 className="h-4 w-4 animate-spin" />
+      ) : (
+        <Target className="h-4 w-4" />
+      ),
+      onClick: onMatchJobDescription,
+      disabled: disabled || matchingJob,
     },
     {
       id: "rearrange",
