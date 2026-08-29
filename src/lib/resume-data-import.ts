@@ -54,6 +54,14 @@ export const RESUME_JD_TAILORING_SUFFIX = [
   "Final checks in progress. Almost done…",
 ] as const;
 
+export const RESUME_FAITHFUL_IMPORT_MESSAGES = [
+  "Importing your resume as uploaded…",
+  "Structuring sections and contact details…",
+  "Keeping your original wording and bullets…",
+  "Arranging sections for the selected template…",
+  "Final checks in progress. Almost done…",
+] as const;
+
 export const RESUME_SECTION_TITLES: Record<string, string> = {
   personalInfo: "Personal Information",
   profileSummary: "Profile Summary",
@@ -444,6 +452,29 @@ export function mapExtractedSectionsToContent(
       continue;
     }
 
+    if (sectionType === "customSections") {
+      const items = Array.isArray(sectionData.content)
+        ? sectionData.content
+        : [];
+      content.customSections = items.flatMap((item, index) => {
+        const rec =
+          item && typeof item === "object" && !Array.isArray(item)
+            ? (item as Record<string, unknown>)
+            : {};
+        const title = String(rec.title || rec.name || "").trim();
+        const body = coerceToResumeString(rec.content ?? rec.body ?? "");
+        if (!title || !body) return [];
+        return [
+          {
+            id: String(rec.id || `custom_${index + 1}`),
+            title,
+            content: body,
+          },
+        ];
+      });
+      continue;
+    }
+
     if (RESUME_STRING_CONTENT_FIELDS.has(sectionType)) {
       content[sectionType] = coerceToResumeString(sectionData.content);
       continue;
@@ -556,7 +587,28 @@ export function buildSectionOrderForExtractedContent(
 
   for (const key of Object.keys(content)) {
     if (!hasResumeSectionContent(content, key)) continue;
-    if (key === "customSections") continue;
+    if (key === "customSections") {
+      const customs = Array.isArray(content.customSections)
+        ? (content.customSections as Array<{
+            id?: string;
+            title?: string;
+            content?: string;
+          }>)
+        : [];
+      for (const custom of customs) {
+        const id = String(custom.id || "").trim();
+        const title = String(custom.title || "Custom Section").trim();
+        if (!id || sectionTypesInOrder.has(id)) continue;
+        sectionOrder.push({
+          id,
+          type: "custom",
+          title,
+          visible: true,
+        });
+        sectionTypesInOrder.add(id);
+      }
+      continue;
+    }
 
     const title =
       RESUME_SECTION_TITLES[key] ||
@@ -564,7 +616,7 @@ export function buildSectionOrderForExtractedContent(
 
     if (sectionTypesInOrder.has(key)) {
       sectionOrder = sectionOrder.map((s) =>
-        s.type === key ? { ...s, visible: true } : s,
+        s.type === key ? { ...s, title: s.title || title, visible: true } : s,
       );
     } else {
       sectionOrder.push({
@@ -694,6 +746,7 @@ export type BuildResumeImportPayload = {
   chatProfile?: import("@/lib/api").ChatCollectedProfile;
   jobDescription?: string;
   jdRequirements?: import("@/lib/api").JDRequirements;
+  enhance?: boolean;
 };
 
 export async function buildResumeFromExtractedData(
@@ -711,6 +764,7 @@ export async function buildResumeFromExtractedData(
   const buildOptions = {
     jobDescription: payload.jobDescription,
     jdRequirements: payload.jdRequirements,
+    enhance: payload.enhance,
   };
 
   if (payload.source === "linkedin" && payload.linkedinHandle) {
@@ -774,7 +828,10 @@ export function getResumeProcessingMessages(
       break;
     case "pdf":
     default:
-      base = RESUME_IMPORT_PROCESSING_MESSAGES;
+      base =
+        payload.enhance === false
+          ? RESUME_FAITHFUL_IMPORT_MESSAGES
+          : RESUME_IMPORT_PROCESSING_MESSAGES;
       break;
   }
 

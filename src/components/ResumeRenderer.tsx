@@ -1142,10 +1142,16 @@ export function ResumeRenderer({
 
     return (
       <div
+        className={
+          template.id === "atlantic-blue"
+            ? "atlantic-blue-additional-personal"
+            : undefined
+        }
         style={{
           marginTop: "12px",
           fontSize: `${templateStyle.fontSize.small}px`,
           lineHeight: "1.4",
+          textAlign: template.id === "atlantic-blue" ? "left" : undefined,
           color: isInSidebar
             ? templateStyle.colors.sidebarText || "#ffffff"
             : templateStyle.colors.text,

@@ -47,6 +47,8 @@ import {
 } from "@/components/resume-builder/ResumeBuilderChatModeModal";
 import { ResumeBuilderJobDescriptionStep } from "@/components/resume-builder/ResumeBuilderJobDescriptionStep";
 import { ResumeCreationStepper } from "@/components/resume-builder/ResumeCreationStepper";
+import { ResumeEnhanceChoiceDialog } from "@/components/resume-builder/ResumeEnhanceChoiceDialog";
+import { trimJobDescriptionForSend } from "@/lib/job-description-limits";
 import type { ResumeImportSource } from "@/components/resume-builder/ResumeBuilderImportChoiceCards";
 import type {
   ChatCollectedProfile,
@@ -118,6 +120,7 @@ export default function NewResumePage() {
   );
   const [jdSummary, setJdSummary] = useState<string | null>(null);
   const [analyzingJd, setAnalyzingJd] = useState(false);
+  const [enhanceChoiceOpen, setEnhanceChoiceOpen] = useState(false);
 
   const processingMessages = getResumeProcessingMessages(
     pendingImport,
@@ -275,6 +278,7 @@ export default function NewResumePage() {
     setJobDescription("");
     setJdRequirements(null);
     setJdSummary(null);
+    setEnhanceChoiceOpen(false);
     setStep("import");
   };
 
@@ -304,10 +308,16 @@ export default function NewResumePage() {
 
   const handlePdfContinue = () => {
     if (!selectedTemplate || !resumeText) return;
+    setEnhanceChoiceOpen(true);
+  };
+
+  const proceedFromPdfWithEnhance = (enhance: boolean) => {
+    if (!selectedTemplate || !resumeText) return;
     proceedToJobDescription({
       source: "pdf",
       templateId: selectedTemplate,
       resumeText,
+      enhance,
     });
   };
 
@@ -392,7 +402,11 @@ export default function NewResumePage() {
         sectionOrder,
         layout: initialLayout,
         ...(jdText.trim().length > 50
-          ? { atsScoringContext: { lastJobDescription: jdText.trim() } }
+          ? {
+              atsScoringContext: {
+                lastJobDescription: trimJobDescriptionForSend(jdText),
+              },
+            }
           : {}),
       });
 
@@ -1014,6 +1028,13 @@ export default function NewResumePage() {
           messages={processingMessages}
         />
       )}
+
+      <ResumeEnhanceChoiceDialog
+        open={enhanceChoiceOpen}
+        onOpenChange={setEnhanceChoiceOpen}
+        onSkip={() => proceedFromPdfWithEnhance(false)}
+        onEnhance={() => proceedFromPdfWithEnhance(true)}
+      />
 
       <ResumeBuilderChatModeModal
         open={showChatModeModal}
