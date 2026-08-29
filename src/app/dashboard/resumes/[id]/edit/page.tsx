@@ -95,6 +95,11 @@ import { LanguagesEditor } from "@/components/LanguagesEditor";
 import { captureAndUploadThumbnail } from "@/lib/resume-thumbnail";
 import { generateResumePdfViaServer } from "@/lib/resume-pdf-export";
 import {
+  downloadPdfFromUrl,
+  resumePdfFilenameFromResume,
+  triggerBlobDownload,
+} from "@/lib/download-pdf";
+import {
   mergeLayoutPaddingWithTemplateStyle,
   resolveLayoutPaddingMm,
 } from "@/lib/resume-page-dimensions";
@@ -1771,7 +1776,9 @@ export default function EditResumePage() {
           ),
         );
 
-        let downloadUrl: string;
+        const downloadFilename = resumePdfFilenameFromResume(resume);
+        let downloadUrl: string | null = null;
+        let localPdfBlob: Blob | null = null;
 
         try {
           debugResumePagination("download:pdfStart", {
@@ -1797,13 +1804,13 @@ export default function EditResumePage() {
           });
           const { generatePDFFromPages, uploadPDFToS3 } =
             await import("@/lib/pdf-generator");
-          const pdfBlob = await generatePDFFromPages(allPageElements, {
-            filename: `${resume?.title || "resume"}.pdf`,
+          localPdfBlob = await generatePDFFromPages(allPageElements, {
+            filename: downloadFilename,
           });
 
           const { uploadUrl, s3Key } =
             await resumeApi.getPresignedUploadUrl(resumeId);
-          await uploadPDFToS3(pdfBlob, uploadUrl);
+          await uploadPDFToS3(localPdfBlob, uploadUrl);
           const confirm = await resumeApi.confirmPDFUpload(resumeId, s3Key);
           downloadUrl = confirm.downloadUrl;
           debugResumePagination("download:pdfDone", {
@@ -1811,7 +1818,11 @@ export default function EditResumePage() {
           });
         }
 
-        window.open(downloadUrl, "_blank");
+        if (localPdfBlob) {
+          triggerBlobDownload(localPdfBlob, downloadFilename);
+        } else if (downloadUrl) {
+          await downloadPdfFromUrl(downloadUrl, downloadFilename);
+        }
       } finally {
         // Restore original zoom level
         if (page1Element && originalTransform) {
