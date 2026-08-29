@@ -56,6 +56,7 @@ import { DashboardStatCard } from "@/components/dashboard/DashboardStatCard";
 import { DashboardResumesList } from "@/components/dashboard/DashboardResumesList";
 import { TrialUpsellDialog } from "@/components/upsell/TrialUpsellDialog";
 import { useEntitlements } from "@/hooks/useEntitlements";
+import { AddToChromeButton } from "@/components/chrome-extension/AddToChromeButton";
 
 const RESUME_ITEMS_PER_PAGE = 10;
 
@@ -799,18 +800,21 @@ export default function ResumesPage() {
                     }—keep iterating until Smart ATS clears the bots.`}
               </CardDescription>
             </div>
-            <Button
-              onClick={handleCreateResumeClick}
-              disabled={checkingLimit}
-              className={institutePrimaryClass}
-            >
-              {checkingLimit ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Plus className="mr-2 h-4 w-4" />
-              )}
-              New resume
-            </Button>
+            <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+              <AddToChromeButton variant="outline" size="sm" />
+              <Button
+                onClick={handleCreateResumeClick}
+                disabled={checkingLimit}
+                className={institutePrimaryClass}
+              >
+                {checkingLimit ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Plus className="mr-2 h-4 w-4" />
+                )}
+                New resume
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent className="p-0">

@@ -16,6 +16,7 @@ export const FOOTER_IMPORTANT_LINKS: FooterLink[] = [
 
 export const FOOTER_PRODUCT_LINKS: FooterLink[] = [
   { href: "/ai-resume-builder", label: "Resume Builder" },
+  { href: "/chrome-extension", label: "Chrome Extension" },
   { href: "/ats-checker", label: "ATS Checker" },
   { href: "/ai-interview-coach", label: "AI Mock Interview" },
   { href: "/ai-coding-practice", label: "AI Coding Round Interview" },

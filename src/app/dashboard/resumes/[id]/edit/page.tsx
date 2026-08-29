@@ -94,6 +94,11 @@ import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import { LanguagesEditor } from "@/components/LanguagesEditor";
 import { captureAndUploadThumbnail } from "@/lib/resume-thumbnail";
 import { generateResumePdfViaServer } from "@/lib/resume-pdf-export";
+import { ChromeIcon } from "@/components/chrome-extension/ChromeIcon";
+import {
+  getChromeExtensionHref,
+  isExternalChromeExtensionHref,
+} from "@/components/chrome-extension/AddToChromeButton";
 import {
   downloadPdfFromUrl,
   resumePdfFilenameFromResume,
@@ -2647,6 +2652,20 @@ export default function EditResumePage() {
                   ) : (
                     <Target className="h-4 w-4" />
                   )}
+                </IconTooltipButton>
+                <IconTooltipButton
+                  onClick={() => {
+                    const href = getChromeExtensionHref();
+                    if (isExternalChromeExtensionHref(href)) {
+                      window.open(href, "_blank", "noopener,noreferrer");
+                      return;
+                    }
+                    router.push(href);
+                  }}
+                  variant="outline"
+                  label="Capture job from Chrome"
+                >
+                  <ChromeIcon className="h-4 w-4" />
                 </IconTooltipButton>
                 <IconTooltipButton
                   onClick={() => setRearrangeSectionsOpen(true)}
