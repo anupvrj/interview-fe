@@ -13,6 +13,7 @@ import {
   resumeBuilderOutlineButton,
   resumeBuilderPrimaryButton,
 } from "./resumeBuilderStyles";
+import { AddToChromeButton } from "@/components/chrome-extension/AddToChromeButton";
 
 interface ResumeBuilderJobDescriptionStepProps {
   value: string;
@@ -61,8 +62,11 @@ export function ResumeBuilderJobDescriptionStep({
             <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
               Paste a job description and we&apos;ll align your summary,
               experience bullets, and skills to that role. You can skip this step
-              anytime.
+              anytime. Or capture the posting from Chrome.
             </p>
+            <div className="mt-3">
+              <AddToChromeButton variant="outline" size="sm" />
+            </div>
           </div>
         </div>
       </div>

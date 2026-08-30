@@ -69,6 +69,7 @@ import { institutePrimaryClass } from "@/components/institute/InstituteChrome";
 import { DashboardStatCard } from "@/components/dashboard/DashboardStatCard";
 import { IndustryRoleFields } from "@/components/career/IndustryRoleFields";
 import { JobRoleSelect } from "@/components/career/JobRoleSelect";
+import { AddToChromeButton } from "@/components/chrome-extension/AddToChromeButton";
 import { AppSelect } from "@/components/ui/app-select";
 import { industrySelectOptions } from "@/lib/career-catalog";
 import {
@@ -1293,6 +1294,21 @@ export default function ProfilePage() {
           </Card>
         </div>
       </div>
+
+      <Card className={profileCardClass}>
+        <CardHeader className="border-b border-border/60 px-5 py-4">
+          <CardTitle className="text-lg font-semibold text-foreground">
+            Chrome extension
+          </CardTitle>
+          <CardDescription className="mt-0.5 text-sm">
+            Capture a job description from LinkedIn, Naukri, Indeed, and other
+            boards, then create a tailored resume copy while staying signed in.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="p-5">
+          <AddToChromeButton />
+        </CardContent>
+      </Card>
 
       {/* Danger zone */}
       <Card className="overflow-hidden rounded-xl border border-destructive/25 bg-destructive/5 shadow-card">
