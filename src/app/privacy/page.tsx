@@ -16,6 +16,7 @@ import {
   Lock,
   Bell,
   Trash2,
+  Puzzle,
 } from "lucide-react";
 import { SiteHeader } from "@/components/SiteHeader";
 import { MarketingFooter } from "@/components/MarketingFooter";
@@ -35,7 +36,7 @@ export default function PrivacyPolicyPage() {
               Privacy <span className="text-primary">Policy</span>
             </h1>
             <p className="text-base sm:text-lg text-gray-600 max-w-2xl mx-auto">
-              Last updated: August 17, 2026
+              Last updated: August 30, 2026
             </p>
           </div>
 
@@ -189,6 +190,40 @@ export default function PrivacyPolicyPage() {
                   in, remember preferences, and understand how the Services are
                   used. You can control cookies through your browser settings,
                   though some features may not work if cookies are disabled.
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="border border-gray-200 shadow-md">
+              <CardHeader>
+                <CardTitle className="text-xl font-bold text-slate-900 flex items-center gap-3">
+                  <Puzzle className="w-6 h-6 text-primary" />
+                  Chrome extension
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="text-gray-700 leading-relaxed space-y-4">
+                <p>
+                  The InterviewTrix Chrome extension reads the job posting in
+                  your current browser tab only when you click{" "}
+                  <strong>Fetch Job</strong> or{" "}
+                  <strong>Use selected text</strong>. It does not scan pages in
+                  the background.
+                </p>
+                <p>
+                  The extension stores the role, company, location, source URL,
+                  and job description in your browser (
+                  <code>chrome.storage.local</code>) so you can reopen the
+                  popup or hand the job off to InterviewTrix. When you choose{" "}
+                  <strong>Tailor Resume</strong> or{" "}
+                  <strong>Practice Interview</strong>, InterviewTrix opens in
+                  your existing signed-in session and uses that captured text
+                  to create a new resume copy or start a practice interview.
+                </p>
+                <p>
+                  The extension does not call the InterviewTrix API itself, does
+                  not sell captured job text, and does not use it for
+                  advertising. You can clear it by dismissing the capture in
+                  the web app or by removing the extension.
                 </p>
               </CardContent>
             </Card>
