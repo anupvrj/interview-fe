@@ -4748,6 +4748,68 @@ export const notificationAdminApi = {
 
 export default apiClient;
 
+export type ConnectorTokenRow = {
+  tokenId: string;
+  name: string;
+  prefix: string;
+  scopes: string[];
+  lastUsedAt?: string;
+  createdAt: string;
+  expiresAt?: string;
+};
+
+export const connectorApi = {
+  listTokens: async () => {
+    const response = await apiClient.get<{
+      success: boolean;
+      data: ConnectorTokenRow[];
+      mcp_url: string;
+      openapi_url: string;
+    }>("/connector/v1/tokens");
+    return response.data;
+  },
+  createToken: async (name?: string) => {
+    const response = await apiClient.post<{
+      success: boolean;
+      data: {
+        tokenId: string;
+        token: string;
+        name: string;
+        prefix: string;
+        mcp_url: string;
+        openapi_url: string;
+      };
+      message?: string;
+    }>("/connector/v1/tokens", { name });
+    return response.data;
+  },
+  revokeToken: async (tokenId: string) => {
+    const response = await apiClient.delete<{ success: boolean }>(
+      `/connector/v1/tokens/${tokenId}`,
+    );
+    return response.data;
+  },
+  getOAuthRequest: async (requestId: string) => {
+    const response = await apiClient.get<{
+      success: boolean;
+      data: {
+        requestId: string;
+        clientId: string;
+        redirectUri: string;
+        scopes: string[];
+      };
+    }>(`/connector/v1/oauth/requests/${requestId}`);
+    return response.data;
+  },
+  consentOAuth: async (requestId: string, approve: boolean) => {
+    const response = await apiClient.post<{
+      success: boolean;
+      data: { redirectTo: string };
+    }>("/connector/v1/oauth/consent", { requestId, approve });
+    return response.data;
+  },
+};
+
 export const configApi = {
   getClientCacheVersion: async (): Promise<{
     version: number;

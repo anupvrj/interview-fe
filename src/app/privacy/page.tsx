@@ -231,6 +231,41 @@ export default function PrivacyPolicyPage() {
             <Card className="border border-gray-200 shadow-md">
               <CardHeader>
                 <CardTitle className="text-xl font-bold text-slate-900 flex items-center gap-3">
+                  <Share2 className="w-6 h-6 text-primary" />
+                  AI connectors (ChatGPT, Claude, Cursor)
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="text-gray-700 leading-relaxed space-y-4">
+                <p>
+                  If you connect Interview Trix from ChatGPT, Claude, Cursor, or
+                  another AI client, that client can call Interview Trix on your
+                  behalf using a token you mint or an OAuth Connect you approve.
+                </p>
+                <p>
+                  Depending on the tools you allow, the client may read your
+                  plan and credits, list or import resumes (including contact
+                  details already stored on those resumes), run ATS scoring,
+                  create mock interviews, and fetch interview reports. Interviews
+                  themselves still run on Interview Trix, not inside the AI
+                  chat.
+                </p>
+                <p>
+                  You can revoke connector tokens at any time from{" "}
+                  <Link
+                    href="/dashboard/profile/connectors"
+                    className="text-primary hover:underline"
+                  >
+                    Profile → AI connectors
+                  </Link>
+                  . Disconnecting the plugin in ChatGPT does not delete your
+                  Interview Trix account or past interviews.
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="border border-gray-200 shadow-md">
+              <CardHeader>
+                <CardTitle className="text-xl font-bold text-slate-900 flex items-center gap-3">
                   <Trash2 className="w-6 h-6 text-red-600" />
                   Data Retention &amp; Your Rights
                 </CardTitle>
