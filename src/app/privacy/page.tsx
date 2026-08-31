@@ -244,10 +244,11 @@ export default function PrivacyPolicyPage() {
                 <p>
                   Depending on the tools you allow, the client may read your
                   plan and credits, list or import resumes (including contact
-                  details already stored on those resumes), run ATS scoring,
-                  create mock interviews, and fetch interview reports. Interviews
-                  themselves still run on Interview Trix, not inside the AI
-                  chat.
+                  details already stored on those resumes), issue a short-lived
+                  download link for a resume PDF you already generated, run ATS
+                  scoring, create mock interviews, and fetch interview reports.
+                  Interviews themselves still run on Interview Trix, not inside
+                  the AI chat.
                 </p>
                 <p>
                   You can revoke connector tokens at any time from{" "}
