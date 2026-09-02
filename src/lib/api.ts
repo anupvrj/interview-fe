@@ -6,7 +6,10 @@ import axios, {
 import type { ATSReportV3 } from "@/types/atsReport";
 export { isATSReportV3 } from "@/types/atsReport";
 import { inferImageContentType } from "@/lib/image-upload";
-import { getSignInUrlWithRedirect } from "@/lib/post-sign-in-redirect";
+import {
+  getSignInUrlWithRedirect,
+  shouldRedirectUnauthorizedToSignIn,
+} from "@/lib/post-sign-in-redirect";
 import { trimJobDescriptionForSend } from "@/lib/job-description-limits";
 
 /** Base URL for API (includes `/api` path). Use for `<img src>` and other non-axios URLs. */
@@ -120,10 +123,16 @@ apiClient.interceptors.response.use(
   (response) => response,
   (error: AxiosError) => {
     if (error.response?.status === 401) {
-      // Redirect to login if unauthorized
       if (typeof window !== "undefined") {
         const returnPath = `${window.location.pathname}${window.location.search}`;
-        window.location.href = getSignInUrlWithRedirect(returnPath);
+        if (
+          shouldRedirectUnauthorizedToSignIn(
+            window.location.pathname,
+            String(error.config?.url || ""),
+          )
+        ) {
+          window.location.href = getSignInUrlWithRedirect(returnPath);
+        }
       }
     }
     return Promise.reject(error);
