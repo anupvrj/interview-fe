@@ -4517,6 +4517,10 @@ export const adminCodingProblemApi = {
         `/admin/coding-problems/${encodeURIComponent(problemId)}`,
       ),
     ),
+  removeBulk: (problemIds: string[]) =>
+    unwrap<{ deleted: number; notFound: string[] }>(
+      apiClient.post("/admin/coding-problems/bulk-delete", { problemIds }),
+    ),
   restore: (problemId: string) =>
     unwrap<AdminCodingProblemDetail>(
       apiClient.post(

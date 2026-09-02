@@ -93,14 +93,19 @@ export default function EditCodingProblemPage() {
     }
   };
 
-  const deactivate = async () => {
-    if (!window.confirm("Deactivate this problem?")) return;
+  const deleteProblem = async () => {
+    if (
+      !window.confirm(
+        "Delete this problem permanently? This cannot be undone.",
+      )
+    )
+      return;
     try {
       await adminCodingProblemApi.remove(problemId);
-      toast.success("Problem deactivated");
+      toast.success("Problem deleted");
       router.push("/dashboard/super-admin/coding-problems");
     } catch {
-      toast.error("Deactivate failed");
+      toast.error("Delete failed");
     }
   };
 
@@ -156,7 +161,7 @@ export default function EditCodingProblemPage() {
             saving={saving}
             onSave={() => void save()}
             onCancel={() => router.push("/dashboard/super-admin/coding-problems")}
-            onDelete={form.isActive ? () => void deactivate() : undefined}
+            onDelete={form.isActive ? () => void deleteProblem() : undefined}
           />
         </CardContent>
       </Card>
