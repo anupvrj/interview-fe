@@ -1,12 +1,14 @@
 "use client";
 
 import { Suspense, useEffect, useState } from "react";
+import { useAuth, useUser } from "@clerk/nextjs";
 import { useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { AuthCardLayout } from "@/components/app/AuthCardLayout";
 import { Button } from "@/components/ui/button";
-import { connectorApi } from "@/lib/api";
+import { connectorApi, setAuthTokenGetter, userApi } from "@/lib/api";
 import { appOutlineButton, appPrimaryButton } from "@/lib/app-theme";
+import { getSignInUrlWithRedirect } from "@/lib/post-sign-in-redirect";
 import { cn } from "@/lib/utils";
 
 export default function ConnectorOAuthConsentPage() {
@@ -28,6 +30,8 @@ export default function ConnectorOAuthConsentPage() {
 function ConsentInner() {
   const searchParams = useSearchParams();
   const requestId = searchParams.get("request_id") || "";
+  const { isLoaded, isSignedIn, user } = useUser();
+  const { getToken } = useAuth();
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -35,22 +39,53 @@ function ConsentInner() {
   const [scopes, setScopes] = useState<string[]>([]);
 
   useEffect(() => {
+    if (!isLoaded) return;
+
+    const returnPath = requestId
+      ? `/connector/oauth/consent?request_id=${encodeURIComponent(requestId)}`
+      : "/connector/oauth/consent";
+
+    if (!isSignedIn || !user) {
+      window.location.replace(getSignInUrlWithRedirect(returnPath));
+      return;
+    }
+
     if (!requestId) {
       setError("Missing OAuth request.");
       setLoading(false);
       return;
     }
-    connectorApi
-      .getOAuthRequest(requestId)
-      .then((result) => {
+
+    let cancelled = false;
+    (async () => {
+      try {
+        setAuthTokenGetter(() => getToken());
+        localStorage.setItem("clerk-user-id", user.id);
+        const email = user.primaryEmailAddress?.emailAddress || "";
+        if (email) {
+          await userApi.createOrGetUser(
+            user.id,
+            email,
+            user.fullName || user.firstName || "User",
+          );
+        }
+        const result = await connectorApi.getOAuthRequest(requestId);
+        if (cancelled) return;
         setClientId(result.data.clientId);
         setScopes(result.data.scopes || []);
-      })
-      .catch((err) => {
-        setError(err?.response?.data?.message || "OAuth request not found.");
-      })
-      .finally(() => setLoading(false));
-  }, [requestId]);
+      } catch (err: any) {
+        if (!cancelled) {
+          setError(err?.response?.data?.message || "OAuth request not found.");
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [getToken, isLoaded, isSignedIn, requestId, user]);
 
   async function decide(approve: boolean) {
     setSubmitting(true);
