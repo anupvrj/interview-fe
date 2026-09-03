@@ -249,14 +249,13 @@ function resolveNavActive(
   if (item.href === "/dashboard/profile") {
     isActive =
       pathname === "/dashboard/profile" ||
-      (pathname?.startsWith("/dashboard/profile/") &&
-        !pathname.startsWith("/dashboard/profile/connectors")) ??
-        false;
+      (Boolean(pathname?.startsWith("/dashboard/profile/")) &&
+        !pathname?.startsWith("/dashboard/profile/connectors"));
   }
   if (item.href === "/dashboard/profile/connectors") {
     isActive =
       pathname === "/dashboard/profile/connectors" ||
-      (pathname?.startsWith("/dashboard/profile/connectors/") ?? false);
+      Boolean(pathname?.startsWith("/dashboard/profile/connectors/"));
   }
   return isActive;
 }
