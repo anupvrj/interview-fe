@@ -9,6 +9,13 @@ export const PENDING_JOB_STORAGE_KEY = "interviewtrix.pendingJobCapture";
 
 export const MIN_JOB_DESCRIPTION_CHARS = 50;
 
+/** Destinations the extension opens. Keep in sync with interview-chrome-extension/src/shared.ts */
+export const FROM_JOB_PATH = "/dashboard/resumes/from-job";
+export const PRACTICE_INTERVIEW_PATH = "/dashboard/interviews/new";
+
+/** Drop abandoned captures so a later dashboard visit is not hijacked. */
+export const MAX_CAPTURE_AGE_MS = 24 * 60 * 60 * 1000;
+
 export type JobDetails = Record<string, string>;
 
 export type JobCaptureIntent = "resume" | "practice-interview";
@@ -42,6 +49,20 @@ export function isResumeHandoffCapture(capture: PendingJobCapture): boolean {
   return capture.intent !== "practice-interview";
 }
 
+export function handoffPathForCapture(capture: PendingJobCapture): string {
+  return isPracticeInterviewCapture(capture)
+    ? PRACTICE_INTERVIEW_PATH
+    : FROM_JOB_PATH;
+}
+
+export function isExtensionHandoffPath(
+  pathname: string | null | undefined,
+): boolean {
+  if (!pathname) return false;
+  const path = pathname.split("?")[0];
+  return path === FROM_JOB_PATH || path === PRACTICE_INTERVIEW_PATH;
+}
+
 function isPendingJobCapture(value: unknown): value is PendingJobCapture {
   if (!value || typeof value !== "object") return false;
   const rec = value as Partial<PendingJobCapture>;
@@ -50,6 +71,13 @@ function isPendingJobCapture(value: unknown): value is PendingJobCapture {
     typeof rec.jobDescription === "string" &&
     rec.jobDescription.trim().length > 0
   );
+}
+
+export function isFreshJobCapture(capture: PendingJobCapture): boolean {
+  if (!capture.capturedAt) return true;
+  const at = Date.parse(capture.capturedAt);
+  if (Number.isNaN(at)) return true;
+  return Date.now() - at < MAX_CAPTURE_AGE_MS;
 }
 
 export function parsePendingJobCapture(raw: string | null): PendingJobCapture | null {
@@ -63,9 +91,45 @@ export function parsePendingJobCapture(raw: string | null): PendingJobCapture | 
   }
 }
 
+function readStorageItem(storage: Storage): PendingJobCapture | null {
+  try {
+    return parsePendingJobCapture(storage.getItem(PENDING_JOB_STORAGE_KEY));
+  } catch {
+    return null;
+  }
+}
+
+function writeStorageItem(storage: Storage, payload: PendingJobCapture): void {
+  try {
+    storage.setItem(PENDING_JOB_STORAGE_KEY, JSON.stringify(payload));
+  } catch {
+    /* quota / private mode */
+  }
+}
+
+function removeStorageItem(storage: Storage): void {
+  try {
+    storage.removeItem(PENDING_JOB_STORAGE_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
 export function loadPendingJobCapture(): PendingJobCapture | null {
   if (typeof window === "undefined") return null;
-  return parsePendingJobCapture(sessionStorage.getItem(PENDING_JOB_STORAGE_KEY));
+  const capture =
+    readStorageItem(window.sessionStorage) ?? readStorageItem(window.localStorage);
+  if (!capture) return null;
+  if (!isFreshJobCapture(capture)) {
+    clearPendingJobCapture();
+    return null;
+  }
+  return capture;
+}
+
+export function loadPendingJobHandoffPath(): string | null {
+  const capture = loadPendingJobCapture();
+  return capture ? handoffPathForCapture(capture) : null;
 }
 
 export function loadPendingJobCaptureFor(
@@ -81,12 +145,14 @@ export function loadPendingJobCaptureFor(
 
 export function savePendingJobCapture(payload: PendingJobCapture): void {
   if (typeof window === "undefined") return;
-  sessionStorage.setItem(PENDING_JOB_STORAGE_KEY, JSON.stringify(payload));
+  writeStorageItem(window.sessionStorage, payload);
+  writeStorageItem(window.localStorage, payload);
 }
 
 export function clearPendingJobCapture(): void {
   if (typeof window === "undefined") return;
-  sessionStorage.removeItem(PENDING_JOB_STORAGE_KEY);
+  removeStorageItem(window.sessionStorage);
+  removeStorageItem(window.localStorage);
 }
 
 export function tailoredResumeTitle(title?: string, company?: string): string {

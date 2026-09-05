@@ -8,8 +8,8 @@ import { ArrowLeft } from "lucide-react";
 import { AuthCardLayout } from "@/components/app/AuthCardLayout";
 import { clerkAuthAppearance } from "@/lib/clerk-appearance";
 import {
+  persistPostAuthReturnPath,
   safeAppRedirectPath,
-  storePostSignInReturnUrl,
 } from "@/lib/post-sign-in-redirect";
 
 export default function SignInPage() {
@@ -20,10 +20,13 @@ export default function SignInPage() {
     ? `/sign-up?redirect_url=${encodeURIComponent(redirectUrl)}`
     : "/sign-up";
 
+  // Persist before paint so a fast Google/SSO click does not drop the extension return path.
+  if (typeof window !== "undefined") {
+    persistPostAuthReturnPath(redirectUrl);
+  }
+
   useEffect(() => {
-    if (redirectUrl) {
-      storePostSignInReturnUrl(redirectUrl);
-    }
+    persistPostAuthReturnPath(redirectUrl);
   }, [redirectUrl]);
 
   return (

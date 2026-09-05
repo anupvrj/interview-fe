@@ -8,8 +8,8 @@ import { useEffect } from "react";
 import { AuthCardLayout } from "@/components/app/AuthCardLayout";
 import { clerkAuthAppearance } from "@/lib/clerk-appearance";
 import {
+  persistPostAuthReturnPath,
   safeAppRedirectPath,
-  storePostSignInReturnUrl,
 } from "@/lib/post-sign-in-redirect";
 
 export default function SignUpPage() {
@@ -20,10 +20,12 @@ export default function SignUpPage() {
     ? `/sign-in?redirect_url=${encodeURIComponent(redirectUrl)}`
     : "/sign-in";
 
+  if (typeof window !== "undefined") {
+    persistPostAuthReturnPath(redirectUrl);
+  }
+
   useEffect(() => {
-    if (redirectUrl) {
-      storePostSignInReturnUrl(redirectUrl);
-    }
+    persistPostAuthReturnPath(redirectUrl);
   }, [redirectUrl]);
 
   return (
