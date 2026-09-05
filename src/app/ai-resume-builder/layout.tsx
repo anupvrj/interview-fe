@@ -1,5 +1,10 @@
 import type { Metadata } from "next";
-import { resumeBuilderDemoVideo } from "@/lib/seo/marketing-video-content";
+import { SeoVideoJsonLdScript } from "@/components/seo/SeoVideoJsonLdScript";
+import {
+  getMarketingVideoOpenGraphImage,
+  resumeBuilderDemoVideo,
+  toVideoSchemaInput,
+} from "@/lib/seo/marketing-video-content";
 import { getSiteUrl } from "@/lib/seo/site-url";
 
 const siteUrl = getSiteUrl();
@@ -17,6 +22,7 @@ export const metadata: Metadata = {
       "Build professional, ATS-friendly resumes with AI assistance. Choose from multiple templates and land your dream job faster.",
     type: "website",
     url: `${siteUrl}/ai-resume-builder`,
+    images: [getMarketingVideoOpenGraphImage(resumeBuilderDemoVideo)],
     videos: [
       {
         url: resumeBuilderDemoVideo.videoUrl,
@@ -42,5 +48,10 @@ export default function ResumeBuilderLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return <>{children}</>;
+  return (
+    <>
+      <SeoVideoJsonLdScript {...toVideoSchemaInput(resumeBuilderDemoVideo)} />
+      {children}
+    </>
+  );
 }

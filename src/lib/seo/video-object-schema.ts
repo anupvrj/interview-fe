@@ -1,4 +1,4 @@
-import { getSiteUrl } from "./site-url";
+import { getAbsoluteAssetUrl, getSiteUrl } from "./site-url";
 
 export type VideoObjectSchemaInput = {
   /** Stable id used for JSON-LD @id and DOM anchors */
@@ -16,9 +16,7 @@ export type VideoObjectSchemaInput = {
 
 export function buildVideoObjectSchema(input: VideoObjectSchemaInput) {
   const siteUrl = getSiteUrl();
-  const absoluteThumbnail = input.thumbnailUrl.startsWith("http")
-    ? input.thumbnailUrl
-    : `${siteUrl}${input.thumbnailUrl.startsWith("/") ? "" : "/"}${input.thumbnailUrl}`;
+  const absoluteThumbnail = getAbsoluteAssetUrl(input.thumbnailUrl);
 
   return {
     "@context": "https://schema.org",
@@ -26,7 +24,7 @@ export function buildVideoObjectSchema(input: VideoObjectSchemaInput) {
     "@id": `${input.embedUrl}#${input.id}`,
     name: input.name,
     description: input.description,
-    thumbnailUrl: absoluteThumbnail,
+    thumbnailUrl: [absoluteThumbnail],
     uploadDate: input.uploadDate,
     contentUrl: input.videoUrl,
     embedUrl: input.embedUrl,
@@ -42,9 +40,7 @@ export function buildVideoObjectSchema(input: VideoObjectSchemaInput) {
       ? {
           caption: {
             "@type": "MediaObject",
-            contentUrl: input.captionsUrl.startsWith("http")
-              ? input.captionsUrl
-              : `${siteUrl}${input.captionsUrl.startsWith("/") ? "" : "/"}${input.captionsUrl}`,
+            contentUrl: getAbsoluteAssetUrl(input.captionsUrl),
             encodingFormat: "text/vtt",
           },
         }

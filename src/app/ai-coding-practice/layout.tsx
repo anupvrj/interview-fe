@@ -1,4 +1,10 @@
 import type { Metadata } from "next";
+import { SeoVideoJsonLdScript } from "@/components/seo/SeoVideoJsonLdScript";
+import {
+  aiCodingRoundDemoVideo,
+  getMarketingVideoOpenGraphImage,
+  toVideoSchemaInput,
+} from "@/lib/seo/marketing-video-content";
 import { getSiteUrl } from "@/lib/seo/site-url";
 
 const siteUrl = getSiteUrl();
@@ -19,6 +25,7 @@ export const metadata: Metadata = {
       "Run code against hidden tests, explain your approach, and defend time and space complexity with an AI interviewer.",
     type: "website",
     url: `${siteUrl}/ai-coding-practice`,
+    images: [getMarketingVideoOpenGraphImage(aiCodingRoundDemoVideo)],
   },
   twitter: {
     card: "summary_large_image",
@@ -34,5 +41,10 @@ export default function AiCodingPracticeLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return <>{children}</>;
+  return (
+    <>
+      <SeoVideoJsonLdScript {...toVideoSchemaInput(aiCodingRoundDemoVideo)} />
+      {children}
+    </>
+  );
 }

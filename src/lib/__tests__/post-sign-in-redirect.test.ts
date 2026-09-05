@@ -17,6 +17,11 @@ describe("safeAppRedirectPath", () => {
     expect(safeAppRedirectPath("https://evil.example/phish")).toBeNull();
     expect(safeAppRedirectPath("//evil.example/phish")).toBeNull();
   });
+
+  it("rejects wildcard placeholder paths", () => {
+    expect(safeAppRedirectPath("/*")).toBeNull();
+    expect(safeAppRedirectPath("/dashboard/*")).toBeNull();
+  });
 });
 
 describe("shouldRedirectUnauthorizedToSignIn", () => {

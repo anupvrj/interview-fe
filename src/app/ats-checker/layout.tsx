@@ -1,5 +1,10 @@
 import type { Metadata } from "next";
-import { atsCheckerDemoVideo } from "@/lib/seo/marketing-video-content";
+import { SeoVideoJsonLdScript } from "@/components/seo/SeoVideoJsonLdScript";
+import {
+  atsCheckerDemoVideo,
+  getMarketingVideoOpenGraphImage,
+  toVideoSchemaInput,
+} from "@/lib/seo/marketing-video-content";
 import { getSiteUrl } from "@/lib/seo/site-url";
 
 const siteUrl = getSiteUrl();
@@ -16,6 +21,7 @@ export const metadata: Metadata = {
       "Upload your resume for an instant Smart ATS Score across 27 checks — content, parse rate, HR red flags, and job tailoring.",
     type: "website",
     url: `${siteUrl}/ats-checker`,
+    images: [getMarketingVideoOpenGraphImage(atsCheckerDemoVideo)],
     videos: [
       {
         url: atsCheckerDemoVideo.videoUrl,
@@ -41,5 +47,10 @@ export default function ATSCheckerLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return children;
+  return (
+    <>
+      <SeoVideoJsonLdScript {...toVideoSchemaInput(atsCheckerDemoVideo)} />
+      {children}
+    </>
+  );
 }

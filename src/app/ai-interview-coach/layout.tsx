@@ -1,4 +1,10 @@
 import type { Metadata } from "next";
+import { SeoVideoJsonLdScript } from "@/components/seo/SeoVideoJsonLdScript";
+import {
+  aiInterviewCoachDemoVideo,
+  getMarketingVideoOpenGraphImage,
+  toVideoSchemaInput,
+} from "@/lib/seo/marketing-video-content";
 import { getSiteUrl } from "@/lib/seo/site-url";
 
 const siteUrl = getSiteUrl();
@@ -26,6 +32,7 @@ export const metadata: Metadata = {
       "AI mock interviews with realistic practice, company-specific questions, instant feedback, and detailed performance reports.",
     type: "website",
     url: `${siteUrl}/ai-interview-coach`,
+    images: [getMarketingVideoOpenGraphImage(aiInterviewCoachDemoVideo)],
   },
   twitter: {
     card: "summary_large_image",
@@ -40,5 +47,10 @@ export default function InterviewCoachLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return <>{children}</>;
+  return (
+    <>
+      <SeoVideoJsonLdScript {...toVideoSchemaInput(aiInterviewCoachDemoVideo)} />
+      {children}
+    </>
+  );
 }

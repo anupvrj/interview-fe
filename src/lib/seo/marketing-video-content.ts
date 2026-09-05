@@ -1,4 +1,4 @@
-import { getSiteUrl } from "./site-url";
+import { getAbsoluteAssetUrl, getSiteUrl } from "./site-url";
 import type { VideoObjectSchemaInput } from "./video-object-schema";
 import { secondsToIso8601Duration } from "./video-duration";
 import { getPublicVideoUrl } from "./video-cdn";
@@ -9,6 +9,33 @@ export type MarketingVideoContent = VideoObjectSchemaInput & {
   pagePath: string;
   durationSeconds: number;
 };
+
+/** Fields for server-rendered VideoObject JSON-LD in route layouts. */
+export function getMarketingVideoOpenGraphImage(content: MarketingVideoContent) {
+  return {
+    url: getAbsoluteAssetUrl(content.thumbnailUrl),
+    width: 1280,
+    height: 720,
+    alt: content.name,
+  };
+}
+
+export function toVideoSchemaInput(
+  content: MarketingVideoContent,
+): VideoObjectSchemaInput {
+  return {
+    id: content.id,
+    name: content.name,
+    description: content.description,
+    thumbnailUrl: content.thumbnailUrl,
+    uploadDate: content.uploadDate,
+    videoUrl: content.videoUrl,
+    embedUrl: content.embedUrl,
+    transcript: content.transcript,
+    captionsUrl: content.captionsUrl,
+    duration: content.duration,
+  };
+}
 
 export const aiInterviewDemoVideo: MarketingVideoContent = {
   id: "ai-interview-demo",
@@ -61,7 +88,7 @@ export const atsCheckerDemoVideo: MarketingVideoContent = {
   name: "Interview Trix AI Resume ATS Optimizer Demo",
   description:
     "Watch Interview Trix scan a resume across 27 ATS checks, surface parse-rate and keyword gaps, and optimize content with live Smart ATS Score feedback before you apply.",
-  thumbnailUrl: "/resume-template-images/atlantic-blue-template-design.webp",
+  thumbnailUrl: "/image-candidate-ai-interview.jpg",
   uploadDate: "2026-06-28T07:03:18+00:00",
   videoUrl: getPublicVideoUrl("ai_resume_ats_optimizer_interviewtrix.mp4"),
   embedUrl: `${getSiteUrl()}/ats-checker`,
@@ -85,6 +112,7 @@ export const aiInterviewCoachDemoVideo: MarketingVideoContent = {
   name: "Interview Trix AI Mock Interview Demo",
   description:
     "Watch an AI mock interview on Interview Trix: realistic mock interview practice, real-time feedback, company-specific questions, and a detailed scorecard.",
+  thumbnailUrl: "/ai_interview_thumbnail.png",
   embedUrl: `${getSiteUrl()}/ai-interview-coach`,
   pagePath: "/ai-interview-coach",
 };
@@ -137,7 +165,7 @@ export const aiCodingRoundDemoVideo: MarketingVideoContent = {
   name: "Interview Trix AI Coding Round Demo",
   description:
     "Watch a full AI coding round on Interview Trix: solve interview-style problems in the editor, run hidden tests, and get scored feedback before your next technical screen.",
-  thumbnailUrl: "/ai_interview_thumbnail.png",
+  thumbnailUrl: "/mock-interview-previewiew.png",
   uploadDate: "2026-07-13T00:00:00+00:00",
   videoUrl:
     "https://interview-trix-public.s3.ap-south-1.amazonaws.com/videos/Interview+Trix+AI+Coding+Round.mp4",

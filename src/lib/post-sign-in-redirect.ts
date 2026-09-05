@@ -1,10 +1,13 @@
 export const POST_SIGN_IN_RETURN_URL_KEY = "resumeBuilderReturnUrl";
 
-/** Only in-app paths. Blocks protocol-relative and off-site redirects. */
+/** Only in-app paths. Blocks protocol-relative, off-site, and wildcard placeholders. */
 export function safeAppRedirectPath(redirectUrl: string | null | undefined): string | null {
   if (!redirectUrl) return null;
   const path = redirectUrl.trim();
   if (!path.startsWith("/") || path.startsWith("//") || path.includes("://")) {
+    return null;
+  }
+  if (/[*{}<>]/.test(path)) {
     return null;
   }
   return path;
