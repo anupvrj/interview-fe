@@ -86,6 +86,79 @@ const ENV_VOICE_PROVIDER = resolveVoiceProvider(
 
 const RECORDING_OPT_IN_STORAGE_PREFIX = "interviewRecordingOptIn_";
 
+/** Gemini Live output is 24 kHz PCM16. */
+const GEMINI_PLAYBACK_RATE = 24000;
+/** Flush a playback batch once we have ~100ms of audio. */
+const PLAYBACK_BATCH_SAMPLES = 2400;
+/** Or flush after this idle gap so the first words still start quickly. */
+const PLAYBACK_BATCH_IDLE_MS = 80;
+
+function decodeBase64Pcm16(base64Audio: string): Int16Array | null {
+  const binaryString = atob(base64Audio);
+  if (binaryString.length < 2) return null;
+  const bytes = new Uint8Array(binaryString.length);
+  for (let i = 0; i < binaryString.length; i++) {
+    bytes[i] = binaryString.charCodeAt(i) & 0xff;
+  }
+  const even = bytes.byteLength & ~1;
+  if (even < 2) return null;
+  const pcm16 = new Int16Array(even / 2);
+  const view = new DataView(bytes.buffer, bytes.byteOffset, even);
+  for (let i = 0; i < pcm16.length; i++) {
+    pcm16[i] = view.getInt16(i * 2, true);
+  }
+  return pcm16;
+}
+
+function pcmRateFromMime(mime?: string): number {
+  const match = /rate=(\d+)/i.exec(mime ?? "");
+  const rate = match ? Number(match[1]) : GEMINI_PLAYBACK_RATE;
+  return Number.isFinite(rate) && rate > 0 ? rate : GEMINI_PLAYBACK_RATE;
+}
+
+/** Thought-signature blobs decoded as PCM are high-ZCR static, often 40–80ms. */
+function isLikelyStaticPcm(pcm: Int16Array): boolean {
+  if (pcm.length < 720) return false;
+  let crossings = 0;
+  let energy = 0;
+  for (let i = 1; i < pcm.length; i++) {
+    const sample = pcm[i]!;
+    energy += sample * sample;
+    if ((pcm[i - 1]! >= 0) !== (sample >= 0)) crossings += 1;
+  }
+  const zcr = crossings / pcm.length;
+  const rms = Math.sqrt(energy / pcm.length) / 32768;
+  return rms > 0.015 && zcr > 0.42;
+}
+
+function resamplePcm16ToFloat32(
+  pcm16: Int16Array,
+  fromRate: number,
+  toRate: number,
+): Float32Array {
+  if (fromRate === toRate) {
+    const out = new Float32Array(pcm16.length);
+    for (let i = 0; i < pcm16.length; i++) {
+      out[i] = pcm16[i]! / 32768;
+    }
+    return out;
+  }
+  const ratio = toRate / fromRate;
+  const outLen = Math.max(1, Math.floor(pcm16.length * ratio));
+  const out = new Float32Array(outLen);
+  const last = pcm16.length - 1;
+  for (let i = 0; i < outLen; i++) {
+    const src = i / ratio;
+    const i0 = Math.min(last, Math.floor(src));
+    const i1 = Math.min(last, i0 + 1);
+    const frac = src - i0;
+    const s0 = pcm16[i0]! / 32768;
+    const s1 = pcm16[i1]! / 32768;
+    out[i] = s0 * (1 - frac) + s1 * frac;
+  }
+  return out;
+}
+
 export type CodingDiscussionHostEvent = "leave" | "done" | "close";
 
 export type RealtimeInterviewClientProps = {
@@ -192,6 +265,12 @@ export function RealtimeInterviewClient({
   const audioBufferRef = useRef<Int16Array[]>([]);
   const audioBufferTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isPlayingAudioRef = useRef(false);
+  const nextPlayAtRef = useRef(0);
+  const playbackSourcesRef = useRef<AudioBufferSourceNode[]>([]);
+  const playbackNodeRef = useRef<AudioWorkletNode | null>(null);
+  const playbackSourceRateRef = useRef(GEMINI_PLAYBACK_RATE);
+  const pendingPlaybackRef = useRef<Int16Array[]>([]);
+  const playbackWorkletFailedRef = useRef(false);
   const isInterviewActiveRef = useRef(false);
   const connectionInitiatedRef = useRef(false);
   const isResumingRef = useRef(false);
@@ -226,6 +305,28 @@ export function RealtimeInterviewClient({
       clearInterval(clientWsHeartbeatRef.current);
       clientWsHeartbeatRef.current = null;
     }
+  };
+
+  const stopAiPlayback = () => {
+    for (const source of playbackSourcesRef.current) {
+      try {
+        source.onended = null;
+        source.stop();
+      } catch {
+        /* already stopped */
+      }
+    }
+    playbackSourcesRef.current = [];
+    playbackNodeRef.current?.port.postMessage({ type: "clear" });
+    pendingPlaybackRef.current = [];
+    audioQueueRef.current = [];
+    audioBufferRef.current = [];
+    if (audioBufferTimerRef.current) {
+      clearTimeout(audioBufferTimerRef.current);
+      audioBufferTimerRef.current = null;
+    }
+    nextPlayAtRef.current = 0;
+    isPlayingAudioRef.current = false;
   };
 
   const startClientWsHeartbeat = () => {
@@ -637,12 +738,7 @@ export function RealtimeInterviewClient({
     }
     mediaStreamRef.current = null;
     mediaStreamOwnedRef.current = true;
-    audioQueueRef.current = [];
-    audioBufferRef.current = [];
-    if (audioBufferTimerRef.current) {
-      clearTimeout(audioBufferTimerRef.current);
-      audioBufferTimerRef.current = null;
-    }
+    stopAiPlayback();
     recordedChunksRef.current = [];
     isPlayingAudioRef.current = false;
     isInterviewActiveRef.current = false;
@@ -751,7 +847,10 @@ export function RealtimeInterviewClient({
           } else if (data.type === "openai_event") {
             handleOpenAIEvent(data.event);
           } else if (data.type === "audio_response") {
-            handleGeminiAudioResponse(String(data.audioData ?? ""));
+            handleGeminiAudioResponse(
+              String(data.audioData ?? ""),
+              typeof data.mimeType === "string" ? data.mimeType : undefined,
+            );
             setIsAISpeaking(true);
             setIsAIProcessing(false);
             setIsPreparing(false);
@@ -823,33 +922,30 @@ export function RealtimeInterviewClient({
               endInterview();
             }, 15000);
           } else if (data.type === "session_ended") {
-            audioQueueRef.current = [];
-            audioBufferRef.current = [];
-            if (audioBufferTimerRef.current) {
-              clearTimeout(audioBufferTimerRef.current);
-              audioBufferTimerRef.current = null;
-            }
-            isPlayingAudioRef.current = false;
+            // Server's Gemini session has fully closed (normal or manual end).
+            stopAiPlayback();
             setIsAISpeaking(false);
             setIsAIProcessing(false);
             setIsReconnecting(false);
           } else if (data.type === "confirm_end_interview") {
             setShowConfirmEndInterview(true);
           } else if (data.type === "turn_complete") {
-            setIsAISpeaking(false);
+            // Generation finished. Do not abort playback — resetting
+            // isPlayingAudioRef here starts a second stream on the next chunk
+            // and sounds like digital noise between sentences.
             setIsAIProcessing(false);
             setCurrentAssistantTranscript("");
-            isPlayingAudioRef.current = false;
+            const ctx = audioContextRef.current;
+            const stillPlaying = ctx
+              ? nextPlayAtRef.current > ctx.currentTime + 0.05
+              : isPlayingAudioRef.current;
+            if (!stillPlaying && audioBufferRef.current.length === 0) {
+              setIsAISpeaking(false);
+            }
           } else if (data.type === "user_transcript") {
             /* processed server-side */
           } else if (data.type === "interrupted") {
-            audioQueueRef.current = [];
-            audioBufferRef.current = [];
-            if (audioBufferTimerRef.current) {
-              clearTimeout(audioBufferTimerRef.current);
-              audioBufferTimerRef.current = null;
-            }
-            isPlayingAudioRef.current = false;
+            stopAiPlayback();
             setIsAISpeaking(false);
             setIsAIProcessing(false);
             setCurrentAssistantTranscript("");
@@ -986,106 +1082,145 @@ export function RealtimeInterviewClient({
     }
   };
 
-  const playAudioQueue = async () => {
-    if (!audioContextRef.current || audioQueueRef.current.length === 0) {
+  const markPlaybackIdleIfDrained = () => {
+    const ctx = audioContextRef.current;
+    const stillScheduled = ctx
+      ? nextPlayAtRef.current > ctx.currentTime + 0.03
+      : false;
+    if (
+      playbackSourcesRef.current.length === 0 &&
+      audioBufferRef.current.length === 0 &&
+      !stillScheduled
+    ) {
       isPlayingAudioRef.current = false;
-      if (audioBufferRef.current.length === 0) {
-        setIsAISpeaking(false);
-      }
-      return;
+      setIsAISpeaking(false);
+    }
+  };
+
+  /** Schedule PCM on the audio clock so chunk boundaries do not click. */
+  const schedulePcmPlayback = (pcm16: Int16Array) => {
+    const ctx = audioContextRef.current;
+    if (!ctx || pcm16.length === 0) return;
+    if (ctx.state === "suspended") {
+      void ctx.resume();
     }
 
-    isPlayingAudioRef.current = true;
-    const pcm16Chunk = audioQueueRef.current.shift()!;
-
-    // Convert PCM16 to Float32
-    const float32 = new Float32Array(pcm16Chunk.length);
-    for (let i = 0; i < pcm16Chunk.length; i++) {
-      float32[i] = pcm16Chunk[i] / 32768;
+    const float32 = new Float32Array(pcm16.length);
+    for (let i = 0; i < pcm16.length; i++) {
+      float32[i] = pcm16[i]! / 32768;
     }
-
-    // Create and play audio buffer
-    const audioBuffer = audioContextRef.current.createBuffer(
-      1,
-      float32.length,
-      24000, // 24kHz sample rate for OpenAI audio
-    );
+    const audioBuffer = ctx.createBuffer(1, float32.length, GEMINI_PLAYBACK_RATE);
     audioBuffer.copyToChannel(float32, 0);
 
-    const source = audioContextRef.current.createBufferSource();
+    const source = ctx.createBufferSource();
     source.buffer = audioBuffer;
-
-    // Connect to speakers for playback
-    source.connect(audioContextRef.current.destination);
-
-    // Also connect to recording destination if it exists (for capturing AI voice)
+    source.connect(ctx.destination);
     if (aiAudioDestinationRef.current) {
       source.connect(aiAudioDestinationRef.current);
     }
 
-    // When this chunk finishes, play the next one
+    const startAt = Math.max(ctx.currentTime, nextPlayAtRef.current);
+    nextPlayAtRef.current = startAt + audioBuffer.duration;
+    isPlayingAudioRef.current = true;
+    playbackSourcesRef.current.push(source);
     source.onended = () => {
-      isPlayingAudioRef.current = false;
-      if (audioQueueRef.current.length > 0) {
-        playAudioQueue();
-      } else if (audioBufferRef.current.length === 0) {
-        setIsAISpeaking(false);
-      }
+      playbackSourcesRef.current = playbackSourcesRef.current.filter(
+        (s) => s !== source,
+      );
+      markPlaybackIdleIfDrained();
     };
-
-    source.start();
+    source.start(startAt);
   };
 
-  /** Decode Gemini audio_response (base64 PCM 24kHz) and batch for smooth playback. */
-  const handleGeminiAudioResponse = (base64Audio: string) => {
+  const flushPlaybackBatch = () => {
+    if (audioBufferTimerRef.current) {
+      clearTimeout(audioBufferTimerRef.current);
+      audioBufferTimerRef.current = null;
+    }
+    if (audioBufferRef.current.length === 0) return;
+
+    const totalLength = audioBufferRef.current.reduce(
+      (sum, chunk) => sum + chunk.length,
+      0,
+    );
+    const combined = new Int16Array(totalLength);
+    let offset = 0;
+    for (const chunk of audioBufferRef.current) {
+      combined.set(chunk, offset);
+      offset += chunk.length;
+    }
+    audioBufferRef.current = [];
+
+    if (isLikelyStaticPcm(combined)) {
+      console.warn(
+        `[audio] skipped static/thought PCM chunk (${combined.length} samples)`,
+      );
+      return;
+    }
+    pushPlaybackSamples(combined, playbackSourceRateRef.current);
+  };
+
+  const pushPlaybackSamples = (pcm16: Int16Array, sourceRate: number) => {
+    const ctx = audioContextRef.current;
+    if (!ctx || pcm16.length === 0) return;
+    if (ctx.state === "suspended") {
+      void ctx.resume();
+    }
+    const node = playbackNodeRef.current;
+    if (!node) {
+      if (playbackWorkletFailedRef.current) {
+        schedulePcmPlayback(pcm16);
+      } else {
+        pendingPlaybackRef.current.push(pcm16);
+      }
+      return;
+    }
+    const samples = resamplePcm16ToFloat32(pcm16, sourceRate, ctx.sampleRate);
+    node.port.postMessage({ type: "push", samples }, [samples.buffer]);
+    isPlayingAudioRef.current = true;
+    setIsAISpeaking(true);
+  };
+
+  const enqueuePcm16 = (pcm16: Int16Array) => {
+    if (pcm16.length === 0) return;
+    if (isLikelyStaticPcm(pcm16)) {
+      console.warn(
+        `[audio] skipped static/thought PCM chunk (${pcm16.length} samples)`,
+      );
+      return;
+    }
+    audioBufferRef.current.push(pcm16);
+    const buffered = audioBufferRef.current.reduce(
+      (sum, chunk) => sum + chunk.length,
+      0,
+    );
+    if (buffered >= PLAYBACK_BATCH_SAMPLES) {
+      flushPlaybackBatch();
+      return;
+    }
+    if (audioBufferTimerRef.current) {
+      clearTimeout(audioBufferTimerRef.current);
+    }
+    audioBufferTimerRef.current = setTimeout(
+      flushPlaybackBatch,
+      PLAYBACK_BATCH_IDLE_MS,
+    );
+  };
+
+  const handleGeminiAudioResponse = (base64Audio: string, mimeType?: string) => {
     if (webrtcAudioActiveRef.current) return;
     if (!base64Audio) return;
     try {
-      const binaryString = atob(base64Audio);
-      const bytes = new Uint8Array(binaryString.length);
-      for (let i = 0; i < binaryString.length; i++) {
-        bytes[i] = binaryString.codePointAt(i) ?? 0;
+      const pcm16 = decodeBase64Pcm16(base64Audio);
+      if (!pcm16) return;
+      playbackSourceRateRef.current = pcmRateFromMime(mimeType);
+      if (isLikelyStaticPcm(pcm16)) {
+        console.warn(
+          `[audio] skipped static/thought PCM chunk (${pcm16.length} samples)`,
+        );
+        return;
       }
-
-      // Skip empty audio chunks (0 bytes) to prevent stuttering
-      if (bytes.length === 0) return;
-
-      const pcm16 = new Int16Array(bytes.buffer);
-
-      // Add to buffer for batching
-      audioBufferRef.current.push(pcm16);
-
-      // Clear existing timer
-      if (audioBufferTimerRef.current) {
-        clearTimeout(audioBufferTimerRef.current);
-      }
-
-      // Flush buffer after 20ms of no new chunks (batches small chunks together, low latency)
-      audioBufferTimerRef.current = setTimeout(() => {
-        if (audioBufferRef.current.length > 0) {
-          // Concatenate all buffered chunks into one
-          const totalLength = audioBufferRef.current.reduce(
-            (sum, chunk) => sum + chunk.length,
-            0,
-          );
-          const combined = new Int16Array(totalLength);
-          let offset = 0;
-
-          for (const chunk of audioBufferRef.current) {
-            combined.set(chunk, offset);
-            offset += chunk.length;
-          }
-
-          // Add combined chunk to playback queue
-          audioQueueRef.current.push(combined);
-          audioBufferRef.current = [];
-
-          // Start playing if not already playing
-          if (!isPlayingAudioRef.current) {
-            playAudioQueue();
-          }
-        }
-      }, 20);
+      pushPlaybackSamples(pcm16, playbackSourceRateRef.current);
     } catch (err) {
       console.error("Error queueing Gemini audio:", err);
     }
@@ -1099,13 +1234,7 @@ export function RealtimeInterviewClient({
 
       case "input_audio_buffer.speech_started":
         // User started speaking - stop AI audio immediately
-        audioQueueRef.current = [];
-        audioBufferRef.current = [];
-        if (audioBufferTimerRef.current) {
-          clearTimeout(audioBufferTimerRef.current);
-          audioBufferTimerRef.current = null;
-        }
-        isPlayingAudioRef.current = false;
+        stopAiPlayback();
         // Stop any currently playing audio
         if (audioContextRef.current) {
           audioContextRef.current.suspend();
@@ -1124,24 +1253,12 @@ export function RealtimeInterviewClient({
       case "response.created":
         // New response starting - clear current transcript and audio queue
         setCurrentAssistantTranscript(""); // Clear to start fresh
-        audioQueueRef.current = [];
-        audioBufferRef.current = [];
-        if (audioBufferTimerRef.current) {
-          clearTimeout(audioBufferTimerRef.current);
-          audioBufferTimerRef.current = null;
-        }
-        isPlayingAudioRef.current = false;
+        stopAiPlayback();
         break;
 
       case "response.cancelled":
         // Response was cancelled (due to interruption)
-        audioQueueRef.current = [];
-        audioBufferRef.current = [];
-        if (audioBufferTimerRef.current) {
-          clearTimeout(audioBufferTimerRef.current);
-          audioBufferTimerRef.current = null;
-        }
-        isPlayingAudioRef.current = false;
+        stopAiPlayback();
         setCurrentAssistantTranscript("");
         break;
 
@@ -1189,21 +1306,8 @@ export function RealtimeInterviewClient({
             }, 1000);
           }
           try {
-            // Decode base64 to PCM16
-            const binaryString = atob(event.delta);
-            const bytes = new Uint8Array(binaryString.length);
-            for (let i = 0; i < binaryString.length; i++) {
-              bytes[i] = binaryString.codePointAt(i) ?? 0;
-            }
-            const pcm16 = new Int16Array(bytes.buffer);
-
-            // Add to queue
-            audioQueueRef.current.push(pcm16);
-
-            // Start playing if not already playing
-            if (!isPlayingAudioRef.current) {
-              playAudioQueue();
-            }
+            const pcm16 = decodeBase64Pcm16(event.delta);
+            if (pcm16) enqueuePcm16(pcm16);
           } catch (error) {
             console.error("Error queueing AI audio:", error);
           }
@@ -1321,6 +1425,53 @@ export function RealtimeInterviewClient({
       )();
       audioContextRef.current = audioContext;
       console.log(`🎵 AudioContext ready: ${audioContext.sampleRate}Hz → ${TARGET_SAMPLE_RATE}Hz`);
+      if (audioContext.audioWorklet) {
+        audioContext.audioWorklet
+          .addModule("/pcm-playback.worklet.js")
+          .then(() => {
+            if (playbackNodeRef.current) {
+              try {
+                playbackNodeRef.current.disconnect();
+              } catch {
+                /* ignore */
+              }
+            }
+            const node = new AudioWorkletNode(audioContext, "pcm-playback");
+            node.port.onmessage = (event) => {
+              if (event.data?.type === "drained") {
+                isPlayingAudioRef.current = false;
+                setIsAISpeaking(false);
+              }
+            };
+            node.connect(audioContext.destination);
+            if (aiAudioDestinationRef.current) {
+              node.connect(aiAudioDestinationRef.current);
+            }
+            playbackNodeRef.current = node;
+            console.log("🔊 PCM playback worklet ready");
+            const pending = pendingPlaybackRef.current;
+            pendingPlaybackRef.current = [];
+            for (const pcm of pending) {
+              const samples = resamplePcm16ToFloat32(
+                pcm,
+                playbackSourceRateRef.current,
+                audioContext.sampleRate,
+              );
+              node.port.postMessage({ type: "push", samples }, [samples.buffer]);
+              isPlayingAudioRef.current = true;
+              setIsAISpeaking(true);
+            }
+          })
+          .catch((err) => {
+            playbackWorkletFailedRef.current = true;
+            console.warn("PCM playback worklet failed, using BufferSource:", err);
+            const pending = pendingPlaybackRef.current;
+            pendingPlaybackRef.current = [];
+            for (const pcm of pending) {
+              schedulePcmPlayback(pcm);
+            }
+          });
+      }
 
       // Keep the audio graph alive without routing mic input to speakers.
       const silentOutput = audioContext.createGain();
@@ -1854,6 +2005,9 @@ export function RealtimeInterviewClient({
         const aiAudioDestination =
           audioContextRef.current.createMediaStreamDestination();
         aiAudioDestinationRef.current = aiAudioDestination;
+        if (playbackNodeRef.current) {
+          playbackNodeRef.current.connect(aiAudioDestination);
+        }
         console.log(
           "🎙️ Created AI audio capture destination (fallback - no tab audio)",
         );
@@ -1872,6 +2026,9 @@ export function RealtimeInterviewClient({
         const aiAudioDestination =
           audioContextRef.current.createMediaStreamDestination();
         aiAudioDestinationRef.current = aiAudioDestination;
+        if (playbackNodeRef.current) {
+          playbackNodeRef.current.connect(aiAudioDestination);
+        }
         console.log(
           "🎙️ Created AI audio destination (for playback only - tab audio used for recording)",
         );
