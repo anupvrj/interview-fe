@@ -340,6 +340,8 @@ export interface Interview {
     discussionDurationMinutes?: number;
     /** When true (e.g. institute admin), denying screen capture may block the session. */
     requireSessionRecording?: boolean;
+    /** Voice AI provider selected at interview creation. */
+    voiceProvider?: "gemini" | "chatgpt" | "sarvam";
   };
   codingRound?: {
     status: string;
@@ -504,6 +506,8 @@ export interface CreateInterviewRequest {
   duration?: number;
   /** Job posting description from Chrome extension (or pasted) for JD-grounded questions. */
   jobDescription?: string;
+  /** Voice AI provider for the realtime interview session. */
+  voiceProvider?: "gemini" | "chatgpt" | "sarvam";
 }
 
 export interface CreateInterviewResponse {
@@ -706,6 +710,9 @@ export const interviewApi = {
         "jobDescription",
         trimJobDescriptionForSend(data.jobDescription),
       );
+    }
+    if (data.voiceProvider) {
+      formData.append("voiceProvider", data.voiceProvider);
     }
     if (data.resume) {
       const resumeBlob = await snapshotFileForUpload(data.resume);
