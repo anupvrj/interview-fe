@@ -1,9 +1,7 @@
-import { API_URL } from "@/lib/api";
 import type {
   VoiceTransport,
   VoiceTransportConnectOptions,
   VoiceTransportMessageHandler,
-  WebRtcAudioCallbacks,
 } from "./types";
 
 export class WebSocketVoiceTransport implements VoiceTransport {

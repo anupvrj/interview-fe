@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Star } from "lucide-react";
+import { Loader2, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -13,18 +13,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { appPrimaryButton } from "@/lib/app-theme";
 import type { InterviewPostSessionChallenge } from "@/lib/api";
 
 /** Payload for `interviewApi.submitPostInterviewFeedback`. */
 export type PostInterviewFeedbackPayload = {
   interviewId: string;
-  /** Simple yes/no answer. */
   sessionHelpful: boolean;
-  /** Whether the interview questions felt relevant. */
   questionsRelevant: boolean;
-  /** 1–5 overall experience. */
   overallRating: number;
-  /** Technical or connectivity issues during the session. */
   sessionChallenge: InterviewPostSessionChallenge;
   comment: string;
 };
@@ -32,10 +29,77 @@ export type PostInterviewFeedbackPayload = {
 type PostInterviewFeedbackFormProps = {
   interviewId: string;
   onSubmitFeedback: (payload: PostInterviewFeedbackPayload) => void;
-  /** Tighter spacing when embedded (e.g. processing page). */
   compact?: boolean;
   submitting?: boolean;
 };
+
+function FieldRow({
+  label,
+  htmlFor,
+  error,
+  children,
+}: {
+  label: string;
+  htmlFor?: string;
+  error?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="grid gap-2 border-b border-border/50 py-3 last:border-b-0 sm:grid-cols-[1fr_auto] sm:items-center sm:gap-4">
+      <Label
+        htmlFor={htmlFor}
+        className="text-sm font-medium leading-snug text-foreground"
+      >
+        {label}
+      </Label>
+      <div className="sm:justify-self-end">{children}</div>
+      {error ? (
+        <p
+          className="text-xs text-red-600 dark:text-red-400 sm:col-span-2"
+          role="alert"
+        >
+          {error}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+function YesNoToggle({
+  value,
+  onChange,
+}: {
+  value: boolean | null;
+  onChange: (next: boolean) => void;
+}) {
+  return (
+    <div className="inline-flex rounded-md border border-border/80 bg-card p-0.5">
+      {(
+        [
+          { label: "Yes", val: true },
+          { label: "No", val: false },
+        ] as const
+      ).map(({ label, val }) => {
+        const selected = value === val;
+        return (
+          <button
+            key={label}
+            type="button"
+            onClick={() => onChange(val)}
+            className={cn(
+              "min-w-[3.25rem] rounded px-3 py-1.5 text-sm font-medium transition-colors",
+              selected
+                ? "bg-[#7367F0] text-white"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            {label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
 
 export function PostInterviewFeedbackForm({
   interviewId,
@@ -80,90 +144,30 @@ export function PostInterviewFeedbackForm({
   };
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      className={cn(compact ? "space-y-5" : "space-y-8")}
-    >
-      <div className="space-y-3">
-        <Label className="text-base text-gray-900">
-          Was this session helpful for your interview preparation?
-        </Label>
-        <div className="flex flex-wrap gap-3">
-          <Button
-            type="button"
-            variant={sessionHelpful === true ? "default" : "outline"}
-            className={cn(
-              "min-w-[100px] border-gray-200",
-              sessionHelpful === true &&
-                "!bg-primary hover:!bg-slate-900 text-white shadow-md",
-            )}
-            onClick={() => setSessionHelpful(true)}
-          >
-            Yes
-          </Button>
-          <Button
-            type="button"
-            variant={sessionHelpful === false ? "default" : "outline"}
-            className={cn(
-              "min-w-[100px] border-gray-200",
-              sessionHelpful === false &&
-                "!bg-primary hover:!bg-slate-900 text-white shadow-md",
-            )}
-            onClick={() => setSessionHelpful(false)}
-          >
-            No
-          </Button>
-        </div>
-        {showHelpfulError && (
-          <p className="text-sm text-red-600" role="alert">
-            Please choose Yes or No.
-          </p>
-        )}
-      </div>
+    <form onSubmit={handleSubmit} className={cn(compact ? "space-y-2" : "")}>
+      <FieldRow
+        label="Was this session helpful?"
+        error={showHelpfulError ? "Required" : undefined}
+      >
+        <YesNoToggle value={sessionHelpful} onChange={setSessionHelpful} />
+      </FieldRow>
 
-      <div className="space-y-3">
-        <Label className="text-base text-gray-900">
-          Were the interview questions relevant?
-        </Label>
-        <div className="flex flex-wrap gap-3">
-          <Button
-            type="button"
-            variant={questionsRelevant === true ? "default" : "outline"}
-            className={cn(
-              "min-w-[100px] border-gray-200",
-              questionsRelevant === true &&
-                "!bg-primary hover:!bg-slate-900 text-white shadow-md",
-            )}
-            onClick={() => setQuestionsRelevant(true)}
-          >
-            Yes
-          </Button>
-          <Button
-            type="button"
-            variant={questionsRelevant === false ? "default" : "outline"}
-            className={cn(
-              "min-w-[100px] border-gray-200",
-              questionsRelevant === false &&
-                "!bg-primary hover:!bg-slate-900 text-white shadow-md",
-            )}
-            onClick={() => setQuestionsRelevant(false)}
-          >
-            No
-          </Button>
-        </div>
-        {showQuestionsRelevantError && (
-          <p className="text-sm text-red-600" role="alert">
-            Please choose Yes or No.
-          </p>
-        )}
-      </div>
+      <FieldRow
+        label="Were the questions relevant?"
+        error={showQuestionsRelevantError ? "Required" : undefined}
+      >
+        <YesNoToggle
+          value={questionsRelevant}
+          onChange={setQuestionsRelevant}
+        />
+      </FieldRow>
 
-      <div className="space-y-3">
-        <Label className="text-base text-gray-900">
-          How would you rate the overall experience?
-        </Label>
+      <FieldRow
+        label="Overall experience"
+        error={showRatingError ? "Required" : undefined}
+      >
         <div
-          className="flex items-center gap-1"
+          className="flex items-center gap-0.5"
           role="radiogroup"
           aria-label="Overall rating from 1 to 5"
         >
@@ -176,17 +180,15 @@ export function PostInterviewFeedbackForm({
                 role="radio"
                 aria-checked={overallRating === value}
                 aria-label={`${value} out of 5 stars`}
-                className={cn(
-                  "rounded-md p-1.5 transition-colors hover:bg-amber-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
-                )}
+                className="rounded p-0.5 transition-colors hover:bg-[#7367F0]/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7367F0]"
                 onClick={() => setOverallRating(value)}
               >
                 <Star
                   className={cn(
-                    "h-9 w-9 sm:h-10 sm:w-10",
+                    "h-6 w-6",
                     active
                       ? "fill-amber-400 text-amber-500"
-                      : "text-gray-300",
+                      : "text-muted-foreground/35",
                   )}
                   strokeWidth={active ? 0 : 1.5}
                   aria-hidden
@@ -195,28 +197,9 @@ export function PostInterviewFeedbackForm({
             );
           })}
         </div>
-        {overallRating !== null && (
-          <p className="text-sm text-gray-600">
-            {overallRating} out of 5
-          </p>
-        )}
-        {showRatingError && (
-          <p className="text-sm text-red-600" role="alert">
-            Please select a rating.
-          </p>
-        )}
-      </div>
+      </FieldRow>
 
-      <div className="space-y-2">
-        <Label
-          htmlFor="interview-feedback-challenge"
-          className="text-base text-gray-900"
-        >
-          Any challenges during the session?
-        </Label>
-        <p className="text-sm text-gray-500">
-          For example slowness, connection drops, or audio issues.
-        </p>
+      <FieldRow label="Any issues?" htmlFor="interview-feedback-challenge">
         <Select
           value={sessionChallenge}
           onValueChange={(v) =>
@@ -225,47 +208,53 @@ export function PostInterviewFeedbackForm({
         >
           <SelectTrigger
             id="interview-feedback-challenge"
-            className="border-gray-200 bg-card text-gray-900 h-11"
+            className="h-9 w-full min-w-[10rem] border-border/80 bg-card sm:w-[11rem]"
           >
-            <SelectValue placeholder="Select an option" />
+            <SelectValue placeholder="No issues" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="none">No issues</SelectItem>
             <SelectItem value="slowness">Slowness or lag</SelectItem>
-            <SelectItem value="connection_abort">
-              Connection dropped or aborted
-            </SelectItem>
+            <SelectItem value="connection_abort">Connection dropped</SelectItem>
             <SelectItem value="audio">Audio issues</SelectItem>
-            <SelectItem value="video">Video or camera issues</SelectItem>
+            <SelectItem value="video">Video issues</SelectItem>
             <SelectItem value="other">Other</SelectItem>
           </SelectContent>
         </Select>
-      </div>
+      </FieldRow>
 
-      <div className="space-y-2">
-        <Label htmlFor="interview-feedback-comment" className="text-base text-gray-900">
-          Anything else you&apos;d like to share?{" "}
-          <span className="font-normal text-gray-500">(optional)</span>
+      <div className="border-b border-border/50 py-3 last:border-b-0">
+        <Label
+          htmlFor="interview-feedback-comment"
+          className="text-sm font-medium text-foreground"
+        >
+          Comments <span className="font-normal text-muted-foreground">(optional)</span>
         </Label>
         <Textarea
           id="interview-feedback-comment"
-          placeholder="Comments, suggestions, or issues you noticed…"
+          placeholder="Anything else to share…"
           value={comment}
           onChange={(e) => setComment(e.target.value)}
-          className="min-h-[100px] resize-y border-gray-200 bg-card text-gray-900 placeholder:text-gray-400"
+          className="mt-2 min-h-[64px] resize-none border-border/80 bg-card text-sm placeholder:text-muted-foreground/60"
           maxLength={2000}
+          rows={2}
         />
-        <p className="text-xs text-gray-500 text-right">{comment.length} / 2000</p>
       </div>
 
-      <div className="pt-2">
+      <div className="pt-3">
         <Button
           type="submit"
-          size="lg"
           disabled={submitting}
-          className="w-full sm:w-auto min-w-[160px] !bg-primary hover:!bg-slate-900 text-white shadow-md hover:shadow-lg transition-all disabled:opacity-60 disabled:hover:!bg-primary"
+          className={cn(appPrimaryButton, "h-9 w-full")}
         >
-          {submitting ? "Submitting…" : "Submit feedback"}
+          {submitting ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
+              Submitting…
+            </>
+          ) : (
+            "Submit & generate report"
+          )}
         </Button>
       </div>
     </form>

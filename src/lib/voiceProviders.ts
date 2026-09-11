@@ -63,26 +63,6 @@ export function providerDisplayLabel(provider: VoiceProvider): string {
   return PROVIDER_LABELS[provider];
 }
 
-export type VoiceAudioTransportMode = "websocket" | "webrtc";
-
-export function isLiveKitConfiguredOnClient(): boolean {
-  return Boolean(process.env.NEXT_PUBLIC_LIVEKIT_URL?.trim());
-}
-
-export function resolveAudioTransportMode(
-  preferred?: VoiceAudioTransportMode,
-): VoiceAudioTransportMode {
-  const envDefault =
-    process.env.NEXT_PUBLIC_VOICE_AUDIO_TRANSPORT?.trim() as
-      | VoiceAudioTransportMode
-      | undefined;
-  const choice = preferred ?? envDefault ?? "websocket";
-  if (choice === "webrtc" && isLiveKitConfiguredOnClient()) {
-    return "webrtc";
-  }
-  return "websocket";
-}
-
 export const DEFAULT_VOICE_PROVIDER_OPTIONS: VoiceProviderOption[] = [
   { id: "gemini", label: PROVIDER_LABELS.gemini, enabled: true },
   { id: "chatgpt", label: PROVIDER_LABELS.chatgpt, enabled: true },
