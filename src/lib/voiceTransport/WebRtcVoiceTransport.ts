@@ -88,8 +88,16 @@ export class WebRtcVoiceTransport implements VoiceTransport {
       },
     );
 
+    room.on(RoomEvent.ActiveSpeakersChanged, (speakers) => {
+      const speaking = speakers.some((participant) =>
+        participant.identity.startsWith("agent-"),
+      );
+      this.audioCallbacks.onAgentSpeaking?.(speaking);
+    });
+
     room.on(RoomEvent.Disconnected, () => {
       this.audioReady = false;
+      this.audioCallbacks.onAgentSpeaking?.(false);
     });
 
     await room.connect(url, token);
