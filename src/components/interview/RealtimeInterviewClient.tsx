@@ -62,7 +62,6 @@ import {
   buildRealtimeWsPath,
   buildVoiceQueryParam,
   providerDisplayLabel,
-  resolveAudioTransportMode,
   resolveVoiceProvider,
   usesUnifiedVoiceProtocol,
   type VoiceProvider,
@@ -258,7 +257,6 @@ export function RealtimeInterviewClient({
   const mediaStreamOwnedRef = useRef(true);
   const websocketRef = useRef<WebSocket | null>(null);
   const voiceTransportRef = useRef<VoiceTransport | null>(null);
-  const webrtcAudioActiveRef = useRef(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const timerStartedRef = useRef(false);
   // AudioWorkletNode is the primary processor; ScriptProcessorNode used as fallback only.
@@ -314,7 +312,6 @@ export function RealtimeInterviewClient({
     null,
   );
   const lastCommittedAssistantRef = useRef("");
-  const webrtcAgentSpeakingRef = useRef(false);
 
   const stopClientWsHeartbeat = () => {
     if (clientWsHeartbeatRef.current) {
@@ -343,7 +340,6 @@ export function RealtimeInterviewClient({
     }
     nextPlayAtRef.current = 0;
     isPlayingAudioRef.current = false;
-    voiceTransportRef.current?.stopAgentPlayback?.();
   };
 
   const stopCaptionRevealTimer = () => {
@@ -408,7 +404,7 @@ export function RealtimeInterviewClient({
     }
     captionFinishTimerRef.current = setTimeout(() => {
       captionFinishTimerRef.current = null;
-      if (isPlayingAudioRef.current || webrtcAgentSpeakingRef.current) return;
+      if (isPlayingAudioRef.current) return;
       if (!pendingAssistantCompleteRef.current) return;
       commitSpeechSyncedCaption();
     }, SPEECH_CAPTION_FINISH_DEBOUNCE_MS);
@@ -778,7 +774,6 @@ export function RealtimeInterviewClient({
       autoReconnectTimerRef.current = null;
     }
     if (timerRef.current) clearInterval(timerRef.current);
-    webrtcAudioActiveRef.current = false;
     if (voiceTransportRef.current) {
       voiceTransportRef.current.disconnect();
       voiceTransportRef.current = null;
@@ -878,10 +873,7 @@ export function RealtimeInterviewClient({
       const wsUrl = `${wsProtocol}//${baseUrl}/api/${realtimePath}?userId=${encodeURIComponent(userId)}&interviewDurationMinutes=${durationParam}${sessionPhaseQs}${voiceQuery}${personaQuery}`;
 
       console.log("🔌 Connecting to WebSocket:", wsUrl);
-      const audioTransportMode = resolveAudioTransportMode();
-      const transport = createVoiceTransport(
-        audioTransportMode,
-        (data) => {
+      const transport = createVoiceTransport((data) => {
         try {
           if (data.type === "preparing") {
             console.log("⏳ Preparing interview...");
@@ -914,23 +906,6 @@ export function RealtimeInterviewClient({
             }
             setConnected(true);
             setError("");
-            if (
-              transport.mode === "webrtc" &&
-              transport.connectAudio &&
-              !webrtcAudioActiveRef.current
-            ) {
-              void transport
-                .connectAudio({ interviewId, userId })
-                .catch((err: unknown) => {
-                  console.error("[WebRTC] LiveKit connect failed:", err);
-                  setActiveError(
-                    "WebRTC audio unavailable — continuing on WebSocket audio.",
-                  );
-                });
-            }
-          } else if (data.type === "webrtc_audio_active") {
-            webrtcAudioActiveRef.current = true;
-            console.log("[WebRTC] audio path active", data.provider);
           } else if (data.type === "openai_event") {
             handleOpenAIEvent(data.event);
           } else if (data.type === "audio_response") {
@@ -969,10 +944,7 @@ export function RealtimeInterviewClient({
               ) {
                 pendingAssistantTextRef.current = text;
                 pendingAssistantCompleteRef.current = isComplete;
-                if (
-                  isPlayingAudioRef.current ||
-                  webrtcAgentSpeakingRef.current
-                ) {
+                if (isPlayingAudioRef.current) {
                   beginSpeechSyncedCaption();
                 }
               } else if (isComplete) {
@@ -1093,30 +1065,8 @@ export function RealtimeInterviewClient({
         } catch (error) {
           console.error("Error parsing WebSocket message:", error);
         }
-      },
-        {
-          onAgentSpeaking: (speaking) => {
-            webrtcAgentSpeakingRef.current = speaking;
-            if (speaking) {
-              setIsAISpeaking(true);
-              if (
-                shouldHoldAssistantCaptionUntilAudio(voiceProviderRef.current)
-              ) {
-                beginSpeechSyncedCaption();
-              }
-            } else {
-              setIsAISpeaking(false);
-              if (
-                shouldHoldAssistantCaptionUntilAudio(voiceProviderRef.current)
-              ) {
-                scheduleFinishSpeechSyncedCaption();
-              }
-            }
-          },
-        },
-      );
+      });
       voiceTransportRef.current = transport;
-      webrtcAudioActiveRef.current = false;
 
       const ws = await transport.connectControl({
         controlUrl: wsUrl,
@@ -1174,7 +1124,6 @@ export function RealtimeInterviewClient({
         setIsReconnecting(false);
         // Always reset so a future reconnect attempt can proceed.
         connectionInitiatedRef.current = false;
-        webrtcAudioActiveRef.current = false;
         voiceTransportRef.current = null;
         websocketRef.current = null;
         // Benign codes: proxy / going away / no status / abnormal (1006) — auto-reconnect.
@@ -1355,7 +1304,6 @@ export function RealtimeInterviewClient({
   };
 
   const handleGeminiAudioResponse = (base64Audio: string, mimeType?: string) => {
-    if (webrtcAudioActiveRef.current) return;
     if (!base64Audio) return;
     try {
       const pcm16 = decodeBase64Pcm16(base64Audio);
@@ -1494,7 +1442,6 @@ export function RealtimeInterviewClient({
     };
 
     const sendAudioChunk = (base64Audio: string) => {
-      if (webrtcAudioActiveRef.current) return;
       // Use isMicOnRef (not state) to avoid stale closure — state captured at
       // setup time never updates when the user toggles mute after setup.
       if (
@@ -1913,8 +1860,6 @@ export function RealtimeInterviewClient({
         }
         websocketRef.current.close();
       }
-      webrtcAudioActiveRef.current = false;
-
       // Ensure screen capture is stopped (double check)
       const finalScreenStream = screenStreamRef.current;
       if (finalScreenStream) {
@@ -1984,10 +1929,6 @@ export function RealtimeInterviewClient({
     const next = !isMicOn;
     isMicOnRef.current = next;
     setIsMicOn(next);
-    if (webrtcAudioActiveRef.current) {
-      voiceTransportRef.current?.setMicrophoneEnabled?.(next);
-      return;
-    }
     if (mediaStreamRef.current) {
       const audioTrack = mediaStreamRef.current.getAudioTracks()[0];
       if (audioTrack) {
