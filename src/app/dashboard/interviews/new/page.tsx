@@ -304,7 +304,12 @@ export default function NewInterviewPage() {
     voiceProvider: "gemini" as "gemini" | "chatgpt" | "sarvam",
   });
   const [voiceProviderOptions, setVoiceProviderOptions] = useState<
-    Array<{ id: "gemini" | "chatgpt" | "sarvam"; label: string }>
+    Array<{
+      id: "gemini" | "chatgpt" | "sarvam";
+      label: string;
+      enabled?: boolean;
+      beta?: boolean;
+    }>
   >([
     { id: "gemini", label: "Gemini Live" },
     { id: "chatgpt", label: "ChatGPT Realtime" },
@@ -424,6 +429,8 @@ export default function NewInterviewPage() {
             enabled.map((p) => ({
               id: p.id,
               label: p.label,
+              enabled: p.enabled,
+              beta: p.beta,
             })),
           );
           setFormData((prev) => ({
@@ -886,7 +893,9 @@ export default function NewInterviewPage() {
                   }
                   options={voiceProviderOptions.map((option) => ({
                     value: option.id,
-                    label: option.label,
+                    label: option.beta
+                      ? `${option.label} (Beta)`
+                      : option.label,
                   }))}
                   className={controlClass}
                 />

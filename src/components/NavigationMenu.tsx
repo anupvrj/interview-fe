@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { usePlatformFeatures } from "@/hooks/usePlatformFeatures";
 
 const navLinkClass =
   "text-sm font-medium text-muted-foreground transition-colors hover:text-foreground lg:text-[13px] xl:text-[0.9375rem]";
@@ -17,21 +18,25 @@ export const mockInterviewNavItems = [
     href: "/ai-interview-coach",
     label: "AI Mock Interview",
     description: "Mock interviews with AI feedback",
+    featureKey: "ai_interview",
   },
   {
     href: "/ai-coding-practice",
     label: "Practice Coding Round",
     description: "Solve problems and defend your approach",
+    featureKey: "coding_practice",
   },
   {
     href: "/ai-system-design",
     label: "Practice System Design",
     description: "Whiteboard architecture with AI coaching",
+    featureKey: "system_design",
   },
   {
     href: "/dashboard/peer-interviews/book",
     label: "Peer Interview with Experts",
     description: "Book live mock interviews with verified experts",
+    featureKey: "peer_booking",
   },
 ] as const;
 
@@ -43,11 +48,13 @@ export const resumeNavItems = [
     href: "/ai-resume-builder",
     label: "Resume Builder",
     description: "Build ATS-optimized resumes with AI",
+    featureKey: "resume_builder",
   },
   {
     href: "/ats-checker",
     label: "ATS Checker",
     description: "Score and fix your resume for ATS",
+    featureKey: "ats_checker",
   },
 ] as const;
 
@@ -126,6 +133,23 @@ function isResumeActive(pathname: string) {
   );
 }
 
+function useVisibleMarketingNav() {
+  const { isNavHrefVisible } = usePlatformFeatures();
+  return {
+    mockItems: mockInterviewNavItems.filter((item) =>
+      isNavHrefVisible(item.href, item.featureKey),
+    ),
+    resumeItems: resumeNavItems.filter((item) =>
+      isNavHrefVisible(item.href, item.featureKey),
+    ),
+    showBecomeInterviewer: isNavHrefVisible(
+      navLinkBecomeInterviewer.href,
+      "peer_interviews",
+    ),
+    showHireTalent: isNavHrefVisible(navLinkHireTalent.href, "ix_recruiter"),
+  };
+}
+
 function linkClass(active: boolean) {
   return cn(navLinkClass, active && "text-foreground");
 }
@@ -140,6 +164,8 @@ function MockInterviewsDropdown({
   pathname: string;
 }) {
   const active = isMockInterviewActive(pathname);
+  const { mockItems } = useVisibleMarketingNav();
+  if (mockItems.length === 0) return null;
 
   return (
     <div
@@ -169,7 +195,7 @@ function MockInterviewsDropdown({
       {open ? (
         <div className="absolute left-1/2 top-full z-50 w-80 -translate-x-1/2 pt-3">
           <div className="rounded-xl border border-border/60 bg-card p-2 shadow-header">
-            {mockInterviewNavItems.map((item) => (
+            {mockItems.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
@@ -200,6 +226,8 @@ function ResumeDropdown({
   pathname: string;
 }) {
   const active = isResumeActive(pathname);
+  const { resumeItems } = useVisibleMarketingNav();
+  if (resumeItems.length === 0) return null;
 
   return (
     <div
@@ -229,7 +257,7 @@ function ResumeDropdown({
       {open ? (
         <div className="absolute left-1/2 top-full z-50 w-72 -translate-x-1/2 pt-3">
           <div className="rounded-xl border border-border/60 bg-card p-2 shadow-header">
-            {resumeNavItems.map((item) => (
+            {resumeItems.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
@@ -281,6 +309,7 @@ export function PublicDesktopNav() {
   const pathname = usePathname();
   const [mockInterviewsOpen, setMockInterviewsOpen] = useState(false);
   const [resumeOpen, setResumeOpen] = useState(false);
+  const { showBecomeInterviewer, showHireTalent } = useVisibleMarketingNav();
 
   useEffect(() => {
     setMockInterviewsOpen(false);
@@ -313,17 +342,21 @@ export function PublicDesktopNav() {
         pathname={pathname}
       />
 
-      <NavLink
-        href={navLinkBecomeInterviewer.href}
-        label={navLinkBecomeInterviewer.label}
-        active={navLinkBecomeInterviewer.match(pathname)}
-      />
+      {showBecomeInterviewer ? (
+        <NavLink
+          href={navLinkBecomeInterviewer.href}
+          label={navLinkBecomeInterviewer.label}
+          active={navLinkBecomeInterviewer.match(pathname)}
+        />
+      ) : null}
 
-      <NavLink
-        href={navLinkHireTalent.href}
-        label={navLinkHireTalent.label}
-        active={navLinkHireTalent.match(pathname)}
-      />
+      {showHireTalent ? (
+        <NavLink
+          href={navLinkHireTalent.href}
+          label={navLinkHireTalent.label}
+          active={navLinkHireTalent.match(pathname)}
+        />
+      ) : null}
 
       <NavLink
         href={navLinkPricing.href}
@@ -343,6 +376,8 @@ export function PublicMobileNav() {
   const [resumeOpen, setResumeOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const { user, isLoaded } = useUser();
+  const { mockItems, resumeItems, showBecomeInterviewer, showHireTalent } =
+    useVisibleMarketingNav();
 
   useEffect(() => {
     setMounted(true);
@@ -496,6 +531,8 @@ export function PublicMobileNav() {
             </Link>
           ) : null}
 
+          {resumeItems.length > 0 ? (
+            <>
           <button
             type="button"
             onClick={() => setResumeOpen((open) => !open)}
@@ -513,7 +550,7 @@ export function PublicMobileNav() {
 
           {resumeOpen ? (
             <div className={mobileSubmenuPanelClass}>
-              {resumeNavItems.map((item) => (
+              {resumeItems.map((item) => (
                 <Link
                   key={item.href}
                   href={item.href}
@@ -530,7 +567,11 @@ export function PublicMobileNav() {
               ))}
             </div>
           ) : null}
+            </>
+          ) : null}
 
+          {mockItems.length > 0 ? (
+            <>
           <button
             type="button"
             onClick={() => setMockInterviewsOpen((open) => !open)}
@@ -548,7 +589,7 @@ export function PublicMobileNav() {
 
           {mockInterviewsOpen ? (
             <div className={mobileSubmenuPanelClass}>
-              {mockInterviewNavItems.map((item) => (
+              {mockItems.map((item) => (
                 <Link
                   key={item.href}
                   href={item.href}
@@ -565,7 +606,10 @@ export function PublicMobileNav() {
               ))}
             </div>
           ) : null}
+            </>
+          ) : null}
 
+          {showBecomeInterviewer ? (
           <Link
             href={navLinkBecomeInterviewer.href}
             onClick={navigateFromMobileDrawer(navLinkBecomeInterviewer.href)}
@@ -573,7 +617,9 @@ export function PublicMobileNav() {
           >
             {navLinkBecomeInterviewer.label}
           </Link>
+          ) : null}
 
+          {showHireTalent ? (
           <Link
             href={navLinkHireTalent.href}
             onClick={navigateFromMobileDrawer(navLinkHireTalent.href)}
@@ -581,6 +627,7 @@ export function PublicMobileNav() {
           >
             {navLinkHireTalent.label}
           </Link>
+          ) : null}
 
           <Link
             href={navLinkPricing.href}

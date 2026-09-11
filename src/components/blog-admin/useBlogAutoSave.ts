@@ -111,7 +111,7 @@ export function useBlogAutoSave({
             setForm(() => detailToFormValues(created));
             clearNewBlogDraftLocal();
             router.replace(
-              `/dashboard/super-admin/blogs/${encodeURIComponent(created.id)}/edit`,
+              `/super-admin/blogs/${encodeURIComponent(created.id)}/edit`,
             );
           }
           lastSavedSnapshotRef.current = nextSnapshot;

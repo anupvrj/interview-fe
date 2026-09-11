@@ -23,6 +23,7 @@ import {
 } from "@/lib/app-theme";
 import {
   filterNavByActiveRole,
+  filterNavByFeatures,
   getDashboardNavItems,
   withPeerNavItems,
   withRecruiterNavItems,
@@ -33,7 +34,10 @@ import { SubscriptionPendingBanner } from "@/components/SubscriptionPendingBanne
 import { TrialUpsellDialog, type TrialUpsellVariant } from "@/components/upsell/TrialUpsellDialog";
 import { useUpsellState } from "@/components/upsell/useUpsellState";
 import { useEntitlements } from "@/hooks/useEntitlements";
+import { usePlatformFeatures } from "@/hooks/usePlatformFeatures";
+import { FeatureRouteGuard } from "@/components/features/FeatureRouteGuard";
 import { POST_ONBOARDING_TRIAL_OFFER_KEY } from "@/lib/trialFeatures";
+import { isFeatureVisibleForActiveRole } from "@/lib/platform-features";
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -86,20 +90,6 @@ function isPeerInterviewsNavPath(pathname: string | null): boolean {
   return true;
 }
 
-function isSuperAdminPeerInterviewersPath(pathname: string | null): boolean {
-  return (
-    pathname?.startsWith("/dashboard/super-admin/peer-interviewers") ?? false
-  );
-}
-
-function isSuperAdminPeerBookingsPath(pathname: string | null): boolean {
-  return pathname?.startsWith("/dashboard/super-admin/peer-bookings") ?? false;
-}
-
-function isSuperAdminIxRecruitersPath(pathname: string | null): boolean {
-  return pathname?.startsWith("/dashboard/super-admin/ix-recruiters") ?? false;
-}
-
 function isRecruiterDashboardNavPath(pathname: string | null): boolean {
   return pathname === "/dashboard/ix-recruiter";
 }
@@ -117,43 +107,6 @@ function isRecruiterApplyNavPath(pathname: string | null): boolean {
   return (
     pathname === "/dashboard/ix-recruiter/apply" ||
     pathname.startsWith("/dashboard/ix-recruiter/apply/")
-  );
-}
-
-function isSuperAdminSystemDesignProblemsPath(pathname: string | null): boolean {
-  return (
-    pathname?.startsWith("/dashboard/super-admin/system-design-problems") ??
-    false
-  );
-}
-
-function isSuperAdminCodingProblemsPath(pathname: string | null): boolean {
-  return (
-    pathname?.startsWith("/dashboard/super-admin/coding-problems") ?? false
-  );
-}
-
-function isSuperAdminNotificationHubPath(pathname: string | null): boolean {
-  return (
-    pathname?.startsWith("/dashboard/super-admin/notification-hub") ?? false
-  );
-}
-
-function isSuperAdminHomePath(pathname: string | null): boolean {
-  if (!pathname) return false;
-  if (
-    isSuperAdminPeerInterviewersPath(pathname) ||
-    isSuperAdminPeerBookingsPath(pathname) ||
-    isSuperAdminIxRecruitersPath(pathname) ||
-    isSuperAdminSystemDesignProblemsPath(pathname) ||
-    isSuperAdminCodingProblemsPath(pathname) ||
-    isSuperAdminNotificationHubPath(pathname)
-  ) {
-    return false;
-  }
-  return (
-    pathname === "/dashboard/super-admin" ||
-    pathname.startsWith("/dashboard/super-admin/")
   );
 }
 
@@ -213,27 +166,6 @@ function resolveNavActive(
         (pathname?.startsWith("/dashboard/peer-interviews/bookings/") ??
           false));
   }
-  if (item.href === "/dashboard/super-admin") {
-    isActive = isSuperAdminHomePath(pathname);
-  }
-  if (item.href === "/dashboard/super-admin/peer-interviewers") {
-    isActive = isSuperAdminPeerInterviewersPath(pathname);
-  }
-  if (item.href === "/dashboard/super-admin/peer-bookings") {
-    isActive = isSuperAdminPeerBookingsPath(pathname);
-  }
-  if (item.href === "/dashboard/super-admin/ix-recruiters") {
-    isActive = isSuperAdminIxRecruitersPath(pathname);
-  }
-  if (item.href === "/dashboard/super-admin/system-design-problems") {
-    isActive = isSuperAdminSystemDesignProblemsPath(pathname);
-  }
-  if (item.href === "/dashboard/super-admin/coding-problems") {
-    isActive = isSuperAdminCodingProblemsPath(pathname);
-  }
-  if (item.href === "/dashboard/super-admin/notification-hub") {
-    isActive = isSuperAdminNotificationHubPath(pathname);
-  }
   if (item.href === "/dashboard/ix-recruiter") {
     isActive = isRecruiterDashboardNavPath(pathname);
   }
@@ -285,6 +217,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     useState<TrialUpsellVariant>("dashboard_promo");
   const [skipDelayedTrialPromo, setSkipDelayedTrialPromo] = useState(false);
   const { canUse, refresh: refreshEntitlements } = useEntitlements();
+  const { isNavHrefVisible, matchPath, byKey } = usePlatformFeatures();
   const {
     shouldShowTrialPromo,
     markTrialPromoShown,
@@ -403,6 +336,16 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       return;
     }
 
+    if (
+      activeRole === "super_admin" &&
+      pathname?.startsWith("/dashboard") &&
+      !pathname.startsWith("/dashboard/institute") &&
+      !pathname.startsWith("/dashboard/profile")
+    ) {
+      router.replace("/super-admin");
+      return;
+    }
+
     if (!activeRole || !pathname?.startsWith("/dashboard")) return;
 
     if (!isPathAllowedForRole(activeRole, pathname, profile)) {
@@ -419,16 +362,31 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   ]);
 
   const menuItems = useMemo(() => {
-    const items = filterNavByActiveRole(
-      withRecruiterNavItems(
-        withPeerNavItems(
-          getDashboardNavItems(accessRole, institutionId),
-          peerNav,
+    const items = filterNavByFeatures(
+      filterNavByActiveRole(
+        withRecruiterNavItems(
+          withPeerNavItems(
+            getDashboardNavItems(accessRole, institutionId, activeRole),
+            peerNav,
+          ),
+          recruiterNav,
         ),
-        recruiterNav,
+        activeRole,
+        profile,
       ),
-      activeRole,
-      profile,
+      (href, featureKey) => {
+        if (activeRole && activeRole !== "super_admin") {
+          const matched = matchPath(href) ?? (featureKey ? byKey.get(featureKey) : undefined);
+          if (matched) {
+            return isFeatureVisibleForActiveRole(
+              matched.status,
+              matched.category,
+              activeRole,
+            );
+          }
+        }
+        return isNavHrefVisible(href, featureKey);
+      },
     );
 
     return items.map((item) => {
@@ -451,6 +409,9 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     activeRole,
     profile,
     canUse,
+    isNavHrefVisible,
+    matchPath,
+    byKey,
   ]);
 
   const institutionBase =
@@ -701,7 +662,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           <div className="p-4 sm:p-5 lg:px-6 lg:pb-8 lg:pt-5">
             <SubscriptionPendingBanner />
             <SubscriptionExpiredBanner />
-            {children}
+            <FeatureRouteGuard>{children}</FeatureRouteGuard>
           </div>
         </main>
       </div>

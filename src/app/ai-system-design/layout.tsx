@@ -1,4 +1,5 @@
 import { Metadata } from "next";
+import { FeatureRouteGuard } from "@/components/features/FeatureRouteGuard";
 
 export const metadata: Metadata = {
   title: "AI System Design Interview Practice — Live Whiteboard Mock",
@@ -31,5 +32,5 @@ export default function AiSystemDesignLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return <>{children}</>;
+  return <FeatureRouteGuard>{children}</FeatureRouteGuard>;
 }

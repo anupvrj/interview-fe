@@ -5,6 +5,7 @@ import {
   peerInterviewBookingDemoVideo,
   toVideoSchemaInput,
 } from "@/lib/seo/marketing-video-content";
+import { FeatureRouteGuard } from "@/components/features/FeatureRouteGuard";
 import { getSiteUrl } from "@/lib/seo/site-url";
 
 const siteUrl = getSiteUrl();
@@ -47,7 +48,7 @@ export default function BecomePeerInterviewerLayout({
       <SeoVideoJsonLdScript
         {...toVideoSchemaInput(peerInterviewBookingDemoVideo)}
       />
-      {children}
+      <FeatureRouteGuard>{children}</FeatureRouteGuard>
     </>
   );
 }

@@ -268,7 +268,7 @@ export function SystemDesignProblemsTable({
                       </Button>
                       <Button type="button" variant="ghost" size="icon" asChild>
                         <Link
-                          href={`/dashboard/super-admin/system-design-problems/${item.problemId}/edit`}
+                          href={`/super-admin/system-design-problems/${item.problemId}/edit`}
                           aria-label="Edit"
                         >
                           <Pencil className="h-4 w-4" />

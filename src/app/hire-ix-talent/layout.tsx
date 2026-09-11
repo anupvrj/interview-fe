@@ -5,6 +5,7 @@ import {
   hireIxTalentDemoVideo,
   toVideoSchemaInput,
 } from "@/lib/seo/marketing-video-content";
+import { FeatureRouteGuard } from "@/components/features/FeatureRouteGuard";
 import { getSiteUrl } from "@/lib/seo/site-url";
 
 const siteUrl = getSiteUrl();
@@ -53,7 +54,7 @@ export default function HireIxTalentLayout({
   return (
     <>
       <SeoVideoJsonLdScript {...toVideoSchemaInput(hireIxTalentDemoVideo)} />
-      {children}
+      <FeatureRouteGuard>{children}</FeatureRouteGuard>
     </>
   );
 }

@@ -33,6 +33,20 @@ const nextConfig = {
     /** Exposes Vercel deployment type to the client (preview vs production). */
     NEXT_PUBLIC_VERCEL_ENV: process.env.VERCEL_ENV ?? "",
   },
+  async redirects() {
+    return [
+      {
+        source: "/dashboard/super-admin",
+        destination: "/super-admin",
+        permanent: true,
+      },
+      {
+        source: "/dashboard/super-admin/:path*",
+        destination: "/super-admin/:path*",
+        permanent: true,
+      },
+    ];
+  },
   async headers() {
     return [
       {
