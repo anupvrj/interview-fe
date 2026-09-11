@@ -36,6 +36,7 @@ export class WebRtcVoiceTransport implements VoiceTransport {
   private agentAudioEl: HTMLAudioElement | null = null;
   private audioReady = false;
   private audioCallbacks: WebRtcAudioCallbacks = {};
+  private agentUnmuteTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(onMessage: VoiceTransportMessageHandler) {
     this.control = new WebSocketVoiceTransport(onMessage);
@@ -106,7 +107,24 @@ export class WebRtcVoiceTransport implements VoiceTransport {
     void this.room?.localParticipant.setMicrophoneEnabled(enabled);
   }
 
+  stopAgentPlayback(): void {
+    const el = this.agentAudioEl;
+    if (!el) return;
+    el.muted = true;
+    if (this.agentUnmuteTimer) clearTimeout(this.agentUnmuteTimer);
+    this.agentUnmuteTimer = setTimeout(() => {
+      this.agentUnmuteTimer = null;
+      if (this.agentAudioEl === el) {
+        el.muted = false;
+      }
+    }, 500);
+  }
+
   disconnect(endMessage?: Record<string, unknown>): void {
+    if (this.agentUnmuteTimer) {
+      clearTimeout(this.agentUnmuteTimer);
+      this.agentUnmuteTimer = null;
+    }
     if (this.agentAudioEl) {
       this.agentAudioEl.pause();
       this.agentAudioEl.srcObject = null;

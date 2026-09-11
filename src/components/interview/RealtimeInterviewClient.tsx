@@ -327,6 +327,7 @@ export function RealtimeInterviewClient({
     }
     nextPlayAtRef.current = 0;
     isPlayingAudioRef.current = false;
+    voiceTransportRef.current?.stopAgentPlayback?.();
   };
 
   const startClientWsHeartbeat = () => {

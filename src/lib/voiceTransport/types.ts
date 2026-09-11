@@ -20,6 +20,8 @@ export interface VoiceTransport {
   sendControl(payload: Record<string, unknown>): void;
   /** Toggle LiveKit mic when WebRTC audio is active. No-op for websocket-only mode. */
   setMicrophoneEnabled?(enabled: boolean): void;
+  /** Mute LiveKit agent playback on barge-in. No-op for websocket-only mode. */
+  stopAgentPlayback?(): void;
   disconnect(endMessage?: Record<string, unknown>): void;
   isControlOpen(): boolean;
   isAudioActive(): boolean;
