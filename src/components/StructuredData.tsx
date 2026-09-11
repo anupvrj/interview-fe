@@ -54,13 +54,52 @@ export const webApplicationSchema = {
     "AI Resume Builder",
     "ATS Compatibility Checker",
     "AI Interview Practice",
+    "AI Coding Interview Practice",
+    "AI System Design Interview Practice",
+    "AI Job Search",
     "Detailed Performance Reports",
     "Multiple Professional Templates",
-    "Job Search & Recommendations",
     "Real-time Resume Preview",
     "PDF Export",
   ],
 };
+
+/** Helps search engines understand primary product landing pages (sitelink discovery). */
+export function createProductNavigationSchema(
+  products: { name: string; url: string; description: string }[],
+) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    name: "Interview Trix Products",
+    itemListElement: products.map((product, index) => ({
+      "@type": "ListItem",
+      position: index + 1,
+      item: {
+        "@type": "WebPage",
+        name: product.name,
+        description: product.description,
+        url: product.url,
+      },
+    })),
+  };
+}
+
+export function createWebSiteSchema(siteUrl: string) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    name: "Interview Trix",
+    url: siteUrl,
+    description:
+      "From ATS-optimized resumes to AI interview, coding, and system design practice — one platform to get offer-ready.",
+    publisher: {
+      "@type": "Organization",
+      name: "Interview Trix",
+      logo: `${siteUrl}/brand/interviewtrix-logo.png`,
+    },
+  };
+}
 
 // BreadcrumbList Schema
 export function createBreadcrumbSchema(items: { name: string; url: string }[]) {

@@ -4,6 +4,16 @@ export function getSiteUrl(): string {
   return process.env.NEXT_PUBLIC_APP_URL || "https://interviewtrix.com";
 }
 
+/** Resolve a public asset path (or absolute URL) to a crawlable absolute URL. */
+export function getAbsoluteAssetUrl(path: string): string {
+  if (path.startsWith("http://") || path.startsWith("https://")) {
+    return path;
+  }
+
+  const siteUrl = getSiteUrl().replace(/\/$/, "");
+  return `${siteUrl}${path.startsWith("/") ? path : `/${path}`}`;
+}
+
 /** True only on production — staging/dev/local must not be indexed by search engines. */
 export function isSearchIndexable(): boolean {
   const env = (
@@ -55,6 +65,24 @@ const NOINDEX_ROBOTS: Metadata["robots"] = {
   },
 };
 
+/** Authenticated app surfaces — always noindex even on production. */
+export function getPrivateAppRobots(): Metadata["robots"] {
+  return NOINDEX_ROBOTS;
+}
+
 export function getSearchRobots(): Metadata["robots"] {
   return isSearchIndexable() ? INDEX_ROBOTS : NOINDEX_ROBOTS;
+}
+
+export function isPrivateAppPath(pathname: string): boolean {
+  return (
+    pathname === "/*" ||
+    pathname.startsWith("/dashboard") ||
+    pathname.startsWith("/onboarding") ||
+    pathname.startsWith("/sign-in") ||
+    pathname.startsWith("/sign-up") ||
+    pathname.startsWith("/select-role") ||
+    pathname.startsWith("/purchase-credits") ||
+    pathname.startsWith("/interview/")
+  );
 }

@@ -246,6 +246,17 @@ function resolveNavActive(
   if (item.href === "/dashboard/ix-recruiter/apply") {
     isActive = isRecruiterApplyNavPath(pathname);
   }
+  if (item.href === "/dashboard/profile") {
+    isActive =
+      pathname === "/dashboard/profile" ||
+      (Boolean(pathname?.startsWith("/dashboard/profile/")) &&
+        !pathname?.startsWith("/dashboard/profile/connectors"));
+  }
+  if (item.href === "/dashboard/profile/connectors") {
+    isActive =
+      pathname === "/dashboard/profile/connectors" ||
+      Boolean(pathname?.startsWith("/dashboard/profile/connectors/"));
+  }
   return isActive;
 }
 

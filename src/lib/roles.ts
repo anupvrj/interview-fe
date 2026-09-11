@@ -139,12 +139,21 @@ type RoleProfile =
   | null
   | undefined;
 
+/** Chrome-extension post-login destinations — candidate workspace. */
+function isExtensionJobHandoffPath(pathname: string): boolean {
+  return (
+    pathname === "/dashboard/resumes/from-job" ||
+    pathname === "/dashboard/interviews/new"
+  );
+}
+
 /** When a URL requires a specific role view, return it so the UI can sync without redirecting away. */
 export function roleRequiredForPath(
   pathname: string | null,
   profile: Pick<User, "accessRole"> | null | undefined,
 ): ActiveRole | null {
   if (!pathname) return null;
+  if (isExtensionJobHandoffPath(pathname)) return "candidate";
   if (
     profile?.accessRole === "super_admin" &&
     matchesPrefix(pathname, SUPER_ADMIN_PREFIXES)

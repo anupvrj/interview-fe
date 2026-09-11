@@ -33,10 +33,55 @@ interface CodingProblemsTableProps {
   readonly onActiveFilterChange: (v: CodingActiveFilter) => void;
   readonly onView: (problemId: string) => void;
   readonly onDelete: (item: AdminCodingProblemListItem) => void;
+  readonly selectedIds: Set<string>;
+  readonly onSelectedIdsChange: (ids: Set<string>) => void;
+  readonly bulkDeleting?: boolean;
   readonly page?: number;
   readonly pageSize?: number;
   readonly total?: number;
   readonly onPageChange?: (page: number) => void;
+}
+
+export function CodingProblemsBulkBar({
+  count,
+  deleting,
+  onDelete,
+  onClear,
+}: Readonly<{
+  count: number;
+  deleting: boolean;
+  onDelete: () => void;
+  onClear: () => void;
+}>) {
+  if (count === 0) return null;
+
+  return (
+    <div
+      className={cn(
+        "mx-4 mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-primary/25",
+        "bg-gradient-to-r from-primary/8 to-transparent px-4 py-3",
+      )}
+    >
+      <p className="text-sm font-medium text-foreground">
+        <span className="font-semibold text-primary">{count}</span> problem
+        {count === 1 ? "" : "s"} selected for bulk delete
+      </p>
+      <div className="flex items-center gap-2">
+        <Button variant="outline" size="sm" disabled={deleting} onClick={onClear}>
+          Clear selection
+        </Button>
+        <Button
+          size="sm"
+          variant="destructive"
+          disabled={deleting}
+          onClick={onDelete}
+        >
+          {deleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+          Delete selected
+        </Button>
+      </div>
+    </div>
+  );
 }
 
 export function CodingProblemsTable({
@@ -53,6 +98,9 @@ export function CodingProblemsTable({
   onActiveFilterChange,
   onView,
   onDelete,
+  selectedIds,
+  onSelectedIdsChange,
+  bulkDeleting,
   page = 1,
   pageSize = 50,
   total = 0,
@@ -61,6 +109,28 @@ export function CodingProblemsTable({
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const rangeStart = total === 0 ? 0 : (page - 1) * pageSize + 1;
   const rangeEnd = Math.min(page * pageSize, total);
+
+  const allPageSelected =
+    items.length > 0 && items.every((item) => selectedIds.has(item.problemId));
+
+  const toggleAllOnPage = () => {
+    if (allPageSelected) {
+      const next = new Set(selectedIds);
+      for (const item of items) next.delete(item.problemId);
+      onSelectedIdsChange(next);
+    } else {
+      const next = new Set(selectedIds);
+      for (const item of items) next.add(item.problemId);
+      onSelectedIdsChange(next);
+    }
+  };
+
+  const toggleOne = (problemId: string) => {
+    const next = new Set(selectedIds);
+    if (next.has(problemId)) next.delete(problemId);
+    else next.add(problemId);
+    onSelectedIdsChange(next);
+  };
 
   return (
     <div className={appTableShell}>
@@ -115,6 +185,16 @@ export function CodingProblemsTable({
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b bg-muted/40 text-left text-xs text-muted-foreground">
+              <th className="w-10 p-3 font-medium">
+                <input
+                  type="checkbox"
+                  checked={allPageSelected}
+                  disabled={loading || items.length === 0 || bulkDeleting}
+                  onChange={toggleAllOnPage}
+                  aria-label="Select all problems on this page"
+                  className="h-4 w-4 accent-primary"
+                />
+              </th>
               <th className="p-3 font-medium">Problem</th>
               <th className="p-3 font-medium">Difficulty</th>
               <th className="p-3 font-medium">Tests</th>
@@ -126,19 +206,29 @@ export function CodingProblemsTable({
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={6} className="p-8 text-center text-muted-foreground">
+                <td colSpan={7} className="p-8 text-center text-muted-foreground">
                   <Loader2 className="mx-auto h-5 w-5 animate-spin" />
                 </td>
               </tr>
             ) : items.length === 0 ? (
               <tr>
-                <td colSpan={6} className="p-8 text-center text-muted-foreground">
+                <td colSpan={7} className="p-8 text-center text-muted-foreground">
                   No problems found
                 </td>
               </tr>
             ) : (
               items.map((item) => (
                 <tr key={item.problemId} className="border-b">
+                  <td className="w-10 p-3 align-top">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.has(item.problemId)}
+                      disabled={bulkDeleting}
+                      onChange={() => toggleOne(item.problemId)}
+                      aria-label={`Select ${item.title}`}
+                      className="mt-0.5 h-4 w-4 accent-primary"
+                    />
+                  </td>
                   <td className="p-3">
                     <div className="font-medium">{item.title}</div>
                     <div className="font-mono text-xs text-muted-foreground">

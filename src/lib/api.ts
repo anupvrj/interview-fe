@@ -6,7 +6,11 @@ import axios, {
 import type { ATSReportV3 } from "@/types/atsReport";
 export { isATSReportV3 } from "@/types/atsReport";
 import { inferImageContentType } from "@/lib/image-upload";
-import { getSignInUrlWithRedirect } from "@/lib/post-sign-in-redirect";
+import {
+  getSignInUrlWithRedirect,
+  shouldRedirectUnauthorizedToSignIn,
+} from "@/lib/post-sign-in-redirect";
+import { trimJobDescriptionForSend } from "@/lib/job-description-limits";
 
 /** Base URL for API (includes `/api` path). Use for `<img src>` and other non-axios URLs. */
 export const API_URL =
@@ -119,10 +123,16 @@ apiClient.interceptors.response.use(
   (response) => response,
   (error: AxiosError) => {
     if (error.response?.status === 401) {
-      // Redirect to login if unauthorized
       if (typeof window !== "undefined") {
         const returnPath = `${window.location.pathname}${window.location.search}`;
-        window.location.href = getSignInUrlWithRedirect(returnPath);
+        if (
+          shouldRedirectUnauthorizedToSignIn(
+            window.location.pathname,
+            String(error.config?.url || ""),
+          )
+        ) {
+          window.location.href = getSignInUrlWithRedirect(returnPath);
+        }
       }
     }
     return Promise.reject(error);
@@ -492,6 +502,8 @@ export interface CreateInterviewRequest {
   useSavedResume?: boolean;
   /** Interview duration in minutes: 15 (default) or 30 (premium & enterprise). */
   duration?: number;
+  /** Job posting description from Chrome extension (or pasted) for JD-grounded questions. */
+  jobDescription?: string;
 }
 
 export interface CreateInterviewResponse {
@@ -688,6 +700,12 @@ export const interviewApi = {
     }
     if (data.duration) {
       formData.append("duration", data.duration.toString());
+    }
+    if (data.jobDescription?.trim()) {
+      formData.append(
+        "jobDescription",
+        trimJobDescriptionForSend(data.jobDescription),
+      );
     }
     if (data.resume) {
       const resumeBlob = await snapshotFileForUpload(data.resume);
@@ -1596,6 +1614,7 @@ export const resumeApi = {
       layout?: Resume["layout"];
       isDefault?: boolean;
       pdfS3Key?: string;
+      atsScoringContext?: Resume["atsScoringContext"];
     },
   ): Promise<Resume> => {
     const response = await apiClient.put<{ data: Resume }>(
@@ -1684,6 +1703,35 @@ export const resumeApi = {
       {
         timeout: 300000,
       },
+    );
+    return response.data.data;
+  },
+
+  /**
+   * Retarget an existing resume to a job description via the section-by-section
+   * tailoring pipeline. Returns tailored content WITHOUT persisting so the
+   * editor can apply it as an undoable change.
+   */
+  tailorToJobDescription: async (
+    resumeId: string,
+    options: { jobDescription: string },
+  ): Promise<{
+    content: Resume["content"];
+    profileSummary?: string;
+    sectionOrder: NonNullable<Resume["sectionOrder"]>;
+    jobDescription: string;
+  }> => {
+    const response = await apiClient.post<{
+      data: {
+        content: Resume["content"];
+        profileSummary?: string;
+        sectionOrder: NonNullable<Resume["sectionOrder"]>;
+        jobDescription: string;
+      };
+    }>(
+      `/resumes/${resumeId}/tailor-to-jd`,
+      { jobDescription: trimJobDescriptionForSend(options.jobDescription) },
+      { timeout: 300000 },
     );
     return response.data.data;
   },
@@ -1866,6 +1914,8 @@ export interface ResumeBuilderChatSessionResponse {
 export type ResumeImportBuildOptions = {
   jobDescription?: string;
   jdRequirements?: JDRequirements;
+  /** When false, keep uploaded wording (structure only). Default true. */
+  enhance?: boolean;
 };
 
 export const resumeDataExtractionApi = {
@@ -1873,7 +1923,7 @@ export const resumeDataExtractionApi = {
     jobDescription: string,
   ): Promise<{ requirements: JDRequirements; summary: string }> => {
     const response = await apiClient.post("/analyze-job-description", {
-      jobDescription,
+      jobDescription: trimJobDescriptionForSend(jobDescription),
     });
     return response.data.data;
   },
@@ -1895,15 +1945,19 @@ export const resumeDataExtractionApi = {
     >;
     templateId: string;
   }> => {
-    const { resumeText, chatProfile, jobDescription, jdRequirements } = options;
+    const { resumeText, chatProfile, jobDescription, jdRequirements, enhance } =
+      options;
     const response = await apiClient.post(
       "/extract-resume-data",
       {
         templateId,
         resumeText: resumeText || undefined,
         chatProfile: chatProfile || undefined,
-        jobDescription: jobDescription || undefined,
+        jobDescription: jobDescription
+          ? trimJobDescriptionForSend(jobDescription)
+          : undefined,
         jdRequirements: jdRequirements || undefined,
+        enhance: enhance !== false,
       },
       {
         timeout: 180000,
@@ -1932,7 +1986,9 @@ export const resumeDataExtractionApi = {
       {
         handle,
         templateId,
-        jobDescription: options.jobDescription || undefined,
+        jobDescription: options.jobDescription
+          ? trimJobDescriptionForSend(options.jobDescription)
+          : undefined,
         jdRequirements: options.jdRequirements || undefined,
       },
       {
@@ -4470,6 +4526,10 @@ export const adminCodingProblemApi = {
         `/admin/coding-problems/${encodeURIComponent(problemId)}`,
       ),
     ),
+  removeBulk: (problemIds: string[]) =>
+    unwrap<{ deleted: number; notFound: string[] }>(
+      apiClient.post("/admin/coding-problems/bulk-delete", { problemIds }),
+    ),
   restore: (problemId: string) =>
     unwrap<AdminCodingProblemDetail>(
       apiClient.post(
@@ -4700,6 +4760,68 @@ export const notificationAdminApi = {
 };
 
 export default apiClient;
+
+export type ConnectorTokenRow = {
+  tokenId: string;
+  name: string;
+  prefix: string;
+  scopes: string[];
+  lastUsedAt?: string;
+  createdAt: string;
+  expiresAt?: string;
+};
+
+export const connectorApi = {
+  listTokens: async () => {
+    const response = await apiClient.get<{
+      success: boolean;
+      data: ConnectorTokenRow[];
+      mcp_url: string;
+      openapi_url: string;
+    }>("/connector/v1/tokens");
+    return response.data;
+  },
+  createToken: async (name?: string) => {
+    const response = await apiClient.post<{
+      success: boolean;
+      data: {
+        tokenId: string;
+        token: string;
+        name: string;
+        prefix: string;
+        mcp_url: string;
+        openapi_url: string;
+      };
+      message?: string;
+    }>("/connector/v1/tokens", { name });
+    return response.data;
+  },
+  revokeToken: async (tokenId: string) => {
+    const response = await apiClient.delete<{ success: boolean }>(
+      `/connector/v1/tokens/${tokenId}`,
+    );
+    return response.data;
+  },
+  getOAuthRequest: async (requestId: string) => {
+    const response = await apiClient.get<{
+      success: boolean;
+      data: {
+        requestId: string;
+        clientId: string;
+        redirectUri: string;
+        scopes: string[];
+      };
+    }>(`/connector/v1/oauth/requests/${requestId}`);
+    return response.data;
+  },
+  consentOAuth: async (requestId: string, approve: boolean) => {
+    const response = await apiClient.post<{
+      success: boolean;
+      data: { redirectTo: string };
+    }>("/connector/v1/oauth/consent", { requestId, approve });
+    return response.data;
+  },
+};
 
 export const configApi = {
   getClientCacheVersion: async (): Promise<{

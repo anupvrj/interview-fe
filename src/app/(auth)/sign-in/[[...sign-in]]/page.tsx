@@ -7,19 +7,26 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { AuthCardLayout } from "@/components/app/AuthCardLayout";
 import { clerkAuthAppearance } from "@/lib/clerk-appearance";
-import { storePostSignInReturnUrl } from "@/lib/post-sign-in-redirect";
+import {
+  persistPostAuthReturnPath,
+  safeAppRedirectPath,
+} from "@/lib/post-sign-in-redirect";
 
 export default function SignInPage() {
   const searchParams = useSearchParams();
-  const redirectUrl = searchParams.get("redirect_url");
+  const redirectUrl = safeAppRedirectPath(searchParams.get("redirect_url"));
+  const afterAuth = redirectUrl || "/onboarding";
   const signUpHref = redirectUrl
     ? `/sign-up?redirect_url=${encodeURIComponent(redirectUrl)}`
     : "/sign-up";
 
+  // Persist before paint so a fast Google/SSO click does not drop the extension return path.
+  if (typeof window !== "undefined") {
+    persistPostAuthReturnPath(redirectUrl);
+  }
+
   useEffect(() => {
-    if (redirectUrl) {
-      storePostSignInReturnUrl(redirectUrl);
-    }
+    persistPostAuthReturnPath(redirectUrl);
   }, [redirectUrl]);
 
   return (
@@ -50,8 +57,10 @@ export default function SignInPage() {
       <SignIn
         routing="path"
         path="/sign-in"
-        afterSignInUrl="/onboarding"
-        afterSignUpUrl="/onboarding"
+        forceRedirectUrl={afterAuth}
+        fallbackRedirectUrl={afterAuth}
+        signUpForceRedirectUrl={afterAuth}
+        signUpFallbackRedirectUrl={afterAuth}
         appearance={clerkAuthAppearance}
       />
     </AuthCardLayout>

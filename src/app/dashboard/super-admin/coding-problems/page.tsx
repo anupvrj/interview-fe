@@ -16,6 +16,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import {
+  CodingProblemsBulkBar,
   CodingProblemsTable,
   type CodingActiveFilter,
   type CodingDifficultyFilter,
@@ -56,6 +57,9 @@ export default function AdminCodingProblemsPage() {
     useState<AdminCodingProblemListItem | null>(null);
   const [deleting, setDeleting] = useState(false);
 
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const PAGE_SIZE = 50;
@@ -83,7 +87,12 @@ export default function AdminCodingProblemsPage() {
 
   useEffect(() => {
     setPage(1);
+    setSelectedIds(new Set());
   }, [searchDebounced, category, difficulty, activeFilter]);
+
+  useEffect(() => {
+    setSelectedIds(new Set());
+  }, [page]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -140,12 +149,44 @@ export default function AdminCodingProblemsPage() {
     setDeleting(true);
     try {
       await adminCodingProblemApi.remove(deleteTarget.problemId);
-      toast.success("Problem deactivated");
+      toast.success("Problem deleted");
       setDeleteOpen(false);
       setDeleteTarget(null);
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(deleteTarget.problemId);
+        return next;
+      });
       void load();
     } catch {
-      toast.error("Deactivate failed");
+      toast.error("Delete failed");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const confirmBulkDelete = async () => {
+    const problemIds = [...selectedIds];
+    if (!problemIds.length) return;
+    setDeleting(true);
+    try {
+      const result = await adminCodingProblemApi.removeBulk(problemIds);
+      if (result.deleted > 0) {
+        toast.success(
+          `Deleted ${result.deleted} problem${result.deleted === 1 ? "" : "s"}${
+            result.notFound.length > 0
+              ? ` (${result.notFound.length} not found)`
+              : ""
+          }`,
+        );
+      } else {
+        toast.error("No problems could be deleted");
+      }
+      setBulkDeleteOpen(false);
+      setSelectedIds(new Set());
+      void load();
+    } catch {
+      toast.error("Bulk delete failed");
     } finally {
       setDeleting(false);
     }
@@ -191,6 +232,12 @@ export default function AdminCodingProblemsPage() {
 
       <Card className={appCard}>
         <CardContent className="p-0 pt-0">
+          <CodingProblemsBulkBar
+            count={selectedIds.size}
+            deleting={deleting}
+            onClear={() => setSelectedIds(new Set())}
+            onDelete={() => setBulkDeleteOpen(true)}
+          />
           <CodingProblemsTable
             items={items}
             loading={loading}
@@ -208,6 +255,9 @@ export default function AdminCodingProblemsPage() {
               setDeleteTarget(item);
               setDeleteOpen(true);
             }}
+            selectedIds={selectedIds}
+            onSelectedIdsChange={setSelectedIds}
+            bulkDeleting={deleting}
             page={page}
             pageSize={PAGE_SIZE}
             total={total}
@@ -226,10 +276,21 @@ export default function AdminCodingProblemsPage() {
       <ConfirmationDialog
         open={deleteOpen}
         onOpenChange={setDeleteOpen}
-        title="Deactivate problem?"
-        description={`"${deleteTarget?.title}" will be excluded from interview selection.`}
-        confirmText="Deactivate"
+        title="Delete problem?"
+        description={`"${deleteTarget?.title}" will be permanently removed from the database.`}
+        confirmText="Delete"
         onConfirm={() => void confirmDelete()}
+        isLoading={deleting}
+        variant="destructive"
+      />
+
+      <ConfirmationDialog
+        open={bulkDeleteOpen}
+        onOpenChange={setBulkDeleteOpen}
+        title="Delete selected problems?"
+        description={`${selectedIds.size} problem${selectedIds.size === 1 ? "" : "s"} will be permanently removed from the database.`}
+        confirmText="Delete"
+        onConfirm={() => void confirmBulkDelete()}
         isLoading={deleting}
         variant="destructive"
       />

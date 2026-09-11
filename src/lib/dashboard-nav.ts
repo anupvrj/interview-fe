@@ -25,6 +25,7 @@ import {
   ClipboardList,
   Award,
   Bell,
+  Plug,
 } from "lucide-react";
 import type { AccessRole, User as ApiUser } from "@/lib/api";
 import { isPathAllowedForRole, type ActiveRole } from "@/lib/roles";
@@ -170,6 +171,12 @@ const baseMenuItems: DashboardNavItem[] = [
     icon: User,
     accent: accent.slate,
   },
+  {
+    title: "AI Connectors",
+    href: "/dashboard/profile/connectors",
+    icon: Plug,
+    accent: accent.violet,
+  },
 ];
 
 export function isPlatformAdmin(accessRole: AccessRole | null): boolean {
@@ -239,6 +246,12 @@ export function getDashboardNavItems(
         icon: User,
         accent: accent.slate,
       },
+      {
+        title: "AI Connectors",
+        href: "/dashboard/profile/connectors",
+        icon: Plug,
+        accent: accent.violet,
+      },
     ];
   }
 
@@ -261,6 +274,12 @@ export function getDashboardNavItems(
         href: "/dashboard/profile",
         icon: User,
         accent: accent.slate,
+      },
+      {
+        title: "AI Connectors",
+        href: "/dashboard/profile/connectors",
+        icon: Plug,
+        accent: accent.violet,
       },
     ];
   }

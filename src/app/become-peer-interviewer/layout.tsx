@@ -1,4 +1,10 @@
 import type { Metadata } from "next";
+import { SeoVideoJsonLdScript } from "@/components/seo/SeoVideoJsonLdScript";
+import {
+  getMarketingVideoOpenGraphImage,
+  peerInterviewBookingDemoVideo,
+  toVideoSchemaInput,
+} from "@/lib/seo/marketing-video-content";
 import { getSiteUrl } from "@/lib/seo/site-url";
 
 const siteUrl = getSiteUrl();
@@ -21,6 +27,7 @@ export const metadata: Metadata = {
     description,
     type: "website",
     url: `${siteUrl}/become-peer-interviewer`,
+    images: [getMarketingVideoOpenGraphImage(peerInterviewBookingDemoVideo)],
   },
   twitter: {
     card: "summary_large_image",
@@ -35,5 +42,12 @@ export default function BecomePeerInterviewerLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  return <>{children}</>;
+  return (
+    <>
+      <SeoVideoJsonLdScript
+        {...toVideoSchemaInput(peerInterviewBookingDemoVideo)}
+      />
+      {children}
+    </>
+  );
 }

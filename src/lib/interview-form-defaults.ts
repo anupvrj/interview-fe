@@ -47,3 +47,17 @@ export function mergeInterviewFormDefaults<T extends InterviewFormDefaults>(
         : defaults.experience,
   };
 }
+
+/** Chrome-extension job capture wins over profile defaults for role and company. */
+export function applyJobCaptureToInterviewForm<T extends InterviewFormDefaults>(
+  current: T,
+  capture: { title?: string; company?: string },
+): T {
+  const title = capture.title?.trim() ?? "";
+  const company = capture.company?.trim() ?? "";
+  return {
+    ...current,
+    role: title || current.role,
+    targetCompany: company || current.targetCompany,
+  };
+}

@@ -15,8 +15,8 @@ const navLinkClass =
 export const mockInterviewNavItems = [
   {
     href: "/ai-interview-coach",
-    label: "Screening Round with AI",
-    description: "Voice-led mock interviews with AI feedback",
+    label: "AI Mock Interview",
+    description: "Mock interviews with AI feedback",
   },
   {
     href: "/ai-coding-practice",

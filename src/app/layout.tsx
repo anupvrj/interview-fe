@@ -12,8 +12,11 @@ import {
   StructuredData,
   organizationSchema,
   webApplicationSchema,
+  createProductNavigationSchema,
+  createWebSiteSchema,
 } from "@/components/StructuredData";
-import { getSearchRobots } from "@/lib/seo/site-url";
+import { getSearchRobots, getSiteUrl } from "@/lib/seo/site-url";
+import { PRODUCT_MARKETING_ROUTES } from "@/lib/seo/marketing-routes";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -82,6 +85,14 @@ export default function RootLayout({
 }>) {
   const gaMeasurementId = getGaMeasurementId();
   const clarityProjectId = getClarityProjectId();
+  const siteUrl = getSiteUrl();
+  const productNavigationSchema = createProductNavigationSchema(
+    PRODUCT_MARKETING_ROUTES.map((route) => ({
+      name: route.name,
+      url: `${siteUrl}${route.path}`,
+      description: route.description,
+    })),
+  );
 
   return (
     <ClerkProvider>
@@ -99,6 +110,14 @@ export default function RootLayout({
           />
           <StructuredData data={organizationSchema} />
           <StructuredData data={webApplicationSchema} />
+          <StructuredData
+            id="website-schema"
+            data={createWebSiteSchema(siteUrl)}
+          />
+          <StructuredData
+            id="product-navigation-schema"
+            data={productNavigationSchema}
+          />
         </head>
         <body className="font-sans antialiased" suppressHydrationWarning>
           <AppGoogleAnalytics gaId={gaMeasurementId} />

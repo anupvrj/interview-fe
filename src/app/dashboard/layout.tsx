@@ -1,21 +1,13 @@
-"use client";
+import type { Metadata } from "next";
+import { getPrivateAppRobots } from "@/lib/seo/site-url";
+import { DashboardClientLayout } from "./DashboardClientLayout";
 
-import { ClientCacheVersionMonitor } from "@/components/ClientCacheVersionMonitor";
-import { DashboardLayout } from "@/components/DashboardLayout";
-import { DashboardToaster } from "@/components/DashboardToaster";
-import { DashboardThemeProvider } from "@/components/dashboard-theme";
-import { ActiveRoleProvider } from "@/components/roles/ActiveRoleProvider";
+export const metadata: Metadata = {
+  robots: getPrivateAppRobots(),
+};
 
-export default function Layout({
+export default function DashboardLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
-  return (
-    <DashboardThemeProvider>
-      <ActiveRoleProvider>
-        <ClientCacheVersionMonitor />
-        <DashboardLayout>{children}</DashboardLayout>
-        <DashboardToaster />
-      </ActiveRoleProvider>
-    </DashboardThemeProvider>
-  );
+  return <DashboardClientLayout>{children}</DashboardClientLayout>;
 }

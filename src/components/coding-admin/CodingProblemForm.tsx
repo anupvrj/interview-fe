@@ -299,7 +299,7 @@ export function CodingProblemFormFooter({
   onSave,
   onCancel,
   onDelete,
-  deleteLabel = "Deactivate",
+  deleteLabel = "Delete",
 }: CodingProblemFormFooterProps) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-4">

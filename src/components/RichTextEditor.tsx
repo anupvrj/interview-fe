@@ -43,6 +43,8 @@ interface RichTextEditorProps {
   readonly placeholder?: string;
   readonly className?: string;
   readonly showAiRefine?: boolean;
+  /** Hint for the magic-button refine API (experience/projects should be "list"). */
+  readonly preferredContentType?: "paragraph" | "list" | "auto";
 }
 
 export function RichTextEditor({
@@ -51,6 +53,7 @@ export function RichTextEditor({
   placeholder = "Enter text...",
   className = "",
   showAiRefine = true,
+  preferredContentType = "auto",
 }: RichTextEditorProps) {
   const [isRefining, setIsRefining] = useState(false);
   const [showLinkDialog, setShowLinkDialog] = useState(false);
@@ -183,24 +186,44 @@ export function RichTextEditor({
   };
 
   const htmlToEditablePlain = (html: string): string => {
-    if (html.includes("<li>")) {
-      return [...html.matchAll(/<li[^>]*>(.*?)<\/li>/gi)]
+    if (/<li[\s>]/i.test(html)) {
+      return [...html.matchAll(/<li[^>]*>([\s\S]*?)<\/li>/gi)]
         .map((match) => match[1].replaceAll(/<[^>]*>/g, "").trim())
         .filter(Boolean)
         .join("\n");
     }
     return html
+      .replaceAll(/<\/p>/gi, "\n")
       .replaceAll(/<br\s*\/?>/gi, "\n")
       .replaceAll(/<[^>]*>/g, " ")
-      .replace(/\s+/g, " ")
-      .trim();
+      .split(/\n+/)
+      .map((line) => line.replace(/\s+/g, " ").trim())
+      .filter(Boolean)
+      .join("\n");
+  };
+
+  const looksLikePlainList = (text: string): boolean => {
+    const lines = text
+      .split(/\n+/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+    if (lines.length < 2) return false;
+    const marked = lines.filter(
+      (line) => /^[-•*●▪–]\s+/.test(line) || /^\d+[.)]\s+/.test(line),
+    );
+    return marked.length >= 1 || lines.length >= 3;
   };
 
   const plainToHtml = (text: string, type: "paragraph" | "list"): string => {
     if (type === "list") {
       const items = text
         .split("\n")
-        .map((line) => line.trim())
+        .map((line) =>
+          line
+            .trim()
+            .replace(/^[-•*●▪–]\s+/, "")
+            .replace(/^\d+[.)]\s+/, ""),
+        )
         .filter(Boolean);
       return `<ul>${items.map((item) => `<li>${item}</li>`).join("")}</ul>`;
     }
@@ -229,12 +252,15 @@ export function RichTextEditor({
     try {
       const result = await contentApi.refineContent(
         currentContent,
-        "auto",
+        preferredContentType,
         options?.usePrompt === false
           ? undefined
           : aiUserPrompt.trim() || undefined,
       );
-      setAiContentType(result.contentType);
+      const nextType = looksLikePlainList(htmlToEditablePlain(result.refinedContent))
+        ? "list"
+        : result.contentType;
+      setAiContentType(nextType);
       setAiOutputText(htmlToEditablePlain(result.refinedContent));
     } catch (error) {
       console.error("Error refining content:", error);
@@ -246,7 +272,10 @@ export function RichTextEditor({
 
   const applyAIContent = () => {
     if (!editor || !aiOutputText.trim()) return;
-    const html = plainToHtml(aiOutputText, aiContentType);
+    const insertType = looksLikePlainList(aiOutputText)
+      ? "list"
+      : aiContentType;
+    const html = plainToHtml(aiOutputText, insertType);
     editor.commands.setContent(html);
     onChange(html);
     setShowAiDialog(false);

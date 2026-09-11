@@ -4,11 +4,16 @@ import { ArrowLeft, ArrowRight, Briefcase, Loader2, SkipForward } from "lucide-r
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  getJobDescriptionOverflow,
+  trimJobDescriptionForSend,
+} from "@/lib/job-description-limits";
+import {
   resumeBuilderFooterActions,
   resumeBuilderHeroCard,
   resumeBuilderOutlineButton,
   resumeBuilderPrimaryButton,
 } from "./resumeBuilderStyles";
+import { AddToChromeButton } from "@/components/chrome-extension/AddToChromeButton";
 
 interface ResumeBuilderJobDescriptionStepProps {
   value: string;
@@ -34,10 +39,12 @@ export function ResumeBuilderJobDescriptionStep({
   onBack,
 }: ResumeBuilderJobDescriptionStepProps) {
   const canAnalyze = value.trim().length >= 50;
+  const overflow = getJobDescriptionOverflow(value);
+  const overLimit = overflow > 0;
 
   const handleAnalyzeAndContinue = async () => {
     if (!canAnalyze) return;
-    const requirements = await onAnalyze(value.trim());
+    const requirements = await onAnalyze(trimJobDescriptionForSend(value));
     onContinueWithJd(requirements);
   };
 
@@ -55,8 +62,11 @@ export function ResumeBuilderJobDescriptionStep({
             <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
               Paste a job description and we&apos;ll align your summary,
               experience bullets, and skills to that role. You can skip this step
-              anytime.
+              anytime. Or capture the posting from Chrome.
             </p>
+            <div className="mt-3">
+              <AddToChromeButton variant="outline" size="sm" />
+            </div>
           </div>
         </div>
       </div>
@@ -67,6 +77,13 @@ export function ResumeBuilderJobDescriptionStep({
         placeholder="Paste the full job description here — role, responsibilities, required skills, qualifications..."
         className="min-h-[220px] resize-y text-sm"
       />
+
+      {overLimit ? (
+        <p className="text-xs text-amber-600 dark:text-amber-400">
+          {overflow.toLocaleString()} extra characters will be trimmed
+          (won&apos;t affect quality).
+        </p>
+      ) : null}
 
       {jdSummary ? (
         <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4 text-sm text-foreground">
