@@ -67,6 +67,11 @@ import {
   usesUnifiedVoiceProtocol,
   type VoiceProvider,
 } from "@/lib/voiceProviders";
+import {
+  revealedAssistantText,
+  shouldHoldAssistantCaptionUntilAudio,
+  SPEECH_CAPTION_FINISH_DEBOUNCE_MS,
+} from "@/lib/voice/speechSyncedTranscript";
 import { createVoiceTransport } from "@/lib/voiceTransport/createVoiceTransport";
 import type { VoiceTransport } from "@/lib/voiceTransport/types";
 
@@ -299,6 +304,17 @@ export function RealtimeInterviewClient({
   // Ref mirror of elapsedTime so setTimeout/onclose closures always read the current
   // value, not the stale value captured at the time connectWebSocket() was called.
   const elapsedTimeRef = useRef(0);
+  const pendingAssistantTextRef = useRef("");
+  const pendingAssistantCompleteRef = useRef(false);
+  const captionStartedAtRef = useRef(0);
+  const captionRevealTimerRef = useRef<ReturnType<typeof setInterval> | null>(
+    null,
+  );
+  const captionFinishTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
+  const lastCommittedAssistantRef = useRef("");
+  const webrtcAgentSpeakingRef = useRef(false);
 
   const stopClientWsHeartbeat = () => {
     if (clientWsHeartbeatRef.current) {
@@ -328,6 +344,74 @@ export function RealtimeInterviewClient({
     nextPlayAtRef.current = 0;
     isPlayingAudioRef.current = false;
     voiceTransportRef.current?.stopAgentPlayback?.();
+  };
+
+  const stopCaptionRevealTimer = () => {
+    if (captionRevealTimerRef.current) {
+      clearInterval(captionRevealTimerRef.current);
+      captionRevealTimerRef.current = null;
+    }
+    if (captionFinishTimerRef.current) {
+      clearTimeout(captionFinishTimerRef.current);
+      captionFinishTimerRef.current = null;
+    }
+  };
+
+  const resetSpeechSyncedCaption = () => {
+    stopCaptionRevealTimer();
+    pendingAssistantTextRef.current = "";
+    pendingAssistantCompleteRef.current = false;
+    captionStartedAtRef.current = 0;
+    setCurrentAssistantTranscript("");
+  };
+
+  const commitSpeechSyncedCaption = () => {
+    stopCaptionRevealTimer();
+    const full = pendingAssistantTextRef.current.trim();
+    pendingAssistantTextRef.current = "";
+    pendingAssistantCompleteRef.current = false;
+    captionStartedAtRef.current = 0;
+    if (!full || full === lastCommittedAssistantRef.current) {
+      setCurrentAssistantTranscript("");
+      return;
+    }
+    lastCommittedAssistantRef.current = full;
+    setTranscript((prev) => [
+      ...prev,
+      { role: "assistant", content: full, timestamp: new Date() },
+    ]);
+    setLastAIMessage(full);
+    setCurrentAssistantTranscript("");
+  };
+
+  const beginSpeechSyncedCaption = () => {
+    if (captionFinishTimerRef.current) {
+      clearTimeout(captionFinishTimerRef.current);
+      captionFinishTimerRef.current = null;
+    }
+    if (captionStartedAtRef.current === 0) {
+      captionStartedAtRef.current = Date.now();
+    }
+    if (captionRevealTimerRef.current) return;
+    captionRevealTimerRef.current = setInterval(() => {
+      const full = pendingAssistantTextRef.current;
+      if (!full) return;
+      setCurrentAssistantTranscript(
+        revealedAssistantText(full, Date.now() - captionStartedAtRef.current),
+      );
+    }, 80);
+  };
+
+  const scheduleFinishSpeechSyncedCaption = () => {
+    if (captionFinishTimerRef.current) {
+      clearTimeout(captionFinishTimerRef.current);
+    }
+    captionFinishTimerRef.current = setTimeout(() => {
+      captionFinishTimerRef.current = null;
+      if (isPlayingAudioRef.current || webrtcAgentSpeakingRef.current) return;
+      if (!pendingAssistantCompleteRef.current) return;
+      commitSpeechSyncedCaption();
+    }, SPEECH_CAPTION_FINISH_DEBOUNCE_MS);
   };
 
   const startClientWsHeartbeat = () => {
@@ -795,7 +879,9 @@ export function RealtimeInterviewClient({
 
       console.log("🔌 Connecting to WebSocket:", wsUrl);
       const audioTransportMode = resolveAudioTransportMode();
-      const transport = createVoiceTransport(audioTransportMode, (data) => {
+      const transport = createVoiceTransport(
+        audioTransportMode,
+        (data) => {
         try {
           if (data.type === "preparing") {
             console.log("⏳ Preparing interview...");
@@ -855,6 +941,9 @@ export function RealtimeInterviewClient({
             setIsAISpeaking(true);
             setIsAIProcessing(false);
             setIsPreparing(false);
+            if (shouldHoldAssistantCaptionUntilAudio(voiceProviderRef.current)) {
+              beginSpeechSyncedCaption();
+            }
             if (!timerStartedRef.current && isInterviewActiveRef.current) {
               timerStartedRef.current = true;
               timerRef.current = setInterval(() => {
@@ -869,15 +958,26 @@ export function RealtimeInterviewClient({
               console.log(
                 `🤖 AI transcript: "${text.substring(0, 50)}..." (finished: ${isComplete})`,
               );
-              setIsPreparing(false);
-              setIsAIProcessing(false);
               if (!timerStartedRef.current && isInterviewActiveRef.current) {
                 timerStartedRef.current = true;
                 timerRef.current = setInterval(() => {
                   setElapsedTime((prev) => prev + 1);
                 }, 1000);
               }
-              if (isComplete) {
+              if (
+                shouldHoldAssistantCaptionUntilAudio(voiceProviderRef.current)
+              ) {
+                pendingAssistantTextRef.current = text;
+                pendingAssistantCompleteRef.current = isComplete;
+                if (
+                  isPlayingAudioRef.current ||
+                  webrtcAgentSpeakingRef.current
+                ) {
+                  beginSpeechSyncedCaption();
+                }
+              } else if (isComplete) {
+                setIsPreparing(false);
+                setIsAIProcessing(false);
                 setTranscript((prev) => [
                   ...prev,
                   {
@@ -889,6 +989,8 @@ export function RealtimeInterviewClient({
                 setLastAIMessage(text);
                 setCurrentAssistantTranscript("");
               } else {
+                setIsPreparing(false);
+                setIsAIProcessing(false);
                 setCurrentAssistantTranscript(text);
               }
             }
@@ -935,13 +1037,22 @@ export function RealtimeInterviewClient({
             // isPlayingAudioRef here starts a second stream on the next chunk
             // and sounds like digital noise between sentences.
             setIsAIProcessing(false);
-            setCurrentAssistantTranscript("");
             const ctx = audioContextRef.current;
             const stillPlaying = ctx
               ? nextPlayAtRef.current > ctx.currentTime + 0.05
               : isPlayingAudioRef.current;
-            if (!stillPlaying && audioBufferRef.current.length === 0) {
-              setIsAISpeaking(false);
+            if (
+              shouldHoldAssistantCaptionUntilAudio(voiceProviderRef.current)
+            ) {
+              if (!stillPlaying && audioBufferRef.current.length === 0) {
+                setIsAISpeaking(false);
+              }
+              scheduleFinishSpeechSyncedCaption();
+            } else {
+              setCurrentAssistantTranscript("");
+              if (!stillPlaying && audioBufferRef.current.length === 0) {
+                setIsAISpeaking(false);
+              }
             }
           } else if (data.type === "user_transcript") {
             /* processed server-side */
@@ -949,7 +1060,15 @@ export function RealtimeInterviewClient({
             stopAiPlayback();
             setIsAISpeaking(false);
             setIsAIProcessing(false);
-            setCurrentAssistantTranscript("");
+            if (
+              shouldHoldAssistantCaptionUntilAudio(voiceProviderRef.current) &&
+              captionStartedAtRef.current > 0 &&
+              pendingAssistantTextRef.current
+            ) {
+              commitSpeechSyncedCaption();
+            } else {
+              resetSpeechSyncedCaption();
+            }
           } else if (data.type === "ai_processing") {
             setIsAIProcessing(true);
             setIsAISpeaking(false);
@@ -974,7 +1093,28 @@ export function RealtimeInterviewClient({
         } catch (error) {
           console.error("Error parsing WebSocket message:", error);
         }
-      });
+      },
+        {
+          onAgentSpeaking: (speaking) => {
+            webrtcAgentSpeakingRef.current = speaking;
+            if (speaking) {
+              setIsAISpeaking(true);
+              if (
+                shouldHoldAssistantCaptionUntilAudio(voiceProviderRef.current)
+              ) {
+                beginSpeechSyncedCaption();
+              }
+            } else {
+              setIsAISpeaking(false);
+              if (
+                shouldHoldAssistantCaptionUntilAudio(voiceProviderRef.current)
+              ) {
+                scheduleFinishSpeechSyncedCaption();
+              }
+            }
+          },
+        },
+      );
       voiceTransportRef.current = transport;
       webrtcAudioActiveRef.current = false;
 
@@ -1095,6 +1235,9 @@ export function RealtimeInterviewClient({
     ) {
       isPlayingAudioRef.current = false;
       setIsAISpeaking(false);
+      if (shouldHoldAssistantCaptionUntilAudio(voiceProviderRef.current)) {
+        scheduleFinishSpeechSyncedCaption();
+      }
     }
   };
 
@@ -1123,6 +1266,9 @@ export function RealtimeInterviewClient({
     const startAt = Math.max(ctx.currentTime, nextPlayAtRef.current);
     nextPlayAtRef.current = startAt + audioBuffer.duration;
     isPlayingAudioRef.current = true;
+    if (shouldHoldAssistantCaptionUntilAudio(voiceProviderRef.current)) {
+      beginSpeechSyncedCaption();
+    }
     playbackSourcesRef.current.push(source);
     source.onended = () => {
       playbackSourcesRef.current = playbackSourcesRef.current.filter(
@@ -1442,6 +1588,11 @@ export function RealtimeInterviewClient({
               if (event.data?.type === "drained") {
                 isPlayingAudioRef.current = false;
                 setIsAISpeaking(false);
+                if (
+                  shouldHoldAssistantCaptionUntilAudio(voiceProviderRef.current)
+                ) {
+                  scheduleFinishSpeechSyncedCaption();
+                }
               }
             };
             node.connect(audioContext.destination);
@@ -1461,6 +1612,11 @@ export function RealtimeInterviewClient({
               node.port.postMessage({ type: "push", samples }, [samples.buffer]);
               isPlayingAudioRef.current = true;
               setIsAISpeaking(true);
+              if (
+                shouldHoldAssistantCaptionUntilAudio(voiceProviderRef.current)
+              ) {
+                beginSpeechSyncedCaption();
+              }
             }
           })
           .catch((err) => {
@@ -3471,21 +3627,34 @@ export function RealtimeInterviewClient({
                     AI responses will appear here as the conversation progresses...
                   </p>
                 ) : (
-                  transcript
-                    .filter((item) => item.role === "assistant")
-                    .map((item, index) => (
-                      <div
-                        key={`transcript-${index}-${
-                          item.role
-                        }-${item.content.slice(0, 10)}`}
-                        className="text-white/90"
-                      >
+                  <>
+                    {transcript
+                      .filter((item) => item.role === "assistant")
+                      .map((item, index) => (
+                        <div
+                          key={`transcript-${index}-${
+                            item.role
+                          }-${item.content.slice(0, 10)}`}
+                          className="text-white/90"
+                        >
+                          <span className="font-semibold text-violet-200">
+                            Question {index + 1}:{" "}
+                          </span>
+                          <span>{item.content}</span>
+                        </div>
+                      ))}
+                    {currentAssistantTranscript ? (
+                      <div className="text-white/90">
                         <span className="font-semibold text-violet-200">
-                          Question {index + 1}:{" "}
+                          Question{" "}
+                          {transcript.filter((item) => item.role === "assistant")
+                            .length + 1}
+                          :{" "}
                         </span>
-                        <span>{item.content}</span>
+                        <span>{currentAssistantTranscript}</span>
                       </div>
-                    ))
+                    ) : null}
+                  </>
                 )}
               </div>
             </CardContent>

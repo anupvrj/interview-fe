@@ -29,6 +29,7 @@ export interface VoiceTransport {
 
 export type WebRtcAudioCallbacks = {
   onAgentTrack?: (element: HTMLAudioElement) => void;
+  onAgentSpeaking?: (speaking: boolean) => void;
   onAudioReady?: () => void;
   onError?: (message: string) => void;
 };
