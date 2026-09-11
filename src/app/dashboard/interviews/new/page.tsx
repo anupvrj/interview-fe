@@ -69,6 +69,7 @@ import {
   type PendingJobCapture,
 } from "@/lib/extension-job-handoff";
 import { trimJobDescriptionForSend } from "@/lib/job-description-limits";
+import { voiceApi } from "@/lib/voiceApi";
 
 const disciplineOptionsByDepartment: Record<
   string,
@@ -266,6 +267,22 @@ function ResumeOptionCard({
   );
 }
 
+function resolveVoiceProviderFromList(
+  preferred: string,
+  enabledIds: Array<"gemini" | "chatgpt" | "sarvam">,
+  current: "gemini" | "chatgpt" | "sarvam",
+): "gemini" | "chatgpt" | "sarvam" {
+  if (enabledIds.includes(current)) return current;
+  if (
+    preferred === "gemini" ||
+    preferred === "chatgpt" ||
+    preferred === "sarvam"
+  ) {
+    if (enabledIds.includes(preferred)) return preferred;
+  }
+  return enabledIds[0] ?? "gemini";
+}
+
 export default function NewInterviewPage() {
   const { user, isLoaded } = useUser();
   const router = useRouter();
@@ -284,7 +301,15 @@ export default function NewInterviewPage() {
     discipline: "",
     targetCompany: "",
     duration: "15",
+    voiceProvider: "gemini" as "gemini" | "chatgpt" | "sarvam",
   });
+  const [voiceProviderOptions, setVoiceProviderOptions] = useState<
+    Array<{ id: "gemini" | "chatgpt" | "sarvam"; label: string }>
+  >([
+    { id: "gemini", label: "Gemini Live" },
+    { id: "chatgpt", label: "ChatGPT Realtime" },
+    { id: "sarvam", label: "Sarvam AI" },
+  ]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [limitCheck, setLimitCheck] = useState<any>(null);
   const [checkingLimit, setCheckingLimit] = useState(true);
@@ -388,6 +413,33 @@ export default function NewInterviewPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoaded, user]);
+
+  useEffect(() => {
+    void voiceApi
+      .listProviders()
+      .then(({ providers, defaultProvider }) => {
+        const enabled = providers.filter((p) => p.enabled);
+        if (enabled.length > 0) {
+          setVoiceProviderOptions(
+            enabled.map((p) => ({
+              id: p.id,
+              label: p.label,
+            })),
+          );
+          setFormData((prev) => ({
+            ...prev,
+            voiceProvider: resolveVoiceProviderFromList(
+              defaultProvider,
+              enabled.map((p) => p.id),
+              prev.voiceProvider,
+            ),
+          }));
+        }
+      })
+      .catch(() => {
+        /* keep local defaults if API unavailable */
+      });
+  }, []);
 
   useEffect(() => {
     const apply = (next: PendingJobCapture | null) => {
@@ -545,6 +597,7 @@ export default function NewInterviewPage() {
           const jd = trimJobDescriptionForSend(jobDescription);
           return jd.length >= MIN_JOB_DESCRIPTION_CHARS ? jd : undefined;
         })(),
+        voiceProvider: formData.voiceProvider,
       });
 
       clearPendingJobCapture();
@@ -782,8 +835,9 @@ export default function NewInterviewPage() {
           ) : null}
 
           {currentStep === 3 ? (
-            <div className="flex flex-wrap justify-center gap-3 sm:justify-start">
-              {(["15", "30"] as const).map((duration) => {
+            <div className="space-y-5">
+              <div className="flex flex-wrap justify-center gap-3 sm:justify-start">
+                {(["15", "30"] as const).map((duration) => {
                 const is30 = duration === "30";
                 const disabled = is30 && !canUse30Min;
                 const selected = formData.duration === duration;
@@ -818,6 +872,29 @@ export default function NewInterviewPage() {
                   </button>
                 );
               })}
+              </div>
+
+              <FormField label="Voice AI model" htmlFor="voiceProvider">
+                <AppSelect
+                  id="voiceProvider"
+                  value={formData.voiceProvider}
+                  onChange={(value) =>
+                    setFormData({
+                      ...formData,
+                      voiceProvider: value as "gemini" | "chatgpt" | "sarvam",
+                    })
+                  }
+                  options={voiceProviderOptions.map((option) => ({
+                    value: option.id,
+                    label: option.label,
+                  }))}
+                  className={controlClass}
+                />
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Choose which voice AI powers this mock interview. Sarvam is
+                  strongest for Hindi and Indic-language interviews.
+                </p>
+              </FormField>
             </div>
           ) : null}
 
