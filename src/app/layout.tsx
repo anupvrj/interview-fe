@@ -3,6 +3,7 @@ import { ClerkProvider } from "@clerk/nextjs";
 import { AppGoogleAnalytics } from "@/components/AppGoogleAnalytics";
 import { UserProvider } from "@/components/UserProvider";
 import { QueryProvider } from "@/components/QueryProvider";
+import { FeatureRouteGuard } from "@/components/features/FeatureRouteGuard";
 import { TemplateRegistryInitializer } from "@/components/TemplateRegistryInitializer";
 import { getGaMeasurementId } from "@/config/google-analytics";
 import { getClarityProjectId } from "@/config/microsoft-clarity";
@@ -124,7 +125,9 @@ export default function RootLayout({
           <AppMicrosoftClarity projectId={clarityProjectId} />
           <TemplateRegistryInitializer />
           <QueryProvider>
-            <UserProvider>{children}</UserProvider>
+            <UserProvider>
+              <FeatureRouteGuard>{children}</FeatureRouteGuard>
+            </UserProvider>
           </QueryProvider>
           <AppToaster />
         </body>

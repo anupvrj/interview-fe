@@ -2157,12 +2157,18 @@ export const adminApi = {
     search?: string;
     /** Super admin: scope list to this institution */
     institutionId?: string;
+    period?: string;
+    from?: string;
+    to?: string;
   }): Promise<{ data: User[]; total: number }> => {
     const q = new URLSearchParams();
     if (params?.limit) q.set("limit", String(params.limit));
     if (params?.skip) q.set("skip", String(params.skip));
     if (params?.search) q.set("search", params.search);
     if (params?.institutionId) q.set("institutionId", params.institutionId);
+    if (params?.period) q.set("period", params.period);
+    if (params?.from) q.set("from", params.from);
+    if (params?.to) q.set("to", params.to);
     const response = await apiClient.get<{ success: boolean; data: User[]; total: number }>(
       `/admin/users?${q.toString()}`
     );
@@ -2249,6 +2255,163 @@ export const adminApi = {
     const response = await apiClient.get<{ success: boolean; data: any }>(
       `/admin/resumes/${resumeId}`
     );
+    return response.data.data;
+  },
+
+  getInsights: async (params?: {
+    period?: string;
+    from?: string;
+    to?: string;
+    type?: string;
+  }): Promise<import("@/lib/super-admin-insights").AdminInsights> => {
+    const q = new URLSearchParams();
+    if (params?.period) q.set("period", params.period);
+    if (params?.from) q.set("from", params.from);
+    if (params?.to) q.set("to", params.to);
+    if (params?.type) q.set("type", params.type);
+    const qs = q.toString();
+    const response = await apiClient.get<{
+      success: boolean;
+      data: import("@/lib/super-admin-insights").AdminInsights;
+    }>(`/admin/insights${qs ? `?${qs}` : ""}`);
+    return response.data.data;
+  },
+
+  getVoiceModelUsage: async (): Promise<
+    import("@/lib/super-admin-insights").VoiceModelUsageInsights
+  > => {
+    const response = await apiClient.get<{
+      success: boolean;
+      data: import("@/lib/super-admin-insights").VoiceModelUsageInsights;
+    }>("/admin/insights/voice-models");
+    return response.data.data;
+  },
+
+  listInsightResumes: async (params?: {
+    period?: string;
+    from?: string;
+    to?: string;
+    search?: string;
+    limit?: number;
+    skip?: number;
+  }): Promise<{
+    data: import("@/lib/super-admin-insights").InsightResumeRow[];
+    total: number;
+  }> => {
+    const q = new URLSearchParams();
+    if (params?.period) q.set("period", params.period);
+    if (params?.from) q.set("from", params.from);
+    if (params?.to) q.set("to", params.to);
+    if (params?.search) q.set("search", params.search);
+    if (params?.limit) q.set("limit", String(params.limit));
+    if (params?.skip) q.set("skip", String(params.skip));
+    const response = await apiClient.get<{
+      success: boolean;
+      data: import("@/lib/super-admin-insights").InsightResumeRow[];
+      total: number;
+    }>(`/admin/insights/resumes?${q.toString()}`);
+    return { data: response.data.data, total: response.data.total };
+  },
+
+  listInsightInterviews: async (params?: {
+    type?: string;
+    period?: string;
+    from?: string;
+    to?: string;
+    search?: string;
+    limit?: number;
+    skip?: number;
+  }): Promise<{
+    data: import("@/lib/super-admin-insights").InsightInterviewRow[];
+    total: number;
+  }> => {
+    const q = new URLSearchParams();
+    if (params?.type) q.set("type", params.type);
+    if (params?.period) q.set("period", params.period);
+    if (params?.from) q.set("from", params.from);
+    if (params?.to) q.set("to", params.to);
+    if (params?.search) q.set("search", params.search);
+    if (params?.limit) q.set("limit", String(params.limit));
+    if (params?.skip) q.set("skip", String(params.skip));
+    const response = await apiClient.get<{
+      success: boolean;
+      data: import("@/lib/super-admin-insights").InsightInterviewRow[];
+      total: number;
+    }>(`/admin/insights/interviews?${q.toString()}`);
+    return { data: response.data.data, total: response.data.total };
+  },
+
+  getSystemDesignReportForAdmin: async (sessionId: string): Promise<{
+    session: Record<string, unknown> & {
+      sessionId: string;
+      userId: string;
+      problemId: string;
+      status: string;
+      score?: number;
+      scoreReport?: {
+        overallScore?: number;
+        dimensionScores?: Record<string, number>;
+        dimensionVerdicts?: Record<string, string>;
+        strengths?: string[];
+        improvements?: string[];
+        summary?: string;
+      };
+      createdAt?: string;
+      completedAt?: string;
+    };
+    report: {
+      overallScore: number;
+      dimensionScores?: Record<string, number>;
+      dimensionVerdicts?: Record<string, string>;
+      whatYouDidWell?: string[];
+      gapsInDesign?: string[];
+      approachesCovered?: string[];
+      approachesMissedOrWeak?: string[];
+      concreteRecommendations?: string[];
+      overallSummary?: string;
+      fullReportMarkdown?: string;
+      generatedAt?: string;
+    } | null;
+    problem: { problemId: string; title: string; shortTitle: string } | null;
+    user: { clerkId: string; name: string; email: string };
+  }> => {
+    const response = await apiClient.get<{
+      success: boolean;
+      data: {
+        session: Record<string, unknown> & {
+          sessionId: string;
+          userId: string;
+          problemId: string;
+          status: string;
+          score?: number;
+          scoreReport?: {
+            overallScore?: number;
+            dimensionScores?: Record<string, number>;
+            dimensionVerdicts?: Record<string, string>;
+            strengths?: string[];
+            improvements?: string[];
+            summary?: string;
+          };
+          createdAt?: string;
+          completedAt?: string;
+        };
+        report: {
+          overallScore: number;
+          dimensionScores?: Record<string, number>;
+          dimensionVerdicts?: Record<string, string>;
+          whatYouDidWell?: string[];
+          gapsInDesign?: string[];
+          approachesCovered?: string[];
+          approachesMissedOrWeak?: string[];
+          concreteRecommendations?: string[];
+          overallSummary?: string;
+          fullReportMarkdown?: string;
+          generatedAt?: string;
+        } | null;
+        problem: { problemId: string; title: string; shortTitle: string } | null;
+        user: { clerkId: string; name: string; email: string };
+      };
+    }>(`/admin/system-design/sessions/${encodeURIComponent(sessionId)}/report`);
     return response.data.data;
   },
 
@@ -2602,6 +2765,43 @@ export const adminApi = {
       data: { version: number; updatedAt: string };
     }>("/admin/client-cache/invalidate");
     return response.data.data;
+  },
+
+  listPlatformFeatures: async (): Promise<
+    import("@/lib/platform-features").PlatformFeature[]
+  > => {
+    const response = await apiClient.get<{
+      success: boolean;
+      data: {
+        features: import("@/lib/platform-features").PlatformFeature[];
+      };
+    }>("/admin/features");
+    return response.data.data.features;
+  },
+
+  updatePlatformFeature: async (
+    key: string,
+    patch: import("@/lib/platform-features").PlatformFeaturePatch,
+  ): Promise<import("@/lib/platform-features").PlatformFeature> => {
+    const response = await apiClient.patch<{
+      success: boolean;
+      data: import("@/lib/platform-features").PlatformFeature;
+    }>(`/admin/features/${encodeURIComponent(key)}`, patch);
+    return response.data.data;
+  },
+
+  createPlatformFeature: async (
+    input: import("@/lib/platform-features").CreatePlatformFeatureInput,
+  ): Promise<import("@/lib/platform-features").PlatformFeature> => {
+    const response = await apiClient.post<{
+      success: boolean;
+      data: import("@/lib/platform-features").PlatformFeature;
+    }>("/admin/features", input);
+    return response.data.data;
+  },
+
+  deletePlatformFeature: async (key: string): Promise<void> => {
+    await apiClient.delete(`/admin/features/${encodeURIComponent(key)}`);
   },
 };
 
@@ -4840,5 +5040,13 @@ export const configApi = {
       data: { version: number; updatedAt: string };
     }>("/config/client-cache");
     return response.data.data;
+  },
+
+  getFeatures: async (): Promise<import("@/lib/platform-features").PlatformFeature[]> => {
+    const response = await apiClient.get<{
+      success: boolean;
+      data: { features: import("@/lib/platform-features").PlatformFeature[] };
+    }>("/config/features");
+    return response.data.data.features;
   },
 };

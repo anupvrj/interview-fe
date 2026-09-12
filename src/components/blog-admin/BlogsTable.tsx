@@ -184,7 +184,7 @@ export function BlogsTable({
                         <Eye className="h-4 w-4" />
                       </Button>
                       <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
-                        <Link href={`/dashboard/super-admin/blogs/${encodeURIComponent(item.id)}/edit`}>
+                        <Link href={`/super-admin/blogs/${encodeURIComponent(item.id)}/edit`}>
                           <Pencil className="h-4 w-4" />
                         </Link>
                       </Button>

@@ -92,14 +92,14 @@ export function ActiveRoleProvider({ children }: Readonly<{ children: ReactNode 
       return;
     }
 
-    if (currentRole) return;
-
-    const stored = readStoredRole(user.id);
-    const roles = deriveAvailableRoles(profile);
-    if (stored && roles.includes(stored)) {
-      setCurrentRole(stored);
-    }
-  }, [pathname, profile, user, currentRole]);
+    setCurrentRole((prev) => {
+      if (prev) return prev;
+      const stored = readStoredRole(user.id);
+      const roles = deriveAvailableRoles(profile);
+      if (stored && roles.includes(stored)) return stored;
+      return prev;
+    });
+  }, [pathname, profile, user]);
 
   const availableRoles = useMemo(
     () => (profile ? deriveAvailableRoles(profile) : []),

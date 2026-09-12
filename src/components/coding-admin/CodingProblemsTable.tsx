@@ -271,7 +271,7 @@ export function CodingProblemsTable({
                         asChild
                       >
                         <Link
-                          href={`/dashboard/super-admin/coding-problems/${encodeURIComponent(item.problemId)}/playground`}
+                          href={`/super-admin/coding-problems/${encodeURIComponent(item.problemId)}/playground`}
                         >
                           <Play className="h-4 w-4" />
                         </Link>
@@ -286,7 +286,7 @@ export function CodingProblemsTable({
                       </Button>
                       <Button type="button" variant="ghost" size="icon" asChild>
                         <Link
-                          href={`/dashboard/super-admin/coding-problems/${encodeURIComponent(item.problemId)}/edit`}
+                          href={`/super-admin/coding-problems/${encodeURIComponent(item.problemId)}/edit`}
                         >
                           <Pencil className="h-4 w-4" />
                         </Link>
