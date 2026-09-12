@@ -1,8 +1,3 @@
-import {
-  isExtensionHandoffPath,
-  loadPendingJobHandoffPath,
-} from "@/lib/extension-job-handoff";
-
 export const POST_SIGN_IN_RETURN_URL_KEY = "resumeBuilderReturnUrl";
 
 /** Only in-app paths. Blocks protocol-relative, off-site, and wildcard placeholders. */
@@ -54,14 +49,16 @@ export function peekPostSignInReturnUrl(): string | null {
 }
 
 /**
- * Persist the intended post-auth path. Prefers the sign-in query param, then a
- * waiting Chrome-extension job capture. Safe to call during render on the client.
+ * Persist the intended post-auth path from an explicit `redirect_url` only.
+ * Do not fall back to a leftover Chrome-extension job capture — that capture
+ * is re-injected on every InterviewTrix visit and would hijack normal login
+ * to /dashboard/interviews/new. The extension already opens that path, so
+ * middleware supplies redirect_url for a real handoff.
  */
 export function persistPostAuthReturnPath(
   redirectUrl: string | null | undefined,
 ): string {
-  const destination =
-    safeAppRedirectPath(redirectUrl) || loadPendingJobHandoffPath();
+  const destination = safeAppRedirectPath(redirectUrl);
   if (destination) {
     storePostSignInReturnUrl(destination);
     return destination;
@@ -72,10 +69,7 @@ export function persistPostAuthReturnPath(
 export function consumePostSignInReturnUrl(): string | null {
   if (typeof window === "undefined") return null;
   const returnUrl = localStorage.getItem(POST_SIGN_IN_RETURN_URL_KEY);
-  if (returnUrl) {
-    localStorage.removeItem(POST_SIGN_IN_RETURN_URL_KEY);
-    return returnUrl;
-  }
-  const handoffPath = loadPendingJobHandoffPath();
-  return handoffPath && isExtensionHandoffPath(handoffPath) ? handoffPath : null;
+  if (!returnUrl) return null;
+  localStorage.removeItem(POST_SIGN_IN_RETURN_URL_KEY);
+  return returnUrl;
 }

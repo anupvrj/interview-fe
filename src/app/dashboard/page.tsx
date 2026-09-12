@@ -1,11 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { readStoredRole } from "@/lib/roles";
-import { loadPendingJobHandoffPath } from "@/lib/extension-job-handoff";
-import { useResumeExtensionHandoff } from "@/hooks/useResumeExtensionHandoff";
 import Link from "next/link";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
@@ -164,15 +162,6 @@ export default function DashboardPage() {
     };
   }, [interviews]);
 
-  const resumeCandidateWorkspace = useCallback(() => {
-    roleCtx?.setActiveRoleSilent("candidate");
-  }, [roleCtx]);
-
-  useResumeExtensionHandoff({
-    enabled: Boolean(user),
-    onBeforeRedirect: resumeCandidateWorkspace,
-  });
-
   useEffect(() => {
     try {
       setOnboardingBannerDismissed(
@@ -185,7 +174,6 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (!roleReady || !user || !profile) return;
-    if (loadPendingJobHandoffPath()) return;
     if (
       readStoredRole(user.id) === "institution_admin" &&
       profile.institutionId

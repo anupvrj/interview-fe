@@ -13,8 +13,15 @@ export const MIN_JOB_DESCRIPTION_CHARS = 50;
 export const FROM_JOB_PATH = "/dashboard/resumes/from-job";
 export const PRACTICE_INTERVIEW_PATH = "/dashboard/interviews/new";
 
-/** Drop abandoned captures so a later dashboard visit is not hijacked. */
-export const MAX_CAPTURE_AGE_MS = 24 * 60 * 60 * 1000;
+/**
+ * Drop abandoned captures so a later dashboard visit is not hijacked.
+ * Keep this short: the extension bridge re-writes chrome.storage into
+ * localStorage on every InterviewTrix page load.
+ */
+export const MAX_CAPTURE_AGE_MS = 45 * 60 * 1000;
+
+/** Fingerprint of a capture the web app already applied or dismissed. */
+export const CONSUMED_JOB_CAPTURE_KEY = "interviewtrix.pendingJobCapture.consumed";
 
 export type JobDetails = Record<string, string>;
 
@@ -74,10 +81,44 @@ function isPendingJobCapture(value: unknown): value is PendingJobCapture {
 }
 
 export function isFreshJobCapture(capture: PendingJobCapture): boolean {
-  if (!capture.capturedAt) return true;
+  if (!capture.capturedAt) return false;
   const at = Date.parse(capture.capturedAt);
-  if (Number.isNaN(at)) return true;
+  if (Number.isNaN(at)) return false;
   return Date.now() - at < MAX_CAPTURE_AGE_MS;
+}
+
+export function captureFingerprint(capture: PendingJobCapture): string {
+  return [
+    capture.capturedAt,
+    capture.intent ?? "resume",
+    capture.sourceUrl,
+    capture.jobDescription.slice(0, 80),
+  ].join("|");
+}
+
+function readConsumedFingerprint(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return window.localStorage.getItem(CONSUMED_JOB_CAPTURE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function markCaptureConsumed(capture: PendingJobCapture): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(
+      CONSUMED_JOB_CAPTURE_KEY,
+      captureFingerprint(capture),
+    );
+  } catch {
+    /* quota / private mode */
+  }
+}
+
+function isConsumedJobCapture(capture: PendingJobCapture): boolean {
+  return readConsumedFingerprint() === captureFingerprint(capture);
 }
 
 export function parsePendingJobCapture(raw: string | null): PendingJobCapture | null {
@@ -120,7 +161,7 @@ export function loadPendingJobCapture(): PendingJobCapture | null {
   const capture =
     readStorageItem(window.sessionStorage) ?? readStorageItem(window.localStorage);
   if (!capture) return null;
-  if (!isFreshJobCapture(capture)) {
+  if (!isFreshJobCapture(capture) || isConsumedJobCapture(capture)) {
     clearPendingJobCapture();
     return null;
   }
@@ -151,6 +192,9 @@ export function savePendingJobCapture(payload: PendingJobCapture): void {
 
 export function clearPendingJobCapture(): void {
   if (typeof window === "undefined") return;
+  const capture =
+    readStorageItem(window.sessionStorage) ?? readStorageItem(window.localStorage);
+  if (capture) markCaptureConsumed(capture);
   removeStorageItem(window.sessionStorage);
   removeStorageItem(window.localStorage);
 }

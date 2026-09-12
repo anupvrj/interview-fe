@@ -188,4 +188,20 @@ describe("pending job capture storage", () => {
     });
     expect(loadPendingJobCapture()).toBeNull();
   });
+
+  it("ignores a capture the app already consumed after the extension re-injects it", () => {
+    savePendingJobCapture(freshPayload);
+    clearPendingJobCapture();
+    localStorage.setItem(PENDING_JOB_STORAGE_KEY, JSON.stringify(freshPayload));
+    expect(loadPendingJobCapture()).toBeNull();
+    expect(loadPendingJobHandoffPath()).toBeNull();
+  });
+
+  it("treats a missing capturedAt as stale so leftover payloads cannot hijack login", () => {
+    savePendingJobCapture({
+      ...freshPayload,
+      capturedAt: "",
+    });
+    expect(loadPendingJobCapture()).toBeNull();
+  });
 });

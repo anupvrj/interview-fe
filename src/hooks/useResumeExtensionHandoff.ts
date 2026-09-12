@@ -10,8 +10,9 @@ type ResumeExtensionHandoffOptions = {
 };
 
 /**
- * After login, Clerk often lands on /dashboard (or /select-role). The Chrome
- * extension capture lives in storage — resume the tailor/practice flow.
+ * Resume a Chrome-extension tailor/practice flow after landing on a workspace
+ * page. Do not mount this on /dashboard or /select-role — leftover captures
+ * are re-injected on every visit and would hijack normal login.
  */
 export function useResumeExtensionHandoff(
   options: ResumeExtensionHandoffOptions = {},
