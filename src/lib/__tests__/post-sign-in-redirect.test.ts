@@ -107,25 +107,7 @@ describe("persist and consume post-auth return", () => {
     expect(consumePostSignInReturnUrl()).toBe(FROM_JOB_PATH);
   });
 
-  it("falls back to a waiting extension capture", () => {
-    localStorage.setItem(
-      PENDING_JOB_STORAGE_KEY,
-      JSON.stringify({
-        v: 1,
-        sourceUrl: "https://linkedin.com/jobs/view/1",
-        title: "SDE",
-        company: "Acme",
-        location: "Bengaluru",
-        jobDescription: "Build APIs and own delivery.",
-        capturedAt: new Date().toISOString(),
-        intent: "resume",
-      }),
-    );
-    expect(persistPostAuthReturnPath(null)).toBe(FROM_JOB_PATH);
-    expect(consumePostSignInReturnUrl()).toBe(FROM_JOB_PATH);
-  });
-
-  it("consume falls back to extension handoff when no return URL was stored", () => {
+  it("does not hijack a generic login with a leftover extension capture", () => {
     localStorage.setItem(
       PENDING_JOB_STORAGE_KEY,
       JSON.stringify({
@@ -139,6 +121,24 @@ describe("persist and consume post-auth return", () => {
         intent: "practice-interview",
       }),
     );
-    expect(consumePostSignInReturnUrl()).toBe("/dashboard/interviews/new");
+    expect(persistPostAuthReturnPath(null)).toBe("/onboarding");
+    expect(consumePostSignInReturnUrl()).toBeNull();
+  });
+
+  it("does not consume a leftover capture when no return URL was stored", () => {
+    localStorage.setItem(
+      PENDING_JOB_STORAGE_KEY,
+      JSON.stringify({
+        v: 1,
+        sourceUrl: "https://linkedin.com/jobs/view/1",
+        title: "SDE",
+        company: "Acme",
+        location: "Bengaluru",
+        jobDescription: "Build APIs and own delivery.",
+        capturedAt: new Date().toISOString(),
+        intent: "practice-interview",
+      }),
+    );
+    expect(consumePostSignInReturnUrl()).toBeNull();
   });
 });

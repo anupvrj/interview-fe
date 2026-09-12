@@ -1,10 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
-import { loadPendingJobHandoffPath } from "@/lib/extension-job-handoff";
-import { useResumeExtensionHandoff } from "@/hooks/useResumeExtensionHandoff";
 import { ArrowRight, Loader2 } from "lucide-react";
 import { InterviewTrixLogo } from "@/components/InterviewTrixLogo";
 import { userApi, type User } from "@/lib/api";
@@ -24,26 +22,10 @@ export default function SelectRolePage() {
   const [profile, setProfile] = useState<User | null>(null);
   const [roles, setRoles] = useState<ActiveRole[] | null>(null);
 
-  const resumeCandidateWorkspace = useCallback(() => {
-    if (user) writeStoredRole(user.id, "candidate");
-  }, [user]);
-
-  useResumeExtensionHandoff({
-    enabled: Boolean(isLoaded && user),
-    onBeforeRedirect: resumeCandidateWorkspace,
-  });
-
   useEffect(() => {
     if (!isLoaded) return;
     if (!user) {
       router.replace("/sign-in");
-      return;
-    }
-
-    const handoffPath = loadPendingJobHandoffPath();
-    if (handoffPath) {
-      writeStoredRole(user.id, "candidate");
-      router.replace(handoffPath);
       return;
     }
 
