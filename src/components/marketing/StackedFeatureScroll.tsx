@@ -13,6 +13,7 @@ import {
   type ReactNode,
 } from "react";
 import { cn } from "@/lib/utils";
+import { StackedFeatureSectionHeading } from "@/components/marketing/StackedFeatureSectionHeading";
 
 const TRACK_EXTRA_VH = 40;
 const TRACK_STEP_VH = 120;
@@ -155,15 +156,8 @@ function SimpleStackedFeatureLayout({
       className="border-t border-border"
     >
       <div className="container mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-16">
-        <header className="mb-10 text-center">
-          <h2
-            id="get-hired-week-heading"
-            className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl lg:text-5xl"
-          >
-            {heading}
-          </h2>
-        </header>
-        <div className="stacked-feature-simple-list space-y-16">
+        <StackedFeatureSectionHeading title={heading} variant="static" />
+        <div className="stacked-feature-simple-list mt-10 space-y-6 sm:mt-12 sm:space-y-8">
           {steps.map((step) => (
             <article
               key={step.id}
@@ -391,20 +385,7 @@ export function StackedFeatureScroll({
         ))}
 
         <div className="stacked-feature-sticky">
-          <header className="stacked-feature-heading">
-            <h2
-              id="get-hired-week-heading"
-              className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl md:text-4xl lg:text-5xl"
-            >
-              {heading}
-            </h2>
-            <p
-              className="mt-3 text-base font-semibold text-primary sm:text-lg md:text-xl"
-              aria-live="polite"
-            >
-              {steps[activeIndex]?.stepTitle}
-            </p>
-          </header>
+          <StackedFeatureSectionHeading title={heading} />
 
           <aside
             className="stacked-feature-progress"

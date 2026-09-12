@@ -104,6 +104,11 @@
   margin-bottom: 20px;
 }
 
+/* Extra personal details (DOB, nationality, passport) stay left-aligned */
+.atlantic-blue-sidebar-personal .atlantic-blue-additional-personal {
+  text-align: left;
+}
+
 .atlantic-blue-left-column .atlantic-blue-name {
   font-family: var(--ab-font-display);
   font-size: var(--resume-heading-font-size, 28px);

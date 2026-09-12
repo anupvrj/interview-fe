@@ -43,6 +43,9 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Interview, interviewApi, interviewScheduleApi } from "@/lib/api";
+import { useInterviewsQuery } from "@/hooks/queries/useInterviewsQuery";
+import { useInterviewSchedulesQuery } from "@/hooks/queries/useInterviewSchedulesQuery";
+import { useDashboardInvalidation } from "@/hooks/useDashboardInvalidation";
 import {
   cn,
   scheduledInterviewCanStartNow,
@@ -62,9 +65,12 @@ const ITEMS_PER_PAGE = 10;
 export default function InterviewsPage() {
   const { user, isLoaded } = useUser();
   const router = useRouter();
-  const [interviews, setInterviews] = useState<Interview[]>([]);
-  const [scheduled, setScheduled] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: interviews = [], isLoading: interviewsLoading } =
+    useInterviewsQuery();
+  const { data: scheduled = [], isLoading: schedulesLoading } =
+    useInterviewSchedulesQuery();
+  const loading = interviewsLoading || schedulesLoading;
+  const { invalidate } = useDashboardInvalidation();
   const [currentPage, setCurrentPage] = useState(1);
   const [listTab, setListTab] = useState<"history" | "scheduled">("history");
   const [startingScheduleId, setStartingScheduleId] = useState<string | null>(null);
@@ -83,26 +89,8 @@ export default function InterviewsPage() {
   useEffect(() => {
     if (isLoaded && user) {
       localStorage.setItem("clerk-user-id", user.id);
-      loadInterviews();
     }
   }, [isLoaded, user]);
-
-  const loadInterviews = async () => {
-    if (!user) return;
-    try {
-      setLoading(true);
-      const [data, schedules] = await Promise.all([
-        interviewApi.list(user.id),
-        interviewScheduleApi.listMine().catch(() => [] as any[]),
-      ]);
-      setInterviews(data);
-      setScheduled(Array.isArray(schedules) ? schedules : []);
-    } catch (error) {
-      console.error("Error loading interviews:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleConfirmDeleteInterview = async () => {
     if (!deleteConfirmId) return;
@@ -111,7 +99,7 @@ export default function InterviewsPage() {
       await interviewApi.deleteDraftOrActive(deleteConfirmId);
       toast.success("Interview deleted");
       setDeleteConfirmId(null);
-      await loadInterviews();
+      await invalidate(["interviews", "entitlements"]);
     } catch (e: unknown) {
       const msg =
         (e as { response?: { data?: { message?: string } } })?.response?.data
@@ -126,6 +114,7 @@ export default function InterviewsPage() {
     try {
       setStartingScheduleId(scheduleId);
       const { interviewId } = await interviewScheduleApi.start(scheduleId);
+      await invalidate(["interviewSchedules", "interviews", "entitlements"]);
       router.push(`/interview/${interviewId}/realtime`);
     } catch (e: any) {
       alert(
@@ -142,7 +131,13 @@ export default function InterviewsPage() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  if (!isLoaded || loading) {
+  const waitingForFirstData =
+    isLoaded &&
+    (interviewsLoading || schedulesLoading) &&
+    interviews.length === 0 &&
+    scheduled.length === 0;
+
+  if (!isLoaded || waitingForFirstData) {
     return (
       <div className="flex min-h-[400px] items-center justify-center">
         <div className="text-center">

@@ -8,6 +8,8 @@ import {
   type Subscription,
   type SubscriptionActivationState,
 } from "@/lib/api";
+import { getQueryClient } from "@/lib/query-client";
+import { invalidateEntitlements } from "@/lib/invalidate-queries";
 
 const POLL_INTERVAL_MS = 15_000;
 const FIRST_POLL_DELAY_MS = 5_000;
@@ -103,6 +105,9 @@ export function usePendingSubscriptionPolling(options?: {
     const current = activationState;
 
     if (prev === "pending" && current === "active") {
+      if (user?.id) {
+        void invalidateEntitlements(getQueryClient(), user.id);
+      }
       toast.success("Plan activated!", {
         description: "Your subscription is active and credits have been added.",
         duration: 6000,
@@ -120,7 +125,7 @@ export function usePendingSubscriptionPolling(options?: {
     }
 
     prevActivationRef.current = current;
-  }, [activationState, subscription, options?.silent]);
+  }, [activationState, subscription, options?.silent, user?.id]);
 
   return {
     subscription,

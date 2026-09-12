@@ -5,6 +5,12 @@ import axios, {
 } from "axios";
 import type { ATSReportV3 } from "@/types/atsReport";
 export { isATSReportV3 } from "@/types/atsReport";
+import { inferImageContentType } from "@/lib/image-upload";
+import {
+  getSignInUrlWithRedirect,
+  shouldRedirectUnauthorizedToSignIn,
+} from "@/lib/post-sign-in-redirect";
+import { trimJobDescriptionForSend } from "@/lib/job-description-limits";
 
 /** Base URL for API (includes `/api` path). Use for `<img src>` and other non-axios URLs. */
 export const API_URL =
@@ -66,6 +72,13 @@ async function snapshotFileForUpload(file: File): Promise<Blob> {
   });
 }
 
+async function snapshotImageForUpload(file: File): Promise<Blob> {
+  const buffer = await file.arrayBuffer();
+  return new Blob([buffer], {
+    type: inferImageContentType(file),
+  });
+}
+
 // Token getter - set by AuthTokenProvider for JWT verification on backend
 let tokenGetter: (() => Promise<string | null>) | null = null;
 export function setAuthTokenGetter(getter: () => Promise<string | null>) {
@@ -110,9 +123,16 @@ apiClient.interceptors.response.use(
   (response) => response,
   (error: AxiosError) => {
     if (error.response?.status === 401) {
-      // Redirect to login if unauthorized
       if (typeof window !== "undefined") {
-        window.location.href = "/sign-in";
+        const returnPath = `${window.location.pathname}${window.location.search}`;
+        if (
+          shouldRedirectUnauthorizedToSignIn(
+            window.location.pathname,
+            String(error.config?.url || ""),
+          )
+        ) {
+          window.location.href = getSignInUrlWithRedirect(returnPath);
+        }
       }
     }
     return Promise.reject(error);
@@ -137,6 +157,10 @@ export interface User {
   welcomeSignupIntent?: "candidate" | "recruiter" | "interviewer";
   userType?: "student" | "fresher" | "experienced";
   experience?: number;
+  /** Role the candidate is preparing / interviewing for */
+  targetJobRole?: string;
+  /** Company the candidate is targeting */
+  targetCompany?: string;
   /** Contact phone number */
   phone?: string;
   currentJob?: {
@@ -316,6 +340,8 @@ export interface Interview {
     discussionDurationMinutes?: number;
     /** When true (e.g. institute admin), denying screen capture may block the session. */
     requireSessionRecording?: boolean;
+    /** Voice AI provider selected at interview creation. */
+    voiceProvider?: "gemini" | "chatgpt" | "sarvam";
   };
   codingRound?: {
     status: string;
@@ -478,6 +504,10 @@ export interface CreateInterviewRequest {
   useSavedResume?: boolean;
   /** Interview duration in minutes: 15 (default) or 30 (premium & enterprise). */
   duration?: number;
+  /** Job posting description from Chrome extension (or pasted) for JD-grounded questions. */
+  jobDescription?: string;
+  /** Voice AI provider for the realtime interview session. */
+  voiceProvider?: "gemini" | "chatgpt" | "sarvam";
 }
 
 export interface CreateInterviewResponse {
@@ -603,6 +633,8 @@ export const userApi = {
   completeOnboarding: async (data: {
     userType: "student" | "fresher" | "experienced";
     experience?: number;
+    targetJobRole?: string;
+    targetCompany?: string;
     currentJob?: {
       company: string;
       role: string;
@@ -625,6 +657,8 @@ export const userApi = {
     name?: string;
     userType?: "student" | "fresher" | "experienced";
     experience?: number;
+    targetJobRole?: string;
+    targetCompany?: string;
     currentJob?: {
       company: string;
       role: string;
@@ -670,6 +704,15 @@ export const interviewApi = {
     }
     if (data.duration) {
       formData.append("duration", data.duration.toString());
+    }
+    if (data.jobDescription?.trim()) {
+      formData.append(
+        "jobDescription",
+        trimJobDescriptionForSend(data.jobDescription),
+      );
+    }
+    if (data.voiceProvider) {
+      formData.append("voiceProvider", data.voiceProvider);
     }
     if (data.resume) {
       const resumeBlob = await snapshotFileForUpload(data.resume);
@@ -1524,6 +1567,7 @@ export const resumeApi = {
       content?: Partial<Resume["content"]>;
       sectionOrder?: Resume["sectionOrder"];
       layout?: Resume["layout"];
+      atsScoringContext?: Resume["atsScoringContext"];
       /** Set true for ATS checker so it does not count toward resume limit */
       forAtsCheckOnly?: boolean;
     },
@@ -1577,6 +1621,7 @@ export const resumeApi = {
       layout?: Resume["layout"];
       isDefault?: boolean;
       pdfS3Key?: string;
+      atsScoringContext?: Resume["atsScoringContext"];
     },
   ): Promise<Resume> => {
     const response = await apiClient.put<{ data: Resume }>(
@@ -1665,6 +1710,35 @@ export const resumeApi = {
       {
         timeout: 300000,
       },
+    );
+    return response.data.data;
+  },
+
+  /**
+   * Retarget an existing resume to a job description via the section-by-section
+   * tailoring pipeline. Returns tailored content WITHOUT persisting so the
+   * editor can apply it as an undoable change.
+   */
+  tailorToJobDescription: async (
+    resumeId: string,
+    options: { jobDescription: string },
+  ): Promise<{
+    content: Resume["content"];
+    profileSummary?: string;
+    sectionOrder: NonNullable<Resume["sectionOrder"]>;
+    jobDescription: string;
+  }> => {
+    const response = await apiClient.post<{
+      data: {
+        content: Resume["content"];
+        profileSummary?: string;
+        sectionOrder: NonNullable<Resume["sectionOrder"]>;
+        jobDescription: string;
+      };
+    }>(
+      `/resumes/${resumeId}/tailor-to-jd`,
+      { jobDescription: trimJobDescriptionForSend(options.jobDescription) },
+      { timeout: 300000 },
     );
     return response.data.data;
   },
@@ -1766,10 +1840,107 @@ export const resumeApi = {
 };
 
 // Resume Data Extraction API
+export interface JDRequirements {
+  jobTitle?: string;
+  seniorityLevel?: string;
+  requiredYears: number | null;
+  preferredYears: number | null;
+  mustHaveSkills: string[];
+  niceToHaveSkills: string[];
+  education: Array<{
+    level: string;
+    field?: string;
+    fields?: string[];
+    allowRelatedFields?: boolean;
+    mandatory: boolean;
+  }>;
+  certifications: string[];
+  responsibilities: string[];
+  otherRequirements: string[];
+}
+
+export interface ChatCollectedProfile {
+  personalInfo?: {
+    fullName?: string;
+    email?: string;
+    phone?: string;
+    location?: string;
+    linkedin?: string;
+    github?: string;
+    portfolio?: string;
+  };
+  profileSummary?: string;
+  experience?: Array<{
+    company?: string;
+    position?: string;
+    startDate?: string;
+    endDate?: string;
+    current?: boolean;
+    description?: string;
+    location?: string;
+  }>;
+  education?: Array<{
+    institution?: string;
+    degree?: string;
+    field?: string;
+    startDate?: string;
+    endDate?: string;
+    description?: string;
+  }>;
+  skills?: string[];
+  projects?: Array<{
+    name?: string;
+    description?: string;
+    technologies?: string[];
+  }>;
+  certificates?: Array<{
+    title?: string;
+    issuer?: string;
+    issueDate?: string;
+  }>;
+}
+
+export interface ResumeBuilderChatMessage {
+  role: "assistant" | "user";
+  content: string;
+  createdAt: string;
+}
+
+export type ResumeBuilderChatMode = "bulk" | "guided" | "voice";
+
+export interface ResumeBuilderChatSessionResponse {
+  sessionId: string;
+  phase: string;
+  mode: ResumeBuilderChatMode | null;
+  status: "active" | "ready_for_build" | "finalized";
+  messages: ResumeBuilderChatMessage[];
+  collectedProfile: ChatCollectedProfile;
+  assistantMessage?: string;
+}
+
+export type ResumeImportBuildOptions = {
+  jobDescription?: string;
+  jdRequirements?: JDRequirements;
+  /** When false, keep uploaded wording (structure only). Default true. */
+  enhance?: boolean;
+};
+
 export const resumeDataExtractionApi = {
+  analyzeJobDescription: async (
+    jobDescription: string,
+  ): Promise<{ requirements: JDRequirements; summary: string }> => {
+    const response = await apiClient.post("/analyze-job-description", {
+      jobDescription: trimJobDescriptionForSend(jobDescription),
+    });
+    return response.data.data;
+  },
+
   extractResumeData: async (
     templateId: string,
-    resumeText?: string,
+    options: {
+      resumeText?: string;
+      chatProfile?: ChatCollectedProfile;
+    } & ResumeImportBuildOptions = {},
   ): Promise<{
     sections: Record<
       string,
@@ -1781,14 +1952,22 @@ export const resumeDataExtractionApi = {
     >;
     templateId: string;
   }> => {
+    const { resumeText, chatProfile, jobDescription, jdRequirements, enhance } =
+      options;
     const response = await apiClient.post(
       "/extract-resume-data",
       {
         templateId,
         resumeText: resumeText || undefined,
+        chatProfile: chatProfile || undefined,
+        jobDescription: jobDescription
+          ? trimJobDescriptionForSend(jobDescription)
+          : undefined,
+        jdRequirements: jdRequirements || undefined,
+        enhance: enhance !== false,
       },
       {
-        timeout: 180000, // 180 seconds (3 minutes) for AI extraction
+        timeout: 180000,
       },
     );
     return response.data.data;
@@ -1797,6 +1976,7 @@ export const resumeDataExtractionApi = {
   importLinkedInProfile: async (
     handle: string,
     templateId: string,
+    options: ResumeImportBuildOptions = {},
   ): Promise<{
     sections: Record<
       string,
@@ -1813,10 +1993,86 @@ export const resumeDataExtractionApi = {
       {
         handle,
         templateId,
+        jobDescription: options.jobDescription
+          ? trimJobDescriptionForSend(options.jobDescription)
+          : undefined,
+        jdRequirements: options.jdRequirements || undefined,
       },
       {
-        timeout: 180000, // 180 seconds (3 minutes) for fetch + AI enhancement
+        timeout: 180000,
       },
+    );
+    return response.data.data;
+  },
+};
+
+/**
+ * Build the WSS URL for the Resume Builder voice agent. Auth is via the `userId`
+ * query param (WS clients can't attach auth headers).
+ */
+export function buildResumeVoiceWsUrl(
+  sessionId: string,
+  userId: string,
+  geminiVoice?: string,
+): string {
+  const baseHost = API_URL.replace(/\/api$/, "").replace(/^https?:\/\//, "");
+  const wsProtocol =
+    typeof globalThis !== "undefined" &&
+    globalThis.location?.protocol === "https:"
+      ? "wss:"
+      : "ws:";
+  const voiceParam = geminiVoice
+    ? `&geminiVoice=${encodeURIComponent(geminiVoice)}`
+    : "";
+  return (
+    `${wsProtocol}//${baseHost}/api/resume-builder/voice/sessions/${encodeURIComponent(sessionId)}/realtime/gemini?` +
+    `userId=${encodeURIComponent(userId)}${voiceParam}`
+  );
+}
+
+export const resumeBuilderChatApi = {
+  createSession: async (
+    templateId: string,
+    mode?: ResumeBuilderChatMode,
+  ): Promise<ResumeBuilderChatSessionResponse> => {
+    const response = await apiClient.post("/resume-builder/chat/sessions", {
+      templateId,
+      mode,
+    });
+    return response.data.data;
+  },
+
+  getSession: async (
+    sessionId: string,
+  ): Promise<ResumeBuilderChatSessionResponse> => {
+    const response = await apiClient.get(
+      `/resume-builder/chat/sessions/${sessionId}`,
+    );
+    return response.data.data;
+  },
+
+  sendMessage: async (
+    sessionId: string,
+    content: string,
+    action?: "skip" | "skip_and_build",
+  ): Promise<ResumeBuilderChatSessionResponse> => {
+    const response = await apiClient.post(
+      `/resume-builder/chat/sessions/${sessionId}/messages`,
+      { content, action },
+      { timeout: 30000 },
+    );
+    return response.data.data;
+  },
+
+  finalizeSession: async (
+    sessionId: string,
+  ): Promise<{
+    sessionId: string;
+    status: string;
+    collectedProfile: ChatCollectedProfile;
+  }> => {
+    const response = await apiClient.post(
+      `/resume-builder/chat/sessions/${sessionId}/finalize`,
     );
     return response.data.data;
   },
@@ -1901,12 +2157,18 @@ export const adminApi = {
     search?: string;
     /** Super admin: scope list to this institution */
     institutionId?: string;
+    period?: string;
+    from?: string;
+    to?: string;
   }): Promise<{ data: User[]; total: number }> => {
     const q = new URLSearchParams();
     if (params?.limit) q.set("limit", String(params.limit));
     if (params?.skip) q.set("skip", String(params.skip));
     if (params?.search) q.set("search", params.search);
     if (params?.institutionId) q.set("institutionId", params.institutionId);
+    if (params?.period) q.set("period", params.period);
+    if (params?.from) q.set("from", params.from);
+    if (params?.to) q.set("to", params.to);
     const response = await apiClient.get<{ success: boolean; data: User[]; total: number }>(
       `/admin/users?${q.toString()}`
     );
@@ -1993,6 +2255,163 @@ export const adminApi = {
     const response = await apiClient.get<{ success: boolean; data: any }>(
       `/admin/resumes/${resumeId}`
     );
+    return response.data.data;
+  },
+
+  getInsights: async (params?: {
+    period?: string;
+    from?: string;
+    to?: string;
+    type?: string;
+  }): Promise<import("@/lib/super-admin-insights").AdminInsights> => {
+    const q = new URLSearchParams();
+    if (params?.period) q.set("period", params.period);
+    if (params?.from) q.set("from", params.from);
+    if (params?.to) q.set("to", params.to);
+    if (params?.type) q.set("type", params.type);
+    const qs = q.toString();
+    const response = await apiClient.get<{
+      success: boolean;
+      data: import("@/lib/super-admin-insights").AdminInsights;
+    }>(`/admin/insights${qs ? `?${qs}` : ""}`);
+    return response.data.data;
+  },
+
+  getVoiceModelUsage: async (): Promise<
+    import("@/lib/super-admin-insights").VoiceModelUsageInsights
+  > => {
+    const response = await apiClient.get<{
+      success: boolean;
+      data: import("@/lib/super-admin-insights").VoiceModelUsageInsights;
+    }>("/admin/insights/voice-models");
+    return response.data.data;
+  },
+
+  listInsightResumes: async (params?: {
+    period?: string;
+    from?: string;
+    to?: string;
+    search?: string;
+    limit?: number;
+    skip?: number;
+  }): Promise<{
+    data: import("@/lib/super-admin-insights").InsightResumeRow[];
+    total: number;
+  }> => {
+    const q = new URLSearchParams();
+    if (params?.period) q.set("period", params.period);
+    if (params?.from) q.set("from", params.from);
+    if (params?.to) q.set("to", params.to);
+    if (params?.search) q.set("search", params.search);
+    if (params?.limit) q.set("limit", String(params.limit));
+    if (params?.skip) q.set("skip", String(params.skip));
+    const response = await apiClient.get<{
+      success: boolean;
+      data: import("@/lib/super-admin-insights").InsightResumeRow[];
+      total: number;
+    }>(`/admin/insights/resumes?${q.toString()}`);
+    return { data: response.data.data, total: response.data.total };
+  },
+
+  listInsightInterviews: async (params?: {
+    type?: string;
+    period?: string;
+    from?: string;
+    to?: string;
+    search?: string;
+    limit?: number;
+    skip?: number;
+  }): Promise<{
+    data: import("@/lib/super-admin-insights").InsightInterviewRow[];
+    total: number;
+  }> => {
+    const q = new URLSearchParams();
+    if (params?.type) q.set("type", params.type);
+    if (params?.period) q.set("period", params.period);
+    if (params?.from) q.set("from", params.from);
+    if (params?.to) q.set("to", params.to);
+    if (params?.search) q.set("search", params.search);
+    if (params?.limit) q.set("limit", String(params.limit));
+    if (params?.skip) q.set("skip", String(params.skip));
+    const response = await apiClient.get<{
+      success: boolean;
+      data: import("@/lib/super-admin-insights").InsightInterviewRow[];
+      total: number;
+    }>(`/admin/insights/interviews?${q.toString()}`);
+    return { data: response.data.data, total: response.data.total };
+  },
+
+  getSystemDesignReportForAdmin: async (sessionId: string): Promise<{
+    session: Record<string, unknown> & {
+      sessionId: string;
+      userId: string;
+      problemId: string;
+      status: string;
+      score?: number;
+      scoreReport?: {
+        overallScore?: number;
+        dimensionScores?: Record<string, number>;
+        dimensionVerdicts?: Record<string, string>;
+        strengths?: string[];
+        improvements?: string[];
+        summary?: string;
+      };
+      createdAt?: string;
+      completedAt?: string;
+    };
+    report: {
+      overallScore: number;
+      dimensionScores?: Record<string, number>;
+      dimensionVerdicts?: Record<string, string>;
+      whatYouDidWell?: string[];
+      gapsInDesign?: string[];
+      approachesCovered?: string[];
+      approachesMissedOrWeak?: string[];
+      concreteRecommendations?: string[];
+      overallSummary?: string;
+      fullReportMarkdown?: string;
+      generatedAt?: string;
+    } | null;
+    problem: { problemId: string; title: string; shortTitle: string } | null;
+    user: { clerkId: string; name: string; email: string };
+  }> => {
+    const response = await apiClient.get<{
+      success: boolean;
+      data: {
+        session: Record<string, unknown> & {
+          sessionId: string;
+          userId: string;
+          problemId: string;
+          status: string;
+          score?: number;
+          scoreReport?: {
+            overallScore?: number;
+            dimensionScores?: Record<string, number>;
+            dimensionVerdicts?: Record<string, string>;
+            strengths?: string[];
+            improvements?: string[];
+            summary?: string;
+          };
+          createdAt?: string;
+          completedAt?: string;
+        };
+        report: {
+          overallScore: number;
+          dimensionScores?: Record<string, number>;
+          dimensionVerdicts?: Record<string, string>;
+          whatYouDidWell?: string[];
+          gapsInDesign?: string[];
+          approachesCovered?: string[];
+          approachesMissedOrWeak?: string[];
+          concreteRecommendations?: string[];
+          overallSummary?: string;
+          fullReportMarkdown?: string;
+          generatedAt?: string;
+        } | null;
+        problem: { problemId: string; title: string; shortTitle: string } | null;
+        user: { clerkId: string; name: string; email: string };
+      };
+    }>(`/admin/system-design/sessions/${encodeURIComponent(sessionId)}/report`);
     return response.data.data;
   },
 
@@ -2336,6 +2755,54 @@ export const adminApi = {
   cancelInterviewSchedule: async (scheduleId: string): Promise<void> => {
     await apiClient.delete(`/admin/interview-schedules/${scheduleId}`);
   },
+
+  invalidateClientCache: async (): Promise<{
+    version: number;
+    updatedAt: string;
+  }> => {
+    const response = await apiClient.post<{
+      success: boolean;
+      data: { version: number; updatedAt: string };
+    }>("/admin/client-cache/invalidate");
+    return response.data.data;
+  },
+
+  listPlatformFeatures: async (): Promise<
+    import("@/lib/platform-features").PlatformFeature[]
+  > => {
+    const response = await apiClient.get<{
+      success: boolean;
+      data: {
+        features: import("@/lib/platform-features").PlatformFeature[];
+      };
+    }>("/admin/features");
+    return response.data.data.features;
+  },
+
+  updatePlatformFeature: async (
+    key: string,
+    patch: import("@/lib/platform-features").PlatformFeaturePatch,
+  ): Promise<import("@/lib/platform-features").PlatformFeature> => {
+    const response = await apiClient.patch<{
+      success: boolean;
+      data: import("@/lib/platform-features").PlatformFeature;
+    }>(`/admin/features/${encodeURIComponent(key)}`, patch);
+    return response.data.data;
+  },
+
+  createPlatformFeature: async (
+    input: import("@/lib/platform-features").CreatePlatformFeatureInput,
+  ): Promise<import("@/lib/platform-features").PlatformFeature> => {
+    const response = await apiClient.post<{
+      success: boolean;
+      data: import("@/lib/platform-features").PlatformFeature;
+    }>("/admin/features", input);
+    return response.data.data;
+  },
+
+  deletePlatformFeature: async (key: string): Promise<void> => {
+    await apiClient.delete(`/admin/features/${encodeURIComponent(key)}`);
+  },
 };
 
 /** Scheduled interviews (candidate: list mine, start). */
@@ -2561,8 +3028,24 @@ export type SystemDesignDifficulty = "easy" | "medium" | "hard";
 export interface SystemDesignProblemSummary {
   id: string;
   title: string;
+  shortTitle?: string;
   difficulty: SystemDesignDifficulty;
   category: string;
+  adminRating?: number;
+  askedAt?: string[];
+}
+
+export interface SystemDesignProblemDetail extends SystemDesignProblemSummary {
+  scenario: string;
+  coreRequirements: string[];
+  scaleRequirements: string[];
+  considerations: string[];
+  outOfScopeFunctional?: string[];
+  outOfScopeNonFunctional?: string[];
+  coreEntities?: string[];
+  apiHints?: string[];
+  askedAt?: string[];
+  analog?: string;
 }
 
 export interface SystemDesignChatMessage {
@@ -2672,6 +3155,14 @@ export const systemDesignApi = {
       data: { problems: SystemDesignProblemSummary[] };
     }>("/system-design/problems");
     return r.data.data.problems;
+  },
+
+  getProblem: async (problemId: string): Promise<SystemDesignProblemDetail> => {
+    const r = await apiClient.get<{
+      success: boolean;
+      data: { problem: SystemDesignProblemDetail };
+    }>(`/system-design/problems/${encodeURIComponent(problemId)}`);
+    return r.data.data.problem;
   },
 
   createSession: async (problemId?: string): Promise<SystemDesignSession> => {
@@ -3911,6 +4402,520 @@ export interface SendTestTemplateResult {
   sentTo: string;
 }
 
+export interface AdminSystemDesignLevelExpectations {
+  mid?: string;
+  senior?: string;
+  staff?: string;
+}
+
+export interface AdminSystemDesignProblemStats {
+  attemptCount: number;
+  completedCount: number;
+  averageScore: number | null;
+}
+
+export interface AdminSystemDesignProblemListItem {
+  problemId: string;
+  title: string;
+  shortTitle: string;
+  category: string;
+  difficulty: SystemDesignDifficulty;
+  askedAt: string[];
+  adminRating?: number;
+  sortOrder: number;
+  isActive: boolean;
+  attemptCount: number;
+  completedCount: number;
+  averageScore: number | null;
+  updatedAt: string;
+}
+
+export interface AdminSystemDesignProblemDetail {
+  problemId: string;
+  knowledgeDocId: string;
+  legacyAliases: string[];
+  title: string;
+  shortTitle: string;
+  analog?: string;
+  category: string;
+  difficulty: SystemDesignDifficulty;
+  askedAt: string[];
+  scenario: string;
+  descriptionHtml?: string;
+  coreRequirements: string[];
+  outOfScopeFunctional: string[];
+  scaleRequirements: string[];
+  outOfScopeNonFunctional: string[];
+  coreEntities: string[];
+  apiHints: string[];
+  considerations: string[];
+  levelExpectations: AdminSystemDesignLevelExpectations;
+  sourcePath: string;
+  contentHash: string;
+  corpusVersion: string;
+  adminRating?: number;
+  sortOrder: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  stats: AdminSystemDesignProblemStats;
+}
+
+export interface AdminSystemDesignProblemListResponse {
+  items: AdminSystemDesignProblemListItem[];
+  total: number;
+  page: number;
+  limit: number;
+  summary: {
+    totalActive: number;
+    totalAttempts: number;
+    avgCompletionRate: number | null;
+    avgScore: number | null;
+  };
+}
+
+export interface AdminSystemDesignProblemUpsertBody {
+  problemId?: string;
+  knowledgeDocId?: string;
+  legacyAliases?: string[];
+  title: string;
+  shortTitle: string;
+  analog?: string;
+  category: string;
+  difficulty: SystemDesignDifficulty;
+  askedAt?: string[];
+  scenario: string;
+  descriptionHtml?: string;
+  coreRequirements?: string[];
+  outOfScopeFunctional?: string[];
+  scaleRequirements?: string[];
+  outOfScopeNonFunctional?: string[];
+  coreEntities?: string[];
+  apiHints?: string[];
+  considerations?: string[];
+  levelExpectations?: AdminSystemDesignLevelExpectations;
+  adminRating?: number;
+  sortOrder?: number;
+  isActive?: boolean;
+}
+
+export interface AdminSystemDesignProblemListQuery {
+  search?: string;
+  category?: string;
+  difficulty?: SystemDesignDifficulty;
+  isActive?: boolean;
+  page?: number;
+  limit?: number;
+  sortBy?: "title" | "attemptCount" | "averageScore" | "adminRating" | "updatedAt";
+  sortDir?: "asc" | "desc";
+}
+
+export const adminSystemDesignApi = {
+  list: (params?: AdminSystemDesignProblemListQuery) =>
+    unwrap<AdminSystemDesignProblemListResponse>(
+      apiClient.get("/admin/system-design-problems", { params }),
+    ),
+  get: (problemId: string) =>
+    unwrap<AdminSystemDesignProblemDetail>(
+      apiClient.get(`/admin/system-design-problems/${encodeURIComponent(problemId)}`),
+    ),
+  create: (body: AdminSystemDesignProblemUpsertBody) =>
+    unwrap<AdminSystemDesignProblemDetail>(
+      apiClient.post("/admin/system-design-problems", body),
+    ),
+  update: (problemId: string, body: AdminSystemDesignProblemUpsertBody) =>
+    unwrap<AdminSystemDesignProblemDetail>(
+      apiClient.put(
+        `/admin/system-design-problems/${encodeURIComponent(problemId)}`,
+        body,
+      ),
+    ),
+  remove: (problemId: string) =>
+    unwrap<void>(
+      apiClient.delete(
+        `/admin/system-design-problems/${encodeURIComponent(problemId)}`,
+      ),
+    ),
+  restore: (problemId: string) =>
+    unwrap<AdminSystemDesignProblemDetail>(
+      apiClient.post(
+        `/admin/system-design-problems/${encodeURIComponent(problemId)}/restore`,
+      ),
+    ),
+  listCategories: () =>
+    unwrap<{ categories: string[] }>(
+      apiClient.get("/admin/system-design-problems/categories"),
+    ).then((r) => r.categories ?? []),
+};
+
+export type CodingDifficulty = "easy" | "medium" | "hard";
+export type CodingLanguage = "javascript" | "java" | "c" | "cpp" | "python";
+export type CompanyTierTag =
+  | "FAANG"
+  | "TIER1"
+  | "TIER2"
+  | "STARTUP"
+  | "SERVICE";
+
+export interface AdminCodingTestCase {
+  input: string;
+  expectedOutput: string;
+  compareMode?: "exact" | "trim";
+}
+
+export interface AdminCodingProblemStats {
+  attemptCount: number;
+  averageSubmitScore: number | null;
+}
+
+export interface AdminCodingProblemListItem {
+  problemId: string;
+  title: string;
+  categories: string[];
+  difficulty: CodingDifficulty;
+  companyTierTags: CompanyTierTag[];
+  publicTestCount: number;
+  hiddenTestCount: number;
+  isActive: boolean;
+  attemptCount: number;
+  averageSubmitScore: number | null;
+  updatedAt: string;
+}
+
+export interface AdminCodingFunctionCase {
+  inputs: Record<string, unknown>;
+  expectedOutput: string;
+}
+
+export interface AdminCodingSnippetMeta {
+  entryPoint: string;
+  params: Array<{ name: string; type: string }>;
+  returnType: string;
+  outputParam?: string;
+  outputSlice?: { param: string; lengthExpr: string };
+  publicCases: AdminCodingFunctionCase[];
+  hiddenCases: AdminCodingFunctionCase[];
+}
+
+export interface AdminCodingDesignCase {
+  operations: string[];
+  args: unknown[][];
+  expectedOutput: string;
+}
+
+export interface AdminCodingDesignMeta {
+  className: string;
+  constructorParams?: Array<{ name: string; type: string }>;
+  methods: Array<{
+    name: string;
+    params: Array<{ name: string; type: string }>;
+    returnType: string;
+  }>;
+  publicCases: AdminCodingDesignCase[];
+  hiddenCases: AdminCodingDesignCase[];
+}
+
+export interface AdminCodingProblemDetail {
+  problemId: string;
+  title: string;
+  statement: string;
+  categories: string[];
+  difficulty: CodingDifficulty;
+  companyTierTags: CompanyTierTag[];
+  skillTags: string[];
+  starterCode: Partial<Record<CodingLanguage, string>>;
+  referenceSolution: Partial<Record<CodingLanguage, string>>;
+  publicTests: AdminCodingTestCase[];
+  hiddenTests: AdminCodingTestCase[];
+  executionMode?: "stdin" | "snippet";
+  snippetMeta?: AdminCodingSnippetMeta;
+  designMeta?: AdminCodingDesignMeta;
+  timeLimitMs?: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  stats: AdminCodingProblemStats;
+}
+
+export interface AdminCodingProblemListResponse {
+  items: AdminCodingProblemListItem[];
+  total: number;
+  page: number;
+  limit: number;
+  summary: {
+    totalActive: number;
+    totalAttempts: number;
+  };
+}
+
+export interface AdminCodingProblemUpsertBody {
+  problemId?: string;
+  title: string;
+  statement: string;
+  categories?: string[];
+  difficulty: CodingDifficulty;
+  companyTierTags?: CompanyTierTag[];
+  skillTags?: string[];
+  starterCode?: Partial<Record<CodingLanguage, string>>;
+  referenceSolution?: Partial<Record<CodingLanguage, string>>;
+  publicTests?: AdminCodingTestCase[];
+  hiddenTests?: AdminCodingTestCase[];
+  executionMode?: "stdin" | "snippet";
+  snippetMeta?: AdminCodingSnippetMeta;
+  designMeta?: AdminCodingDesignMeta;
+  timeLimitMs?: number;
+  isActive?: boolean;
+}
+
+export interface AdminCodingProblemListQuery {
+  search?: string;
+  category?: string;
+  difficulty?: CodingDifficulty;
+  isActive?: boolean;
+  page?: number;
+  limit?: number;
+  sortBy?: "title" | "attemptCount" | "averageSubmitScore" | "updatedAt";
+  sortDir?: "asc" | "desc";
+}
+
+export interface AdminCodingValidateTestsBody {
+  language: CodingLanguage;
+  code?: string;
+  visibility?: "public" | "hidden" | "all";
+}
+
+export interface AdminCodingValidateTestsResult {
+  passed: number;
+  total: number;
+  results: Array<{
+    index: number;
+    passed: boolean;
+    expected?: string;
+    actual?: string;
+    stderr?: string;
+    compileOutput?: string;
+    status?: string;
+    error?: string;
+    visibility: "public" | "hidden";
+    inputs?: Array<{ name: string; value: string }>;
+  }>;
+}
+
+export interface AdminCodingStarterTemplateItem {
+  id: string;
+  label: string;
+  starters: Partial<Record<CodingLanguage, string>>;
+}
+
+export const adminCodingProblemApi = {
+  list: (params?: AdminCodingProblemListQuery) =>
+    unwrap<AdminCodingProblemListResponse>(
+      apiClient.get("/admin/coding-problems", { params }),
+    ),
+  get: (problemId: string) =>
+    unwrap<AdminCodingProblemDetail>(
+      apiClient.get(`/admin/coding-problems/${encodeURIComponent(problemId)}`),
+    ),
+  create: (body: AdminCodingProblemUpsertBody) =>
+    unwrap<AdminCodingProblemDetail>(
+      apiClient.post("/admin/coding-problems", body),
+    ),
+  update: (problemId: string, body: AdminCodingProblemUpsertBody) =>
+    unwrap<AdminCodingProblemDetail>(
+      apiClient.put(
+        `/admin/coding-problems/${encodeURIComponent(problemId)}`,
+        body,
+      ),
+    ),
+  remove: (problemId: string) =>
+    unwrap<void>(
+      apiClient.delete(
+        `/admin/coding-problems/${encodeURIComponent(problemId)}`,
+      ),
+    ),
+  removeBulk: (problemIds: string[]) =>
+    unwrap<{ deleted: number; notFound: string[] }>(
+      apiClient.post("/admin/coding-problems/bulk-delete", { problemIds }),
+    ),
+  restore: (problemId: string) =>
+    unwrap<AdminCodingProblemDetail>(
+      apiClient.post(
+        `/admin/coding-problems/${encodeURIComponent(problemId)}/restore`,
+      ),
+    ),
+  listCategories: () =>
+    unwrap<{ categories: string[] }>(
+      apiClient.get("/admin/coding-problems/categories"),
+    ).then((r) => r.categories ?? []),
+  listStarterTemplates: () =>
+    unwrap<{ templates: AdminCodingStarterTemplateItem[] }>(
+      apiClient.get("/admin/coding-problems/starter-templates"),
+    ).then((r) => r.templates ?? []),
+  validateTests: (problemId: string, body: AdminCodingValidateTestsBody) =>
+    unwrap<AdminCodingValidateTestsResult>(
+      apiClient.post(
+        `/admin/coding-problems/${encodeURIComponent(problemId)}/validate-tests`,
+        body,
+      ),
+    ),
+};
+
+// --- Blog CMS ---
+
+export type BlogStatus = "draft" | "published" | "archived";
+
+export interface AdminBlogListItem {
+  id: string;
+  slug: string;
+  title: string;
+  excerpt: string;
+  thumbnailUrl: string;
+  categories: string[];
+  status: BlogStatus;
+  authorName: string;
+  publishedAt: string | null;
+  readingTimeMinutes: number;
+  isActive: boolean;
+  updatedAt: string;
+}
+
+export interface AdminBlogDetail extends AdminBlogListItem {
+  content: string;
+  seoTitle: string;
+  metaDescription: string;
+  focusKeyword: string;
+  keywords: string[];
+  canonicalUrl: string;
+  authorId: string;
+  createdAt: string;
+}
+
+export interface AdminBlogListResponse {
+  items: AdminBlogListItem[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+export interface AdminBlogUpsertBody {
+  slug?: string;
+  title: string;
+  excerpt?: string;
+  content?: string;
+  thumbnailUrl?: string;
+  categories?: string[];
+  status?: BlogStatus;
+  seoTitle?: string;
+  metaDescription?: string;
+  focusKeyword?: string;
+  keywords?: string[];
+  canonicalUrl?: string;
+}
+
+export interface AdminBlogListQuery {
+  search?: string;
+  category?: string;
+  status?: BlogStatus;
+  isActive?: boolean;
+  page?: number;
+  limit?: number;
+  sortBy?: "title" | "publishedAt" | "updatedAt";
+  sortDir?: "asc" | "desc";
+}
+
+export interface PublicBlogListItem {
+  slug: string;
+  title: string;
+  excerpt: string;
+  thumbnailUrl: string;
+  categories: string[];
+  authorName: string;
+  publishedAt: string;
+  readingTimeMinutes: number;
+  updatedAt: string;
+}
+
+export interface PublicBlogDetail extends PublicBlogListItem {
+  content: string;
+  seoTitle: string;
+  metaDescription: string;
+  focusKeyword: string;
+  keywords: string[];
+  canonicalUrl: string;
+}
+
+export interface PublicBlogListResponse {
+  items: PublicBlogListItem[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+export interface BlogImageUploadBody {
+  filename: string;
+  contentType: string;
+}
+
+export interface BlogImageUploadResponse {
+  uploadUrl: string;
+  publicUrl: string;
+  s3Key: string;
+}
+
+export const adminBlogApi = {
+  list: (params?: AdminBlogListQuery) =>
+    unwrap<AdminBlogListResponse>(apiClient.get("/admin/blogs", { params })),
+  get: (blogId: string) =>
+    unwrap<AdminBlogDetail>(
+      apiClient.get(`/admin/blogs/${encodeURIComponent(blogId)}`),
+    ),
+  create: (body: AdminBlogUpsertBody) =>
+    unwrap<AdminBlogDetail>(apiClient.post("/admin/blogs", body)),
+  update: (blogId: string, body: AdminBlogUpsertBody) =>
+    unwrap<AdminBlogDetail>(
+      apiClient.put(`/admin/blogs/${encodeURIComponent(blogId)}`, body),
+    ),
+  remove: (blogId: string) =>
+    unwrap<void>(apiClient.delete(`/admin/blogs/${encodeURIComponent(blogId)}`)),
+  restore: (blogId: string) =>
+    unwrap<AdminBlogDetail>(
+      apiClient.post(`/admin/blogs/${encodeURIComponent(blogId)}/restore`),
+    ),
+  publish: (blogId: string) =>
+    unwrap<AdminBlogDetail>(
+      apiClient.post(`/admin/blogs/${encodeURIComponent(blogId)}/publish`),
+    ),
+  listCategories: () =>
+    unwrap<{ categories: string[] }>(
+      apiClient.get("/admin/blogs/categories"),
+    ).then((r) => r.categories ?? []),
+  getUploadUrl: (body: BlogImageUploadBody) =>
+    unwrap<BlogImageUploadResponse>(
+      apiClient.post("/admin/blogs/upload-image", body),
+    ),
+  uploadImage: async (file: File): Promise<{ publicUrl: string; s3Key: string }> => {
+    const blob = await snapshotImageForUpload(file);
+    const formData = new FormData();
+    formData.append("file", blob, file.name);
+    return unwrap<{ publicUrl: string; s3Key: string }>(
+      apiClient.post("/admin/blogs/upload-image", formData),
+    );
+  },
+};
+
+export const blogApi = {
+  list: (params?: { page?: number; limit?: number; category?: string }) =>
+    unwrap<PublicBlogListResponse>(apiClient.get("/blogs", { params })),
+  getBySlug: (slug: string) =>
+    unwrap<PublicBlogDetail>(
+      apiClient.get(`/blogs/${encodeURIComponent(slug)}`),
+    ),
+  listCategories: () =>
+    unwrap<{ categories: string[] }>(apiClient.get("/blogs/categories")).then(
+      (r) => r.categories ?? [],
+    ),
+};
+
 export const notificationAdminApi = {
   listTemplates: (channel?: NotificationChannelKey) =>
     unwrap<NotificationTemplate[]>(
@@ -3962,3 +4967,86 @@ export const notificationAdminApi = {
 };
 
 export default apiClient;
+
+export type ConnectorTokenRow = {
+  tokenId: string;
+  name: string;
+  prefix: string;
+  scopes: string[];
+  lastUsedAt?: string;
+  createdAt: string;
+  expiresAt?: string;
+};
+
+export const connectorApi = {
+  listTokens: async () => {
+    const response = await apiClient.get<{
+      success: boolean;
+      data: ConnectorTokenRow[];
+      mcp_url: string;
+      openapi_url: string;
+    }>("/connector/v1/tokens");
+    return response.data;
+  },
+  createToken: async (name?: string) => {
+    const response = await apiClient.post<{
+      success: boolean;
+      data: {
+        tokenId: string;
+        token: string;
+        name: string;
+        prefix: string;
+        mcp_url: string;
+        openapi_url: string;
+      };
+      message?: string;
+    }>("/connector/v1/tokens", { name });
+    return response.data;
+  },
+  revokeToken: async (tokenId: string) => {
+    const response = await apiClient.delete<{ success: boolean }>(
+      `/connector/v1/tokens/${tokenId}`,
+    );
+    return response.data;
+  },
+  getOAuthRequest: async (requestId: string) => {
+    const response = await apiClient.get<{
+      success: boolean;
+      data: {
+        requestId: string;
+        clientId: string;
+        redirectUri: string;
+        scopes: string[];
+      };
+    }>(`/connector/v1/oauth/requests/${requestId}`);
+    return response.data;
+  },
+  consentOAuth: async (requestId: string, approve: boolean) => {
+    const response = await apiClient.post<{
+      success: boolean;
+      data: { redirectTo: string };
+    }>("/connector/v1/oauth/consent", { requestId, approve });
+    return response.data;
+  },
+};
+
+export const configApi = {
+  getClientCacheVersion: async (): Promise<{
+    version: number;
+    updatedAt: string;
+  }> => {
+    const response = await apiClient.get<{
+      success: boolean;
+      data: { version: number; updatedAt: string };
+    }>("/config/client-cache");
+    return response.data.data;
+  },
+
+  getFeatures: async (): Promise<import("@/lib/platform-features").PlatformFeature[]> => {
+    const response = await apiClient.get<{
+      success: boolean;
+      data: { features: import("@/lib/platform-features").PlatformFeature[] };
+    }>("/config/features");
+    return response.data.data.features;
+  },
+};

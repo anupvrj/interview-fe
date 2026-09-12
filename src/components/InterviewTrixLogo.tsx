@@ -5,8 +5,14 @@ import { cn } from "@/lib/utils";
 const PRESETS = {
   /** Full-color wordmark (transparent PNG) */
   default: { src: "/brand/interviewtrix-logo.png", width: 1067, height: 234 },
-  /** Wordmark on dark backgrounds (e.g. footer, sidebar) */
+  /** Wordmark on dark backgrounds (e.g. sidebar) */
   white: { src: "/brand/interviewtrix-logo.png", width: 1067, height: 234 },
+  /** Footer wordmark on dark backgrounds */
+  footer: {
+    src: "/brand/interview-trix-logo-footer.png",
+    width: 2144,
+    height: 733,
+  },
   /** Wordmark on soft / gradient panels (auth marketing column) */
   onLightBg: { src: "/brand/interviewtrix-logo.png", width: 1067, height: 234 },
   /** Square mark for compact UI */

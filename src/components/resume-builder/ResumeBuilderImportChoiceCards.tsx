@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, FileText, Linkedin, Upload } from "lucide-react";
+import { ArrowRight, FileText, Linkedin, MessageSquare, Upload } from "lucide-react";
 import { CardContent } from "@/components/ui/card";
 import {
   resumeBuilderLinkedInIconShell,
@@ -10,21 +10,51 @@ import {
 } from "./resumeBuilderStyles";
 import { cn } from "@/lib/utils";
 
-export type ResumeImportSource = "linkedin" | "pdf";
+export type ResumeImportSource = "chat" | "linkedin" | "pdf";
 
 interface ResumeBuilderImportChoiceCardsProps {
+  onSelectChat: () => void;
   onSelectLinkedIn: () => void;
   onSelectPdf: () => void;
   selectedSource?: ResumeImportSource | null;
 }
 
 export function ResumeBuilderImportChoiceCards({
+  onSelectChat,
   onSelectLinkedIn,
   onSelectPdf,
   selectedSource = null,
 }: ResumeBuilderImportChoiceCardsProps) {
   return (
-    <div className="grid gap-4 sm:grid-cols-2 sm:gap-5">
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 sm:gap-5">
+      <button
+        type="button"
+        onClick={onSelectChat}
+        className={cn(
+          resumeBuilderMethodCard,
+          "text-left",
+          selectedSource === "chat" &&
+            "border-primary/40 ring-2 ring-primary/15",
+        )}
+      >
+        <CardContent className={resumeBuilderMethodCardInner}>
+          <div className={resumeBuilderPrimaryIconShell}>
+            <MessageSquare className="h-6 w-6" />
+          </div>
+          <h3 className="mt-5 text-lg font-semibold text-foreground">
+            Chat and Build
+          </h3>
+          <p className="mt-2 flex-1 text-sm leading-relaxed text-muted-foreground">
+            Talk to our Live AI agent — paste your full profile or answer
+            questions step by step to build from scratch.
+          </p>
+          <div className="mt-5 inline-flex items-center text-sm font-semibold text-primary">
+            Start chat
+            <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+          </div>
+        </CardContent>
+      </button>
+
       <button
         type="button"
         onClick={onSelectLinkedIn}
@@ -58,7 +88,7 @@ export function ResumeBuilderImportChoiceCards({
         onClick={onSelectPdf}
         className={cn(
           resumeBuilderMethodCard,
-          "text-left",
+          "text-left sm:col-span-2 lg:col-span-1",
           selectedSource === "pdf" &&
             "border-primary/40 ring-2 ring-primary/15",
         )}

@@ -8,59 +8,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-
-function isAllowedUrl(url: string): boolean {
-  try {
-    const parsed = new URL(url);
-    const host = parsed.hostname.toLowerCase();
-
-    // CloudFront (common for S3-backed assets; profile pics often use signed CF URLs)
-    if (host.endsWith(".cloudfront.net")) {
-      return true;
-    }
-
-    // Virtual-hosted–style: bucket.s3.amazonaws.com, bucket.s3.region.amazonaws.com
-    if (
-      host.endsWith(".s3.amazonaws.com") ||
-      /\.s3\.[a-z0-9-]+\.amazonaws\.com$/i.test(host)
-    ) {
-      return true;
-    }
-
-    // Dual-stack virtual-hosted: bucket.s3.dualstack.region.amazonaws.com
-    if (/\.s3\.dualstack\.[a-z0-9-]+\.amazonaws\.com$/i.test(host)) {
-      return true;
-    }
-
-    // Path-style regional endpoints: s3.region.amazonaws.com, s3.dualstack.region.amazonaws.com
-    if (
-      host === "s3.amazonaws.com" ||
-      /^s3\.(dualstack\.)?[a-z0-9-]+\.amazonaws\.com$/i.test(host)
-    ) {
-      return true;
-    }
-
-    // Transfer Acceleration
-    if (host.endsWith(".s3-accelerate.amazonaws.com")) {
-      return true;
-    }
-
-    // next dev: MinIO / local S3-compatible endpoints
-    if (process.env.NODE_ENV === "development") {
-      if (
-        host === "localhost" ||
-        host === "127.0.0.1" ||
-        host.endsWith(".localhost")
-      ) {
-        return true;
-      }
-    }
-
-    return false;
-  } catch {
-    return false;
-  }
-}
+import { isAllowedAssetProxyUrl } from "@/lib/allowed-asset-proxy-url";
 
 export async function GET(request: NextRequest) {
   try {
@@ -94,7 +42,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    if (!isAllowedUrl(targetUrl)) {
+    if (!isAllowedAssetProxyUrl(targetUrl)) {
       return NextResponse.json(
         {
           error:

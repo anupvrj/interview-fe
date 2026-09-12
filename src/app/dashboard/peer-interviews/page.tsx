@@ -37,6 +37,8 @@ import { isPreviousPeerBooking } from "@/lib/dashboard-recent-sessions";
 import { isPeerInterviewExpired } from "@/lib/peer-booking-expiry";
 import { cn } from "@/lib/utils";
 import { peerApi, type PeerBooking, type PeerInterviewType } from "@/lib/api";
+import { usePeerBookingsQuery } from "@/hooks/queries/usePeerBookingsQuery";
+import { useDashboardInvalidation } from "@/hooks/useDashboardInvalidation";
 import { useActiveRole } from "@/components/roles/ActiveRoleProvider";
 import { useEntitlements } from "@/hooks/useEntitlements";
 
@@ -77,27 +79,25 @@ export default function PeerInterviewsLandingPage() {
   const roleCtx = useActiveRole();
   const { data: entitlements } = useEntitlements();
   const { isLoaded, user } = useUser();
-  const [bookings, setBookings] = useState<PeerBooking[]>([]);
+  const { data: bookings = [], isLoading: bookingsLoading } =
+    usePeerBookingsQuery();
+  const { invalidate } = useDashboardInvalidation();
   const [types, setTypes] = useState<PeerInterviewType[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [typesLoading, setTypesLoading] = useState(true);
+  const loading = bookingsLoading || typesLoading;
   const [payingId, setPayingId] = useState<string | null>(null);
   const [razorpayLoaded, setRazorpayLoaded] = useState(false);
   const { timezone } = usePeerTimezone();
 
-  const loadBookings = async () => {
-    setLoading(true);
+  const loadInterviewTypes = async () => {
+    setTypesLoading(true);
     try {
-      const [b, t] = await Promise.all([
-        peerApi.listMyBookings(),
-        peerApi.listInterviewTypes(),
-      ]);
-      setBookings(b);
+      const t = await peerApi.listInterviewTypes();
       setTypes(t);
     } catch {
-      setBookings([]);
       setTypes([]);
     } finally {
-      setLoading(false);
+      setTypesLoading(false);
     }
   };
 
@@ -109,7 +109,7 @@ export default function PeerInterviewsLandingPage() {
   useEffect(() => {
     if (!isLoaded || !user) return;
     localStorage.setItem("clerk-user-id", user.id);
-    void loadBookings();
+    void loadInterviewTypes();
   }, [isLoaded, user]);
 
   const handlePay = async (booking: PeerBooking) => {
@@ -144,7 +144,7 @@ export default function PeerInterviewsLandingPage() {
               razorpaySignature: resp.razorpay_signature,
             });
             toast.success("Payment confirmed! Your interview is booked.");
-            await loadBookings();
+            await invalidate(["peerBookings", "entitlements"]);
           } catch (e: unknown) {
             const message =
               e &&

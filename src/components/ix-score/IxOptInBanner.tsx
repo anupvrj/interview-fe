@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Sparkles } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Award, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -17,6 +17,10 @@ import {
   hasAllInterviewOptIns,
 } from "@/lib/ix-score-constants";
 import { InterviewOptInsEditor } from "@/components/ix-score/InterviewOptInsEditor";
+import {
+  dismissIxOptInBanner,
+  isIxOptInBannerDismissed,
+} from "@/lib/ix-opt-in-banner-cookie";
 
 type IxOptInBannerProps = {
   optIns: InterviewOptIns;
@@ -26,8 +30,19 @@ type IxOptInBannerProps = {
 
 export function IxOptInBanner({ optIns, onSaved, className }: IxOptInBannerProps) {
   const [open, setOpen] = useState(false);
+  /** null = cookie not read yet (avoid flash) */
+  const [hidden, setHidden] = useState<boolean | null>(null);
 
-  if (hasAllInterviewOptIns(optIns)) return null;
+  useEffect(() => {
+    setHidden(isIxOptInBannerDismissed());
+  }, []);
+
+  const handleDismiss = () => {
+    dismissIxOptInBanner();
+    setHidden(true);
+  };
+
+  if (hidden === null || hidden || hasAllInterviewOptIns(optIns)) return null;
 
   const nonOptedLabels = getNonOptedInterviewLabels(optIns);
   const listText = formatInterviewList(nonOptedLabels);
@@ -37,12 +52,21 @@ export function IxOptInBanner({ optIns, onSaved, className }: IxOptInBannerProps
       <div
         className={
           className ??
-          "ix-report-enter flex flex-col gap-3 rounded-xl border border-border/70 bg-card px-4 py-3 shadow-sm sm:flex-row sm:items-center sm:justify-between"
+          "ix-report-enter relative flex flex-col gap-3 rounded-xl border border-border/70 bg-card px-4 py-3 pr-10 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:pr-4"
         }
       >
+        <button
+          type="button"
+          aria-label="Dismiss iX Report preferences reminder"
+          className="absolute right-2 top-2 rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground sm:hidden"
+          onClick={handleDismiss}
+        >
+          <X className="h-4 w-4" />
+        </button>
+
         <div className="flex items-start gap-3">
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#7367F0]/10 text-[#7367F0]">
-            <Sparkles className="h-4 w-4" />
+            <Award className="h-4 w-4" />
           </div>
           <div>
             <p className="text-sm font-medium text-foreground">
@@ -62,14 +86,26 @@ export function IxOptInBanner({ optIns, onSaved, className }: IxOptInBannerProps
             </p>
           </div>
         </div>
-        <Button
-          type="button"
-          size="sm"
-          className="shrink-0 bg-[#7367F0] hover:bg-[#6e62e5]"
-          onClick={() => setOpen(true)}
-        >
-          Update preferences
-        </Button>
+
+        <div className="flex shrink-0 flex-wrap items-center gap-2 sm:justify-end">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="shrink-0"
+            onClick={handleDismiss}
+          >
+            Ignore
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            className="shrink-0 bg-[#7367F0] hover:bg-[#6e62e5]"
+            onClick={() => setOpen(true)}
+          >
+            Update preferences
+          </Button>
+        </div>
       </div>
 
       <Dialog open={open} onOpenChange={setOpen}>

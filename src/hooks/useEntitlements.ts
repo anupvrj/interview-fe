@@ -1,31 +1,25 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { entitlementApi, type ResolvedEntitlements } from "@/lib/api";
+import { useCallback } from "react";
+import { useUser } from "@clerk/nextjs";
+import { useQueryClient } from "@tanstack/react-query";
+import type { ResolvedEntitlements } from "@/lib/api";
+import { invalidateEntitlements } from "@/lib/invalidate-queries";
+import { useEntitlementsQuery } from "@/hooks/queries/useEntitlementsQuery";
 
 export function useEntitlements() {
-  const [data, setData] = useState<ResolvedEntitlements | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { user } = useUser();
+  const userId = user?.id ?? "";
+  const queryClient = useQueryClient();
+  const { data, isLoading, error, refetch } = useEntitlementsQuery();
 
   const refresh = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const entitlements = await entitlementApi.getEntitlements();
-      setData(entitlements);
-    } catch (err: unknown) {
-      setError(
-        err instanceof Error ? err.message : "Failed to load entitlements",
-      );
-    } finally {
-      setLoading(false);
+    if (userId) {
+      await invalidateEntitlements(queryClient, userId);
+      return;
     }
-  }, []);
-
-  useEffect(() => {
-    void refresh();
-  }, [refresh]);
+    await refetch();
+  }, [queryClient, userId, refetch]);
 
   const canUse = useCallback(
     (feature: keyof ResolvedEntitlements["entitlements"]) => {
@@ -43,9 +37,13 @@ export function useEntitlements() {
   const isFreeTier = data?.isFreeTier ?? false;
 
   return {
-    data,
-    loading,
-    error,
+    data: data ?? null,
+    loading: isLoading,
+    error: error
+      ? error instanceof Error
+        ? error.message
+        : "Failed to load entitlements"
+      : null,
     refresh,
     canUse,
     needsTrial,

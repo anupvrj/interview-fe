@@ -24,6 +24,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { SiteHeader } from "@/components/SiteHeader";
+import { AddToChromeButton } from "@/components/chrome-extension/AddToChromeButton";
 import { MarketingFooter } from "@/components/MarketingFooter";
 import { ResumeBuilderHeroPreview } from "@/components/marketing/ResumeBuilderHeroPreview";
 import { SeoVideoSection } from "@/components/seo/SeoVideoSection";
@@ -267,6 +268,7 @@ export default function ResumeBuilderPage() {
                       <ArrowRight className="ml-2 h-4 w-4" />
                     </Button>
                   </Link>
+                  <AddToChromeButton variant="outline" size="lg" />
                   <div className="flex items-center gap-1.5 sm:gap-2">
                     <div className="flex items-center gap-0.5 sm:gap-1">
                       {[...Array(5)].map((_, i) => (

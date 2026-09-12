@@ -2,12 +2,13 @@ import Script from "next/script";
 
 interface StructuredDataProps {
   data: object;
+  id?: string;
 }
 
-export function StructuredData({ data }: StructuredDataProps) {
+export function StructuredData({ data, id = "structured-data" }: StructuredDataProps) {
   return (
     <Script
-      id="structured-data"
+      id={id}
       type="application/ld+json"
       dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }}
     />
@@ -16,8 +17,7 @@ export function StructuredData({ data }: StructuredDataProps) {
 
 /** Organization `sameAs` for JSON-LD — keep in sync with `SocialLinks.tsx` hrefs */
 export const ORGANIZATION_SAME_AS = [
-  "https://www.instagram.com/interviewtrix/",
-  "https://www.reddit.com/user/interviewtrix/",
+  "https://www.instagram.com/interviewtrix_official/",
   "https://x.com/InterviewTrix",
   "https://www.youtube.com/@interviewtrix_official",
   "https://www.linkedin.com/company/interview-trix/",
@@ -54,13 +54,52 @@ export const webApplicationSchema = {
     "AI Resume Builder",
     "ATS Compatibility Checker",
     "AI Interview Practice",
+    "AI Coding Interview Practice",
+    "AI System Design Interview Practice",
+    "AI Job Search",
     "Detailed Performance Reports",
     "Multiple Professional Templates",
-    "Job Search & Recommendations",
     "Real-time Resume Preview",
     "PDF Export",
   ],
 };
+
+/** Helps search engines understand primary product landing pages (sitelink discovery). */
+export function createProductNavigationSchema(
+  products: { name: string; url: string; description: string }[],
+) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    name: "Interview Trix Products",
+    itemListElement: products.map((product, index) => ({
+      "@type": "ListItem",
+      position: index + 1,
+      item: {
+        "@type": "WebPage",
+        name: product.name,
+        description: product.description,
+        url: product.url,
+      },
+    })),
+  };
+}
+
+export function createWebSiteSchema(siteUrl: string) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    name: "Interview Trix",
+    url: siteUrl,
+    description:
+      "From ATS-optimized resumes to AI interview, coding, and system design practice — one platform to get offer-ready.",
+    publisher: {
+      "@type": "Organization",
+      name: "Interview Trix",
+      logo: `${siteUrl}/brand/interviewtrix-logo.png`,
+    },
+  };
+}
 
 // BreadcrumbList Schema
 export function createBreadcrumbSchema(items: { name: string; url: string }[]) {
@@ -89,5 +128,45 @@ export function createFAQSchema(faqs: { question: string; answer: string }[]) {
         text: faq.answer,
       },
     })),
+  };
+}
+
+export function createBlogPostingSchema(post: {
+  title: string;
+  description: string;
+  url: string;
+  image?: string;
+  datePublished: string;
+  dateModified: string;
+  authorName: string;
+  keywords?: string[];
+}) {
+  const siteUrl = process.env.NEXT_PUBLIC_APP_URL || "https://interviewtrix.com";
+  return {
+    "@context": "https://schema.org",
+    "@type": "BlogPosting",
+    headline: post.title,
+    description: post.description,
+    ...(post.image ? { image: post.image } : {}),
+    datePublished: post.datePublished,
+    dateModified: post.dateModified,
+    author: {
+      "@type": "Person",
+      name: post.authorName,
+    },
+    publisher: {
+      ...organizationSchema,
+      logo: {
+        "@type": "ImageObject",
+        url: `${siteUrl}/brand/interviewtrix-logo.png`,
+      },
+    },
+    mainEntityOfPage: {
+      "@type": "WebPage",
+      "@id": post.url,
+    },
+    ...(post.keywords?.length
+      ? { keywords: post.keywords.join(", ") }
+      : {}),
   };
 }

@@ -42,6 +42,7 @@ import {
   type PeerInterviewerCard,
   type PeerSlot,
 } from "@/lib/api";
+import { useDashboardInvalidation } from "@/hooks/useDashboardInvalidation";
 
 const ROUND_STYLE: Record<
   string,
@@ -147,6 +148,7 @@ export default function InterviewerDetailPage() {
   const params = useParams();
   const router = useRouter();
   const id = String(params.id);
+  const { invalidate } = useDashboardInvalidation();
 
   const [interviewer, setInterviewer] = useState<PeerInterviewerCard | null>(null);
   const [slots, setSlots] = useState<PeerSlot[]>([]);
@@ -225,6 +227,7 @@ export default function InterviewerDetailPage() {
         interviewType: chosenType,
       });
       toast.success("Request sent! The interviewer will review and accept it.");
+      await invalidate(["peerBookings", "entitlements"]);
       router.push(`/dashboard/peer-interviews/bookings/${created.id}`);
     } catch (e: any) {
       toast.error(e?.response?.data?.message || "Could not create booking");

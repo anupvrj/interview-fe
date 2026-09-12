@@ -30,6 +30,38 @@ export const RESUME_IMPORT_PROCESSING_MESSAGES = [
   "Final checks in progress. Almost done…",
 ] as const;
 
+export const RESUME_CHAT_PROCESSING_MESSAGES = [
+  "Reviewing your chat profile and structuring it…",
+  "Organizing personal details and contact information…",
+  "Mapping your experience into resume sections…",
+  "Refining summary and bullet points…",
+  "Preparing skills and education sections…",
+  "Final checks in progress. Almost done…",
+] as const;
+
+export const RESUME_LINKEDIN_PROCESSING_MESSAGES = [
+  "Fetching your LinkedIn profile…",
+  "Enhancing experience and summary with AI…",
+  "Mapping education, skills, and projects…",
+  "Tailoring sections for ATS readability…",
+  "Final checks in progress. Almost done…",
+] as const;
+
+export const RESUME_JD_TAILORING_SUFFIX = [
+  "Aligning your summary to the target role…",
+  "Highlighting relevant skills from the job description…",
+  "Tailoring experience bullets for the role…",
+  "Final checks in progress. Almost done…",
+] as const;
+
+export const RESUME_FAITHFUL_IMPORT_MESSAGES = [
+  "Importing your resume as uploaded…",
+  "Structuring sections and contact details…",
+  "Keeping your original wording and bullets…",
+  "Arranging sections for the selected template…",
+  "Final checks in progress. Almost done…",
+] as const;
+
 export const RESUME_SECTION_TITLES: Record<string, string> = {
   personalInfo: "Personal Information",
   profileSummary: "Profile Summary",
@@ -576,6 +608,29 @@ export function mapExtractedSectionsToContent(
       continue;
     }
 
+    if (sectionType === "customSections") {
+      const items = Array.isArray(sectionData.content)
+        ? sectionData.content
+        : [];
+      content.customSections = items.flatMap((item, index) => {
+        const rec =
+          item && typeof item === "object" && !Array.isArray(item)
+            ? (item as Record<string, unknown>)
+            : {};
+        const title = String(rec.title || rec.name || "").trim();
+        const body = coerceToResumeString(rec.content ?? rec.body ?? "");
+        if (!title || !body) return [];
+        return [
+          {
+            id: String(rec.id || `custom_${index + 1}`),
+            title,
+            content: body,
+          },
+        ];
+      });
+      continue;
+    }
+
     if (RESUME_STRING_CONTENT_FIELDS.has(sectionType)) {
       content[sectionType] = coerceToResumeString(sectionData.content);
       continue;
@@ -692,7 +747,28 @@ export function buildSectionOrderForExtractedContent(
 
   for (const key of Object.keys(content)) {
     if (!hasResumeSectionContent(content, key)) continue;
-    if (key === "customSections") continue;
+    if (key === "customSections") {
+      const customs = Array.isArray(content.customSections)
+        ? (content.customSections as Array<{
+            id?: string;
+            title?: string;
+            content?: string;
+          }>)
+        : [];
+      for (const custom of customs) {
+        const id = String(custom.id || "").trim();
+        const title = String(custom.title || "Custom Section").trim();
+        if (!id || sectionTypesInOrder.has(id)) continue;
+        sectionOrder.push({
+          id,
+          type: "custom",
+          title,
+          visible: true,
+        });
+        sectionTypesInOrder.add(id);
+      }
+      continue;
+    }
 
     const title =
       RESUME_SECTION_TITLES[key] ||
@@ -700,7 +776,7 @@ export function buildSectionOrderForExtractedContent(
 
     if (sectionTypesInOrder.has(key)) {
       sectionOrder = sectionOrder.map((s) =>
-        s.type === key ? { ...s, visible: true } : s,
+        s.type === key ? { ...s, title: s.title || title, visible: true } : s,
       );
     } else {
       sectionOrder.push({
@@ -754,10 +830,9 @@ export async function importResumeFromExtractedText(
 ): Promise<Resume> {
   const template = await resumeApi.getTemplate(templateId);
   const extended = getExtendedTemplate(template);
-  const extracted = await resumeDataExtractionApi.extractResumeData(
-    templateId,
+  const extracted = await resumeDataExtractionApi.extractResumeData(templateId, {
     resumeText,
-  );
+  });
   const content = mapExtractedSectionsToContent(extracted.sections, {
     templateId,
   });
@@ -823,4 +898,106 @@ export async function importResumeFromLinkedIn(
         : undefined,
     sectionOrder,
   });
+}
+
+export type ResumeImportSourceType = "pdf" | "linkedin" | "chat" | "dummy";
+
+export type BuildResumeImportPayload = {
+  source: ResumeImportSourceType;
+  templateId: string;
+  resumeText?: string;
+  linkedinHandle?: string;
+  chatProfile?: import("@/lib/api").ChatCollectedProfile;
+  jobDescription?: string;
+  jdRequirements?: import("@/lib/api").JDRequirements;
+  enhance?: boolean;
+};
+
+export async function buildResumeFromExtractedData(
+  payload: BuildResumeImportPayload,
+): Promise<
+  Record<
+    string,
+    {
+      sectionType: string;
+      content: string | unknown;
+      format: "html" | "list" | "paragraph" | "structured";
+    }
+  >
+> {
+  const buildOptions = {
+    jobDescription: payload.jobDescription,
+    jdRequirements: payload.jdRequirements,
+    enhance: payload.enhance,
+  };
+
+  if (payload.source === "linkedin" && payload.linkedinHandle) {
+    const extracted = await resumeDataExtractionApi.importLinkedInProfile(
+      payload.linkedinHandle.trim(),
+      payload.templateId,
+      buildOptions,
+    );
+    return extracted.sections;
+  }
+
+  if (payload.source === "chat" && payload.chatProfile) {
+    const extracted = await resumeDataExtractionApi.extractResumeData(
+      payload.templateId,
+      {
+        chatProfile: payload.chatProfile,
+        ...buildOptions,
+      },
+    );
+    return extracted.sections;
+  }
+
+  if (payload.source === "pdf" && payload.resumeText) {
+    const extracted = await resumeDataExtractionApi.extractResumeData(
+      payload.templateId,
+      {
+        resumeText: payload.resumeText,
+        ...buildOptions,
+      },
+    );
+    return extracted.sections;
+  }
+
+  return {};
+}
+
+/** @deprecated Use buildResumeFromExtractedData */
+export const extractSectionsForImport = buildResumeFromExtractedData;
+
+export function getResumeProcessingMessages(
+  payload: BuildResumeImportPayload | null,
+  hasJd: boolean,
+): readonly string[] {
+  if (!payload || payload.source === "dummy") {
+    return [
+      "Setting up your resume with default content...",
+      "Preparing sections and formatting your layout...",
+      "Adding professional starter content...",
+      "Arranging sections for maximum clarity...",
+      "Final checks in progress. Almost done...",
+    ];
+  }
+
+  let base: readonly string[];
+  switch (payload.source) {
+    case "chat":
+      base = RESUME_CHAT_PROCESSING_MESSAGES;
+      break;
+    case "linkedin":
+      base = RESUME_LINKEDIN_PROCESSING_MESSAGES;
+      break;
+    case "pdf":
+    default:
+      base =
+        payload.enhance === false
+          ? RESUME_FAITHFUL_IMPORT_MESSAGES
+          : RESUME_IMPORT_PROCESSING_MESSAGES;
+      break;
+  }
+
+  return hasJd ? [...base, ...RESUME_JD_TAILORING_SUFFIX] : base;
 }

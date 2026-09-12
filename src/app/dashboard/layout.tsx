@@ -1,17 +1,13 @@
-import { DashboardLayout } from "@/components/DashboardLayout";
-import { DashboardToaster } from "@/components/DashboardToaster";
-import { DashboardThemeProvider } from "@/components/dashboard-theme";
-import { ActiveRoleProvider } from "@/components/roles/ActiveRoleProvider";
+import type { Metadata } from "next";
+import { getPrivateAppRobots } from "@/lib/seo/site-url";
+import { DashboardClientLayout } from "./DashboardClientLayout";
 
-export default function Layout({
+export const metadata: Metadata = {
+  robots: getPrivateAppRobots(),
+};
+
+export default function DashboardLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
-  return (
-    <DashboardThemeProvider>
-      <ActiveRoleProvider>
-        <DashboardLayout>{children}</DashboardLayout>
-        <DashboardToaster />
-      </ActiveRoleProvider>
-    </DashboardThemeProvider>
-  );
+  return <DashboardClientLayout>{children}</DashboardClientLayout>;
 }

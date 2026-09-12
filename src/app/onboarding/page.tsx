@@ -13,6 +13,7 @@ import {
   type OnboardingPath,
 } from "@/components/onboarding/OnboardingPathChooser";
 import { isPaidPlanId } from "@/lib/pricingPageContent";
+import { consumePostSignInReturnUrl } from "@/lib/post-sign-in-redirect";
 import { userApi } from "@/lib/api";
 
 export default function OnboardingPage() {
@@ -38,9 +39,8 @@ export default function OnboardingPage() {
       );
 
       if (createdUser.onboardingCompleted) {
-        const returnUrl = localStorage.getItem("resumeBuilderReturnUrl");
+        const returnUrl = consumePostSignInReturnUrl();
         if (returnUrl) {
-          localStorage.removeItem("resumeBuilderReturnUrl");
           didRedirect = true;
           router.replace(returnUrl);
           return;

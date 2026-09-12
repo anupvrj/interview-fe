@@ -1,36 +1,42 @@
 "use client";
 
 import { useEffect, useState, type MouseEvent } from "react";
+import { createPortal } from "react-dom";
 import { ChevronDown, Menu, X } from "lucide-react";
 import { useUser } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { usePlatformFeatures } from "@/hooks/usePlatformFeatures";
 
 const navLinkClass =
-  "text-sm font-medium text-muted-foreground transition-colors hover:text-foreground lg:text-[0.9375rem]";
+  "text-sm font-medium text-muted-foreground transition-colors hover:text-foreground lg:text-[13px] xl:text-[0.9375rem]";
 
 export const mockInterviewNavItems = [
   {
     href: "/ai-interview-coach",
-    label: "Screening Round with AI",
-    description: "Voice-led mock interviews with AI feedback",
+    label: "AI Mock Interview",
+    description: "Mock interviews with AI feedback",
+    featureKey: "ai_interview",
   },
   {
     href: "/ai-coding-practice",
     label: "Practice Coding Round",
     description: "Solve problems and defend your approach",
+    featureKey: "coding_practice",
   },
   {
     href: "/ai-system-design",
     label: "Practice System Design",
     description: "Whiteboard architecture with AI coaching",
+    featureKey: "system_design",
   },
   {
     href: "/dashboard/peer-interviews/book",
     label: "Peer Interview with Experts",
     description: "Book live mock interviews with verified experts",
+    featureKey: "peer_booking",
   },
 ] as const;
 
@@ -42,11 +48,13 @@ export const resumeNavItems = [
     href: "/ai-resume-builder",
     label: "Resume Builder",
     description: "Build ATS-optimized resumes with AI",
+    featureKey: "resume_builder",
   },
   {
     href: "/ats-checker",
     label: "ATS Checker",
     description: "Score and fix your resume for ATS",
+    featureKey: "ats_checker",
   },
 ] as const;
 
@@ -125,6 +133,23 @@ function isResumeActive(pathname: string) {
   );
 }
 
+function useVisibleMarketingNav() {
+  const { isNavHrefVisible } = usePlatformFeatures();
+  return {
+    mockItems: mockInterviewNavItems.filter((item) =>
+      isNavHrefVisible(item.href, item.featureKey),
+    ),
+    resumeItems: resumeNavItems.filter((item) =>
+      isNavHrefVisible(item.href, item.featureKey),
+    ),
+    showBecomeInterviewer: isNavHrefVisible(
+      navLinkBecomeInterviewer.href,
+      "peer_interviews",
+    ),
+    showHireTalent: isNavHrefVisible(navLinkHireTalent.href, "ix_recruiter"),
+  };
+}
+
 function linkClass(active: boolean) {
   return cn(navLinkClass, active && "text-foreground");
 }
@@ -139,6 +164,8 @@ function MockInterviewsDropdown({
   pathname: string;
 }) {
   const active = isMockInterviewActive(pathname);
+  const { mockItems } = useVisibleMarketingNav();
+  if (mockItems.length === 0) return null;
 
   return (
     <div
@@ -168,7 +195,7 @@ function MockInterviewsDropdown({
       {open ? (
         <div className="absolute left-1/2 top-full z-50 w-80 -translate-x-1/2 pt-3">
           <div className="rounded-xl border border-border/60 bg-card p-2 shadow-header">
-            {mockInterviewNavItems.map((item) => (
+            {mockItems.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
@@ -199,6 +226,8 @@ function ResumeDropdown({
   pathname: string;
 }) {
   const active = isResumeActive(pathname);
+  const { resumeItems } = useVisibleMarketingNav();
+  if (resumeItems.length === 0) return null;
 
   return (
     <div
@@ -228,7 +257,7 @@ function ResumeDropdown({
       {open ? (
         <div className="absolute left-1/2 top-full z-50 w-72 -translate-x-1/2 pt-3">
           <div className="rounded-xl border border-border/60 bg-card p-2 shadow-header">
-            {resumeNavItems.map((item) => (
+            {resumeItems.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
@@ -280,6 +309,7 @@ export function PublicDesktopNav() {
   const pathname = usePathname();
   const [mockInterviewsOpen, setMockInterviewsOpen] = useState(false);
   const [resumeOpen, setResumeOpen] = useState(false);
+  const { showBecomeInterviewer, showHireTalent } = useVisibleMarketingNav();
 
   useEffect(() => {
     setMockInterviewsOpen(false);
@@ -312,17 +342,21 @@ export function PublicDesktopNav() {
         pathname={pathname}
       />
 
-      <NavLink
-        href={navLinkBecomeInterviewer.href}
-        label={navLinkBecomeInterviewer.label}
-        active={navLinkBecomeInterviewer.match(pathname)}
-      />
+      {showBecomeInterviewer ? (
+        <NavLink
+          href={navLinkBecomeInterviewer.href}
+          label={navLinkBecomeInterviewer.label}
+          active={navLinkBecomeInterviewer.match(pathname)}
+        />
+      ) : null}
 
-      <NavLink
-        href={navLinkHireTalent.href}
-        label={navLinkHireTalent.label}
-        active={navLinkHireTalent.match(pathname)}
-      />
+      {showHireTalent ? (
+        <NavLink
+          href={navLinkHireTalent.href}
+          label={navLinkHireTalent.label}
+          active={navLinkHireTalent.match(pathname)}
+        />
+      ) : null}
 
       <NavLink
         href={navLinkPricing.href}
@@ -333,13 +367,21 @@ export function PublicDesktopNav() {
   );
 }
 
+/** Portaled above SiteHeader (`z-50`) — must be literal Tailwind classes for JIT. */
 export function PublicMobileNav() {
   const router = useRouter();
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mockInterviewsOpen, setMockInterviewsOpen] = useState(false);
   const [resumeOpen, setResumeOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const { user, isLoaded } = useUser();
+  const { mockItems, resumeItems, showBecomeInterviewer, showHireTalent } =
+    useVisibleMarketingNav();
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const navigateFromMobileDrawer =
     (href: string) => (e: MouseEvent<HTMLAnchorElement>) => {
@@ -352,11 +394,30 @@ export function PublicMobileNav() {
       }, 0);
     };
 
+  const mobileMenuBorderClass = "border-primary-foreground/20";
+  const mobileMenuSubBorderClass = "border-primary-foreground/15";
+
   const mobileLinkClass = (active: boolean) =>
     cn(
-      "flex items-center border-b border-border/60 px-4 py-3.5 text-sm font-medium transition-colors hover:bg-muted/40",
-      active ? "text-foreground" : "text-muted-foreground",
+      "flex items-center border-b px-4 py-3.5 text-sm font-medium transition-colors hover:bg-primary-foreground/10",
+      mobileMenuBorderClass,
+      active ? "text-primary-foreground" : "text-primary-foreground/90",
     );
+
+  const mobileSubmenuToggleClass = (active: boolean) =>
+    cn(
+      "flex w-full items-center justify-between border-b px-4 py-3.5 text-left text-sm font-medium transition-colors hover:bg-primary-foreground/10",
+      mobileMenuBorderClass,
+      active ? "text-primary-foreground" : "text-primary-foreground/90",
+    );
+
+  const mobileSubmenuPanelClass = cn(
+    "border-b bg-primary-foreground/10",
+    mobileMenuBorderClass,
+  );
+
+  const mobileSubmenuLinkClass =
+    "block border-b px-6 py-3 last:border-b-0 transition-colors hover:bg-primary-foreground/10";
 
   useEffect(() => {
     if (!mobileMenuOpen) return;
@@ -393,53 +454,55 @@ export function PublicMobileNav() {
     setResumeOpen(false);
   }, [pathname]);
 
-  return (
-    <>
-      <div id="mobile-menu-button" className="lg:hidden">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          className="h-9 w-9 p-0"
-          aria-label="Toggle menu"
-          aria-expanded={mobileMenuOpen}
-        >
-          {mobileMenuOpen ? (
-            <X className="h-5 w-5" />
-          ) : (
-            <Menu className="h-5 w-5" />
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [mobileMenuOpen]);
+
+  const closeMobileMenu = () => {
+    setMobileMenuOpen(false);
+    setMockInterviewsOpen(false);
+    setResumeOpen(false);
+  };
+
+  const mobileMenuPortal =
+    mounted &&
+    createPortal(
+      <>
+        {mobileMenuOpen ? (
+          <div
+            className="fixed inset-0 z-[100] bg-black/30 lg:hidden"
+            onClick={closeMobileMenu}
+            aria-hidden
+          />
+        ) : null}
+
+        <nav
+          id="mobile-menu"
+          className={cn(
+            "fixed left-0 top-0 z-[110] flex h-dvh w-80 max-w-[85vw] flex-col bg-primary text-primary-foreground shadow-2xl transition-transform duration-300 ease-in-out lg:hidden",
+            mobileMenuOpen ? "translate-x-0" : "-translate-x-full",
           )}
-        </Button>
-      </div>
-
-      {mobileMenuOpen ? (
+          onClick={(e) => e.stopPropagation()}
+          aria-label="Mobile navigation"
+          aria-hidden={!mobileMenuOpen}
+        >
         <div
-          className="fixed inset-0 z-[60] bg-black/30 lg:hidden"
-          onClick={() => {
-            setMobileMenuOpen(false);
-            setMockInterviewsOpen(false);
-            setResumeOpen(false);
-          }}
-          aria-hidden
-        />
-      ) : null}
-
-      <nav
-        id="mobile-menu"
-        className={cn(
-          "fixed left-0 top-0 z-[70] flex h-screen w-80 max-w-[85vw] flex-col bg-card shadow-2xl transition-transform duration-300 ease-in-out lg:hidden",
-          mobileMenuOpen ? "translate-x-0" : "-translate-x-full",
-        )}
-        onClick={(e) => e.stopPropagation()}
-        aria-label="Mobile navigation"
-      >
-        <div className="flex items-center justify-between border-b border-border/60 px-4 py-4">
-          <span className="text-sm font-semibold text-foreground">Menu</span>
+          className={cn(
+            "flex items-center justify-between border-b px-4 py-4",
+            mobileMenuBorderClass,
+          )}
+        >
+          <span className="text-sm font-semibold text-primary-foreground">Menu</span>
           <Button
             variant="ghost"
             size="sm"
-            className="h-8 w-8 p-0"
-            onClick={() => setMobileMenuOpen(false)}
+            className="h-8 w-8 p-0 text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground"
+            onClick={closeMobileMenu}
             aria-label="Close menu"
           >
             <X className="h-4 w-4" />
@@ -468,15 +531,12 @@ export function PublicMobileNav() {
             </Link>
           ) : null}
 
+          {resumeItems.length > 0 ? (
+            <>
           <button
             type="button"
             onClick={() => setResumeOpen((open) => !open)}
-            className={cn(
-              "flex w-full items-center justify-between border-b border-border/60 px-4 py-3.5 text-left text-sm font-medium transition-colors hover:bg-muted/40",
-              isResumeActive(pathname)
-                ? "text-foreground"
-                : "text-muted-foreground",
-            )}
+            className={mobileSubmenuToggleClass(isResumeActive(pathname))}
             aria-expanded={resumeOpen}
           >
             <span>Resume</span>
@@ -489,34 +549,33 @@ export function PublicMobileNav() {
           </button>
 
           {resumeOpen ? (
-            <div className="border-b border-border/60 bg-muted/20">
-              {resumeNavItems.map((item) => (
+            <div className={mobileSubmenuPanelClass}>
+              {resumeItems.map((item) => (
                 <Link
                   key={item.href}
                   href={item.href}
                   onClick={navigateFromMobileDrawer(item.href)}
-                  className="block border-b border-border/40 px-6 py-3 last:border-b-0 hover:bg-muted/40"
+                  className={cn(mobileSubmenuLinkClass, mobileMenuSubBorderClass)}
                 >
-                  <span className="block text-sm font-medium text-foreground">
+                  <span className="block text-sm font-medium text-primary-foreground">
                     {item.label}
                   </span>
-                  <span className="mt-0.5 block text-xs text-muted-foreground">
+                  <span className="mt-0.5 block text-xs text-primary-foreground/75">
                     {item.description}
                   </span>
                 </Link>
               ))}
             </div>
           ) : null}
+            </>
+          ) : null}
 
+          {mockItems.length > 0 ? (
+            <>
           <button
             type="button"
             onClick={() => setMockInterviewsOpen((open) => !open)}
-            className={cn(
-              "flex w-full items-center justify-between border-b border-border/60 px-4 py-3.5 text-left text-sm font-medium transition-colors hover:bg-muted/40",
-              isMockInterviewActive(pathname)
-                ? "text-foreground"
-                : "text-muted-foreground",
-            )}
+            className={mobileSubmenuToggleClass(isMockInterviewActive(pathname))}
             aria-expanded={mockInterviewsOpen}
           >
             <span>Mock Interviews</span>
@@ -529,25 +588,28 @@ export function PublicMobileNav() {
           </button>
 
           {mockInterviewsOpen ? (
-            <div className="border-b border-border/60 bg-muted/20">
-              {mockInterviewNavItems.map((item) => (
+            <div className={mobileSubmenuPanelClass}>
+              {mockItems.map((item) => (
                 <Link
                   key={item.href}
                   href={item.href}
                   onClick={navigateFromMobileDrawer(item.href)}
-                  className="block border-b border-border/40 px-6 py-3 last:border-b-0 hover:bg-muted/40"
+                  className={cn(mobileSubmenuLinkClass, mobileMenuSubBorderClass)}
                 >
-                  <span className="block text-sm font-medium text-foreground">
+                  <span className="block text-sm font-medium text-primary-foreground">
                     {item.label}
                   </span>
-                  <span className="mt-0.5 block text-xs text-muted-foreground">
+                  <span className="mt-0.5 block text-xs text-primary-foreground/75">
                     {item.description}
                   </span>
                 </Link>
               ))}
             </div>
           ) : null}
+            </>
+          ) : null}
 
+          {showBecomeInterviewer ? (
           <Link
             href={navLinkBecomeInterviewer.href}
             onClick={navigateFromMobileDrawer(navLinkBecomeInterviewer.href)}
@@ -555,7 +617,9 @@ export function PublicMobileNav() {
           >
             {navLinkBecomeInterviewer.label}
           </Link>
+          ) : null}
 
+          {showHireTalent ? (
           <Link
             href={navLinkHireTalent.href}
             onClick={navigateFromMobileDrawer(navLinkHireTalent.href)}
@@ -563,6 +627,7 @@ export function PublicMobileNav() {
           >
             {navLinkHireTalent.label}
           </Link>
+          ) : null}
 
           <Link
             href={navLinkPricing.href}
@@ -583,6 +648,30 @@ export function PublicMobileNav() {
           ) : null}
         </div>
       </nav>
+      </>,
+      document.body,
+    );
+
+  return (
+    <>
+      <div id="mobile-menu-button" className="lg:hidden">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          className="h-9 w-9 p-0"
+          aria-label="Toggle menu"
+          aria-expanded={mobileMenuOpen}
+        >
+          {mobileMenuOpen ? (
+            <X className="h-5 w-5" />
+          ) : (
+            <Menu className="h-5 w-5" />
+          )}
+        </Button>
+      </div>
+
+      {mobileMenuPortal}
     </>
   );
 }

@@ -7,7 +7,6 @@ import {
   User,
   FileEdit,
   Briefcase,
-  Shield,
   Building2,
   Users,
   UsersRound,
@@ -22,7 +21,7 @@ import {
   UserPlus,
   ClipboardList,
   Award,
-  Bell,
+  Plug,
 } from "lucide-react";
 import type { AccessRole, User as ApiUser } from "@/lib/api";
 import { isPathAllowedForRole, type ActiveRole } from "@/lib/roles";
@@ -39,6 +38,8 @@ export type DashboardNavItem = {
   icon: LucideIcon;
   accent: DashboardNavAccent;
   locked?: boolean;
+  featureKey?: string;
+  description?: string;
 };
 
 const accent = {
@@ -106,54 +107,56 @@ const baseMenuItems: DashboardNavItem[] = [
     href: "/dashboard/resumes",
     icon: FileEdit,
     accent: accent.emerald,
+    featureKey: "resume_builder",
   },
   {
     title: "AI Interview Practice",
     href: "/dashboard/interviews",
     icon: FileText,
     accent: accent.blue,
+    featureKey: "ai_interview",
   },
   {
     title: "Practice Coding Round",
     href: "/dashboard/coding-interviews",
     icon: Code2,
     accent: accent.cyan,
+    featureKey: "coding_practice",
   },
   {
     title: "Practice System Design",
     href: "/dashboard/system-design",
     icon: Network,
     accent: accent.indigo,
+    featureKey: "system_design",
   },
   {
     title: "Peer Interviews",
     href: "/dashboard/peer-interviews",
     icon: UsersRound,
     accent: accent.violet,
+    featureKey: "peer_interviews",
   },
   {
     title: "iX Report",
     href: "/dashboard/ix-report",
     icon: Award,
     accent: accent.purple,
+    featureKey: "ix_report",
   },
   {
     title: "Interviewer Dashboard",
     href: "/dashboard/peer-interviews/interviewer",
     icon: CalendarClock,
     accent: accent.cyan,
-  },
-  {
-    title: "Job Board",
-    href: "/dashboard/job-board",
-    icon: Briefcase,
-    accent: accent.rose,
+    featureKey: "peer_interviews",
   },
   {
     title: "Analytics",
     href: "/dashboard/analytics",
     icon: BarChart3,
     accent: accent.amber,
+    featureKey: "analytics",
   },
   // TODO: remove from base nav when Agent Lab is super-admin / env-gated again
   {
@@ -174,6 +177,13 @@ const baseMenuItems: DashboardNavItem[] = [
     icon: User,
     accent: accent.slate,
   },
+  {
+    title: "AI Connectors",
+    href: "/dashboard/profile/connectors",
+    icon: Plug,
+    accent: accent.violet,
+    featureKey: "api_connector",
+  },
 ];
 
 export function isPlatformAdmin(accessRole: AccessRole | null): boolean {
@@ -183,8 +193,11 @@ export function isPlatformAdmin(accessRole: AccessRole | null): boolean {
 export function getDashboardNavItems(
   accessRole: AccessRole | null,
   institutionId: string | null,
+  activeRole?: ActiveRole | null,
 ): DashboardNavItem[] {
-  const isInstitutionAdmin = accessRole === "institution_admin";
+  const isInstitutionAdmin =
+    activeRole === "institution_admin" ||
+    (!activeRole && accessRole === "institution_admin");
 
   if (isInstitutionAdmin && institutionId) {
     const base = `/dashboard/institute/${institutionId}`;
@@ -243,6 +256,13 @@ export function getDashboardNavItems(
         icon: User,
         accent: accent.slate,
       },
+      {
+        title: "AI Connectors",
+        href: "/dashboard/profile/connectors",
+        icon: Plug,
+        accent: accent.violet,
+        featureKey: "api_connector",
+      },
     ];
   }
 
@@ -266,58 +286,17 @@ export function getDashboardNavItems(
         icon: User,
         accent: accent.slate,
       },
+      {
+        title: "AI Connectors",
+        href: "/dashboard/profile/connectors",
+        icon: Plug,
+        accent: accent.violet,
+        featureKey: "api_connector",
+      },
     ];
   }
 
-  let items = [...baseMenuItems];
-
-  if (accessRole !== "super_admin") {
-    // Peer Interviews is now open to all users; Job Board remains gated.
-    items = items.filter((item) => item.href !== "/dashboard/job-board");
-  }
-
-  if (isPlatformAdmin(accessRole)) {
-    items.push(
-      {
-        title: "Peer — Interviewers",
-        href: "/dashboard/super-admin/peer-interviewers",
-        icon: Users,
-        accent: accent.emerald,
-      },
-      {
-        title: "Peer — Bookings",
-        href: "/dashboard/super-admin/peer-bookings",
-        icon: Receipt,
-        accent: accent.amber,
-      },
-      {
-        title: "iX Recruiters",
-        href: "/dashboard/super-admin/ix-recruiters",
-        icon: Briefcase,
-        accent: accent.rose,
-      },
-      {
-        title: "Institution Admin",
-        href: "/dashboard/institute",
-        icon: Building2,
-        accent: accent.indigo,
-      },
-      {
-        title: "Notification Hub",
-        href: "/dashboard/super-admin/notification-hub",
-        icon: Bell,
-        accent: accent.violet,
-      },
-      {
-        title: "Super Admin",
-        href: "/dashboard/super-admin",
-        icon: Shield,
-        accent: accent.rose,
-      },
-    );
-  }
-
-  return items;
+  return [...baseMenuItems];
 }
 
 const INTERVIEWER_DASHBOARD_NAV_ITEM: DashboardNavItem = {
@@ -325,6 +304,7 @@ const INTERVIEWER_DASHBOARD_NAV_ITEM: DashboardNavItem = {
   href: "/dashboard/peer-interviews/interviewer",
   icon: CalendarClock,
   accent: accent.cyan,
+  featureKey: "peer_interviews",
 };
 
 const PEER_APPLICATION_NAV_ITEM: DashboardNavItem = {
@@ -332,6 +312,7 @@ const PEER_APPLICATION_NAV_ITEM: DashboardNavItem = {
   href: "/dashboard/peer-interviews/interviewer",
   icon: CalendarClock,
   accent: accent.amber,
+  featureKey: "peer_interviews",
 };
 
 const PEER_APPLY_NAV_ITEM: DashboardNavItem = {
@@ -339,6 +320,7 @@ const PEER_APPLY_NAV_ITEM: DashboardNavItem = {
   href: "/dashboard/peer-interviews/interviewer/apply",
   icon: UserPlus,
   accent: accent.emerald,
+  featureKey: "peer_interviews",
 };
 
 function insertAfterPeerInterviews(
@@ -358,6 +340,7 @@ const PEER_EARNINGS_NAV_ITEM: DashboardNavItem = {
   href: "/dashboard/peer-interviews/interviewer/earnings",
   icon: Receipt,
   accent: accent.violet,
+  featureKey: "peer_interviews",
 };
 
 const PEER_BOOKINGS_NAV_ITEM: DashboardNavItem = {
@@ -365,6 +348,7 @@ const PEER_BOOKINGS_NAV_ITEM: DashboardNavItem = {
   href: "/dashboard/peer-interviews/interviewer/bookings",
   icon: ClipboardList,
   accent: accent.blue,
+  featureKey: "peer_interviews",
 };
 
 /** Scope peer nav: approved interviewers get the hub; pending users get application status only. */
@@ -427,6 +411,7 @@ const RECRUITER_DASHBOARD_NAV_ITEM: DashboardNavItem = {
   href: "/dashboard/ix-recruiter",
   icon: Briefcase,
   accent: accent.violet,
+  featureKey: "ix_recruiter",
 };
 
 const HIRE_TALENT_NAV_ITEM: DashboardNavItem = {
@@ -434,6 +419,7 @@ const HIRE_TALENT_NAV_ITEM: DashboardNavItem = {
   href: "/dashboard/ix-recruiter/candidates",
   icon: UsersRound,
   accent: accent.emerald,
+  featureKey: "ix_recruiter",
 };
 
 const SHORTLISTED_TALENTS_NAV_ITEM: DashboardNavItem = {
@@ -441,6 +427,7 @@ const SHORTLISTED_TALENTS_NAV_ITEM: DashboardNavItem = {
   href: "/dashboard/ix-recruiter/shortlisted",
   icon: ClipboardList,
   accent: accent.blue,
+  featureKey: "ix_recruiter",
 };
 
 const RECRUITER_APPLICATION_NAV_ITEM: DashboardNavItem = {
@@ -448,6 +435,7 @@ const RECRUITER_APPLICATION_NAV_ITEM: DashboardNavItem = {
   href: "/dashboard/ix-recruiter/apply",
   icon: Briefcase,
   accent: accent.amber,
+  featureKey: "ix_recruiter",
 };
 
 const RECRUITER_APPLY_NAV_ITEM: DashboardNavItem = {
@@ -455,6 +443,7 @@ const RECRUITER_APPLY_NAV_ITEM: DashboardNavItem = {
   href: "/dashboard/ix-recruiter/apply",
   icon: UserPlus,
   accent: accent.emerald,
+  featureKey: "ix_recruiter",
 };
 
 /** Scope recruiter nav: approved recruiters get the workspace; pending users get application status only. */
@@ -517,4 +506,11 @@ export function filterNavByActiveRole(
   return items.filter((item) =>
     isPathAllowedForRole(activeRole, item.href, profile),
   );
+}
+
+export function filterNavByFeatures(
+  items: DashboardNavItem[],
+  isHrefVisible: (href: string, featureKey?: string) => boolean,
+): DashboardNavItem[] {
+  return items.filter((item) => isHrefVisible(item.href, item.featureKey));
 }

@@ -31,6 +31,7 @@ import {
   User,
   type Resume,
 } from "@/lib/api";
+import { useDashboardInvalidation } from "@/hooks/useDashboardInvalidation";
 import {
   getActiveSavedResumeDisplay,
   hasActiveSavedResume,
@@ -51,6 +52,7 @@ import {
   appSurfaceMuted,
 } from "@/lib/app-theme";
 import { cn } from "@/lib/utils";
+import { mergeInterviewFormDefaults } from "@/lib/interview-form-defaults";
 import { UpgradeUpsellDialog } from "@/components/upsell/UpgradeUpsellDialog";
 import { TrialUpsellDialog } from "@/components/upsell/TrialUpsellDialog";
 import { useUpsellState } from "@/components/upsell/useUpsellState";
@@ -189,6 +191,7 @@ function ResumeOptionCard({
 export default function NewCodingInterviewPage() {
   const { user, isLoaded } = useUser();
   const router = useRouter();
+  const { invalidate } = useDashboardInvalidation();
   const [loading, setLoading] = useState(false);
   const [userProfile, setUserProfile] = useState<User | null>(null);
   const [defaultDesignedResume, setDefaultDesignedResume] =
@@ -220,6 +223,7 @@ export default function NewCodingInterviewPage() {
       ]);
       setUserProfile(profile);
       setDefaultDesignedResume(designedDefault);
+      setFormData((prev) => mergeInterviewFormDefaults(prev, profile));
       if (hasActiveSavedResume(profile, designedDefault)) {
         setUseSavedResume(true);
       } else {
@@ -401,6 +405,7 @@ export default function NewCodingInterviewPage() {
         useSavedResume:
           useSavedResume && savedResumeAvailable ? true : undefined,
       });
+      await invalidate(["codingInterviews", "entitlements"]);
       router.push(
         `/dashboard/coding-interviews/${res.data.interviewId}?autostart=1`,
       );

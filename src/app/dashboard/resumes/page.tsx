@@ -40,7 +40,13 @@ import {
   Award,
 } from "lucide-react";
 import Image from "next/image";
-import { Resume, resumeApi } from "@/lib/api";
+import { resumeApi } from "@/lib/api";
+import {
+  downloadPdfFromUrl,
+  resumePdfFilenameFromResume,
+} from "@/lib/download-pdf";
+import { useResumesQuery } from "@/hooks/queries/useResumesQuery";
+import { useDashboardInvalidation } from "@/hooks/useDashboardInvalidation";
 import { cn } from "@/lib/utils";
 import {
   institutePrimaryClass,
@@ -50,14 +56,15 @@ import { DashboardStatCard } from "@/components/dashboard/DashboardStatCard";
 import { DashboardResumesList } from "@/components/dashboard/DashboardResumesList";
 import { TrialUpsellDialog } from "@/components/upsell/TrialUpsellDialog";
 import { useEntitlements } from "@/hooks/useEntitlements";
+import { AddToChromeButton } from "@/components/chrome-extension/AddToChromeButton";
 
 const RESUME_ITEMS_PER_PAGE = 10;
 
 export default function ResumesPage() {
   const { user, isLoaded } = useUser();
   const router = useRouter();
-  const [resumes, setResumes] = useState<Resume[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: resumes = [], isLoading: loading } = useResumesQuery();
+  const { invalidate } = useDashboardInvalidation();
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
@@ -83,7 +90,6 @@ export default function ResumesPage() {
   useEffect(() => {
     if (isLoaded && user) {
       localStorage.setItem("clerk-user-id", user.id);
-      loadResumes();
     }
   }, [isLoaded, user]);
 
@@ -191,19 +197,6 @@ export default function ResumesPage() {
     };
   }, []);
 
-  const loadResumes = async (opts?: { silent?: boolean }) => {
-    if (!user) return;
-    try {
-      if (!opts?.silent) setLoading(true);
-      const data = await resumeApi.list(user.id);
-      setResumes(data);
-    } catch (error) {
-      console.error("Error loading resumes:", error);
-    } finally {
-      if (!opts?.silent) setLoading(false);
-    }
-  };
-
   const handleCreateResumeClick = async () => {
     if (!user) return;
     try {
@@ -233,7 +226,7 @@ export default function ResumesPage() {
     try {
       setDeletingId(resumeToDelete);
       await resumeApi.delete(resumeToDelete);
-      await loadResumes();
+      await invalidate(["resumes"]);
       setDeleteDialogOpen(false);
       setResumeToDelete(null);
     } catch (error) {
@@ -248,7 +241,7 @@ export default function ResumesPage() {
     try {
       setDuplicatingId(resumeId);
       await resumeApi.duplicate(resumeId);
-      await loadResumes({ silent: true });
+      await invalidate(["resumes"]);
     } catch (error) {
       console.error("Error duplicating resume:", error);
       alert("Failed to duplicate resume. Please try again.");
@@ -265,7 +258,11 @@ export default function ResumesPage() {
     try {
       setDownloadingId(resumeId);
       const pdfUrl = await resumeApi.downloadPDF(resumeId);
-      window.open(pdfUrl, "_blank");
+      const listed = resumes.find((r) => r.resumeId === resumeId);
+      await downloadPdfFromUrl(
+        pdfUrl,
+        resumePdfFilenameFromResume(listed),
+      );
     } catch (error: any) {
       console.error("Error downloading PDF:", error);
 
@@ -803,18 +800,21 @@ export default function ResumesPage() {
                     }—keep iterating until Smart ATS clears the bots.`}
               </CardDescription>
             </div>
-            <Button
-              onClick={handleCreateResumeClick}
-              disabled={checkingLimit}
-              className={institutePrimaryClass}
-            >
-              {checkingLimit ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Plus className="mr-2 h-4 w-4" />
-              )}
-              New resume
-            </Button>
+            <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+              <AddToChromeButton variant="outline" size="sm" />
+              <Button
+                onClick={handleCreateResumeClick}
+                disabled={checkingLimit}
+                className={institutePrimaryClass}
+              >
+                {checkingLimit ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Plus className="mr-2 h-4 w-4" />
+                )}
+                New resume
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent className="p-0">

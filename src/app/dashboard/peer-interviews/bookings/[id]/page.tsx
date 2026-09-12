@@ -69,6 +69,7 @@ import { appCard } from "@/lib/app-theme";
 import { isPeerInterviewExpired } from "@/lib/peer-booking-expiry";
 import { cn } from "@/lib/utils";
 import { peerApi, type PeerBooking, type PeerInterviewType } from "@/lib/api";
+import { useDashboardInvalidation } from "@/hooks/useDashboardInvalidation";
 
 declare global {
   interface Window {
@@ -118,6 +119,7 @@ export default function BookingDetailPage() {
   const id = String(params.id);
   const { timezone, timezoneLabel } = usePeerTimezone();
   const { user } = useUser();
+  const { invalidate } = useDashboardInvalidation();
 
   const [booking, setBooking] = useState<PeerBooking | null>(null);
   const [types, setTypes] = useState<PeerInterviewType[]>([]);
@@ -260,6 +262,7 @@ export default function BookingDetailPage() {
               razorpaySignature: resp.razorpay_signature,
             });
             toast.success("Payment confirmed! Your interview is booked.");
+            await invalidate(["peerBookings", "entitlements"]);
             await load();
           } catch (e: any) {
             toast.error(e?.response?.data?.message || "Payment verification failed");
@@ -291,6 +294,7 @@ export default function BookingDetailPage() {
       }
       setCancelOpen(false);
       setCancelReason("");
+      await invalidate(["peerBookings", "entitlements"]);
       await load();
     } catch (e: any) {
       toast.error(e?.response?.data?.message || "Could not cancel booking");

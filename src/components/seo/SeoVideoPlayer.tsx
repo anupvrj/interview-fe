@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { getAbsoluteAssetUrl } from "@/lib/seo/site-url";
 import { cn } from "@/lib/utils";
 
 export type SeoVideoPlayerProps = Readonly<{
@@ -56,7 +57,7 @@ export function SeoVideoPlayer({
       <video
         ref={videoRef}
         src={videoUrl}
-        poster={thumbnailUrl}
+        poster={thumbnailUrl ? getAbsoluteAssetUrl(thumbnailUrl) : undefined}
         title={title}
         className="h-auto w-full object-contain"
         autoPlay={autoPlay}
