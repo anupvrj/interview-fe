@@ -95,7 +95,7 @@ export default function InstituteDashboardLayout({
       <aside className="w-full shrink-0 rounded-xl border border-border bg-card p-4 shadow-sm lg:w-56">
         {accessRole === "super_admin" && (
           <Link
-            href="/dashboard/super-admin"
+            href="/super-admin"
             className="mb-4 flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
           >
             <ArrowLeft className="h-4 w-4" />

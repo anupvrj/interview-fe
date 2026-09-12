@@ -5,6 +5,7 @@ import {
   getMarketingVideoOpenGraphImage,
   toVideoSchemaInput,
 } from "@/lib/seo/marketing-video-content";
+import { FeatureRouteGuard } from "@/components/features/FeatureRouteGuard";
 import { getSiteUrl } from "@/lib/seo/site-url";
 
 const siteUrl = getSiteUrl();
@@ -50,7 +51,7 @@ export default function ATSCheckerLayout({
   return (
     <>
       <SeoVideoJsonLdScript {...toVideoSchemaInput(atsCheckerDemoVideo)} />
-      {children}
+      <FeatureRouteGuard>{children}</FeatureRouteGuard>
     </>
   );
 }

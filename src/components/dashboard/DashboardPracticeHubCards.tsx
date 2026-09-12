@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { usePlatformFeatures } from "@/hooks/usePlatformFeatures";
 
 type CardTheme = {
   shell: string;
@@ -29,6 +30,7 @@ type PracticeHubCard = {
   lead: string;
   rest: string;
   description: string;
+  featureKey: string;
   theme: CardTheme;
 };
 
@@ -39,6 +41,7 @@ const practiceHubCards: PracticeHubCard[] = [
     lead: "Design your",
     rest: "Free Resume",
     description: "ATS-friendly templates and AI polish",
+    featureKey: "resume_builder",
     theme: {
       shell:
         "from-emerald-500/[0.12] via-card to-emerald-400/[0.04] dark:from-emerald-500/20 dark:via-card dark:to-emerald-950/30",
@@ -57,6 +60,7 @@ const practiceHubCards: PracticeHubCard[] = [
     lead: "Start with",
     rest: "AI mock Interview",
     description: "Realistic voice practice with instant feedback",
+    featureKey: "ai_interview",
     theme: {
       shell:
         "from-sky-500/[0.12] via-card to-sky-400/[0.04] dark:from-sky-500/20 dark:via-card dark:to-sky-950/30",
@@ -75,6 +79,7 @@ const practiceHubCards: PracticeHubCard[] = [
     lead: "Challenge AI with",
     rest: "Coding Practice",
     description: "Timed rounds on curated problem sets",
+    featureKey: "coding_practice",
     theme: {
       shell:
         "from-cyan-500/[0.12] via-card to-teal-400/[0.04] dark:from-cyan-500/20 dark:via-card dark:to-cyan-950/30",
@@ -93,6 +98,7 @@ const practiceHubCards: PracticeHubCard[] = [
     lead: "Design Scalable System",
     rest: "Live with AI",
     description: "Whiteboard + voice interviewer on canvas",
+    featureKey: "system_design",
     theme: {
       shell:
         "from-indigo-500/[0.12] via-card to-violet-400/[0.04] dark:from-indigo-500/20 dark:via-card dark:to-indigo-950/30",
@@ -111,6 +117,7 @@ const practiceHubCards: PracticeHubCard[] = [
     lead: "Book Your Peer Interview",
     rest: "with Industry Experts",
     description: "Live mock sessions with verified interviewers",
+    featureKey: "peer_booking",
     theme: {
       shell:
         "from-violet-500/[0.12] via-card to-fuchsia-400/[0.04] dark:from-violet-500/20 dark:via-card dark:to-violet-950/30",
@@ -126,10 +133,15 @@ const practiceHubCards: PracticeHubCard[] = [
 ];
 
 export function DashboardPracticeHubCards() {
+  const { isNavHrefVisible } = usePlatformFeatures();
+  const cards = practiceHubCards.filter((card) =>
+    isNavHrefVisible(card.href, card.featureKey),
+  );
+
   return (
     <section aria-label="Practice options" className="space-y-3">
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
-        {practiceHubCards.map((card) => {
+        {cards.map((card) => {
           const Icon = card.icon;
           const { theme } = card;
 

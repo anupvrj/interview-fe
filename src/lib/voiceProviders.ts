@@ -4,6 +4,8 @@ export type VoiceProviderOption = {
   id: VoiceProvider;
   label: string;
   enabled: boolean;
+  beta?: boolean;
+  status?: string;
 };
 
 const PROVIDER_LABELS: Record<VoiceProvider, string> = {
