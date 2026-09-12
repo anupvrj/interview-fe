@@ -30,6 +30,7 @@ import {
   Loader2,
   Lock,
   UsersRound,
+  Percent,
   X,
   Sparkles,
 } from "lucide-react";
