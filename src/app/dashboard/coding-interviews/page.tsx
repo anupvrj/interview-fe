@@ -43,6 +43,7 @@ import { appHeroBullet, appHeroCaption } from "@/lib/app-theme";
 import { CodingRoundHeroPreview } from "@/components/coding-interviews/CodingRoundHeroPreview";
 import { DashboardStatCard } from "@/components/dashboard/DashboardStatCard";
 import { RecentInterviewsList } from "@/components/dashboard/RecentInterviewsList";
+import { isStartedInterview } from "@/lib/interview-kind";
 import { PracticeSessionGateDialogs } from "@/components/upsell/PracticeSessionGateDialogs";
 import { PracticeLockedGate } from "@/components/upsell/PracticeLockedGate";
 import { usePracticeSessionGate } from "@/components/upsell/usePracticeSessionGate";
@@ -51,7 +52,11 @@ const ITEMS_PER_PAGE = 10;
 
 export default function CodingInterviewsPage() {
   const { user, isLoaded } = useUser();
-  const { data: rows = [], isLoading: loading } = useCodingInterviewsQuery();
+  const { data: listedRows = [], isLoading: loading } = useCodingInterviewsQuery();
+  const rows = useMemo(
+    () => listedRows.filter(isStartedInterview),
+    [listedRows],
+  );
   const { invalidate } = useDashboardInvalidation();
   const [currentPage, setCurrentPage] = useState(1);
   const [videoUnavailableOpen, setVideoUnavailableOpen] = useState(false);

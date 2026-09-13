@@ -15,7 +15,6 @@ import {
   Loader2,
   CheckCircle,
   Crown,
-  Globe,
   Target,
   Clock,
   ArrowLeft,
@@ -70,22 +69,12 @@ import {
 } from "@/lib/extension-job-handoff";
 import { trimJobDescriptionForSend } from "@/lib/job-description-limits";
 import { voiceApi } from "@/lib/voiceApi";
-
-const disciplineOptionsByDepartment: Record<
-  string,
-  Array<{ value: string; label: string }>
-> = {
-  engineering: [
-    { value: "cse", label: "CSE" },
-    { value: "it", label: "IT" },
-    { value: "mech", label: "Mechanical" },
-    { value: "civil", label: "Civil" },
-  ],
-  management: [
-    { value: "mba", label: "MBA" },
-    { value: "bba", label: "BBA" },
-  ],
-};
+import { VoiceProviderSelect } from "@/components/interview/VoiceProviderSelect";
+import {
+  DEFAULT_VOICE_PROVIDER_OPTIONS,
+  resolveVoiceProviderForDuration,
+  type VoiceProviderOption,
+} from "@/lib/voiceProviders";
 
 const EXPERIENCE_OPTIONS = [
   { value: "0", label: "Fresher" },
@@ -94,11 +83,6 @@ const EXPERIENCE_OPTIONS = [
   { value: "3", label: "3 years" },
   { value: "4", label: "4 years" },
   { value: "5", label: "5+ years" },
-] as const;
-
-const LANGUAGE_OPTIONS = [
-  { value: "en", label: "English" },
-  { value: "hi", label: "Hindi" },
 ] as const;
 
 const DEPARTMENT_OPTIONS = [
@@ -113,27 +97,21 @@ const DEPARTMENT_OPTIONS = [
 const STEPS = [
   {
     number: 1,
-    title: "Role",
+    title: "Role & Background",
     icon: Target,
     headline: "What role are you preparing for?",
-    description: "We'll tailor questions to your target role, company, and job.",
+    description:
+      "We'll tailor questions to your target role, experience, and job.",
   },
   {
     number: 2,
-    title: "Background",
-    icon: Globe,
-    headline: "Tell us about your background",
-    description: "Experience and language shape how the AI panel interviews you.",
-  },
-  {
-    number: 3,
     title: "Session",
     icon: Clock,
     headline: "Choose session length",
-    description: "Billed at 5 credits per minute.",
+    description: "Credits depend on the voice model you pick.",
   },
   {
-    number: 4,
+    number: 3,
     title: "Resume",
     icon: FileText,
     headline: "Add your resume",
@@ -267,22 +245,6 @@ function ResumeOptionCard({
   );
 }
 
-function resolveVoiceProviderFromList(
-  preferred: string,
-  enabledIds: Array<"gemini" | "chatgpt" | "sarvam">,
-  current: "gemini" | "chatgpt" | "sarvam",
-): "gemini" | "chatgpt" | "sarvam" {
-  if (enabledIds.includes(current)) return current;
-  if (
-    preferred === "gemini" ||
-    preferred === "chatgpt" ||
-    preferred === "sarvam"
-  ) {
-    if (enabledIds.includes(preferred)) return preferred;
-  }
-  return enabledIds[0] ?? "gemini";
-}
-
 export default function NewInterviewPage() {
   const { user, isLoaded } = useUser();
   const router = useRouter();
@@ -296,25 +258,14 @@ export default function NewInterviewPage() {
   const [formData, setFormData] = useState({
     role: "",
     experience: "0",
-    language: "en",
     department: "",
-    discipline: "",
     targetCompany: "",
     duration: "15",
-    voiceProvider: "gemini" as "gemini" | "chatgpt" | "sarvam",
+    voiceProvider: "sarvam" as "gemini" | "chatgpt" | "sarvam",
   });
   const [voiceProviderOptions, setVoiceProviderOptions] = useState<
-    Array<{
-      id: "gemini" | "chatgpt" | "sarvam";
-      label: string;
-      enabled?: boolean;
-      beta?: boolean;
-    }>
-  >([
-    { id: "gemini", label: "Gemini Live" },
-    { id: "chatgpt", label: "ChatGPT Realtime" },
-    { id: "sarvam", label: "Sarvam AI" },
-  ]);
+    VoiceProviderOption[]
+  >(DEFAULT_VOICE_PROVIDER_OPTIONS);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [limitCheck, setLimitCheck] = useState<any>(null);
   const [checkingLimit, setCheckingLimit] = useState(true);
@@ -425,19 +376,26 @@ export default function NewInterviewPage() {
       .then(({ providers, defaultProvider }) => {
         const enabled = providers.filter((p) => p.enabled);
         if (enabled.length > 0) {
-          setVoiceProviderOptions(
-            enabled.map((p) => ({
-              id: p.id,
-              label: p.label,
-              enabled: p.enabled,
-              beta: p.beta,
-            })),
-          );
+          const nextOptions = enabled.map((p) => ({
+            id: p.id,
+            label: p.label,
+            creditsPerMinute: p.creditsPerMinute,
+            enabled: p.enabled,
+            beta: p.beta,
+            status: p.status,
+            isDefault: p.isDefault,
+            highlightTag: p.highlightTag,
+            highlightStyle: p.highlightStyle,
+            allowedDurations: p.allowedDurations,
+            decisionHint: p.decisionHint,
+          }));
+          setVoiceProviderOptions(nextOptions);
           setFormData((prev) => ({
             ...prev,
-            voiceProvider: resolveVoiceProviderFromList(
+            voiceProvider: resolveVoiceProviderForDuration(
               defaultProvider,
-              enabled.map((p) => p.id),
+              nextOptions,
+              Number(prev.duration),
               prev.voiceProvider,
             ),
           }));
@@ -528,7 +486,7 @@ export default function NewInterviewPage() {
       newErrors.role = "Role is required";
     }
 
-    if (step === 4) {
+    if (step === 3) {
       if (!useSavedResume && !uploadedFile) {
         newErrors.resume = "Please upload your resume or use saved resume";
       }
@@ -559,7 +517,7 @@ export default function NewInterviewPage() {
 
     if (!validateStep(1) || !validateStep(4)) {
       if (!formData.role.trim()) setCurrentStep(1);
-      else setCurrentStep(4);
+      else setCurrentStep(3);
       return;
     }
 
@@ -574,7 +532,7 @@ export default function NewInterviewPage() {
       const response = await interviewApi.create(user.id, {
         role: formData.role,
         experience: parseInt(formData.experience),
-        language: formData.language as "en" | "hi",
+        language: "en",
         department: formData.department
           ? (formData.department as
               | "engineering"
@@ -584,16 +542,6 @@ export default function NewInterviewPage() {
               | "marketing"
               | "sales"
               | "general")
-          : undefined,
-        discipline: formData.discipline
-          ? (formData.discipline as
-              | "cse"
-              | "it"
-              | "mech"
-              | "civil"
-              | "mba"
-              | "bba"
-              | "none")
           : undefined,
         targetCompany: formData.targetCompany,
         resume: useSavedResume ? undefined : uploadedFile || undefined,
@@ -747,6 +695,33 @@ export default function NewInterviewPage() {
                 />
               </FormField>
             </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:items-start">
+              <FormField label="Years of experience" htmlFor="experience">
+                <AppSelect
+                  id="experience"
+                  value={formData.experience}
+                  onChange={(value) =>
+                    setFormData({ ...formData, experience: value })
+                  }
+                  options={EXPERIENCE_OPTIONS}
+                  className={controlClass}
+                />
+              </FormField>
+              <FormField label="Department" htmlFor="department" optional>
+                <AppSelect
+                  id="department"
+                  value={formData.department}
+                  onChange={(value) =>
+                    setFormData({ ...formData, department: value })
+                  }
+                  options={DEPARTMENT_OPTIONS}
+                  allowEmpty
+                  emptyLabel="Not specified"
+                  placeholder="Select department"
+                  className={controlClass}
+                />
+              </FormField>
+            </div>
             <FormField
               label="Job description"
               htmlFor="jobDescription"
@@ -773,75 +748,6 @@ export default function NewInterviewPage() {
           ) : null}
 
           {currentStep === 2 ? (
-            <div className="grid gap-4 sm:grid-cols-2">
-              <FormField label="Years of experience" htmlFor="experience">
-                <AppSelect
-                  id="experience"
-                  value={formData.experience}
-                  onChange={(value) =>
-                    setFormData({ ...formData, experience: value })
-                  }
-                  options={EXPERIENCE_OPTIONS}
-                  className={controlClass}
-                />
-              </FormField>
-
-              <FormField label="Interview language" htmlFor="language">
-                <AppSelect
-                  id="language"
-                  value={formData.language}
-                  onChange={(value) =>
-                    setFormData({ ...formData, language: value })
-                  }
-                  options={LANGUAGE_OPTIONS}
-                  className={controlClass}
-                />
-              </FormField>
-
-              <FormField label="Department" htmlFor="department" optional>
-                <AppSelect
-                  id="department"
-                  value={formData.department}
-                  onChange={(value) => {
-                    setFormData((prev) => ({
-                      ...prev,
-                      department: value,
-                      discipline: disciplineOptionsByDepartment[value]?.some(
-                        (option) => option.value === prev.discipline,
-                      )
-                        ? prev.discipline
-                        : "",
-                    }));
-                  }}
-                  options={DEPARTMENT_OPTIONS}
-                  allowEmpty
-                  emptyLabel="Not specified"
-                  placeholder="Select department"
-                  className={controlClass}
-                />
-              </FormField>
-
-              <FormField label="Discipline" htmlFor="discipline" optional>
-                <AppSelect
-                  id="discipline"
-                  value={formData.discipline}
-                  onChange={(value) =>
-                    setFormData((prev) => ({ ...prev, discipline: value }))
-                  }
-                  options={
-                    disciplineOptionsByDepartment[formData.department] ?? []
-                  }
-                  disabled={!disciplineOptionsByDepartment[formData.department]}
-                  allowEmpty
-                  emptyLabel="Not specified"
-                  placeholder="Select discipline"
-                  className={controlClass}
-                />
-              </FormField>
-            </div>
-          ) : null}
-
-          {currentStep === 3 ? (
             <div className="space-y-5">
               <div className="flex flex-wrap justify-center gap-3 sm:justify-start">
                 {(["15", "30"] as const).map((duration) => {
@@ -853,7 +759,18 @@ export default function NewInterviewPage() {
                     key={duration}
                     type="button"
                     disabled={disabled}
-                    onClick={() => setFormData({ ...formData, duration })}
+                    onClick={() =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        duration,
+                        voiceProvider: resolveVoiceProviderForDuration(
+                          prev.voiceProvider,
+                          voiceProviderOptions,
+                          Number(duration),
+                          prev.voiceProvider,
+                        ),
+                      }))
+                    }
                     className={cn(
                       "relative flex min-w-[9rem] flex-col items-start rounded-xl border px-5 py-4 text-left transition-all",
                       selected
@@ -867,8 +784,8 @@ export default function NewInterviewPage() {
                     </span>
                     <span className="mt-1 text-xs text-muted-foreground">
                       {duration === "15"
-                        ? "Standard session · 75 credits"
-                        : "Extended depth · 150 credits"}
+                        ? "Standard session"
+                        : "Extended depth"}
                     </span>
                     {is30 && !canUse30Min ? (
                       <span className="mt-2 inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-300">
@@ -882,32 +799,24 @@ export default function NewInterviewPage() {
               </div>
 
               <FormField label="Voice AI model" htmlFor="voiceProvider">
-                <AppSelect
+                <VoiceProviderSelect
                   id="voiceProvider"
                   value={formData.voiceProvider}
                   onChange={(value) =>
                     setFormData({
                       ...formData,
-                      voiceProvider: value as "gemini" | "chatgpt" | "sarvam",
+                      voiceProvider: value,
                     })
                   }
-                  options={voiceProviderOptions.map((option) => ({
-                    value: option.id,
-                    label: option.beta
-                      ? `${option.label} (Beta)`
-                      : option.label,
-                  }))}
-                  className={controlClass}
+                  options={voiceProviderOptions}
+                  durationMinutes={Number(formData.duration)}
+                  className={cn(controlClass, "h-auto min-h-11 py-1.5 sm:min-h-12")}
                 />
-                <p className="mt-2 text-xs text-muted-foreground">
-                  Choose which voice AI powers this mock interview. Sarvam is
-                  strongest for Hindi and Indic-language interviews.
-                </p>
               </FormField>
             </div>
           ) : null}
 
-          {currentStep === 4 ? (
+          {currentStep === 3 ? (
             <div className="space-y-3">
               {savedResumeAvailable && activeSavedResume ? (
                 <ResumeOptionCard
@@ -1049,10 +958,8 @@ export default function NewInterviewPage() {
 
       <div className={cn(appSurfaceMuted, "px-4 py-3.5 text-center sm:px-5")}>
         <p className="text-xs leading-relaxed text-muted-foreground sm:text-sm">
-          Sessions use{" "}
-          <span className="font-medium text-foreground">5 credits/min</span>.
-          Wrap cleanly to unlock transcripts, scores, and discussion coaching in
-          your report.
+          Credits follow the voice model you pick. Wrap cleanly to unlock
+          transcripts, scores, and discussion coaching in your report.
         </p>
       </div>
     </div>
@@ -1173,7 +1080,7 @@ export default function NewInterviewPage() {
                 <span className="font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">
                   {limitCheck.creditsAvailable || 0}
                 </span>{" "}
-                credits available · 5 credits/min
+                credits available
               </p>
             </div>
           </div>

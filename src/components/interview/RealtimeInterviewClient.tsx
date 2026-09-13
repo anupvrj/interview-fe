@@ -35,8 +35,6 @@ import {
   Loader2,
   AlertCircle,
   PhoneOff,
-  Circle,
-  Square,
   CheckCircle2,
   ArrowLeft,
   X,
@@ -55,6 +53,7 @@ import {
 } from "@/lib/aiPersonas";
 import type { AIInterviewerPersona } from "@/lib/aiPersonas";
 import { AiPersonaAvatar } from "@/components/interview/AiPersonaAvatar";
+import { InterviewBriefingDialog } from "@/components/interview/InterviewBriefingDialog";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { supportsDisplayMediaCapture } from "@/lib/codingSessionRecording";
@@ -88,7 +87,17 @@ const ENV_VOICE_PROVIDER = resolveVoiceProvider(
   process.env.NEXT_PUBLIC_VOICE_PROVIDER,
 );
 
+const unstartedDraftDiscardTimers = new Map<string, number>();
+
 const RECORDING_OPT_IN_STORAGE_PREFIX = "interviewRecordingOptIn_";
+
+function shouldShowInterviewBriefing(
+  status: Interview["status"] | undefined,
+  isCodingDiscussion: boolean,
+  codingEmbed: boolean,
+): boolean {
+  return status === "draft" && !isCodingDiscussion && !codingEmbed;
+}
 
 /** Gemini Live output is 24 kHz PCM16. */
 const GEMINI_PLAYBACK_RATE = 24000;
@@ -245,10 +254,16 @@ export function RealtimeInterviewClient({
   const [showConfirmEndInterview, setShowConfirmEndInterview] = useState(false);
   /** Recording consent before interview starts (after "Start Interview"). */
   const [showRecordingOptIn, setShowRecordingOptIn] = useState(false);
+  /** First-time draft briefing — socket stays closed until the candidate accepts. */
+  const [showBriefing, setShowBriefing] = useState(false);
+  const [briefingAccepted, setBriefingAccepted] = useState(false);
+  const [acceptingBriefing, setAcceptingBriefing] = useState(false);
+  const openedRecordingAfterBriefingRef = useRef(false);
   const launchingInterviewRef = useRef(false);
   /** Avoid double-handling when Radix fires onOpenChange after Yes/No. */
   const recordingOptInResolvedRef = useRef(false);
   const startInterviewLatestRef = useRef<(() => Promise<void>) | null>(null);
+  const shouldDiscardUnstartedRef = useRef(false);
   const codingEmbedAutostartStartedRef = useRef(false);
   const [embedAutostartPending, setEmbedAutostartPending] = useState(false);
 
@@ -488,6 +503,10 @@ export function RealtimeInterviewClient({
 
   useEffect(() => {
     codingEmbedAutostartStartedRef.current = false;
+    openedRecordingAfterBriefingRef.current = false;
+    setShowBriefing(false);
+    setBriefingAccepted(false);
+    setAcceptingBriefing(false);
     loadInterview();
     return () => {
       cleanup();
@@ -576,16 +595,38 @@ export function RealtimeInterviewClient({
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
   }, []);
 
+  useEffect(() => {
+    const existing = unstartedDraftDiscardTimers.get(interviewId);
+    if (existing) {
+      window.clearTimeout(existing);
+      unstartedDraftDiscardTimers.delete(interviewId);
+    }
+    return () => {
+      if (isCodingDiscussion || codingEmbed) return;
+      const timer = window.setTimeout(() => {
+        unstartedDraftDiscardTimers.delete(interviewId);
+        if (!shouldDiscardUnstartedRef.current) return;
+        void interviewApi.deleteDraftOrActive(interviewId).catch(() => {});
+      }, 1500);
+      unstartedDraftDiscardTimers.set(interviewId, timer);
+    };
+  }, [interviewId, isCodingDiscussion, codingEmbed]);
+
   const loadInterview = async () => {
     try {
       const data = await interviewApi.get(interviewId);
       setInterview(data);
+      shouldDiscardUnstartedRef.current = data.status === "draft";
       const storedProvider = resolveVoiceProvider(
         data.metadata?.voiceProvider,
         ENV_VOICE_PROVIDER,
       );
       voiceProviderRef.current = storedProvider;
       setActiveVoiceProvider(storedProvider);
+      if (shouldShowInterviewBriefing(data.status, isCodingDiscussion, codingEmbed)) {
+        setShowBriefing(true);
+        return;
+      }
       await connectWebSocket(data);
     } catch (error: any) {
       console.error("Error loading interview:", error);
@@ -1282,6 +1323,32 @@ export function RealtimeInterviewClient({
     }
   };
 
+  const handleAcceptAndStart = async () => {
+    if (acceptingBriefing || launchingInterviewRef.current) return;
+    setAcceptingBriefing(true);
+    setBriefingAccepted(true);
+    try {
+      await connectWebSocket(interview);
+      if (!websocketRef.current) {
+        setBriefingAccepted(false);
+        setAcceptingBriefing(false);
+      }
+    } catch (err: any) {
+      setBriefingAccepted(false);
+      setAcceptingBriefing(false);
+      setError(err.message || "Failed to connect to interview service.");
+    }
+  };
+
+  useEffect(() => {
+    if (!briefingAccepted || !connected || isInterviewActive) return;
+    if (openedRecordingAfterBriefingRef.current) return;
+    openedRecordingAfterBriefingRef.current = true;
+    setShowBriefing(false);
+    setAcceptingBriefing(false);
+    setShowRecordingOptIn(true);
+  }, [briefingAccepted, connected, isInterviewActive]);
+
   const markPlaybackIdleIfDrained = () => {
     const ctx = audioContextRef.current;
     const stillScheduled = ctx
@@ -1799,6 +1866,7 @@ export function RealtimeInterviewClient({
       if (!isCodingDiscussion) {
         await interviewApi.start(interviewId);
       }
+      shouldDiscardUnstartedRef.current = false;
 
       // Set interview as active BEFORE setting up audio capture
       setIsInterviewActive(true);
@@ -2876,10 +2944,16 @@ export function RealtimeInterviewClient({
           ? codingDiscussionHost
             ? "flex h-auto min-w-0 flex-col overflow-visible"
             : "flex h-full min-h-0 min-w-0 flex-col overflow-hidden"
-          : "min-h-screen",
+          : "min-h-svh overflow-x-hidden",
         className,
       )}
     >
+      <InterviewBriefingDialog
+        open={showBriefing}
+        connecting={acceptingBriefing}
+        onAccept={() => void handleAcceptAndStart()}
+      />
+
       <AlertDialog
         open={showInterviewComplete}
         onOpenChange={setShowInterviewComplete}
@@ -3142,49 +3216,24 @@ export function RealtimeInterviewClient({
       {/* Coding sidebar embed: no header (End lives on main coding page if needed). */}
       {codingEmbed && isCodingDiscussion ? null : (
         <div className="sticky top-0 z-20 shrink-0 border-b border-white/10 bg-[#0b1220]/95">
-          <div className="mx-auto flex max-w-7xl flex-col gap-2 px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-0 sm:px-4 sm:py-0 lg:px-5">
-            <div className="flex min-w-0 items-center gap-2 sm:gap-3 sm:py-3">
-              {!isInterviewActive && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="shrink-0 text-white/90 hover:bg-card/10 hover:text-white"
-                  aria-label="Back to interviews"
-                  onClick={() => {
-                    router.push("/dashboard/interviews");
-                  }}
-                >
-                  <ArrowLeft className="h-5 w-5" />
-                </Button>
-              )}
-              <div className="min-w-0">
-                <h1 className="text-xl font-semibold tracking-tight">
-                  {interview?.metadata.role || "Interview"}
-                </h1>
-                <p className="text-sm text-gray-300/80">
-                  {formatDuration(elapsedTime)} /{" "}
-                  {formatDuration(targetDurationSec)}
-                </p>
-              </div>
-            </div>
-            <div className="flex w-full min-w-0 flex-row items-center gap-2 sm:w-auto sm:gap-3">
-              <Progress
-                value={Math.min((elapsedTime / targetDurationSec) * 100, 100)}
-                className="h-2 min-w-0 flex-1 bg-card/10 sm:w-40 sm:flex-none"
-              />
-              {isInterviewActive && (
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={() => setShowEndInterviewConfirm(true)}
-                  className="shrink-0 rounded-xl animate-none transition-none sm:ml-2"
-                >
-                  <PhoneOff className="mr-2 h-4 w-4" />
-                  End Interview
-                </Button>
-              )}
-            </div>
+          <div className="mx-auto flex max-w-7xl min-w-0 items-center gap-2 px-3 py-2.5 sm:gap-3 sm:px-4 sm:py-3 lg:px-5">
+            {!isInterviewActive && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-11 w-11 shrink-0 text-white/90 hover:bg-card/10 hover:text-white"
+                aria-label="Back to interviews"
+                onClick={() => {
+                  router.push("/dashboard/interviews");
+                }}
+              >
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+            )}
+            <h1 className="min-w-0 truncate text-base font-semibold tracking-tight sm:text-xl">
+              {interview?.metadata.role || "Interview"}
+            </h1>
           </div>
         </div>
       )}
@@ -3233,7 +3282,7 @@ export function RealtimeInterviewClient({
                     : "relative min-h-0 flex-1"
                   : codingEmbed
                     ? "min-h-[180px] flex-1 sm:min-h-[200px]"
-                    : "min-h-[300px] sm:min-h-[320px] lg:h-full lg:min-h-[360px]",
+                    : "min-h-0 sm:min-h-[280px] lg:h-full lg:min-h-[360px]",
               )}
             >
               {codingEmbed && isCodingDiscussion && !isInterviewActive ? (
@@ -3295,7 +3344,7 @@ export function RealtimeInterviewClient({
                     <h2
                       className={cn(
                         "font-semibold tracking-tight text-white",
-                        codingEmbed ? "text-sm sm:text-base" : "text-xl",
+                        codingEmbed ? "text-sm sm:text-base" : "text-base sm:text-xl",
                       )}
                     >
                       {interviewerPersona.displayName}
@@ -3340,7 +3389,7 @@ export function RealtimeInterviewClient({
                       "flex-1 space-y-2 border-t border-white/10",
                       codingEmbed
                         ? "min-h-0 pt-2 sm:min-h-[6rem]"
-                        : "min-h-[11rem] pt-4 sm:min-h-[12rem]",
+                        : "min-h-[8rem] pt-3 sm:min-h-[11rem] sm:pt-4 lg:min-h-[12rem]",
                     )}
                   >
                     {isPreparing ? (
@@ -3472,12 +3521,12 @@ export function RealtimeInterviewClient({
                         )}
                       />
                     ) : null}
-                    {!(codingEmbed && isCodingDiscussion) ? (
+                    {!(codingEmbed && isCodingDiscussion) && !showBriefing ? (
                       <Button
                         onClick={() => setShowRecordingOptIn(true)}
                         disabled={!connected}
                         size={codingEmbed ? "sm" : "default"}
-                        className="rounded-xl bg-gradient-to-r from-violet-600 to-primary px-4 hover:from-violet-700 hover:bg-slate-900 sm:px-6"
+                        className="h-11 w-full rounded-xl bg-gradient-to-r from-violet-600 to-primary px-4 hover:from-violet-700 hover:bg-slate-900 sm:w-auto sm:px-6"
                       >
                         {isCodingDiscussion
                           ? "Start discussion"
@@ -3494,7 +3543,7 @@ export function RealtimeInterviewClient({
             {!codingEmbed ? (
               <Card className="flex min-h-0 flex-col overflow-visible border-white/10 bg-card/[0.06] shadow-lg shadow-black/20 lg:h-full">
                 <CardContent className="flex min-h-0 flex-1 flex-col p-4 sm:p-5">
-                  <div className="relative min-h-[200px] w-full flex-1 overflow-hidden rounded-2xl bg-black lg:min-h-0">
+                  <div className="relative min-h-[180px] w-full flex-1 overflow-hidden rounded-2xl bg-black sm:min-h-[220px] lg:min-h-0">
                     <video
                       ref={videoRef}
                       autoPlay
@@ -3516,7 +3565,7 @@ export function RealtimeInterviewClient({
                     />
                     {(!isCameraOn || !videoStreamActive) && (
                       <div className="absolute inset-0 flex items-center justify-center bg-gray-900/95">
-                        <VideoOff className="h-16 w-16 text-gray-600" />
+                        <VideoOff className="h-12 w-12 text-gray-600 sm:h-16 sm:w-16" />
                         {!videoStreamActive && (
                           <p className="absolute bottom-4 text-sm text-gray-400">
                             Waiting for camera...
@@ -3556,108 +3605,101 @@ export function RealtimeInterviewClient({
           {!(codingEmbed && isCodingDiscussion) ? (
           <Card
             className={cn(
-              "rounded-xl border border-white/10 bg-card/[0.04] shadow-lg shadow-black/20 backdrop-blur-md",
-              codingEmbed && "shrink-0",
+              "rounded-xl border border-white/10 bg-[#0b1220]/95 shadow-lg shadow-black/20 backdrop-blur-md",
+              codingEmbed
+                ? "shrink-0"
+                : "sticky bottom-0 z-20 pb-[max(0.25rem,env(safe-area-inset-bottom))] lg:static lg:bg-card/[0.04]",
             )}
           >
             <CardContent
-              className={cn(codingEmbed ? "p-2 sm:p-3" : "p-4 sm:p-5")}
+              className={cn(codingEmbed ? "p-2 sm:p-3" : "space-y-3 p-3 sm:space-y-4 sm:p-5")}
             >
-              <div className={cn("text-center", codingEmbed ? "mb-2" : "mb-4")}>
-                <h4
+              <div className="text-center">
+                <h2
                   className={cn(
                     "font-semibold uppercase tracking-wide text-gray-300/90",
-                    codingEmbed ? "text-[10px]" : "text-sm",
+                    codingEmbed ? "mb-2 text-[10px]" : "text-xs sm:text-sm",
                   )}
                 >
                   {codingEmbed ? "Mic & camera" : "Interview Controls"}
-                </h4>
+                </h2>
               </div>
+              {!codingEmbed ? (
+                <div className="space-y-2">
+                  <Progress
+                    value={Math.min(
+                      (elapsedTime / Math.max(targetDurationSec, 1)) * 100,
+                      100,
+                    )}
+                    className="h-2 w-full bg-card/10"
+                  />
+                  <p className="text-center text-xs tabular-nums text-gray-300/80 sm:text-sm">
+                    {formatDuration(elapsedTime)} /{" "}
+                    {formatDuration(targetDurationSec)}
+                  </p>
+                </div>
+              ) : null}
               <div
                 className={cn(
-                  "flex items-center justify-center gap-4",
-                  codingEmbed && "gap-2",
+                  "grid grid-cols-3 items-stretch gap-2",
+                  codingEmbed
+                    ? "gap-2"
+                    : "sm:flex sm:justify-center sm:gap-3",
                 )}
               >
                 <Button
                   type="button"
                   variant={isMicOn ? "default" : "destructive"}
-                  size={codingEmbed ? "default" : "lg"}
                   onClick={toggleMic}
                   className={cn(
-                    "rounded-2xl",
-                    codingEmbed ? "h-12 w-12" : "h-16 w-16",
+                    "h-11 min-w-0 rounded-xl px-1.5 text-[11px] sm:w-auto sm:gap-2 sm:px-4 sm:text-sm",
+                    codingEmbed
+                      ? "h-12"
+                      : "h-auto min-h-11 flex-col gap-0.5 py-2 sm:h-11 sm:flex-row sm:py-2",
                   )}
                   title={isMicOn ? "Mute microphone" : "Unmute microphone"}
                 >
                   {isMicOn ? (
-                    <Mic className={codingEmbed ? "h-5 w-5" : "h-6 w-6"} />
+                    <Mic className="h-4 w-4 shrink-0" />
                   ) : (
-                    <MicOff
-                      className={codingEmbed ? "h-5 w-5" : "h-6 w-6"}
-                    />
+                    <MicOff className="h-4 w-4 shrink-0" />
                   )}
+                  <span>Mic</span>
                 </Button>
                 <Button
                   type="button"
                   variant={isCameraOn ? "default" : "destructive"}
-                  size={codingEmbed ? "default" : "lg"}
                   onClick={toggleCamera}
                   className={cn(
-                    "rounded-2xl",
-                    codingEmbed ? "h-12 w-12" : "h-16 w-16",
+                    "h-11 min-w-0 rounded-xl px-1.5 text-[11px] sm:w-auto sm:gap-2 sm:px-4 sm:text-sm",
+                    codingEmbed
+                      ? "h-12"
+                      : "h-auto min-h-11 flex-col gap-0.5 py-2 sm:h-11 sm:flex-row sm:py-2",
                   )}
                   title={isCameraOn ? "Turn camera off" : "Turn camera on"}
                 >
                   {isCameraOn ? (
-                    <Video className={codingEmbed ? "w-5 h-5" : "w-6 h-6"} />
+                    <Video className="h-4 w-4 shrink-0" />
                   ) : (
-                    <VideoOff
-                      className={codingEmbed ? "w-5 h-5" : "w-6 h-6"}
-                    />
+                    <VideoOff className="h-4 w-4 shrink-0" />
                   )}
+                  <span>Camera</span>
                 </Button>
                 <Button
                   type="button"
-                  variant={isRecording ? "destructive" : "default"}
-                  size={codingEmbed ? "default" : "lg"}
-                  onClick={isRecording ? stopRecording : startRecording}
-                  disabled={isUploadingRecording || !mediaStreamRef.current}
+                  variant="destructive"
+                  disabled={!isInterviewActive}
+                  onClick={() => setShowEndInterviewConfirm(true)}
                   className={cn(
-                    "rounded-2xl",
-                    codingEmbed ? "h-12 w-12" : "h-16 w-16",
+                    "h-11 min-w-0 whitespace-normal rounded-xl px-1.5 text-center text-[11px] leading-tight animate-none transition-none sm:w-auto sm:gap-2 sm:px-4 sm:text-sm sm:whitespace-nowrap",
+                    codingEmbed
+                      ? "h-12"
+                      : "h-auto min-h-11 flex-col gap-0.5 py-2 sm:h-11 sm:flex-row sm:py-2",
                   )}
-                  title={
-                    isUploadingRecording
-                      ? "Uploading recording…"
-                      : isRecording
-                        ? "Stop recording"
-                        : !mediaStreamRef.current
-                          ? "Waiting for camera and microphone"
-                          : supportsDisplayMediaCapture()
-                            ? "Record session — share this browser tab for best audio"
-                            : "Record session — captures your camera and audio"
-                  }
+                  title="End interview"
                 >
-                  {isUploadingRecording ? (
-                    <Loader2
-                      className={cn(
-                        "animate-spin",
-                        codingEmbed ? "w-5 h-5" : "w-6 h-6",
-                      )}
-                    />
-                  ) : isRecording ? (
-                    <Square
-                      className={codingEmbed ? "w-5 h-5" : "w-6 h-6"}
-                    />
-                  ) : (
-                    <Circle
-                      className={cn(
-                        "fill-red-500 text-red-500",
-                        codingEmbed ? "w-5 h-5" : "w-6 h-6",
-                      )}
-                    />
-                  )}
+                  <PhoneOff className="h-4 w-4 shrink-0" />
+                  <span className="text-center">End interview</span>
                 </Button>
               </div>
             </CardContent>
@@ -3684,7 +3726,7 @@ export function RealtimeInterviewClient({
                   "font-semibold tracking-tight text-white",
                   codingEmbed
                     ? "mb-2 text-xs sm:text-sm"
-                    : "mb-3 text-lg",
+                    : "mb-3 text-base sm:text-lg",
                 )}
               >
                 AI questions &amp; responses

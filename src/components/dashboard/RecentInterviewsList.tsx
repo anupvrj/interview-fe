@@ -5,10 +5,11 @@ import Link from "next/link";
 import {
   ChevronLeft,
   ChevronRight,
+  Clapperboard,
   Clock,
   Eye,
   FileText,
-  PlayCircle,
+  Play,
   Plus,
   Sparkles,
   Trash2,
@@ -93,7 +94,7 @@ function renderUnifiedRowActions(
           playRecording(row);
         }}
       >
-        <PlayCircle className="h-3.5 w-3.5" />
+        <Clapperboard className="h-3.5 w-3.5" />
       </IconActionButton>
 
       <IconActionButton
@@ -124,19 +125,14 @@ function renderUnifiedRowActions(
         </Link>
       ) : null}
 
-      {row.continueHref &&
-      (row.status === "draft" || row.status === "active") ? (
-        <Link
+      {row.continueHref && row.status === "active" ? (
+        <IconActionButton
+          title="Continue"
+          tone="primary"
           href={row.continueHref}
-          className={cn(
-            buttonVariants({ size: "sm" }),
-            institutePrimaryClass,
-            "h-8 gap-1 px-3 text-xs",
-          )}
         >
-          <PlayCircle className="h-3.5 w-3.5" />
-          {row.status === "draft" ? "Start" : "Continue"}
-        </Link>
+          <Play className="h-3.5 w-3.5" />
+        </IconActionButton>
       ) : null}
 
       {row.status === "processing" && row.reportHref ? (
@@ -223,6 +219,7 @@ export function RecentInterviewsList({
   onVideoUnavailable,
   onDelete,
   getDraftActiveHref,
+  emptyTitle,
   emptyDescription,
   emptyCtaHref,
   emptyCtaLabel,
@@ -236,6 +233,7 @@ export function RecentInterviewsList({
   onVideoUnavailable: () => void;
   onDelete?: (interviewId: string) => void;
   getDraftActiveHref?: (interviewId: string) => string;
+  emptyTitle?: string;
   emptyDescription?: ReactNode;
   emptyCtaHref?: string | null;
   emptyCtaLabel?: string;
@@ -309,7 +307,7 @@ export function RecentInterviewsList({
           <FileText className="h-8 w-8 text-[#7367F0]" />
         </div>
         <h3 className="mb-2 text-lg font-semibold text-foreground">
-          No interviews yet
+          {emptyTitle ?? "No interviews yet"}
         </h3>
         <p className="mx-auto mb-8 max-w-md text-sm text-muted-foreground">
           {emptyDescription ??
@@ -414,9 +412,6 @@ export function RecentInterviewsList({
               const subtitle = company
                 ? `${company} · ${createdLabel}`
                 : createdLabel;
-              const language =
-                interview.metadata.language === "hi" ? "Hindi" : "English";
-
               return (
                 <tr
                   key={interview._id}
@@ -436,9 +431,12 @@ export function RecentInterviewsList({
                       {sessionTypeLabel(interview)}
                     </p>
                     <p className="truncate text-xs text-muted-foreground">
-                      {language}
-                      {durationLabel ? ` · ${durationLabel}` : ""}
-                      {creditsUsed != null ? ` · ${creditsUsed} cr` : ""}
+                      {[
+                        durationLabel,
+                        creditsUsed != null ? `${creditsUsed} cr` : null,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
                     </p>
                   </td>
 
@@ -508,7 +506,7 @@ export function RecentInterviewsList({
                                 playVideo(interview.interviewId);
                               }}
                             >
-                              <PlayCircle className="h-3.5 w-3.5" />
+                              <Clapperboard className="h-3.5 w-3.5" />
                             </IconActionButton>
                             <IconActionButton
                               title={
@@ -560,22 +558,6 @@ export function RecentInterviewsList({
                           Report
                         </Link>
                       )}
-                      {interview.status === "draft" && (
-                        <Link
-                          href={
-                            getDraftActiveHref?.(interview.interviewId) ??
-                            `/interview/${interview.interviewId}/realtime`
-                          }
-                          className={cn(
-                            buttonVariants({ size: "sm" }),
-                            institutePrimaryClass,
-                            "h-8 gap-1 px-3 text-xs",
-                          )}
-                        >
-                          <PlayCircle className="h-3.5 w-3.5" />
-                          Start
-                        </Link>
-                      )}
                       {interview.status === "processing" && onDelete ? (
                         <Link
                           href={`/dashboard/interviews/${interview.interviewId}/processing`}
@@ -589,32 +571,26 @@ export function RecentInterviewsList({
                         </Link>
                       ) : null}
                       {interview.status === "active" && onDelete ? (
-                        <Link
+                        <IconActionButton
+                          title="Continue"
+                          tone="primary"
                           href={
                             getDraftActiveHref?.(interview.interviewId) ??
                             `/interview/${interview.interviewId}/realtime`
                           }
-                          className={cn(
-                            buttonVariants({ size: "sm" }),
-                            institutePrimaryClass,
-                            "h-8 gap-1 px-3 text-xs",
-                          )}
                         >
-                          <PlayCircle className="h-3.5 w-3.5" />
-                          Continue
-                        </Link>
+                          <Play className="h-3.5 w-3.5" />
+                        </IconActionButton>
                       ) : null}
-                      {(interview.status === "draft" ||
-                        interview.status === "active") &&
-                        onDelete && (
-                          <IconActionButton
-                            title="Delete interview"
-                            tone="destructive"
-                            onClick={() => onDelete(interview.interviewId)}
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </IconActionButton>
-                        )}
+                      {interview.status === "active" && onDelete ? (
+                        <IconActionButton
+                          title="Delete interview"
+                          tone="destructive"
+                          onClick={() => onDelete(interview.interviewId)}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </IconActionButton>
+                      ) : null}
                     </div>
                   </td>
                 </tr>
