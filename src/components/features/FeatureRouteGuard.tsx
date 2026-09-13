@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import { FeatureUnavailable } from "@/components/features/FeatureUnavailable";
 import { usePlatformFeatures } from "@/hooks/usePlatformFeatures";
+import { useEntitlements } from "@/hooks/useEntitlements";
 import { useActiveRole } from "@/components/roles/ActiveRoleProvider";
 import { isPlatformAdmin } from "@/lib/dashboard-nav";
 import {
@@ -13,6 +14,8 @@ import {
 export function FeatureRouteGuard({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const { matchPath, isLoading } = usePlatformFeatures();
+  const { canUsePlatformFeature, loading: entitlementsLoading } =
+    useEntitlements();
   const roleCtx = useActiveRole();
   const accessRole = roleCtx?.profile?.accessRole ?? null;
   const activeRole = roleCtx?.activeRole ?? null;
@@ -32,7 +35,13 @@ export function FeatureRouteGuard({ children }: { children: ReactNode }) {
         feature.category,
         activeRole,
       );
-  if (allowed) return children;
+  const planLocked =
+    allowed &&
+    feature.builtIn === false &&
+    Boolean(pathname?.startsWith("/dashboard")) &&
+    !entitlementsLoading &&
+    !canUsePlatformFeature(feature.key);
+  if (allowed && !planLocked) return children;
 
   const backHref = pathname?.startsWith("/dashboard") ? "/dashboard" : "/";
   const backLabel = pathname?.startsWith("/dashboard")
@@ -41,8 +50,16 @@ export function FeatureRouteGuard({ children }: { children: ReactNode }) {
 
   return (
     <FeatureUnavailable
-      title={feature.unavailableTitle}
-      message={feature.unavailableMessage}
+      title={
+        planLocked
+          ? `${feature.name} is not in your plan`
+          : feature.unavailableTitle
+      }
+      message={
+        planLocked
+          ? `Upgrade your plan to use ${feature.name}.`
+          : feature.unavailableMessage
+      }
       backHref={backHref}
       backLabel={backLabel}
     />

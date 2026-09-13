@@ -1267,6 +1267,7 @@ export type ResolvedEntitlements = {
   periodEnd?: string;
   needsRenewal: boolean;
   entitlements: PlanEntitlements;
+  grantedPlatformFeatures?: string[];
   creditRates: {
     aiMockInterview: number;
     codingRound: number;
@@ -2802,6 +2803,54 @@ export const adminApi = {
 
   deletePlatformFeature: async (key: string): Promise<void> => {
     await apiClient.delete(`/admin/features/${encodeURIComponent(key)}`);
+  },
+
+  listCatalogPlans: async (): Promise<
+    import("@/lib/planRecord").AdminPlanRecord[]
+  > => {
+    const response = await apiClient.get<{
+      success: boolean;
+      data: { plans: import("@/lib/planRecord").AdminPlanRecord[] };
+    }>("/admin/plans");
+    return response.data.data.plans;
+  },
+
+  updateCatalogPlan: async (
+    planId: string,
+    patch: {
+      name?: string;
+      displayName?: string;
+      description?: string;
+      pricing?: {
+        monthly?: number;
+        quarterly?: number;
+        yearly?: number;
+      };
+      creditsIncluded?: {
+        monthly?: number;
+        quarterly?: number;
+        yearly?: number;
+      };
+      highlights?: string[];
+      entitlements?: Partial<
+        import("@/lib/planFeatureAccess").PlanEntitlements
+      >;
+      grantedPlatformFeatures?: string[];
+      isActive?: boolean;
+      isPublic?: boolean;
+      isPopular?: boolean;
+      order?: number;
+      metadata?: {
+        bestFor?: string;
+        comingSoonHighlights?: string[];
+      };
+    },
+  ): Promise<import("@/lib/planRecord").AdminPlanRecord> => {
+    const response = await apiClient.patch<{
+      success: boolean;
+      data: import("@/lib/planRecord").AdminPlanRecord;
+    }>(`/admin/plans/${encodeURIComponent(planId)}`, patch);
+    return response.data.data;
   },
 };
 
@@ -5027,6 +5076,22 @@ export const connectorApi = {
       data: { redirectTo: string };
     }>("/connector/v1/oauth/consent", { requestId, approve });
     return response.data;
+  },
+};
+
+export type PublicPlatformStats = {
+  users: number;
+  resumes: number;
+  interviews: number;
+};
+
+export const marketingApi = {
+  getPublicStats: async (): Promise<PublicPlatformStats> => {
+    const response = await apiClient.get<{
+      success: boolean;
+      data: PublicPlatformStats;
+    }>("/marketing/stats");
+    return response.data.data;
   },
 };
 

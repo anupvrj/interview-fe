@@ -228,7 +228,7 @@ export default function InterviewsPage() {
               </div>
               <h1 className="mb-4 text-2xl font-bold leading-[1.25] tracking-tight text-foreground sm:mb-6 sm:text-3xl sm:leading-[1.15] md:text-4xl lg:text-[34px] lg:leading-[42px]">
                 <span className="text-foreground">Company-aware prep,</span>{" "}
-                <span className="text-[#7367F0]">multilingual AI practice,</span>{" "}
+                <span className="text-[#7367F0]">voice AI practice,</span>{" "}
                 <span className="text-foreground">and interview-ready</span>{" "}
                 <span className="text-[#7367F0]">reports</span>
               </h1>
@@ -244,7 +244,7 @@ export default function InterviewsPage() {
                 <div className="flex items-start gap-3">
                   <CheckCircle className="mt-0.5 h-5 w-5 shrink-0 text-[#7367F0]" />
                   <span className={appHeroBullet}>
-                    Practice out loud in your language—scores and discussion notes you can act on fast.
+                    Practice out loud—scores and discussion notes you can act on fast.
                   </span>
                 </div>
                 <div className="flex items-start gap-3">
@@ -527,7 +527,7 @@ export default function InterviewsPage() {
               onDelete={setDeleteConfirmId}
               emptyDescription={
                 <>
-                  Run multilingual AI Interview Practice, lock in company context,
+                  Run AI Interview Practice, lock in company context,
                   and review the AI discussion report—then layer{" "}
                   <Link
                     href="/dashboard/peer-interviews"
@@ -598,8 +598,6 @@ export default function InterviewsPage() {
                             <span>{s.experience} yrs experience</span>
                           </>
                         ) : null}
-                        <span className="text-border">·</span>
-                        <span>{s.language === "hi" ? "Hindi" : "English"}</span>
                         {s.interviewDuration ? (
                           <>
                             <span className="text-border">·</span>

@@ -400,10 +400,6 @@ export default function InstitutionCandidateReportsPage() {
                 </dd>
               </div>
               <div className="flex justify-between gap-4">
-                <dt className="text-muted-foreground">Language</dt>
-                <dd>{interviewPreview.metadata?.language ?? "—"}</dd>
-              </div>
-              <div className="flex justify-between gap-4">
                 <dt className="text-muted-foreground">Status</dt>
                 <dd className="capitalize">{interviewPreview.status}</dd>
               </div>

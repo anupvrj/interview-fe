@@ -78,7 +78,6 @@ export default function InstituteSchedulesPage() {
   const [editAt, setEditAt] = useState("");
   const [editRole, setEditRole] = useState("");
   const [editExperience, setEditExperience] = useState("");
-  const [editLang, setEditLang] = useState<"en" | "hi">("en");
   const [editCompany, setEditCompany] = useState("");
   const [editDuration, setEditDuration] = useState<"15" | "30">("15");
   const [editQuestionsText, setEditQuestionsText] = useState("");
@@ -99,7 +98,6 @@ export default function InstituteSchedulesPage() {
   const [scheduleAt, setScheduleAt] = useState("");
   const [scheduleRole, setScheduleRole] = useState("");
   const [scheduleExperience, setScheduleExperience] = useState("2");
-  const [scheduleLang, setScheduleLang] = useState<"en" | "hi">("en");
   const [scheduleCompany, setScheduleCompany] = useState("");
   const [scheduleDuration, setScheduleDuration] = useState<"15" | "30">("15");
   const [scheduleQuestionsText, setScheduleQuestionsText] = useState("");
@@ -165,7 +163,6 @@ export default function InstituteSchedulesPage() {
     setScheduleSearchResults([]);
     setScheduleRole("Software Engineer");
     setScheduleExperience("2");
-    setScheduleLang("en");
     setScheduleCompany("");
     setScheduleDuration("15");
     setScheduleQuestionsText("");
@@ -225,7 +222,7 @@ export default function InstituteSchedulesPage() {
           : {}),
         role: scheduleRole.trim(),
         experience: exp,
-        language: scheduleLang,
+        language: "en",
         targetCompany: scheduleCompany.trim() || undefined,
         interviewDuration: scheduleDuration === "30" ? 30 : 15,
         ...(customQs.length > 0 ? { customQuestions: customQs } : {}),
@@ -250,7 +247,6 @@ export default function InstituteSchedulesPage() {
     setEditAt(toDatetimeLocalValue(new Date(s.scheduledAt)));
     setEditRole(s.role || "");
     setEditExperience(String(s.experience ?? 0));
-    setEditLang(s.language === "hi" ? "hi" : "en");
     setEditCompany(s.targetCompany || "");
     setEditDuration(s.interviewDuration === 30 ? "30" : "15");
     setEditQuestionsText((s.customQuestions ?? []).join("\n"));
@@ -301,7 +297,7 @@ export default function InstituteSchedulesPage() {
           : null,
         role: editRole.trim(),
         experience: exp,
-        language: editLang,
+        language: "en",
         targetCompany: editCompany.trim() || undefined,
         interviewDuration: editDuration === "30" ? 30 : 15,
         customQuestions: qLines.length > 0 ? qLines : null,
@@ -620,18 +616,6 @@ export default function InstituteSchedulesPage() {
               />
             </div>
             <div>
-              <Label htmlFor="edit-sch-lang">Language</Label>
-              <select
-                id="edit-sch-lang"
-                className="app-control mt-1 w-full bg-card"
-                value={editLang}
-                onChange={(e) => setEditLang(e.target.value as "en" | "hi")}
-              >
-                <option value="en">English</option>
-                <option value="hi">Hindi</option>
-              </select>
-            </div>
-            <div>
               <Label htmlFor="edit-sch-co">Target company (optional)</Label>
               <Input
                 id="edit-sch-co"
@@ -836,18 +820,6 @@ export default function InstituteSchedulesPage() {
                 onChange={(e) => setScheduleExperience(e.target.value)}
                 className="mt-1"
               />
-            </div>
-            <div>
-              <Label htmlFor="inst-sch-lang">Language</Label>
-              <select
-                id="inst-sch-lang"
-                className="app-control mt-1 w-full bg-card"
-                value={scheduleLang}
-                onChange={(e) => setScheduleLang(e.target.value as "en" | "hi")}
-              >
-                <option value="en">English</option>
-                <option value="hi">Hindi</option>
-              </select>
             </div>
             <div>
               <Label htmlFor="inst-sch-co">Target company (optional)</Label>

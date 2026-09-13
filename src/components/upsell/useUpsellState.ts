@@ -1,8 +1,15 @@
 "use client";
 
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useEntitlements } from "@/hooks/useEntitlements";
-import type { PlanEntitlements, SubscriptionPlanSlug } from "@/lib/api";
+import { planApi, type PlanEntitlements, type SubscriptionPlanSlug } from "@/lib/api";
+import {
+  FALLBACK_UPGRADE_TARGETS,
+  pickUpgradePlan,
+  type EntitlementFeature,
+  type UpgradePlanSource,
+} from "@/lib/planFeatureAccess";
+import { PLAN_COLUMN_LABELS } from "@/lib/pricingPageContent";
 
 const TRIAL_PROMO_DISMISSED_KEY = "trial_promo_dismissed_at";
 const TRIAL_PROMO_SESSION_KEY = "trial_promo_shown_session";
@@ -31,6 +38,22 @@ const TRIAL_GATED: UpsellFeature[] = [
 
 export function useUpsellState() {
   const { data, loading, refresh, canUse } = useEntitlements();
+  const [publicPlans, setPublicPlans] = useState<UpgradePlanSource[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    planApi
+      .getAllPlans()
+      .then((plans) => {
+        if (!cancelled) setPublicPlans(plans);
+      })
+      .catch(() => {
+        if (!cancelled) setPublicPlans([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const shouldShowTrialPromo = useCallback(() => {
     if (!data?.showTrialUpsell) return false;
@@ -90,9 +113,28 @@ export function useUpsellState() {
       ) {
         return { plan: "trial" as SubscriptionPlanSlug, label: "Trial" };
       }
-      return UPGRADE_TARGETS[feature] ?? null;
+      const picked = pickUpgradePlan(publicPlans, feature as EntitlementFeature);
+      if (picked) {
+        return {
+          plan: picked.planId as SubscriptionPlanSlug,
+          label:
+            picked.displayName ||
+            PLAN_COLUMN_LABELS[
+              picked.planId as keyof typeof PLAN_COLUMN_LABELS
+            ] ||
+            picked.name ||
+            picked.planId,
+        };
+      }
+      const fallbackId = FALLBACK_UPGRADE_TARGETS[feature as EntitlementFeature];
+      return fallbackId
+        ? UPGRADE_TARGETS[feature] ?? {
+            plan: fallbackId as SubscriptionPlanSlug,
+            label: fallbackId,
+          }
+        : UPGRADE_TARGETS[feature] ?? null;
     },
-    [data],
+    [data, publicPlans],
   );
 
   return {

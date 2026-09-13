@@ -13,6 +13,7 @@ import {
   Building2,
   FileText,
   CalendarClock,
+  IndianRupee,
 } from "lucide-react";
 import type { DashboardNavAccent, DashboardNavItem } from "@/lib/dashboard-nav";
 
@@ -107,6 +108,14 @@ export const SUPER_ADMIN_NAV_GROUPS: SuperAdminNavGroup[] = [
         accent: accent.indigo,
         description:
           "Choose which voice AI appears at interview start, and set credits per minute.",
+      },
+      {
+        title: "Plans & Pricing",
+        href: `${SUPER_ADMIN_HOME}/plans`,
+        icon: IndianRupee,
+        accent: accent.amber,
+        description:
+          "Edit prices, credits, and checklists. A plan appears on /pricing only when it is on sale and public.",
       },
     ],
   },
