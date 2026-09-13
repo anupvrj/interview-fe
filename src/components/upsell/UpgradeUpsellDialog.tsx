@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowRight,
@@ -20,8 +21,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import type { SubscriptionPlanSlug } from "@/lib/api";
+import { planApi, type SubscriptionPlanSlug } from "@/lib/api";
+import { formatCurrency } from "@/lib/payment";
 import { PLAN_COLUMN_LABELS, type PaidPlanId } from "@/lib/pricingPageContent";
+import type { PlanRecord } from "@/lib/planRecord";
 
 type UpgradePlanSlug = Extract<
   SubscriptionPlanSlug,
@@ -123,11 +126,25 @@ function UpgradeStatPill({
 
 function resolvePlanContent(
   targetPlan: SubscriptionPlanSlug,
+  livePlan?: PlanRecord | null,
 ): PlanUpgradeContent {
-  if (targetPlan in PLAN_UPGRADE_CONTENT) {
-    return PLAN_UPGRADE_CONTENT[targetPlan as UpgradePlanSlug];
-  }
-  return PLAN_UPGRADE_CONTENT.general_pass;
+  const fallback =
+    targetPlan in PLAN_UPGRADE_CONTENT
+      ? PLAN_UPGRADE_CONTENT[targetPlan as UpgradePlanSlug]
+      : PLAN_UPGRADE_CONTENT.general_pass;
+  if (!livePlan) return fallback;
+
+  const highlights = (livePlan.highlights ?? []).filter(
+    (line) => !/^\d[\d,]*\s*credits?\b/i.test(line.trim()),
+  );
+
+  return {
+    ...fallback,
+    price: `${formatCurrency(livePlan.pricing.monthly)}/mo`,
+    credits: `${livePlan.creditsIncluded.monthly.toLocaleString("en-IN")} credits / month`,
+    audience: livePlan.metadata?.bestFor || fallback.audience,
+    features: highlights.length ? highlights.slice(0, 6) : fallback.features,
+  };
 }
 
 export function UpgradeUpsellDialog({
@@ -140,7 +157,27 @@ export function UpgradeUpsellDialog({
   onDismiss,
 }: UpgradeUpsellDialogProps) {
   const router = useRouter();
-  const content = resolvePlanContent(targetPlan);
+  const [livePlan, setLivePlan] = useState<PlanRecord | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    planApi
+      .getAllPlans()
+      .then((plans) => {
+        if (cancelled) return;
+        const match = plans.find((plan) => plan.planId === targetPlan);
+        setLivePlan(match ?? null);
+      })
+      .catch(() => {
+        if (!cancelled) setLivePlan(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, targetPlan]);
+
+  const content = resolvePlanContent(targetPlan, livePlan);
   const planLabel =
     (targetPlan in PLAN_COLUMN_LABELS
       ? PLAN_COLUMN_LABELS[targetPlan as PaidPlanId]

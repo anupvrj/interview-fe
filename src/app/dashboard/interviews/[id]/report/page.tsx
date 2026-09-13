@@ -323,7 +323,12 @@ export default function ReportPage() {
         "Company Applying For",
         interview.metadata.targetCompany || "Not specified",
       ],
-      ["Language", interview.metadata.language === "hi" ? "Hindi" : "English"],
+      [
+        "Experience",
+        interview.metadata.experience != null
+          ? `${interview.metadata.experience} years`
+          : "Not specified",
+      ],
       ["Overall Performance", `${report.overallScore} / 100`],
     ];
 

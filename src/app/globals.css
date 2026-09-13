@@ -1740,4 +1740,74 @@
   }
 }
 
+@keyframes voice-highlight-soft-glow {
+  0%,
+  100% {
+    opacity: 0.8;
+    text-shadow: 0 0 0 transparent;
+  }
+  50% {
+    opacity: 1;
+    text-shadow: 0 0 5px rgb(186 230 253 / 0.7);
+  }
+}
+
+.voice-highlight-tag {
+  display: inline;
+  margin-left: 0.2rem;
+  vertical-align: super;
+  font-family: inherit;
+  font-size: 0.7em;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  background: none;
+}
+
+.voice-highlight-tag-shine {
+  display: none;
+}
+
+.voice-highlight-tag-popular {
+  color: rgb(217 119 6);
+}
+
+.voice-highlight-tag-trending {
+  color: rgb(192 38 211);
+}
+
+.voice-highlight-tag-flash {
+  color: rgb(56 189 248);
+  animation: voice-highlight-soft-glow 2s ease-in-out infinite;
+}
+
+.voice-highlight-tag-new {
+  color: rgb(5 150 105);
+}
+
+.voice-highlight-tag-hot {
+  color: rgb(249 115 22);
+}
+
+.dark .voice-highlight-tag-popular {
+  color: rgb(252 211 77);
+}
+
+.dark .voice-highlight-tag-trending {
+  color: rgb(240 171 252);
+}
+
+.dark .voice-highlight-tag-flash {
+  color: rgb(186 230 253);
+}
+
+.dark .voice-highlight-tag-new {
+  color: rgb(110 231 183);
+}
+
+.dark .voice-highlight-tag-hot {
+  color: rgb(253 186 116);
+}
+
 

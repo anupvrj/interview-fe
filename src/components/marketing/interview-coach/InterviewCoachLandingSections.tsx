@@ -132,7 +132,7 @@ const whyCards: WhyCard[] = [
 const howSteps = [
   {
     title: "Set up your session",
-    body: "Pick your role, target company, language, and duration in seconds.",
+    body: "Pick your role, target company, and duration in seconds.",
     icon: PlayCircle,
   },
   {
@@ -408,7 +408,7 @@ export function InterviewCoachLandingSections() {
             </h2>
             <p className="mx-auto max-w-2xl text-lg leading-relaxed text-gray-600">
               Skip generic Q&amp;A and simulate the exact interview you&apos;ll
-              face—right down to the company, role, and language.
+              face—right down to the company and role.
             </p>
           </div>
 

@@ -86,7 +86,6 @@ export function PlansSection() {
         <PricingPlansBlock
           showHeading
           showViewAllPlansLink
-          paidOnly
         />
       </div>
     </section>

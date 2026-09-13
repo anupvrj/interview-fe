@@ -6,8 +6,12 @@ import { ChromeIcon } from "@/components/chrome-extension/ChromeIcon";
 import { appOutlineButton, appPrimaryButton } from "@/lib/app-theme";
 import { cn } from "@/lib/utils";
 
+/** Published listing: InterviewTrix - Design Resume & Practice Interviews */
+export const CHROME_WEB_STORE_URL =
+  "https://chromewebstore.google.com/detail/interviewtrix-design-resu/afkgkgchmbdopeebmehjlonbiepcakfd";
+
 export function getChromeExtensionHref(): string {
-  return process.env.NEXT_PUBLIC_CHROME_EXTENSION_URL || "/chrome-extension";
+  return process.env.NEXT_PUBLIC_CHROME_EXTENSION_URL || CHROME_WEB_STORE_URL;
 }
 
 export function isExternalChromeExtensionHref(href: string): boolean {
