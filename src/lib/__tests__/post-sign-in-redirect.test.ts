@@ -105,6 +105,9 @@ describe("persist and consume post-auth return", () => {
       FROM_JOB_PATH,
     );
     expect(consumePostSignInReturnUrl()).toBe(FROM_JOB_PATH);
+    expect(persistPostAuthReturnPath("/dashboard/extension/connected")).toBe(
+      "/dashboard/extension/connected",
+    );
   });
 
   it("does not hijack a generic login with a leftover extension capture", () => {

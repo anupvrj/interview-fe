@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
@@ -37,6 +37,10 @@ import {
   tailoredResumeTitle,
   type PendingJobCapture,
 } from "@/lib/extension-job-handoff";
+import {
+  ensureExtensionSession,
+  saveExtensionAttachSession,
+} from "@/lib/extension-resume-sync";
 import {
   getJobDescriptionOverflow,
   trimJobDescriptionForSend,
@@ -142,10 +146,12 @@ export default function FromJobResumePage() {
   const [messageIndex, setMessageIndex] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [showLimitModal, setShowLimitModal] = useState(false);
+  const autoStarted = useRef(false);
 
   useEffect(() => {
     if (!isLoaded || !user) return;
     localStorage.setItem("clerk-user-id", user.id);
+    void ensureExtensionSession();
   }, [isLoaded, user]);
 
   useEffect(() => {
@@ -176,8 +182,11 @@ export default function FromJobResumePage() {
 
   useEffect(() => {
     if (selectedResumeId || sortedResumes.length === 0) return;
-    setSelectedResumeId(sortedResumes[0].resumeId);
-  }, [selectedResumeId, sortedResumes]);
+    const preferred = capture?.sourceResumeId;
+    const preferredExists =
+      preferred && sortedResumes.some((resume) => resume.resumeId === preferred);
+    setSelectedResumeId(preferredExists ? preferred : sortedResumes[0].resumeId);
+  }, [capture?.sourceResumeId, selectedResumeId, sortedResumes]);
 
   useEffect(() => {
     if (!creating) {
@@ -210,24 +219,27 @@ export default function FromJobResumePage() {
     });
   };
 
-  const handleCreate = async () => {
-    if (!capture || !selectedResumeId || jdTooShort || creating) return;
+  const handleCreate = async (resumeIdOverride?: string) => {
+    const sourceId = resumeIdOverride || selectedResumeId;
+    if (!capture || !sourceId || jdTooShort) return;
+    if (creating && !resumeIdOverride) return;
     setError(null);
+    setCreating(true);
     try {
       const limit = await resumeApi.checkResumeLimit();
       if (!limit.allowed) {
+        setCreating(false);
         setShowLimitModal(true);
         return;
       }
-
-      setCreating(true);
       const jobDescription = trimJobDescriptionForSend(capture.jobDescription);
       const copyTitle = tailoredResumeTitle(capture.title, capture.company);
 
-      const created = await resumeApi.duplicate(selectedResumeId, copyTitle);
+      const created = await resumeApi.duplicate(sourceId, copyTitle);
       try {
         const result = await resumeApi.tailorToJobDescription(created.resumeId, {
           jobDescription,
+          matchInsights: capture.matchInsights,
         });
         await resumeApi.update(created.resumeId, {
           title: copyTitle,
@@ -239,6 +251,11 @@ export default function FromJobResumePage() {
           },
           pdfS3Key: "",
         });
+        try {
+          await resumeApi.recalculateATS(created.resumeId, { jobDescription });
+        } catch {
+          /* tailored content is saved; score can refresh in the editor */
+        }
       } catch (tailorError) {
         try {
           await resumeApi.delete(created.resumeId);
@@ -249,13 +266,59 @@ export default function FromJobResumePage() {
       }
 
       clearPendingJobCapture();
+      saveExtensionAttachSession({
+        resumeId: created.resumeId,
+        sourceUrl: capture.sourceUrl,
+        markedAt: new Date().toISOString(),
+      });
       await invalidate(["resumes"]);
-      router.push(`/dashboard/resumes/${created.resumeId}/edit`);
+      router.push(`/dashboard/resumes/${created.resumeId}/edit?extensionSync=1`);
     } catch (err) {
       setCreating(false);
       setError(getApiErrorMessage(err, "Failed to tailor your resume. Please try again."));
     }
   };
+
+  const handleCreateRef = useRef(handleCreate);
+  handleCreateRef.current = handleCreate;
+
+  useEffect(() => {
+    if (!captureReady || !isLoaded || resumesLoading) return;
+    if (!capture?.sourceResumeId || jdTooShort) return;
+    const exists = sortedResumes.some(
+      (resume) => resume.resumeId === capture.sourceResumeId,
+    );
+    if (!exists) return;
+    const startKey = `interviewtrix.fromJobAutoStart:${capture.capturedAt}:${capture.sourceResumeId}`;
+    try {
+      if (sessionStorage.getItem(startKey)) return;
+      sessionStorage.setItem(startKey, "1");
+    } catch {
+      if (autoStarted.current) return;
+      autoStarted.current = true;
+    }
+    setCreating(true);
+    void handleCreateRef.current(capture.sourceResumeId);
+  }, [
+    capture,
+    captureReady,
+    isLoaded,
+    jdTooShort,
+    resumesLoading,
+    sortedResumes,
+  ]);
+
+  const showTailoringProgress =
+    creating ||
+    Boolean(
+      capture?.sourceResumeId &&
+        captureReady &&
+        isLoaded &&
+        resumesLoading &&
+        !jdTooShort &&
+        !error &&
+        !showLimitModal,
+    );
 
   if (!captureReady || !isLoaded) {
     return (
@@ -265,7 +328,7 @@ export default function FromJobResumePage() {
     );
   }
 
-  if (creating) {
+  if (showTailoringProgress) {
     return (
       <div className="mx-auto max-w-3xl space-y-6">
         <PageHeader
@@ -386,7 +449,10 @@ export default function FromJobResumePage() {
             Source resume
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Pick the resume to copy. We’ll tailor the new version to this job.
+            Pick the resume to copy. We’ll tailor the new version to this job
+            {capture.matchInsights
+              ? " using the skill gaps from your last job match, then recheck the ATS score."
+              : "."}
           </p>
 
           <ResumeSourcePicker

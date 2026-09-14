@@ -53,6 +53,41 @@ describe("extension-job-handoff", () => {
     expect(isResumeHandoffCapture(parsed!)).toBe(true);
   });
 
+  it("keeps the matched resume id and job-match insights for tailoring", () => {
+    const parsed = parsePendingJobCapture(
+      JSON.stringify({
+        ...basePayload,
+        intent: "resume",
+        sourceResumeId: "res_U1jcSA2BSJLz_ko-",
+        matchInsights: {
+          resumeId: "res_U1jcSA2BSJLz_ko-",
+          matchScore: 78,
+          verdict: "moderate",
+          summary: "Backend is strong; React is missing.",
+          matchedSkills: ["Node.js", "AWS"],
+          missingSkills: ["React"],
+          unlistedSkills: ["GCP", "Azure"],
+          strengths: ["Node.js"],
+          gaps: ["No React"],
+          matrices: [
+            {
+              id: "mustHaveSkillsMatch",
+              label: "Must-Have Skills",
+              score: 80,
+              matched: ["Node.js", "AWS"],
+              missing: ["React"],
+              unlisted: ["GCP", "Azure"],
+            },
+          ],
+        },
+      }),
+    );
+    expect(parsed?.sourceResumeId).toBe("res_U1jcSA2BSJLz_ko-");
+    expect(parsed?.matchInsights?.missingSkills).toEqual(["React"]);
+    expect(parsed?.matchInsights?.unlistedSkills).toEqual(["GCP", "Azure"]);
+    expect(parsed?.matchInsights?.matrices[0]?.id).toBe("mustHaveSkillsMatch");
+  });
+
   it("treats legacy payloads without intent as resume handoff", () => {
     const parsed = parsePendingJobCapture(JSON.stringify(basePayload));
     expect(isResumeHandoffCapture(parsed!)).toBe(true);

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useUser } from "@clerk/nextjs";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
@@ -43,8 +43,16 @@ import Image from "next/image";
 import { resumeApi } from "@/lib/api";
 import {
   downloadPdfFromUrl,
+  fetchPdfBlobFromUrl,
   resumePdfFilenameFromResume,
 } from "@/lib/download-pdf";
+import {
+  ensureExtensionSession,
+  notifyExtensionResumeCompiled,
+  pingInterviewTrixExtension,
+  resolveExtensionJobLink,
+} from "@/lib/extension-resume-sync";
+import { ExtensionSyncedDialog } from "@/components/chrome-extension/ExtensionSyncedDialog";
 import { useResumesQuery } from "@/hooks/queries/useResumesQuery";
 import { useDashboardInvalidation } from "@/hooks/useDashboardInvalidation";
 import { cn } from "@/lib/utils";
@@ -63,10 +71,17 @@ const RESUME_ITEMS_PER_PAGE = 10;
 export default function ResumesPage() {
   const { user, isLoaded } = useUser();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const extensionSyncMode = searchParams.get("extensionSync") === "1";
+  const extensionConnectMode = searchParams.get("extensionConnect") === "1";
   const { data: resumes = [], isLoading: loading } = useResumesQuery();
   const { invalidate } = useDashboardInvalidation();
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [sendingToChromeId, setSendingToChromeId] = useState<string | null>(null);
+  const [extensionSyncNotice, setExtensionSyncNotice] = useState<string | null>(
+    null,
+  );
   const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [resumeToDelete, setResumeToDelete] = useState<string | null>(null);
@@ -74,6 +89,10 @@ export default function ResumesPage() {
   const [checkingLimit, setCheckingLimit] = useState(false);
   const [resumePage, setResumePage] = useState(1);
   const [trialUpsellOpen, setTrialUpsellOpen] = useState(false);
+  const [syncDialogOpen, setSyncDialogOpen] = useState(false);
+  const [syncDialogVariant, setSyncDialogVariant] = useState<
+    "synced" | "connected"
+  >("synced");
   const { canUse, data: entitlements } = useEntitlements();
 
   // Resume Builder Animation States
@@ -88,10 +107,15 @@ export default function ResumesPage() {
   const [currentStep, setCurrentStep] = useState(0);
 
   useEffect(() => {
+    if (extensionConnectMode) {
+      router.replace("/dashboard/extension/connected");
+      return;
+    }
     if (isLoaded && user) {
       localStorage.setItem("clerk-user-id", user.id);
+      void ensureExtensionSession();
     }
-  }, [isLoaded, user]);
+  }, [extensionConnectMode, isLoaded, router, user]);
 
   // Resume Builder Animation
   useEffect(() => {
@@ -247,6 +271,62 @@ export default function ResumesPage() {
       alert("Failed to duplicate resume. Please try again.");
     } finally {
       setDuplicatingId(null);
+    }
+  };
+
+  useEffect(() => {
+    if (!extensionSyncMode) return;
+    setExtensionSyncNotice(
+      "Pick a resume and send it to the Chrome extension, then return to the job tab and Attach.",
+    );
+  }, [extensionSyncMode]);
+
+  const handleSendToChrome = async (resumeId: string) => {
+    const listed = resumes.find((r) => r.resumeId === resumeId);
+    try {
+      setSendingToChromeId(resumeId);
+      const installed = await pingInterviewTrixExtension();
+      if (!installed) {
+        setExtensionSyncNotice(
+          "Install or enable the InterviewTrix Chrome extension, then try again.",
+        );
+        return;
+      }
+      const jobLink = await resolveExtensionJobLink(resumeId);
+      const pdfUrl = await resumeApi.downloadPDF(resumeId);
+      const blob = await fetchPdfBlobFromUrl(pdfUrl);
+      const result = await notifyExtensionResumeCompiled({
+        resumeId,
+        title: listed?.title || "Resume",
+        fileName: resumePdfFilenameFromResume(listed),
+        blob,
+        sourceUrl: jobLink?.sourceUrl,
+      });
+      if (result.ok) {
+        setSyncDialogVariant("synced");
+        setSyncDialogOpen(true);
+        setExtensionSyncNotice(
+          `Ready in Chrome: ${resumePdfFilenameFromResume(listed)}.`,
+        );
+        return;
+      }
+      setExtensionSyncNotice(
+        "Couldn’t send this PDF to the extension. Try opening the editor and downloading it.",
+      );
+    } catch (error: any) {
+      if (
+        error.message?.includes("PDF not found") ||
+        error.response?.status === 404
+      ) {
+        router.push(`/dashboard/resumes/${resumeId}/edit?extensionSync=1`);
+        return;
+      }
+      console.error("Error sending resume to Chrome extension:", error);
+      setExtensionSyncNotice(
+        "Failed to send this resume. Open it in the editor to compile a PDF.",
+      );
+    } finally {
+      setSendingToChromeId(null);
     }
   };
 
@@ -799,6 +879,9 @@ export default function ResumesPage() {
                       resumes.length === 1 ? "" : "s"
                     }—keep iterating until Smart ATS clears the bots.`}
               </CardDescription>
+              {extensionSyncNotice ? (
+                <p className="mt-2 text-sm text-[#7367F0]">{extensionSyncNotice}</p>
+              ) : null}
             </div>
             <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
               <AddToChromeButton variant="outline" size="sm" />
@@ -825,6 +908,8 @@ export default function ResumesPage() {
             onPageChange={setResumePage}
             onDownload={handleDownload}
             downloadingResumeId={downloadingId}
+            onSendToChrome={handleSendToChrome}
+            sendingToChromeResumeId={sendingToChromeId}
             onDuplicate={handleDuplicate}
             onDelete={handleDeleteClick}
             duplicatingResumeId={duplicatingId}
@@ -881,6 +966,11 @@ export default function ResumesPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <ExtensionSyncedDialog
+        open={syncDialogOpen}
+        onOpenChange={setSyncDialogOpen}
+        variant={syncDialogVariant}
+      />
       <TrialUpsellDialog
         open={trialUpsellOpen}
         onOpenChange={setTrialUpsellOpen}

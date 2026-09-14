@@ -159,9 +159,9 @@ function JobMatchBanner({ report }: { report: ATSReportV3 }) {
         ? "border-amber-200 bg-amber-50 dark:border-amber-900/40 dark:bg-amber-950/25"
         : "border-red-200 bg-red-50 dark:border-red-900/40 dark:bg-red-950/25";
   const pctColor =
-    jm.overallMatch >= 75
+    jm.overallMatch >= 80
       ? "text-green-600 dark:text-green-400"
-      : jm.overallMatch >= 50
+      : jm.overallMatch >= 60
         ? "text-amber-600 dark:text-amber-400"
         : "text-red-600 dark:text-[#fd7070]";
 

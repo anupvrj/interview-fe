@@ -1,5 +1,6 @@
 import { extractTextFromPDF } from "@/lib/pdf-utils";
 import { isATSReportV3, resumeApi, resumeDataExtractionApi } from "@/lib/api";
+import { applyPersistedJobMatchScore } from "@/lib/atsReportNormalize";
 import { getQueryClient } from "@/lib/query-client";
 import { invalidateResumes } from "@/lib/invalidate-queries";
 import type { ATSReportV3 } from "@/types/atsReport";
@@ -119,7 +120,7 @@ export async function runATSAnalysis(
   try {
     const extractedData = await resumeDataExtractionApi.extractResumeData(
       "classic",
-      { resumeText },
+      { resumeText, enhance: false },
     );
     const content = mapExtractedSectionsToContent(extractedData.sections);
     await resumeApi.update(newResume.resumeId, { content });
@@ -144,7 +145,10 @@ export async function runATSAnalysis(
     isATSReportV3(updatedResume.atsFeedback)
   ) {
     return {
-      report: updatedResume.atsFeedback,
+      report: applyPersistedJobMatchScore(
+        updatedResume.atsFeedback,
+        updatedResume.jobMatchScore,
+      ),
       resumeId: newResume.resumeId,
     };
   }
@@ -166,7 +170,10 @@ export async function rerunATSAnalysis(
     updatedResume.atsFeedback &&
     isATSReportV3(updatedResume.atsFeedback)
   ) {
-    return updatedResume.atsFeedback;
+    return applyPersistedJobMatchScore(
+      updatedResume.atsFeedback,
+      updatedResume.jobMatchScore,
+    );
   }
 
   throw new Error("Unexpected ATS report format. Please try again.");

@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { resumeSaveButton } from "@/components/resume-editor/resumeEditorStyles";
+import { ChromeIcon } from "@/components/chrome-extension/ChromeIcon";
 
 type SectionItem = {
   id: string;
@@ -71,6 +72,8 @@ type ResumeEditorMobileChromeProps = {
   autoSaving?: boolean;
   onDownload: () => void;
   downloading?: boolean;
+  onSyncChrome: () => void;
+  chromeSyncing?: boolean;
   refreshingATS?: boolean;
   actionsDisabled?: boolean;
 };
@@ -126,6 +129,8 @@ export function ResumeEditorMobileChrome({
   autoSaving,
   onDownload,
   downloading,
+  onSyncChrome,
+  chromeSyncing,
   refreshingATS,
   actionsDisabled,
 }: ResumeEditorMobileChromeProps) {
@@ -171,6 +176,17 @@ export function ResumeEditorMobileChrome({
       ),
       onClick: onMatchJobDescription,
       disabled: disabled || matchingJob,
+    },
+    {
+      id: "chrome-sync",
+      label: chromeSyncing ? "Syncing with Chrome…" : "Sync Resume with Chrome",
+      icon: chromeSyncing ? (
+        <Loader2 className="h-4 w-4 animate-spin" />
+      ) : (
+        <ChromeIcon className="h-4 w-4" />
+      ),
+      onClick: onSyncChrome,
+      disabled: disabled || chromeSyncing || changingTemplate,
     },
     {
       id: "rearrange",

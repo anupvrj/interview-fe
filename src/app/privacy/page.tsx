@@ -220,10 +220,16 @@ export default function PrivacyPolicyPage() {
                   to create a new resume copy or start a practice interview.
                 </p>
                 <p>
-                  The extension does not call the InterviewTrix API itself, does
-                  not sell captured job text, and does not use it for
-                  advertising. You can clear it by dismissing the capture in
-                  the web app or by removing the extension.
+                  After you connect the extension on InterviewTrix, it can call
+                  the InterviewTrix API to score a job match and, when you
+                  click <strong>Auto Fill</strong>, to load the profile fields
+                  you saved (name, phone, role, CTC, and experience). Those
+                  values stay in <code>chrome.storage.local</code> on your
+                  device so matching application fields can be filled. Auto
+                  Fill also attaches the resume PDF you compiled. The extension
+                  does not submit applications for you, does not sell captured
+                  data, and does not use it for advertising. You can clear it
+                  by disconnecting the extension or removing it.
                 </p>
               </CardContent>
             </Card>

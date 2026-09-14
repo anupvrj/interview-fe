@@ -12,6 +12,7 @@ import { mergeLayoutPaddingWithTemplateStyle } from "@/lib/resume-page-dimension
 import { getExtendedTemplate } from "@/lib/templateConfigs";
 import { isListedInTemplateColumnAssignment } from "@/lib/sectionColumnUtils";
 import { getTemplateStyle, TemplateStyleConfig } from "@/lib/templateRenderer";
+import { shouldAppendEducationField } from "@/lib/educationDisplay";
 import {
   User,
   Briefcase,
@@ -2873,17 +2874,6 @@ export function ResumeRenderer({
         );
 
       case "education": {
-        // Skip rendering common default/placeholder field values (e.g. from old dummy data or AI)
-        const isDefaultEducationField = (field: string | undefined) => {
-          if (!field || !field.trim()) return true;
-          const v = field.trim().toLowerCase();
-          return (
-            v === "computer science" ||
-            v === "computer science & engineering" ||
-            v === "computer science and engineering" ||
-            v === "business administration"
-          );
-        };
         // Handle both executive (sections array) and other templates (direct education array)
         let educationData: any[] = [];
 
@@ -2988,9 +2978,7 @@ export function ResumeRenderer({
                           }
                         >
                           {edu.degree}
-                          {edu.degree &&
-                            edu.field &&
-                            !isDefaultEducationField(edu.field) && (
+                          {shouldAppendEducationField(edu.degree, edu.field) && (
                               <span style={{ fontWeight: "normal" }}>
                                 {" "}
                                 in {edu.field}
@@ -3136,14 +3124,14 @@ export function ResumeRenderer({
                       {(edu.startDate ||
                         edu.endDate ||
                         edu.location ||
-                        (edu.field && !isDefaultEducationField(edu.field))) && (
+                        shouldAppendEducationField(edu.degree, edu.field)) && (
                         <div className={`${template.id}-education-meta-line`}>
                           {[
                             edu.startDate || edu.endDate
                               ? `${formatResumeDateForDisplay(String(edu.startDate ?? ""))}${edu.startDate || edu.endDate ? " - " : ""}${formatResumeDateForDisplay(String(edu.endDate ?? ""))}`
                               : "",
                             edu.location,
-                            edu.field && !isDefaultEducationField(edu.field)
+                            shouldAppendEducationField(edu.degree, edu.field)
                               ? edu.field
                               : "",
                           ]
@@ -3184,9 +3172,7 @@ export function ResumeRenderer({
                             }
                           >
                             {edu.degree}
-                            {edu.degree &&
-                              edu.field &&
-                              !isDefaultEducationField(edu.field) && (
+                            {shouldAppendEducationField(edu.degree, edu.field) && (
                                 <span style={{ fontWeight: "normal" }}>
                                   {" "}
                                   in {edu.field}

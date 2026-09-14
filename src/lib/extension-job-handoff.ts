@@ -27,6 +27,26 @@ export type JobDetails = Record<string, string>;
 
 export type JobCaptureIntent = "resume" | "practice-interview";
 
+export type JobMatchHandoffInsights = {
+  resumeId?: string;
+  matchScore?: number;
+  verdict?: string;
+  summary?: string;
+  matchedSkills: string[];
+  missingSkills: string[];
+  unlistedSkills: string[];
+  strengths: string[];
+  gaps: string[];
+  matrices: Array<{
+    id: string;
+    label: string;
+    score: number;
+    matched: string[];
+    missing: string[];
+    unlisted: string[];
+  }>;
+};
+
 export type PendingJobCapture = {
   v: 1;
   sourceUrl: string;
@@ -38,6 +58,8 @@ export type PendingJobCapture = {
   capturedAt: string;
   /** Distinguishes tailor-resume vs practice-interview handoff. */
   intent?: JobCaptureIntent;
+  sourceResumeId?: string;
+  matchInsights?: JobMatchHandoffInsights;
 };
 
 function normalizeIntent(value: unknown): JobCaptureIntent | undefined {
@@ -121,12 +143,72 @@ function isConsumedJobCapture(capture: PendingJobCapture): boolean {
   return readConsumedFingerprint() === captureFingerprint(capture);
 }
 
+function asStringList(value: unknown, max = 16): string[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((item): item is string => typeof item === "string" && item.trim().length > 0)
+    .map((item) => item.trim().slice(0, 80))
+    .slice(0, max);
+}
+
+function parseMatchInsights(value: unknown): JobMatchHandoffInsights | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const rec = value as Record<string, unknown>;
+  const matrices = Array.isArray(rec.matrices)
+    ? rec.matrices
+        .filter((row): row is Record<string, unknown> => Boolean(row) && typeof row === "object")
+        .slice(0, 8)
+        .map((row) => ({
+          id: typeof row.id === "string" ? row.id : "",
+          label: typeof row.label === "string" ? row.label : "",
+          score: typeof row.score === "number" ? row.score : 0,
+          matched: asStringList(row.matched, 12),
+          missing: asStringList(row.missing, 12),
+          unlisted: asStringList(row.unlisted, 12),
+        }))
+        .filter((row) => row.id && row.label)
+    : [];
+  const insights: JobMatchHandoffInsights = {
+    resumeId: typeof rec.resumeId === "string" ? rec.resumeId : undefined,
+    matchScore: typeof rec.matchScore === "number" ? rec.matchScore : undefined,
+    verdict: typeof rec.verdict === "string" ? rec.verdict : undefined,
+    summary: typeof rec.summary === "string" ? rec.summary : undefined,
+    matchedSkills: asStringList(rec.matchedSkills),
+    missingSkills: asStringList(rec.missingSkills),
+    unlistedSkills: asStringList(rec.unlistedSkills),
+    strengths: asStringList(rec.strengths, 8),
+    gaps: asStringList(rec.gaps, 8),
+    matrices,
+  };
+  if (
+    !insights.matchedSkills.length &&
+    !insights.missingSkills.length &&
+    !insights.unlistedSkills.length &&
+    !insights.summary &&
+    !insights.matrices.length
+  ) {
+    return undefined;
+  }
+  return insights;
+}
+
 export function parsePendingJobCapture(raw: string | null): PendingJobCapture | null {
   if (!raw) return null;
   try {
     const parsed: unknown = JSON.parse(raw);
     if (!isPendingJobCapture(parsed)) return null;
-    return { ...parsed, intent: normalizeIntent(parsed.intent) };
+    const sourceResumeId =
+      typeof parsed.sourceResumeId === "string" && parsed.sourceResumeId.trim()
+        ? parsed.sourceResumeId.trim()
+        : undefined;
+    return {
+      ...parsed,
+      intent: normalizeIntent(parsed.intent),
+      sourceResumeId,
+      matchInsights: parseMatchInsights(
+        (parsed as PendingJobCapture).matchInsights,
+      ),
+    };
   } catch {
     return null;
   }
@@ -217,12 +299,14 @@ export function normalizeCapturedJob(
     jobDescription: trimJobDescriptionForSend(capture.jobDescription),
     details: capture.details,
     intent: normalizeIntent(capture.intent),
+    sourceResumeId: capture.sourceResumeId,
+    matchInsights: capture.matchInsights,
   };
 }
 
 export const FROM_JOB_TAILORING_MESSAGES = [
   "Creating a copy of your source resume…",
-  "Aligning skills and experience to this role…",
+  "Applying job-match findings to close skill gaps…",
   "Rewriting bullets and your profile summary…",
-  "Final checks in progress. Almost done…",
+  "Rechecking the ATS score against this job…",
 ] as const;
