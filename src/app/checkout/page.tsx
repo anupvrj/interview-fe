@@ -17,8 +17,17 @@ import {
   AlertCircle,
   CreditCard,
 } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { paymentApi, planApi, Subscription } from "@/lib/api";
+import {
+  couponApi,
+  paymentApi,
+  planApi,
+  Subscription,
+  type AppliedCoupon,
+} from "@/lib/api";
+import { CheckoutCouponField } from "@/components/checkout/CheckoutCouponField";
+import { apiErrorMessage } from "@/lib/api-errors";
 import type { PlanRecord } from "@/lib/planRecord";
 import { getPlanMarketingHighlights } from "@/lib/planHighlightsFromFeatures";
 import Script from "next/script";
@@ -71,6 +80,9 @@ function CheckoutPageContent() {
   const [selectedPlan, setSelectedPlan] = useState<PlanRecord | null>(null);
   const [planCatalog, setPlanCatalog] = useState<PlanRecord[]>([]);
   const [catalogError, setCatalogError] = useState<string | null>(null);
+  const [couponInput, setCouponInput] = useState("");
+  const [appliedCoupon, setAppliedCoupon] = useState<AppliedCoupon | null>(null);
+  const [applyingCoupon, setApplyingCoupon] = useState(false);
 
   // Plan hierarchy for upgrade checks
   const getPlanLevel = (plan: string): number => {
@@ -100,6 +112,8 @@ function CheckoutPageContent() {
     }
     setSamePlanError(null);
     setCheckingSubscription(true);
+    setAppliedCoupon(null);
+    setCouponInput("");
     // Don't reset razorpayLoaded - if it's already loaded, keep it loaded
   }, [planId]);
 
@@ -227,6 +241,67 @@ function CheckoutPageContent() {
     run();
   }, [isLoaded, user, planId, router]);
 
+  useEffect(() => {
+    if (
+      !isLoaded ||
+      !user ||
+      !planId ||
+      isTrialCheckout ||
+      !isCheckoutPlanId(planId) ||
+      !!samePlanError
+    ) {
+      return;
+    }
+
+    let cancelled = false;
+    void (async () => {
+      try {
+        const result = await couponApi.apply({
+          plan: planId,
+          billingCycle,
+        });
+        if (cancelled || !result.applied) return;
+        setAppliedCoupon(result);
+        setCouponInput(result.code);
+      } catch {
+        // No welcome coupon, or user is ineligible — stay silent.
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isLoaded, user, planId, billingCycle, isTrialCheckout, samePlanError]);
+
+  const handleApplyCoupon = async () => {
+    if (!planId || isTrialCheckout) return;
+    const code = couponInput.trim();
+    if (!code) return;
+    setApplyingCoupon(true);
+    try {
+      const result = await couponApi.apply({
+        code,
+        plan: planId,
+        billingCycle,
+      });
+      if (!result.applied) {
+        toast.error("This coupon could not be applied");
+        return;
+      }
+      setAppliedCoupon(result);
+      toast.success(result.message);
+    } catch (err) {
+      toast.error(apiErrorMessage(err, "This coupon could not be applied"));
+    } finally {
+      setApplyingCoupon(false);
+    }
+  };
+
+  const handleClearCoupon = () => {
+    setAppliedCoupon(null);
+    setCouponInput("");
+  };
+
   const handlePayment = async () => {
     if (!planId || !user || samePlanError || !selectedPlan) return;
 
@@ -239,6 +314,7 @@ function CheckoutPageContent() {
         : await paymentApi.createOrder(
             planId as SelfServePlanSlug,
             billingCycle,
+            appliedCoupon?.code,
           );
       console.log("🔍 Order received from backend:", order);
       console.log("💰 Amount in paise:", order.amount);
@@ -545,15 +621,41 @@ function CheckoutPageContent() {
                         {billingLabel}
                       </span>
                     </div>
+                    {!isTrialCheckout ? (
+                      <CheckoutCouponField
+                        inputValue={couponInput}
+                        onInputChange={setCouponInput}
+                        onApply={() => void handleApplyCoupon()}
+                        onClear={handleClearCoupon}
+                        applying={applyingCoupon}
+                        applied={appliedCoupon}
+                      />
+                    ) : null}
                     <div className="border-t border-border/60 pt-3">
                       <div className="flex items-end justify-between gap-3">
                         <span className="text-sm font-medium text-muted-foreground">
                           Total due today
                         </span>
-                        <span className="text-3xl font-bold tracking-tight text-[#7367F0]">
-                          ₹{planPrice.toLocaleString()}
+                        <span className="text-right">
+                          {appliedCoupon ? (
+                            <span className="mr-2 text-base font-medium text-muted-foreground line-through">
+                              ₹{planPrice.toLocaleString()}
+                            </span>
+                          ) : null}
+                          <span className="text-3xl font-bold tracking-tight text-[#7367F0]">
+                            ₹
+                            {(
+                              appliedCoupon?.finalAmount ?? planPrice
+                            ).toLocaleString()}
+                          </span>
                         </span>
                       </div>
+                      {appliedCoupon ? (
+                        <p className="mt-1.5 text-xs text-muted-foreground">
+                          Recurring months bill at the full list price of ₹
+                          {appliedCoupon.originalAmount.toLocaleString()}.
+                        </p>
+                      ) : null}
                     </div>
                   </div>
                 </div>
@@ -630,7 +732,11 @@ function CheckoutPageContent() {
                     </>
                   ) : (
                     <>
-                      Pay ₹{planPrice.toLocaleString()} now
+                      Pay ₹
+                      {(
+                        appliedCoupon?.finalAmount ?? planPrice
+                      ).toLocaleString()}{" "}
+                      now
                       <ArrowRight className="ml-2 h-5 w-5" />
                     </>
                   )}
