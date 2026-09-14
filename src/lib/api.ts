@@ -1125,16 +1125,85 @@ export interface RazorpayOrder {
   currency: string;
   keyId: string;
   subscriptionId?: string;
+  originalAmount?: number;
+  discountAmount?: number;
+  finalAmount?: number;
+  couponCode?: string;
+  discountPercent?: number;
 }
+
+export type AdminCoupon = {
+  id: string;
+  code: string;
+  discountPercent: number;
+  maxUses: number | null;
+  usedCount: number;
+  quota: number | "unlimited";
+  isActive: boolean;
+  isDefaultWelcome: boolean;
+  validForFirstMonthOnly: boolean;
+  expiresAt: string | null;
+  createdAt: string;
+  status: "active" | "inactive" | "expired" | "exhausted";
+};
+
+export type AdminCouponRedemption = {
+  id: string;
+  clerkId: string;
+  email: string | null;
+  name: string | null;
+  plan: string | null;
+  billingCycle: "monthly" | "quarterly" | "yearly" | null;
+  discountPercent: number;
+  originalAmount: number;
+  discountAmount: number;
+  finalAmount: number;
+  redeemedAt: string;
+};
+
+export type AdminCouponDetail = {
+  coupon: AdminCoupon;
+  redemptions: AdminCouponRedemption[];
+  planBreakdown: Array<{ plan: string; count: number }>;
+  total: number;
+  limit: number;
+  skip: number;
+};
+
+export type AppliedCoupon = {
+  applied: true;
+  couponId: string;
+  code: string;
+  discountPercent: number;
+  originalAmount: number;
+  discountAmount: number;
+  finalAmount: number;
+  appliedAutomatically: boolean;
+  message: string;
+};
+
+export const couponApi = {
+  apply: async (body: {
+    code?: string;
+    plan: string;
+    billingCycle?: "monthly" | "quarterly" | "yearly";
+  }): Promise<AppliedCoupon | { applied: false }> => {
+    const response = await apiClient.post<{
+      data: AppliedCoupon | { applied: false };
+    }>("/coupons/apply", body);
+    return response.data.data;
+  },
+};
 
 export const paymentApi = {
   createOrder: async (
     plan: SelfServePlanSlug,
     billingCycle: "monthly" | "quarterly" | "yearly" = "monthly",
+    couponCode?: string,
   ): Promise<RazorpayOrder> => {
     const response = await apiClient.post<{ data: RazorpayOrder }>(
       "/payments/create-order",
-      { plan, billingCycle },
+      { plan, billingCycle, ...(couponCode ? { couponCode } : {}) },
     );
     return response.data.data;
   },
@@ -2850,6 +2919,63 @@ export const adminApi = {
       success: boolean;
       data: import("@/lib/planRecord").AdminPlanRecord;
     }>(`/admin/plans/${encodeURIComponent(planId)}`, patch);
+    return response.data.data;
+  },
+
+  listCoupons: async (): Promise<AdminCoupon[]> => {
+    const response = await apiClient.get<{ success: boolean; data: AdminCoupon[] }>(
+      "/admin/coupons",
+    );
+    return response.data.data;
+  },
+
+  getCoupon: async (
+    id: string,
+    params?: { limit?: number; skip?: number },
+  ): Promise<AdminCouponDetail> => {
+    const q = new URLSearchParams();
+    if (params?.limit != null) q.set("limit", String(params.limit));
+    if (params?.skip != null) q.set("skip", String(params.skip));
+    const suffix = q.toString() ? `?${q.toString()}` : "";
+    const response = await apiClient.get<{
+      success: boolean;
+      data: AdminCouponDetail;
+    }>(`/admin/coupons/${id}${suffix}`);
+    return response.data.data;
+  },
+
+  createCoupon: async (data: {
+    code?: string;
+    discountPercent: number;
+    maxUses?: number | null;
+    expiresAt?: string | null;
+    isDefaultWelcome?: boolean;
+  }): Promise<AdminCoupon> => {
+    const response = await apiClient.post<{ success: boolean; data: AdminCoupon }>(
+      "/admin/coupons",
+      data,
+    );
+    return response.data.data;
+  },
+
+  updateCoupon: async (
+    id: string,
+    data: { isActive?: boolean; isDefaultWelcome?: boolean },
+  ): Promise<AdminCoupon> => {
+    const response = await apiClient.patch<{ success: boolean; data: AdminCoupon }>(
+      `/admin/coupons/${id}`,
+      data,
+    );
+    return response.data.data;
+  },
+
+  deleteCoupon: async (
+    id: string,
+  ): Promise<{ deleted: boolean; deactivated: boolean }> => {
+    const response = await apiClient.delete<{
+      success: boolean;
+      data: { deleted: boolean; deactivated: boolean };
+    }>(`/admin/coupons/${id}`);
     return response.data.data;
   },
 };
