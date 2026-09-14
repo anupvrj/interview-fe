@@ -36,7 +36,7 @@ export default function PrivacyPolicyPage() {
               Privacy <span className="text-primary">Policy</span>
             </h1>
             <p className="text-base sm:text-lg text-gray-600 max-w-2xl mx-auto">
-              Last updated: August 30, 2026
+              Last updated: September 15, 2026
             </p>
           </div>
 
@@ -85,6 +85,7 @@ export default function PrivacyPolicyPage() {
                 <ul className="list-disc list-inside space-y-2 ml-4">
                   <li>Mock interview sessions, scores, and feedback</li>
                   <li>Resume content you create or upload</li>
+                  <li>Job postings you capture with the Chrome extension, and job-match scores</li>
                   <li>Peer interview booking and scheduling data</li>
                   <li>Payment and subscription status (via Razorpay)</li>
                 </ul>
@@ -107,6 +108,7 @@ export default function PrivacyPolicyPage() {
                 <ul className="list-disc list-inside space-y-2 ml-4">
                   <li>Provide and improve the Interview Trix platform</li>
                   <li>Deliver AI mock interviews, reports, and resume tools</li>
+                  <li>Score a job match and help you apply from the Chrome extension when you ask</li>
                   <li>Process payments and manage subscriptions</li>
                   <li>Send transactional emails (account, billing, bookings)</li>
                   <li>Respond to support requests and contact form submissions</li>
@@ -191,6 +193,13 @@ export default function PrivacyPolicyPage() {
                   used. You can control cookies through your browser settings,
                   though some features may not work if cookies are disabled.
                 </p>
+                <p>
+                  The Chrome extension also stores data in your browser with{" "}
+                  <code>chrome.storage.local</code> (captured job text, a
+                  connect token, a cached profile copy, and the compiled resume
+                  PDF). That storage is on your device, not in third-party
+                  cookies.
+                </p>
               </CardContent>
             </Card>
 
@@ -206,30 +215,38 @@ export default function PrivacyPolicyPage() {
                   The InterviewTrix Chrome extension reads the job posting in
                   your current browser tab only when you click{" "}
                   <strong>Fetch Job</strong> or{" "}
-                  <strong>Use selected text</strong>. It does not scan pages in
-                  the background.
+                  <strong>Use selected text</strong>. It does not scan other
+                  sites in the background.
                 </p>
                 <p>
-                  The extension stores the role, company, location, source URL,
-                  and job description in your browser (
-                  <code>chrome.storage.local</code>) so you can reopen the
-                  popup or hand the job off to InterviewTrix. When you choose{" "}
-                  <strong>Tailor Resume</strong> or{" "}
-                  <strong>Practice Interview</strong>, InterviewTrix opens in
-                  your existing signed-in session and uses that captured text
-                  to create a new resume copy or start a practice interview.
+                  Captured role, company, location, source URL, and job
+                  description stay in your browser (
+                  <code>chrome.storage.local</code>) so the sidebar can show
+                  them and hand them to InterviewTrix.{" "}
+                  <strong>Tailor Resume</strong> and{" "}
+                  <strong>Practice Interview</strong> open InterviewTrix in
+                  your existing signed-in session and use that text to create a
+                  new resume copy or start a practice interview. Your original
+                  resume is never overwritten.
                 </p>
                 <p>
-                  After you connect the extension on InterviewTrix, it can call
-                  the InterviewTrix API to score a job match and, when you
-                  click <strong>Auto Fill</strong>, to load the profile fields
-                  you saved (name, phone, role, CTC, and experience). Those
-                  values stay in <code>chrome.storage.local</code> on your
-                  device so matching application fields can be filled. Auto
-                  Fill also attaches the resume PDF you compiled. The extension
-                  does not submit applications for you, does not sell captured
-                  data, and does not use it for advertising. You can clear it
-                  by disconnecting the extension or removing it.
+                  After you connect the extension on InterviewTrix, it stores a
+                  session token on your device and can call the InterviewTrix
+                  API to score a job match. That request sends the captured job
+                  description and the resume you selected. When you click{" "}
+                  <strong>Apply Job</strong>, Chrome asks for access to that
+                  site only (the first time). The extension then loads profile
+                  fields you saved (name, phone, role, CTC, and experience),
+                  fills matching visible form fields, and attaches the resume
+                  PDF you compiled. It does not submit the application for you.
+                </p>
+                <p>
+                  We use this data only to provide those features. We do not
+                  sell it, use it for advertising, or use it to determine
+                  creditworthiness. No remote code is loaded into the
+                  extension. You can clear local extension data by
+                  disconnecting it on InterviewTrix or by removing the
+                  extension in Chrome.
                 </p>
               </CardContent>
             </Card>
