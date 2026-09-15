@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useUser, useClerk } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { useDropzone } from "react-dropzone";
@@ -32,7 +32,6 @@ import {
   FileEdit,
   Star,
 } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -76,22 +75,59 @@ import {
   partitionLegacyProfileSkills,
   resolveUserIndustry,
 } from "@/lib/user-industry";
+import {
+  compensationAmountInput,
+  compensationUnit,
+  formatCompensation,
+  parseCompensationInput,
+  type CtcUnit,
+} from "@/lib/profile-compensation";
+import { ProfileCtcField } from "@/components/profile/ProfileCtcField";
+import {
+  ProfileField,
+  SectionIcon,
+} from "@/components/profile/ProfileSectionPrimitives";
+import {
+  profileCardClass,
+  profileFormFieldClass,
+  profileFormLabelClass,
+  profileInputClass,
+  profileSectionLabelClass,
+} from "@/components/profile/profile-styles";
+import {
+  ProfileApplicationOtherCard,
+  ProfileCoverLetterEditor,
+  ProfileCurrentlyWorkingField,
+  ProfileEducationCard,
+  ProfileEeoCard,
+  ProfileLocationCard,
+  ProfileSocialLinksCard,
+  ProfileWorkAuthCard,
+} from "@/components/profile/ProfileApplicationSections";
+import {
+  PHONE_TYPE_OPTIONS,
+  applicationProfileFromUser,
+  joinPersonName,
+  prefillApplicationProfileFromResume,
+  type ApplicationProfile,
+} from "@/lib/application-profile";
 
-const profileCardClass =
-  "overflow-hidden rounded-xl border border-border/60 bg-card shadow-card";
+const YES_NO_OPTIONS = [
+  { value: "yes", label: "Yes" },
+  { value: "no", label: "No" },
+] as const;
 
-const profileInputClass =
-  "h-11 w-full min-w-0 rounded-[0.625rem] border-border/60 bg-background shadow-sm";
+function yesNoFromUser(value: boolean | undefined): "" | "yes" | "no" {
+  if (value === true) return "yes";
+  if (value === false) return "no";
+  return "";
+}
 
-const profileFormFieldClass = "flex min-w-0 flex-col gap-2";
-
-const profileFieldTileClass =
-  "rounded-xl border border-border/60 bg-muted/20 px-4 py-3";
-
-const profileSectionLabelClass =
-  "text-[11px] font-semibold uppercase tracking-wide text-muted-foreground";
-
-const profileFormLabelClass = "block text-sm font-medium text-foreground";
+function yesNoLabel(value: boolean | undefined): string {
+  if (value === true) return "Yes";
+  if (value === false) return "No";
+  return "Not set";
+}
 
 function profileUserTypeLabel(
   userType?: User["userType"] | "" | null,
@@ -106,53 +142,27 @@ function designedResumeTemplateLabel(templateId: string): string {
   return TEMPLATES_CATALOG.find((t) => t.id === templateId)?.name ?? templateId;
 }
 
-function ProfileField({
-  label,
-  value,
-  children,
-  className,
-}: {
-  label: string;
-  value?: ReactNode;
-  children?: ReactNode;
-  className?: string;
-}) {
-  return (
-    <div className={cn(profileFieldTileClass, className)}>
-      <p className={profileSectionLabelClass}>{label}</p>
-      {children ?? (
-        <p className="mt-1.5 text-sm font-medium text-foreground">
-          {value ?? "—"}
-        </p>
-      )}
-    </div>
-  );
-}
-
-function SectionIcon({
-  icon: Icon,
-  tone = "violet",
-}: {
-  icon: LucideIcon;
-  tone?: "violet" | "cyan" | "emerald" | "amber";
-}) {
-  const toneClass = {
-    violet: "border-[#7367F0]/15 bg-[#7367F0]/10 text-[#7367F0]",
-    cyan: "border-cyan-500/20 bg-cyan-500/10 text-cyan-600",
-    emerald: "border-emerald-500/20 bg-emerald-500/10 text-emerald-600",
-    amber: "border-amber-500/20 bg-amber-500/10 text-amber-600",
-  }[tone];
-
-  return (
-    <div
-      className={cn(
-        "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border",
-        toneClass,
-      )}
-    >
-      <Icon className="h-5 w-5" />
-    </div>
-  );
+function profileFormFromUser(profile: User) {
+  return {
+    userType: (profile.userType || "") as "student" | "fresher" | "experienced" | "",
+    experience: profile.experience || 0,
+    overallExperience: profile.overallExperience || "",
+    onsite: yesNoFromUser(profile.willingToWorkOnsite),
+    hybrid: yesNoFromUser(profile.willingToWorkHybrid),
+    targetJobRole: profile.targetJobRole || "",
+    targetCompany: profile.targetCompany || "",
+    currentJob: {
+      company: profile.currentJob?.company || "",
+      role: profile.currentJob?.role || "",
+    },
+    currentCtcAmount: compensationAmountInput(profile.currentCtc),
+    currentCtcUnit: compensationUnit(profile.currentCtc),
+    expectedCtcAmount: compensationAmountInput(profile.expectedCtc),
+    expectedCtcUnit: compensationUnit(profile.expectedCtc),
+    industry: resolveUserIndustry(profile),
+    skills: partitionLegacyProfileSkills(profile.industries, profile.skills),
+    affiliation: affiliationFromUser(profile),
+  };
 }
 
 export default function ProfilePage() {
@@ -182,12 +192,19 @@ export default function ProfilePage() {
   const [profileData, setProfileData] = useState({
     userType: "" as "student" | "fresher" | "experienced" | "",
     experience: 0,
+    overallExperience: "",
+    onsite: "" as "" | "yes" | "no",
+    hybrid: "" as "" | "yes" | "no",
     targetJobRole: "",
     targetCompany: "",
     currentJob: {
       company: "",
       role: "",
     },
+    currentCtcAmount: "",
+    currentCtcUnit: "lpa" as CtcUnit,
+    expectedCtcAmount: "",
+    expectedCtcUnit: "lpa" as CtcUnit,
     industry: "",
     skills: [] as string[],
     affiliation: {
@@ -195,6 +212,23 @@ export default function ProfilePage() {
       affiliationInstitutionName: "",
     } as AffiliationValue,
   });
+  const [applicationForm, setApplicationForm] = useState<ApplicationProfile>(
+    applicationProfileFromUser({}),
+  );
+  const [savedApplicationForm, setSavedApplicationForm] = useState<ApplicationProfile>(
+    applicationProfileFromUser({}),
+  );
+  const [editingApplicationSection, setEditingApplicationSection] = useState<
+    | "location"
+    | "education"
+    | "eeo"
+    | "workAuth"
+    | "social"
+    | "other"
+    | "cover"
+    | null
+  >(null);
+  const [savingApplication, setSavingApplication] = useState(false);
 
   useEffect(() => {
     if (isLoaded && clerkUser) {
@@ -213,23 +247,10 @@ export default function ProfilePage() {
       setPhoneLocal(parsedPhone.localNumber);
       setSavedPhone(profile.phone?.trim() || null);
       setCandidateStatus(profile.candidateStatus ?? "actively_looking");
-      const skills = partitionLegacyProfileSkills(
-        profile.industries,
-        profile.skills,
-      );
-      setProfileData({
-        userType: profile.userType || "",
-        experience: profile.experience || 0,
-        targetJobRole: profile.targetJobRole || "",
-        targetCompany: profile.targetCompany || "",
-        currentJob: {
-          company: profile.currentJob?.company || "",
-          role: profile.currentJob?.role || "",
-        },
-        industry: resolveUserIndustry(profile),
-        skills,
-        affiliation: affiliationFromUser(profile),
-      });
+      setProfileData(profileFormFromUser(profile));
+      const nextApplication = applicationProfileFromUser(profile);
+      setApplicationForm(nextApplication);
+      setSavedApplicationForm(nextApplication);
     } catch (error: any) {
       console.error("Error loading profile:", error);
       setError("Failed to load profile");
@@ -250,23 +271,42 @@ export default function ProfilePage() {
           profileData.userType === "experienced"
             ? profileData.experience
             : undefined,
+        overallExperience: profileData.overallExperience.trim(),
+        willingToWorkOnsite:
+          profileData.onsite === "" ? null : profileData.onsite === "yes",
+        willingToWorkHybrid:
+          profileData.hybrid === "" ? null : profileData.hybrid === "yes",
         targetJobRole: (profileData.targetJobRole ?? "").trim() || "",
         targetCompany: (profileData.targetCompany ?? "").trim() || "",
         currentJob:
           profileData.userType === "experienced" &&
-          profileData.currentJob.company
+          (profileData.currentJob.company || profileData.currentJob.role)
             ? {
                 company: profileData.currentJob.company,
                 role: profileData.currentJob.role,
               }
             : undefined,
+        currentCtc:
+          profileData.userType === "experienced"
+            ? parseCompensationInput(
+                profileData.currentCtcAmount,
+                profileData.currentCtcUnit,
+              ) ?? null
+            : null,
+        expectedCtc:
+          parseCompensationInput(
+            profileData.expectedCtcAmount,
+            profileData.expectedCtcUnit,
+          ) ?? null,
         industry: profileData.industry || undefined,
         skills: profileData.skills,
+        applicationProfile: applicationForm,
         ...toProfileAffiliationPayload(profileData.affiliation),
       });
 
       setSuccess("Profile updated successfully!");
       setEditingProfile(false);
+      setSavedApplicationForm(applicationForm);
       await loadProfile();
     } catch (error: any) {
       console.error("Error updating profile:", error);
@@ -280,24 +320,38 @@ export default function ProfilePage() {
   };
 
   const resetProfileInfoForm = () => {
-    setFullNameInput(
+    const nextName =
       user?.name ||
-        `${clerkUser?.firstName || ""} ${clerkUser?.lastName || ""}`.trim(),
-    );
+      `${clerkUser?.firstName || ""} ${clerkUser?.lastName || ""}`.trim();
+    setFullNameInput(nextName);
     const parsedPhone = parseStoredPhone(user?.phone);
     setPhoneCountryCode(parsedPhone.countryCode);
     setPhoneLocal(parsedPhone.localNumber);
     setCandidateStatus(user?.candidateStatus ?? "actively_looking");
+    setApplicationForm((prev) => ({
+      ...prev,
+      ...applicationProfileFromUser(user ?? {}),
+      links: prev.links,
+      address: prev.address,
+      education: prev.education,
+      coverLetter: prev.coverLetter,
+    }));
   };
 
   const handleCancelProfileInfo = () => {
     resetProfileInfoForm();
+    setApplicationForm(savedApplicationForm);
     setEditingProfileInfo(false);
     setError("");
   };
 
   const handleSaveProfileInfo = async () => {
-    const nextName = fullNameInput.trim();
+    const nextName =
+      joinPersonName(
+        applicationForm.firstName,
+        applicationForm.middleName,
+        applicationForm.lastName,
+      ) || fullNameInput.trim();
     if (!nextName) {
       setError("Full name is required");
       return;
@@ -317,20 +371,19 @@ export default function ProfilePage() {
       setError("");
       setSuccess("");
 
-      if (nextName !== (user?.name || "")) {
-        await userApi.updateProfile({ name: nextName });
+      await userApi.updateProfile({
+        name: nextName,
+        applicationProfile: applicationForm,
+      });
 
-        if (clerkUser) {
-          const [firstName, ...rest] = nextName.split(/\s+/);
-          const lastName = rest.join(" ") || undefined;
-          try {
-            await clerkUser.update({
-              firstName: firstName || undefined,
-              lastName,
-            });
-          } catch {
-            // Non-blocking: backend profile name is already updated.
-          }
+      if (clerkUser) {
+        try {
+          await clerkUser.update({
+            firstName: applicationForm.firstName || undefined,
+            lastName: applicationForm.lastName || undefined,
+          });
+        } catch {
+          // Non-blocking: backend profile name is already updated.
         }
       }
 
@@ -351,6 +404,36 @@ export default function ProfilePage() {
     } finally {
       setSavingProfileInfo(false);
     }
+  };
+
+  const handleSaveApplication = async () => {
+    try {
+      setSavingApplication(true);
+      setError("");
+      setSuccess("");
+      await userApi.updateProfile({ applicationProfile: applicationForm });
+      setSavedApplicationForm(applicationForm);
+      setEditingApplicationSection(null);
+      setSuccess("Application details updated.");
+      await loadProfile();
+    } catch (error: unknown) {
+      setError(getApiErrorMessage(error, "Failed to update application details"));
+    } finally {
+      setSavingApplication(false);
+    }
+  };
+
+  const handleCancelApplication = () => {
+    setApplicationForm(savedApplicationForm);
+    setEditingApplicationSection(null);
+    setError("");
+  };
+
+  const handleDefaultResumeChange = (resume: Resume | null) => {
+    setDefaultDesignedResume(resume);
+    setApplicationForm((prev) =>
+      prefillApplicationProfileFromResume(prev, resume?.content?.personalInfo),
+    );
   };
 
   const handleDeleteProfile = async () => {
@@ -608,16 +691,143 @@ export default function ProfilePage() {
                 <div className="space-y-4">
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div className={profileFormFieldClass}>
-                      <Label htmlFor="profile-full-name" className={profileFormLabelClass}>
-                        Full name
+                      <Label htmlFor="profile-first-name" className={profileFormLabelClass}>
+                        First name
                       </Label>
                       <Input
-                        id="profile-full-name"
-                        value={fullNameInput}
-                        onChange={(e) => setFullNameInput(e.target.value)}
-                        placeholder="Enter full name"
+                        id="profile-first-name"
+                        value={applicationForm.firstName}
+                        onChange={(e) =>
+                          setApplicationForm((prev) => ({
+                            ...prev,
+                            firstName: e.target.value,
+                          }))
+                        }
                         className={profileInputClass}
                         disabled={savingProfileInfo}
+                      />
+                    </div>
+                    <div className={profileFormFieldClass}>
+                      <Label htmlFor="profile-middle-name" className={profileFormLabelClass}>
+                        Middle name
+                      </Label>
+                      <Input
+                        id="profile-middle-name"
+                        value={applicationForm.middleName}
+                        onChange={(e) =>
+                          setApplicationForm((prev) => ({
+                            ...prev,
+                            middleName: e.target.value,
+                          }))
+                        }
+                        className={profileInputClass}
+                        disabled={savingProfileInfo}
+                      />
+                    </div>
+                    <div className={profileFormFieldClass}>
+                      <Label htmlFor="profile-last-name" className={profileFormLabelClass}>
+                        Last name
+                      </Label>
+                      <Input
+                        id="profile-last-name"
+                        value={applicationForm.lastName}
+                        onChange={(e) =>
+                          setApplicationForm((prev) => ({
+                            ...prev,
+                            lastName: e.target.value,
+                          }))
+                        }
+                        className={profileInputClass}
+                        disabled={savingProfileInfo}
+                      />
+                    </div>
+                    <div className={profileFormFieldClass}>
+                      <Label htmlFor="profile-legal-name" className={profileFormLabelClass}>
+                        Legal name
+                      </Label>
+                      <Input
+                        id="profile-legal-name"
+                        value={applicationForm.legalName}
+                        onChange={(e) =>
+                          setApplicationForm((prev) => ({
+                            ...prev,
+                            legalName: e.target.value,
+                          }))
+                        }
+                        className={profileInputClass}
+                        disabled={savingProfileInfo}
+                      />
+                    </div>
+                    <div className={profileFormFieldClass}>
+                      <Label htmlFor="profile-preferred-name" className={profileFormLabelClass}>
+                        Preferred name
+                      </Label>
+                      <Input
+                        id="profile-preferred-name"
+                        value={applicationForm.preferredName}
+                        onChange={(e) =>
+                          setApplicationForm((prev) => ({
+                            ...prev,
+                            preferredName: e.target.value,
+                          }))
+                        }
+                        className={profileInputClass}
+                        disabled={savingProfileInfo}
+                      />
+                    </div>
+                    <div className={profileFormFieldClass}>
+                      <Label htmlFor="profile-username" className={profileFormLabelClass}>
+                        Username
+                      </Label>
+                      <Input
+                        id="profile-username"
+                        value={applicationForm.username}
+                        onChange={(e) =>
+                          setApplicationForm((prev) => ({
+                            ...prev,
+                            username: e.target.value,
+                          }))
+                        }
+                        className={profileInputClass}
+                        disabled={savingProfileInfo}
+                      />
+                    </div>
+                    <div className={profileFormFieldClass}>
+                      <Label htmlFor="profile-birthday" className={profileFormLabelClass}>
+                        Birthday
+                      </Label>
+                      <Input
+                        id="profile-birthday"
+                        type="date"
+                        value={applicationForm.birthday}
+                        onChange={(e) =>
+                          setApplicationForm((prev) => ({
+                            ...prev,
+                            birthday: e.target.value,
+                          }))
+                        }
+                        className={profileInputClass}
+                        disabled={savingProfileInfo}
+                      />
+                    </div>
+                    <div className={profileFormFieldClass}>
+                      <Label htmlFor="profile-phone-type" className={profileFormLabelClass}>
+                        Phone type
+                      </Label>
+                      <AppSelect
+                        id="profile-phone-type"
+                        value={applicationForm.phoneType}
+                        onChange={(phoneType) =>
+                          setApplicationForm((prev) => ({
+                            ...prev,
+                            phoneType: phoneType as ApplicationProfile["phoneType"],
+                          }))
+                        }
+                        options={PHONE_TYPE_OPTIONS}
+                        allowEmpty
+                        emptyLabel="Not set"
+                        disabled={savingProfileInfo}
+                        className={profileInputClass}
                       />
                     </div>
                     <ProfileField label="Email" value={displayEmail} />
@@ -689,10 +899,35 @@ export default function ProfilePage() {
               ) : (
                 <div className="grid gap-3 sm:grid-cols-2">
                   <ProfileField label="Full name" value={displayName} />
+                  <ProfileField
+                    label="Legal name"
+                    value={savedApplicationForm.legalName || displayName}
+                  />
+                  <ProfileField
+                    label="Preferred name"
+                    value={savedApplicationForm.preferredName || "—"}
+                  />
+                  <ProfileField
+                    label="Username"
+                    value={savedApplicationForm.username || "—"}
+                  />
                   <ProfileField label="Email" value={displayEmail} />
                   <ProfileField
                     label="Phone number"
                     value={savedPhone || "—"}
+                  />
+                  <ProfileField
+                    label="Phone type"
+                    value={
+                      savedApplicationForm.phoneType
+                        ? savedApplicationForm.phoneType.charAt(0).toUpperCase() +
+                          savedApplicationForm.phoneType.slice(1)
+                        : "—"
+                    }
+                  />
+                  <ProfileField
+                    label="Birthday"
+                    value={savedApplicationForm.birthday || "—"}
                   />
                   <ProfileField
                     label="Job status"
@@ -801,6 +1036,83 @@ export default function ProfilePage() {
                     )}
                   </div>
 
+                  {(profileData.userType === "experienced" ||
+                    profileData.userType === "fresher") && (
+                    <div className={profileFormFieldClass}>
+                      <Label htmlFor="profile-overall-experience" className={profileFormLabelClass}>
+                        Overall experience
+                      </Label>
+                      <Input
+                        id="profile-overall-experience"
+                        className={profileInputClass}
+                        value={profileData.overallExperience}
+                        onChange={(e) =>
+                          setProfileData((prev) => ({
+                            ...prev,
+                            overallExperience: e.target.value,
+                          }))
+                        }
+                        placeholder="e.g. 5 years 6 months"
+                      />
+                    </div>
+                  )}
+
+                  <ProfileCurrentlyWorkingField
+                    value={applicationForm.currentlyWorking}
+                    disabled={savingProfile}
+                    onChange={(currentlyWorking) =>
+                      setApplicationForm((prev) => ({
+                        ...prev,
+                        currentlyWorking,
+                      }))
+                    }
+                  />
+
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className={profileFormFieldClass}>
+                      <Label htmlFor="profile-onsite" className={profileFormLabelClass}>
+                        Willing to work on-site
+                      </Label>
+                      <AppSelect
+                        id="profile-onsite"
+                        value={profileData.onsite}
+                        onChange={(value) =>
+                          setProfileData((prev) => ({
+                            ...prev,
+                            onsite: value === "yes" || value === "no" ? value : "",
+                          }))
+                        }
+                        disabled={savingProfile}
+                        allowEmpty
+                        emptyLabel="Not set"
+                        placeholder="Not set"
+                        options={YES_NO_OPTIONS}
+                        className={profileInputClass}
+                      />
+                    </div>
+                    <div className={profileFormFieldClass}>
+                      <Label htmlFor="profile-hybrid" className={profileFormLabelClass}>
+                        Willing to work hybrid
+                      </Label>
+                      <AppSelect
+                        id="profile-hybrid"
+                        value={profileData.hybrid}
+                        onChange={(value) =>
+                          setProfileData((prev) => ({
+                            ...prev,
+                            hybrid: value === "yes" || value === "no" ? value : "",
+                          }))
+                        }
+                        disabled={savingProfile}
+                        allowEmpty
+                        emptyLabel="Not set"
+                        placeholder="Not set"
+                        options={YES_NO_OPTIONS}
+                        className={profileInputClass}
+                      />
+                    </div>
+                  </div>
+
                   <div className="space-y-4 rounded-xl border border-[#7367F0]/20 bg-[#7367F0]/[0.04] p-4">
                     <div>
                       <p className={profileSectionLabelClass}>Interview targets</p>
@@ -896,30 +1208,101 @@ export default function ProfilePage() {
                             roleClassName={profileInputClass}
                           />
                         </div>
+                        <ProfileCtcField
+                          id="profile-current-ctc"
+                          label="Current CTC"
+                          amount={profileData.currentCtcAmount}
+                          unit={profileData.currentCtcUnit}
+                          disabled={savingProfile}
+                          fieldClassName={profileFormFieldClass}
+                          labelClassName={profileFormLabelClass}
+                          inputClassName={profileInputClass}
+                          onAmountChange={(value) =>
+                            setProfileData((prev) => ({
+                              ...prev,
+                              currentCtcAmount: value,
+                            }))
+                          }
+                          onUnitChange={(value) =>
+                            setProfileData((prev) => ({
+                              ...prev,
+                              currentCtcUnit: value,
+                            }))
+                          }
+                        />
+                        <ProfileCtcField
+                          id="profile-expected-ctc"
+                          label="Expected CTC"
+                          amount={profileData.expectedCtcAmount}
+                          unit={profileData.expectedCtcUnit}
+                          disabled={savingProfile}
+                          fieldClassName={profileFormFieldClass}
+                          labelClassName={profileFormLabelClass}
+                          inputClassName={profileInputClass}
+                          onAmountChange={(value) =>
+                            setProfileData((prev) => ({
+                              ...prev,
+                              expectedCtcAmount: value,
+                            }))
+                          }
+                          onUnitChange={(value) =>
+                            setProfileData((prev) => ({
+                              ...prev,
+                              expectedCtcUnit: value,
+                            }))
+                          }
+                        />
                       </div>
+                      <p className="text-xs text-muted-foreground md:col-span-2">
+                        Auto Fill sends CTC as rupees on job forms (18 LPA → 1800000).
+                      </p>
                     </div>
                   )}
 
                   {profileData.userType !== "experienced" ? (
-                    <div className={profileFormFieldClass}>
-                      <Label htmlFor="profile-industry-only" className={profileFormLabelClass}>
-                        Industry{" "}
-                        <span className="font-normal text-muted-foreground">
-                          (optional)
-                        </span>
-                      </Label>
-                      <AppSelect
-                        id="profile-industry-only"
-                        value={profileData.industry}
-                        onChange={(value) =>
-                          setProfileData((prev) => ({ ...prev, industry: value }))
-                        }
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <div className={profileFormFieldClass}>
+                        <Label htmlFor="profile-industry-only" className={profileFormLabelClass}>
+                          Industry{" "}
+                          <span className="font-normal text-muted-foreground">
+                            (optional)
+                          </span>
+                        </Label>
+                        <AppSelect
+                          id="profile-industry-only"
+                          value={profileData.industry}
+                          onChange={(value) =>
+                            setProfileData((prev) => ({ ...prev, industry: value }))
+                          }
+                          disabled={savingProfile}
+                          allowEmpty
+                          emptyLabel="Not set"
+                          placeholder="Select industry"
+                          options={industrySelectOptions()}
+                          className={profileInputClass}
+                        />
+                      </div>
+                      <ProfileCtcField
+                        id="profile-expected-ctc"
+                        label="Expected CTC"
+                        amount={profileData.expectedCtcAmount}
+                        unit={profileData.expectedCtcUnit}
                         disabled={savingProfile}
-                        allowEmpty
-                        emptyLabel="Not set"
-                        placeholder="Select industry"
-                        options={industrySelectOptions()}
-                        className={profileInputClass}
+                        fieldClassName={profileFormFieldClass}
+                        labelClassName={profileFormLabelClass}
+                        inputClassName={profileInputClass}
+                        onAmountChange={(value) =>
+                          setProfileData((prev) => ({
+                            ...prev,
+                            expectedCtcAmount: value,
+                          }))
+                        }
+                        onUnitChange={(value) =>
+                          setProfileData((prev) => ({
+                            ...prev,
+                            expectedCtcUnit: value,
+                          }))
+                        }
                       />
                     </div>
                   ) : null}
@@ -970,23 +1353,9 @@ export default function ProfilePage() {
                       onClick={() => {
                         setEditingProfile(false);
                         if (user) {
-                          setProfileData({
-                            userType: user.userType || "",
-                            experience: user.experience || 0,
-                            targetJobRole: user.targetJobRole || "",
-                            targetCompany: user.targetCompany || "",
-                            currentJob: {
-                              company: user.currentJob?.company || "",
-                              role: user.currentJob?.role || "",
-                            },
-                            industry: resolveUserIndustry(user),
-                            skills: partitionLegacyProfileSkills(
-                              user.industries,
-                              user.skills,
-                            ),
-                            affiliation: affiliationFromUser(user),
-                          });
+                          setProfileData(profileFormFromUser(user));
                         }
+                        setApplicationForm(savedApplicationForm);
                       }}
                       disabled={savingProfile}
                     >
@@ -996,7 +1365,7 @@ export default function ProfilePage() {
                 </>
               ) : (
                 <div className="space-y-4">
-                  <div className="grid gap-3 sm:grid-cols-3">
+                  <div className="grid gap-3 sm:grid-cols-2">
                     <ProfileField
                       label="User type"
                       value={
@@ -1013,6 +1382,22 @@ export default function ProfilePage() {
                           ? `${user.experience} ${user.experience === 1 ? "year" : "years"}`
                           : "Not set"
                       }
+                    />
+                    <ProfileField
+                      label="Overall experience"
+                      value={user?.overallExperience?.trim() || "Not set"}
+                    />
+                    <ProfileField
+                      label="Currently working"
+                      value={yesNoLabel(savedApplicationForm.currentlyWorking)}
+                    />
+                    <ProfileField
+                      label="Willing to work on-site"
+                      value={yesNoLabel(user?.willingToWorkOnsite)}
+                    />
+                    <ProfileField
+                      label="Willing to work hybrid"
+                      value={yesNoLabel(user?.willingToWorkHybrid)}
                     />
                     <ProfileField
                       label="Institute / organization"
@@ -1055,8 +1440,23 @@ export default function ProfilePage() {
                           label="Role"
                           value={user?.currentJob?.role?.trim() || "Not set"}
                         />
+                        <ProfileField
+                          label="Current CTC"
+                          value={formatCompensation(user?.currentCtc) || "Not set"}
+                        />
+                        <ProfileField
+                          label="Expected CTC"
+                          value={formatCompensation(user?.expectedCtc) || "Not set"}
+                        />
                       </div>
                     </div>
+                  )}
+
+                  {user?.userType !== "experienced" && (
+                    <ProfileField
+                      label="Expected CTC"
+                      value={formatCompensation(user?.expectedCtc) || "Not set"}
+                    />
                   )}
 
                   <ProfileField
@@ -1093,6 +1493,61 @@ export default function ProfilePage() {
             </CardContent>
           </Card>
 
+          <ProfileLocationCard
+            value={applicationForm}
+            editing={editingApplicationSection === "location"}
+            saving={savingApplication}
+            onEdit={() => setEditingApplicationSection("location")}
+            onChange={setApplicationForm}
+            onSave={() => void handleSaveApplication()}
+            onCancel={handleCancelApplication}
+          />
+          <ProfileEducationCard
+            value={applicationForm}
+            editing={editingApplicationSection === "education"}
+            saving={savingApplication}
+            onEdit={() => setEditingApplicationSection("education")}
+            onChange={setApplicationForm}
+            onSave={() => void handleSaveApplication()}
+            onCancel={handleCancelApplication}
+          />
+          <ProfileEeoCard
+            value={applicationForm}
+            editing={editingApplicationSection === "eeo"}
+            saving={savingApplication}
+            onEdit={() => setEditingApplicationSection("eeo")}
+            onChange={setApplicationForm}
+            onSave={() => void handleSaveApplication()}
+            onCancel={handleCancelApplication}
+          />
+          <ProfileWorkAuthCard
+            value={applicationForm}
+            editing={editingApplicationSection === "workAuth"}
+            saving={savingApplication}
+            onEdit={() => setEditingApplicationSection("workAuth")}
+            onChange={setApplicationForm}
+            onSave={() => void handleSaveApplication()}
+            onCancel={handleCancelApplication}
+          />
+          <ProfileSocialLinksCard
+            value={applicationForm}
+            editing={editingApplicationSection === "social"}
+            saving={savingApplication}
+            onEdit={() => setEditingApplicationSection("social")}
+            onChange={setApplicationForm}
+            onSave={() => void handleSaveApplication()}
+            onCancel={handleCancelApplication}
+          />
+          <ProfileApplicationOtherCard
+            value={applicationForm}
+            editing={editingApplicationSection === "other"}
+            saving={savingApplication}
+            onEdit={() => setEditingApplicationSection("other")}
+            onChange={setApplicationForm}
+            onSave={() => void handleSaveApplication()}
+            onCancel={handleCancelApplication}
+          />
+
           {/* Resume */}
           <Card className={profileCardClass}>
             <CardHeader className="border-b border-border/60 px-5 py-4">
@@ -1104,7 +1559,7 @@ export default function ProfilePage() {
                       Resume
                     </CardTitle>
                     <CardDescription className="mt-0.5 text-sm">
-                      One active resume for interviews and recruiters
+                      One active resume for interviews, plus a cover letter for autofill
                     </CardDescription>
                   </div>
                 </div>
@@ -1233,9 +1688,65 @@ export default function ProfilePage() {
                 </Button>
               )}
 
+              <div className="space-y-3 border-t border-border/60 pt-4">
+                <div className="flex items-center justify-between gap-2">
+                  <p className={profileSectionLabelClass}>Cover letter</p>
+                  {editingApplicationSection !== "cover" ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="gap-1.5"
+                      onClick={() => setEditingApplicationSection("cover")}
+                    >
+                      <Edit2 className="h-4 w-4" />
+                      Edit
+                    </Button>
+                  ) : null}
+                </div>
+                {editingApplicationSection === "cover" ? (
+                  <div className="space-y-3">
+                    <ProfileCoverLetterEditor
+                      value={applicationForm.coverLetter}
+                      disabled={savingApplication}
+                      onChange={(coverLetter) =>
+                        setApplicationForm((prev) => ({ ...prev, coverLetter }))
+                      }
+                    />
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        size="sm"
+                        className={cn("gap-1.5", institutePrimaryClass)}
+                        disabled={savingApplication}
+                        onClick={() => void handleSaveApplication()}
+                      >
+                        {savingApplication ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Save className="h-4 w-4" />
+                        )}
+                        Save
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={savingApplication}
+                        onClick={handleCancelApplication}
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="whitespace-pre-wrap text-sm text-foreground">
+                    {savedApplicationForm.coverLetter || "Not set"}
+                  </p>
+                )}
+              </div>
+
               <ProfileDesignedResumePicker
                 ref={designedResumePickerRef}
-                onDefaultResumeChange={setDefaultDesignedResume}
+                onDefaultResumeChange={handleDefaultResumeChange}
                 onDefaultChanged={() => void loadProfile()}
               />
             </CardContent>
