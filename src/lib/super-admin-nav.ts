@@ -14,6 +14,7 @@ import {
   FileText,
   CalendarClock,
   IndianRupee,
+  Ticket,
 } from "lucide-react";
 import type { DashboardNavAccent, DashboardNavItem } from "@/lib/dashboard-nav";
 
@@ -116,6 +117,14 @@ export const SUPER_ADMIN_NAV_GROUPS: SuperAdminNavGroup[] = [
         accent: accent.amber,
         description:
           "Edit prices, credits, and checklists. A plan appears on /pricing only when it is on sale and public.",
+      },
+      {
+        title: "Coupons",
+        href: `${SUPER_ADMIN_HOME}/coupons`,
+        icon: Ticket,
+        accent: accent.amber,
+        description:
+          "Create first-month discount codes, cap usage, and set a default welcome discount.",
       },
     ],
   },
@@ -311,6 +320,12 @@ const NESTED_PAGES: NestedPageRule[] = [
     description:
       "Review booking details, manage payout, issue refunds, or reassign the interviewer.",
     crumb: "Booking",
+  },
+  {
+    pattern: /^\/super-admin\/coupons\/[^/]+\/?$/,
+    title: "Coupon redemptions",
+    description: "Users, plans, and first-month amounts for this discount code.",
+    crumb: "Redemptions",
   },
 ];
 
