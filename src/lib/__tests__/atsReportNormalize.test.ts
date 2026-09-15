@@ -20,7 +20,7 @@ function tailoredReport(): ATSReportV3 {
         issueCount: 0,
         checks: [],
       },
-    } as ATSReportV3["categories"],
+    } as unknown as ATSReportV3["categories"],
     strengths: [],
     weaknesses: [],
     suggestions: [],
