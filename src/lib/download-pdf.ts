@@ -9,6 +9,7 @@ export function sanitizePdfFilename(input: string | undefined | null): string {
   const trimmed = (input ?? "").trim();
   const withoutExt = trimmed.replace(/\.pdf$/i, "");
   const cleaned = withoutExt
+    .replace(/[•●▪◦·]/g, " ")
     .replace(/[/\\?%*:|"<>]/g, "")
     .replace(/\s/g, "_")
     .split("_")
@@ -28,11 +29,14 @@ export function resumePdfFilenameFromResume(input?: {
     };
   };
 } | null): string {
+  const title = input?.title?.trim();
+  if (title) return sanitizePdfFilename(title);
+
   const pi = input?.content?.personalInfo;
   const name = pi?.fullName?.trim();
   const role = (pi?.portfolio ?? pi?.jobTitle)?.trim();
   const fromPerson = [name, role].filter(Boolean).join("_");
-  return sanitizePdfFilename(fromPerson || input?.title || "resume");
+  return sanitizePdfFilename(fromPerson || "resume");
 }
 
 function clickDownloadAnchor(href: string, filename: string) {
@@ -62,6 +66,15 @@ async function fetchPdfBlob(src: string): Promise<Blob> {
   return res.blob();
 }
 
+export async function fetchPdfBlobFromUrl(url: string): Promise<Blob> {
+  try {
+    return await fetchPdfBlob(url);
+  } catch {
+    const proxy = `/api/proxy-pdf?url=${encodeURIComponent(url)}`;
+    return fetchPdfBlob(proxy);
+  }
+}
+
 /**
  * Download a (usually S3-presigned) PDF URL without opening a new tab.
  * Tries a direct fetch, then the same-origin `/api/proxy-pdf` fallback.
@@ -69,22 +82,24 @@ async function fetchPdfBlob(src: string): Promise<Blob> {
 export async function downloadPdfFromUrl(
   url: string,
   filename: string,
-): Promise<void> {
+): Promise<Blob | null> {
   const safeName = sanitizePdfFilename(filename);
 
   try {
-    triggerBlobDownload(await fetchPdfBlob(url), safeName);
-    return;
+    const blob = await fetchPdfBlob(url);
+    triggerBlobDownload(blob, safeName);
+    return blob;
   } catch {
     // Cross-origin S3 often blocks browser GET without CORS.
   }
 
   const proxy = `/api/proxy-pdf?url=${encodeURIComponent(url)}&filename=${encodeURIComponent(safeName)}`;
   try {
-    triggerBlobDownload(await fetchPdfBlob(proxy), safeName);
-    return;
+    const blob = await fetchPdfBlob(proxy);
+    triggerBlobDownload(blob, safeName);
+    return blob;
   } catch {
-    // Last resort: navigate the same-origin proxy (attachment headers).
     clickDownloadAnchor(proxy, safeName);
+    return null;
   }
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { deriveAvailableRoles, roleHome } from "../roles";
+import { deriveAvailableRoles, roleHome, roleRequiredForPath } from "../roles";
 import type { User } from "@/lib/api";
 
 function profile(
@@ -46,5 +46,13 @@ describe("roleHome", () => {
 
   it("sends super admin to the control panel", () => {
     expect(roleHome("super_admin", null)).toBe("/super-admin");
+  });
+});
+
+describe("roleRequiredForPath", () => {
+  it("keeps Chrome extension connect on the candidate workspace", () => {
+    expect(roleRequiredForPath("/dashboard/extension/connected", null)).toBe(
+      "candidate",
+    );
   });
 });

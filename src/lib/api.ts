@@ -11,6 +11,7 @@ import {
   shouldRedirectUnauthorizedToSignIn,
 } from "@/lib/post-sign-in-redirect";
 import { trimJobDescriptionForSend } from "@/lib/job-description-limits";
+import type { ApplicationProfile } from "@/lib/application-profile";
 
 /** Base URL for API (includes `/api` path). Use for `<img src>` and other non-axios URLs. */
 export const API_URL =
@@ -168,6 +169,18 @@ export interface User {
     role: string;
     industry?: string;
   };
+  /** Free-text overall experience for job applications */
+  overallExperience?: string;
+  willingToWorkOnsite?: boolean;
+  willingToWorkHybrid?: boolean;
+  currentCtc?: {
+    amount: number;
+    unit: "lpa" | "inr";
+  };
+  expectedCtc?: {
+    amount: number;
+    unit: "lpa" | "inr";
+  };
   industry?: string;
   /** @deprecated legacy multi-select; use `industry` */
   industries?: string[];
@@ -183,6 +196,7 @@ export interface User {
     uploadedAt: string;
     size: number;
   };
+  applicationProfile?: ApplicationProfile;
   subscription?: {
     plan: SubscriptionPlanSlug;
     status: "active" | "cancelled" | "expired";
@@ -657,6 +671,7 @@ export const userApi = {
     name?: string;
     userType?: "student" | "fresher" | "experienced";
     experience?: number;
+    overallExperience?: string;
     targetJobRole?: string;
     targetCompany?: string;
     currentJob?: {
@@ -664,10 +679,21 @@ export const userApi = {
       role: string;
       industry?: string;
     };
+    currentCtc?: {
+      amount: number;
+      unit: "lpa" | "inr";
+    } | null;
+    expectedCtc?: {
+      amount: number;
+      unit: "lpa" | "inr";
+    } | null;
+    willingToWorkOnsite?: boolean | null;
+    willingToWorkHybrid?: boolean | null;
     industry?: string;
     skills?: string[];
     affiliationInstitutionId?: string | null;
     affiliationInstitutionName?: string | null;
+    applicationProfile?: ApplicationProfile;
   }): Promise<User> => {
     const response = await apiClient.put<{ data: User }>(
       "/users/me/profile",
@@ -1363,6 +1389,23 @@ export const entitlementApi = {
   },
 };
 
+export type ExtensionSessionPayload = {
+  tokenId: string;
+  token: string;
+  prefix: string;
+  name: string;
+};
+
+export const extensionApi = {
+  createSession: async (): Promise<ExtensionSessionPayload> => {
+    const response = await apiClient.post<{
+      success: boolean;
+      data: ExtensionSessionPayload;
+    }>("/extension/v1/session");
+    return response.data.data;
+  },
+};
+
 export type StartTrialResult = {
   periodEnd: string;
   creditsGranted: number;
@@ -1567,6 +1610,20 @@ export interface Resume {
   };
   atsScore?: number;
   atsFeedback?: ATSReportV3 | LegacyATSFeedback;
+  jobMatchScore?: number;
+  jobMatchFeedback?: {
+    matchScore: number;
+    verdict: "strong" | "moderate" | "weak";
+    tailorRecommended: boolean;
+    headline: string;
+    summary: string;
+    matchedSkills: string[];
+    missingSkills: string[];
+    strengths: string[];
+    gaps: string[];
+    jdHash?: string;
+    scoredAt?: string;
+  };
   atsImprovementMeta?: {
     improvedAt: string;
     previousScore?: number;
@@ -1772,7 +1829,7 @@ export const resumeApi = {
 
   improveFromATS: async (
     resumeId: string,
-    options: { jobDescription?: string } = {},
+    options: { jobDescription?: string; matchInsights?: unknown } = {},
   ): Promise<Resume> => {
     const response = await apiClient.post<{ data: Resume }>(
       `/resumes/${resumeId}/improve-from-ats`,
@@ -1791,7 +1848,10 @@ export const resumeApi = {
    */
   tailorToJobDescription: async (
     resumeId: string,
-    options: { jobDescription: string },
+    options: {
+      jobDescription: string;
+      matchInsights?: unknown;
+    },
   ): Promise<{
     content: Resume["content"];
     profileSummary?: string;
@@ -1807,7 +1867,10 @@ export const resumeApi = {
       };
     }>(
       `/resumes/${resumeId}/tailor-to-jd`,
-      { jobDescription: trimJobDescriptionForSend(options.jobDescription) },
+      {
+        jobDescription: trimJobDescriptionForSend(options.jobDescription),
+        matchInsights: options.matchInsights,
+      },
       { timeout: 300000 },
     );
     return response.data.data;

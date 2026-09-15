@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Resume } from "@/lib/api";
+import { ChromeIcon } from "@/components/chrome-extension/ChromeIcon";
 import { TEMPLATES_CATALOG } from "@/configs/resume-templates/templates-catalog";
 import { cn, formatDate, getScoreColor } from "@/lib/utils";
 import { institutePrimaryClass, instituteSecondaryClass } from "@/components/institute/InstituteChrome";
@@ -90,6 +91,8 @@ export function DashboardResumesList({
   onPageChange,
   onDownload,
   downloadingResumeId,
+  onSendToChrome,
+  sendingToChromeResumeId,
   onDuplicate,
   onDelete,
   duplicatingResumeId,
@@ -103,6 +106,8 @@ export function DashboardResumesList({
   onPageChange: (page: number) => void;
   onDownload: (resumeId: string) => void;
   downloadingResumeId: string | null;
+  onSendToChrome?: (resumeId: string) => void;
+  sendingToChromeResumeId?: string | null;
   onDuplicate?: (resumeId: string) => void;
   onDelete?: (resumeId: string) => void;
   duplicatingResumeId?: string | null;
@@ -266,6 +271,19 @@ export function DashboardResumesList({
                           <Download className="h-4 w-4" strokeWidth={1.75} />
                         )}
                       </IconActionButton>
+                      {onSendToChrome ? (
+                        <IconActionButton
+                          title="Send to Chrome extension"
+                          onClick={() => onSendToChrome(resume.resumeId)}
+                          disabled={sendingToChromeResumeId === resume.resumeId}
+                        >
+                          {sendingToChromeResumeId === resume.resumeId ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <ChromeIcon className="h-4 w-4" />
+                          )}
+                        </IconActionButton>
+                      ) : null}
                       <IconActionButton
                         title="Edit resume"
                         href={`/dashboard/resumes/${resume.resumeId}/edit`}

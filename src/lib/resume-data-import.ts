@@ -2,6 +2,7 @@ import type { ExtendedResumeTemplate } from "@/configs/resume-templates/template
 import type { Resume } from "@/lib/api";
 import { resumeApi, resumeDataExtractionApi } from "@/lib/api";
 import { normalizeExperienceList } from "@/lib/resume-date-utils";
+import { flattenEducationList } from "@/lib/educationDisplay";
 import { getExtendedTemplate } from "@/lib/templateConfigs";
 import { isListedInTemplateColumnAssignment } from "@/lib/sectionColumnUtils";
 
@@ -533,6 +534,10 @@ export function mapExtractedSectionsToContent(
   }
   if (!Array.isArray(content.education)) {
     content.education = [];
+  } else {
+    content.education = flattenEducationList(
+      content.education as Array<{ degree?: string; field?: string }>,
+    ).education;
   }
 
   return sanitizeResumeStringFields(content);
