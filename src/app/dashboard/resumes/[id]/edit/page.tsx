@@ -1388,12 +1388,12 @@ export default function EditResumePage() {
     title?: string;
     company?: string;
   } | null> => {
-    const ready = (value?: string) =>
+    const ready = (value?: string | null): value is string =>
       typeof value === "string" &&
       value.trim().length >= MIN_JOB_DESCRIPTION_CHARS;
 
     const localJd = ready(lastMatchedJd)
-      ? (lastMatchedJd as string)
+      ? lastMatchedJd
       : resumeRef.current?.atsScoringContext?.lastJobDescription;
     if (ready(localJd)) {
       return {
