@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useUser } from "@clerk/nextjs";
+import { useRouter } from "next/navigation";
 import { ArrowLeft, CheckCircle2, Loader2, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { appOutlineButton, appPrimaryButton } from "@/lib/app-theme";
@@ -9,6 +10,7 @@ import {
   ensureExtensionSession,
   returnToExtensionJobTab,
 } from "@/lib/extension-resume-sync";
+import { consumePostSignInReturnUrl } from "@/lib/post-sign-in-redirect";
 
 type ConnectStatus = "working" | "connected" | "error";
 
@@ -39,6 +41,7 @@ function statusCopy(status: ConnectStatus, error: string): string {
 
 export default function ExtensionConnectedPage() {
   const { isLoaded, user } = useUser();
+  const router = useRouter();
   const [status, setStatus] = useState<ConnectStatus>("working");
   const [error, setError] = useState("");
   const [returning, setReturning] = useState(false);
@@ -47,11 +50,13 @@ export default function ExtensionConnectedPage() {
     setReturning(true);
     try {
       const result = await returnToExtensionJobTab(2000);
-      if (!result.ok) {
-        setError(
-          "You can close this tab and return to the page where you opened Connect.",
-        );
-      }
+      if (result.ok) return true;
+      setError(
+        "You can close this tab and return to the page where you opened Connect.",
+      );
+      return false;
+    } catch {
+      return false;
     } finally {
       setReturning(false);
     }
@@ -71,8 +76,14 @@ export default function ExtensionConnectedPage() {
       if (cancelled) return;
       if (last.ok) {
         setStatus("connected");
+        consumePostSignInReturnUrl();
         window.setTimeout(() => {
-          if (!cancelled) void goBack();
+          if (cancelled) return;
+          void goBack().then((returned) => {
+            if (!returned && !cancelled) {
+              router.replace("/dashboard");
+            }
+          });
         }, 1400);
         return;
       }
@@ -87,7 +98,7 @@ export default function ExtensionConnectedPage() {
     return () => {
       cancelled = true;
     };
-  }, [goBack, isLoaded, user]);
+  }, [goBack, isLoaded, router, user]);
 
   return (
     <div className="flex min-h-[70vh] items-center justify-center px-4 py-10">

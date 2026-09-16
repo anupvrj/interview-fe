@@ -5,6 +5,7 @@ import {
   clearPendingJobCapture,
 } from "@/lib/extension-job-handoff";
 import {
+  POST_SIGN_IN_ONE_SHOT_RETURN_KEY,
   POST_SIGN_IN_RETURN_URL_KEY,
   consumePostSignInReturnUrl,
   persistPostAuthReturnPath,
@@ -118,6 +119,7 @@ describe("persist and consume post-auth return", () => {
 
   afterEach(() => {
     localStorage.removeItem(POST_SIGN_IN_RETURN_URL_KEY);
+    sessionStorage.removeItem(POST_SIGN_IN_ONE_SHOT_RETURN_KEY);
     clearPendingJobCapture();
   });
 
@@ -126,9 +128,38 @@ describe("persist and consume post-auth return", () => {
       FROM_JOB_PATH,
     );
     expect(consumePostSignInReturnUrl()).toBe(FROM_JOB_PATH);
+  });
+
+  it("keeps extension connect in this tab only, not localStorage", () => {
     expect(persistPostAuthReturnPath("/dashboard/extension/connected")).toBe(
       "/dashboard/extension/connected",
     );
+    expect(localStorage.getItem(POST_SIGN_IN_RETURN_URL_KEY)).toBeNull();
+    expect(sessionStorage.getItem(POST_SIGN_IN_ONE_SHOT_RETURN_KEY)).toBe(
+      "/dashboard/extension/connected",
+    );
+    expect(consumePostSignInReturnUrl()).toBe(
+      "/dashboard/extension/connected",
+    );
+    expect(consumePostSignInReturnUrl()).toBeNull();
+  });
+
+  it("does not send a later login to a leftover extension connect URL", () => {
+    localStorage.setItem(
+      POST_SIGN_IN_RETURN_URL_KEY,
+      "/dashboard/extension/connected",
+    );
+    expect(persistPostAuthReturnPath(null)).toBe("/onboarding");
+    expect(localStorage.getItem(POST_SIGN_IN_RETURN_URL_KEY)).toBeNull();
+    expect(consumePostSignInReturnUrl()).toBeNull();
+  });
+
+  it("discards a leftover extension connect URL from older builds", () => {
+    localStorage.setItem(
+      POST_SIGN_IN_RETURN_URL_KEY,
+      "/dashboard/extension/connected",
+    );
+    expect(consumePostSignInReturnUrl()).toBeNull();
   });
 
   it("does not hijack a generic login with a leftover extension capture", () => {

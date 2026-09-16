@@ -91,7 +91,11 @@ export function isExtensionHandoffPath(
 ): boolean {
   if (!pathname) return false;
   const path = pathname.split("?")[0];
-  return path === FROM_JOB_PATH || path === PRACTICE_INTERVIEW_PATH;
+  return (
+    path === FROM_JOB_PATH ||
+    path === PRACTICE_INTERVIEW_PATH ||
+    path === "/dashboard/resumes/new"
+  );
 }
 
 function isPendingJobCapture(value: unknown): value is PendingJobCapture {
