@@ -8,6 +8,7 @@ import {
   POST_SIGN_IN_RETURN_URL_KEY,
   consumePostSignInReturnUrl,
   persistPostAuthReturnPath,
+  resolvePostAuthRedirectPath,
   safeAppRedirectPath,
   shouldRedirectUnauthorizedToSignIn,
 } from "@/lib/post-sign-in-redirect";
@@ -50,6 +51,26 @@ describe("shouldRedirectUnauthorizedToSignIn", () => {
     expect(shouldRedirectUnauthorizedToSignIn("/dashboard/resumes")).toBe(
       true,
     );
+  });
+
+  it("does not redirect public marketing pages on 401", () => {
+    expect(shouldRedirectUnauthorizedToSignIn("/")).toBe(false);
+    expect(shouldRedirectUnauthorizedToSignIn("/pricing")).toBe(false);
+    expect(shouldRedirectUnauthorizedToSignIn("/ai-resume-builder")).toBe(
+      false,
+    );
+  });
+});
+
+describe("resolvePostAuthRedirectPath", () => {
+  it("maps home to onboarding", () => {
+    expect(resolvePostAuthRedirectPath("/")).toBe("/onboarding");
+    expect(resolvePostAuthRedirectPath(null)).toBe("/onboarding");
+  });
+
+  it("keeps explicit in-app destinations", () => {
+    expect(resolvePostAuthRedirectPath("/dashboard")).toBe("/dashboard");
+    expect(resolvePostAuthRedirectPath(FROM_JOB_PATH)).toBe(FROM_JOB_PATH);
   });
 });
 

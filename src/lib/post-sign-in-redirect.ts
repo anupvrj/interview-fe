@@ -1,3 +1,5 @@
+import { isPrivateAppPath } from "@/lib/seo/site-url";
+
 export const POST_SIGN_IN_RETURN_URL_KEY = "resumeBuilderReturnUrl";
 
 /** Only in-app paths. Blocks protocol-relative, off-site, and wildcard placeholders. */
@@ -15,6 +17,17 @@ export function safeAppRedirectPath(redirectUrl: string | null | undefined): str
 
 export function getSignInUrlWithRedirect(returnPath: string): string {
   return `/sign-in?redirect_url=${encodeURIComponent(returnPath)}`;
+}
+
+/** Home is public marketing — not a useful or safe post-auth destination. */
+export function resolvePostAuthRedirectPath(
+  redirectUrl: string | null | undefined,
+): string {
+  const destination = safeAppRedirectPath(redirectUrl);
+  if (destination && destination !== "/") {
+    return destination;
+  }
+  return "/onboarding";
 }
 
 /**
@@ -35,7 +48,7 @@ export function shouldRedirectUnauthorizedToSignIn(
   if (requestUrl?.includes("/connector/v1/oauth/")) {
     return false;
   }
-  return true;
+  return isPrivateAppPath(pathname);
 }
 
 export function storePostSignInReturnUrl(returnPath: string): void {
@@ -58,12 +71,13 @@ export function peekPostSignInReturnUrl(): string | null {
 export function persistPostAuthReturnPath(
   redirectUrl: string | null | undefined,
 ): string {
-  const destination = safeAppRedirectPath(redirectUrl);
-  if (destination) {
-    storePostSignInReturnUrl(destination);
-    return destination;
+  const raw = safeAppRedirectPath(redirectUrl);
+  if (!raw) {
+    return "/onboarding";
   }
-  return "/onboarding";
+  const destination = resolvePostAuthRedirectPath(raw);
+  storePostSignInReturnUrl(destination);
+  return destination;
 }
 
 export function consumePostSignInReturnUrl(): string | null {
