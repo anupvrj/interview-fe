@@ -553,6 +553,7 @@ export default function NewInterviewPage() {
           return jd.length >= MIN_JOB_DESCRIPTION_CHARS ? jd : undefined;
         })(),
         voiceProvider: formData.voiceProvider,
+        jobApplicationId: jobCaptureRef.current?.jobApplicationId,
       });
 
       clearPendingJobCapture();

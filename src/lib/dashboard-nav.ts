@@ -137,6 +137,13 @@ const baseMenuItems: DashboardNavItem[] = [
     featureKey: "peer_interviews",
   },
   {
+    title: "Job Tracker",
+    href: "/dashboard/job-tracker",
+    icon: Briefcase,
+    accent: accent.blue,
+    featureKey: "job_tracker",
+  },
+  {
     title: "iX Report",
     href: "/dashboard/ix-report",
     icon: Award,

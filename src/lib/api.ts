@@ -12,6 +12,13 @@ import {
 } from "@/lib/post-sign-in-redirect";
 import { trimJobDescriptionForSend } from "@/lib/job-description-limits";
 import type { ApplicationProfile } from "@/lib/application-profile";
+import type {
+  JobTrackerBoardResponse,
+  JobTrackerDetail,
+  JobTrackerListFilters,
+  JobTrackerListResponse,
+  JobTrackerStatus,
+} from "@/lib/job-tracker";
 
 /** Base URL for API (includes `/api` path). Use for `<img src>` and other non-axios URLs. */
 export const API_URL =
@@ -522,6 +529,8 @@ export interface CreateInterviewRequest {
   jobDescription?: string;
   /** Voice AI provider for the realtime interview session. */
   voiceProvider?: "gemini" | "chatgpt" | "sarvam";
+  /** Job tracker application this practice interview belongs to. */
+  jobApplicationId?: string;
 }
 
 export interface CreateInterviewResponse {
@@ -739,6 +748,9 @@ export const interviewApi = {
     }
     if (data.voiceProvider) {
       formData.append("voiceProvider", data.voiceProvider);
+    }
+    if (data.jobApplicationId?.trim()) {
+      formData.append("jobApplicationId", data.jobApplicationId.trim());
     }
     if (data.resume) {
       const resumeBlob = await snapshotFileForUpload(data.resume);
@@ -5302,5 +5314,146 @@ export const configApi = {
       data: { features: import("@/lib/platform-features").PlatformFeature[] };
     }>("/config/features");
     return response.data.data.features;
+  },
+};
+
+function jobTrackerQuery(params?: JobTrackerListFilters & { page?: number; pageSize?: number }) {
+  const search = new URLSearchParams();
+  if (!params) return "";
+  if (params.q?.trim()) search.set("q", params.q.trim());
+  if (params.status) search.set("status", params.status);
+  if (params.jobType) search.set("jobType", params.jobType);
+  if (params.workMode) search.set("workMode", params.workMode);
+  if (params.favorite) search.set("favorite", "true");
+  if (params.archived) search.set("archived", "true");
+  if (params.appliedFrom) search.set("appliedFrom", params.appliedFrom);
+  if (params.appliedUntil) search.set("appliedUntil", params.appliedUntil);
+  if (params.page) search.set("page", String(params.page));
+  if (params.pageSize) search.set("pageSize", String(params.pageSize));
+  const qs = search.toString();
+  return qs ? `?${qs}` : "";
+}
+
+export const jobTrackerApi = {
+  list: async (
+    params?: JobTrackerListFilters & { page?: number; pageSize?: number },
+  ): Promise<JobTrackerListResponse> => {
+    const response = await apiClient.get<{
+      success: boolean;
+      data: JobTrackerListResponse;
+    }>(`/job-tracker/applications${jobTrackerQuery(params)}`);
+    return response.data.data;
+  },
+
+  board: async (
+    params?: JobTrackerListFilters,
+  ): Promise<JobTrackerBoardResponse> => {
+    const response = await apiClient.get<{
+      success: boolean;
+      data: JobTrackerBoardResponse;
+    }>(`/job-tracker/applications/board${jobTrackerQuery(params)}`);
+    return response.data.data;
+  },
+
+  get: async (id: string): Promise<JobTrackerDetail> => {
+    const response = await apiClient.get<{
+      success: boolean;
+      data: JobTrackerDetail;
+    }>(`/job-tracker/applications/${id}`);
+    return response.data.data;
+  },
+
+  create: async (body: Record<string, unknown>): Promise<JobTrackerDetail> => {
+    const response = await apiClient.post<{
+      success: boolean;
+      data: JobTrackerDetail;
+    }>("/job-tracker/applications", body);
+    return response.data.data;
+  },
+
+  patch: async (
+    id: string,
+    body: Record<string, unknown>,
+  ): Promise<JobTrackerDetail> => {
+    const response = await apiClient.patch<{
+      success: boolean;
+      data: JobTrackerDetail;
+    }>(`/job-tracker/applications/${id}`, body);
+    return response.data.data;
+  },
+
+  updateStatus: async (
+    id: string,
+    status: JobTrackerStatus,
+  ): Promise<JobTrackerDetail> => {
+    const response = await apiClient.patch<{
+      success: boolean;
+      data: JobTrackerDetail;
+    }>(`/job-tracker/applications/${id}/status`, { status });
+    return response.data.data;
+  },
+
+  remove: async (id: string): Promise<void> => {
+    await apiClient.delete(`/job-tracker/applications/${id}`);
+  },
+
+  attachResumes: async (
+    id: string,
+    resumeIds: string[],
+  ): Promise<JobTrackerDetail> => {
+    const response = await apiClient.post<{
+      success: boolean;
+      data: JobTrackerDetail;
+    }>(`/job-tracker/applications/${id}/resumes`, { resumeIds });
+    return response.data.data;
+  },
+
+  detachResume: async (
+    id: string,
+    resumeId: string,
+  ): Promise<JobTrackerDetail> => {
+    const response = await apiClient.delete<{
+      success: boolean;
+      data: JobTrackerDetail;
+    }>(`/job-tracker/applications/${id}/resumes/${resumeId}`);
+    return response.data.data;
+  },
+
+  score: async (id: string, resumeId?: string): Promise<JobTrackerDetail> => {
+    const response = await apiClient.post<{
+      success: boolean;
+      data: JobTrackerDetail;
+    }>(
+      `/job-tracker/applications/${id}/score`,
+      { resumeId },
+      { timeout: 120000 },
+    );
+    return response.data.data;
+  },
+
+  practiceInterview: async (
+    id: string,
+  ): Promise<{
+    jobApplicationId: string;
+    title: string;
+    company: string;
+    location: string;
+    jobDescription: string;
+    sourceUrl: string;
+    sourceResumeId?: string;
+  }> => {
+    const response = await apiClient.post<{
+      success: boolean;
+      data: {
+        jobApplicationId: string;
+        title: string;
+        company: string;
+        location: string;
+        jobDescription: string;
+        sourceUrl: string;
+        sourceResumeId?: string;
+      };
+    }>(`/job-tracker/applications/${id}/practice-interview`);
+    return response.data.data;
   },
 };
