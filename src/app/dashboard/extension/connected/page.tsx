@@ -2,10 +2,10 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useUser } from "@clerk/nextjs";
-import { useRouter } from "next/navigation";
 import { ArrowLeft, CheckCircle2, Loader2, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { appOutlineButton, appPrimaryButton } from "@/lib/app-theme";
+import { EXTENSION_CONNECTED_RETURN_KEY } from "@/components/chrome-extension/ExtensionConnectReturn";
 import {
   ensureExtensionSession,
   returnToExtensionJobTab,
@@ -33,7 +33,7 @@ function statusCopy(status: ConnectStatus, error: string): string {
   if (status === "connected") {
     return (
       error ||
-      "The extension can now match jobs and load your resumes. Returning you to the tab you came from."
+      "You're signed in. InterviewTrix will stay open in the background so you remain logged in."
     );
   }
   return error;
@@ -41,7 +41,6 @@ function statusCopy(status: ConnectStatus, error: string): string {
 
 export default function ExtensionConnectedPage() {
   const { isLoaded, user } = useUser();
-  const router = useRouter();
   const [status, setStatus] = useState<ConnectStatus>("working");
   const [error, setError] = useState("");
   const [returning, setReturning] = useState(false);
@@ -77,14 +76,13 @@ export default function ExtensionConnectedPage() {
       if (last.ok) {
         setStatus("connected");
         consumePostSignInReturnUrl();
-        window.setTimeout(() => {
-          if (cancelled) return;
-          void goBack().then((returned) => {
-            if (!returned && !cancelled) {
-              router.replace("/dashboard");
-            }
-          });
-        }, 1400);
+        try {
+          sessionStorage.setItem(EXTENSION_CONNECTED_RETURN_KEY, "1");
+        } catch {
+          /* private mode */
+        }
+        // Full load remounts Clerk so the site header shows the signed-in account.
+        window.location.assign("/dashboard");
         return;
       }
       setStatus("error");
@@ -98,7 +96,7 @@ export default function ExtensionConnectedPage() {
     return () => {
       cancelled = true;
     };
-  }, [goBack, isLoaded, router, user]);
+  }, [isLoaded, user]);
 
   return (
     <div className="flex min-h-[70vh] items-center justify-center px-4 py-10">

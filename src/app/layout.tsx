@@ -3,6 +3,8 @@ import { ClerkProvider } from "@clerk/nextjs";
 import { AppGoogleAnalytics } from "@/components/AppGoogleAnalytics";
 import { UserProvider } from "@/components/UserProvider";
 import { QueryProvider } from "@/components/QueryProvider";
+import { ClerkAuthTabSync } from "@/components/ClerkAuthTabSync";
+import { ExtensionConnectReturn } from "@/components/chrome-extension/ExtensionConnectReturn";
 import { FeatureRouteGuard } from "@/components/features/FeatureRouteGuard";
 import { TemplateRegistryInitializer } from "@/components/TemplateRegistryInitializer";
 import { getGaMeasurementId } from "@/config/google-analytics";
@@ -126,6 +128,8 @@ export default function RootLayout({
           <TemplateRegistryInitializer />
           <QueryProvider>
             <UserProvider>
+              <ClerkAuthTabSync />
+              <ExtensionConnectReturn />
               <FeatureRouteGuard>{children}</FeatureRouteGuard>
             </UserProvider>
           </QueryProvider>
