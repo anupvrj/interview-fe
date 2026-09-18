@@ -1,7 +1,22 @@
 import type { Metadata } from "next";
 
 export function getSiteUrl(): string {
-  return process.env.NEXT_PUBLIC_APP_URL || "https://interviewtrix.com";
+  if (process.env.NEXT_PUBLIC_APP_URL) {
+    return process.env.NEXT_PUBLIC_APP_URL;
+  }
+
+  if (process.env.NODE_ENV === "development") {
+    const port = process.env.PORT || "3001";
+    return `http://localhost:${port}`;
+  }
+
+  return "https://interviewtrix.com";
+}
+
+/** Base URL for affiliate referral links — matches the browser origin in the dashboard. */
+export function getReferralBaseUrl(browserOrigin?: string | null): string {
+  const base = browserOrigin || getSiteUrl();
+  return base.replace(/\/$/, "");
 }
 
 export function getCanonicalHostname(): string {

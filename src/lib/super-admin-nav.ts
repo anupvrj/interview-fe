@@ -15,6 +15,7 @@ import {
   CalendarClock,
   IndianRupee,
   Ticket,
+  Share2,
 } from "lucide-react";
 import type { DashboardNavAccent, DashboardNavItem } from "@/lib/dashboard-nav";
 
@@ -125,6 +126,14 @@ export const SUPER_ADMIN_NAV_GROUPS: SuperAdminNavGroup[] = [
         accent: accent.amber,
         description:
           "Create first-month discount codes, cap usage, and set a default welcome discount.",
+      },
+      {
+        title: "Affiliates",
+        href: `${SUPER_ADMIN_HOME}/affiliates`,
+        icon: Share2,
+        accent: accent.violet,
+        description:
+          "Set new-user and partner percents, review affiliates, and mark payouts paid.",
       },
     ],
   },
