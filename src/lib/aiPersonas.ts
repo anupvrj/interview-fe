@@ -15,6 +15,8 @@ export type AIInterviewerPersona = {
   geminiVoice: string;
   /** OpenAI Realtime session.voice */
   openaiVoice: string;
+  /** Sarvam Bulbul v3 speaker */
+  sarvamVoice: string;
   /** Public path under /public — persona-N matches row order below */
   imageSrc: string;
 };
@@ -34,6 +36,7 @@ export const AI_INTERVIEWER_PERSONAS: AIInterviewerPersona[] = [
     title: "Technical interviewer",
     geminiVoice: "Charon",
     openaiVoice: "ash",
+    sarvamVoice: "aditya",
     imageSrc: "/personas/persona-1.jpg",
   },
   {
@@ -42,6 +45,7 @@ export const AI_INTERVIEWER_PERSONAS: AIInterviewerPersona[] = [
     title: "Hiring manager",
     geminiVoice: "Kore",
     openaiVoice: "coral",
+    sarvamVoice: "priya",
     imageSrc: "/personas/persona-2.jpg",
   },
   {
@@ -50,6 +54,7 @@ export const AI_INTERVIEWER_PERSONAS: AIInterviewerPersona[] = [
     title: "Senior interviewer",
     geminiVoice: "Fenrir",
     openaiVoice: "verse",
+    sarvamVoice: "rahul",
     imageSrc: "/personas/persona-3.jpg",
   },
   {
@@ -58,6 +63,7 @@ export const AI_INTERVIEWER_PERSONAS: AIInterviewerPersona[] = [
     title: "Lead interviewer",
     geminiVoice: "Aoede",
     openaiVoice: "sage",
+    sarvamVoice: "ritu",
     imageSrc: "/personas/persona-4.jpg",
   },
   {
@@ -66,6 +72,7 @@ export const AI_INTERVIEWER_PERSONAS: AIInterviewerPersona[] = [
     title: "Panel interviewer",
     geminiVoice: "Orus",
     openaiVoice: "ballad",
+    sarvamVoice: "varun",
     imageSrc: "/personas/persona-5.jpg",
   },
   {
@@ -74,6 +81,7 @@ export const AI_INTERVIEWER_PERSONAS: AIInterviewerPersona[] = [
     title: "Talent partner",
     geminiVoice: "Leda",
     openaiVoice: "shimmer",
+    sarvamVoice: "neha",
     imageSrc: "/personas/persona-6.jpg",
   },
 ];

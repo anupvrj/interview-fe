@@ -13,6 +13,7 @@ import { getExecutiveSkillsFromContent } from "@/lib/resume-data-import";
 import { getExtendedTemplate } from "@/lib/templateConfigs";
 import { isListedInTemplateColumnAssignment } from "@/lib/sectionColumnUtils";
 import { getTemplateStyle, TemplateStyleConfig } from "@/lib/templateRenderer";
+import { shouldAppendEducationField } from "@/lib/educationDisplay";
 import {
   User,
   Briefcase,
@@ -411,10 +412,6 @@ export function ResumeRenderer({
   pageNumber = 1,
 }: ResumeRendererProps) {
   const extendedTemplate = getExtendedTemplate(template);
-
-  // --- V2 ENGINE ROUTER ---
-  // If the template is Mercury (or configured to use ProfileHeaderLayout), use the new V2 engine.
-  // This isolates Mercury from the legacy renderer to prevent regressions.
 
   const baseTemplateStyle = getTemplateStyle(extendedTemplate);
   const resumeLayout = layout || resume.layout || { type: "single" };
@@ -1181,10 +1178,16 @@ export function ResumeRenderer({
 
     return (
       <div
+        className={
+          template.id === "atlantic-blue"
+            ? "atlantic-blue-additional-personal"
+            : undefined
+        }
         style={{
           marginTop: "12px",
           fontSize: `${templateStyle.fontSize.small}px`,
           lineHeight: "1.4",
+          textAlign: template.id === "atlantic-blue" ? "left" : undefined,
           color: isInSidebar
             ? templateStyle.colors.sidebarText || "#ffffff"
             : templateStyle.colors.text,
@@ -2955,17 +2958,6 @@ export function ResumeRenderer({
         );
 
       case "education": {
-        // Skip rendering common default/placeholder field values (e.g. from old dummy data or AI)
-        const isDefaultEducationField = (field: string | undefined) => {
-          if (!field || !field.trim()) return true;
-          const v = field.trim().toLowerCase();
-          return (
-            v === "computer science" ||
-            v === "computer science & engineering" ||
-            v === "computer science and engineering" ||
-            v === "business administration"
-          );
-        };
         // Handle both executive (sections array) and other templates (direct education array)
         let educationData: any[] = [];
 
@@ -3070,9 +3062,7 @@ export function ResumeRenderer({
                           }
                         >
                           {edu.degree}
-                          {edu.degree &&
-                            edu.field &&
-                            !isDefaultEducationField(edu.field) && (
+                          {shouldAppendEducationField(edu.degree, edu.field) && (
                               <span style={{ fontWeight: "normal" }}>
                                 {" "}
                                 in {edu.field}
@@ -3218,14 +3208,14 @@ export function ResumeRenderer({
                       {(edu.startDate ||
                         edu.endDate ||
                         edu.location ||
-                        (edu.field && !isDefaultEducationField(edu.field))) && (
+                        shouldAppendEducationField(edu.degree, edu.field)) && (
                         <div className={`${template.id}-education-meta-line`}>
                           {[
                             edu.startDate || edu.endDate
                               ? `${formatResumeDateForDisplay(String(edu.startDate ?? ""))}${edu.startDate || edu.endDate ? " - " : ""}${formatResumeDateForDisplay(String(edu.endDate ?? ""))}`
                               : "",
                             edu.location,
-                            edu.field && !isDefaultEducationField(edu.field)
+                            shouldAppendEducationField(edu.degree, edu.field)
                               ? edu.field
                               : "",
                           ]
@@ -3266,9 +3256,7 @@ export function ResumeRenderer({
                             }
                           >
                             {edu.degree}
-                            {edu.degree &&
-                              edu.field &&
-                              !isDefaultEducationField(edu.field) && (
+                            {shouldAppendEducationField(edu.degree, edu.field) && (
                                 <span style={{ fontWeight: "normal" }}>
                                   {" "}
                                   in {edu.field}
@@ -5511,6 +5499,14 @@ export function ResumeRenderer({
               ["--cg-pad-bottom" as string]: `${templateStyle.padding.bottom}mm`,
             } as React.CSSProperties)
           : {}),
+        ...({
+            ["--resume-heading-font-size" as string]: `${templateStyle.fontSize.heading}px`,
+            ["--resume-subheading-font-size" as string]: `${templateStyle.fontSize.subheading}px`,
+            ["--resume-section-header-font-size" as string]: `${templateStyle.sectionHeader.fontSize}px`,
+            ["--resume-body-font-size" as string]: `${templateStyle.fontSize.body}px`,
+            ["--resume-small-font-size" as string]: `${templateStyle.fontSize.small}px`,
+            ["--resume-degree-font-size" as string]: `${templateStyle.fontSize.body + 1}px`,
+          } as React.CSSProperties),
         backgroundColor: "white",
         color: templateStyle.colors.text,
         fontFamily: templateStyle.fontFamily,
@@ -5655,7 +5651,7 @@ export function ResumeRenderer({
           }
           .saffron-line-template .saffron-line-section-header,
           .saffron-line-template h2[data-section-header] {
-            font-size: 12px !important;
+            font-size: var(--resume-section-header-font-size, 12px) !important;
             font-weight: 700 !important;
             font-family: Georgia, 'Times New Roman', serif !important;
             text-transform: uppercase !important;
@@ -5678,13 +5674,13 @@ export function ResumeRenderer({
             flex-shrink: 0 !important;
           }
           .saffron-line-template .saffron-line-name {
-            font-size: 28px !important;
+            font-size: var(--resume-heading-font-size, 28px) !important;
             font-weight: 700 !important;
             color: #2b2b2b !important;
           }
           .saffron-line-template .saffron-line-job-title {
             font-style: italic !important;
-            font-size: 15px !important;
+            font-size: var(--resume-subheading-font-size, 15px) !important;
             color: #2b2b2b !important;
             font-weight: 400 !important;
           }

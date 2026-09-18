@@ -2,14 +2,15 @@
 
 import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { MessageSquareHeart } from "lucide-react";
+import { AlertCircle } from "lucide-react";
 import {
   PostInterviewFeedbackForm,
   type PostInterviewFeedbackPayload,
 } from "@/components/interview/post-interview-feedback-form";
 import { interviewApi } from "@/lib/api";
 import { getApiErrorMessage } from "@/lib/api-error-message";
+import { cn } from "@/lib/utils";
+import { appCardElevated } from "@/lib/app-theme";
 
 export default function PostInterviewFeedbackPage() {
   const params = useParams();
@@ -40,33 +41,36 @@ export default function PostInterviewFeedbackPage() {
   };
 
   return (
-    <div className="w-full flex justify-center py-6 sm:py-10 lg:py-12">
-      <Card className="w-full max-w-3xl border-2 border-border bg-card shadow-xl">
-        <CardHeader className="space-y-3 pb-2 text-left">
-          <div className="flex h-12 w-14 items-center justify-center rounded-xl bg-muted/30 text-primary">
-            <MessageSquareHeart className="h-6 w-6" aria-hidden />
-          </div>
-          <CardTitle className="text-2xl font-bold tracking-tight text-foreground">
-            Quick feedback
-          </CardTitle>
-          <CardDescription className="text-base text-muted-foreground leading-relaxed">
-            Please fill the feedback form to continue. Once submitted, we&apos;ll
-            generate your interview report.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="pt-2 pb-8">
-          {submitError && (
-            <p className="mb-4 text-sm text-red-600" role="alert">
-              {submitError}
+    <section className="px-4 py-5 sm:px-6 lg:px-8">
+      <div className="mx-auto w-full max-w-xl">
+        <div className={cn(appCardElevated, "overflow-hidden")}>
+          <div className="border-b border-border/60 px-5 py-4 sm:px-6">
+            <h1 className="text-lg font-semibold text-foreground">
+              How was your mock interview?
+            </h1>
+            <p className="mt-0.5 text-sm text-muted-foreground">
+              Quick feedback, then we&apos;ll generate your report.
             </p>
-          )}
-          <PostInterviewFeedbackForm
-            interviewId={interviewId}
-            onSubmitFeedback={handleFeedbackSubmit}
-            submitting={submitting}
-          />
-        </CardContent>
-      </Card>
-    </div>
+          </div>
+
+          <div className="px-5 py-4 sm:px-6">
+            {submitError && (
+              <div
+                className="mb-4 flex items-start gap-2 rounded-lg border border-red-200/80 bg-red-50/80 px-3 py-2 text-sm text-red-800 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-200"
+                role="alert"
+              >
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+                <p>{submitError}</p>
+              </div>
+            )}
+            <PostInterviewFeedbackForm
+              interviewId={interviewId}
+              onSubmitFeedback={handleFeedbackSubmit}
+              submitting={submitting}
+            />
+          </div>
+        </div>
+      </div>
+    </section>
   );
 }

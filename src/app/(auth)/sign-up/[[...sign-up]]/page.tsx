@@ -3,10 +3,32 @@
 import { SignUp } from "@clerk/nextjs";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+import { useSearchParams } from "next/navigation";
+import { useEffect } from "react";
 import { AuthCardLayout } from "@/components/app/AuthCardLayout";
 import { clerkAuthAppearance } from "@/lib/clerk-appearance";
+import {
+  persistPostAuthReturnPath,
+  resolvePostAuthRedirectPath,
+  safeAppRedirectPath,
+} from "@/lib/post-sign-in-redirect";
 
 export default function SignUpPage() {
+  const searchParams = useSearchParams();
+  const redirectUrl = safeAppRedirectPath(searchParams.get("redirect_url"));
+  const afterAuth = resolvePostAuthRedirectPath(redirectUrl);
+  const signInHref = redirectUrl
+    ? `/sign-in?redirect_url=${encodeURIComponent(redirectUrl)}`
+    : "/sign-in";
+
+  if (typeof window !== "undefined") {
+    persistPostAuthReturnPath(redirectUrl);
+  }
+
+  useEffect(() => {
+    persistPostAuthReturnPath(redirectUrl);
+  }, [redirectUrl]);
+
   return (
     <AuthCardLayout
       title="Get started free"
@@ -16,7 +38,7 @@ export default function SignUpPage() {
           <p>
             Already have an account?{" "}
             <Link
-              href="/sign-in"
+              href={signInHref}
               className="font-semibold text-primary hover:underline"
             >
               Sign in
@@ -35,7 +57,10 @@ export default function SignUpPage() {
       <SignUp
         routing="path"
         path="/sign-up"
-        afterSignUpUrl="/onboarding"
+        forceRedirectUrl={afterAuth}
+        fallbackRedirectUrl={afterAuth}
+        signInForceRedirectUrl={afterAuth}
+        signInFallbackRedirectUrl={afterAuth}
         appearance={clerkAuthAppearance}
       />
     </AuthCardLayout>

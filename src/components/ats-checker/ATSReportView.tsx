@@ -4,7 +4,10 @@ import { isATSReportV3 } from "@/types/atsReport";
 import type { ATSCheckId, ATSReportV3 } from "@/types/atsReport";
 import type { LegacyATSFeedback } from "@/lib/api";
 import { filterSuppressedChecks } from "@/lib/atsReportFilters";
-import { normalizeATSReportV3 } from "@/lib/atsReportNormalize";
+import {
+  applyPersistedJobMatchScore,
+  normalizeATSReportV3,
+} from "@/lib/atsReportNormalize";
 import { ATSReportDashboard } from "./ATSReportDashboard";
 import { ATSFeedback } from "@/components/ATSFeedback";
 import { ATSIssueMagicProvider } from "./ATSIssueMagicContext";
@@ -28,6 +31,8 @@ interface ATSReportViewProps {
   ) => void | Promise<void>;
   /** Narrow half-panel layout (resume editor) */
   embedded?: boolean;
+  /** Persisted sibling Job Match % — wins over any stale report.jobMatch */
+  jobMatchScore?: number | null;
 }
 
 export function ATSReportView({
@@ -42,16 +47,20 @@ export function ATSReportView({
   onApplyIssueFix,
   onIgnoreIssue,
   embedded = false,
+  jobMatchScore,
 }: ATSReportViewProps) {
   const filteredReport = useMemo(() => {
     if (!isATSReportV3(feedback)) return null;
 
-    let report = normalizeATSReportV3(feedback);
+    let report = applyPersistedJobMatchScore(
+      normalizeATSReportV3(feedback),
+      jobMatchScore,
+    );
     if (suppressedCheckIds?.length) {
       report = filterSuppressedChecks(report, suppressedCheckIds);
     }
     return report;
-  }, [feedback, suppressedCheckIds]);
+  }, [feedback, suppressedCheckIds, jobMatchScore]);
 
   if (filteredReport) {
     const dashboard = (

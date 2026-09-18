@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useDropzone } from "react-dropzone";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Upload,
   FileText,
@@ -14,13 +15,13 @@ import {
   Loader2,
   CheckCircle,
   Crown,
-  Globe,
   Target,
   Clock,
   ArrowLeft,
   ArrowRight,
   Coins,
   AlertCircle,
+  Briefcase,
   Check,
 } from "lucide-react";
 import {
@@ -30,6 +31,7 @@ import {
   User,
   type Resume,
 } from "@/lib/api";
+import { useDashboardInvalidation } from "@/hooks/useDashboardInvalidation";
 import {
   getActiveSavedResumeDisplay,
   hasActiveSavedResume,
@@ -54,22 +56,25 @@ import {
   appSurfaceMuted,
 } from "@/lib/app-theme";
 import { cn } from "@/lib/utils";
-
-const disciplineOptionsByDepartment: Record<
-  string,
-  Array<{ value: string; label: string }>
-> = {
-  engineering: [
-    { value: "cse", label: "CSE" },
-    { value: "it", label: "IT" },
-    { value: "mech", label: "Mechanical" },
-    { value: "civil", label: "Civil" },
-  ],
-  management: [
-    { value: "mba", label: "MBA" },
-    { value: "bba", label: "BBA" },
-  ],
-};
+import {
+  applyJobCaptureToInterviewForm,
+  mergeInterviewFormDefaults,
+} from "@/lib/interview-form-defaults";
+import {
+  clearPendingJobCapture,
+  loadPendingJobCaptureFor,
+  MIN_JOB_DESCRIPTION_CHARS,
+  normalizeCapturedJob,
+  type PendingJobCapture,
+} from "@/lib/extension-job-handoff";
+import { trimJobDescriptionForSend } from "@/lib/job-description-limits";
+import { voiceApi } from "@/lib/voiceApi";
+import { VoiceProviderSelect } from "@/components/interview/VoiceProviderSelect";
+import {
+  DEFAULT_VOICE_PROVIDER_OPTIONS,
+  resolveVoiceProviderForDuration,
+  type VoiceProviderOption,
+} from "@/lib/voiceProviders";
 
 const EXPERIENCE_OPTIONS = [
   { value: "0", label: "Fresher" },
@@ -78,11 +83,6 @@ const EXPERIENCE_OPTIONS = [
   { value: "3", label: "3 years" },
   { value: "4", label: "4 years" },
   { value: "5", label: "5+ years" },
-] as const;
-
-const LANGUAGE_OPTIONS = [
-  { value: "en", label: "English" },
-  { value: "hi", label: "Hindi" },
 ] as const;
 
 const DEPARTMENT_OPTIONS = [
@@ -97,27 +97,21 @@ const DEPARTMENT_OPTIONS = [
 const STEPS = [
   {
     number: 1,
-    title: "Role",
+    title: "Role & Background",
     icon: Target,
     headline: "What role are you preparing for?",
-    description: "We'll tailor questions to your target role and company.",
+    description:
+      "We'll tailor questions to your target role, experience, and job.",
   },
   {
     number: 2,
-    title: "Background",
-    icon: Globe,
-    headline: "Tell us about your background",
-    description: "Experience and language shape how the AI panel interviews you.",
-  },
-  {
-    number: 3,
     title: "Session",
     icon: Clock,
     headline: "Choose session length",
-    description: "Billed at 5 credits per minute.",
+    description: "Credits depend on the voice model you pick.",
   },
   {
-    number: 4,
+    number: 3,
     title: "Resume",
     icon: FileText,
     headline: "Add your resume",
@@ -134,6 +128,64 @@ function FieldError({ message }: { message: string }) {
       <AlertCircle className="h-3.5 w-3.5 shrink-0" />
       {message}
     </p>
+  );
+}
+
+function jobCaptureHeading(capture: PendingJobCapture): string {
+  const title = capture.title.trim();
+  const company = capture.company.trim();
+  if (title && company) return `Preparing for ${title} at ${company}`;
+  if (title) return `Preparing for ${title}`;
+  if (company) return `Preparing for a role at ${company}`;
+  return "Job description attached";
+}
+
+function JobCaptureBanner({
+  capture,
+  onDismiss,
+}: Readonly<{
+  capture: PendingJobCapture;
+  onDismiss: () => void;
+}>) {
+  return (
+    <div
+      className={cn(
+        appSurfaceMuted,
+        "mb-5 rounded-xl border border-border/60 p-3 sm:p-4",
+      )}
+    >
+      <div className="flex items-start gap-3">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#7367F0]/10 text-[#7367F0]">
+          <Briefcase className="h-4 w-4" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold text-foreground">
+            {jobCaptureHeading(capture)}
+          </p>
+          {capture.location ? (
+            <p className="mt-1 truncate text-xs text-muted-foreground">
+              {capture.location}
+            </p>
+          ) : null}
+          <details className="mt-2">
+            <summary className="cursor-pointer text-xs font-medium text-[#7367F0]">
+              View job description
+            </summary>
+            <p className="mt-2 max-h-40 overflow-y-auto whitespace-pre-wrap break-words text-xs text-muted-foreground">
+              {capture.jobDescription}
+            </p>
+          </details>
+        </div>
+        <button
+          type="button"
+          onClick={onDismiss}
+          className="shrink-0 rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+          aria-label="Remove job description"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -196,6 +248,7 @@ function ResumeOptionCard({
 export default function NewInterviewPage() {
   const { user, isLoaded } = useUser();
   const router = useRouter();
+  const { invalidate } = useDashboardInvalidation();
   const [loading, setLoading] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [userProfile, setUserProfile] = useState<User | null>(null);
@@ -205,17 +258,22 @@ export default function NewInterviewPage() {
   const [formData, setFormData] = useState({
     role: "",
     experience: "0",
-    language: "en",
     department: "",
-    discipline: "",
     targetCompany: "",
     duration: "15",
+    voiceProvider: "sarvam" as "gemini" | "chatgpt" | "sarvam",
   });
+  const [voiceProviderOptions, setVoiceProviderOptions] = useState<
+    VoiceProviderOption[]
+  >(DEFAULT_VOICE_PROVIDER_OPTIONS);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [limitCheck, setLimitCheck] = useState<any>(null);
   const [checkingLimit, setCheckingLimit] = useState(true);
   const [subscriptionPlan, setSubscriptionPlan] = useState("free");
   const [currentStep, setCurrentStep] = useState(1);
+  const [jobCapture, setJobCapture] = useState<PendingJobCapture | null>(null);
+  const [jobDescription, setJobDescription] = useState("");
+  const jobCaptureRef = useRef<PendingJobCapture | null>(null);
   const {
     canUse,
     showTrialUpsell,
@@ -234,8 +292,16 @@ export default function NewInterviewPage() {
       ]);
       setUserProfile(profile);
       setDefaultDesignedResume(designedDefault);
+      setFormData((prev) => {
+        const merged = mergeInterviewFormDefaults(prev, profile);
+        return jobCaptureRef.current
+          ? applyJobCaptureToInterviewForm(merged, jobCaptureRef.current)
+          : merged;
+      });
       if (hasActiveSavedResume(profile, designedDefault)) {
         setUseSavedResume(true);
+      } else {
+        setUseSavedResume(false);
       }
     } catch (error) {
       console.error("Error loading profile:", error);
@@ -304,6 +370,74 @@ export default function NewInterviewPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoaded, user]);
 
+  useEffect(() => {
+    void voiceApi
+      .listProviders()
+      .then(({ providers, defaultProvider }) => {
+        const enabled = providers.filter((p) => p.enabled);
+        if (enabled.length > 0) {
+          const nextOptions = enabled.map((p) => ({
+            id: p.id,
+            label: p.label,
+            creditsPerMinute: p.creditsPerMinute,
+            enabled: p.enabled,
+            beta: p.beta,
+            status: p.status,
+            isDefault: p.isDefault,
+            highlightTag: p.highlightTag,
+            highlightStyle: p.highlightStyle,
+            allowedDurations: p.allowedDurations,
+            decisionHint: p.decisionHint,
+          }));
+          setVoiceProviderOptions(nextOptions);
+          setFormData((prev) => ({
+            ...prev,
+            voiceProvider: resolveVoiceProviderForDuration(
+              defaultProvider,
+              nextOptions,
+              Number(prev.duration),
+              prev.voiceProvider,
+            ),
+          }));
+        }
+      })
+      .catch(() => {
+        /* keep local defaults if API unavailable */
+      });
+  }, []);
+
+  useEffect(() => {
+    const apply = (next: PendingJobCapture | null) => {
+      if (!next) return false;
+      const normalized = normalizeCapturedJob(next);
+      jobCaptureRef.current = normalized;
+      setJobCapture(normalized);
+      setJobDescription(normalized.jobDescription);
+      setFormData((prev) => applyJobCaptureToInterviewForm(prev, normalized));
+      return true;
+    };
+
+    if (apply(loadPendingJobCaptureFor("practice-interview"))) {
+      return;
+    }
+
+    let ticks = 0;
+    const timer = window.setInterval(() => {
+      ticks += 1;
+      if (apply(loadPendingJobCaptureFor("practice-interview")) || ticks >= 20) {
+        window.clearInterval(timer);
+      }
+    }, 150);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const dismissJobCapture = () => {
+    jobCaptureRef.current = null;
+    setJobCapture(null);
+    setJobDescription("");
+    clearPendingJobCapture();
+  };
+
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     accept: pdfResumeDropzoneAccept,
     maxSize: PDF_RESUME_MAX_BYTES,
@@ -352,13 +486,22 @@ export default function NewInterviewPage() {
       newErrors.role = "Role is required";
     }
 
-    if (step === 4) {
+    if (step === 3) {
       if (!useSavedResume && !uploadedFile) {
         newErrors.resume = "Please upload your resume or use saved resume";
       }
       if (useSavedResume && !savedResumeAvailable) {
         newErrors.resume =
           "No saved resume found. Set a default on your profile or upload a PDF.";
+      }
+      if (
+        useSavedResume &&
+        savedResumeAvailable &&
+        !userProfile?.resume?.s3Key &&
+        !defaultDesignedResume?.pdfS3Key
+      ) {
+        newErrors.resume =
+          "Generate a PDF of your default resume in the resume editor, then try again.";
       }
     }
 
@@ -374,7 +517,7 @@ export default function NewInterviewPage() {
 
     if (!validateStep(1) || !validateStep(4)) {
       if (!formData.role.trim()) setCurrentStep(1);
-      else setCurrentStep(4);
+      else setCurrentStep(3);
       return;
     }
 
@@ -389,7 +532,7 @@ export default function NewInterviewPage() {
       const response = await interviewApi.create(user.id, {
         role: formData.role,
         experience: parseInt(formData.experience),
-        language: formData.language as "en" | "hi",
+        language: "en",
         department: formData.department
           ? (formData.department as
               | "engineering"
@@ -400,23 +543,23 @@ export default function NewInterviewPage() {
               | "sales"
               | "general")
           : undefined,
-        discipline: formData.discipline
-          ? (formData.discipline as
-              | "cse"
-              | "it"
-              | "mech"
-              | "civil"
-              | "mba"
-              | "bba"
-              | "none")
-          : undefined,
         targetCompany: formData.targetCompany,
         resume: useSavedResume ? undefined : uploadedFile || undefined,
         useSavedResume:
           useSavedResume && savedResumeAvailable ? true : undefined,
         duration: parseInt(formData.duration),
+        jobDescription: (() => {
+          const jd = trimJobDescriptionForSend(jobDescription);
+          return jd.length >= MIN_JOB_DESCRIPTION_CHARS ? jd : undefined;
+        })(),
+        voiceProvider: formData.voiceProvider,
+        jobApplicationId: jobCaptureRef.current?.jobApplicationId,
       });
 
+      clearPendingJobCapture();
+      jobCaptureRef.current = null;
+      setJobCapture(null);
+      await invalidate(["interviews", "entitlements"]);
       router.push(`/interview/${response.data.interviewId}/realtime`);
     } catch (error: any) {
       console.error("Error creating interview:", error);
@@ -506,7 +649,14 @@ export default function NewInterviewPage() {
         </div>
 
         <form onSubmit={handleSubmit} className="px-5 py-6 sm:px-6">
+          {jobCapture && currentStep === 1 ? (
+            <JobCaptureBanner
+              capture={jobCapture}
+              onDismiss={dismissJobCapture}
+            />
+          ) : null}
           {currentStep === 1 ? (
+            <div className="space-y-4">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:items-start">
               <FormField label="Role you're applying for" htmlFor="role">
                 <JobRoleSelect
@@ -546,10 +696,7 @@ export default function NewInterviewPage() {
                 />
               </FormField>
             </div>
-          ) : null}
-
-          {currentStep === 2 ? (
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:items-start">
               <FormField label="Years of experience" htmlFor="experience">
                 <AppSelect
                   id="experience"
@@ -561,34 +708,13 @@ export default function NewInterviewPage() {
                   className={controlClass}
                 />
               </FormField>
-
-              <FormField label="Interview language" htmlFor="language">
-                <AppSelect
-                  id="language"
-                  value={formData.language}
-                  onChange={(value) =>
-                    setFormData({ ...formData, language: value })
-                  }
-                  options={LANGUAGE_OPTIONS}
-                  className={controlClass}
-                />
-              </FormField>
-
               <FormField label="Department" htmlFor="department" optional>
                 <AppSelect
                   id="department"
                   value={formData.department}
-                  onChange={(value) => {
-                    setFormData((prev) => ({
-                      ...prev,
-                      department: value,
-                      discipline: disciplineOptionsByDepartment[value]?.some(
-                        (option) => option.value === prev.discipline,
-                      )
-                        ? prev.discipline
-                        : "",
-                    }));
-                  }}
+                  onChange={(value) =>
+                    setFormData({ ...formData, department: value })
+                  }
                   options={DEPARTMENT_OPTIONS}
                   allowEmpty
                   emptyLabel="Not specified"
@@ -596,30 +722,36 @@ export default function NewInterviewPage() {
                   className={controlClass}
                 />
               </FormField>
-
-              <FormField label="Discipline" htmlFor="discipline" optional>
-                <AppSelect
-                  id="discipline"
-                  value={formData.discipline}
-                  onChange={(value) =>
-                    setFormData((prev) => ({ ...prev, discipline: value }))
-                  }
-                  options={
-                    disciplineOptionsByDepartment[formData.department] ?? []
-                  }
-                  disabled={!disciplineOptionsByDepartment[formData.department]}
-                  allowEmpty
-                  emptyLabel="Not specified"
-                  placeholder="Select discipline"
-                  className={controlClass}
-                />
-              </FormField>
+            </div>
+            <FormField
+              label="Job description"
+              htmlFor="jobDescription"
+              optional
+              hint="Paste the posting so questions match this role. At least 50 characters."
+            >
+              <Textarea
+                id="jobDescription"
+                value={jobDescription}
+                onChange={(e) => setJobDescription(e.target.value)}
+                rows={6}
+                placeholder="Paste the job description (optional)"
+                className="min-h-[140px] resize-y text-sm"
+              />
+              {jobDescription.trim() &&
+              jobDescription.trim().length < MIN_JOB_DESCRIPTION_CHARS ? (
+                <p className="text-xs text-amber-600 dark:text-amber-400">
+                  Add at least {MIN_JOB_DESCRIPTION_CHARS} characters to use
+                  this job description.
+                </p>
+              ) : null}
+            </FormField>
             </div>
           ) : null}
 
-          {currentStep === 3 ? (
-            <div className="flex flex-wrap justify-center gap-3 sm:justify-start">
-              {(["15", "30"] as const).map((duration) => {
+          {currentStep === 2 ? (
+            <div className="space-y-5">
+              <div className="flex flex-wrap justify-center gap-3 sm:justify-start">
+                {(["15", "30"] as const).map((duration) => {
                 const is30 = duration === "30";
                 const disabled = is30 && !canUse30Min;
                 const selected = formData.duration === duration;
@@ -628,7 +760,18 @@ export default function NewInterviewPage() {
                     key={duration}
                     type="button"
                     disabled={disabled}
-                    onClick={() => setFormData({ ...formData, duration })}
+                    onClick={() =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        duration,
+                        voiceProvider: resolveVoiceProviderForDuration(
+                          prev.voiceProvider,
+                          voiceProviderOptions,
+                          Number(duration),
+                          prev.voiceProvider,
+                        ),
+                      }))
+                    }
                     className={cn(
                       "relative flex min-w-[9rem] flex-col items-start rounded-xl border px-5 py-4 text-left transition-all",
                       selected
@@ -642,8 +785,8 @@ export default function NewInterviewPage() {
                     </span>
                     <span className="mt-1 text-xs text-muted-foreground">
                       {duration === "15"
-                        ? "Standard session · 75 credits"
-                        : "Extended depth · 150 credits"}
+                        ? "Standard session"
+                        : "Extended depth"}
                     </span>
                     {is30 && !canUse30Min ? (
                       <span className="mt-2 inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-300">
@@ -654,10 +797,27 @@ export default function NewInterviewPage() {
                   </button>
                 );
               })}
+              </div>
+
+              <FormField label="Voice AI model" htmlFor="voiceProvider">
+                <VoiceProviderSelect
+                  id="voiceProvider"
+                  value={formData.voiceProvider}
+                  onChange={(value) =>
+                    setFormData({
+                      ...formData,
+                      voiceProvider: value,
+                    })
+                  }
+                  options={voiceProviderOptions}
+                  durationMinutes={Number(formData.duration)}
+                  className={cn(controlClass, "h-auto min-h-11 py-1.5 sm:min-h-12")}
+                />
+              </FormField>
             </div>
           ) : null}
 
-          {currentStep === 4 ? (
+          {currentStep === 3 ? (
             <div className="space-y-3">
               {savedResumeAvailable && activeSavedResume ? (
                 <ResumeOptionCard
@@ -799,10 +959,8 @@ export default function NewInterviewPage() {
 
       <div className={cn(appSurfaceMuted, "px-4 py-3.5 text-center sm:px-5")}>
         <p className="text-xs leading-relaxed text-muted-foreground sm:text-sm">
-          Sessions use{" "}
-          <span className="font-medium text-foreground">5 credits/min</span>.
-          Wrap cleanly to unlock transcripts, scores, and discussion coaching in
-          your report.
+          Credits follow the voice model you pick. Wrap cleanly to unlock
+          transcripts, scores, and discussion coaching in your report.
         </p>
       </div>
     </div>
@@ -923,7 +1081,7 @@ export default function NewInterviewPage() {
                 <span className="font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">
                   {limitCheck.creditsAvailable || 0}
                 </span>{" "}
-                credits available · 5 credits/min
+                credits available
               </p>
             </div>
           </div>

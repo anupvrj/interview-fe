@@ -1,12 +1,16 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Check, Minus } from "lucide-react";
 import {
   COMPARISON_ROWS,
   PLAN_COLUMN_LABELS,
+  withLivePlanComparison,
   type ComparisonCell,
   type PaidPlanId,
 } from "@/lib/pricingPageContent";
+import { planApi } from "@/lib/api";
+import type { PlanRecord } from "@/lib/planRecord";
 import { cn } from "@/lib/utils";
 import { appCard } from "@/lib/app-theme";
 
@@ -38,9 +42,53 @@ function CellValue({ value }: { value: ComparisonCell }) {
   return <span className="text-sm text-foreground">{value}</span>;
 }
 
-const COLUMNS: PaidPlanId[] = ["general_pass", "tech_basic", "tech_pro"];
+type CompareColumn = {
+  planId: string;
+  label: string;
+  popular: boolean;
+};
+
+function columnsFromPlans(plans: PlanRecord[]): CompareColumn[] {
+  return [...plans]
+    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+    .map((plan) => ({
+      planId: plan.planId,
+      label:
+        plan.displayName ||
+        PLAN_COLUMN_LABELS[plan.planId as PaidPlanId] ||
+        plan.name,
+      popular: Boolean(plan.isPopular),
+    }));
+}
 
 export function PricingComparisonTable() {
+  const [rows, setRows] = useState(COMPARISON_ROWS);
+  const [columns, setColumns] = useState<CompareColumn[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    planApi
+      .getAllPlans()
+      .then((plans) => {
+        if (cancelled) return;
+        setColumns(columnsFromPlans(plans));
+        setRows(withLivePlanComparison(plans));
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setColumns([]);
+          setRows(COMPARISON_ROWS);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  if (columns.length === 0) {
+    return null;
+  }
+
   return (
     <div className={cn(appCard, "overflow-hidden shadow-header")}>
       <div className="overflow-x-auto">
@@ -50,21 +98,21 @@ export function PricingComparisonTable() {
               <th className="px-4 py-4 text-sm font-semibold text-foreground sm:px-6">
                 Platform feature
               </th>
-              {COLUMNS.map((col) => (
+              {columns.map((col) => (
                 <th
-                  key={col}
+                  key={col.planId}
                   className={cn(
                     "px-4 py-4 text-center text-sm font-semibold sm:px-6",
-                    col === "tech_pro" && "bg-primary/5 text-primary",
+                    col.popular && "bg-primary/5 text-primary",
                   )}
                 >
-                  {PLAN_COLUMN_LABELS[col]}
+                  {col.label}
                 </th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {COMPARISON_ROWS.map((row, idx) => (
+            {rows.map((row, idx) => (
               <tr
                 key={row.feature}
                 className={cn(
@@ -75,15 +123,15 @@ export function PricingComparisonTable() {
                 <td className="px-4 py-3.5 text-sm font-medium text-foreground sm:px-6">
                   {row.feature}
                 </td>
-                {COLUMNS.map((col) => (
+                {columns.map((col) => (
                   <td
-                    key={col}
+                    key={col.planId}
                     className={cn(
                       "px-4 py-3.5 text-center sm:px-6",
-                      col === "tech_pro" && "bg-primary/[0.03]",
+                      col.popular && "bg-primary/[0.03]",
                     )}
                   >
-                    <CellValue value={row[col]} />
+                    <CellValue value={row[col.planId] ?? "—"} />
                   </td>
                 ))}
               </tr>

@@ -11,6 +11,18 @@ const nextConfig = {
   },
   images: {
     domains: ["img.clerk.com"],
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "interview-trix-public.s3.ap-south-1.amazonaws.com",
+        pathname: "/blog/**",
+      },
+      {
+        protocol: "https",
+        hostname: "*.cloudfront.net",
+        pathname: "/blog/**",
+      },
+    ],
   },
   env: {
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
@@ -20,6 +32,20 @@ const nextConfig = {
     NEXT_PUBLIC_VIDEO_CDN_BASE: process.env.NEXT_PUBLIC_VIDEO_CDN_BASE ?? "",
     /** Exposes Vercel deployment type to the client (preview vs production). */
     NEXT_PUBLIC_VERCEL_ENV: process.env.VERCEL_ENV ?? "",
+  },
+  async redirects() {
+    return [
+      {
+        source: "/dashboard/super-admin",
+        destination: "/super-admin",
+        permanent: true,
+      },
+      {
+        source: "/dashboard/super-admin/:path*",
+        destination: "/super-admin/:path*",
+        permanent: true,
+      },
+    ];
   },
   async headers() {
     return [

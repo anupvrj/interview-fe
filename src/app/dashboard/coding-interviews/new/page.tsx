@@ -31,6 +31,7 @@ import {
   User,
   type Resume,
 } from "@/lib/api";
+import { useDashboardInvalidation } from "@/hooks/useDashboardInvalidation";
 import {
   getActiveSavedResumeDisplay,
   hasActiveSavedResume,
@@ -51,6 +52,7 @@ import {
   appSurfaceMuted,
 } from "@/lib/app-theme";
 import { cn } from "@/lib/utils";
+import { mergeInterviewFormDefaults } from "@/lib/interview-form-defaults";
 import { UpgradeUpsellDialog } from "@/components/upsell/UpgradeUpsellDialog";
 import { TrialUpsellDialog } from "@/components/upsell/TrialUpsellDialog";
 import { useUpsellState } from "@/components/upsell/useUpsellState";
@@ -80,11 +82,6 @@ const EXPERIENCE_OPTIONS = [
   { value: "5", label: "5+ years" },
 ] as const;
 
-const LANGUAGE_OPTIONS = [
-  { value: "en", label: "English" },
-  { value: "hi", label: "Hindi" },
-] as const;
-
 const DEPARTMENT_OPTIONS = [
   { value: "engineering", label: "Engineering" },
   { value: "management", label: "Management" },
@@ -107,7 +104,7 @@ const STEPS = [
     title: "Background",
     icon: Globe,
     headline: "Tell us about your background",
-    description: "Experience and language shape the coding problems you receive.",
+    description: "Experience and background shape the coding problems you receive.",
   },
   {
     number: 3,
@@ -189,6 +186,7 @@ function ResumeOptionCard({
 export default function NewCodingInterviewPage() {
   const { user, isLoaded } = useUser();
   const router = useRouter();
+  const { invalidate } = useDashboardInvalidation();
   const [loading, setLoading] = useState(false);
   const [userProfile, setUserProfile] = useState<User | null>(null);
   const [defaultDesignedResume, setDefaultDesignedResume] =
@@ -201,7 +199,6 @@ export default function NewCodingInterviewPage() {
   const [formData, setFormData] = useState({
     role: "",
     experience: "0",
-    language: "en",
     department: "",
     discipline: "",
     targetCompany: "",
@@ -220,6 +217,7 @@ export default function NewCodingInterviewPage() {
       ]);
       setUserProfile(profile);
       setDefaultDesignedResume(designedDefault);
+      setFormData((prev) => mergeInterviewFormDefaults(prev, profile));
       if (hasActiveSavedResume(profile, designedDefault)) {
         setUseSavedResume(true);
       } else {
@@ -375,7 +373,7 @@ export default function NewCodingInterviewPage() {
       const res = await codingInterviewApi.create(user.id, {
         role: formData.role.trim(),
         experience: Number.parseInt(formData.experience, 10) || 0,
-        language: formData.language as "en" | "hi",
+        language: "en",
         department: formData.department
           ? (formData.department as
               | "engineering"
@@ -401,6 +399,7 @@ export default function NewCodingInterviewPage() {
         useSavedResume:
           useSavedResume && savedResumeAvailable ? true : undefined,
       });
+      await invalidate(["codingInterviews", "entitlements"]);
       router.push(
         `/dashboard/coding-interviews/${res.data.interviewId}?autostart=1`,
       );
@@ -544,18 +543,6 @@ export default function NewCodingInterviewPage() {
                     setFormData({ ...formData, experience: value })
                   }
                   options={EXPERIENCE_OPTIONS}
-                  className={controlClass}
-                />
-              </FormField>
-
-              <FormField label="Interview language" htmlFor="language">
-                <AppSelect
-                  id="language"
-                  value={formData.language}
-                  onChange={(value) =>
-                    setFormData({ ...formData, language: value })
-                  }
-                  options={LANGUAGE_OPTIONS}
                   className={controlClass}
                 />
               </FormField>

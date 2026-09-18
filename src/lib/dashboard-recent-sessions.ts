@@ -8,6 +8,7 @@ import { getProblemById } from "@/lib/systemDesignProblems";
 import {
   interviewRoundLabel,
   isCodingPracticeInterview,
+  isStartedInterview,
 } from "@/lib/interview-kind";
 import { formatDate } from "@/lib/utils";
 
@@ -149,11 +150,12 @@ function mapAiInterview(interview: Interview): DashboardRecentSessionRow {
 function mapSystemDesignSession(
   session: SystemDesignSession,
 ): DashboardRecentSessionRow {
-  const title = getProblemById(session.problemId)?.title ?? "System Design";
-  const detailsHref =
+  const title = getProblemById(session.problemId)?.title ?? session.problemId;
+  const sessionHref = `/dashboard/system-design/${session.sessionId}`;
+  const reportHref =
     session.status === "completed"
-      ? `/dashboard/system-design/${session.sessionId}`
-      : `/dashboard/system-design/${session.sessionId}`;
+      ? `/dashboard/system-design/${session.sessionId}/report`
+      : undefined;
   return {
     key: `sd-${session.sessionId}`,
     kind: "systemDesign",
@@ -163,17 +165,13 @@ function mapSystemDesignSession(
     score: systemDesignScore(session),
     status: session.status === "completed" ? "completed" : "active",
     sortAt: session.completedAt ?? session.createdAt,
-    reportHref:
-      session.status === "completed"
-        ? `/dashboard/system-design/${session.sessionId}/report`
-        : undefined,
-    detailsHref,
-    continueHref:
-      session.status === "active"
-        ? `/dashboard/system-design/${session.sessionId}`
-        : undefined,
+    reportHref,
+    detailsHref: reportHref ?? sessionHref,
+    continueHref: session.status === "active" ? sessionHref : undefined,
     systemDesignSessionId: session.sessionId,
-    canPlayRecording: Boolean(session.recordingS3Key),
+    canPlayRecording: Boolean(
+      session.recordingS3Key || session.recordingVideoUrl,
+    ),
   };
 }
 
@@ -216,7 +214,7 @@ export function buildDashboardRecentSessions(input: {
   peerBookings: PeerBooking[];
 }): DashboardRecentSessionRow[] {
   const rows: DashboardRecentSessionRow[] = [
-    ...input.interviews.map(mapAiInterview),
+    ...input.interviews.filter(isStartedInterview).map(mapAiInterview),
     ...input.systemDesignSessions.map(mapSystemDesignSession),
     ...input.peerBookings.map((booking) => mapPeerBooking(booking)),
   ];
@@ -253,7 +251,7 @@ export function buildPeerHistorySessionRows(
 ): DashboardRecentSessionRow[] {
   return bookings
     .map((booking) => {
-      const row = mapPeerBooking(booking);
+      const row = mapPeerBooking(booking, typeNames);
       const typeLabel =
         typeNames[booking.interviewType] ||
         booking.interviewType.replace(/_/g, " ");

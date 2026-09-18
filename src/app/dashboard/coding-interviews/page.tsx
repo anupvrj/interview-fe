@@ -34,13 +34,16 @@ import {
   Terminal,
 } from "lucide-react";
 import { toast } from "sonner";
-import { codingInterviewApi, interviewApi, Interview } from "@/lib/api";
+import { codingInterviewApi, interviewApi } from "@/lib/api";
+import { useCodingInterviewsQuery } from "@/hooks/queries/useCodingInterviewsQuery";
+import { useDashboardInvalidation } from "@/hooks/useDashboardInvalidation";
 import { cn, sumInterviewCreditsUsed } from "@/lib/utils";
 import { institutePrimaryClass } from "@/components/institute/InstituteChrome";
 import { appHeroBullet, appHeroCaption } from "@/lib/app-theme";
 import { CodingRoundHeroPreview } from "@/components/coding-interviews/CodingRoundHeroPreview";
 import { DashboardStatCard } from "@/components/dashboard/DashboardStatCard";
 import { RecentInterviewsList } from "@/components/dashboard/RecentInterviewsList";
+import { isStartedInterview } from "@/lib/interview-kind";
 import { PracticeSessionGateDialogs } from "@/components/upsell/PracticeSessionGateDialogs";
 import { PracticeLockedGate } from "@/components/upsell/PracticeLockedGate";
 import { usePracticeSessionGate } from "@/components/upsell/usePracticeSessionGate";
@@ -49,8 +52,12 @@ const ITEMS_PER_PAGE = 10;
 
 export default function CodingInterviewsPage() {
   const { user, isLoaded } = useUser();
-  const [rows, setRows] = useState<Interview[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: listedRows = [], isLoading: loading } = useCodingInterviewsQuery();
+  const rows = useMemo(
+    () => listedRows.filter(isStartedInterview),
+    [listedRows],
+  );
+  const { invalidate } = useDashboardInvalidation();
   const [currentPage, setCurrentPage] = useState(1);
   const [videoUnavailableOpen, setVideoUnavailableOpen] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
@@ -64,23 +71,9 @@ export default function CodingInterviewsPage() {
     ...practiceGate
   } = usePracticeSessionGate();
 
-  const refreshRows = async () => {
-    try {
-      const data = await codingInterviewApi.listMine();
-      setRows(data);
-    } catch {
-      setRows([]);
-    }
-  };
-
   useEffect(() => {
     if (!isLoaded || !user) return;
     localStorage.setItem("clerk-user-id", user.id);
-    codingInterviewApi
-      .listMine()
-      .then(setRows)
-      .catch(() => setRows([]))
-      .finally(() => setLoading(false));
   }, [isLoaded, user]);
 
   const handleConfirmDelete = async () => {
@@ -90,7 +83,7 @@ export default function CodingInterviewsPage() {
       await interviewApi.deleteDraftOrActive(deleteConfirmId);
       toast.success("Session deleted");
       setDeleteConfirmId(null);
-      await refreshRows();
+      await invalidate(["codingInterviews", "entitlements"]);
     } catch (e: unknown) {
       const msg =
         (e as { response?: { data?: { message?: string } } })?.response?.data

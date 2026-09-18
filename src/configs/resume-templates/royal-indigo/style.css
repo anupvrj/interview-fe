@@ -22,7 +22,7 @@
 }
 
 .royal-indigo-name {
-  font-size: 30px !important;
+  font-size: var(--resume-heading-font-size, 30px) !important;
   font-weight: 700 !important;
   color: #5b3fa0 !important;
   letter-spacing: 1px;
@@ -37,7 +37,7 @@
 }
 
 .royal-indigo-contact {
-  font-size: 11px !important;
+  font-size: var(--resume-small-font-size, 11px) !important;
   font-weight: 400 !important;
   color: #1f2937 !important;
   text-align: center !important;
@@ -66,7 +66,7 @@
 .royal-indigo-section-header,
 .royal-indigo-template h2[data-section-header],
 .royal-indigo-template h2 {
-  font-size: 13px !important;
+  font-size: var(--resume-section-header-font-size, 13px) !important;
   font-weight: 700 !important;
   font-style: normal !important;
   text-transform: uppercase;
@@ -86,7 +86,7 @@
 }
 
 .royal-indigo-summary {
-  font-size: 11px;
+  font-size: var(--resume-body-font-size, 11px);
   font-weight: 400;
   line-height: 1.5;
   color: #1f2937;
@@ -118,14 +118,14 @@
 .royal-indigo-job-title-exp,
 .royal-indigo-company,
 .royal-indigo-degree {
-  font-size: 12px !important;
+  font-size: var(--resume-degree-font-size, 12px) !important;
   font-weight: 700 !important;
   color: #1f2937 !important;
   font-style: normal !important;
 }
 
 .royal-indigo-company {
-  font-size: 12px !important;
+  font-size: var(--resume-body-font-size, 12px) !important;
 }
 
 .royal-indigo-title-separator {
@@ -143,21 +143,21 @@
 
 .royal-indigo-job-date,
 .royal-indigo-education-date {
-  font-size: 11px !important;
+  font-size: var(--resume-small-font-size, 11px) !important;
   font-weight: 700 !important;
   color: #1f2937 !important;
   line-height: 1.3;
 }
 
 .royal-indigo-institution {
-  font-size: 11px;
+  font-size: var(--resume-body-font-size, 11px);
   font-weight: 400;
   color: #1f2937;
   margin-bottom: 3px;
 }
 
 .royal-indigo-description {
-  font-size: 11px;
+  font-size: var(--resume-body-font-size, 11px);
   font-weight: 400;
   line-height: 1.5;
   color: #1f2937;
@@ -181,14 +181,14 @@
 }
 
 .royal-indigo-project-subtitle {
-  font-size: 12px !important;
+  font-size: var(--resume-degree-font-size, 12px) !important;
   font-weight: 700 !important;
   color: #1f2937 !important;
 }
 
 /* ── Skills list ── */
 .royal-indigo-skills-list {
-  font-size: 11px;
+  font-size: var(--resume-body-font-size, 11px);
   font-weight: 400;
   line-height: 1.5;
   color: #1f2937;

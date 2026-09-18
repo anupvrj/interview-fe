@@ -1,0 +1,42 @@
+/* Visible blank-line / paragraph gaps (Medium-style spacing) */
+
+.ProseMirror.blog-editor.prose .blog-paragraph-gap,
+.blog-prose.prose .blog-paragraph-gap {
+  display: block;
+  height: 1.35em;
+  min-height: 1.35em;
+  margin-top: 0;
+  margin-bottom: 0;
+  padding: 0;
+  line-height: 0;
+  overflow: hidden;
+}
+
+.ProseMirror.blog-editor .blog-paragraph-gap br,
+.blog-prose .blog-paragraph-gap br {
+  display: none;
+}
+
+/* Fallback for legacy empty paragraphs without spacer class */
+.ProseMirror.blog-editor p:empty,
+.blog-prose p:empty {
+  display: block;
+  min-height: 1.35em;
+  margin: 0;
+}
+
+.ProseMirror.blog-editor p:empty::before,
+.blog-prose p:empty::before {
+  content: "\00a0";
+  visibility: hidden;
+}
+
+/* Extra breathing room after headings before body text */
+.blog-prose h1 + p:not(.blog-paragraph-gap),
+.blog-prose h2 + p:not(.blog-paragraph-gap),
+.blog-prose h3 + p:not(.blog-paragraph-gap),
+.ProseMirror.blog-editor h1 + p:not(.blog-paragraph-gap),
+.ProseMirror.blog-editor h2 + p:not(.blog-paragraph-gap),
+.ProseMirror.blog-editor h3 + p:not(.blog-paragraph-gap) {
+  margin-top: 0.25em;
+}

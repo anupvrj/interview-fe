@@ -52,7 +52,7 @@ export default function PricingPage() {
             "container mx-auto max-w-6xl scroll-mt-28 px-4 pb-16 pt-0",
           )}
         >
-          <PricingPlansBlock showHeading={false} paidOnly />
+          <PricingPlansBlock showHeading={false} />
           <p className="mt-8 text-center text-sm text-muted-foreground">
             Are you looking for Enterprise solutions?{" "}
             <Link

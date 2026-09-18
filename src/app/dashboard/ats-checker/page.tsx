@@ -6,6 +6,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowRight, Lock, RefreshCw, RotateCcw, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { isATSReportV3, resumeApi } from "@/lib/api";
+import { applyPersistedJobMatchScore } from "@/lib/atsReportNormalize";
+import { insightsFromAtsReport } from "@/lib/ats-insights";
 import { useEntitlements } from "@/hooks/useEntitlements";
 import { TrialUpsellDialog } from "@/components/upsell/TrialUpsellDialog";
 import { UpgradeUpsellDialog } from "@/components/upsell/UpgradeUpsellDialog";
@@ -69,7 +71,12 @@ function DashboardATSCheckerContent() {
     try {
       const resume = await resumeApi.get(id);
       if (resume.atsFeedback && isATSReportV3(resume.atsFeedback)) {
-        setReport(resume.atsFeedback);
+        setReport(
+          applyPersistedJobMatchScore(
+            resume.atsFeedback,
+            resume.jobMatchScore,
+          ),
+        );
         setResumeId(id);
         setJobDescription(resume.atsScoringContext?.lastJobDescription || "");
         setStep("results");
@@ -198,12 +205,20 @@ function DashboardATSCheckerContent() {
     }, 3500);
 
     try {
+      const jdForOptimize =
+        jobDescription.trim().length > 50 ? jobDescription.trim() : undefined;
       const updated = await resumeApi.improveFromATS(resumeId, {
-        jobDescription: jobDescription.trim().length > 50 ? jobDescription : undefined,
+        jobDescription: jdForOptimize,
+        matchInsights: report ? insightsFromAtsReport(report) : undefined,
       });
       setCurrentTemplateId(updated.templateId);
       if (updated.atsFeedback && isATSReportV3(updated.atsFeedback)) {
-        setReport(updated.atsFeedback);
+        setReport(
+          applyPersistedJobMatchScore(
+            updated.atsFeedback,
+            updated.jobMatchScore,
+          ),
+        );
       }
       setImproveStep(ATS_IMPROVE_STEPS.length - 1);
       setStep("template");

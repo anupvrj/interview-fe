@@ -10,12 +10,11 @@ import {
   useState,
 } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { isAxiosError } from "axios";
 import { useUser } from "@clerk/nextjs";
 import {
   systemDesignApi,
+  type SystemDesignProblemDetail,
   type SystemDesignSession,
-  type SystemDesignChatMessage,
 } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import {
@@ -28,28 +27,33 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
+import { invalidateAfterSystemDesignSessionFromStorage } from "@/lib/invalidate-queries";
 import {
   ChevronDown,
   ChevronUp,
   Loader2,
   MessageCircle,
-  MessagesSquare,
   Mic,
   MicOff,
-  Send,
   Trophy,
   Video,
   Wand2,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
-import { getProblemById } from "@/lib/systemDesignProblems";
 import {
   SystemDesignVoiceClient,
   type SystemDesignVoiceDiagramBridge,
   type SystemDesignVoiceSessionHandle,
 } from "@/components/system-design/SystemDesignVoiceClient";
+import { HorizontalResizeHandle } from "@/components/layout/HorizontalResizeHandle";
+import {
+  HORIZONTAL_SPLITTER_PX,
+  useHorizontalPaneResize,
+} from "@/hooks/useHorizontalPaneResize";
+import { useMediaMinWidth } from "@/hooks/useMediaMinWidth";
 import { useSystemDesignSessionRecording } from "@/hooks/useSystemDesignSessionRecording";
+import { useWorkspaceRowWidth } from "@/hooks/useWorkspaceRowWidth";
 
 // Dynamically import Excalidraw (no SSR)
 const ExcalidrawBoard = dynamic(
@@ -64,11 +68,66 @@ const ExcalidrawBoard = dynamic(
   },
 );
 
-const HINT_PROMPTS = [
-  "I'm not sure, could you give me a hint?",
-  "Could you clarify the question?",
-  "Let me think out loud...",
-];
+function looksLikeHtml(text: string): boolean {
+  return /<[a-z][\s\S]*>/i.test(text);
+}
+
+function RequirementList({
+  title,
+  items,
+  dotClass,
+}: {
+  readonly title: string;
+  readonly items: string[];
+  readonly dotClass: string;
+}) {
+  if (!items.length) return null;
+  return (
+    <div>
+      <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+        {title}
+      </p>
+      <ul className="space-y-1">
+        {items.map((r) => (
+          <li
+            key={r}
+            className="flex items-start gap-1.5 text-xs text-gray-300"
+          >
+            <span
+              className={cn("mt-1 h-1 w-1 shrink-0 rounded-full", dotClass)}
+            />
+            {r}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function ProblemScenario({ scenario }: { readonly scenario: string }) {
+  if (!scenario.trim()) {
+    return (
+      <p className="text-xs italic text-gray-500">No scenario text available.</p>
+    );
+  }
+  if (looksLikeHtml(scenario)) {
+    return (
+      <div
+        className="prose prose-invert prose-sm max-w-none text-xs leading-relaxed text-gray-300 [&_li]:text-gray-300 [&_p]:text-gray-300"
+        dangerouslySetInnerHTML={{ __html: scenario }}
+      />
+    );
+  }
+  return (
+    <p className="whitespace-pre-wrap text-xs leading-relaxed text-gray-300">
+      {scenario}
+    </p>
+  );
+}
+
+const SD_SIDEBAR_MIN_PX = 280;
+const SD_WHITEBOARD_MIN_PX = 400;
+const SD_SIDEBAR_DEFAULT_PX = 380;
 
 const SCREEN_RECORD_DISPLAY_OPTIONS = {
   video: {
@@ -120,48 +179,6 @@ function useInterviewElapsed(
   return `${mm}:${ss}`;
 }
 
-function ChatBubble({ msg }: { msg: SystemDesignChatMessage }) {
-  const isUser = msg.role === "user";
-  return (
-    <div className={cn("flex gap-2.5", isUser && "flex-row-reverse")}>
-      <div
-        className={cn(
-          "flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold",
-          isUser ? "bg-violet-600/80 text-white" : "bg-card/10 text-gray-300",
-        )}
-      >
-        {isUser ? "You" : "AI"}
-      </div>
-      <div
-        className={cn(
-          "max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed",
-          isUser
-            ? "rounded-tr-none bg-violet-600/80 text-white"
-            : "rounded-tl-none bg-card/[0.08] text-gray-200",
-        )}
-      >
-        {msg.content.split("\n").map((line, i) => {
-          const boldReplaced = line.split(/\*\*(.*?)\*\*/g).map((part, j) =>
-            j % 2 === 1 ? (
-              <strong key={j} className="font-semibold">
-                {part}
-              </strong>
-            ) : (
-              part
-            ),
-          );
-          return (
-            <span key={i}>
-              {boldReplaced}
-              {i < msg.content.split("\n").length - 1 && <br />}
-            </span>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
 export default function SystemDesignSessionPage() {
   const params = useParams<{ sessionId: string | string[] }>();
   const sessionId =
@@ -191,11 +208,9 @@ export default function SystemDesignSessionPage() {
   const { user, isLoaded } = useUser();
 
   const [session, setSession] = useState<SystemDesignSession | null>(null);
+  const [problem, setProblem] = useState<SystemDesignProblemDetail | null>(null);
+  const [problemLoading, setProblemLoading] = useState(false);
   const [loading, setLoading] = useState(true);
-
-  const [messages, setMessages] = useState<SystemDesignChatMessage[]>([]);
-  const [inputText, setInputText] = useState("");
-  const [chatBusy, setChatBusy] = useState(false);
 
   const [evaluating, setEvaluating] = useState(false);
   const [finalizing, setFinalizing] = useState(false);
@@ -207,21 +222,39 @@ export default function SystemDesignSessionPage() {
   const [leavePageConfirmOpen, setLeavePageConfirmOpen] = useState(false);
   const [recordingStarting, setRecordingStarting] = useState(false);
   const [preStartLeaveOpen, setPreStartLeaveOpen] = useState(false);
-  const [textChatPanelOpen, setTextChatPanelOpen] = useState(false);
 
-  const chatEndRef = useRef<HTMLDivElement>(null);
   const exportFnRef = useRef<(() => Promise<string | null>) | null>(null);
   const voiceDiagramBridgeRef = useRef<SystemDesignVoiceDiagramBridge | null>(
     null,
   );
   const voiceSessionRef = useRef<SystemDesignVoiceSessionHandle>(null);
+  const workspaceRowRef = useRef<HTMLDivElement>(null);
+
+  const isXlWorkspace = useMediaMinWidth(1280);
+  const workspaceRowWidthPx = useWorkspaceRowWidth(workspaceRowRef, !loading);
+
+  const getMaxSidebarWidth = useCallback(() => {
+    const rowW =
+      workspaceRowWidthPx > 0
+        ? workspaceRowWidthPx
+        : typeof window !== "undefined"
+          ? window.innerWidth
+          : 1280;
+    return Math.max(
+      SD_SIDEBAR_MIN_PX,
+      rowW - SD_WHITEBOARD_MIN_PX - HORIZONTAL_SPLITTER_PX,
+    );
+  }, [workspaceRowWidthPx]);
+
+  const sidebarResize = useHorizontalPaneResize({
+    storageKey: sessionId ? `sd-sidebar-w-${sessionId}` : undefined,
+    defaultWidth: SD_SIDEBAR_DEFAULT_PX,
+    minWidth: SD_SIDEBAR_MIN_PX,
+    getMaxWidth: getMaxSidebarWidth,
+    enabled: isXlWorkspace,
+  });
 
   const timer = useInterviewElapsed(voiceDiagramReady, loading, finalized);
-
-  const problem = useMemo(
-    () => (session ? getProblemById(session.problemId) : null),
-    [session],
-  );
 
   const recordingStarted = Boolean(session?.recordingPhaseStartedAt);
 
@@ -250,7 +283,6 @@ export default function SystemDesignSessionPage() {
       .getSession(sessionId)
       .then((s) => {
         setSession(s);
-        setMessages(s.chatHistory ?? []);
         if (s.status === "completed") setFinalized(true);
       })
       .catch(() => toast.error("Session not found"))
@@ -258,52 +290,20 @@ export default function SystemDesignSessionPage() {
   }, [isLoaded, user, sessionId]);
 
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
-
-  const sendMessage = useCallback(
-    async (text: string) => {
-      const trimmed = text.trim();
-      if (!trimmed || chatBusy || finalized) return;
-      setMessages((prev) => [
-        ...prev,
-        { role: "user", content: trimmed, timestamp: new Date().toISOString() },
-      ]);
-      setInputText("");
-      setChatBusy(true);
-      try {
-        const reply = await systemDesignApi.chat(sessionId, trimmed);
-        setMessages((prev) => [
-          ...prev,
-          {
-            role: "assistant",
-            content: reply,
-            timestamp: new Date().toISOString(),
-          },
-        ]);
-      } catch (e: unknown) {
-        setMessages((prev) =>
-          prev.at(-1)?.role === "user" ? prev.slice(0, -1) : prev,
-        );
-        setInputText(trimmed);
-        let msg = "Could not send message. Please try again.";
-        if (isAxiosError(e)) {
-          const body = e.response?.data as { message?: unknown } | undefined;
-          const m = body?.message;
-          if (typeof m === "string" && m.trim()) msg = m.trim();
-          else if (e.code === "ECONNABORTED") msg = "Request timed out — try again.";
-          else if (e.message?.toLowerCase().includes("network")) msg = "Network error — check your connection.";
-          else if (e.response?.status === 413) msg = "Message too long — try shortening it.";
-          else if (e.response?.status === 503 || e.response?.status === 502)
-            msg = "Service unavailable — try again in a moment.";
-        }
-        toast.error(msg);
-      } finally {
-        setChatBusy(false);
-      }
-    },
-    [sessionId, chatBusy, finalized],
-  );
+    if (!session?.problemId) {
+      setProblem(null);
+      return;
+    }
+    setProblemLoading(true);
+    systemDesignApi
+      .getProblem(session.problemId)
+      .then(setProblem)
+      .catch(() => {
+        setProblem(null);
+        toast.error("Could not load problem details");
+      })
+      .finally(() => setProblemLoading(false));
+  }, [session?.problemId]);
 
   const handleGetFeedback = useCallback(async () => {
     if (evaluating || finalized) return;
@@ -491,6 +491,7 @@ export default function SystemDesignSessionPage() {
       setEndInterviewConfirmOpen(false);
       setFinalizing(false);
       toast.success("Session completed! Your score is ready.");
+      await invalidateAfterSystemDesignSessionFromStorage();
       router.push(reportHref);
     } catch {
       toast.error("Could not finalize session. Please try again.");
@@ -504,6 +505,30 @@ export default function SystemDesignSessionPage() {
     router,
     reportHref,
   ]);
+
+  /**
+   * Backend force-ended the interview (e.g. candidate inactivity). It already
+   * finalized + scored the session, so we only stop/upload the recording and
+   * navigate — no client finalize (the backend guard makes it safe regardless).
+   */
+  const handleForceEnd = useCallback(
+    (reason: string) => {
+      if (finalized) return;
+      setFinalized(true);
+      setEndInterviewConfirmOpen(false);
+      void stopMediaRecorderAndUpload().catch((e) =>
+        console.warn("Recording stop on force-end:", e),
+      );
+      toast.info(
+        reason === "inactivity"
+          ? "Interview ended — no activity detected. Your report is ready."
+          : "Interview ended. Your report is ready.",
+      );
+      void invalidateAfterSystemDesignSessionFromStorage();
+      router.push(reportHref);
+    },
+    [finalized, stopMediaRecorderAndUpload, router, reportHref],
+  );
 
   const openLeaveSessionDialog = useCallback(() => {
     setEndInterviewConfirmOpen(false);
@@ -522,6 +547,24 @@ export default function SystemDesignSessionPage() {
     return () => window.removeEventListener("beforeunload", onBeforeUnload);
   }, [isLoaded, loading, session, finalized, recordingStarted]);
 
+  /**
+   * Browser back button / trackpad swipe-back: `beforeunload` does NOT fire for
+   * SPA history navigation, so guard `popstate` too. We keep a sentinel entry on
+   * the stack; each back attempt re-pushes it (so the interview page stays) and
+   * opens the end-interview confirmation instead of silently leaving.
+   */
+  useEffect(() => {
+    if (!isLoaded || loading || !session || finalized || !recordingStarted)
+      return undefined;
+    window.history.pushState(null, "", window.location.href);
+    const onPopState = () => {
+      window.history.pushState(null, "", window.location.href);
+      setEndInterviewConfirmOpen(true);
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, [isLoaded, loading, session, finalized, recordingStarted]);
+
   const leaveToSessions = useCallback(() => {
     void (async () => {
       try {
@@ -529,6 +572,7 @@ export default function SystemDesignSessionPage() {
       } catch {
         /* still leave */
       }
+      await invalidateAfterSystemDesignSessionFromStorage();
       router.push("/dashboard/system-design");
     })();
   }, [router, stopMediaRecorderAndUpload]);
@@ -651,7 +695,7 @@ export default function SystemDesignSessionPage() {
                 }
                 title={
                   !recordingStarted
-                    ? "Start interview from the sidebar (camera + screen) first"
+                    ? "Start interview on the whiteboard (camera + screen) first"
                     : voiceDiagramReady
                       ? undefined
                       : "Start New Session in the AI Interviewer panel first"
@@ -691,34 +735,21 @@ export default function SystemDesignSessionPage() {
       ) : null}
 
       {/* ─── Workspace ──────────────────────────────────────────── */}
-      <div className="flex min-h-0 flex-1 overflow-hidden">
+      <div
+        ref={workspaceRowRef}
+        className="flex min-h-0 flex-1 overflow-hidden"
+      >
         {/* ── Left panel: camera + problem fill height; score when finalized ── */}
-        <aside className="flex min-h-0 w-[clamp(300px,min(420px,40vw),440px)] shrink-0 flex-col overflow-hidden border-r border-white/10 bg-card/[0.03]">
+        <aside
+          className={cn(
+            "flex min-h-0 shrink-0 flex-col overflow-hidden bg-card/[0.03]",
+            isXlWorkspace
+              ? "border-r-0"
+              : "w-[clamp(300px,min(420px,40vw),440px)] border-r border-white/10",
+          )}
+          style={isXlWorkspace ? { width: sidebarResize.widthPx } : undefined}
+        >
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-            {!finalized && !recordingStarted ? (
-              <div className="shrink-0 space-y-2 border-b border-violet-500/35 bg-violet-950/35 px-3 py-3">
-                <p className="text-[11px] leading-snug text-gray-300">
-                  Allow camera, mic, and screen when prompted — then tap Start
-                  interview.
-                </p>
-                <Button
-                  type="button"
-                  size="sm"
-                  className="h-10 w-full rounded-xl bg-gradient-to-r from-violet-600 to-primary text-sm font-semibold text-white shadow-md hover:from-violet-700 hover:bg-slate-900 disabled:opacity-60"
-                  disabled={recordingStarting}
-                  onClick={() => void handleStartPracticeSession()}
-                >
-                  {recordingStarting ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Starting…
-                    </>
-                  ) : (
-                    "Start interview"
-                  )}
-                </Button>
-              </div>
-            ) : null}
             <div className="shrink-0 border-b border-white/10 px-2.5 py-1.5 sm:px-3">
               {/* Camera + AI Interviewer side by side */}
               <div className="flex flex-row items-stretch gap-2.5 sm:gap-3">
@@ -817,7 +848,7 @@ export default function SystemDesignSessionPage() {
                     {!cameraReady
                       ? "Allow camera and microphone when your browser asks."
                       : !recordingStarted
-                        ? "Preview ready — start interview above when you’re ready to record."
+                        ? "Preview ready — start interview on the whiteboard when you’re ready."
                         : "Ensure your camera and mic stay enabled for the interview."}
                   </p>
                 </section>
@@ -843,6 +874,7 @@ export default function SystemDesignSessionPage() {
                       }
                       diagramBridgeRef={voiceDiagramBridgeRef}
                       onDiagramChannelReady={setVoiceDiagramReady}
+                      onForceEnd={handleForceEnd}
                       reuseMicStreamRef={mediaStreamRef}
                       compact
                       className="flex min-h-0 w-full flex-1 flex-col"
@@ -868,45 +900,52 @@ export default function SystemDesignSessionPage() {
                   <ChevronDown className="h-3.5 w-3.5 shrink-0 text-gray-400" />
                 )}
               </button>
-              {problemOpen && problem && (
+              {problemOpen && (
                 <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain border-t border-white/[0.06] px-4 pb-3 pt-3 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-card/[0.12] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent">
-                  <div className="space-y-3">
-                    <p className="text-xs leading-relaxed text-gray-300">
-                      {problem.scenario}
+                  {problemLoading ? (
+                    <div className="flex items-center gap-2 py-4 text-xs text-gray-400">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Loading problem…
+                    </div>
+                  ) : problem ? (
+                    <div className="space-y-3">
+                      {problem.shortTitle ? (
+                        <p className="text-[11px] font-medium text-violet-300/90">
+                          {problem.shortTitle}
+                        </p>
+                      ) : null}
+                      <ProblemScenario scenario={problem.scenario} />
+                      <RequirementList
+                        title="Core Requirements"
+                        items={problem.coreRequirements}
+                        dotClass="bg-violet-400"
+                      />
+                      <RequirementList
+                        title="Scale Requirements"
+                        items={problem.scaleRequirements}
+                        dotClass="bg-primary/80"
+                      />
+                      <RequirementList
+                        title="Considerations"
+                        items={problem.considerations}
+                        dotClass="bg-amber-400/90"
+                      />
+                      <RequirementList
+                        title="Out of scope (functional)"
+                        items={problem.outOfScopeFunctional ?? []}
+                        dotClass="bg-gray-500"
+                      />
+                      <RequirementList
+                        title="Out of scope (non-functional)"
+                        items={problem.outOfScopeNonFunctional ?? []}
+                        dotClass="bg-gray-500"
+                      />
+                    </div>
+                  ) : (
+                    <p className="py-4 text-xs text-gray-500">
+                      Problem details unavailable.
                     </p>
-                    <div>
-                      <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-400">
-                        Core Requirements
-                      </p>
-                      <ul className="space-y-1">
-                        {problem.coreRequirements.map((r) => (
-                          <li
-                            key={r}
-                            className="flex items-start gap-1.5 text-xs text-gray-300"
-                          >
-                            <span className="mt-1 h-1 w-1 shrink-0 rounded-full bg-violet-400" />
-                            {r}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                    <div>
-                      <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-400">
-                        Scale Requirements
-                      </p>
-                      <ul className="space-y-1">
-                        {problem.scaleRequirements.map((r) => (
-                          <li
-                            key={r}
-                            className="flex items-start gap-1.5 text-xs text-gray-300"
-                          >
-                            <span className="mt-1 h-1 w-1 shrink-0 rounded-full bg-primary/80" />
-                            {r}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  </div>
+                  )}
                 </div>
               )}
             </div>
@@ -976,135 +1015,91 @@ export default function SystemDesignSessionPage() {
           </div>
         </aside>
 
+        {isXlWorkspace ? (
+          <HorizontalResizeHandle
+            label="Drag to resize problem panel and whiteboard"
+            {...sidebarResize.handleProps}
+          />
+        ) : null}
+
         {/* ── Right panel (whiteboard) ── */}
-        <main className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-          <div className="min-h-0 flex-1 overflow-hidden">
+        <main className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden xl:min-w-[400px]">
+          <div className="relative min-h-0 flex-1 overflow-hidden">
             <ExcalidrawBoard
               sessionId={sessionId}
               initialSnapshotJson={session.whiteboardSnapshot ?? null}
               onExportRef={(fn) => {
                 exportFnRef.current = fn;
               }}
+              onActivity={() => {
+                voiceDiagramBridgeRef.current?.sendWhiteboardActivity();
+              }}
               readOnly={
                 finalized ||
-                (recordingStarted && !voiceDiagramReady)
+                !recordingStarted ||
+                !voiceDiagramReady
+              }
+              viewModeEnabled={
+                finalized || (recordingStarted && !voiceDiagramReady)
+              }
+              overlay={
+                !finalized && !recordingStarted ? (
+                  <>
+                    <p className="pointer-events-none mb-4 text-[11px] font-semibold uppercase tracking-[0.14em] text-black">
+                      Your whiteboard
+                    </p>
+                    <div className="pointer-events-auto relative z-[3] w-full max-w-md overflow-hidden rounded-2xl border border-violet-400/50 px-6 py-8 text-center shadow-2xl shadow-black/50">
+                      <div
+                        aria-hidden
+                        className="absolute inset-0 bg-gradient-to-br from-[#0f172a] via-[#1e1b4b] to-[#0f172a]"
+                      />
+                      <div
+                        aria-hidden
+                        className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(115,103,240,0.22)_0%,_transparent_55%)]"
+                      />
+                      <div className="relative flex flex-col items-center gap-5">
+                        <p className="text-sm leading-relaxed text-gray-200 sm:text-base">
+                          Allow camera, mic, and screen when prompted — then tap{" "}
+                          <span className="font-semibold text-white">
+                            Start interview
+                          </span>
+                          .
+                        </p>
+                        <Button
+                          type="button"
+                          size="lg"
+                          className="h-11 min-w-[12rem] rounded-xl bg-gradient-to-r from-violet-600 to-primary px-8 text-sm font-semibold text-white shadow-lg shadow-violet-900/40 hover:from-violet-700 hover:to-violet-600 disabled:opacity-60"
+                          disabled={recordingStarting}
+                          onClick={() => void handleStartPracticeSession()}
+                        >
+                          {recordingStarting ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Starting…
+                            </>
+                          ) : (
+                            "Start interview"
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                  </>
+                ) : undefined
               }
             />
           </div>
 
           {/* Bottom: canvas status only (actions live in header) */}
-          {!finalized && (
+          {!finalized && recordingStarted ? (
             <div className="flex shrink-0 justify-center border-t border-white/10 bg-[#0b1220]/90 px-4 py-2.5">
               <div className="flex items-center gap-1.5 text-xs text-gray-400">
                 <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-green-400" />
-                {!recordingStarted
-                  ? "Sketch on the canvas — start interview in the sidebar when you’re ready."
-                  : voiceDiagramReady
-                    ? "Canvas auto-saved · resume anytime"
-                    : "Tap Start New Session in the AI Interviewer panel to unlock voice-linked edits"}
+                {voiceDiagramReady
+                  ? "Canvas auto-saved · resume anytime"
+                  : "Tap Start New Session in the AI Interviewer panel to unlock voice-linked edits"}
               </div>
             </div>
-          )}
-
-          {!finalized && (
-            <>
-              {textChatPanelOpen ? (
-                <button
-                  type="button"
-                  aria-label="Close text chat"
-                  className="absolute inset-0 z-[60] bg-black/20"
-                  onClick={() => setTextChatPanelOpen(false)}
-                />
-              ) : null}
-              <div className="pointer-events-none absolute bottom-[5.5rem] left-4 z-[70] flex max-w-[min(384px,calc(100%-2rem))] flex-col-reverse items-start gap-2 sm:left-5">
-                <Button
-                  type="button"
-                  size="icon"
-                  title={textChatPanelOpen ? "Hide text chat" : "Text chat"}
-                  aria-expanded={textChatPanelOpen}
-                  aria-label="Text chat"
-                  className="pointer-events-auto h-12 w-12 shrink-0 rounded-full border border-white/15 bg-violet-600 text-white shadow-lg shadow-black/30 hover:bg-violet-500"
-                  onClick={() => setTextChatPanelOpen((o) => !o)}
-                >
-                  <MessagesSquare className="h-6 w-6" aria-hidden />
-                </Button>
-
-                {textChatPanelOpen ? (
-                  <div className="pointer-events-auto flex max-h-[min(420px,calc(100vh-12rem))] w-[min(384px,calc(100vw-2rem))] flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#0b1220] shadow-2xl shadow-black/50">
-                    <div className="flex shrink-0 items-center justify-between border-b border-white/10 px-3 py-2">
-                      <span className="text-xs font-semibold uppercase tracking-wide text-gray-300">
-                        Text chat
-                      </span>
-                      <button
-                        type="button"
-                        aria-label="Close"
-                        className="rounded-lg p-1 text-gray-400 transition-colors hover:bg-card/10 hover:text-white"
-                        onClick={() => setTextChatPanelOpen(false)}
-                      >
-                        <X className="h-4 w-4" aria-hidden />
-                      </button>
-                    </div>
-                    <div className="min-h-[120px] flex-1 overflow-y-auto overscroll-contain px-3 py-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-card/[0.12] [&::-webkit-scrollbar]:w-1.5">
-                      <div className="space-y-3 py-1">
-                        {messages.map((m, i) => (
-                          <ChatBubble key={i} msg={m} />
-                        ))}
-                        {chatBusy && (
-                          <div className="flex items-center gap-2 text-xs text-gray-400">
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                            AI is thinking…
-                          </div>
-                        )}
-                        <div ref={chatEndRef} />
-                      </div>
-                    </div>
-                    <div className="shrink-0 border-t border-white/10 px-3 py-2 space-y-1.5">
-                      {HINT_PROMPTS.map((p) => (
-                        <button
-                          key={p}
-                          type="button"
-                          disabled={chatBusy}
-                          onClick={() => void sendMessage(p)}
-                          className="w-full rounded-lg border border-white/10 bg-card/[0.04] px-2.5 py-1.5 text-left text-[11px] text-gray-300 transition-colors hover:bg-card/[0.08] disabled:opacity-50"
-                        >
-                          {p}
-                        </button>
-                      ))}
-                    </div>
-                    <div className="shrink-0 border-t border-white/10 px-3 py-2.5">
-                      <div className="flex items-end gap-2 rounded-xl border border-white/10 bg-card/[0.05] px-2.5 py-2 focus-within:border-violet-500/50">
-                        <textarea
-                          className="max-h-24 min-h-[2.5rem] flex-1 resize-none bg-transparent text-sm text-white placeholder-gray-500 focus:outline-none"
-                          placeholder="Message the AI interviewer…"
-                          rows={2}
-                          value={inputText}
-                          disabled={chatBusy}
-                          onChange={(e) => setInputText(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter" && !e.shiftKey) {
-                              e.preventDefault();
-                              void sendMessage(inputText);
-                            }
-                          }}
-                        />
-                        <button
-                          type="button"
-                          disabled={chatBusy || !inputText.trim()}
-                          onClick={() => void sendMessage(inputText)}
-                          className="mb-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-violet-600 text-white transition-colors hover:bg-violet-500 disabled:opacity-40"
-                        >
-                          <Send className="h-4 w-4" />
-                        </button>
-                      </div>
-                      <p className="mt-1 text-[10px] text-gray-400">
-                        Enter sends · Shift+Enter newline
-                      </p>
-                    </div>
-                  </div>
-                ) : null}
-              </div>
-            </>
-          )}
+          ) : null}
 
           {finalized && (
             <div className="flex shrink-0 items-center justify-center gap-3 border-t border-white/10 bg-[#0b1220]/90 px-5 py-3">

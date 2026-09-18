@@ -95,7 +95,7 @@ export function filterJobRoleSuggestions(
   const roles = industryName?.trim()
     ? getRolesForIndustry(industryName)
     : getAllJobRoles();
-  const trimmed = query.trim().toLowerCase();
+  const trimmed = (query ?? "").trim().toLowerCase();
   const pool = trimmed
     ? roles.filter((role) => role.toLowerCase().includes(trimmed))
     : roles;

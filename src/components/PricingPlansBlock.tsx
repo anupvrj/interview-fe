@@ -21,10 +21,7 @@ import {
   getMarketingPlanIcon,
 } from "@/lib/planMarketingDisplay";
 import { ContactSalesDialog } from "@/components/ContactSalesDialog";
-import {
-  COMING_SOON_PLAN_FEATURES,
-  isPaidPlanId,
-} from "@/lib/pricingPageContent";
+import { COMING_SOON_PLAN_FEATURES } from "@/lib/pricingPageContent";
 import { cn } from "@/lib/utils";
 
 const COMING_SOON_SUFFIX = /\s*\(Coming soon\)\s*$/i;
@@ -77,12 +74,8 @@ function UpcomingSectionLabel() {
   );
 }
 
-function buildDisplayRows(plans: PlanRecord[], paidOnly: boolean) {
-  const filtered = plans
-    .filter((p) => p.planId !== "free")
-    .filter((p) => (paidOnly ? isPaidPlanId(p.planId) : p.planId !== "enterprise"));
-
-  return filtered.map((p) => {
+function buildDisplayRows(plans: PlanRecord[]) {
+  return plans.map((p) => {
     const isEnterprise = p.planId === "enterprise";
     const isFree = p.planId === "free";
     const priceLabel = isEnterprise
@@ -98,10 +91,9 @@ function buildDisplayRows(plans: PlanRecord[], paidOnly: boolean) {
     const highlights = rawHighlights.filter(
       (line) => !/^\d[\d,]*\s*credits?\b/i.test(line.trim()),
     );
-    const comingSoonHighlights =
-      p.metadata?.comingSoonHighlights?.length
-        ? p.metadata.comingSoonHighlights
-        : [...COMING_SOON_PLAN_FEATURES];
+    const comingSoonHighlights = Array.isArray(p.metadata?.comingSoonHighlights)
+      ? p.metadata.comingSoonHighlights
+      : [...COMING_SOON_PLAN_FEATURES];
     return {
       id: p.planId,
       plan: p,
@@ -178,8 +170,6 @@ function PlanCreditsBadge({
 export type PricingPlansBlockProps = {
   showHeading?: boolean;
   showViewAllPlansLink?: boolean;
-  /** Show only General Pass, Tech Basic, Tech Pro (pricing page) */
-  paidOnly?: boolean;
   /** Compact card style for homepage */
   compact?: boolean;
   /** Renewal flow — CTA copy and auto-renew footnote */
@@ -190,7 +180,6 @@ export type PricingPlansBlockProps = {
 export function PricingPlansBlock({
   showHeading = true,
   showViewAllPlansLink = false,
-  paidOnly = false,
   compact = false,
   renewalMode = false,
   showAutoRenewNote = false,
@@ -231,7 +220,7 @@ export function PricingPlansBlock({
     };
   }, []);
 
-  const rows = buildDisplayRows(plans, paidOnly);
+  const rows = buildDisplayRows(plans);
 
   const handleChoosePlan = async (planId: string) => {
     if (!isLoaded) return;
@@ -327,9 +316,10 @@ export function PricingPlansBlock({
         <div
           className={cn(
             "grid gap-6 sm:gap-8",
-            paidOnly || rows.length === 3
-              ? "md:grid-cols-2 lg:grid-cols-3"
-              : "sm:grid-cols-2 lg:grid-cols-3",
+            rows.length <= 1 && "mx-auto max-w-md",
+            rows.length === 2 && "md:grid-cols-2",
+            rows.length === 3 && "md:grid-cols-2 lg:grid-cols-3",
+            rows.length >= 4 && "md:grid-cols-2 xl:grid-cols-4",
           )}
         >
           {rows.map((row) => {

@@ -1,6 +1,13 @@
 /**
  * Build a single MediaStream for coding-session recording: screen video + mixed audio * (tab/system audio from screen capture if present + microphone).
  */
+export function supportsDisplayMediaCapture(): boolean {
+  return (
+    typeof navigator !== "undefined" &&
+    typeof navigator.mediaDevices?.getDisplayMedia === "function"
+  );
+}
+
 export function pickRecorderMimeType(): string {
   const preferred = "video/webm;codecs=vp8,opus";
   if (typeof MediaRecorder !== "undefined" && MediaRecorder.isTypeSupported(preferred)) {

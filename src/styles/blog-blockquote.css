@@ -1,0 +1,45 @@
+/* Medium-style block quotes for blog editor + published posts */
+
+.ProseMirror.blog-editor blockquote,
+.blog-prose blockquote {
+  border-left: 3px solid hsl(var(--foreground) / 0.82);
+  padding: 0.2rem 0 0.2rem 1.25rem;
+  margin: 1.75rem 0;
+  font-style: normal;
+  font-weight: 400;
+  quotes: none;
+  color: hsl(var(--foreground) / 0.88);
+}
+
+.ProseMirror.blog-editor blockquote {
+  font-size: 1.25rem;
+  line-height: 1.58;
+}
+
+.blog-prose blockquote {
+  font-size: clamp(1.125rem, 2.5vw, 1.5rem);
+  line-height: 1.6;
+}
+
+.ProseMirror.blog-editor blockquote p,
+.blog-prose blockquote p {
+  margin: 0;
+}
+
+.ProseMirror.blog-editor blockquote p + p,
+.blog-prose blockquote p + p {
+  margin-top: 0.875rem;
+}
+
+/* Override tailwind typography defaults (italic + decorative quote marks) */
+.ProseMirror.blog-editor.prose blockquote,
+.blog-prose.prose blockquote {
+  font-style: normal;
+}
+
+.ProseMirror.blog-editor.prose blockquote p:first-of-type::before,
+.ProseMirror.blog-editor.prose blockquote p:last-of-type::after,
+.blog-prose.prose blockquote p:first-of-type::before,
+.blog-prose.prose blockquote p:last-of-type::after {
+  content: none;
+}

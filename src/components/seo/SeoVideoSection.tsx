@@ -2,7 +2,6 @@
 
 import { cn } from "@/lib/utils";
 import type { MarketingVideoContent } from "@/lib/seo/marketing-video-content";
-import { SeoVideoJsonLd } from "./SeoVideoJsonLd";
 import { SeoVideoPlayer } from "./SeoVideoPlayer";
 
 export type SeoVideoSectionProps = Readonly<{
@@ -15,7 +14,6 @@ export type SeoVideoSectionProps = Readonly<{
   loop?: boolean;
   muted?: boolean;
   controls?: boolean;
-  captionsUrl?: string;
   children?: React.ReactNode;
 }>;
 
@@ -27,7 +25,6 @@ export function SeoVideoSection({
   loop = false,
   muted = false,
   controls = false,
-  captionsUrl,
   children,
 }: SeoVideoSectionProps) {
   const headingId = `${content.id}-heading`;
@@ -36,31 +33,7 @@ export function SeoVideoSection({
     <section
       className={cn("min-w-0", className)}
       aria-labelledby={headingId}
-      itemScope
-      itemType="https://schema.org/VideoObject"
     >
-      <SeoVideoJsonLd
-        id={content.id}
-        name={content.name}
-        description={content.description}
-        thumbnailUrl={content.thumbnailUrl}
-        uploadDate={content.uploadDate}
-        videoUrl={content.videoUrl}
-        embedUrl={content.embedUrl}
-        transcript={content.transcript}
-        duration={content.duration}
-        captionsUrl={captionsUrl ?? content.captionsUrl}
-      />
-
-      <meta itemProp="name" content={content.name} />
-      <meta itemProp="description" content={content.description} />
-      <meta itemProp="contentUrl" content={content.videoUrl} />
-      <meta itemProp="embedUrl" content={content.embedUrl} />
-      <meta itemProp="uploadDate" content={content.uploadDate} />
-      {content.duration ? (
-        <meta itemProp="duration" content={content.duration} />
-      ) : null}
-
       <h2 id={headingId} className="sr-only">
         {content.name}
       </h2>
@@ -77,9 +50,6 @@ export function SeoVideoSection({
       >
         {children}
       </SeoVideoPlayer>
-
-      {/* Transcript in JSON-LD + meta only — not shown in the UI. */}
-      <meta itemProp="transcript" content={content.transcript} />
     </section>
   );
 }

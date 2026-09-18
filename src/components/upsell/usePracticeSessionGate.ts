@@ -31,8 +31,13 @@ type PendingAction = {
 
 export function usePracticeSessionGate() {
   const router = useRouter();
-  const { canUse, showTrialUpsell, data, loading: entitlementsLoading } =
-    useUpsellState();
+  const {
+    canUse,
+    showTrialUpsell,
+    data,
+    loading: entitlementsLoading,
+    getUpgradeTarget,
+  } = useUpsellState();
   const {
     open: subscriptionExpiredOpen,
     setOpen: setSubscriptionExpiredOpen,
@@ -102,8 +107,9 @@ export function usePracticeSessionGate() {
     showTrialUpsell,
     blockedType,
     upgradeTargetPlan:
-      blockedType === "coding" || blockedType === "system_design"
+      getUpgradeTarget(FEATURE_BY_TYPE[blockedType])?.plan ??
+      (blockedType === "coding" || blockedType === "system_design"
         ? ("tech_basic" as const)
-        : ("general_pass" as const),
+        : ("general_pass" as const)),
   };
 }

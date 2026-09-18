@@ -22,7 +22,7 @@
 }
 
 .classic-name {
-  font-size: 28px;
+  font-size: var(--resume-heading-font-size, 28px);
   font-weight: 700;
   color: #000000;
   margin-bottom: 4px;
@@ -31,7 +31,7 @@
 
 .classic-job-title {
   font-style: italic !important;
-  font-size: 14px !important;
+  font-size: var(--resume-subheading-font-size, 14px) !important;
 
   color: #000000;
   margin-bottom: 12px;
@@ -44,7 +44,7 @@
   flex-wrap: wrap;
   column-gap: 16px;
   row-gap: 4px;
-  font-size: 10.5px;
+  font-size: var(--resume-small-font-size, 10.5px);
   color: #000000;
   margin-top: 8px;
 }
@@ -63,7 +63,7 @@
 
 /* Section Header Styles */
 .classic-section-header {
-  font-size: 11px;
+  font-size: var(--resume-section-header-font-size, 11px);
   font-weight: 700;
   text-transform: uppercase;
   text-align: left;
@@ -77,7 +77,7 @@
 
 /* Profile Summary */
 .classic-summary, .classic-description {
-  font-size: 10.5px;
+  font-size: var(--resume-body-font-size, 10.5px);
   line-height: 1.4;
   color: #000000;
   margin-bottom: 10px;
@@ -98,27 +98,27 @@
 }
 
 .classic-job-title-exp, .classic-degree {
-  font-size: 10.5px;
+  font-size: var(--resume-degree-font-size, 10.5px);
   font-weight: 700;
   color: #000000;
 }
 
 .classic-job-date, .classic-education-date {
-  font-size: 10.5px;
+  font-size: var(--resume-small-font-size, 10.5px);
   color: #000000;
   font-style: normal;
   font-weight: 400;
 }
 
 .classic-company, .classic-institution {
-  font-size: 10.5px;
+  font-size: var(--resume-body-font-size, 10.5px);
   color: #000000;
   margin-bottom: 4px;
   font-style: italic;
 }
 
 .classic-location, .classic-education-location {
-  font-size: 10.5px;
+  font-size: var(--resume-small-font-size, 10.5px);
   color: #000000;
   font-style: normal;
 }
@@ -135,7 +135,7 @@
 
 /* Skills Styles */
 .classic-skills-list {
-  font-size: 10.5px;
+  font-size: var(--resume-body-font-size, 10.5px);
   color: #000000;
   line-height: 1.6;
 }
@@ -170,7 +170,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 10.5px;
+  font-size: var(--resume-body-font-size, 10.5px);
   color: #000000;
 }
 
@@ -196,14 +196,14 @@
 }
 
 .classic-award-name {
-  font-size: 10.5px;
+  font-size: var(--resume-degree-font-size, 10.5px);
   font-weight: 700;
   color: #000000;
   margin-bottom: 1px;
 }
 
 .classic-award-issuer {
-  font-size: 10.5px;
+  font-size: var(--resume-small-font-size, 10.5px);
   color: #000000;
   font-style: italic;
 }

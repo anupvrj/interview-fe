@@ -13,7 +13,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { ProfileMenu } from "@/components/app/ProfileMenu";
 import { useActiveRole } from "@/components/roles/ActiveRoleProvider";
 import { RoleSwitcher } from "@/components/roles/RoleSwitcher";
-import { isPathAllowedForRole, roleHome, type ActiveRole } from "@/lib/roles";
+import { isPathAllowedForRole, roleHome, roleRequiredForPath, type ActiveRole } from "@/lib/roles";
 import {
   appNavIconWrap,
   appNavItemActive,
@@ -23,6 +23,7 @@ import {
 } from "@/lib/app-theme";
 import {
   filterNavByActiveRole,
+  filterNavByFeatures,
   getDashboardNavItems,
   withPeerNavItems,
   withRecruiterNavItems,
@@ -33,7 +34,10 @@ import { SubscriptionPendingBanner } from "@/components/SubscriptionPendingBanne
 import { TrialUpsellDialog, type TrialUpsellVariant } from "@/components/upsell/TrialUpsellDialog";
 import { useUpsellState } from "@/components/upsell/useUpsellState";
 import { useEntitlements } from "@/hooks/useEntitlements";
+import { usePlatformFeatures } from "@/hooks/usePlatformFeatures";
+import { FeatureRouteGuard } from "@/components/features/FeatureRouteGuard";
 import { POST_ONBOARDING_TRIAL_OFFER_KEY } from "@/lib/trialFeatures";
+import { isFeatureVisibleForActiveRole } from "@/lib/platform-features";
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -86,20 +90,6 @@ function isPeerInterviewsNavPath(pathname: string | null): boolean {
   return true;
 }
 
-function isSuperAdminPeerInterviewersPath(pathname: string | null): boolean {
-  return (
-    pathname?.startsWith("/dashboard/super-admin/peer-interviewers") ?? false
-  );
-}
-
-function isSuperAdminPeerBookingsPath(pathname: string | null): boolean {
-  return pathname?.startsWith("/dashboard/super-admin/peer-bookings") ?? false;
-}
-
-function isSuperAdminIxRecruitersPath(pathname: string | null): boolean {
-  return pathname?.startsWith("/dashboard/super-admin/ix-recruiters") ?? false;
-}
-
 function isRecruiterDashboardNavPath(pathname: string | null): boolean {
   return pathname === "/dashboard/ix-recruiter";
 }
@@ -117,21 +107,6 @@ function isRecruiterApplyNavPath(pathname: string | null): boolean {
   return (
     pathname === "/dashboard/ix-recruiter/apply" ||
     pathname.startsWith("/dashboard/ix-recruiter/apply/")
-  );
-}
-
-function isSuperAdminHomePath(pathname: string | null): boolean {
-  if (!pathname) return false;
-  if (
-    isSuperAdminPeerInterviewersPath(pathname) ||
-    isSuperAdminPeerBookingsPath(pathname) ||
-    isSuperAdminIxRecruitersPath(pathname)
-  ) {
-    return false;
-  }
-  return (
-    pathname === "/dashboard/super-admin" ||
-    pathname.startsWith("/dashboard/super-admin/")
   );
 }
 
@@ -191,18 +166,6 @@ function resolveNavActive(
         (pathname?.startsWith("/dashboard/peer-interviews/bookings/") ??
           false));
   }
-  if (item.href === "/dashboard/super-admin") {
-    isActive = isSuperAdminHomePath(pathname);
-  }
-  if (item.href === "/dashboard/super-admin/peer-interviewers") {
-    isActive = isSuperAdminPeerInterviewersPath(pathname);
-  }
-  if (item.href === "/dashboard/super-admin/peer-bookings") {
-    isActive = isSuperAdminPeerBookingsPath(pathname);
-  }
-  if (item.href === "/dashboard/super-admin/ix-recruiters") {
-    isActive = isSuperAdminIxRecruitersPath(pathname);
-  }
   if (item.href === "/dashboard/ix-recruiter") {
     isActive = isRecruiterDashboardNavPath(pathname);
   }
@@ -214,6 +177,17 @@ function resolveNavActive(
   }
   if (item.href === "/dashboard/ix-recruiter/apply") {
     isActive = isRecruiterApplyNavPath(pathname);
+  }
+  if (item.href === "/dashboard/profile") {
+    isActive =
+      pathname === "/dashboard/profile" ||
+      (Boolean(pathname?.startsWith("/dashboard/profile/")) &&
+        !pathname?.startsWith("/dashboard/profile/connectors"));
+  }
+  if (item.href === "/dashboard/profile/connectors") {
+    isActive =
+      pathname === "/dashboard/profile/connectors" ||
+      Boolean(pathname?.startsWith("/dashboard/profile/connectors/"));
   }
   return isActive;
 }
@@ -242,7 +216,9 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const [trialPromoVariant, setTrialPromoVariant] =
     useState<TrialUpsellVariant>("dashboard_promo");
   const [skipDelayedTrialPromo, setSkipDelayedTrialPromo] = useState(false);
-  const { canUse, refresh: refreshEntitlements } = useEntitlements();
+  const { canUse, canUsePlatformFeature, refresh: refreshEntitlements } =
+    useEntitlements();
+  const { isNavHrefVisible, matchPath, byKey } = usePlatformFeatures();
   const {
     shouldShowTrialPromo,
     markTrialPromoShown,
@@ -335,37 +311,97 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
   const isInstitutionView = activeRole === "institution_admin";
 
-  // Send multi-role users without a chosen role to the role chooser.
+  // Align active role with the current path before any select-role redirect.
   useEffect(() => {
-    if (!roleReady) return;
-    if (!activeRole && availableRoles.length > 1) {
-      router.replace("/select-role");
-    }
-  }, [roleReady, activeRole, availableRoles.length, router]);
+    if (!roleReady || !profile) return;
 
-  // Keep navigation within the active role's allowed area.
-  useEffect(() => {
-    if (!roleReady || !activeRole || !pathname) return;
-    if (!pathname.startsWith("/dashboard")) return;
+    const requiredRole = pathname?.startsWith("/dashboard")
+      ? roleRequiredForPath(pathname, profile)
+      : null;
+
+    if (
+      requiredRole &&
+      activeRole !== requiredRole &&
+      availableRoles.includes(requiredRole) &&
+      roleCtx?.setActiveRoleSilent
+    ) {
+      roleCtx.setActiveRoleSilent(requiredRole);
+      return;
+    }
+
+    if (!activeRole && availableRoles.length > 1) {
+      if (requiredRole && availableRoles.includes(requiredRole)) {
+        return;
+      }
+      router.replace("/select-role");
+      return;
+    }
+
+    if (
+      activeRole === "super_admin" &&
+      pathname?.startsWith("/dashboard") &&
+      !pathname.startsWith("/dashboard/institute") &&
+      !pathname.startsWith("/dashboard/profile")
+    ) {
+      router.replace("/super-admin");
+      return;
+    }
+
+    if (!activeRole || !pathname?.startsWith("/dashboard")) return;
+
     if (!isPathAllowedForRole(activeRole, pathname, profile)) {
       router.replace(roleHome(activeRole, profile));
     }
-  }, [roleReady, activeRole, pathname, profile, router]);
+  }, [
+    roleReady,
+    activeRole,
+    pathname,
+    profile,
+    router,
+    availableRoles,
+    roleCtx,
+  ]);
 
   const menuItems = useMemo(() => {
-    const items = filterNavByActiveRole(
-      withRecruiterNavItems(
-        withPeerNavItems(
-          getDashboardNavItems(accessRole, institutionId),
-          peerNav,
+    const items = filterNavByFeatures(
+      filterNavByActiveRole(
+        withRecruiterNavItems(
+          withPeerNavItems(
+            getDashboardNavItems(accessRole, institutionId, activeRole),
+            peerNav,
+          ),
+          recruiterNav,
         ),
-        recruiterNav,
+        activeRole,
+        profile,
       ),
-      activeRole,
-      profile,
+      (href, featureKey) => {
+        const matched =
+          matchPath(href) ?? (featureKey ? byKey.get(featureKey) : undefined);
+        let visible = isNavHrefVisible(href, featureKey);
+        if (activeRole && activeRole !== "super_admin" && matched) {
+          visible = isFeatureVisibleForActiveRole(
+            matched.status,
+            matched.category,
+            activeRole,
+          );
+        }
+        if (
+          visible &&
+          matched &&
+          matched.builtIn === false &&
+          activeRole !== "super_admin"
+        ) {
+          return canUsePlatformFeature(matched.key);
+        }
+        return visible;
+      },
     );
 
     return items.map((item) => {
+      if (item.href === "/dashboard/interviews") {
+        return { ...item, locked: !canUse("aiMockInterview") };
+      }
       if (item.href === "/dashboard/coding-interviews") {
         return { ...item, locked: !canUse("codingRound") };
       }
@@ -385,6 +421,10 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     activeRole,
     profile,
     canUse,
+    canUsePlatformFeature,
+    isNavHrefVisible,
+    matchPath,
+    byKey,
   ]);
 
   const institutionBase =
@@ -488,11 +528,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             </Button>
           </div>
           <Link
-            href={
-              isInstitutionView && institutionId
-                ? `/dashboard/institute/${institutionId}`
-                : "/dashboard"
-            }
+            href="/"
             className="justify-self-center transition-opacity hover:opacity-80"
           >
             <InterviewTrixLogo
@@ -530,11 +566,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           <div className="flex h-full max-lg:h-full lg:h-screen flex-col">
             <div className="hidden shrink-0 border-b border-sidebar-border/80 px-4 py-5 lg:block">
               <Link
-                href={
-                  isInstitutionView && institutionId
-                    ? `/dashboard/institute/${institutionId}`
-                    : "/"
-                }
+                href="/"
                 className={cn(
                   "flex items-center transition-opacity hover:opacity-80",
                   sidebarOpen ? "justify-start" : "justify-center",
@@ -643,7 +675,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           <div className="p-4 sm:p-5 lg:px-6 lg:pb-8 lg:pt-5">
             <SubscriptionPendingBanner />
             <SubscriptionExpiredBanner />
-            {children}
+            <FeatureRouteGuard>{children}</FeatureRouteGuard>
           </div>
         </main>
       </div>

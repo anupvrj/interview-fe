@@ -2,7 +2,13 @@ import type { Metadata } from "next";
 import { ClerkProvider } from "@clerk/nextjs";
 import { AppGoogleAnalytics } from "@/components/AppGoogleAnalytics";
 import { UserProvider } from "@/components/UserProvider";
+import { QueryProvider } from "@/components/QueryProvider";
+import { ClerkAuthTabSync } from "@/components/ClerkAuthTabSync";
+import { ExtensionConnectReturn } from "@/components/chrome-extension/ExtensionConnectReturn";
+import { FeatureRouteGuard } from "@/components/features/FeatureRouteGuard";
 import { TemplateRegistryInitializer } from "@/components/TemplateRegistryInitializer";
+import { ReferralCapture } from "@/components/affiliate/ReferralCapture";
+import { Suspense } from "react";
 import { getGaMeasurementId } from "@/config/google-analytics";
 import { getClarityProjectId } from "@/config/microsoft-clarity";
 import { AppMicrosoftClarity } from "@/components/AppMicrosoftClarity";
@@ -11,7 +17,11 @@ import {
   StructuredData,
   organizationSchema,
   webApplicationSchema,
+  createProductNavigationSchema,
+  createWebSiteSchema,
 } from "@/components/StructuredData";
+import { getSearchRobots, getSiteUrl } from "@/lib/seo/site-url";
+import { PRODUCT_MARKETING_ROUTES } from "@/lib/seo/marketing-routes";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -63,17 +73,7 @@ export const metadata: Metadata = {
       "From ATS-optimized resumes to AI Interview Practice and detailed performance reports — everything you need to get shortlisted and hired.",
     creator: "@interviewtrix",
   },
-  robots: {
-    index: true,
-    follow: true,
-    googleBot: {
-      index: true,
-      follow: true,
-      "max-video-preview": -1,
-      "max-image-preview": "large",
-      "max-snippet": -1,
-    },
-  },
+  robots: getSearchRobots(),
   verification: {
     google: "your-google-verification-code", // Replace with actual code from Google Search Console
   },
@@ -90,6 +90,14 @@ export default function RootLayout({
 }>) {
   const gaMeasurementId = getGaMeasurementId();
   const clarityProjectId = getClarityProjectId();
+  const siteUrl = getSiteUrl();
+  const productNavigationSchema = createProductNavigationSchema(
+    PRODUCT_MARKETING_ROUTES.map((route) => ({
+      name: route.name,
+      url: `${siteUrl}${route.path}`,
+      description: route.description,
+    })),
+  );
 
   return (
     <ClerkProvider>
@@ -107,12 +115,29 @@ export default function RootLayout({
           />
           <StructuredData data={organizationSchema} />
           <StructuredData data={webApplicationSchema} />
+          <StructuredData
+            id="website-schema"
+            data={createWebSiteSchema(siteUrl)}
+          />
+          <StructuredData
+            id="product-navigation-schema"
+            data={productNavigationSchema}
+          />
         </head>
         <body className="font-sans antialiased" suppressHydrationWarning>
           <AppGoogleAnalytics gaId={gaMeasurementId} />
           <AppMicrosoftClarity projectId={clarityProjectId} />
           <TemplateRegistryInitializer />
-          <UserProvider>{children}</UserProvider>
+          <QueryProvider>
+            <UserProvider>
+              <ClerkAuthTabSync />
+              <ExtensionConnectReturn />
+              <Suspense fallback={null}>
+                <ReferralCapture />
+              </Suspense>
+              <FeatureRouteGuard>{children}</FeatureRouteGuard>
+            </UserProvider>
+          </QueryProvider>
           <AppToaster />
         </body>
       </html>

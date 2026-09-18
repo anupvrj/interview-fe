@@ -15,6 +15,7 @@ import {
   Check,
   FileText,
   Settings2,
+  Target,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,6 +26,7 @@ import {
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { resumeSaveButton } from "@/components/resume-editor/resumeEditorStyles";
+import { ChromeIcon } from "@/components/chrome-extension/ChromeIcon";
 
 type SectionItem = {
   id: string;
@@ -58,6 +60,8 @@ type ResumeEditorMobileChromeProps = {
   canRedo: boolean;
   onRedo: () => void;
   onImport: () => void;
+  onMatchJobDescription: () => void;
+  matchingJob?: boolean;
   onRearrange: () => void;
   rearrangeDisabled?: boolean;
   onChangeTemplate: () => void;
@@ -68,6 +72,8 @@ type ResumeEditorMobileChromeProps = {
   autoSaving?: boolean;
   onDownload: () => void;
   downloading?: boolean;
+  onSyncChrome: () => void;
+  chromeSyncing?: boolean;
   refreshingATS?: boolean;
   actionsDisabled?: boolean;
 };
@@ -111,6 +117,8 @@ export function ResumeEditorMobileChrome({
   canRedo,
   onRedo,
   onImport,
+  onMatchJobDescription,
+  matchingJob,
   onRearrange,
   rearrangeDisabled,
   onChangeTemplate,
@@ -121,6 +129,8 @@ export function ResumeEditorMobileChrome({
   autoSaving,
   onDownload,
   downloading,
+  onSyncChrome,
+  chromeSyncing,
   refreshingATS,
   actionsDisabled,
 }: ResumeEditorMobileChromeProps) {
@@ -155,6 +165,28 @@ export function ResumeEditorMobileChrome({
       icon: <Upload className="h-4 w-4" />,
       onClick: onImport,
       disabled,
+    },
+    {
+      id: "job-match",
+      label: matchingJob ? "Tailoring to job…" : "Match with job description",
+      icon: matchingJob ? (
+        <Loader2 className="h-4 w-4 animate-spin" />
+      ) : (
+        <Target className="h-4 w-4" />
+      ),
+      onClick: onMatchJobDescription,
+      disabled: disabled || matchingJob,
+    },
+    {
+      id: "chrome-sync",
+      label: chromeSyncing ? "Syncing with Chrome…" : "Sync Resume with Chrome",
+      icon: chromeSyncing ? (
+        <Loader2 className="h-4 w-4 animate-spin" />
+      ) : (
+        <ChromeIcon className="h-4 w-4" />
+      ),
+      onClick: onSyncChrome,
+      disabled: disabled || chromeSyncing || changingTemplate,
     },
     {
       id: "rearrange",

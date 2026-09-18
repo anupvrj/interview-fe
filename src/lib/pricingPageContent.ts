@@ -2,6 +2,12 @@
  * Pricing page static content — aligned with plansSeedData.ts
  */
 
+import {
+  COMPARISON_ENTITLEMENT_ROWS,
+  entitlementValueAllowsAccess,
+  type PlanEntitlements,
+} from "@/lib/planFeatureAccess";
+
 export const PAID_PLAN_IDS = [
   "general_pass",
   "tech_basic",
@@ -28,13 +34,67 @@ export const COMING_SOON_PLAN_FEATURES = [
   "Interview Scheduler",
 ] as const;
 
+/** Tick options on Super Admin plan edit. Credits are edited separately. */
+export const PRICING_CHECKLIST_FEATURES = [
+  "Unlimited AI Mock Interviews",
+  "Behavioural Mock Interviews",
+  "Unlimited AI Coding Round Practice",
+  "Unlimited Live System Design Practice",
+  "White Board Drawing",
+  "2 Free Peer Interviews with Industry Experts",
+  "Unlimited Resume Design",
+  "ATS Checker & Optimizer",
+  "Unlimited ATS Checker & Optimizer",
+  "One Click Resume Optimizer",
+  "Detailed Interview Report",
+  "Growth Tracking",
+  "iX Score & iX Certified Badge",
+  "Target Company Practice",
+  "Top Curated Interview Questions",
+  "Latest Real Interview Questions",
+  "Advanced & fine-tuned AI",
+  "Resume Design",
+  "ATS Checker",
+  "Download Resume",
+  "Add credits for AI Mock Interviews",
+  "LMS & HR system integrations",
+  "REST API access",
+  "Batch scheduling & org analytics",
+  "Dedicated setup & onboarding",
+  ...COMING_SOON_PLAN_FEATURES,
+] as const;
+
+const CREDIT_HIGHLIGHT = /^\d[\d,]*\s*credits?\b/i;
+
+export function isCreditHighlight(line: string): boolean {
+  return CREDIT_HIGHLIGHT.test(line.trim());
+}
+
+export function pricingFeatureKey(line: string): string {
+  return line.replace(/\s+/g, " ").trim().toLowerCase();
+}
+
+export function collectPricingChecklistOptions(
+  extraLines: Array<string | undefined> = [],
+): string[] {
+  const byKey = new Map<string, string>();
+  for (const item of PRICING_CHECKLIST_FEATURES) {
+    byKey.set(pricingFeatureKey(item), item);
+  }
+  for (const line of extraLines) {
+    const text = String(line || "").replace(/\s+/g, " ").trim();
+    if (!text || isCreditHighlight(text)) continue;
+    const key = pricingFeatureKey(text);
+    if (!byKey.has(key)) byKey.set(key, text);
+  }
+  return [...byKey.values()];
+}
+
 export type ComparisonCell = string | boolean;
 
 export interface ComparisonRow {
   feature: string;
-  general_pass: ComparisonCell;
-  tech_basic: ComparisonCell;
-  tech_pro: ComparisonCell;
+  [planId: string]: ComparisonCell;
 }
 
 export const COMPARISON_ROWS: ComparisonRow[] = [
@@ -205,3 +265,82 @@ export const PLAN_COLUMN_LABELS: Record<PaidPlanId, string> = {
   tech_basic: "Tech Basic",
   tech_pro: "Tech Pro",
 };
+
+type LivePlanComparisonSource = {
+  planId: string;
+  displayName?: string;
+  planType?: string;
+  pricing?: { monthly?: number };
+  creditsIncluded?: { monthly?: number };
+  entitlements?: Partial<PlanEntitlements>;
+  metadata?: { bestFor?: string };
+};
+
+function formatMonthlyPrice(amount: number | undefined): string | undefined {
+  if (amount == null || Number.isNaN(Number(amount))) return undefined;
+  return `₹${Number(amount).toLocaleString("en-IN")}/mo`;
+}
+
+function formatMonthlyCredits(amount: number | undefined): string | undefined {
+  if (amount == null || Number.isNaN(Number(amount))) return undefined;
+  return Number(amount).toLocaleString("en-IN");
+}
+
+function isEnterprisePlan(plan: LivePlanComparisonSource): boolean {
+  return plan.planId === "enterprise" || plan.planType === "enterprise";
+}
+
+/** Overlay Super Admin / DB prices, credits, and audience onto compare rows. */
+export function withLivePlanComparison(
+  plans: LivePlanComparisonSource[],
+  rows: ComparisonRow[] = COMPARISON_ROWS,
+): ComparisonRow[] {
+  return rows.map((row) => {
+    const next: ComparisonRow = { ...row };
+    for (const plan of plans) {
+      if (row.feature === "Target audience") {
+        next[plan.planId] = plan.metadata?.bestFor || next[plan.planId] || "—";
+        continue;
+      }
+      if (row.feature === "Monthly pricing") {
+        next[plan.planId] = isEnterprisePlan(plan)
+          ? "Custom"
+          : formatMonthlyPrice(plan.pricing?.monthly) ||
+            next[plan.planId] ||
+            "—";
+        continue;
+      }
+      if (row.feature === "Monthly credits on renewal") {
+        next[plan.planId] = isEnterprisePlan(plan)
+          ? "Custom"
+          : formatMonthlyCredits(plan.creditsIncluded?.monthly) ||
+            next[plan.planId] ||
+            "—";
+        continue;
+      }
+      if (row.feature === "Free peer interviews / period") {
+        const count = plan.entitlements?.freePeerInterviewsPerPeriod;
+        if (typeof count === "number") {
+          next[plan.planId] = count > 0 ? String(count) : "—";
+        }
+        continue;
+      }
+      const entitlementRow = COMPARISON_ENTITLEMENT_ROWS[row.feature];
+      if (entitlementRow && plan.entitlements) {
+        next[plan.planId] = entitlementValueAllowsAccess(
+          plan.entitlements,
+          entitlementRow.feature,
+        )
+          ? entitlementRow.included
+          : entitlementRow.included === true
+            ? false
+            : "—";
+        continue;
+      }
+      if (next[plan.planId] == null) {
+        next[plan.planId] = "—";
+      }
+    }
+    return next;
+  });
+}

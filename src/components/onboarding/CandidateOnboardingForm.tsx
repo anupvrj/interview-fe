@@ -30,6 +30,7 @@ import {
   onboardingControlClass,
 } from "@/components/onboarding/onboarding-form-primitives";
 import { isPaidPlanId } from "@/lib/pricingPageContent";
+import { consumePostSignInReturnUrl } from "@/lib/post-sign-in-redirect";
 import { POST_ONBOARDING_TRIAL_OFFER_KEY } from "@/lib/trialFeatures";
 import { userApi } from "@/lib/api";
 import {
@@ -54,6 +55,7 @@ import {
   type InterviewOptIns,
 } from "@/lib/ix-score-constants";
 import { IndustryRoleFields } from "@/components/career/IndustryRoleFields";
+import { JobRoleSelect } from "@/components/career/JobRoleSelect";
 import { industrySelectOptions } from "@/lib/career-catalog";
 import { AppSelect } from "@/components/ui/app-select";
 import { OnboardingCardGraphics } from "@/components/onboarding/OnboardingAnimatedGraphics";
@@ -238,6 +240,8 @@ export function CandidateOnboardingForm() {
     overallExperience: 0,
     experience: 0,
     currentJob: { company: "", role: "" },
+    targetJobRole: "",
+    targetCompany: "",
     industry: "",
     skills: [] as string[],
   });
@@ -270,9 +274,8 @@ export function CandidateOnboardingForm() {
   });
 
   const redirectAfterComplete = () => {
-    const returnUrl = localStorage.getItem("resumeBuilderReturnUrl");
+    const returnUrl = consumePostSignInReturnUrl();
     if (returnUrl) {
-      localStorage.removeItem("resumeBuilderReturnUrl");
       router.push(returnUrl);
       return;
     }
@@ -313,6 +316,14 @@ export function CandidateOnboardingForm() {
         ? undefined
         : reviewData.currentJob,
     industry: minimal || !reviewData.industry ? undefined : reviewData.industry,
+    targetJobRole:
+      minimal || !reviewData.targetJobRole.trim()
+        ? undefined
+        : reviewData.targetJobRole.trim(),
+    targetCompany:
+      minimal || !reviewData.targetCompany.trim()
+        ? undefined
+        : reviewData.targetCompany.trim(),
     skills:
       minimal || reviewData.skills.length === 0 ? undefined : reviewData.skills,
     interviewOptIns: minimal ? undefined : interviewOptIns,
@@ -335,6 +346,8 @@ export function CandidateOnboardingForm() {
         overallExperience: 0,
         experience: 0,
         currentJob: { company: "", role: "" },
+        targetJobRole: "",
+        targetCompany: "",
         industry: "",
         skills: [],
       });
@@ -354,6 +367,8 @@ export function CandidateOnboardingForm() {
           company: result.extracted.currentJob?.company || "",
           role: result.extracted.currentJob?.role || "",
         },
+        targetJobRole: result.extracted.currentJob?.role || "",
+        targetCompany: "",
         industry: result.extracted.currentJob?.industry || "",
         skills: result.extracted.skills?.slice(0, 20) || [],
       });
@@ -701,6 +716,51 @@ export function CandidateOnboardingForm() {
               ) : null}
 
               <StepBlock
+                title="Interview targets"
+                description="We'll pre-fill these when you start AI mock, coding, or other practice sessions."
+              >
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <FormField
+                    label="Role you are applying for"
+                    htmlFor="onboarding-target-role"
+                    hint="Optional — e.g. Software Engineer, Product Manager"
+                  >
+                    <JobRoleSelect
+                      id="onboarding-target-role"
+                      value={reviewData.targetJobRole}
+                      onChange={(value) =>
+                        setReviewData((prev) => ({
+                          ...prev,
+                          targetJobRole: value,
+                        }))
+                      }
+                      industry={reviewData.industry}
+                      placeholder="e.g. Software Engineer"
+                      inputClassName={onboardingControlClass}
+                    />
+                  </FormField>
+                  <FormField
+                    label="Target company"
+                    htmlFor="onboarding-target-company"
+                    hint="Optional — helps tailor question style"
+                  >
+                    <Input
+                      id="onboarding-target-company"
+                      value={reviewData.targetCompany}
+                      onChange={(e) =>
+                        setReviewData((prev) => ({
+                          ...prev,
+                          targetCompany: e.target.value,
+                        }))
+                      }
+                      placeholder="e.g. Amazon, Google, TCS"
+                      className={onboardingControlClass}
+                    />
+                  </FormField>
+                </div>
+              </StepBlock>
+
+              <StepBlock
                 title="Which interviews are you practising?"
                 description="Your iX Report is built from the categories you select here. You can change this later from My Profile."
               >
@@ -788,6 +848,22 @@ export function CandidateOnboardingForm() {
                   </p>
                   <p className="mt-0.5 text-sm font-semibold text-foreground">
                     {enabledInterviewCount} selected
+                  </p>
+                </div>
+                <div className="rounded-xl border border-border/60 bg-muted/20 px-4 py-3">
+                  <p className="text-xs font-medium text-muted-foreground">
+                    Interview targets
+                  </p>
+                  <p className="mt-0.5 text-sm font-semibold text-foreground">
+                    {reviewData.targetJobRole.trim() ||
+                    reviewData.targetCompany.trim()
+                      ? [
+                          reviewData.targetJobRole.trim() || null,
+                          reviewData.targetCompany.trim() || null,
+                        ]
+                          .filter(Boolean)
+                          .join(" · ")
+                      : "Not set"}
                   </p>
                 </div>
                 <div className="rounded-xl border border-border/60 bg-muted/20 px-4 py-3">

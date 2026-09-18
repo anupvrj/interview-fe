@@ -8,6 +8,8 @@ import {
   type Subscription,
   type SubscriptionActivationState,
 } from "@/lib/api";
+import { getQueryClient } from "@/lib/query-client";
+import { invalidateEntitlements } from "@/lib/invalidate-queries";
 
 const POLL_INTERVAL_MS = 15_000;
 const FIRST_POLL_DELAY_MS = 5_000;
@@ -30,18 +32,26 @@ export function usePendingSubscriptionPolling(options?: {
 
   const refresh = useCallback(async () => {
     if (!user) return null;
-    localStorage.setItem("clerk-user-id", user.id);
-    const sub = await paymentApi.getSubscription();
-    setSubscription(sub);
-    return sub;
+    try {
+      localStorage.setItem("clerk-user-id", user.id);
+      const sub = await paymentApi.getSubscription();
+      setSubscription(sub);
+      return sub;
+    } catch {
+      return null;
+    }
   }, [user]);
 
   const syncAndRefresh = useCallback(async () => {
     if (!user) return null;
-    localStorage.setItem("clerk-user-id", user.id);
-    const sub = await paymentApi.syncPendingSubscription();
-    setSubscription(sub);
-    return sub;
+    try {
+      localStorage.setItem("clerk-user-id", user.id);
+      const sub = await paymentApi.syncPendingSubscription();
+      setSubscription(sub);
+      return sub;
+    } catch {
+      return null;
+    }
   }, [user]);
 
   useEffect(() => {
@@ -75,7 +85,7 @@ export function usePendingSubscriptionPolling(options?: {
       }
     };
 
-    refresh().then((sub) => {
+    void refresh().then((sub) => {
       if (cancelled) return;
       const state =
         sub?.activationState ?? (sub?.pendingPayment ? "pending" : "none");
@@ -103,6 +113,9 @@ export function usePendingSubscriptionPolling(options?: {
     const current = activationState;
 
     if (prev === "pending" && current === "active") {
+      if (user?.id) {
+        void invalidateEntitlements(getQueryClient(), user.id);
+      }
       toast.success("Plan activated!", {
         description: "Your subscription is active and credits have been added.",
         duration: 6000,
@@ -120,7 +133,7 @@ export function usePendingSubscriptionPolling(options?: {
     }
 
     prevActivationRef.current = current;
-  }, [activationState, subscription, options?.silent]);
+  }, [activationState, subscription, options?.silent, user?.id]);
 
   return {
     subscription,

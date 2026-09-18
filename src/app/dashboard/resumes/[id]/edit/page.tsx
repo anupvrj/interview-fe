@@ -43,13 +43,20 @@ import {
   Undo2,
   Redo2,
   RefreshCw,
+  Target,
 } from "lucide-react";
 import { Resume, ResumeTemplate, resumeApi, apiClient } from "@/lib/api";
+import { flattenEducationList } from "@/lib/educationDisplay";
 import {
   normalizeExperienceList,
 } from "@/lib/resume-date-utils";
-import { ensureResumePersonalInfo, getExecutiveSkillsFromContent } from "@/lib/resume-data-import";
+import {
+  ensureResumePersonalInfo,
+  getExecutiveSkillsFromContent,
+  normalizeProjectsList,
+} from "@/lib/resume-data-import";
 import { isATSReportV3 } from "@/types/atsReport";
+import { insightsFromAtsReport } from "@/lib/ats-insights";
 import { ResumePreview, type ResumePreviewHandle } from "@/components/ResumePreview";
 import { RichTextEditor } from "@/components/RichTextEditor";
 import { getExtendedTemplate } from "@/lib/templateConfigs";
@@ -89,7 +96,28 @@ import { cn } from "@/lib/utils";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import { LanguagesEditor } from "@/components/LanguagesEditor";
 import { captureAndUploadThumbnail } from "@/lib/resume-thumbnail";
-import { generateResumePdfViaServer } from "@/lib/resume-pdf-export";
+import { compileResumePdfFromPreviewContainer } from "@/lib/compile-resume-pdf-from-dom";
+import { ChromeIcon } from "@/components/chrome-extension/ChromeIcon";
+import {
+  getChromeExtensionHref,
+  isExternalChromeExtensionHref,
+} from "@/components/chrome-extension/AddToChromeButton";
+import {
+  downloadPdfFromUrl,
+  fetchPdfBlobFromUrl,
+  resumePdfFilenameFromResume,
+  triggerBlobDownload,
+} from "@/lib/download-pdf";
+import {
+  ensureExtensionSession,
+  loadExtensionAttachSession,
+  notifyExtensionResumeCompiled,
+  pingInterviewTrixExtension,
+  requestLastScannedJob,
+} from "@/lib/extension-resume-sync";
+import { MIN_JOB_DESCRIPTION_CHARS } from "@/lib/extension-job-handoff";
+import { trimJobDescriptionForSend } from "@/lib/job-description-limits";
+import { ExtensionSyncedDialog } from "@/components/chrome-extension/ExtensionSyncedDialog";
 import {
   mergeLayoutPaddingWithTemplateStyle,
   resolveEffectiveLayoutPaddingMm,
@@ -106,9 +134,11 @@ import {
 } from "@/lib/sectionColumnUtils";
 import { ProfilePictureCropper } from "@/components/ProfilePictureCropper";
 import { ChangeTemplateDialog } from "@/components/resume-editor/ChangeTemplateDialog";
+import { MatchJobDescriptionDialog } from "@/components/resume-editor/MatchJobDescriptionDialog";
 import { ImportResumeDialog } from "@/components/resume-editor/ImportResumeDialog";
 import { RearrangeSectionsDialog } from "@/components/resume-editor/RearrangeSectionsDialog";
 import { ResumeSectionCardHeader } from "@/components/resume-editor/ResumeSectionCardHeader";
+import { ExperienceEntriesEditor } from "@/components/resume-editor/ExperienceEntriesEditor";
 import { SectionNameField } from "@/components/resume-editor/SectionNameField";
 import {
   ResumeEditorMobileChrome,
@@ -123,7 +153,6 @@ import {
 import type { ResumePaginationSnapshot } from "@/components/PaginatedPreview";
 import { buildResumeTemplateApplication } from "@/lib/applyResumeTemplate";
 import { debugResumePagination } from "@/lib/debug-resume-pagination";
-import { waitForResumePaginationSettled } from "@/lib/wait-for-resume-pagination";
 import { useResumeEditorHistory } from "@/hooks/useResumeEditorHistory";
 import { useMobileResumeEditor } from "@/hooks/useMobileResumeEditor";
 import type { ResumeEditorLayout } from "@/lib/resume-editor-history";
@@ -176,6 +205,28 @@ function withFirstVisibleExpanded(sections: Section[]): Section[] {
   });
 }
 
+/**
+ * Coerce an experience/project description (string or array) into HTML suitable
+ * for the rich-text editor. Mirrors ResumeRenderer: a single array element that
+ * is already a list (<ul>/<ol>) is passed through as-is, so tailored content
+ * stored as ["<ul>...</ul>"] is not wrapped into invalid `<p><ul>...</ul></p>`.
+ */
+function descriptionToEditorHtml(description: unknown): string {
+  if (typeof description === "string") return description;
+  if (Array.isArray(description)) {
+    const items = description.map((d) => String(d).trim()).filter(Boolean);
+    if (items.length === 0) return "";
+    if (
+      items.length === 1 &&
+      (/<ul[\s>]/i.test(items[0]) || /<ol[\s>]/i.test(items[0]))
+    ) {
+      return items[0];
+    }
+    return items.map((item) => `<p>${item}</p>`).join("");
+  }
+  return description == null ? "" : String(description);
+}
+
 export default function EditResumePage() {
   const { user, isLoaded } = useUser();
   const router = useRouter();
@@ -183,6 +234,7 @@ export default function EditResumePage() {
   const searchParams = useSearchParams();
   const resumeId = params.id as string;
   const showImprovedBanner = searchParams.get("improved") === "1";
+  const wantsExtensionSync = searchParams.get("extensionSync") === "1";
 
   const [mounted, setMounted] = useState(false);
   const [resume, setResumeState] = useState<Resume | null>(null);
@@ -190,7 +242,11 @@ export default function EditResumePage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const [extensionSyncState, setExtensionSyncState] = useState<
+    "idle" | "syncing" | "synced" | "error" | "missing-extension"
+  >("idle");
   const [trialUpsellOpen, setTrialUpsellOpen] = useState(false);
+  const [syncDialogOpen, setSyncDialogOpen] = useState(false);
   const { canUse, data: entitlements } = useEntitlements();
   const [hasChanges, setHasChanges] = useState(false);
   const [autoSaving, setAutoSaving] = useState(false);
@@ -199,6 +255,10 @@ export default function EditResumePage() {
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [profilePictureFileName, setProfilePictureFileName] = useState("");
   const [previewKey, setPreviewKey] = useState(0);
+  // Bumped whenever content is applied wholesale (import / JD tailoring) so the
+  // per-row rich-text editors remount and re-seed from the new values instead
+  // of keeping their stale TipTap document.
+  const [applyNonce, setApplyNonce] = useState(0);
   const previewRef = useRef<ResumePreviewHandle>(null);
   const [zoomLevel, setZoomLevel] = useState(100);
   const [draggedSection, setDraggedSection] = useState<string | null>(null);
@@ -309,6 +369,14 @@ export default function EditResumePage() {
   const [changingTemplate, setChangingTemplate] = useState(false);
   const [importResumeOpen, setImportResumeOpen] = useState(false);
   const [rearrangeSectionsOpen, setRearrangeSectionsOpen] = useState(false);
+  const [matchJobOpen, setMatchJobOpen] = useState(false);
+  const [matchingJob, setMatchingJob] = useState(false);
+  // Remembers the JD last used to tailor this session so reopening the dialog
+  // reflects the latest input instead of the stale creation-time JD.
+  const [lastMatchedJd, setLastMatchedJd] = useState<string | null>(null);
+  // Confirmation before the (irreversible-after-reload) overwrite tailoring.
+  const [confirmMatchOpen, setConfirmMatchOpen] = useState(false);
+  const [pendingMatchJd, setPendingMatchJd] = useState<string | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [sectionToDelete, setSectionToDelete] = useState<{
     id: string;
@@ -322,6 +390,7 @@ export default function EditResumePage() {
   const paginationSnapshotRef = useRef<ResumePaginationSnapshot>({
     pages: [],
     rawPages: [],
+    pageUnits: [],
     measureRoot: null,
     isCalculated: false,
   });
@@ -333,6 +402,7 @@ export default function EditResumePage() {
   useEffect(() => {
     if (mounted && isLoaded && user && resumeId) {
       localStorage.setItem("clerk-user-id", user.id);
+      void ensureExtensionSession();
       loadResume();
     }
   }, [mounted, isLoaded, user, resumeId]);
@@ -603,6 +673,8 @@ export default function EditResumePage() {
             ...prev,
             atsScore: updatedResume.atsScore,
             atsFeedback: updatedResume.atsFeedback,
+            jobMatchScore: updatedResume.jobMatchScore,
+            jobMatchFeedback: updatedResume.jobMatchFeedback,
             atsImprovementMeta: updatedResume.atsImprovementMeta,
             atsScoringContext:
               updatedResume.atsScoringContext ?? prev.atsScoringContext,
@@ -780,7 +852,15 @@ export default function EditResumePage() {
         resumeData.content as unknown as Record<string, unknown>,
       );
 
+      const flattenedEducation = flattenEducationList(
+        resumeData.content.education,
+      );
+      resumeData.content.education = flattenedEducation.education;
+
       setResumeState(resumeData);
+      if (flattenedEducation.changed) {
+        setHasChanges(true);
+      }
       syncAtsScoreDisplayFromResume(resumeData);
 
       // Extract filename from profile picture URL if it exists
@@ -1226,6 +1306,13 @@ export default function EditResumePage() {
         setSections(getDefaultSections());
       }
 
+      if (flattenedEducation.changed) {
+        setSectionsState((prev) => {
+          const educationId = prev.find((s) => s.type === "education")?.id;
+          return educationId ? expandOnlySection(prev, educationId) : prev;
+        });
+      }
+
       // Single remount after resume, template, layout, and sections are applied (avoids triple bump).
       bumpPreviewKey("loadResume:complete");
     } catch (error) {
@@ -1236,6 +1323,196 @@ export default function EditResumePage() {
       suppressHistoryRef.current = false;
       editorHistory.clear();
       setLoading(false);
+    }
+  };
+
+  const compileCurrentPdfFromPreview = async () => {
+    const templateId =
+      template?.id ??
+      resumeRef.current?.templateId ??
+      resume?.templateId ??
+      "classic";
+    const pdfTemplate =
+      template ??
+      ({
+        id: templateId,
+      } as ResumeTemplate);
+    const pdfPadding = resolveLayoutPaddingMm(
+      mergeLayoutPaddingWithTemplateStyle(
+        resume?.layout?.padding ?? layout?.padding,
+        getTemplateStyle(getExtendedTemplate(pdfTemplate)).padding,
+      ),
+    );
+    const filename = resumePdfFilenameFromResume(resume);
+    const compiled = await compileResumePdfFromPreviewContainer({
+      resumeId,
+      templateId,
+      previewContainerId: `resume-preview-container-${resumeId}`,
+      padding: pdfPadding,
+      filename,
+    });
+    return { ...compiled, filename };
+  };
+
+  const syncCompiledPdfToExtension = async (
+    blob: Blob,
+    filename: string,
+    options?: { openDialog?: boolean },
+  ): Promise<boolean> => {
+    setExtensionSyncState("syncing");
+    const session = loadExtensionAttachSession(resumeId);
+    const result = await notifyExtensionResumeCompiled({
+      resumeId,
+      title: resume?.title || "Resume",
+      fileName: filename,
+      blob,
+      sourceUrl: session?.sourceUrl,
+    });
+    if (result.ok) {
+      if (options?.openDialog !== false) {
+        setExtensionSyncState("synced");
+        setSyncDialogOpen(true);
+      }
+      return true;
+    }
+    if (result.error === "no_extension") {
+      setExtensionSyncState("missing-extension");
+      return false;
+    }
+    setExtensionSyncState("error");
+    return false;
+  };
+
+  const resolveJobDescriptionForChromeSync = async (): Promise<{
+    jobDescription: string;
+    title?: string;
+    company?: string;
+  } | null> => {
+    const ready = (value?: string | null): value is string =>
+      typeof value === "string" &&
+      value.trim().length >= MIN_JOB_DESCRIPTION_CHARS;
+
+    const localJd = ready(lastMatchedJd)
+      ? (lastMatchedJd as string)
+      : resumeRef.current?.atsScoringContext?.lastJobDescription;
+    if (ready(localJd)) {
+      return {
+        jobDescription: trimJobDescriptionForSend(localJd),
+      };
+    }
+
+    try {
+      const { loadPendingJobCapture } = await import(
+        "@/lib/extension-job-handoff"
+      );
+      const capture = loadPendingJobCapture();
+      if (ready(capture?.jobDescription)) {
+        return {
+          jobDescription: trimJobDescriptionForSend(capture!.jobDescription),
+          title: capture!.title,
+          company: capture!.company,
+        };
+      }
+    } catch {
+      /* ignore */
+    }
+
+    const lastScan = await requestLastScannedJob(800);
+    if (ready(lastScan?.jobDescription)) {
+      return {
+        jobDescription: trimJobDescriptionForSend(lastScan!.jobDescription),
+        title: lastScan!.title,
+        company: lastScan!.company,
+      };
+    }
+
+    return null;
+  };
+
+  const rematchAfterChromeSync = async (job: {
+    jobDescription: string;
+    title?: string;
+    company?: string;
+  }) => {
+    try {
+      setRefreshingATS(true);
+      try {
+        const scored = await resumeApi.recalculateATS(resumeId, {
+          jobDescription: job.jobDescription,
+          rawPdfText: resumeRef.current?.atsScoringContext?.rawPdfText,
+        });
+        applyAtsReportUpdate(scored);
+        setDisplayAtsScore(
+          typeof scored.atsScore === "number" ? scored.atsScore : null,
+        );
+      } catch (error) {
+        console.error("Failed to rematch ATS after Chrome sync:", error);
+      }
+    } finally {
+      setRefreshingATS(false);
+    }
+  };
+
+  const handleSyncResumeWithChrome = async () => {
+    if (!resume || extensionSyncState === "syncing") return;
+
+    const installed = await pingInterviewTrixExtension();
+    if (!installed) {
+      setExtensionSyncState("missing-extension");
+      const href = getChromeExtensionHref();
+      if (isExternalChromeExtensionHref(href)) {
+        window.open(href, "_blank", "noopener,noreferrer");
+      } else {
+        router.push(href);
+      }
+      return;
+    }
+
+    try {
+      setExtensionSyncState("syncing");
+      await ensureResumePersisted();
+
+      if (!resumeRef.current?.isDefault) {
+        try {
+          await resumeApi.update(resumeId, { isDefault: true });
+          setResumeState((prev) =>
+            prev ? { ...prev, isDefault: true } : prev,
+          );
+          if (resumeRef.current) {
+            resumeRef.current = { ...resumeRef.current, isDefault: true };
+          }
+        } catch (error) {
+          console.error("Failed to set default resume for Chrome sync:", error);
+        }
+      }
+
+      const compiled = await compileCurrentPdfFromPreview();
+      const blob =
+        compiled.blob ??
+        (compiled.downloadUrl
+          ? await fetchPdfBlobFromUrl(compiled.downloadUrl)
+          : null);
+      if (!blob) {
+        setExtensionSyncState("error");
+        return;
+      }
+
+      const pushed = await syncCompiledPdfToExtension(blob, compiled.filename, {
+        openDialog: false,
+      });
+      if (!pushed) return;
+
+      setExtensionSyncState("synced");
+      setSyncDialogOpen(true);
+
+      void resolveJobDescriptionForChromeSync().then((job) => {
+        if (job) void rematchAfterChromeSync(job);
+      });
+    } catch (error) {
+      console.error("Failed to sync resume with Chrome:", error);
+      setExtensionSyncState("error");
+    } finally {
+      setExtensionSyncState((prev) => (prev === "syncing" ? "error" : prev));
     }
   };
 
@@ -1382,6 +1659,12 @@ export default function EditResumePage() {
       ) as Resume["content"]["experience"];
     }
 
+    if (Array.isArray(updatedResume.content.projects)) {
+      updatedResume.content.projects = normalizeProjectsList(
+        updatedResume.content.projects,
+      ) as Resume["content"]["projects"];
+    }
+
     ensureResumePersonalInfo(
       updatedResume.content as unknown as Record<string, unknown>,
     );
@@ -1411,6 +1694,84 @@ export default function EditResumePage() {
     setLastSaved(new Date());
     invalidateAtsScoreDisplay();
     bumpPreviewKey("importResume");
+    // Force per-row rich-text editors to remount so they pick up new content.
+    setApplyNonce((prev) => prev + 1);
+  };
+
+  // Step 1: user submits the JD -> stage it and ask for confirmation, since
+  // tailoring overwrites the current resume content.
+  const handleRequestMatchJobDescription = (jobDescription: string) => {
+    setPendingMatchJd(jobDescription);
+    setConfirmMatchOpen(true);
+  };
+
+  // Step 2: confirmed -> run the tailoring/overwrite.
+  const handleMatchJobDescription = async (jobDescription: string) => {
+    if (!resume) return;
+
+    // Remember this input so the dialog reflects it on reopen (overrides the
+    // stale creation-time JD), even if the request below fails.
+    setLastMatchedJd(jobDescription);
+
+    try {
+      setMatchingJob(true);
+      const matchInsights = isATSReportV3(resume.atsFeedback)
+        ? insightsFromAtsReport(resume.atsFeedback)
+        : undefined;
+      const result = await resumeApi.tailorToJobDescription(resumeId, {
+        jobDescription,
+        matchInsights,
+      });
+
+      // Persist the tailored content plus the JD used, so a reload reflects the
+      // latest job description (and ATS re-checks use it). Merge to keep any
+      // retained rawPdfText.
+      const nextAtsContext = {
+        ...resume.atsScoringContext,
+        lastJobDescription: jobDescription,
+      };
+      await resumeApi.update(resumeId, {
+        content: result.content,
+        profileSummary: result.profileSummary,
+        sectionOrder: result.sectionOrder,
+        atsScoringContext: nextAtsContext,
+        pdfS3Key: "",
+      });
+
+      let updatedResume: Resume = {
+        ...resume,
+        content: result.content,
+        profileSummary: result.profileSummary ?? resume.profileSummary,
+        sectionOrder: result.sectionOrder,
+        atsScoringContext: nextAtsContext,
+        pdfS3Key: undefined,
+      };
+
+      try {
+        updatedResume = await resumeApi.recalculateATS(resumeId, {
+          jobDescription,
+        });
+      } catch {
+        /* tailored content is saved; score can refresh via Check ATS */
+      }
+
+      handleResumeImported(updatedResume);
+      setMatchJobOpen(false);
+    } catch (error: any) {
+      const serverMessage = error?.response?.data?.message;
+      console.error("Error tailoring resume to job description:", {
+        status: error?.response?.status,
+        serverMessage,
+        error,
+      });
+      alert(
+        serverMessage
+          ? `Failed to tailor resume: ${serverMessage}`
+          : "Failed to tailor resume to the job description. Please try again.",
+      );
+    } finally {
+      setMatchingJob(false);
+    }
   };
 
   const handleSectionsRearranged = (reordered: SectionWithColumn[]) => {
@@ -1568,155 +1929,11 @@ export default function EditResumePage() {
       await ensureResumePersisted();
       debugResumePagination("download:start", { resumeId, zoomLevel });
 
-      const previewContainerId = `resume-preview-container-${resumeId}`;
-      await waitForResumePaginationSettled(previewContainerId);
-
-      // Get ALL page elements (we now have multiple pages)
-      // Use unique ID per resume to avoid conflicts
-      const page1Element = document.getElementById(previewContainerId);
-
-      // Store current zoom level and reset to 100% for PDF generation
-      let originalTransform = "";
-      if (page1Element) {
-        originalTransform = page1Element.style.transform;
-        page1Element.style.transform = "scale(1)"; // Reset to 100%
-        debugResumePagination("download:transformReset", {
-          originalTransform,
-        });
-
-        // Wait a moment for the DOM to update
-        await new Promise((resolve) => setTimeout(resolve, 100));
-        debugResumePagination("download:after100ms", {});
-      }
-
-      try {
-        const allPageElements: HTMLElement[] = [];
-
-        if (page1Element) {
-          const paginatedContainer = page1Element.querySelector(
-            ".flex.flex-col.items-center",
-          );
-
-          if (paginatedContainer) {
-            const pages = paginatedContainer.querySelectorAll(".resume-page");
-            if (pages.length > 0) {
-              pages.forEach((page) => {
-                allPageElements.push(page as HTMLElement);
-              });
-            }
-          }
-
-          if (allPageElements.length === 0) {
-            allPageElements.push(page1Element as HTMLElement);
-          }
-        }
-
-        if (allPageElements.length === 0) {
-          throw new Error("Preview element not found");
-        }
-
-        const allImages: HTMLImageElement[] = [];
-        allPageElements.forEach((pageElement) => {
-          const images = pageElement.querySelectorAll("img");
-          allImages.push(...Array.from(images));
-        });
-
-        await Promise.all(
-          allImages.map((img) => {
-            return new Promise<void>((resolve) => {
-              if (img.complete && img.naturalHeight !== 0) {
-                resolve();
-              } else {
-                img.onload = () => {
-                  resolve();
-                };
-                img.onerror = () => {
-                  resolve(); // Continue even if image fails
-                };
-                // Timeout after 5 seconds
-                setTimeout(() => {
-                  resolve();
-                }, 5000);
-              }
-            });
-          }),
-        );
-        debugResumePagination("download:imagesReady", {
-          imageCount: allImages.length,
-        });
-
-        if (typeof document !== "undefined" && "fonts" in document) {
-          await (document as Document & { fonts: FontFaceSet }).fonts.ready;
-        }
-        debugResumePagination("download:fontsReady", {
-          fontsStatus:
-            typeof document !== "undefined" && "fonts" in document
-              ? (document as Document & { fonts: FontFaceSet }).fonts.status
-              : "n/a",
-        });
-
-        const templateId =
-          template?.id ?? resumeRef.current?.templateId ?? resume?.templateId ?? "classic";
-        const pdfTemplate =
-          template ??
-          ({
-            id: templateId,
-          } as ResumeTemplate);
-        const pdfPadding = resolveEffectiveLayoutPaddingMm(
-          templateId,
-          resume?.layout?.padding ?? layout?.padding,
-          getTemplateStyle(getExtendedTemplate(pdfTemplate)).padding,
-        );
-
-        let downloadUrl: string;
-
-        try {
-          debugResumePagination("download:pdfStart", {
-            path: "server",
-            pageCount: allPageElements.length,
-          });
-          const result = await generateResumePdfViaServer({
-            resumeId,
-            templateId,
-            pageElements: allPageElements,
-            padding: pdfPadding,
-          });
-          downloadUrl = result.downloadUrl;
-          debugResumePagination("download:pdfDone", { path: "server" });
-        } catch (serverErr) {
-          console.warn(
-            "Server PDF failed, falling back to client html2canvas:",
-            serverErr,
-          );
-          debugResumePagination("download:pdfStart", {
-            path: "client-html2canvas",
-            pageCount: allPageElements.length,
-          });
-          const { generatePDFFromPages, uploadPDFToS3 } =
-            await import("@/lib/pdf-generator");
-          const pdfBlob = await generatePDFFromPages(allPageElements, {
-            filename: `${resume?.title || "resume"}.pdf`,
-          });
-
-          const { uploadUrl, s3Key } =
-            await resumeApi.getPresignedUploadUrl(resumeId);
-          await uploadPDFToS3(pdfBlob, uploadUrl);
-          const confirm = await resumeApi.confirmPDFUpload(resumeId, s3Key);
-          downloadUrl = confirm.downloadUrl;
-          debugResumePagination("download:pdfDone", {
-            path: "client-html2canvas",
-          });
-        }
-
-        window.open(downloadUrl, "_blank");
-      } finally {
-        // Restore original zoom level
-        if (page1Element && originalTransform) {
-          page1Element.style.transform = originalTransform;
-          debugResumePagination("download:transformRestored", {
-            originalTransform,
-          });
-        }
+      const compiled = await compileCurrentPdfFromPreview();
+      if (compiled.blob) {
+        triggerBlobDownload(compiled.blob, compiled.filename);
+      } else if (compiled.downloadUrl) {
+        await downloadPdfFromUrl(compiled.downloadUrl, compiled.filename);
       }
 
       // Capture and upload thumbnail (run in background, don't block user)
@@ -1725,42 +1942,23 @@ export default function EditResumePage() {
       const currentResumeId = resumeId;
       setTimeout(async () => {
         try {
-          // Verify we're still on the same resume (user might have navigated away)
-          if (currentResumeId !== resumeId) {
-            console.log(
-              "Resume changed, skipping thumbnail capture for:",
-              currentResumeId,
-            );
-            return;
-          }
-
-          // Use unique ID per resume to avoid capturing wrong resume
+          if (currentResumeId !== resumeId) return;
           const previewContainerId = `resume-preview-container-${currentResumeId}`;
           const previewElement = document.getElementById(previewContainerId);
-          if (!previewElement) {
-            console.error(
-              `Resume preview element not found for thumbnail capture: ${previewContainerId}`,
-            );
-            return;
-          }
-
+          if (!previewElement) return;
           const result = await captureAndUploadThumbnail(
             currentResumeId,
             previewContainerId,
           );
-
           if (result.success) {
-            // Reload the resume to get updated data with thumbnail
             const updatedResume = await resumeApi.get(resumeId);
             debugResumePagination("download:thumbnail:setResume", { resumeId });
             setResumeState(updatedResume);
-          } else {
-            console.error("❌ Failed to upload thumbnail:", result.error);
           }
         } catch (error) {
-          console.error("❌ Error capturing thumbnail:", error);
+          console.error("Error capturing thumbnail:", error);
         }
-      }, 8000); // Extended delay to ensure profile pictures and all images are fully loaded
+      }, 8000);
     } catch (error: unknown) {
       console.error("Error generating PDF:", error);
       const err = error as {
@@ -2307,6 +2505,26 @@ export default function EditResumePage() {
 
   return (
     <div className={resumeEditorPage} suppressHydrationWarning>
+      {extensionSyncState !== "idle" ? (
+        <div className="border-b border-border bg-primary/5 px-4 py-2 text-center text-sm text-foreground md:text-left">
+          {extensionSyncState === "syncing"
+            ? "Syncing this resume with Chrome…"
+            : null}
+          {extensionSyncState === "synced"
+            ? "Synced to Chrome — return to the job tab and click Auto Fill."
+            : null}
+          {extensionSyncState === "missing-extension"
+            ? "Install or enable the InterviewTrix Chrome extension to sync this resume."
+            : null}
+          {extensionSyncState === "error"
+            ? "Couldn’t sync this resume to Chrome. Stay on this page a moment and try Sync Resume with Chrome again."
+            : null}
+        </div>
+      ) : wantsExtensionSync || loadExtensionAttachSession(resumeId) ? (
+        <div className="border-b border-border bg-muted/40 px-4 py-2 text-center text-sm text-muted-foreground md:text-left">
+          Resume tailored. Click Sync Resume with Chrome when you want this PDF in the extension.
+        </div>
+      ) : null}
       {/* Top Header Bar */}
       <div className={resumeEditorToolbar}>
         <div className={cn(resumeEditorToolbarInner, "md:py-3", resumeEditorToolbarMobile)}>
@@ -2513,6 +2731,49 @@ export default function EditResumePage() {
                   <Upload className="h-4 w-4" />
                 </IconTooltipButton>
                 <IconTooltipButton
+                  onClick={() => setMatchJobOpen(true)}
+                  variant="outline"
+                  label={
+                    matchingJob
+                      ? "Tailoring to job…"
+                      : "Match with job description"
+                  }
+                  disabled={
+                    refreshingATS ||
+                    autoSaving ||
+                    saving ||
+                    changingTemplate ||
+                    matchingJob
+                  }
+                >
+                  {matchingJob ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Target className="h-4 w-4" />
+                  )}
+                </IconTooltipButton>
+                <IconTooltipButton
+                  onClick={() => void handleSyncResumeWithChrome()}
+                  variant="outline"
+                  label={
+                    extensionSyncState === "syncing"
+                      ? "Syncing with Chrome…"
+                      : "Sync Resume with Chrome"
+                  }
+                  disabled={
+                    extensionSyncState === "syncing" ||
+                    autoSaving ||
+                    saving ||
+                    changingTemplate
+                  }
+                >
+                  {extensionSyncState === "syncing" ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <ChromeIcon className="h-4 w-4" />
+                  )}
+                </IconTooltipButton>
+                <IconTooltipButton
                   onClick={() => setRearrangeSectionsOpen(true)}
                   variant="outline"
                   label="Rearrange sections"
@@ -2605,6 +2866,8 @@ export default function EditResumePage() {
           canRedo={editorHistory.canRedo}
           onRedo={handleRedo}
           onImport={() => setImportResumeOpen(true)}
+          onMatchJobDescription={() => setMatchJobOpen(true)}
+          matchingJob={matchingJob}
           onRearrange={() => setRearrangeSectionsOpen(true)}
           rearrangeDisabled={!layout || sections.length === 0}
           onChangeTemplate={() => setChangeTemplateOpen(true)}
@@ -2615,6 +2878,8 @@ export default function EditResumePage() {
           autoSaving={autoSaving}
           onDownload={handleDownload}
           downloading={downloading}
+          onSyncChrome={() => void handleSyncResumeWithChrome()}
+          chromeSyncing={extensionSyncState === "syncing"}
           refreshingATS={refreshingATS}
           actionsDisabled={autoSaving || saving}
         />
@@ -2691,9 +2956,10 @@ export default function EditResumePage() {
                     full report.
                   </div>
                 )}
-                <ATSReportView
-                  key={`${resume.atsScore ?? 0}-${isATSReportV3(resume.atsFeedback) ? resume.atsFeedback.issueCount : 0}-${resume.atsImprovementMeta?.improvedAt ?? "fresh"}`}
+                  <ATSReportView
+                  key={`${resume.atsScore ?? 0}-${resume.jobMatchScore ?? "none"}-${isATSReportV3(resume.atsFeedback) ? resume.atsFeedback.issueCount : 0}-${resume.atsImprovementMeta?.improvedAt ?? "fresh"}`}
                   feedback={resume.atsFeedback}
+                  jobMatchScore={resume.jobMatchScore}
                   resumeId={resume.resumeId}
                   embedded
                   enableIssueMagic
@@ -3989,158 +4255,21 @@ export default function EditResumePage() {
                               title={section.title}
                               onTitleChange={updateSectionTitle}
                             />
-                            {resume.content.experience.map((exp, index) => (
-                              <div
-                                key={exp.id || index}
-                                className={resumeEntryCard}
-                              >
-                                <div className="grid grid-cols-2 gap-3">
-                                  <div>
-                                    <Label className="text-xs">
-                                      Position *
-                                    </Label>
-                                    <Input
-                                      value={exp.position}
-                                      onChange={(e) => {
-                                        const updated = [
-                                          ...resume.content.experience,
-                                        ];
-                                        updated[index] = {
-                                          ...exp,
-                                          position: e.target.value,
-                                        };
-                                        updateContent({ experience: updated });
-                                      }}
-                                      className={RESUME_FIELD_INPUT_CLASS}
-                                    />
-                                  </div>
-                                  <div>
-                                    <Label className="text-xs">Company *</Label>
-                                    <Input
-                                      value={exp.company}
-                                      onChange={(e) => {
-                                        const updated = [
-                                          ...resume.content.experience,
-                                        ];
-                                        updated[index] = {
-                                          ...exp,
-                                          company: e.target.value,
-                                        };
-                                        updateContent({ experience: updated });
-                                      }}
-                                      className={RESUME_FIELD_INPUT_CLASS}
-                                    />
-                                  </div>
-                                  <div>
-                                    <Label className="text-xs">
-                                      Start Date
-                                    </Label>
-                                    <Input
-                                      value={exp.startDate}
-                                      onChange={(e) => {
-                                        const updated = [
-                                          ...resume.content.experience,
-                                        ];
-                                        updated[index] = {
-                                          ...exp,
-                                          startDate: e.target.value,
-                                        };
-                                        updateContent({ experience: updated });
-                                      }}
-                                      className={RESUME_FIELD_INPUT_CLASS}
-                                      placeholder="MM/YYYY"
-                                    />
-                                  </div>
-                                  <div>
-                                    <Label className="text-xs">End Date</Label>
-                                    <Input
-                                      value={exp.endDate || ""}
-                                      onChange={(e) => {
-                                        const updated = [
-                                          ...resume.content.experience,
-                                        ];
-                                        const value = e.target.value;
-                                        updated[index] = {
-                                          ...exp,
-                                          endDate: value,
-                                          current:
-                                            value.toLowerCase() === "present" ||
-                                            !value,
-                                        };
-                                        updateContent({ experience: updated });
-                                      }}
-                                      className={RESUME_FIELD_INPUT_CLASS}
-                                      placeholder="MM/YYYY or Present"
-                                    />
-                                  </div>
-                                </div>
-                                <div>
-                                  <Label className="text-xs">Description</Label>
-                                  <RichTextEditor
-                                    value={
-                                      typeof exp.description === "string"
-                                        ? exp.description
-                                        : Array.isArray(exp.description)
-                                          ? exp.description
-                                              .map((d) => `<p>${d}</p>`)
-                                              .join("")
-                                          : ""
-                                    }
-                                    onChange={(html) => {
-                                      const updated = [
-                                        ...resume.content.experience,
-                                      ];
-                                      updated[index] = {
-                                        ...exp,
-                                        description: html,
-                                      };
-                                      updateContent({ experience: updated });
-                                    }}
-                                    placeholder="Enter job description with formatting..."
-                                    className="mt-1"
-                                  />
-                                </div>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => {
-                                    const updated =
-                                      resume.content.experience.filter(
-                                        (_, i) => i !== index,
-                                      );
-                                    updateContent({ experience: updated });
-                                  }}
-                                  className="w-full border-red-300 text-red-700 hover:bg-red-950/30"
-                                >
-                                  <Trash2 className="w-4 h-4 mr-2" />
-                                  Remove
-                                </Button>
-                              </div>
-                            ))}
-                            <Button
-                              size="sm"
-                              onClick={() => {
-                                const nanoid = () =>
-                                  Math.random().toString(36).substring(2, 9);
-                                updateContent({
-                                  experience: [
-                                    ...resume.content.experience,
-                                    {
-                                      id: nanoid(),
-                                      company: "",
-                                      position: "",
-                                      startDate: "",
-                                      current: false,
-                                      description: [""],
-                                    },
-                                  ],
-                                });
+                            <ExperienceEntriesEditor
+                              experience={resume.content.experience}
+                              applyNonce={applyNonce}
+                              onChange={(experience) =>
+                                updateContent({ experience })
+                              }
+                              onReorderStart={() => {
+                                isDraggingRef.current = true;
+                                recordImmediateHistory();
                               }}
-                              className={resumePrimaryCta}
-                            >
-                              <Plus className="w-4 h-4 mr-2" />
-                              Add Experience
-                            </Button>
+                              onReorderEnd={() => {
+                                isDraggingRef.current = false;
+                                setHasChanges(true);
+                              }}
+                            />
                           </CardContent>
                         )}
                       </Card>
@@ -4200,6 +4329,27 @@ export default function EditResumePage() {
                                         updateContent({ education: updated });
                                       }}
                                       className={RESUME_FIELD_INPUT_CLASS}
+                                      placeholder="e.g. Bachelor of Technology (B.Tech.)"
+                                    />
+                                  </div>
+                                  <div>
+                                    <Label className="text-xs">
+                                      Field of study
+                                    </Label>
+                                    <Input
+                                      value={edu.field || ""}
+                                      onChange={(e) => {
+                                        const updated = [
+                                          ...resume.content.education,
+                                        ];
+                                        updated[index] = {
+                                          ...edu,
+                                          field: e.target.value,
+                                        };
+                                        updateContent({ education: updated });
+                                      }}
+                                      className={RESUME_FIELD_INPUT_CLASS}
+                                      placeholder="e.g. CSE"
                                     />
                                   </div>
                                   <div>
@@ -4347,6 +4497,7 @@ export default function EditResumePage() {
                                       id: nanoid(),
                                       institution: "",
                                       degree: "",
+                                      field: "",
                                       startDate: "",
                                       gpa: "",
                                       location: "",
@@ -4542,7 +4693,7 @@ export default function EditResumePage() {
                             {(resume.content.projects || []).map(
                               (project, index) => (
                                 <div
-                                  key={project.id || index}
+                                  key={`${project.id || index}-${applyNonce}`}
                                   className={resumeEntryCard}
                                 >
                                   <div className="grid grid-cols-2 gap-3">
@@ -4635,7 +4786,10 @@ export default function EditResumePage() {
                                       Description
                                     </Label>
                                     <RichTextEditor
-                                      value={project.description || ""}
+                                      preferredContentType="list"
+                                      value={descriptionToEditorHtml(
+                                        project.description,
+                                      )}
                                       onChange={(html) => {
                                         const updated = [
                                           ...(resume.content.projects || []),
@@ -6513,6 +6667,37 @@ export default function EditResumePage() {
         onSelectTemplate={handleChangeTemplate}
         applying={changingTemplate}
       />
+      <MatchJobDescriptionDialog
+        open={matchJobOpen}
+        onOpenChange={setMatchJobOpen}
+        onSubmit={handleRequestMatchJobDescription}
+        applying={matchingJob}
+        initialJobDescription={
+          lastMatchedJd ?? resume?.atsScoringContext?.lastJobDescription ?? ""
+        }
+      />
+      <ConfirmationDialog
+        open={confirmMatchOpen}
+        onOpenChange={(open) => {
+          if (matchingJob) return;
+          setConfirmMatchOpen(open);
+          if (!open) setPendingMatchJd(null);
+        }}
+        title="Tailor and overwrite this resume?"
+        description="AI will rewrite your profile summary, skills, experience, projects, and certificates to match this job description, replacing the current content. You can undo it while editing, but this cannot be reversed after you reload or leave the page."
+        confirmText="Tailor my resume"
+        cancelText="Cancel"
+        variant="destructive"
+        isLoading={matchingJob}
+        onConfirm={() => {
+          // Close the confirmation immediately, then run tailoring in the
+          // background (progress is shown on the toolbar button + match dialog).
+          const jd = pendingMatchJd;
+          setConfirmMatchOpen(false);
+          setPendingMatchJd(null);
+          if (jd) void handleMatchJobDescription(jd);
+        }}
+      />
       {resume && template ? (
         <ImportResumeDialog
           open={importResumeOpen}
@@ -6584,6 +6769,10 @@ export default function EditResumePage() {
         cancelText="Cancel"
         onConfirm={handleConfirmPageDelete}
         variant="destructive"
+      />
+      <ExtensionSyncedDialog
+        open={syncDialogOpen}
+        onOpenChange={setSyncDialogOpen}
       />
       <TrialUpsellDialog
         open={trialUpsellOpen}

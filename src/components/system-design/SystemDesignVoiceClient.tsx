@@ -23,7 +23,27 @@ const GEMINI_MIC_FRAME_SAMPLES_24K = 720;
 export type SystemDesignVoiceDiagramBridge = {
   /** Sends canvas PNG into the **active** Live session (after mic + start_interview only). */
   sendDiagramSnapshot(imageBase64: string, mimeType?: string): boolean;
+  /** Liveness ping for whiteboard edits — resets the backend silence monitor (throttled). */
+  sendWhiteboardActivity(): void;
 };
+
+// ── Client voice-activity detection (energy-based) ──────────────────────────
+/** Absolute normalized RMS floor; nothing below this counts as speech. */
+const VAD_ABS_FLOOR = 0.003;
+/** Speech requires RMS above adaptive noise floor × this factor. */
+const VAD_THRESHOLD_FACTOR = 1.6;
+/** Audio buffered before onset so word beginnings aren't clipped. */
+const VAD_PREROLL_MS = 300;
+/** Keep streaming this long after RMS drops so word tails aren't clipped. */
+const VAD_HANGOVER_MS = 600;
+/** Adaptation rate of the noise floor during quiet frames. */
+const VAD_NOISE_EMA = 0.04;
+/** Starting noise-floor estimate before calibration (very quiet room). */
+const VAD_NOISE_FLOOR_INIT = 0.002;
+/** Upper bound so a noisy environment can't fully suppress speech detection. */
+const VAD_NOISE_FLOOR_MAX = 0.018;
+/** Throttle for liveness pings (speech onset / whiteboard). */
+const ACTIVITY_SIGNAL_THROTTLE_MS = 2000;
 
 /** Imperative API — e.g. flush transcript to Mongo before POST finalize. */
 export type SystemDesignVoiceSessionHandle = {
@@ -45,6 +65,8 @@ type Props = {
   autoStartVoice?: boolean;
   /** Subtitle while disabled before interview ends (otherwise shows “Interview ended”). */
   disabledHint?: string;
+  /** Backend force-ended the interview (e.g. candidate inactivity) — parent finalizes + navigates. */
+  onForceEnd?: (reason: string) => void;
 };
 
 export const SystemDesignVoiceClient = forwardRef<
@@ -61,6 +83,7 @@ export const SystemDesignVoiceClient = forwardRef<
     reuseMicStreamRef,
     autoStartVoice = false,
     disabledHint,
+    onForceEnd,
   }: Props,
   ref,
 ) {
@@ -86,6 +109,32 @@ export const SystemDesignVoiceClient = forwardRef<
   /** After user clicks Start New Session: connect then auto-run mic + greeting. */
   const pendingConnectThenStartRef = useRef(false);
   const voiceActiveRef = useRef(false);
+  /** Latest onForceEnd — kept in a ref so the WS handler never sees a stale closure. */
+  const onForceEndRef = useRef<Props["onForceEnd"]>(onForceEnd);
+  useEffect(() => {
+    onForceEndRef.current = onForceEnd;
+  }, [onForceEnd]);
+  /** Last time we emitted a liveness ping (speech onset). */
+  const lastActivitySentRef = useRef(0);
+  /** Last time we emitted a whiteboard liveness ping. */
+  const lastWhiteboardActivitySentRef = useRef(0);
+  /** True while the AI turn is active (server streaming or local playback). */
+  const aiSpeakingForVadRef = useRef(false);
+  /** Reset VAD calibration (called when an AI turn finishes). */
+  const vadResetRef = useRef<(() => void) | null>(null);
+
+  const sendLivenessSignal = useCallback(
+    (type: "user_activity" | "whiteboard_activity") => {
+      const ws = wsRef.current;
+      if (ws?.readyState !== WebSocket.OPEN || !voiceActiveRef.current) return;
+      try {
+        ws.send(JSON.stringify({ type }));
+      } catch {
+        /* ignore */
+      }
+    },
+    [],
+  );
 
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -95,6 +144,34 @@ export const SystemDesignVoiceClient = forwardRef<
   const audioBufferRef = useRef<Int16Array[]>([]);
   const audioBufferTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const playingRef = useRef(false);
+  /** Active AI playback node — stopped immediately on barge-in. */
+  const playbackSourceRef = useRef<AudioBufferSourceNode | null>(null);
+
+  /** Stop local AI audio immediately (barge-in / server interrupted). */
+  const stopAiPlayback = useCallback(() => {
+    if (audioBufferTimerRef.current) {
+      clearTimeout(audioBufferTimerRef.current);
+      audioBufferTimerRef.current = null;
+    }
+    audioQueueRef.current = [];
+    audioBufferRef.current = [];
+    if (playbackSourceRef.current) {
+      try {
+        playbackSourceRef.current.onended = null;
+        playbackSourceRef.current.stop();
+      } catch {
+        /* already stopped */
+      }
+      playbackSourceRef.current = null;
+    }
+    playingRef.current = false;
+    aiSpeakingForVadRef.current = false;
+    setAiSpeaking(false);
+  }, []);
+  const stopAiPlaybackRef = useRef(stopAiPlayback);
+  useEffect(() => {
+    stopAiPlaybackRef.current = stopAiPlayback;
+  }, [stopAiPlayback]);
 
   const stopHeartbeat = useCallback(() => {
     if (heartbeatRef.current) {
@@ -121,6 +198,8 @@ export const SystemDesignVoiceClient = forwardRef<
     const ctx = audioContextRef.current;
     if (!ctx || audioQueueRef.current.length === 0) {
       playingRef.current = false;
+      aiSpeakingForVadRef.current = false;
+      vadResetRef.current?.();
       return;
     }
     playingRef.current = true;
@@ -133,7 +212,11 @@ export const SystemDesignVoiceClient = forwardRef<
     const source = ctx.createBufferSource();
     source.buffer = buffer;
     source.connect(ctx.destination);
-    source.onended = () => void playNext();
+    playbackSourceRef.current = source;
+    source.onended = () => {
+      if (playbackSourceRef.current === source) playbackSourceRef.current = null;
+      void playNext();
+    };
     source.start();
   }, []);
 
@@ -208,6 +291,15 @@ export const SystemDesignVoiceClient = forwardRef<
     }
     audioQueueRef.current = [];
     audioBufferRef.current = [];
+    if (playbackSourceRef.current) {
+      try {
+        playbackSourceRef.current.onended = null;
+        playbackSourceRef.current.stop();
+      } catch {
+        /* ignore */
+      }
+      playbackSourceRef.current = null;
+    }
     playingRef.current = false;
     void audioContextRef.current?.close().catch(() => {});
     audioContextRef.current = null;
@@ -216,12 +308,22 @@ export const SystemDesignVoiceClient = forwardRef<
   const releaseVoiceCodecResources = () => {
     stopHeartbeat();
     cleanupAudioCapture();
+    vadResetRef.current = null;
     if (audioBufferTimerRef.current) {
       clearTimeout(audioBufferTimerRef.current);
       audioBufferTimerRef.current = null;
     }
     audioQueueRef.current = [];
     audioBufferRef.current = [];
+    if (playbackSourceRef.current) {
+      try {
+        playbackSourceRef.current.onended = null;
+        playbackSourceRef.current.stop();
+      } catch {
+        /* ignore */
+      }
+      playbackSourceRef.current = null;
+    }
     playingRef.current = false;
     void audioContextRef.current?.close().catch(() => {});
     audioContextRef.current = null;
@@ -355,6 +457,15 @@ export const SystemDesignVoiceClient = forwardRef<
           return false;
         }
       },
+      sendWhiteboardActivity() {
+        if (disabled || !voiceActiveRef.current) return;
+        const now = Date.now();
+        if (now - lastWhiteboardActivitySentRef.current < ACTIVITY_SIGNAL_THROTTLE_MS) {
+          return;
+        }
+        lastWhiteboardActivitySentRef.current = now;
+        sendLivenessSignal("whiteboard_activity");
+      },
     };
     if (!disabled) {
       diagramBridgeRef.current = bridge;
@@ -366,7 +477,7 @@ export const SystemDesignVoiceClient = forwardRef<
         diagramBridgeRef.current = null;
       }
     };
-  }, [diagramBridgeRef, disabled, ensurePlaybackContext]);
+  }, [diagramBridgeRef, disabled, ensurePlaybackContext, sendLivenessSignal]);
 
   const setupAudioCapture = useCallback(() => {
     const stream = mediaStreamRef.current;
@@ -388,6 +499,98 @@ export const SystemDesignVoiceClient = forwardRef<
       }
       wsRef.current!.send(JSON.stringify({ type: "audio", audioData: b64 }));
     };
+
+    const emitSpeechOnsetActivity = () => {
+      const now = Date.now();
+      if (now - lastActivitySentRef.current < ACTIVITY_SIGNAL_THROTTLE_MS) return;
+      lastActivitySentRef.current = now;
+      sendLivenessSignal("user_activity");
+    };
+
+    /**
+     * Energy-based voice-activity gate: streams only detected speech (with a short
+     * pre-roll + hangover so word edges aren't clipped), keeping steady background
+     * noise (fans, hum) off the socket. Frames are 24 kHz Int16 PCM.
+     */
+    const createVadGate = () => {
+      let noiseFloor = VAD_NOISE_FLOOR_INIT;
+      let speaking = false;
+      let hangoverUntil = 0;
+      const preroll: Int16Array[] = [];
+      let prerollSamples = 0;
+      const maxPrerollSamples = Math.floor(
+        (TARGET_SAMPLE_RATE * VAD_PREROLL_MS) / 1000,
+      );
+
+      const reset = () => {
+        noiseFloor = VAD_NOISE_FLOOR_INIT;
+        speaking = false;
+        hangoverUntil = 0;
+        preroll.length = 0;
+        prerollSamples = 0;
+      };
+
+      const process = (frame: Int16Array) => {
+        if (frame.length === 0) return;
+
+        const aiPlaying = aiSpeakingForVadRef.current || playingRef.current;
+
+        // While the AI is speaking: stream mic audio WITHOUT VAD (same as the
+        // pre-silence-monitor RealtimeInterviewClient path). Gemini detects
+        // barge-in server-side. Client-side VAD + stopAiPlayback here caused
+        // speaker bleed to falsely interrupt and leave the AI stuck mid-turn.
+        if (aiPlaying) {
+          sendAudioChunk(pcm16ToBase64(frame));
+          return;
+        }
+
+        let sumSq = 0;
+        for (let i = 0; i < frame.length; i++) {
+          const s = frame[i]! / 32768;
+          sumSq += s * s;
+        }
+        const rms = Math.sqrt(sumSq / frame.length);
+        const now = Date.now();
+        const threshold = Math.max(VAD_ABS_FLOOR, noiseFloor * VAD_THRESHOLD_FACTOR);
+
+        if (rms > threshold) {
+          if (!speaking) {
+            speaking = true;
+            emitSpeechOnsetActivity();
+            for (const pf of preroll) sendAudioChunk(pcm16ToBase64(pf));
+            preroll.length = 0;
+            prerollSamples = 0;
+          }
+          hangoverUntil = now + VAD_HANGOVER_MS;
+          sendAudioChunk(pcm16ToBase64(frame));
+          return;
+        }
+
+        if (speaking && now < hangoverUntil) {
+          sendAudioChunk(pcm16ToBase64(frame));
+          return;
+        }
+        speaking = false;
+
+        if (rms < threshold * 0.55) {
+          noiseFloor = Math.min(
+            VAD_NOISE_FLOOR_MAX,
+            noiseFloor * (1 - VAD_NOISE_EMA) + rms * VAD_NOISE_EMA,
+          );
+        }
+        preroll.push(frame);
+        prerollSamples += frame.length;
+        while (prerollSamples > maxPrerollSamples && preroll.length > 0) {
+          prerollSamples -= preroll[0]!.length;
+          preroll.shift();
+        }
+      };
+
+      return { process, reset };
+    };
+
+    const vadGate = createVadGate();
+    vadResetRef.current = vadGate.reset;
 
     const setupWithScriptProcessor = (ctx: AudioContext) => {
       const sr = ctx.sampleRate;
@@ -413,7 +616,7 @@ export const SystemDesignVoiceClient = forwardRef<
           const s = Math.max(-1, Math.min(1, resampled[i]!));
           pcm16[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
         }
-        sendAudioChunk(pcm16ToBase64(pcm16));
+        vadGate.process(pcm16);
       };
       source.connect(processor);
       processor.connect(ctx.destination);
@@ -452,7 +655,7 @@ export const SystemDesignVoiceClient = forwardRef<
                 const frame = new Int16Array(GEMINI_MIC_FRAME_SAMPLES_24K);
                 for (let i = 0; i < GEMINI_MIC_FRAME_SAMPLES_24K; i++) frame[i] = pending[i]!;
                 pending.splice(0, GEMINI_MIC_FRAME_SAMPLES_24K);
-                sendAudioChunk(pcm16ToBase64(frame));
+                vadGate.process(frame);
               }
             };
             source.connect(worklet);
@@ -466,7 +669,7 @@ export const SystemDesignVoiceClient = forwardRef<
     } catch (e) {
       console.error("[SD Voice] setupAudioCapture:", e);
     }
-  }, []);
+  }, [sendLivenessSignal]);
 
   const startVoiceInterview = async () => {
     if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
@@ -564,6 +767,7 @@ export const SystemDesignVoiceClient = forwardRef<
             setPreparing(true);
             setStatusLine(data.message ?? "Getting ready…");
           } else if (data.type === "audio_response" && data.audioData) {
+            aiSpeakingForVadRef.current = true;
             setAiSpeaking(true);
             setPreparing(false);
             setStatusLine(null);
@@ -575,18 +779,16 @@ export const SystemDesignVoiceClient = forwardRef<
               setStatusLine(null);
             }
           } else if (data.type === "turn_complete") {
+            if (!playingRef.current) {
+              aiSpeakingForVadRef.current = false;
+              vadResetRef.current?.();
+            }
             setAiSpeaking(false);
             setPreparing(false);
             setStatusLine(null);
           } else if (data.type === "interrupted") {
-            audioQueueRef.current = [];
-            audioBufferRef.current = [];
-            if (audioBufferTimerRef.current) {
-              clearTimeout(audioBufferTimerRef.current);
-              audioBufferTimerRef.current = null;
-            }
-            playingRef.current = false;
-            setAiSpeaking(false);
+            stopAiPlaybackRef.current?.();
+            vadResetRef.current?.();
             setPreparing(false);
             setStatusLine(null);
           } else if (data.type === "error") {
@@ -600,6 +802,19 @@ export const SystemDesignVoiceClient = forwardRef<
             setVoiceActive(false);
             voiceActiveRef.current = false;
             setStartupInFlight(false);
+          } else if (data.type === "interview_ended") {
+            // Backend force-ended (e.g. inactivity). Stop streaming and let the
+            // parent finalize + navigate; avoid the reconnect/error path on close.
+            flushWaitSettleRef.current?.();
+            voiceActiveRef.current = false;
+            setVoiceActive(false);
+            setStartupInFlight(false);
+            setStatusLine(
+              typeof data.message === "string" ? data.message : "Interview ended",
+            );
+            const reason =
+              typeof data.reason === "string" ? data.reason : "ended";
+            onForceEndRef.current?.(reason);
           }
         } catch {
           /* ignore */

@@ -1,5 +1,11 @@
 import type { Metadata } from "next";
-import { hireIxTalentDemoVideo } from "@/lib/seo/marketing-video-content";
+import { SeoVideoJsonLdScript } from "@/components/seo/SeoVideoJsonLdScript";
+import {
+  getMarketingVideoOpenGraphImage,
+  hireIxTalentDemoVideo,
+  toVideoSchemaInput,
+} from "@/lib/seo/marketing-video-content";
+import { FeatureRouteGuard } from "@/components/features/FeatureRouteGuard";
 import { getSiteUrl } from "@/lib/seo/site-url";
 
 const siteUrl = getSiteUrl();
@@ -22,6 +28,7 @@ export const metadata: Metadata = {
     description,
     type: "website",
     url: `${siteUrl}/hire-ix-talent`,
+    images: [getMarketingVideoOpenGraphImage(hireIxTalentDemoVideo)],
     videos: [
       {
         url: hireIxTalentDemoVideo.videoUrl,
@@ -44,5 +51,10 @@ export default function HireIxTalentLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  return <>{children}</>;
+  return (
+    <>
+      <SeoVideoJsonLdScript {...toVideoSchemaInput(hireIxTalentDemoVideo)} />
+      <FeatureRouteGuard>{children}</FeatureRouteGuard>
+    </>
+  );
 }

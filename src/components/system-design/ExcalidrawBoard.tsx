@@ -21,9 +21,19 @@ interface ExcalidrawBoardProps {
   /** JSON from `serializeAsJSON(..., "database")` — loaded from session on resume. */
   initialSnapshotJson?: string | null;
   onExportRef?: (fn: () => Promise<string | null>) => void;
+  /** Disables autosave and change handlers. */
   readOnly?: boolean;
+  /**
+   * Excalidraw view mode (hides toolbar when true). Defaults to `readOnly` when omitted.
+   * Use `false` during pre-start preview so the toolbar remains visible under the overlay.
+   */
+  viewModeEnabled?: boolean;
+  /** Centered overlay rendered above the canvas but below Excalidraw UI (z-index). */
+  overlay?: React.ReactNode;
   /** Hide the top-left main menu (hamburger); uses scoped CSS on the wrapper. */
   hideMainMenu?: boolean;
+  /** Fires on real scene edits — used to signal candidate liveness (throttled downstream). */
+  onActivity?: () => void;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -34,6 +44,12 @@ type AnyExcalidrawApi = any;
  * with no further edits (user stopped drawing / panning / typing).
  */
 const WHITEBOARD_SAVE_DEBOUNCE_MS = 1600;
+
+/**
+ * Safety-net autosave interval: covers crashes / hard reloads where the debounce
+ * timer and `beforeunload` never fire. No-op when the scene fingerprint is unchanged.
+ */
+const WHITEBOARD_SAVE_INTERVAL_MS = 20_000;
 
 /** Tracks real scene edits vs viewport-only churn. Uses Excalidraw's element-version hash + files map. */
 function fingerprintScene(
@@ -55,8 +71,12 @@ export default function ExcalidrawBoard({
   initialSnapshotJson = null,
   onExportRef,
   readOnly = false,
+  viewModeEnabled,
+  overlay,
   hideMainMenu = false,
+  onActivity,
 }: ExcalidrawBoardProps) {
+  const isViewMode = viewModeEnabled ?? readOnly;
   const [excalidrawApi, setExcalidrawApi] = useState<AnyExcalidrawApi>(null);
   const apiRef = useRef<AnyExcalidrawApi>(null);
   const saveTimerRef = useRef<number | null>(null);
@@ -152,15 +172,32 @@ export default function ExcalidrawBoard({
       if (saveTimerRef.current !== null) window.clearTimeout(saveTimerRef.current);
       void flushPersist(true);
     };
+    // `visibilitychange` (tab hidden) and `pagehide` (mobile / bfcache / crash) are
+    // more reliable than `beforeunload` alone, which is skipped in several teardown paths.
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "hidden") void flushPersist(false);
+    };
     window.addEventListener("beforeunload", onUnload);
+    window.addEventListener("pagehide", onUnload);
+    document.addEventListener("visibilitychange", onVisibilityChange);
     return () => {
       window.removeEventListener("beforeunload", onUnload);
+      window.removeEventListener("pagehide", onUnload);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
       if (saveTimerRef.current !== null) {
         window.clearTimeout(saveTimerRef.current);
       }
       void flushPersist(false);
     };
   }, [flushPersist]);
+
+  useEffect(() => {
+    if (readOnly) return undefined;
+    const id = window.setInterval(() => {
+      void flushPersist(false);
+    }, WHITEBOARD_SAVE_INTERVAL_MS);
+    return () => window.clearInterval(id);
+  }, [flushPersist, readOnly]);
 
   useEffect(() => {
     const api = excalidrawApi;
@@ -195,6 +232,7 @@ export default function ExcalidrawBoard({
     if (!api || readOnly) return undefined;
     const tickle = () => {
       scheduleDebouncedAutosave();
+      onActivity?.();
     };
     const unsubChange = api.onChange(tickle);
     const unsubPointerUp = api.onPointerUp(() => {
@@ -204,7 +242,7 @@ export default function ExcalidrawBoard({
       unsubChange();
       unsubPointerUp();
     };
-  }, [excalidrawApi, readOnly, scheduleDebouncedAutosave]);
+  }, [excalidrawApi, readOnly, scheduleDebouncedAutosave, onActivity]);
 
   useEffect(() => {
     if (!onExportRef) return;
@@ -241,7 +279,7 @@ export default function ExcalidrawBoard({
   return (
     <div
       className={cn(
-        "excalidraw-container h-full min-h-0 w-full min-w-0",
+        "excalidraw-container relative h-full min-h-0 w-full min-w-0",
         hideMainMenu && "excalidraw-hide-main-menu",
       )}
       style={{ background: "#ffffff" }}
@@ -249,10 +287,25 @@ export default function ExcalidrawBoard({
       <Excalidraw
         key={sessionId}
         excalidrawAPI={handleApiReady}
-        viewModeEnabled={readOnly}
+        viewModeEnabled={isViewMode}
         initialData={initialData}
         UIOptions={uiOptions}
       />
+      {overlay ? (
+        <div className="excalidraw-prestart-shell absolute inset-0 z-[10]">
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-0 bg-[#0b1220]/25"
+          />
+          <div
+            aria-hidden
+            className="excalidraw-prestart-shield absolute inset-0 z-[1] cursor-not-allowed bg-transparent"
+          />
+          <div className="pointer-events-none absolute inset-0 z-[2] flex flex-col items-center justify-center px-4">
+            {overlay}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

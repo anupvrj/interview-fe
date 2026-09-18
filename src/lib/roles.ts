@@ -26,7 +26,7 @@ export const ROLE_META: Record<ActiveRole, RoleMeta> = {
   super_admin: {
     role: "super_admin",
     label: "Super Admin",
-    description: "Full access to every dashboard, tool and admin area.",
+    description: "Platform control panel: features, CMS, and operations.",
     icon: Shield,
   },
   institution_admin: {
@@ -60,10 +60,13 @@ export const ROLE_META: Record<ActiveRole, RoleMeta> = {
  * Frontend view-scoping only - the backend still enforces real permissions.
  */
 export function deriveAvailableRoles(
-  profile: Pick<User, "accessRole" | "peer" | "recruiter"> | null | undefined,
+  profile: Pick<User, "accessRole" | "peer" | "recruiter" | "institutionId"> | null | undefined,
 ): ActiveRole[] {
   const roles: ActiveRole[] = [];
-  if (profile?.accessRole === "super_admin") roles.push("super_admin");
+  if (profile?.accessRole === "super_admin") {
+    roles.push("super_admin");
+    if (profile.institutionId) roles.push("institution_admin");
+  }
   if (profile?.accessRole === "institution_admin")
     roles.push("institution_admin");
   if (profile?.peer?.interviewerStatus === "approved")
@@ -82,7 +85,7 @@ export function roleHome(
 ): string {
   switch (role) {
     case "super_admin":
-      return "/dashboard";
+      return "/super-admin";
     case "institution_admin":
       return profile?.institutionId
         ? `/dashboard/institute/${String(profile.institutionId)}`
@@ -97,7 +100,7 @@ export function roleHome(
   }
 }
 
-const SUPER_ADMIN_PREFIXES = ["/dashboard/super-admin"];
+const SUPER_ADMIN_PREFIXES = ["/super-admin"];
 const INSTITUTE_PREFIXES = ["/dashboard/institute"];
 const INTERVIEWER_HUB = "/dashboard/peer-interviews/interviewer";
 const INTERVIEWER_APPLY = "/dashboard/peer-interviews/interviewer/apply";
@@ -135,22 +138,64 @@ function matchesPrefix(pathname: string, prefixes: string[]): boolean {
  * super_admin can view everything. Non-dashboard paths are always allowed.
  */
 type RoleProfile =
-  | Pick<User, "institutionId" | "peer" | "recruiter">
+  | Pick<User, "accessRole" | "institutionId" | "peer" | "recruiter">
   | null
   | undefined;
+
+/** Chrome-extension post-login destinations — candidate workspace. */
+function isExtensionJobHandoffPath(pathname: string): boolean {
+  return (
+    pathname === "/dashboard/resumes/from-job" ||
+    pathname === "/dashboard/interviews/new" ||
+    pathname === "/dashboard/extension/connected"
+  );
+}
+
+/** When a URL requires a specific role view, return it so the UI can sync without redirecting away. */
+export function roleRequiredForPath(
+  pathname: string | null,
+  profile: Pick<User, "accessRole"> | null | undefined,
+): ActiveRole | null {
+  if (!pathname) return null;
+  if (isExtensionJobHandoffPath(pathname)) return "candidate";
+  if (
+    profile?.accessRole === "super_admin" &&
+    matchesPrefix(pathname, SUPER_ADMIN_PREFIXES)
+  ) {
+    return "super_admin";
+  }
+  return null;
+}
 
 export function isPathAllowedForRole(
   role: ActiveRole,
   pathname: string | null,
   profile: RoleProfile,
 ): boolean {
-  if (!pathname || !pathname.startsWith("/dashboard")) return true;
+  if (!pathname) return true;
+  if (!pathname.startsWith("/dashboard")) {
+    if (matchesPrefix(pathname, SUPER_ADMIN_PREFIXES)) {
+      return profile?.accessRole === "super_admin";
+    }
+    return true;
+  }
+
+  // Platform admins may open super-admin tools even while another role is active.
+  if (
+    profile?.accessRole === "super_admin" &&
+    matchesPrefix(pathname, SUPER_ADMIN_PREFIXES)
+  ) {
+    return true;
+  }
+
   if (role === "super_admin") return true;
 
   // Profile is always reachable from any role.
   if (
     pathname === "/dashboard/profile" ||
-    pathname.startsWith("/dashboard/profile/")
+    pathname.startsWith("/dashboard/profile/") ||
+    pathname === "/dashboard/affiliate" ||
+    pathname.startsWith("/dashboard/affiliate/")
   ) {
     return true;
   }
@@ -217,6 +262,32 @@ export function isPathAllowedForRole(
   }
 
   return true;
+}
+
+/** Pick stored role, or the only available role for single-role users. */
+export function resolveInitialActiveRole(
+  profile: Pick<User, "accessRole" | "peer" | "recruiter" | "institutionId">,
+  userId: string,
+): ActiveRole | null {
+  const roles = deriveAvailableRoles(profile);
+  const stored = readStoredRole(userId);
+  if (stored && roles.includes(stored)) return stored;
+  if (roles.length === 1) {
+    writeStoredRole(userId, roles[0]);
+    return roles[0];
+  }
+  return null;
+}
+
+/** When the URL implies a role view (e.g. super-admin tools), return it if allowed. */
+export function resolvePathScopedActiveRole(
+  pathname: string | null,
+  profile: Pick<User, "accessRole" | "peer" | "recruiter" | "institutionId">,
+): ActiveRole | null {
+  const required = roleRequiredForPath(pathname, profile);
+  if (!required) return null;
+  const roles = deriveAvailableRoles(profile);
+  return roles.includes(required) ? required : null;
 }
 
 const STORAGE_PREFIX = "activeRole:";

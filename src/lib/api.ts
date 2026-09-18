@@ -5,6 +5,20 @@ import axios, {
 } from "axios";
 import type { ATSReportV3 } from "@/types/atsReport";
 export { isATSReportV3 } from "@/types/atsReport";
+import { inferImageContentType } from "@/lib/image-upload";
+import {
+  getSignInUrlWithRedirect,
+  shouldRedirectUnauthorizedToSignIn,
+} from "@/lib/post-sign-in-redirect";
+import { trimJobDescriptionForSend } from "@/lib/job-description-limits";
+import type { ApplicationProfile } from "@/lib/application-profile";
+import type {
+  JobTrackerBoardResponse,
+  JobTrackerDetail,
+  JobTrackerListFilters,
+  JobTrackerListResponse,
+  JobTrackerStatus,
+} from "@/lib/job-tracker";
 
 /** Base URL for API (includes `/api` path). Use for `<img src>` and other non-axios URLs. */
 export const API_URL =
@@ -66,6 +80,13 @@ async function snapshotFileForUpload(file: File): Promise<Blob> {
   });
 }
 
+async function snapshotImageForUpload(file: File): Promise<Blob> {
+  const buffer = await file.arrayBuffer();
+  return new Blob([buffer], {
+    type: inferImageContentType(file),
+  });
+}
+
 // Token getter - set by AuthTokenProvider for JWT verification on backend
 let tokenGetter: (() => Promise<string | null>) | null = null;
 export function setAuthTokenGetter(getter: () => Promise<string | null>) {
@@ -110,9 +131,16 @@ apiClient.interceptors.response.use(
   (response) => response,
   (error: AxiosError) => {
     if (error.response?.status === 401) {
-      // Redirect to login if unauthorized
       if (typeof window !== "undefined") {
-        window.location.href = "/sign-in";
+        const returnPath = `${window.location.pathname}${window.location.search}`;
+        if (
+          shouldRedirectUnauthorizedToSignIn(
+            window.location.pathname,
+            String(error.config?.url || ""),
+          )
+        ) {
+          window.location.href = getSignInUrlWithRedirect(returnPath);
+        }
       }
     }
     return Promise.reject(error);
@@ -134,14 +162,31 @@ export interface User {
   affiliationInstitutionId?: string | null;
   affiliationInstitutionName?: string;
   onboardingCompleted?: boolean;
+  welcomeSignupIntent?: "candidate" | "recruiter" | "interviewer";
   userType?: "student" | "fresher" | "experienced";
   experience?: number;
+  /** Role the candidate is preparing / interviewing for */
+  targetJobRole?: string;
+  /** Company the candidate is targeting */
+  targetCompany?: string;
   /** Contact phone number */
   phone?: string;
   currentJob?: {
     company: string;
     role: string;
     industry?: string;
+  };
+  /** Free-text overall experience for job applications */
+  overallExperience?: string;
+  willingToWorkOnsite?: boolean;
+  willingToWorkHybrid?: boolean;
+  currentCtc?: {
+    amount: number;
+    unit: "lpa" | "inr";
+  };
+  expectedCtc?: {
+    amount: number;
+    unit: "lpa" | "inr";
   };
   industry?: string;
   /** @deprecated legacy multi-select; use `industry` */
@@ -158,6 +203,7 @@ export interface User {
     uploadedAt: string;
     size: number;
   };
+  applicationProfile?: ApplicationProfile;
   subscription?: {
     plan: SubscriptionPlanSlug;
     status: "active" | "cancelled" | "expired";
@@ -315,6 +361,8 @@ export interface Interview {
     discussionDurationMinutes?: number;
     /** When true (e.g. institute admin), denying screen capture may block the session. */
     requireSessionRecording?: boolean;
+    /** Voice AI provider selected at interview creation. */
+    voiceProvider?: "gemini" | "chatgpt" | "sarvam";
   };
   codingRound?: {
     status: string;
@@ -477,6 +525,12 @@ export interface CreateInterviewRequest {
   useSavedResume?: boolean;
   /** Interview duration in minutes: 15 (default) or 30 (premium & enterprise). */
   duration?: number;
+  /** Job posting description from Chrome extension (or pasted) for JD-grounded questions. */
+  jobDescription?: string;
+  /** Voice AI provider for the realtime interview session. */
+  voiceProvider?: "gemini" | "chatgpt" | "sarvam";
+  /** Job tracker application this practice interview belongs to. */
+  jobApplicationId?: string;
 }
 
 export interface CreateInterviewResponse {
@@ -500,6 +554,15 @@ export const userApi = {
       email,
       name,
     });
+    return response.data.data;
+  },
+
+  sendWelcomeSignup: async (
+    signupPath: "candidate" | "recruiter" | "interviewer",
+  ): Promise<{ sent: boolean; alreadySent: boolean }> => {
+    const response = await apiClient.post<{
+      data: { sent: boolean; alreadySent: boolean };
+    }>("/users/me/welcome-signup", { signupPath });
     return response.data.data;
   },
 
@@ -593,6 +656,8 @@ export const userApi = {
   completeOnboarding: async (data: {
     userType: "student" | "fresher" | "experienced";
     experience?: number;
+    targetJobRole?: string;
+    targetCompany?: string;
     currentJob?: {
       company: string;
       role: string;
@@ -615,15 +680,29 @@ export const userApi = {
     name?: string;
     userType?: "student" | "fresher" | "experienced";
     experience?: number;
+    overallExperience?: string;
+    targetJobRole?: string;
+    targetCompany?: string;
     currentJob?: {
       company: string;
       role: string;
       industry?: string;
     };
+    currentCtc?: {
+      amount: number;
+      unit: "lpa" | "inr";
+    } | null;
+    expectedCtc?: {
+      amount: number;
+      unit: "lpa" | "inr";
+    } | null;
+    willingToWorkOnsite?: boolean | null;
+    willingToWorkHybrid?: boolean | null;
     industry?: string;
     skills?: string[];
     affiliationInstitutionId?: string | null;
     affiliationInstitutionName?: string | null;
+    applicationProfile?: ApplicationProfile;
   }): Promise<User> => {
     const response = await apiClient.put<{ data: User }>(
       "/users/me/profile",
@@ -660,6 +739,18 @@ export const interviewApi = {
     }
     if (data.duration) {
       formData.append("duration", data.duration.toString());
+    }
+    if (data.jobDescription?.trim()) {
+      formData.append(
+        "jobDescription",
+        trimJobDescriptionForSend(data.jobDescription),
+      );
+    }
+    if (data.voiceProvider) {
+      formData.append("voiceProvider", data.voiceProvider);
+    }
+    if (data.jobApplicationId?.trim()) {
+      formData.append("jobApplicationId", data.jobApplicationId.trim());
     }
     if (data.resume) {
       const resumeBlob = await snapshotFileForUpload(data.resume);
@@ -1072,16 +1163,208 @@ export interface RazorpayOrder {
   currency: string;
   keyId: string;
   subscriptionId?: string;
+  originalAmount?: number;
+  discountAmount?: number;
+  finalAmount?: number;
+  couponCode?: string;
+  discountPercent?: number;
+  referralCode?: string;
+  referralDiscountPercent?: number;
 }
+
+export type AdminCoupon = {
+  id: string;
+  code: string;
+  discountPercent: number;
+  maxUses: number | null;
+  usedCount: number;
+  quota: number | "unlimited";
+  isActive: boolean;
+  isDefaultWelcome: boolean;
+  validForFirstMonthOnly: boolean;
+  expiresAt: string | null;
+  createdAt: string;
+  status: "active" | "inactive" | "expired" | "exhausted";
+};
+
+export type AdminCouponRedemption = {
+  id: string;
+  clerkId: string;
+  email: string | null;
+  name: string | null;
+  plan: string | null;
+  billingCycle: "monthly" | "quarterly" | "yearly" | null;
+  discountPercent: number;
+  originalAmount: number;
+  discountAmount: number;
+  finalAmount: number;
+  redeemedAt: string;
+};
+
+export type AdminCouponDetail = {
+  coupon: AdminCoupon;
+  redemptions: AdminCouponRedemption[];
+  planBreakdown: Array<{ plan: string; count: number }>;
+  total: number;
+  limit: number;
+  skip: number;
+};
+
+export type AppliedCoupon = {
+  applied: true;
+  couponId: string;
+  code: string;
+  discountPercent: number;
+  originalAmount: number;
+  discountAmount: number;
+  finalAmount: number;
+  appliedAutomatically: boolean;
+  message: string;
+};
+
+export const couponApi = {
+  apply: async (body: {
+    code?: string;
+    plan: string;
+    billingCycle?: "monthly" | "quarterly" | "yearly";
+  }): Promise<AppliedCoupon | { applied: false }> => {
+    const response = await apiClient.post<{
+      data: AppliedCoupon | { applied: false };
+    }>("/coupons/apply", body);
+    return response.data.data;
+  },
+};
+
+export type AffiliatePayout = {
+  id: string;
+  amountRequested: number;
+  status: "pending" | "paid" | "rejected";
+  upiId: string;
+  bankDetails: string | null;
+  requestedAt: string;
+  paidAt: string | null;
+  reviewNote: string | null;
+};
+
+export type AffiliateStats = {
+  registered: boolean;
+  referralCode: string | null;
+  referralPath: string | null;
+  totalClicks: number;
+  totalConversions: number;
+  totalEarnings: number;
+  availableBalance: number;
+  minPayoutRupees: number;
+  canRequestPayout: boolean;
+  hasPendingPayout: boolean;
+  upiId: string | null;
+  bankDetails: string | null;
+  referralDiscountPercent: number;
+  partnerCommissionPercent: number;
+  payouts: AffiliatePayout[];
+};
+
+export type AffiliateProgramSettings = {
+  referralDiscountPercent: number;
+  partnerCommissionPercent: number;
+  minPayoutRupees: number;
+  updatedAt: string | null;
+};
+
+export type AdminAffiliate = {
+  id: string;
+  clerkId: string;
+  email: string | null;
+  name: string | null;
+  referralCode: string;
+  totalClicks: number;
+  totalConversions: number;
+  totalEarnings: number;
+  availableBalance: number;
+  isActive: boolean;
+  createdAt: string;
+};
+
+export type AdminAffiliateConversion = {
+  id: string;
+  referredClerkId: string;
+  referredEmail: string | null;
+  referredName: string | null;
+  plan: string | null;
+  billingCycle: string | null;
+  paymentAmount: number;
+  commissionPercent: number;
+  commissionAmount: number;
+  createdAt: string;
+};
+
+export type AdminAffiliateDetail = AdminAffiliate & {
+  upiId: string | null;
+  bankDetails: string | null;
+  referralPath: string;
+  updatedAt: string;
+  payouts: AffiliatePayout[];
+  conversions: AdminAffiliateConversion[];
+};
+
+export type AdminAffiliatePayout = AffiliatePayout & {
+  affiliateId: string;
+  clerkId: string;
+  email: string | null;
+  name: string | null;
+  referralCode: string | null;
+};
+
+export const affiliateApi = {
+  register: async (): Promise<AffiliateStats> => {
+    const response = await apiClient.post<{ data: AffiliateStats }>(
+      "/affiliate/register",
+    );
+    return response.data.data;
+  },
+  stats: async (): Promise<AffiliateStats> => {
+    const response = await apiClient.get<{ data: AffiliateStats }>(
+      "/affiliate/stats",
+    );
+    return response.data.data;
+  },
+  requestPayout: async (body: {
+    amount?: number;
+    upiId: string;
+    bankDetails?: string;
+  }): Promise<AffiliateStats> => {
+    const response = await apiClient.post<{ data: AffiliateStats }>(
+      "/affiliate/request-payout",
+      body,
+    );
+    return response.data.data;
+  },
+  track: async (body: {
+    code: string;
+    visitorId: string;
+  }): Promise<{ counted: boolean; referralCode: string | null }> => {
+    const response = await apiClient.post<{
+      data: { counted: boolean; referralCode: string | null };
+    }>("/affiliate/track", body);
+    return response.data.data;
+  },
+};
 
 export const paymentApi = {
   createOrder: async (
     plan: SelfServePlanSlug,
     billingCycle: "monthly" | "quarterly" | "yearly" = "monthly",
+    couponCode?: string,
+    referralCode?: string,
   ): Promise<RazorpayOrder> => {
     const response = await apiClient.post<{ data: RazorpayOrder }>(
       "/payments/create-order",
-      { plan, billingCycle },
+      {
+        plan,
+        billingCycle,
+        ...(couponCode ? { couponCode } : {}),
+        ...(referralCode ? { referralCode } : {}),
+      },
     );
     return response.data.data;
   },
@@ -1214,6 +1497,7 @@ export type ResolvedEntitlements = {
   periodEnd?: string;
   needsRenewal: boolean;
   entitlements: PlanEntitlements;
+  grantedPlatformFeatures?: string[];
   creditRates: {
     aiMockInterview: number;
     codingRound: number;
@@ -1236,6 +1520,23 @@ export const entitlementApi = {
     const response = await apiClient.get<{ data: ResolvedEntitlements }>(
       "/entitlements",
     );
+    return response.data.data;
+  },
+};
+
+export type ExtensionSessionPayload = {
+  tokenId: string;
+  token: string;
+  prefix: string;
+  name: string;
+};
+
+export const extensionApi = {
+  createSession: async (): Promise<ExtensionSessionPayload> => {
+    const response = await apiClient.post<{
+      success: boolean;
+      data: ExtensionSessionPayload;
+    }>("/extension/v1/session");
     return response.data.data;
   },
 };
@@ -1444,6 +1745,20 @@ export interface Resume {
   };
   atsScore?: number;
   atsFeedback?: ATSReportV3 | LegacyATSFeedback;
+  jobMatchScore?: number;
+  jobMatchFeedback?: {
+    matchScore: number;
+    verdict: "strong" | "moderate" | "weak";
+    tailorRecommended: boolean;
+    headline: string;
+    summary: string;
+    matchedSkills: string[];
+    missingSkills: string[];
+    strengths: string[];
+    gaps: string[];
+    jdHash?: string;
+    scoredAt?: string;
+  };
   atsImprovementMeta?: {
     improvedAt: string;
     previousScore?: number;
@@ -1514,6 +1829,7 @@ export const resumeApi = {
       content?: Partial<Resume["content"]>;
       sectionOrder?: Resume["sectionOrder"];
       layout?: Resume["layout"];
+      atsScoringContext?: Resume["atsScoringContext"];
       /** Set true for ATS checker so it does not count toward resume limit */
       forAtsCheckOnly?: boolean;
     },
@@ -1567,6 +1883,7 @@ export const resumeApi = {
       layout?: Resume["layout"];
       isDefault?: boolean;
       pdfS3Key?: string;
+      atsScoringContext?: Resume["atsScoringContext"];
     },
   ): Promise<Resume> => {
     const response = await apiClient.put<{ data: Resume }>(
@@ -1647,7 +1964,7 @@ export const resumeApi = {
 
   improveFromATS: async (
     resumeId: string,
-    options: { jobDescription?: string } = {},
+    options: { jobDescription?: string; matchInsights?: unknown } = {},
   ): Promise<Resume> => {
     const response = await apiClient.post<{ data: Resume }>(
       `/resumes/${resumeId}/improve-from-ats`,
@@ -1655,6 +1972,41 @@ export const resumeApi = {
       {
         timeout: 300000,
       },
+    );
+    return response.data.data;
+  },
+
+  /**
+   * Retarget an existing resume to a job description via the section-by-section
+   * tailoring pipeline. Returns tailored content WITHOUT persisting so the
+   * editor can apply it as an undoable change.
+   */
+  tailorToJobDescription: async (
+    resumeId: string,
+    options: {
+      jobDescription: string;
+      matchInsights?: unknown;
+    },
+  ): Promise<{
+    content: Resume["content"];
+    profileSummary?: string;
+    sectionOrder: NonNullable<Resume["sectionOrder"]>;
+    jobDescription: string;
+  }> => {
+    const response = await apiClient.post<{
+      data: {
+        content: Resume["content"];
+        profileSummary?: string;
+        sectionOrder: NonNullable<Resume["sectionOrder"]>;
+        jobDescription: string;
+      };
+    }>(
+      `/resumes/${resumeId}/tailor-to-jd`,
+      {
+        jobDescription: trimJobDescriptionForSend(options.jobDescription),
+        matchInsights: options.matchInsights,
+      },
+      { timeout: 300000 },
     );
     return response.data.data;
   },
@@ -1756,10 +2108,107 @@ export const resumeApi = {
 };
 
 // Resume Data Extraction API
+export interface JDRequirements {
+  jobTitle?: string;
+  seniorityLevel?: string;
+  requiredYears: number | null;
+  preferredYears: number | null;
+  mustHaveSkills: string[];
+  niceToHaveSkills: string[];
+  education: Array<{
+    level: string;
+    field?: string;
+    fields?: string[];
+    allowRelatedFields?: boolean;
+    mandatory: boolean;
+  }>;
+  certifications: string[];
+  responsibilities: string[];
+  otherRequirements: string[];
+}
+
+export interface ChatCollectedProfile {
+  personalInfo?: {
+    fullName?: string;
+    email?: string;
+    phone?: string;
+    location?: string;
+    linkedin?: string;
+    github?: string;
+    portfolio?: string;
+  };
+  profileSummary?: string;
+  experience?: Array<{
+    company?: string;
+    position?: string;
+    startDate?: string;
+    endDate?: string;
+    current?: boolean;
+    description?: string;
+    location?: string;
+  }>;
+  education?: Array<{
+    institution?: string;
+    degree?: string;
+    field?: string;
+    startDate?: string;
+    endDate?: string;
+    description?: string;
+  }>;
+  skills?: string[];
+  projects?: Array<{
+    name?: string;
+    description?: string;
+    technologies?: string[];
+  }>;
+  certificates?: Array<{
+    title?: string;
+    issuer?: string;
+    issueDate?: string;
+  }>;
+}
+
+export interface ResumeBuilderChatMessage {
+  role: "assistant" | "user";
+  content: string;
+  createdAt: string;
+}
+
+export type ResumeBuilderChatMode = "bulk" | "guided" | "voice";
+
+export interface ResumeBuilderChatSessionResponse {
+  sessionId: string;
+  phase: string;
+  mode: ResumeBuilderChatMode | null;
+  status: "active" | "ready_for_build" | "finalized";
+  messages: ResumeBuilderChatMessage[];
+  collectedProfile: ChatCollectedProfile;
+  assistantMessage?: string;
+}
+
+export type ResumeImportBuildOptions = {
+  jobDescription?: string;
+  jdRequirements?: JDRequirements;
+  /** When false, keep uploaded wording (structure only). Default true. */
+  enhance?: boolean;
+};
+
 export const resumeDataExtractionApi = {
+  analyzeJobDescription: async (
+    jobDescription: string,
+  ): Promise<{ requirements: JDRequirements; summary: string }> => {
+    const response = await apiClient.post("/analyze-job-description", {
+      jobDescription: trimJobDescriptionForSend(jobDescription),
+    });
+    return response.data.data;
+  },
+
   extractResumeData: async (
     templateId: string,
-    resumeText?: string,
+    options: {
+      resumeText?: string;
+      chatProfile?: ChatCollectedProfile;
+    } & ResumeImportBuildOptions = {},
   ): Promise<{
     sections: Record<
       string,
@@ -1771,14 +2220,22 @@ export const resumeDataExtractionApi = {
     >;
     templateId: string;
   }> => {
+    const { resumeText, chatProfile, jobDescription, jdRequirements, enhance } =
+      options;
     const response = await apiClient.post(
       "/extract-resume-data",
       {
         templateId,
         resumeText: resumeText || undefined,
+        chatProfile: chatProfile || undefined,
+        jobDescription: jobDescription
+          ? trimJobDescriptionForSend(jobDescription)
+          : undefined,
+        jdRequirements: jdRequirements || undefined,
+        enhance: enhance !== false,
       },
       {
-        timeout: 180000, // 180 seconds (3 minutes) for AI extraction
+        timeout: 180000,
       },
     );
     return response.data.data;
@@ -1787,6 +2244,7 @@ export const resumeDataExtractionApi = {
   importLinkedInProfile: async (
     handle: string,
     templateId: string,
+    options: ResumeImportBuildOptions = {},
   ): Promise<{
     sections: Record<
       string,
@@ -1803,10 +2261,86 @@ export const resumeDataExtractionApi = {
       {
         handle,
         templateId,
+        jobDescription: options.jobDescription
+          ? trimJobDescriptionForSend(options.jobDescription)
+          : undefined,
+        jdRequirements: options.jdRequirements || undefined,
       },
       {
-        timeout: 180000, // 180 seconds (3 minutes) for fetch + AI enhancement
+        timeout: 180000,
       },
+    );
+    return response.data.data;
+  },
+};
+
+/**
+ * Build the WSS URL for the Resume Builder voice agent. Auth is via the `userId`
+ * query param (WS clients can't attach auth headers).
+ */
+export function buildResumeVoiceWsUrl(
+  sessionId: string,
+  userId: string,
+  geminiVoice?: string,
+): string {
+  const baseHost = API_URL.replace(/\/api$/, "").replace(/^https?:\/\//, "");
+  const wsProtocol =
+    typeof globalThis !== "undefined" &&
+    globalThis.location?.protocol === "https:"
+      ? "wss:"
+      : "ws:";
+  const voiceParam = geminiVoice
+    ? `&geminiVoice=${encodeURIComponent(geminiVoice)}`
+    : "";
+  return (
+    `${wsProtocol}//${baseHost}/api/resume-builder/voice/sessions/${encodeURIComponent(sessionId)}/realtime/gemini?` +
+    `userId=${encodeURIComponent(userId)}${voiceParam}`
+  );
+}
+
+export const resumeBuilderChatApi = {
+  createSession: async (
+    templateId: string,
+    mode?: ResumeBuilderChatMode,
+  ): Promise<ResumeBuilderChatSessionResponse> => {
+    const response = await apiClient.post("/resume-builder/chat/sessions", {
+      templateId,
+      mode,
+    });
+    return response.data.data;
+  },
+
+  getSession: async (
+    sessionId: string,
+  ): Promise<ResumeBuilderChatSessionResponse> => {
+    const response = await apiClient.get(
+      `/resume-builder/chat/sessions/${sessionId}`,
+    );
+    return response.data.data;
+  },
+
+  sendMessage: async (
+    sessionId: string,
+    content: string,
+    action?: "skip" | "skip_and_build",
+  ): Promise<ResumeBuilderChatSessionResponse> => {
+    const response = await apiClient.post(
+      `/resume-builder/chat/sessions/${sessionId}/messages`,
+      { content, action },
+      { timeout: 30000 },
+    );
+    return response.data.data;
+  },
+
+  finalizeSession: async (
+    sessionId: string,
+  ): Promise<{
+    sessionId: string;
+    status: string;
+    collectedProfile: ChatCollectedProfile;
+  }> => {
+    const response = await apiClient.post(
+      `/resume-builder/chat/sessions/${sessionId}/finalize`,
     );
     return response.data.data;
   },
@@ -1891,12 +2425,18 @@ export const adminApi = {
     search?: string;
     /** Super admin: scope list to this institution */
     institutionId?: string;
+    period?: string;
+    from?: string;
+    to?: string;
   }): Promise<{ data: User[]; total: number }> => {
     const q = new URLSearchParams();
     if (params?.limit) q.set("limit", String(params.limit));
     if (params?.skip) q.set("skip", String(params.skip));
     if (params?.search) q.set("search", params.search);
     if (params?.institutionId) q.set("institutionId", params.institutionId);
+    if (params?.period) q.set("period", params.period);
+    if (params?.from) q.set("from", params.from);
+    if (params?.to) q.set("to", params.to);
     const response = await apiClient.get<{ success: boolean; data: User[]; total: number }>(
       `/admin/users?${q.toString()}`
     );
@@ -1983,6 +2523,163 @@ export const adminApi = {
     const response = await apiClient.get<{ success: boolean; data: any }>(
       `/admin/resumes/${resumeId}`
     );
+    return response.data.data;
+  },
+
+  getInsights: async (params?: {
+    period?: string;
+    from?: string;
+    to?: string;
+    type?: string;
+  }): Promise<import("@/lib/super-admin-insights").AdminInsights> => {
+    const q = new URLSearchParams();
+    if (params?.period) q.set("period", params.period);
+    if (params?.from) q.set("from", params.from);
+    if (params?.to) q.set("to", params.to);
+    if (params?.type) q.set("type", params.type);
+    const qs = q.toString();
+    const response = await apiClient.get<{
+      success: boolean;
+      data: import("@/lib/super-admin-insights").AdminInsights;
+    }>(`/admin/insights${qs ? `?${qs}` : ""}`);
+    return response.data.data;
+  },
+
+  getVoiceModelUsage: async (): Promise<
+    import("@/lib/super-admin-insights").VoiceModelUsageInsights
+  > => {
+    const response = await apiClient.get<{
+      success: boolean;
+      data: import("@/lib/super-admin-insights").VoiceModelUsageInsights;
+    }>("/admin/insights/voice-models");
+    return response.data.data;
+  },
+
+  listInsightResumes: async (params?: {
+    period?: string;
+    from?: string;
+    to?: string;
+    search?: string;
+    limit?: number;
+    skip?: number;
+  }): Promise<{
+    data: import("@/lib/super-admin-insights").InsightResumeRow[];
+    total: number;
+  }> => {
+    const q = new URLSearchParams();
+    if (params?.period) q.set("period", params.period);
+    if (params?.from) q.set("from", params.from);
+    if (params?.to) q.set("to", params.to);
+    if (params?.search) q.set("search", params.search);
+    if (params?.limit) q.set("limit", String(params.limit));
+    if (params?.skip) q.set("skip", String(params.skip));
+    const response = await apiClient.get<{
+      success: boolean;
+      data: import("@/lib/super-admin-insights").InsightResumeRow[];
+      total: number;
+    }>(`/admin/insights/resumes?${q.toString()}`);
+    return { data: response.data.data, total: response.data.total };
+  },
+
+  listInsightInterviews: async (params?: {
+    type?: string;
+    period?: string;
+    from?: string;
+    to?: string;
+    search?: string;
+    limit?: number;
+    skip?: number;
+  }): Promise<{
+    data: import("@/lib/super-admin-insights").InsightInterviewRow[];
+    total: number;
+  }> => {
+    const q = new URLSearchParams();
+    if (params?.type) q.set("type", params.type);
+    if (params?.period) q.set("period", params.period);
+    if (params?.from) q.set("from", params.from);
+    if (params?.to) q.set("to", params.to);
+    if (params?.search) q.set("search", params.search);
+    if (params?.limit) q.set("limit", String(params.limit));
+    if (params?.skip) q.set("skip", String(params.skip));
+    const response = await apiClient.get<{
+      success: boolean;
+      data: import("@/lib/super-admin-insights").InsightInterviewRow[];
+      total: number;
+    }>(`/admin/insights/interviews?${q.toString()}`);
+    return { data: response.data.data, total: response.data.total };
+  },
+
+  getSystemDesignReportForAdmin: async (sessionId: string): Promise<{
+    session: Record<string, unknown> & {
+      sessionId: string;
+      userId: string;
+      problemId: string;
+      status: string;
+      score?: number;
+      scoreReport?: {
+        overallScore?: number;
+        dimensionScores?: Record<string, number>;
+        dimensionVerdicts?: Record<string, string>;
+        strengths?: string[];
+        improvements?: string[];
+        summary?: string;
+      };
+      createdAt?: string;
+      completedAt?: string;
+    };
+    report: {
+      overallScore: number;
+      dimensionScores?: Record<string, number>;
+      dimensionVerdicts?: Record<string, string>;
+      whatYouDidWell?: string[];
+      gapsInDesign?: string[];
+      approachesCovered?: string[];
+      approachesMissedOrWeak?: string[];
+      concreteRecommendations?: string[];
+      overallSummary?: string;
+      fullReportMarkdown?: string;
+      generatedAt?: string;
+    } | null;
+    problem: { problemId: string; title: string; shortTitle: string } | null;
+    user: { clerkId: string; name: string; email: string };
+  }> => {
+    const response = await apiClient.get<{
+      success: boolean;
+      data: {
+        session: Record<string, unknown> & {
+          sessionId: string;
+          userId: string;
+          problemId: string;
+          status: string;
+          score?: number;
+          scoreReport?: {
+            overallScore?: number;
+            dimensionScores?: Record<string, number>;
+            dimensionVerdicts?: Record<string, string>;
+            strengths?: string[];
+            improvements?: string[];
+            summary?: string;
+          };
+          createdAt?: string;
+          completedAt?: string;
+        };
+        report: {
+          overallScore: number;
+          dimensionScores?: Record<string, number>;
+          dimensionVerdicts?: Record<string, string>;
+          whatYouDidWell?: string[];
+          gapsInDesign?: string[];
+          approachesCovered?: string[];
+          approachesMissedOrWeak?: string[];
+          concreteRecommendations?: string[];
+          overallSummary?: string;
+          fullReportMarkdown?: string;
+          generatedAt?: string;
+        } | null;
+        problem: { problemId: string; title: string; shortTitle: string } | null;
+        user: { clerkId: string; name: string; email: string };
+      };
+    }>(`/admin/system-design/sessions/${encodeURIComponent(sessionId)}/report`);
     return response.data.data;
   },
 
@@ -2326,6 +3023,250 @@ export const adminApi = {
   cancelInterviewSchedule: async (scheduleId: string): Promise<void> => {
     await apiClient.delete(`/admin/interview-schedules/${scheduleId}`);
   },
+
+  invalidateClientCache: async (): Promise<{
+    version: number;
+    updatedAt: string;
+  }> => {
+    const response = await apiClient.post<{
+      success: boolean;
+      data: { version: number; updatedAt: string };
+    }>("/admin/client-cache/invalidate");
+    return response.data.data;
+  },
+
+  listPlatformFeatures: async (): Promise<
+    import("@/lib/platform-features").PlatformFeature[]
+  > => {
+    const response = await apiClient.get<{
+      success: boolean;
+      data: {
+        features: import("@/lib/platform-features").PlatformFeature[];
+      };
+    }>("/admin/features");
+    return response.data.data.features;
+  },
+
+  updatePlatformFeature: async (
+    key: string,
+    patch: import("@/lib/platform-features").PlatformFeaturePatch,
+  ): Promise<import("@/lib/platform-features").PlatformFeature> => {
+    const response = await apiClient.patch<{
+      success: boolean;
+      data: import("@/lib/platform-features").PlatformFeature;
+    }>(`/admin/features/${encodeURIComponent(key)}`, patch);
+    return response.data.data;
+  },
+
+  createPlatformFeature: async (
+    input: import("@/lib/platform-features").CreatePlatformFeatureInput,
+  ): Promise<import("@/lib/platform-features").PlatformFeature> => {
+    const response = await apiClient.post<{
+      success: boolean;
+      data: import("@/lib/platform-features").PlatformFeature;
+    }>("/admin/features", input);
+    return response.data.data;
+  },
+
+  deletePlatformFeature: async (key: string): Promise<void> => {
+    await apiClient.delete(`/admin/features/${encodeURIComponent(key)}`);
+  },
+
+  listCatalogPlans: async (): Promise<
+    import("@/lib/planRecord").AdminPlanRecord[]
+  > => {
+    const response = await apiClient.get<{
+      success: boolean;
+      data: { plans: import("@/lib/planRecord").AdminPlanRecord[] };
+    }>("/admin/plans");
+    return response.data.data.plans;
+  },
+
+  updateCatalogPlan: async (
+    planId: string,
+    patch: {
+      name?: string;
+      displayName?: string;
+      description?: string;
+      pricing?: {
+        monthly?: number;
+        quarterly?: number;
+        yearly?: number;
+      };
+      creditsIncluded?: {
+        monthly?: number;
+        quarterly?: number;
+        yearly?: number;
+      };
+      highlights?: string[];
+      entitlements?: Partial<
+        import("@/lib/planFeatureAccess").PlanEntitlements
+      >;
+      grantedPlatformFeatures?: string[];
+      isActive?: boolean;
+      isPublic?: boolean;
+      isPopular?: boolean;
+      order?: number;
+      metadata?: {
+        bestFor?: string;
+        comingSoonHighlights?: string[];
+      };
+    },
+  ): Promise<import("@/lib/planRecord").AdminPlanRecord> => {
+    const response = await apiClient.patch<{
+      success: boolean;
+      data: import("@/lib/planRecord").AdminPlanRecord;
+    }>(`/admin/plans/${encodeURIComponent(planId)}`, patch);
+    return response.data.data;
+  },
+
+  listCoupons: async (): Promise<AdminCoupon[]> => {
+    const response = await apiClient.get<{ success: boolean; data: AdminCoupon[] }>(
+      "/admin/coupons",
+    );
+    return response.data.data;
+  },
+
+  getCoupon: async (
+    id: string,
+    params?: { limit?: number; skip?: number },
+  ): Promise<AdminCouponDetail> => {
+    const q = new URLSearchParams();
+    if (params?.limit != null) q.set("limit", String(params.limit));
+    if (params?.skip != null) q.set("skip", String(params.skip));
+    const suffix = q.toString() ? `?${q.toString()}` : "";
+    const response = await apiClient.get<{
+      success: boolean;
+      data: AdminCouponDetail;
+    }>(`/admin/coupons/${id}${suffix}`);
+    return response.data.data;
+  },
+
+  createCoupon: async (data: {
+    code?: string;
+    discountPercent: number;
+    maxUses?: number | null;
+    expiresAt?: string | null;
+    isDefaultWelcome?: boolean;
+  }): Promise<AdminCoupon> => {
+    const response = await apiClient.post<{ success: boolean; data: AdminCoupon }>(
+      "/admin/coupons",
+      data,
+    );
+    return response.data.data;
+  },
+
+  updateCoupon: async (
+    id: string,
+    data: { isActive?: boolean; isDefaultWelcome?: boolean },
+  ): Promise<AdminCoupon> => {
+    const response = await apiClient.patch<{ success: boolean; data: AdminCoupon }>(
+      `/admin/coupons/${id}`,
+      data,
+    );
+    return response.data.data;
+  },
+
+  deleteCoupon: async (
+    id: string,
+  ): Promise<{ deleted: boolean; deactivated: boolean }> => {
+    const response = await apiClient.delete<{
+      success: boolean;
+      data: { deleted: boolean; deactivated: boolean };
+    }>(`/admin/coupons/${id}`);
+    return response.data.data;
+  },
+
+  getAffiliateSettings: async (): Promise<AffiliateProgramSettings> => {
+    const response = await apiClient.get<{
+      success: boolean;
+      data: AffiliateProgramSettings;
+    }>("/admin/affiliates/settings");
+    return response.data.data;
+  },
+
+  updateAffiliateSettings: async (data: {
+    referralDiscountPercent: number;
+    partnerCommissionPercent: number;
+    minPayoutRupees: number;
+  }): Promise<AffiliateProgramSettings> => {
+    const response = await apiClient.patch<{
+      success: boolean;
+      data: AffiliateProgramSettings;
+    }>("/admin/affiliates/settings", data);
+    return response.data.data;
+  },
+
+  listAffiliates: async (params?: {
+    limit?: number;
+    skip?: number;
+  }): Promise<{
+    items: AdminAffiliate[];
+    total: number;
+    limit: number;
+    skip: number;
+  }> => {
+    const q = new URLSearchParams();
+    if (params?.limit != null) q.set("limit", String(params.limit));
+    if (params?.skip != null) q.set("skip", String(params.skip));
+    const suffix = q.toString() ? `?${q.toString()}` : "";
+    const response = await apiClient.get<{
+      success: boolean;
+      data: {
+        items: AdminAffiliate[];
+        total: number;
+        limit: number;
+        skip: number;
+      };
+    }>(`/admin/affiliates${suffix}`);
+    return response.data.data;
+  },
+
+  getAffiliate: async (id: string): Promise<AdminAffiliateDetail> => {
+    const response = await apiClient.get<{
+      success: boolean;
+      data: AdminAffiliateDetail;
+    }>(`/admin/affiliates/${id}`);
+    return response.data.data;
+  },
+
+  listAffiliatePayouts: async (params?: {
+    limit?: number;
+    skip?: number;
+    status?: "pending" | "paid" | "rejected" | "all";
+  }): Promise<{
+    items: AdminAffiliatePayout[];
+    total: number;
+    limit: number;
+    skip: number;
+  }> => {
+    const q = new URLSearchParams();
+    if (params?.limit != null) q.set("limit", String(params.limit));
+    if (params?.skip != null) q.set("skip", String(params.skip));
+    if (params?.status) q.set("status", params.status);
+    const suffix = q.toString() ? `?${q.toString()}` : "";
+    const response = await apiClient.get<{
+      success: boolean;
+      data: {
+        items: AdminAffiliatePayout[];
+        total: number;
+        limit: number;
+        skip: number;
+      };
+    }>(`/admin/affiliates/payouts${suffix}`);
+    return response.data.data;
+  },
+
+  reviewAffiliatePayout: async (
+    id: string,
+    data: { status: "paid" | "rejected"; reviewNote?: string },
+  ): Promise<AdminAffiliatePayout> => {
+    const response = await apiClient.patch<{
+      success: boolean;
+      data: AdminAffiliatePayout;
+    }>(`/admin/affiliates/payouts/${id}`, data);
+    return response.data.data;
+  },
 };
 
 /** Scheduled interviews (candidate: list mine, start). */
@@ -2551,8 +3492,24 @@ export type SystemDesignDifficulty = "easy" | "medium" | "hard";
 export interface SystemDesignProblemSummary {
   id: string;
   title: string;
+  shortTitle?: string;
   difficulty: SystemDesignDifficulty;
   category: string;
+  adminRating?: number;
+  askedAt?: string[];
+}
+
+export interface SystemDesignProblemDetail extends SystemDesignProblemSummary {
+  scenario: string;
+  coreRequirements: string[];
+  scaleRequirements: string[];
+  considerations: string[];
+  outOfScopeFunctional?: string[];
+  outOfScopeNonFunctional?: string[];
+  coreEntities?: string[];
+  apiHints?: string[];
+  askedAt?: string[];
+  analog?: string;
 }
 
 export interface SystemDesignChatMessage {
@@ -2606,6 +3563,8 @@ export interface SystemDesignSession {
   createdAt: string;
   updatedAt: string;
   completedAt?: string;
+  /** Why the session ended (e.g. auto-ended for candidate inactivity); null when normal. */
+  endReason?: string | null;
   whiteboardSnapshot?: string | null;
   recordingPhaseStartedAt?: string | null;
   recordingS3Key?: string | null;
@@ -2646,6 +3605,7 @@ export interface SystemDesignReportSessionLite {
   completedAt?: string;
   score?: number;
   scoreReport?: SystemDesignScoreReport;
+  endReason?: string | null;
   whiteboardSnapshot?: string | null;
   recordingS3Key?: string | null;
   recordingVideoUrl?: string | null;
@@ -2659,6 +3619,14 @@ export const systemDesignApi = {
       data: { problems: SystemDesignProblemSummary[] };
     }>("/system-design/problems");
     return r.data.data.problems;
+  },
+
+  getProblem: async (problemId: string): Promise<SystemDesignProblemDetail> => {
+    const r = await apiClient.get<{
+      success: boolean;
+      data: { problem: SystemDesignProblemDetail };
+    }>(`/system-design/problems/${encodeURIComponent(problemId)}`);
+    return r.data.data.problem;
   },
 
   createSession: async (problemId?: string): Promise<SystemDesignSession> => {
@@ -3813,4 +4781,893 @@ export const recruiterApi = {
   },
 };
 
+// ─── Notification Hub (Super Admin) ──────────────────────────────────────────
+export type NotificationChannelKey = "email" | "whatsapp";
+
+export interface NotificationTemplate {
+  _id: string;
+  eventType: string;
+  channel: NotificationChannelKey;
+  name: string;
+  subject?: string;
+  content: string;
+  expectedVariables: string[];
+  isActive: boolean;
+  emailTheme?: Partial<EmailThemeSettings>;
+  useCustomEmailTheme?: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface EmailThemeSettings {
+  desktopMaxWidth: number;
+  mobileBreakpoint: number;
+  contentPadding: number;
+  mobileContentPadding: number;
+  fontFamily: string;
+  bodyFontSize: number;
+  lineHeight: number;
+  h1FontSize: number;
+  h2FontSize: number;
+  h3FontSize: number;
+  eyebrowFontSize: number;
+  footerFontSize: number;
+  taglineFontSize: number;
+  copyrightFontSize: number;
+  brandColor: string;
+  brandLightColor: string;
+  bodyTextColor: string;
+  mutedTextColor: string;
+  backgroundColor: string;
+  scaleTypographyOnMobile: boolean;
+  stackButtonsOnMobile: boolean;
+}
+
+export interface NotificationConfig {
+  _id: string;
+  configKey: string;
+  adminEmails: string[];
+  alertToggles: {
+    checkoutFailures: boolean;
+    contactForm: boolean;
+  };
+  channelToggles: {
+    email: boolean;
+    whatsapp: boolean;
+  };
+  emailTheme?: Partial<EmailThemeSettings>;
+}
+
+export interface UpdateNotificationTemplateInput {
+  name?: string;
+  subject?: string;
+  content?: string;
+  expectedVariables?: string[];
+  isActive?: boolean;
+  emailTheme?: Partial<EmailThemeSettings>;
+  useCustomEmailTheme?: boolean;
+}
+
+export interface UpdateNotificationConfigInput {
+  adminEmails?: string[];
+  alertToggles?: Partial<NotificationConfig["alertToggles"]>;
+  channelToggles?: Partial<NotificationConfig["channelToggles"]>;
+  emailTheme?: Partial<EmailThemeSettings>;
+}
+
+export interface TemplatePreviewResult {
+  subject: string;
+  html: string;
+  variables: Record<string, string>;
+}
+
+export interface SendTestTemplateResult {
+  subject: string;
+  sentTo: string;
+}
+
+export interface AdminSystemDesignLevelExpectations {
+  mid?: string;
+  senior?: string;
+  staff?: string;
+}
+
+export interface AdminSystemDesignProblemStats {
+  attemptCount: number;
+  completedCount: number;
+  averageScore: number | null;
+}
+
+export interface AdminSystemDesignProblemListItem {
+  problemId: string;
+  title: string;
+  shortTitle: string;
+  category: string;
+  difficulty: SystemDesignDifficulty;
+  askedAt: string[];
+  adminRating?: number;
+  sortOrder: number;
+  isActive: boolean;
+  attemptCount: number;
+  completedCount: number;
+  averageScore: number | null;
+  updatedAt: string;
+}
+
+export interface AdminSystemDesignProblemDetail {
+  problemId: string;
+  knowledgeDocId: string;
+  legacyAliases: string[];
+  title: string;
+  shortTitle: string;
+  analog?: string;
+  category: string;
+  difficulty: SystemDesignDifficulty;
+  askedAt: string[];
+  scenario: string;
+  descriptionHtml?: string;
+  coreRequirements: string[];
+  outOfScopeFunctional: string[];
+  scaleRequirements: string[];
+  outOfScopeNonFunctional: string[];
+  coreEntities: string[];
+  apiHints: string[];
+  considerations: string[];
+  levelExpectations: AdminSystemDesignLevelExpectations;
+  sourcePath: string;
+  contentHash: string;
+  corpusVersion: string;
+  adminRating?: number;
+  sortOrder: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  stats: AdminSystemDesignProblemStats;
+}
+
+export interface AdminSystemDesignProblemListResponse {
+  items: AdminSystemDesignProblemListItem[];
+  total: number;
+  page: number;
+  limit: number;
+  summary: {
+    totalActive: number;
+    totalAttempts: number;
+    avgCompletionRate: number | null;
+    avgScore: number | null;
+  };
+}
+
+export interface AdminSystemDesignProblemUpsertBody {
+  problemId?: string;
+  knowledgeDocId?: string;
+  legacyAliases?: string[];
+  title: string;
+  shortTitle: string;
+  analog?: string;
+  category: string;
+  difficulty: SystemDesignDifficulty;
+  askedAt?: string[];
+  scenario: string;
+  descriptionHtml?: string;
+  coreRequirements?: string[];
+  outOfScopeFunctional?: string[];
+  scaleRequirements?: string[];
+  outOfScopeNonFunctional?: string[];
+  coreEntities?: string[];
+  apiHints?: string[];
+  considerations?: string[];
+  levelExpectations?: AdminSystemDesignLevelExpectations;
+  adminRating?: number;
+  sortOrder?: number;
+  isActive?: boolean;
+}
+
+export interface AdminSystemDesignProblemListQuery {
+  search?: string;
+  category?: string;
+  difficulty?: SystemDesignDifficulty;
+  isActive?: boolean;
+  page?: number;
+  limit?: number;
+  sortBy?: "title" | "attemptCount" | "averageScore" | "adminRating" | "updatedAt";
+  sortDir?: "asc" | "desc";
+}
+
+export const adminSystemDesignApi = {
+  list: (params?: AdminSystemDesignProblemListQuery) =>
+    unwrap<AdminSystemDesignProblemListResponse>(
+      apiClient.get("/admin/system-design-problems", { params }),
+    ),
+  get: (problemId: string) =>
+    unwrap<AdminSystemDesignProblemDetail>(
+      apiClient.get(`/admin/system-design-problems/${encodeURIComponent(problemId)}`),
+    ),
+  create: (body: AdminSystemDesignProblemUpsertBody) =>
+    unwrap<AdminSystemDesignProblemDetail>(
+      apiClient.post("/admin/system-design-problems", body),
+    ),
+  update: (problemId: string, body: AdminSystemDesignProblemUpsertBody) =>
+    unwrap<AdminSystemDesignProblemDetail>(
+      apiClient.put(
+        `/admin/system-design-problems/${encodeURIComponent(problemId)}`,
+        body,
+      ),
+    ),
+  remove: (problemId: string) =>
+    unwrap<void>(
+      apiClient.delete(
+        `/admin/system-design-problems/${encodeURIComponent(problemId)}`,
+      ),
+    ),
+  restore: (problemId: string) =>
+    unwrap<AdminSystemDesignProblemDetail>(
+      apiClient.post(
+        `/admin/system-design-problems/${encodeURIComponent(problemId)}/restore`,
+      ),
+    ),
+  listCategories: () =>
+    unwrap<{ categories: string[] }>(
+      apiClient.get("/admin/system-design-problems/categories"),
+    ).then((r) => r.categories ?? []),
+};
+
+export type CodingDifficulty = "easy" | "medium" | "hard";
+export type CodingLanguage = "javascript" | "java" | "c" | "cpp" | "python";
+export type CompanyTierTag =
+  | "FAANG"
+  | "TIER1"
+  | "TIER2"
+  | "STARTUP"
+  | "SERVICE";
+
+export interface AdminCodingTestCase {
+  input: string;
+  expectedOutput: string;
+  compareMode?: "exact" | "trim";
+}
+
+export interface AdminCodingProblemStats {
+  attemptCount: number;
+  averageSubmitScore: number | null;
+}
+
+export interface AdminCodingProblemListItem {
+  problemId: string;
+  title: string;
+  categories: string[];
+  difficulty: CodingDifficulty;
+  companyTierTags: CompanyTierTag[];
+  publicTestCount: number;
+  hiddenTestCount: number;
+  isActive: boolean;
+  attemptCount: number;
+  averageSubmitScore: number | null;
+  updatedAt: string;
+}
+
+export interface AdminCodingFunctionCase {
+  inputs: Record<string, unknown>;
+  expectedOutput: string;
+}
+
+export interface AdminCodingSnippetMeta {
+  entryPoint: string;
+  params: Array<{ name: string; type: string }>;
+  returnType: string;
+  outputParam?: string;
+  outputSlice?: { param: string; lengthExpr: string };
+  publicCases: AdminCodingFunctionCase[];
+  hiddenCases: AdminCodingFunctionCase[];
+}
+
+export interface AdminCodingDesignCase {
+  operations: string[];
+  args: unknown[][];
+  expectedOutput: string;
+}
+
+export interface AdminCodingDesignMeta {
+  className: string;
+  constructorParams?: Array<{ name: string; type: string }>;
+  methods: Array<{
+    name: string;
+    params: Array<{ name: string; type: string }>;
+    returnType: string;
+  }>;
+  publicCases: AdminCodingDesignCase[];
+  hiddenCases: AdminCodingDesignCase[];
+}
+
+export interface AdminCodingProblemDetail {
+  problemId: string;
+  title: string;
+  statement: string;
+  categories: string[];
+  difficulty: CodingDifficulty;
+  companyTierTags: CompanyTierTag[];
+  skillTags: string[];
+  starterCode: Partial<Record<CodingLanguage, string>>;
+  referenceSolution: Partial<Record<CodingLanguage, string>>;
+  publicTests: AdminCodingTestCase[];
+  hiddenTests: AdminCodingTestCase[];
+  executionMode?: "stdin" | "snippet";
+  snippetMeta?: AdminCodingSnippetMeta;
+  designMeta?: AdminCodingDesignMeta;
+  timeLimitMs?: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  stats: AdminCodingProblemStats;
+}
+
+export interface AdminCodingProblemListResponse {
+  items: AdminCodingProblemListItem[];
+  total: number;
+  page: number;
+  limit: number;
+  summary: {
+    totalActive: number;
+    totalAttempts: number;
+  };
+}
+
+export interface AdminCodingProblemUpsertBody {
+  problemId?: string;
+  title: string;
+  statement: string;
+  categories?: string[];
+  difficulty: CodingDifficulty;
+  companyTierTags?: CompanyTierTag[];
+  skillTags?: string[];
+  starterCode?: Partial<Record<CodingLanguage, string>>;
+  referenceSolution?: Partial<Record<CodingLanguage, string>>;
+  publicTests?: AdminCodingTestCase[];
+  hiddenTests?: AdminCodingTestCase[];
+  executionMode?: "stdin" | "snippet";
+  snippetMeta?: AdminCodingSnippetMeta;
+  designMeta?: AdminCodingDesignMeta;
+  timeLimitMs?: number;
+  isActive?: boolean;
+}
+
+export interface AdminCodingProblemListQuery {
+  search?: string;
+  category?: string;
+  difficulty?: CodingDifficulty;
+  isActive?: boolean;
+  page?: number;
+  limit?: number;
+  sortBy?: "title" | "attemptCount" | "averageSubmitScore" | "updatedAt";
+  sortDir?: "asc" | "desc";
+}
+
+export interface AdminCodingValidateTestsBody {
+  language: CodingLanguage;
+  code?: string;
+  visibility?: "public" | "hidden" | "all";
+}
+
+export interface AdminCodingValidateTestsResult {
+  passed: number;
+  total: number;
+  results: Array<{
+    index: number;
+    passed: boolean;
+    expected?: string;
+    actual?: string;
+    stderr?: string;
+    compileOutput?: string;
+    status?: string;
+    error?: string;
+    visibility: "public" | "hidden";
+    inputs?: Array<{ name: string; value: string }>;
+  }>;
+}
+
+export interface AdminCodingStarterTemplateItem {
+  id: string;
+  label: string;
+  starters: Partial<Record<CodingLanguage, string>>;
+}
+
+export const adminCodingProblemApi = {
+  list: (params?: AdminCodingProblemListQuery) =>
+    unwrap<AdminCodingProblemListResponse>(
+      apiClient.get("/admin/coding-problems", { params }),
+    ),
+  get: (problemId: string) =>
+    unwrap<AdminCodingProblemDetail>(
+      apiClient.get(`/admin/coding-problems/${encodeURIComponent(problemId)}`),
+    ),
+  create: (body: AdminCodingProblemUpsertBody) =>
+    unwrap<AdminCodingProblemDetail>(
+      apiClient.post("/admin/coding-problems", body),
+    ),
+  update: (problemId: string, body: AdminCodingProblemUpsertBody) =>
+    unwrap<AdminCodingProblemDetail>(
+      apiClient.put(
+        `/admin/coding-problems/${encodeURIComponent(problemId)}`,
+        body,
+      ),
+    ),
+  remove: (problemId: string) =>
+    unwrap<void>(
+      apiClient.delete(
+        `/admin/coding-problems/${encodeURIComponent(problemId)}`,
+      ),
+    ),
+  removeBulk: (problemIds: string[]) =>
+    unwrap<{ deleted: number; notFound: string[] }>(
+      apiClient.post("/admin/coding-problems/bulk-delete", { problemIds }),
+    ),
+  restore: (problemId: string) =>
+    unwrap<AdminCodingProblemDetail>(
+      apiClient.post(
+        `/admin/coding-problems/${encodeURIComponent(problemId)}/restore`,
+      ),
+    ),
+  listCategories: () =>
+    unwrap<{ categories: string[] }>(
+      apiClient.get("/admin/coding-problems/categories"),
+    ).then((r) => r.categories ?? []),
+  listStarterTemplates: () =>
+    unwrap<{ templates: AdminCodingStarterTemplateItem[] }>(
+      apiClient.get("/admin/coding-problems/starter-templates"),
+    ).then((r) => r.templates ?? []),
+  validateTests: (problemId: string, body: AdminCodingValidateTestsBody) =>
+    unwrap<AdminCodingValidateTestsResult>(
+      apiClient.post(
+        `/admin/coding-problems/${encodeURIComponent(problemId)}/validate-tests`,
+        body,
+      ),
+    ),
+};
+
+// --- Blog CMS ---
+
+export type BlogStatus = "draft" | "published" | "archived";
+
+export interface AdminBlogListItem {
+  id: string;
+  slug: string;
+  title: string;
+  excerpt: string;
+  thumbnailUrl: string;
+  categories: string[];
+  status: BlogStatus;
+  authorName: string;
+  publishedAt: string | null;
+  readingTimeMinutes: number;
+  isActive: boolean;
+  updatedAt: string;
+}
+
+export interface AdminBlogDetail extends AdminBlogListItem {
+  content: string;
+  seoTitle: string;
+  metaDescription: string;
+  focusKeyword: string;
+  keywords: string[];
+  canonicalUrl: string;
+  authorId: string;
+  createdAt: string;
+}
+
+export interface AdminBlogListResponse {
+  items: AdminBlogListItem[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+export interface AdminBlogUpsertBody {
+  slug?: string;
+  title: string;
+  excerpt?: string;
+  content?: string;
+  thumbnailUrl?: string;
+  categories?: string[];
+  status?: BlogStatus;
+  seoTitle?: string;
+  metaDescription?: string;
+  focusKeyword?: string;
+  keywords?: string[];
+  canonicalUrl?: string;
+}
+
+export interface AdminBlogListQuery {
+  search?: string;
+  category?: string;
+  status?: BlogStatus;
+  isActive?: boolean;
+  page?: number;
+  limit?: number;
+  sortBy?: "title" | "publishedAt" | "updatedAt";
+  sortDir?: "asc" | "desc";
+}
+
+export interface PublicBlogListItem {
+  slug: string;
+  title: string;
+  excerpt: string;
+  thumbnailUrl: string;
+  categories: string[];
+  authorName: string;
+  publishedAt: string;
+  readingTimeMinutes: number;
+  updatedAt: string;
+}
+
+export interface PublicBlogDetail extends PublicBlogListItem {
+  content: string;
+  seoTitle: string;
+  metaDescription: string;
+  focusKeyword: string;
+  keywords: string[];
+  canonicalUrl: string;
+}
+
+export interface PublicBlogListResponse {
+  items: PublicBlogListItem[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+export interface BlogImageUploadBody {
+  filename: string;
+  contentType: string;
+}
+
+export interface BlogImageUploadResponse {
+  uploadUrl: string;
+  publicUrl: string;
+  s3Key: string;
+}
+
+export const adminBlogApi = {
+  list: (params?: AdminBlogListQuery) =>
+    unwrap<AdminBlogListResponse>(apiClient.get("/admin/blogs", { params })),
+  get: (blogId: string) =>
+    unwrap<AdminBlogDetail>(
+      apiClient.get(`/admin/blogs/${encodeURIComponent(blogId)}`),
+    ),
+  create: (body: AdminBlogUpsertBody) =>
+    unwrap<AdminBlogDetail>(apiClient.post("/admin/blogs", body)),
+  update: (blogId: string, body: AdminBlogUpsertBody) =>
+    unwrap<AdminBlogDetail>(
+      apiClient.put(`/admin/blogs/${encodeURIComponent(blogId)}`, body),
+    ),
+  remove: (blogId: string) =>
+    unwrap<void>(apiClient.delete(`/admin/blogs/${encodeURIComponent(blogId)}`)),
+  restore: (blogId: string) =>
+    unwrap<AdminBlogDetail>(
+      apiClient.post(`/admin/blogs/${encodeURIComponent(blogId)}/restore`),
+    ),
+  publish: (blogId: string) =>
+    unwrap<AdminBlogDetail>(
+      apiClient.post(`/admin/blogs/${encodeURIComponent(blogId)}/publish`),
+    ),
+  listCategories: () =>
+    unwrap<{ categories: string[] }>(
+      apiClient.get("/admin/blogs/categories"),
+    ).then((r) => r.categories ?? []),
+  getUploadUrl: (body: BlogImageUploadBody) =>
+    unwrap<BlogImageUploadResponse>(
+      apiClient.post("/admin/blogs/upload-image", body),
+    ),
+  uploadImage: async (file: File): Promise<{ publicUrl: string; s3Key: string }> => {
+    const blob = await snapshotImageForUpload(file);
+    const formData = new FormData();
+    formData.append("file", blob, file.name);
+    return unwrap<{ publicUrl: string; s3Key: string }>(
+      apiClient.post("/admin/blogs/upload-image", formData),
+    );
+  },
+};
+
+export const blogApi = {
+  list: (params?: { page?: number; limit?: number; category?: string }) =>
+    unwrap<PublicBlogListResponse>(apiClient.get("/blogs", { params })),
+  getBySlug: (slug: string) =>
+    unwrap<PublicBlogDetail>(
+      apiClient.get(`/blogs/${encodeURIComponent(slug)}`),
+    ),
+  listCategories: () =>
+    unwrap<{ categories: string[] }>(apiClient.get("/blogs/categories")).then(
+      (r) => r.categories ?? [],
+    ),
+};
+
+export const notificationAdminApi = {
+  listTemplates: (channel?: NotificationChannelKey) =>
+    unwrap<NotificationTemplate[]>(
+      apiClient.get("/admin/notifications/templates", {
+        params: channel ? { channel } : {},
+      }),
+    ),
+  getTemplate: (id: string) =>
+    unwrap<NotificationTemplate>(
+      apiClient.get(`/admin/notifications/templates/${id}`),
+    ),
+  updateTemplate: (id: string, input: UpdateNotificationTemplateInput) =>
+    unwrap<NotificationTemplate>(
+      apiClient.put(`/admin/notifications/templates/${id}`, input),
+    ),
+  previewTemplate: (
+    id: string,
+    input: Pick<
+      UpdateNotificationTemplateInput,
+      "subject" | "content" | "emailTheme" | "useCustomEmailTheme"
+    > & { variables?: Record<string, string> },
+  ) =>
+    unwrap<TemplatePreviewResult>(
+      apiClient.post(`/admin/notifications/templates/${id}/preview`, input),
+    ),
+  getTemplateSampleVariables: (id: string) =>
+    unwrap<Record<string, string>>(
+      apiClient.get(`/admin/notifications/templates/${id}/sample-variables`),
+    ),
+  sendTestTemplate: (
+    id: string,
+    input: Pick<
+      UpdateNotificationTemplateInput,
+      "subject" | "content" | "emailTheme" | "useCustomEmailTheme"
+    > & {
+      to: string;
+      variables?: Record<string, string>;
+    },
+  ) =>
+    unwrap<SendTestTemplateResult>(
+      apiClient.post(`/admin/notifications/templates/${id}/send-test`, input),
+    ),
+  getConfig: () =>
+    unwrap<NotificationConfig>(apiClient.get("/admin/notifications/config")),
+  updateConfig: (input: UpdateNotificationConfigInput) =>
+    unwrap<NotificationConfig>(
+      apiClient.put("/admin/notifications/config", input),
+    ),
+};
+
 export default apiClient;
+
+export type ConnectorTokenRow = {
+  tokenId: string;
+  name: string;
+  prefix: string;
+  scopes: string[];
+  lastUsedAt?: string;
+  createdAt: string;
+  expiresAt?: string;
+};
+
+export const connectorApi = {
+  listTokens: async () => {
+    const response = await apiClient.get<{
+      success: boolean;
+      data: ConnectorTokenRow[];
+      mcp_url: string;
+      openapi_url: string;
+    }>("/connector/v1/tokens");
+    return response.data;
+  },
+  createToken: async (name?: string) => {
+    const response = await apiClient.post<{
+      success: boolean;
+      data: {
+        tokenId: string;
+        token: string;
+        name: string;
+        prefix: string;
+        mcp_url: string;
+        openapi_url: string;
+      };
+      message?: string;
+    }>("/connector/v1/tokens", { name });
+    return response.data;
+  },
+  revokeToken: async (tokenId: string) => {
+    const response = await apiClient.delete<{ success: boolean }>(
+      `/connector/v1/tokens/${tokenId}`,
+    );
+    return response.data;
+  },
+  getOAuthRequest: async (requestId: string) => {
+    const response = await apiClient.get<{
+      success: boolean;
+      data: {
+        requestId: string;
+        clientId: string;
+        redirectUri: string;
+        scopes: string[];
+      };
+    }>(`/connector/v1/oauth/requests/${requestId}`);
+    return response.data;
+  },
+  consentOAuth: async (requestId: string, approve: boolean) => {
+    const response = await apiClient.post<{
+      success: boolean;
+      data: { redirectTo: string };
+    }>("/connector/v1/oauth/consent", { requestId, approve });
+    return response.data;
+  },
+};
+
+export type PublicPlatformStats = {
+  users: number;
+  resumes: number;
+  interviews: number;
+};
+
+export const marketingApi = {
+  getPublicStats: async (): Promise<PublicPlatformStats> => {
+    const response = await apiClient.get<{
+      success: boolean;
+      data: PublicPlatformStats;
+    }>("/marketing/stats");
+    return response.data.data;
+  },
+};
+
+export const configApi = {
+  getClientCacheVersion: async (): Promise<{
+    version: number;
+    updatedAt: string;
+  }> => {
+    const response = await apiClient.get<{
+      success: boolean;
+      data: { version: number; updatedAt: string };
+    }>("/config/client-cache");
+    return response.data.data;
+  },
+
+  getFeatures: async (): Promise<import("@/lib/platform-features").PlatformFeature[]> => {
+    const response = await apiClient.get<{
+      success: boolean;
+      data: { features: import("@/lib/platform-features").PlatformFeature[] };
+    }>("/config/features");
+    return response.data.data.features;
+  },
+};
+
+function jobTrackerQuery(params?: JobTrackerListFilters & { page?: number; pageSize?: number }) {
+  const search = new URLSearchParams();
+  if (!params) return "";
+  if (params.q?.trim()) search.set("q", params.q.trim());
+  if (params.status) search.set("status", params.status);
+  if (params.jobType) search.set("jobType", params.jobType);
+  if (params.workMode) search.set("workMode", params.workMode);
+  if (params.favorite) search.set("favorite", "true");
+  if (params.archived) search.set("archived", "true");
+  if (params.appliedFrom) search.set("appliedFrom", params.appliedFrom);
+  if (params.appliedUntil) search.set("appliedUntil", params.appliedUntil);
+  if (params.page) search.set("page", String(params.page));
+  if (params.pageSize) search.set("pageSize", String(params.pageSize));
+  const qs = search.toString();
+  return qs ? `?${qs}` : "";
+}
+
+export const jobTrackerApi = {
+  list: async (
+    params?: JobTrackerListFilters & { page?: number; pageSize?: number },
+  ): Promise<JobTrackerListResponse> => {
+    const response = await apiClient.get<{
+      success: boolean;
+      data: JobTrackerListResponse;
+    }>(`/job-tracker/applications${jobTrackerQuery(params)}`);
+    return response.data.data;
+  },
+
+  board: async (
+    params?: JobTrackerListFilters,
+  ): Promise<JobTrackerBoardResponse> => {
+    const response = await apiClient.get<{
+      success: boolean;
+      data: JobTrackerBoardResponse;
+    }>(`/job-tracker/applications/board${jobTrackerQuery(params)}`);
+    return response.data.data;
+  },
+
+  get: async (id: string): Promise<JobTrackerDetail> => {
+    const response = await apiClient.get<{
+      success: boolean;
+      data: JobTrackerDetail;
+    }>(`/job-tracker/applications/${id}`);
+    return response.data.data;
+  },
+
+  create: async (body: Record<string, unknown>): Promise<JobTrackerDetail> => {
+    const response = await apiClient.post<{
+      success: boolean;
+      data: JobTrackerDetail;
+    }>("/job-tracker/applications", body);
+    return response.data.data;
+  },
+
+  patch: async (
+    id: string,
+    body: Record<string, unknown>,
+  ): Promise<JobTrackerDetail> => {
+    const response = await apiClient.patch<{
+      success: boolean;
+      data: JobTrackerDetail;
+    }>(`/job-tracker/applications/${id}`, body);
+    return response.data.data;
+  },
+
+  updateStatus: async (
+    id: string,
+    status: JobTrackerStatus,
+  ): Promise<JobTrackerDetail> => {
+    const response = await apiClient.patch<{
+      success: boolean;
+      data: JobTrackerDetail;
+    }>(`/job-tracker/applications/${id}/status`, { status });
+    return response.data.data;
+  },
+
+  remove: async (id: string): Promise<void> => {
+    await apiClient.delete(`/job-tracker/applications/${id}`);
+  },
+
+  attachResumes: async (
+    id: string,
+    resumeIds: string[],
+  ): Promise<JobTrackerDetail> => {
+    const response = await apiClient.post<{
+      success: boolean;
+      data: JobTrackerDetail;
+    }>(`/job-tracker/applications/${id}/resumes`, { resumeIds });
+    return response.data.data;
+  },
+
+  detachResume: async (
+    id: string,
+    resumeId: string,
+  ): Promise<JobTrackerDetail> => {
+    const response = await apiClient.delete<{
+      success: boolean;
+      data: JobTrackerDetail;
+    }>(`/job-tracker/applications/${id}/resumes/${resumeId}`);
+    return response.data.data;
+  },
+
+  score: async (id: string, resumeId?: string): Promise<JobTrackerDetail> => {
+    const response = await apiClient.post<{
+      success: boolean;
+      data: JobTrackerDetail;
+    }>(
+      `/job-tracker/applications/${id}/score`,
+      { resumeId },
+      { timeout: 120000 },
+    );
+    return response.data.data;
+  },
+
+  practiceInterview: async (
+    id: string,
+  ): Promise<{
+    jobApplicationId: string;
+    title: string;
+    company: string;
+    location: string;
+    jobDescription: string;
+    sourceUrl: string;
+    sourceResumeId?: string;
+  }> => {
+    const response = await apiClient.post<{
+      success: boolean;
+      data: {
+        jobApplicationId: string;
+        title: string;
+        company: string;
+        location: string;
+        jobDescription: string;
+        sourceUrl: string;
+        sourceResumeId?: string;
+      };
+    }>(`/job-tracker/applications/${id}/practice-interview`);
+    return response.data.data;
+  },
+};

@@ -1,4 +1,4 @@
-import type { PageBand } from "@/lib/resume-pagination-engine";
+import type { PackedPage } from "@/lib/resume-pagination/packUnitsIntoPages";
 import type { RearrangePageLayout } from "@/lib/rearrange-sections";
 import { canDeleteSection } from "@/lib/rearrange-sections";
 
@@ -17,7 +17,7 @@ export function canDeleteResumePage(
 /** True when a preview page band has no section headers or resume items. */
 export function isEmptyResumePageBand(
   measureContainer: HTMLElement | null,
-  page: Pick<PageBand, "offsetY" | "height">,
+  page: Pick<PackedPage, "offsetY" | "height">,
 ): boolean {
   if (!measureContainer) return false;
   return !pageBandHasVisibleContent(measureContainer, page);
@@ -27,7 +27,7 @@ export function isEmptyResumePageBand(
 export function canDeleteEmptyResumePage(
   measureContainer: HTMLElement | null,
   pageNumber: number,
-  pages: Pick<PageBand, "pageNumber" | "offsetY" | "height">[],
+  pages: Pick<PackedPage, "pageNumber" | "offsetY" | "height">[],
 ): boolean {
   if (!canDeleteResumePage(pageNumber, pages.length)) return false;
   const page = pages.find((entry) => entry.pageNumber === pageNumber);
@@ -37,7 +37,7 @@ export function canDeleteEmptyResumePage(
 
 /** Apply user-dismissed blank trailing pages (persisted in layout). */
 export function applyDismissedEmptyTrailingPages<
-  T extends Pick<PageBand, "pageNumber" | "offsetY" | "height">,
+  T extends Pick<PackedPage, "pageNumber" | "offsetY" | "height">,
 >(
   pages: T[],
   measureContainer: HTMLElement | null,
@@ -79,7 +79,7 @@ export function getDeletableSectionIdsForRearrangePage(
 /** Find sections / items whose block starts within a paginated preview band. */
 export function collectPageDeleteTargets(
   measureContainer: HTMLElement,
-  page: Pick<PageBand, "offsetY" | "height">,
+  page: Pick<PackedPage, "offsetY" | "height">,
 ): PageDeleteTargets {
   const containerRect = measureContainer.getBoundingClientRect();
   const bandTop = page.offsetY;
@@ -146,7 +146,7 @@ export function collectPageDeleteTargets(
 
 export function resolvePageDeleteTargets(
   measureContainer: HTMLElement | null,
-  pages: Pick<PageBand, "pageNumber" | "offsetY" | "height">[],
+  pages: Pick<PackedPage, "pageNumber" | "offsetY" | "height">[],
   pageNumber: number,
 ): PageDeleteTargets | null {
   if (!measureContainer || !canDeleteResumePage(pageNumber, pages.length)) {
@@ -202,7 +202,7 @@ export function getMeasuredContentBottom(measureContainer: HTMLElement): number 
  */
 export function pageBandHasVisibleContent(
   measureContainer: HTMLElement,
-  page: Pick<PageBand, "offsetY" | "height">,
+  page: Pick<PackedPage, "offsetY" | "height">,
 ): boolean {
   const contentBottom = getMeasuredContentBottom(measureContainer);
   if (contentBottom <= 0) {
@@ -215,8 +215,8 @@ export function pageBandHasVisibleContent(
 
 export function filterNonEmptyPreviewPages(
   measureContainer: HTMLElement | null,
-  pages: Pick<PageBand, "pageNumber" | "offsetY" | "height">[],
-): Pick<PageBand, "pageNumber" | "offsetY" | "height">[] {
+  pages: Pick<PackedPage, "pageNumber" | "offsetY" | "height">[],
+): Pick<PackedPage, "pageNumber" | "offsetY" | "height">[] {
   if (!measureContainer || pages.length === 0) return pages;
   return pages.filter((page) =>
     pageBandHasVisibleContent(measureContainer, page),
@@ -236,7 +236,7 @@ export function measureElementDocumentTop(
 export function overlapWithPageBand(
   top: number,
   bottom: number,
-  page: Pick<PageBand, "offsetY" | "height">,
+  page: Pick<PackedPage, "offsetY" | "height">,
 ): number {
   const bandTop = page.offsetY;
   const bandBottom = page.offsetY + page.height;
@@ -245,7 +245,7 @@ export function overlapWithPageBand(
 
 export function pageNumberForDocumentOffset(
   offsetY: number,
-  pages: Pick<PageBand, "pageNumber" | "offsetY" | "height">[],
+  pages: Pick<PackedPage, "pageNumber" | "offsetY" | "height">[],
 ): number {
   for (const page of pages) {
     if (offsetY >= page.offsetY && offsetY < page.offsetY + page.height) {
@@ -259,7 +259,7 @@ export function pageNumberForDocumentOffset(
 export function resolveSectionPrimaryPage(
   measureContainer: HTMLElement,
   sectionId: string,
-  pages: Pick<PageBand, "pageNumber" | "offsetY" | "height">[],
+  pages: Pick<PackedPage, "pageNumber" | "offsetY" | "height">[],
 ): number {
   if (pages.length === 0) return 1;
 
@@ -298,7 +298,7 @@ export function resolveSectionPrimaryPage(
 /** Section ids with a header and/or body intersecting a preview page band. */
 export function collectPageSectionPresence(
   measureContainer: HTMLElement,
-  page: Pick<PageBand, "offsetY" | "height">,
+  page: Pick<PackedPage, "offsetY" | "height">,
 ): string[] {
   const bandTop = page.offsetY;
   const bandBottom = page.offsetY + page.height;
@@ -341,7 +341,7 @@ export function collectPageSectionPresence(
 /** Map each section id to every preview page where its header or items appear. */
 export function buildSectionPagesMap(
   measureContainer: HTMLElement,
-  pages: Pick<PageBand, "pageNumber" | "offsetY" | "height">[],
+  pages: Pick<PackedPage, "pageNumber" | "offsetY" | "height">[],
 ): Map<string, number[]> {
   const map = new Map<string, Set<number>>();
 
@@ -365,7 +365,7 @@ export function buildSectionPagesMap(
 /** Map each section id to the page where its header starts. */
 export function buildSectionHeaderPageMap(
   measureContainer: HTMLElement,
-  pages: Pick<PageBand, "pageNumber" | "offsetY" | "height">[],
+  pages: Pick<PackedPage, "pageNumber" | "offsetY" | "height">[],
 ): Map<string, number> {
   const map = new Map<string, number>();
   const containerRect = measureContainer.getBoundingClientRect();
@@ -396,7 +396,7 @@ export function buildSectionHeaderPageMap(
 /** @deprecated Prefer buildSectionPagesMap for multi-page section placement. */
 export function buildSectionPageMap(
   measureContainer: HTMLElement,
-  pages: Pick<PageBand, "pageNumber" | "offsetY" | "height">[],
+  pages: Pick<PackedPage, "pageNumber" | "offsetY" | "height">[],
 ): Map<string, number> {
   const headerMap = buildSectionHeaderPageMap(measureContainer, pages);
   const pagesMap = buildSectionPagesMap(measureContainer, pages);

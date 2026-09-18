@@ -5,6 +5,7 @@ import { useUser } from "@clerk/nextjs";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { userApi, ResumeTemplate, resumeApi } from "@/lib/api";
+import { useDashboardInvalidation } from "@/hooks/useDashboardInvalidation";
 import { useDropzone } from "react-dropzone";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,10 +26,12 @@ import {
   SkipForward,
 } from "lucide-react";
 import {
+  buildResumeFromExtractedData,
   buildSectionOrderForExtractedContent,
+  getResumeProcessingMessages,
   mapExtractedSectionsToContent,
   normalizeResumeImportContent,
-  RESUME_IMPORT_PROCESSING_MESSAGES,
+  type BuildResumeImportPayload,
 } from "@/lib/resume-data-import";
 import { TemplatePreview } from "@/components/TemplatePreview";
 import { PageHeader } from "@/components/app/PageHeader";
@@ -36,8 +39,25 @@ import { ResumeBuilderImportChoiceCards } from "@/components/resume-builder/Resu
 import { ResumeBuilderLinkedInForm } from "@/components/resume-builder/ResumeBuilderLinkedInForm";
 import { ResumeBuilderPdfDropzone } from "@/components/resume-builder/ResumeBuilderPdfDropzone";
 import { ResumeBuilderProcessingView } from "@/components/resume-builder/ResumeBuilderProcessingView";
+import { ResumeBuilderChatPanel } from "@/components/resume-builder/ResumeBuilderChatPanel";
+import { ResumeBuilderVoicePanel } from "@/components/resume-builder/ResumeBuilderVoicePanel";
+import {
+  ResumeBuilderChatModeModal,
+  type ResumeChatSubMode,
+} from "@/components/resume-builder/ResumeBuilderChatModeModal";
+import { ResumeBuilderJobDescriptionStep } from "@/components/resume-builder/ResumeBuilderJobDescriptionStep";
 import { ResumeCreationStepper } from "@/components/resume-builder/ResumeCreationStepper";
+import { ResumeEnhanceChoiceDialog } from "@/components/resume-builder/ResumeEnhanceChoiceDialog";
+import { trimJobDescriptionForSend } from "@/lib/job-description-limits";
+import {
+  loadPendingJobCaptureFor,
+  normalizeCapturedJob,
+} from "@/lib/extension-job-handoff";
 import type { ResumeImportSource } from "@/components/resume-builder/ResumeBuilderImportChoiceCards";
+import type {
+  ChatCollectedProfile,
+  JDRequirements,
+} from "@/lib/api";
 import {
   resumeBuilderFooterActions,
   resumeBuilderHeroCard,
@@ -68,25 +88,31 @@ const categoryLabels = {
 };
 
 type FilterCategory = "all" | "simple" | "modern" | "creative";
-type Step = "template" | "import" | "processing";
-
-const uploadedResumeProcessingMessages = [...RESUME_IMPORT_PROCESSING_MESSAGES];
-
-const defaultResumeProcessingMessages = [
-  "Setting up your resume with default content...",
-  "Preparing sections and formatting your layout...",
-  "Adding professional starter content...",
-  "Arranging sections for maximum clarity...",
-  "Fine-tuning headings and structure...",
-  "Adding starter details so you can edit faster...",
-  "Finalizing your resume structure...",
-  "Final checks in progress. Almost done...",
-];
+type Step = "template" | "import" | "jobDescription" | "processing";
 
 export default function NewResumePage() {
   const { user, isLoaded } = useUser();
   const router = useRouter();
+  const { invalidate } = useDashboardInvalidation();
   const searchParams = useSearchParams();
+  const resumeEditorPath = (resumeId: string) =>
+    searchParams.get("extensionSync") === "1"
+      ? `/dashboard/resumes/${resumeId}/edit?extensionSync=1`
+      : `/dashboard/resumes/${resumeId}/edit`;
+  const newResumeReturnUrl = () => {
+    const params = new URLSearchParams();
+    const templateParam = searchParams.get("template");
+    const skipTemplate = searchParams.get("skipTemplate");
+    if (templateParam && skipTemplate) {
+      params.set("template", templateParam);
+      params.set("skipTemplate", skipTemplate);
+    }
+    if (searchParams.get("extensionSync") === "1") {
+      params.set("extensionSync", "1");
+    }
+    const query = params.toString();
+    return query ? `/dashboard/resumes/new?${query}` : "/dashboard/resumes/new";
+  };
   const [step, setStep] = useState<Step>("template");
   const [importSource, setImportSource] = useState<ResumeImportSource | null>(
     null,
@@ -102,11 +128,50 @@ export default function NewResumePage() {
   const [extracting, setExtracting] = useState(false);
   const [showLimitModal, setShowLimitModal] = useState(false);
   const [processingMessageIndex, setProcessingMessageIndex] = useState(0);
+  const [pendingImport, setPendingImport] =
+    useState<BuildResumeImportPayload | null>(null);
+  const [chatProfile, setChatProfile] = useState<ChatCollectedProfile | null>(
+    null,
+  );
+  const [chatSessionId, setChatSessionId] = useState<string | null>(null);
+  const [chatSubMode, setChatSubMode] = useState<ResumeChatSubMode | null>(null);
+  const [showChatModeModal, setShowChatModeModal] = useState(false);
+  const [jobDescription, setJobDescription] = useState("");
+  const [jobFromExtension, setJobFromExtension] = useState(false);
+  const [jdRequirements, setJdRequirements] = useState<JDRequirements | null>(
+    null,
+  );
+  const [jdSummary, setJdSummary] = useState<string | null>(null);
+  const [analyzingJd, setAnalyzingJd] = useState(false);
+  const [enhanceChoiceOpen, setEnhanceChoiceOpen] = useState(false);
 
-  const processingMessages =
-    uploadedFile || importSource === "linkedin"
-      ? uploadedResumeProcessingMessages
-      : defaultResumeProcessingMessages;
+  useEffect(() => {
+    const apply = () => {
+      const pending = loadPendingJobCaptureFor("resume");
+      if (!pending?.jobDescription) return false;
+      const normalized = normalizeCapturedJob(pending);
+      if (normalized.jobDescription.trim().length < 50) return false;
+      setJobDescription(normalized.jobDescription);
+      setJobFromExtension(true);
+      return true;
+    };
+
+    if (apply()) return;
+
+    let ticks = 0;
+    const timer = window.setInterval(() => {
+      ticks += 1;
+      if (apply() || ticks >= 20) {
+        window.clearInterval(timer);
+      }
+    }, 150);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const processingMessages = getResumeProcessingMessages(
+    pendingImport,
+    !!(jdRequirements || jobDescription.trim().length > 50),
+  );
 
   useEffect(() => {
     if (step !== "processing") {
@@ -133,12 +198,7 @@ export default function NewResumePage() {
     if (isLoaded) {
       if (!user) {
         // User not logged in - redirect to sign-in with return URL
-        const templateParam = searchParams.get("template");
-        const skipTemplate = searchParams.get("skipTemplate");
-        const returnUrl =
-          templateParam && skipTemplate
-            ? `/dashboard/resumes/new?template=${templateParam}&skipTemplate=true`
-            : "/dashboard/resumes/new";
+        const returnUrl = newResumeReturnUrl();
         router.push(`/sign-in?redirect_url=${encodeURIComponent(returnUrl)}`);
         return;
       }
@@ -158,12 +218,7 @@ export default function NewResumePage() {
 
       if (!profile.onboardingCompleted) {
         // Onboarding not completed - redirect to onboarding with return URL
-        const templateParam = searchParams.get("template");
-        const skipTemplate = searchParams.get("skipTemplate");
-        const returnUrl =
-          templateParam && skipTemplate
-            ? `/dashboard/resumes/new?template=${templateParam}&skipTemplate=true`
-            : "/dashboard/resumes/new";
+        const returnUrl = newResumeReturnUrl();
         localStorage.setItem("resumeBuilderReturnUrl", returnUrl);
         router.push("/onboarding");
         return;
@@ -252,15 +307,183 @@ export default function NewResumePage() {
     setUploadedFile(null);
     setResumeText("");
     setLinkedinHandle("");
+    setPendingImport(null);
+    setChatProfile(null);
+    setChatSessionId(null);
+    setChatSubMode(null);
+    if (!jobFromExtension) {
+      setJobDescription("");
+      setJdRequirements(null);
+      setJdSummary(null);
+    }
+    setEnhanceChoiceOpen(false);
     setStep("import");
   };
 
-  const handleSkip = () => {
-    setStep("processing");
-    handleCreateResumeWithDummyContent();
+  const proceedToJobDescription = (payload: BuildResumeImportPayload) => {
+    setPendingImport(payload);
+    setStep("jobDescription");
   };
 
-  const handleCreateResumeWithDummyContent = async () => {
+  const handleChatReady = (profile: ChatCollectedProfile) => {
+    setChatProfile(profile);
+    if (!selectedTemplate) return;
+    proceedToJobDescription({
+      source: "chat",
+      templateId: selectedTemplate,
+      chatProfile: profile,
+    });
+  };
+
+  const handleLinkedInContinue = () => {
+    if (!selectedTemplate || !linkedinHandle.trim()) return;
+    proceedToJobDescription({
+      source: "linkedin",
+      templateId: selectedTemplate,
+      linkedinHandle: linkedinHandle.trim(),
+    });
+  };
+
+  const handlePdfContinue = () => {
+    if (!selectedTemplate || !resumeText) return;
+    setEnhanceChoiceOpen(true);
+  };
+
+  const proceedFromPdfWithEnhance = (enhance: boolean) => {
+    if (!selectedTemplate || !resumeText) return;
+    proceedToJobDescription({
+      source: "pdf",
+      templateId: selectedTemplate,
+      resumeText,
+      enhance,
+    });
+  };
+
+  const handleAnalyzeJobDescription = async (jd: string) => {
+    try {
+      setAnalyzingJd(true);
+      const { resumeDataExtractionApi } = await import("@/lib/api");
+      const result = await resumeDataExtractionApi.analyzeJobDescription(jd);
+      setJdRequirements(result.requirements);
+      setJdSummary(result.summary);
+      return result.requirements;
+    } catch (error) {
+      console.error("JD analysis failed:", error);
+      alert("Could not analyze the job description. You can still continue.");
+      return null;
+    } finally {
+      setAnalyzingJd(false);
+    }
+  };
+
+  const handleSkipJobDescription = () => {
+    setJobDescription("");
+    setJdRequirements(null);
+    setJdSummary(null);
+    void handleBuildResume(undefined, undefined);
+  };
+
+  const handleBuildResume = async (
+    jdOverride?: string,
+    jdReqOverride?: JDRequirements | null,
+  ) => {
+    if (!selectedTemplate || !user || !pendingImport) return;
+
+    const jdText = jdOverride ?? jobDescription;
+    const jdReq = jdReqOverride === undefined ? jdRequirements : jdReqOverride;
+
+    try {
+      setCreating(true);
+      setStep("processing");
+
+      if (pendingImport.source === "dummy") {
+        await createResumeWithDummyContent(jdText);
+        return;
+      }
+
+      const sections = await buildResumeFromExtractedData({
+        ...pendingImport,
+        jobDescription: jdText.trim().length > 50 ? jdText.trim() : undefined,
+        jdRequirements: jdReq ?? undefined,
+      });
+
+      const { TemplateLoader } = await import("@/lib/templateLoader");
+      const templateConfig =
+        await TemplateLoader.loadTemplate(selectedTemplate);
+      const extended = templateConfig.extended;
+
+      const renderingLayout = extended.rendering?.layout;
+      const initialLayout = {
+        type: (renderingLayout?.type === "header-plus-columns"
+          ? "double"
+          : renderingLayout?.type || "single") as "single" | "double",
+        columnWidths: renderingLayout?.columnWidths || { left: 60, right: 40 },
+        padding: extended.style?.padding || {
+          top: 10,
+          bottom: 10,
+          left: 10,
+          right: 10,
+        },
+      };
+
+      const content = mapExtractedSectionsToContent(sections);
+      const sectionOrder = buildSectionOrderForExtractedContent(
+        extended,
+        content,
+        initialLayout.type,
+      );
+
+      const resume = await resumeApi.create(user.id, {
+        templateId: selectedTemplate,
+        title: "My Resume",
+        content,
+        sectionOrder,
+        layout: initialLayout,
+        ...(jdText.trim().length > 50
+          ? {
+              atsScoringContext: {
+                lastJobDescription: trimJobDescriptionForSend(jdText),
+              },
+            }
+          : {}),
+      });
+
+      await invalidate(["resumes"]);
+      router.push(resumeEditorPath(resume.resumeId));
+    } catch (error: any) {
+      console.error("Error building resume:", error);
+      setStep("jobDescription");
+
+      const isLimitError =
+        error?.response?.status === 403 &&
+        (error?.response?.data?.message || error?.message || "")
+          .toLowerCase()
+          .includes("resume limit");
+      if (isLimitError) {
+        setShowLimitModal(true);
+      } else {
+        alert(
+          `Failed to build resume: ${
+            error?.response?.data?.message ||
+            error?.message ||
+            "Please try again."
+          }`,
+        );
+      }
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const handleSkip = () => {
+    if (!selectedTemplate) return;
+    proceedToJobDescription({
+      source: "dummy",
+      templateId: selectedTemplate,
+    });
+  };
+
+  const createResumeWithDummyContent = async (jdText?: string) => {
     if (!selectedTemplate || !user) return;
 
     try {
@@ -360,16 +583,24 @@ export default function NewResumePage() {
         content: contentToUse,
         sectionOrder,
         layout: initialLayout,
+        ...(jdText && jdText.trim().length > 50
+          ? { atsScoringContext: { lastJobDescription: jdText.trim() } }
+          : {}),
       });
 
       console.log("✅ Resume created with dummy content:", resume.resumeId);
-      router.push(`/dashboard/resumes/${resume.resumeId}/edit`);
+      await invalidate(["resumes"]);
+      router.push(resumeEditorPath(resume.resumeId));
     } catch (error: any) {
       console.error("❌ Error creating resume with dummy content:", error);
 
       // Reset step back to import so user can try again
-      setStep("import");
-      setImportSource(null);
+      setStep("jobDescription");
+      setPendingImport(
+        selectedTemplate
+          ? { source: "dummy", templateId: selectedTemplate }
+          : null,
+      );
 
       const isLimitError =
         error?.response?.status === 403 &&
@@ -381,195 +612,6 @@ export default function NewResumePage() {
       } else {
         alert(
           `Failed to create resume: ${
-            error?.response?.data?.message ||
-            error?.message ||
-            "Please try again."
-          }`,
-        );
-      }
-    } finally {
-      setCreating(false);
-    }
-  };
-
-  const handleCreateResume = async () => {
-    if (!selectedTemplate || !user) return;
-
-    try {
-      setCreating(true);
-      setStep("processing");
-
-      console.log("📋 Extracting resume data from uploaded text...");
-
-      const { resumeDataExtractionApi } = await import("@/lib/api");
-      const extractedData = await resumeDataExtractionApi.extractResumeData(
-        selectedTemplate,
-        resumeText,
-      );
-
-      console.log("✅ Data extracted via LLM");
-
-      const { TemplateLoader } = await import("@/lib/templateLoader");
-      const templateConfig =
-        await TemplateLoader.loadTemplate(selectedTemplate);
-      const extended = templateConfig.extended;
-
-      const renderingLayout = extended.rendering?.layout;
-      const initialLayout = {
-        type: (renderingLayout?.type === "header-plus-columns"
-          ? "double"
-          : renderingLayout?.type || "single") as "single" | "double",
-        columnWidths: renderingLayout?.columnWidths || { left: 60, right: 40 },
-        padding: extended.style?.padding || {
-          top: 10,
-          bottom: 10,
-          left: 10,
-          right: 10,
-        },
-      };
-
-      const content = mapExtractedSectionsToContent(extractedData.sections, {
-        templateId: selectedTemplate,
-      });
-      const sectionOrder = buildSectionOrderForExtractedContent(
-        extended,
-        content,
-        initialLayout.type,
-      );
-
-      const resume = await resumeApi.create(user.id, {
-        templateId: selectedTemplate,
-        title: "My Resume",
-        content,
-        sectionOrder,
-        layout: initialLayout,
-      });
-
-      console.log("✅ Resume created:", resume.resumeId);
-      router.push(`/dashboard/resumes/${resume.resumeId}/edit`);
-    } catch (error: any) {
-      console.error("❌ Error creating resume:", error);
-
-      // Reset step back to import so user can try again
-      setStep("import");
-      setImportSource("pdf");
-
-      const isLimitError =
-        error?.response?.status === 403 &&
-        (error?.response?.data?.message || error?.message || "")
-          .toLowerCase()
-          .includes("resume limit");
-
-      if (isLimitError) {
-        setShowLimitModal(true);
-      } else if (
-        error?.code === "ECONNABORTED" ||
-        error?.message?.includes("timeout") ||
-        error?.message?.includes("Request timeout")
-      ) {
-        alert(
-          "Resume extraction is taking longer than expected. This might be due to a large PDF or slow network. Please try again or upload a smaller PDF.",
-        );
-      } else {
-        alert(
-          `Failed to create resume: ${
-            error?.response?.data?.message ||
-            error?.message ||
-            "Please try again."
-          }`,
-        );
-      }
-    } finally {
-      setCreating(false);
-    }
-  };
-
-  const handleCreateResumeFromLinkedIn = async () => {
-    if (!selectedTemplate || !user) return;
-
-    const handle = linkedinHandle.trim();
-    if (!handle) {
-      alert("Please enter your LinkedIn profile URL or username.");
-      return;
-    }
-
-    try {
-      setCreating(true);
-      setStep("processing");
-
-      console.log("🔗 Importing resume data from LinkedIn...");
-
-      const { resumeDataExtractionApi } = await import("@/lib/api");
-      const extractedData = await resumeDataExtractionApi.importLinkedInProfile(
-        handle,
-        selectedTemplate,
-      );
-
-      console.log("✅ LinkedIn data imported and enhanced via LLM");
-
-      const { TemplateLoader } = await import("@/lib/templateLoader");
-      const templateConfig =
-        await TemplateLoader.loadTemplate(selectedTemplate);
-      const extended = templateConfig.extended;
-
-      const renderingLayout = extended.rendering?.layout;
-      const initialLayout = {
-        type: (renderingLayout?.type === "header-plus-columns"
-          ? "double"
-          : renderingLayout?.type || "single") as "single" | "double",
-        columnWidths: renderingLayout?.columnWidths || { left: 60, right: 40 },
-        padding: extended.style?.padding || {
-          top: 10,
-          bottom: 10,
-          left: 10,
-          right: 10,
-        },
-      };
-
-      const content = mapExtractedSectionsToContent(extractedData.sections, {
-        templateId: selectedTemplate,
-      });
-      const sectionOrder = buildSectionOrderForExtractedContent(
-        extended,
-        content,
-        initialLayout.type,
-      );
-
-      const resume = await resumeApi.create(user.id, {
-        templateId: selectedTemplate,
-        title: "My Resume",
-        content,
-        sectionOrder,
-        layout: initialLayout,
-      });
-
-      console.log("✅ Resume created from LinkedIn:", resume.resumeId);
-      router.push(`/dashboard/resumes/${resume.resumeId}/edit`);
-    } catch (error: any) {
-      console.error("❌ Error creating resume from LinkedIn:", error);
-
-      setStep("import");
-      setImportSource("linkedin");
-
-      const isLimitError =
-        error?.response?.status === 403 &&
-        (error?.response?.data?.message || error?.message || "")
-          .toLowerCase()
-          .includes("resume limit");
-
-      if (isLimitError) {
-        setShowLimitModal(true);
-      } else if (
-        error?.code === "ECONNABORTED" ||
-        error?.message?.includes("timeout") ||
-        error?.message?.includes("Request timeout")
-      ) {
-        alert(
-          "Importing your LinkedIn profile is taking longer than expected. Please try again.",
-        );
-      } else {
-        alert(
-          `Failed to import from LinkedIn: ${
             error?.response?.data?.message ||
             error?.message ||
             "Please try again."
@@ -605,17 +647,27 @@ export default function NewResumePage() {
     import: {
       badge: "Import data",
       title:
-        importSource === "linkedin"
-          ? "Connect your LinkedIn profile"
-          : importSource === "pdf"
-            ? "Upload your resume PDF"
-            : "How would you like to start?",
+        importSource === "chat"
+          ? "Chat with Live AI"
+          : importSource === "linkedin"
+            ? "Connect your LinkedIn profile"
+            : importSource === "pdf"
+              ? "Upload your resume PDF"
+              : "How would you like to start?",
       description:
-        importSource === "linkedin"
-          ? "We’ll fetch your public LinkedIn data and enhance it with AI for recruiters and ATS."
-          : importSource === "pdf"
-            ? "Upload a PDF to auto-fill sections, or skip and edit polished starter content."
-            : "Import from LinkedIn or upload an existing PDF — or start with template defaults.",
+        importSource === "chat"
+          ? "Paste your full profile or answer guided questions. Skip anytime and build with what you have."
+          : importSource === "linkedin"
+            ? "We’ll fetch your public LinkedIn data and enhance it with AI for recruiters and ATS."
+            : importSource === "pdf"
+              ? "Upload a PDF to auto-fill sections, then optionally tailor to a target job."
+              : "Chat with AI, import from LinkedIn, or upload an existing PDF.",
+    },
+    jobDescription: {
+      badge: "Target role",
+      title: "Tailor to a job description",
+      description:
+        "Optionally paste a job description so AI aligns your resume to that role. You can skip this step.",
     },
     processing: {
       badge: "Almost there",
@@ -625,18 +677,26 @@ export default function NewResumePage() {
   };
 
   const processingLabel =
-    importSource === "linkedin"
+    pendingImport?.source === "linkedin"
       ? linkedinHandle.trim() || "LinkedIn profile"
-      : uploadedFile?.name || "your resume";
+      : pendingImport?.source === "chat"
+        ? "your chat profile"
+        : uploadedFile?.name || "your resume";
 
   const handleImportBack = () => {
     if (importSource) {
       setImportSource(null);
       setUploadedFile(null);
       setResumeText("");
+      setChatProfile(null);
+      setChatSubMode(null);
       return;
     }
     setStep("template");
+  };
+
+  const handleJobDescriptionBack = () => {
+    setStep("import");
   };
 
   const currentMeta = stepMeta[step];
@@ -868,6 +928,7 @@ export default function NewResumePage() {
             <>
               <ResumeBuilderImportChoiceCards
                 selectedSource={importSource}
+                onSelectChat={() => setShowChatModeModal(true)}
                 onSelectLinkedIn={() => setImportSource("linkedin")}
                 onSelectPdf={() => setImportSource("pdf")}
               />
@@ -891,16 +952,29 @@ export default function NewResumePage() {
                 </Button>
               </div>
             </>
+          ) : importSource === "chat" ? (
+            selectedTemplate ? (
+              chatSubMode === "voice" ? (
+                <ResumeBuilderVoicePanel
+                  templateId={selectedTemplate}
+                  onReady={handleChatReady}
+                  onBack={handleImportBack}
+                  onSessionCreated={setChatSessionId}
+                />
+              ) : (
+                <ResumeBuilderChatPanel
+                  templateId={selectedTemplate}
+                  onReady={handleChatReady}
+                  onBack={handleImportBack}
+                  onSessionCreated={setChatSessionId}
+                />
+              )
+            ) : null
           ) : importSource === "linkedin" ? (
             <ResumeBuilderLinkedInForm
               value={linkedinHandle}
               onChange={setLinkedinHandle}
-              onSubmit={() => {
-                if (linkedinHandle.trim()) {
-                  setStep("processing");
-                  void handleCreateResumeFromLinkedIn();
-                }
-              }}
+              onSubmit={handleLinkedInContinue}
               footer={
                 <div className={resumeBuilderFooterActions}>
                   <Button
@@ -913,23 +987,11 @@ export default function NewResumePage() {
                   </Button>
                   <Button
                     className={resumeBuilderPrimaryButton}
-                    onClick={() => {
-                      setStep("processing");
-                      void handleCreateResumeFromLinkedIn();
-                    }}
-                    disabled={!linkedinHandle.trim() || creating}
+                    onClick={handleLinkedInContinue}
+                    disabled={!linkedinHandle.trim()}
                   >
-                    {creating ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Importing…
-                      </>
-                    ) : (
-                      <>
-                        Import from LinkedIn
-                        <ArrowRight className="ml-2 h-4 w-4" />
-                      </>
-                    )}
+                    Continue
+                    <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>
                 </div>
               }
@@ -968,23 +1030,11 @@ export default function NewResumePage() {
                     </Button>
                     <Button
                       className={resumeBuilderPrimaryButton}
-                      onClick={() => {
-                        setStep("processing");
-                        void handleCreateResume();
-                      }}
-                      disabled={creating || extracting || !uploadedFile}
+                      onClick={handlePdfContinue}
+                      disabled={extracting || !uploadedFile}
                     >
-                      {creating ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Creating…
-                        </>
-                      ) : (
-                        <>
-                          <FileEdit className="mr-2 h-4 w-4" />
-                          Create resume
-                        </>
-                      )}
+                      Continue
+                      <ArrowRight className="ml-2 h-4 w-4" />
                     </Button>
                   </div>
                 </div>
@@ -994,6 +1044,21 @@ export default function NewResumePage() {
         </div>
       )}
 
+      {step === "jobDescription" && (
+        <ResumeBuilderJobDescriptionStep
+          value={jobDescription}
+          onChange={setJobDescription}
+          jdSummary={jdSummary}
+          analyzing={analyzingJd}
+          onAnalyze={handleAnalyzeJobDescription}
+          onContinueWithJd={(requirements) =>
+            void handleBuildResume(jobDescription, requirements ?? jdRequirements)
+          }
+          onSkip={handleSkipJobDescription}
+          onBack={handleJobDescriptionBack}
+        />
+      )}
+
       {step === "processing" && (
         <ResumeBuilderProcessingView
           label={processingLabel}
@@ -1001,6 +1066,23 @@ export default function NewResumePage() {
           messages={processingMessages}
         />
       )}
+
+      <ResumeEnhanceChoiceDialog
+        open={enhanceChoiceOpen}
+        onOpenChange={setEnhanceChoiceOpen}
+        onSkip={() => proceedFromPdfWithEnhance(false)}
+        onEnhance={() => proceedFromPdfWithEnhance(true)}
+      />
+
+      <ResumeBuilderChatModeModal
+        open={showChatModeModal}
+        onOpenChange={setShowChatModeModal}
+        onSelect={(mode) => {
+          setChatSubMode(mode);
+          setImportSource("chat");
+          setShowChatModeModal(false);
+        }}
+      />
 
       <Dialog open={showLimitModal} onOpenChange={setShowLimitModal}>
         <DialogContent className={cn(appCard, "sm:max-w-md border-primary/20")}>

@@ -15,7 +15,7 @@
 }
 
 .ember-timeline-name {
-  font-size: 28px !important;
+  font-size: var(--resume-heading-font-size, 28px) !important;
   font-weight: 700 !important;
   color: #1f2a66 !important;
   letter-spacing: 0.4px;
@@ -29,7 +29,7 @@
 
 .ember-timeline-job-title {
   font-style: normal !important;
-  font-size: 14px !important;
+  font-size: var(--resume-subheading-font-size, 14px) !important;
   font-weight: 700 !important;
   color: #e8632a !important;
   margin: 0 0 8px 0 !important;
@@ -39,7 +39,7 @@
 }
 
 .ember-timeline-contact {
-  font-size: 10.5px;
+  font-size: var(--resume-small-font-size, 10.5px);
   color: #1f2937;
   display: flex;
   flex-wrap: wrap;
@@ -62,7 +62,7 @@
 
 .ember-timeline-section-header,
 .ember-timeline-template h2 {
-  font-size: 13px !important;
+  font-size: var(--resume-section-header-font-size, 13px) !important;
   font-weight: 700 !important;
   text-transform: uppercase;
   text-align: left;
@@ -85,7 +85,7 @@
 }
 
 .ember-timeline-summary {
-  font-size: 11px;
+  font-size: var(--resume-body-font-size, 11px);
   line-height: 1.5;
   color: #1f2937;
 }
@@ -137,7 +137,7 @@
 .ember-timeline-education-date-location .ember-timeline-education-date,
 .ember-timeline-education-date {
   display: block;
-  font-size: 10.5px !important;
+  font-size: var(--resume-small-font-size, 10.5px) !important;
   font-weight: 700 !important;
   color: #1f2a66 !important;
   line-height: 1.35;
@@ -146,7 +146,7 @@
 
 .ember-timeline-location,
 .ember-timeline-education-location {
-  font-size: 10px !important;
+  font-size: var(--resume-small-font-size, 10px) !important;
   color: #5b6472 !important;
   margin-top: 2px;
   line-height: 1.35;
@@ -177,7 +177,7 @@
 
 .ember-timeline-job-title-exp,
 .ember-timeline-job-content .ember-timeline-job-title {
-  font-size: 12px !important;
+  font-size: var(--resume-subheading-font-size, 12px) !important;
   font-weight: 700 !important;
   color: #1f2a66 !important;
   margin-bottom: 2px !important;
@@ -185,7 +185,7 @@
 }
 
 .ember-timeline-company {
-  font-size: 11px !important;
+  font-size: var(--resume-body-font-size, 11px) !important;
   color: #e8632a !important;
   font-weight: 700 !important;
   font-style: normal !important;
@@ -196,7 +196,7 @@
 }
 
 .ember-timeline-description {
-  font-size: 11px;
+  font-size: var(--resume-body-font-size, 11px);
   line-height: 1.5;
   color: #1f2937;
 }
@@ -217,14 +217,14 @@
 }
 
 .ember-timeline-degree {
-  font-size: 12px !important;
+  font-size: var(--resume-degree-font-size, 12px) !important;
   font-weight: 700 !important;
   color: #1f2a66 !important;
   font-family: Arial, Helvetica, sans-serif !important;
 }
 
 .ember-timeline-institution {
-  font-size: 11px !important;
+  font-size: var(--resume-body-font-size, 11px) !important;
   color: #e8632a !important;
   font-weight: 700 !important;
   font-style: normal !important;
@@ -237,7 +237,7 @@
 /* Skills — plain inline labels, no underline or bullet markers */
 .ember-timeline-skill-item {
   display: inline-block;
-  font-size: 10.5px;
+  font-size: var(--resume-body-font-size, 10.5px);
   color: #1f2937;
   border: none !important;
   border-bottom: none !important;
