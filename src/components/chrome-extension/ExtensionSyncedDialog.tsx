@@ -31,7 +31,7 @@ export function ExtensionSyncedDialog({
   const goBack = async () => {
     setReturning(true);
     try {
-      const result = await returnToExtensionJobTab();
+      const result = await returnToExtensionJobTab(2500);
       if (result.ok) {
         onOpenChange(false);
       }

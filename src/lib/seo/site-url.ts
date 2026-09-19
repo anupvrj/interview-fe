@@ -1,7 +1,35 @@
 import type { Metadata } from "next";
 
 export function getSiteUrl(): string {
-  return process.env.NEXT_PUBLIC_APP_URL || "https://interviewtrix.com";
+  if (process.env.NEXT_PUBLIC_APP_URL) {
+    return process.env.NEXT_PUBLIC_APP_URL;
+  }
+
+  if (process.env.NODE_ENV === "development") {
+    const port = process.env.PORT || "3001";
+    return `http://localhost:${port}`;
+  }
+
+  return "https://interviewtrix.com";
+}
+
+/** Base URL for affiliate referral links — matches the browser origin in the dashboard. */
+export function getReferralBaseUrl(browserOrigin?: string | null): string {
+  const base = browserOrigin || getSiteUrl();
+  return base.replace(/\/$/, "");
+}
+
+export function getCanonicalHostname(): string {
+  try {
+    return new URL(getSiteUrl()).hostname.toLowerCase();
+  } catch {
+    return "interviewtrix.com";
+  }
+}
+
+export function isInterviewTrixHostname(hostname: string): boolean {
+  const host = hostname.toLowerCase();
+  return host === "interviewtrix.com" || host === "www.interviewtrix.com";
 }
 
 /** Resolve a public asset path (or absolute URL) to a crawlable absolute URL. */

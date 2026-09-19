@@ -12,6 +12,13 @@ import {
 } from "@/lib/post-sign-in-redirect";
 import { trimJobDescriptionForSend } from "@/lib/job-description-limits";
 import type { ApplicationProfile } from "@/lib/application-profile";
+import type {
+  JobTrackerBoardResponse,
+  JobTrackerDetail,
+  JobTrackerListFilters,
+  JobTrackerListResponse,
+  JobTrackerStatus,
+} from "@/lib/job-tracker";
 
 /** Base URL for API (includes `/api` path). Use for `<img src>` and other non-axios URLs. */
 export const API_URL =
@@ -522,6 +529,8 @@ export interface CreateInterviewRequest {
   jobDescription?: string;
   /** Voice AI provider for the realtime interview session. */
   voiceProvider?: "gemini" | "chatgpt" | "sarvam";
+  /** Job tracker application this practice interview belongs to. */
+  jobApplicationId?: string;
 }
 
 export interface CreateInterviewResponse {
@@ -739,6 +748,9 @@ export const interviewApi = {
     }
     if (data.voiceProvider) {
       formData.append("voiceProvider", data.voiceProvider);
+    }
+    if (data.jobApplicationId?.trim()) {
+      formData.append("jobApplicationId", data.jobApplicationId.trim());
     }
     if (data.resume) {
       const resumeBlob = await snapshotFileForUpload(data.resume);
@@ -1156,6 +1168,8 @@ export interface RazorpayOrder {
   finalAmount?: number;
   couponCode?: string;
   discountPercent?: number;
+  referralCode?: string;
+  referralDiscountPercent?: number;
 }
 
 export type AdminCoupon = {
@@ -1221,15 +1235,136 @@ export const couponApi = {
   },
 };
 
+export type AffiliatePayout = {
+  id: string;
+  amountRequested: number;
+  status: "pending" | "paid" | "rejected";
+  upiId: string;
+  bankDetails: string | null;
+  requestedAt: string;
+  paidAt: string | null;
+  reviewNote: string | null;
+};
+
+export type AffiliateStats = {
+  registered: boolean;
+  referralCode: string | null;
+  referralPath: string | null;
+  totalClicks: number;
+  totalConversions: number;
+  totalEarnings: number;
+  availableBalance: number;
+  minPayoutRupees: number;
+  canRequestPayout: boolean;
+  hasPendingPayout: boolean;
+  upiId: string | null;
+  bankDetails: string | null;
+  referralDiscountPercent: number;
+  partnerCommissionPercent: number;
+  payouts: AffiliatePayout[];
+};
+
+export type AffiliateProgramSettings = {
+  referralDiscountPercent: number;
+  partnerCommissionPercent: number;
+  minPayoutRupees: number;
+  updatedAt: string | null;
+};
+
+export type AdminAffiliate = {
+  id: string;
+  clerkId: string;
+  email: string | null;
+  name: string | null;
+  referralCode: string;
+  totalClicks: number;
+  totalConversions: number;
+  totalEarnings: number;
+  availableBalance: number;
+  isActive: boolean;
+  createdAt: string;
+};
+
+export type AdminAffiliateConversion = {
+  id: string;
+  referredClerkId: string;
+  referredEmail: string | null;
+  referredName: string | null;
+  plan: string | null;
+  billingCycle: string | null;
+  paymentAmount: number;
+  commissionPercent: number;
+  commissionAmount: number;
+  createdAt: string;
+};
+
+export type AdminAffiliateDetail = AdminAffiliate & {
+  upiId: string | null;
+  bankDetails: string | null;
+  referralPath: string;
+  updatedAt: string;
+  payouts: AffiliatePayout[];
+  conversions: AdminAffiliateConversion[];
+};
+
+export type AdminAffiliatePayout = AffiliatePayout & {
+  affiliateId: string;
+  clerkId: string;
+  email: string | null;
+  name: string | null;
+  referralCode: string | null;
+};
+
+export const affiliateApi = {
+  register: async (): Promise<AffiliateStats> => {
+    const response = await apiClient.post<{ data: AffiliateStats }>(
+      "/affiliate/register",
+    );
+    return response.data.data;
+  },
+  stats: async (): Promise<AffiliateStats> => {
+    const response = await apiClient.get<{ data: AffiliateStats }>(
+      "/affiliate/stats",
+    );
+    return response.data.data;
+  },
+  requestPayout: async (body: {
+    amount?: number;
+    upiId: string;
+    bankDetails?: string;
+  }): Promise<AffiliateStats> => {
+    const response = await apiClient.post<{ data: AffiliateStats }>(
+      "/affiliate/request-payout",
+      body,
+    );
+    return response.data.data;
+  },
+  track: async (body: {
+    code: string;
+    visitorId: string;
+  }): Promise<{ counted: boolean; referralCode: string | null }> => {
+    const response = await apiClient.post<{
+      data: { counted: boolean; referralCode: string | null };
+    }>("/affiliate/track", body);
+    return response.data.data;
+  },
+};
+
 export const paymentApi = {
   createOrder: async (
     plan: SelfServePlanSlug,
     billingCycle: "monthly" | "quarterly" | "yearly" = "monthly",
     couponCode?: string,
+    referralCode?: string,
   ): Promise<RazorpayOrder> => {
     const response = await apiClient.post<{ data: RazorpayOrder }>(
       "/payments/create-order",
-      { plan, billingCycle, ...(couponCode ? { couponCode } : {}) },
+      {
+        plan,
+        billingCycle,
+        ...(couponCode ? { couponCode } : {}),
+        ...(referralCode ? { referralCode } : {}),
+      },
     );
     return response.data.data;
   },
@@ -3039,6 +3174,97 @@ export const adminApi = {
       success: boolean;
       data: { deleted: boolean; deactivated: boolean };
     }>(`/admin/coupons/${id}`);
+    return response.data.data;
+  },
+
+  getAffiliateSettings: async (): Promise<AffiliateProgramSettings> => {
+    const response = await apiClient.get<{
+      success: boolean;
+      data: AffiliateProgramSettings;
+    }>("/admin/affiliates/settings");
+    return response.data.data;
+  },
+
+  updateAffiliateSettings: async (data: {
+    referralDiscountPercent: number;
+    partnerCommissionPercent: number;
+    minPayoutRupees: number;
+  }): Promise<AffiliateProgramSettings> => {
+    const response = await apiClient.patch<{
+      success: boolean;
+      data: AffiliateProgramSettings;
+    }>("/admin/affiliates/settings", data);
+    return response.data.data;
+  },
+
+  listAffiliates: async (params?: {
+    limit?: number;
+    skip?: number;
+  }): Promise<{
+    items: AdminAffiliate[];
+    total: number;
+    limit: number;
+    skip: number;
+  }> => {
+    const q = new URLSearchParams();
+    if (params?.limit != null) q.set("limit", String(params.limit));
+    if (params?.skip != null) q.set("skip", String(params.skip));
+    const suffix = q.toString() ? `?${q.toString()}` : "";
+    const response = await apiClient.get<{
+      success: boolean;
+      data: {
+        items: AdminAffiliate[];
+        total: number;
+        limit: number;
+        skip: number;
+      };
+    }>(`/admin/affiliates${suffix}`);
+    return response.data.data;
+  },
+
+  getAffiliate: async (id: string): Promise<AdminAffiliateDetail> => {
+    const response = await apiClient.get<{
+      success: boolean;
+      data: AdminAffiliateDetail;
+    }>(`/admin/affiliates/${id}`);
+    return response.data.data;
+  },
+
+  listAffiliatePayouts: async (params?: {
+    limit?: number;
+    skip?: number;
+    status?: "pending" | "paid" | "rejected" | "all";
+  }): Promise<{
+    items: AdminAffiliatePayout[];
+    total: number;
+    limit: number;
+    skip: number;
+  }> => {
+    const q = new URLSearchParams();
+    if (params?.limit != null) q.set("limit", String(params.limit));
+    if (params?.skip != null) q.set("skip", String(params.skip));
+    if (params?.status) q.set("status", params.status);
+    const suffix = q.toString() ? `?${q.toString()}` : "";
+    const response = await apiClient.get<{
+      success: boolean;
+      data: {
+        items: AdminAffiliatePayout[];
+        total: number;
+        limit: number;
+        skip: number;
+      };
+    }>(`/admin/affiliates/payouts${suffix}`);
+    return response.data.data;
+  },
+
+  reviewAffiliatePayout: async (
+    id: string,
+    data: { status: "paid" | "rejected"; reviewNote?: string },
+  ): Promise<AdminAffiliatePayout> => {
+    const response = await apiClient.patch<{
+      success: boolean;
+      data: AdminAffiliatePayout;
+    }>(`/admin/affiliates/payouts/${id}`, data);
     return response.data.data;
   },
 };
@@ -5302,5 +5528,146 @@ export const configApi = {
       data: { features: import("@/lib/platform-features").PlatformFeature[] };
     }>("/config/features");
     return response.data.data.features;
+  },
+};
+
+function jobTrackerQuery(params?: JobTrackerListFilters & { page?: number; pageSize?: number }) {
+  const search = new URLSearchParams();
+  if (!params) return "";
+  if (params.q?.trim()) search.set("q", params.q.trim());
+  if (params.status) search.set("status", params.status);
+  if (params.jobType) search.set("jobType", params.jobType);
+  if (params.workMode) search.set("workMode", params.workMode);
+  if (params.favorite) search.set("favorite", "true");
+  if (params.archived) search.set("archived", "true");
+  if (params.appliedFrom) search.set("appliedFrom", params.appliedFrom);
+  if (params.appliedUntil) search.set("appliedUntil", params.appliedUntil);
+  if (params.page) search.set("page", String(params.page));
+  if (params.pageSize) search.set("pageSize", String(params.pageSize));
+  const qs = search.toString();
+  return qs ? `?${qs}` : "";
+}
+
+export const jobTrackerApi = {
+  list: async (
+    params?: JobTrackerListFilters & { page?: number; pageSize?: number },
+  ): Promise<JobTrackerListResponse> => {
+    const response = await apiClient.get<{
+      success: boolean;
+      data: JobTrackerListResponse;
+    }>(`/job-tracker/applications${jobTrackerQuery(params)}`);
+    return response.data.data;
+  },
+
+  board: async (
+    params?: JobTrackerListFilters,
+  ): Promise<JobTrackerBoardResponse> => {
+    const response = await apiClient.get<{
+      success: boolean;
+      data: JobTrackerBoardResponse;
+    }>(`/job-tracker/applications/board${jobTrackerQuery(params)}`);
+    return response.data.data;
+  },
+
+  get: async (id: string): Promise<JobTrackerDetail> => {
+    const response = await apiClient.get<{
+      success: boolean;
+      data: JobTrackerDetail;
+    }>(`/job-tracker/applications/${id}`);
+    return response.data.data;
+  },
+
+  create: async (body: Record<string, unknown>): Promise<JobTrackerDetail> => {
+    const response = await apiClient.post<{
+      success: boolean;
+      data: JobTrackerDetail;
+    }>("/job-tracker/applications", body);
+    return response.data.data;
+  },
+
+  patch: async (
+    id: string,
+    body: Record<string, unknown>,
+  ): Promise<JobTrackerDetail> => {
+    const response = await apiClient.patch<{
+      success: boolean;
+      data: JobTrackerDetail;
+    }>(`/job-tracker/applications/${id}`, body);
+    return response.data.data;
+  },
+
+  updateStatus: async (
+    id: string,
+    status: JobTrackerStatus,
+  ): Promise<JobTrackerDetail> => {
+    const response = await apiClient.patch<{
+      success: boolean;
+      data: JobTrackerDetail;
+    }>(`/job-tracker/applications/${id}/status`, { status });
+    return response.data.data;
+  },
+
+  remove: async (id: string): Promise<void> => {
+    await apiClient.delete(`/job-tracker/applications/${id}`);
+  },
+
+  attachResumes: async (
+    id: string,
+    resumeIds: string[],
+  ): Promise<JobTrackerDetail> => {
+    const response = await apiClient.post<{
+      success: boolean;
+      data: JobTrackerDetail;
+    }>(`/job-tracker/applications/${id}/resumes`, { resumeIds });
+    return response.data.data;
+  },
+
+  detachResume: async (
+    id: string,
+    resumeId: string,
+  ): Promise<JobTrackerDetail> => {
+    const response = await apiClient.delete<{
+      success: boolean;
+      data: JobTrackerDetail;
+    }>(`/job-tracker/applications/${id}/resumes/${resumeId}`);
+    return response.data.data;
+  },
+
+  score: async (id: string, resumeId?: string): Promise<JobTrackerDetail> => {
+    const response = await apiClient.post<{
+      success: boolean;
+      data: JobTrackerDetail;
+    }>(
+      `/job-tracker/applications/${id}/score`,
+      { resumeId },
+      { timeout: 120000 },
+    );
+    return response.data.data;
+  },
+
+  practiceInterview: async (
+    id: string,
+  ): Promise<{
+    jobApplicationId: string;
+    title: string;
+    company: string;
+    location: string;
+    jobDescription: string;
+    sourceUrl: string;
+    sourceResumeId?: string;
+  }> => {
+    const response = await apiClient.post<{
+      success: boolean;
+      data: {
+        jobApplicationId: string;
+        title: string;
+        company: string;
+        location: string;
+        jobDescription: string;
+        sourceUrl: string;
+        sourceResumeId?: string;
+      };
+    }>(`/job-tracker/applications/${id}/practice-interview`);
+    return response.data.data;
   },
 };

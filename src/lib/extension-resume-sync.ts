@@ -136,7 +136,7 @@ export function probeInterviewTrixExtension(
       window.removeEventListener("message", onMessage);
       resolve({
         installed: true,
-        needsSession: data.needsSession !== false,
+        needsSession: data.needsSession === true,
       });
     }
 

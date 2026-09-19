@@ -5,10 +5,12 @@ import { useUser } from "@clerk/nextjs";
 import { ArrowLeft, CheckCircle2, Loader2, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { appOutlineButton, appPrimaryButton } from "@/lib/app-theme";
+import { EXTENSION_CONNECTED_RETURN_KEY } from "@/components/chrome-extension/ExtensionConnectReturn";
 import {
   ensureExtensionSession,
   returnToExtensionJobTab,
 } from "@/lib/extension-resume-sync";
+import { consumePostSignInReturnUrl } from "@/lib/post-sign-in-redirect";
 
 type ConnectStatus = "working" | "connected" | "error";
 
@@ -31,7 +33,7 @@ function statusCopy(status: ConnectStatus, error: string): string {
   if (status === "connected") {
     return (
       error ||
-      "The extension can now match jobs and load your resumes. Returning you to the tab you came from."
+      "You're signed in. InterviewTrix will stay open in the background so you remain logged in."
     );
   }
   return error;
@@ -47,11 +49,13 @@ export default function ExtensionConnectedPage() {
     setReturning(true);
     try {
       const result = await returnToExtensionJobTab(2000);
-      if (!result.ok) {
-        setError(
-          "You can close this tab and return to the page where you opened Connect.",
-        );
-      }
+      if (result.ok) return true;
+      setError(
+        "You can close this tab and return to the page where you opened Connect.",
+      );
+      return false;
+    } catch {
+      return false;
     } finally {
       setReturning(false);
     }
@@ -71,9 +75,14 @@ export default function ExtensionConnectedPage() {
       if (cancelled) return;
       if (last.ok) {
         setStatus("connected");
-        window.setTimeout(() => {
-          if (!cancelled) void goBack();
-        }, 1400);
+        consumePostSignInReturnUrl();
+        try {
+          sessionStorage.setItem(EXTENSION_CONNECTED_RETURN_KEY, "1");
+        } catch {
+          /* private mode */
+        }
+        // Full load remounts Clerk so the site header shows the signed-in account.
+        window.location.assign("/dashboard");
         return;
       }
       setStatus("error");
@@ -87,7 +96,7 @@ export default function ExtensionConnectedPage() {
     return () => {
       cancelled = true;
     };
-  }, [goBack, isLoaded, user]);
+  }, [isLoaded, user]);
 
   return (
     <div className="flex min-h-[70vh] items-center justify-center px-4 py-10">

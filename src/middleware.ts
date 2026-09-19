@@ -1,6 +1,11 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
-import { isPrivateAppPath, isSearchIndexable } from "@/lib/seo/site-url";
+import {
+  getCanonicalHostname,
+  isInterviewTrixHostname,
+  isPrivateAppPath,
+  isSearchIndexable,
+} from "@/lib/seo/site-url";
 
 const NOINDEX_HEADER = "noindex, nofollow, noarchive, nosnippet";
 
@@ -35,6 +40,7 @@ const isPublicRoute = createRouteMatcher([
   "/refund(.*)",
   "/terms(.*)",
   "/privacy(.*)",
+  "/ref(.*)",
   "/hire-ix-talent(.*)",
   "/become-peer-interviewer(.*)",
   "/blogs(.*)",
@@ -42,8 +48,27 @@ const isPublicRoute = createRouteMatcher([
   "/sitemap.xml",
 ]);
 
+function canonicalHostRedirect(request: Request): NextResponse | null {
+  if (process.env.NODE_ENV !== "production") return null;
+
+  const requestHost = new URL(request.url).hostname.toLowerCase();
+  if (!isInterviewTrixHostname(requestHost)) return null;
+
+  const canonicalHost = getCanonicalHostname();
+  if (requestHost === canonicalHost) return null;
+
+  const url = new URL(request.url);
+  url.hostname = canonicalHost;
+  return NextResponse.redirect(url, 308);
+}
+
 export default clerkMiddleware(
   async (auth, request) => {
+    const hostRedirect = canonicalHostRedirect(request);
+    if (hostRedirect) {
+      return hostRedirect;
+    }
+
     const pathname = request.nextUrl.pathname;
 
     if (pathname === "/*") {

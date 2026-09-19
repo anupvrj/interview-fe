@@ -7,5 +7,7 @@ export const queryKeys = {
   systemDesignSessions: (userId: string) =>
     ["systemDesignSessions", userId] as const,
   peerBookings: (userId: string) => ["peerBookings", userId] as const,
+  jobTracker: (userId: string, scope: string) =>
+    ["jobTracker", userId, scope] as const,
   profile: (userId: string) => ["profile", userId] as const,
 };

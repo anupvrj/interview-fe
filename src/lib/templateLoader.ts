@@ -118,21 +118,13 @@ class CSSRegistry {
       this.loadedStyles.add(templateId);
       this.activeTemplateId = templateId;
       return true;
-    } catch (error) {
-      console.warn(
-        `Failed to load public CSS for template ${templateId}, falling back to bundled import:`,
-        error,
-      );
-
-      try {
-        await import(`../configs/resume-templates/${templateId}/style.css`);
-        this.loadedStyles.add(templateId);
-        this.activeTemplateId = templateId;
-        return true;
-      } catch (importError) {
-        console.warn(`No CSS file found for template: ${templateId}`, importError);
-        return false;
+    } catch {
+      if (process.env.NODE_ENV === "development") {
+        console.warn(
+          `[templates] CSS not loaded for "${templateId}". Run: npm run copy-template-css`,
+        );
       }
+      return false;
     }
   }
 
@@ -234,7 +226,10 @@ export class TemplateLoader {
    * Load a single template by ID
    * Includes CSS loading and caching
    */
-  static async loadTemplate(templateId: string): Promise<TemplateConfig> {
+  static async loadTemplate(
+    templateId: string,
+    options?: { loadCSS?: boolean },
+  ): Promise<TemplateConfig> {
     // Check cache first
     if (templateCache.has(templateId)) {
       return templateCache.get(templateId)!;
@@ -261,8 +256,8 @@ export class TemplateLoader {
       // Cache the template
       templateCache.set(templateId, config);
 
-      // Load CSS (browser only)
-      if (typeof window !== "undefined") {
+      // Load CSS on demand (browser only) — skip during bulk registry warmup
+      if (typeof window !== "undefined" && options?.loadCSS !== false) {
         await cssRegistry.loadTemplateCSS(templateId);
       }
 
@@ -302,7 +297,9 @@ export class TemplateLoader {
     Map<string, TemplateConfig>
   > {
     await Promise.all(
-      TEMPLATE_MANIFEST.map((templateId) => this.loadTemplate(templateId))
+      TEMPLATE_MANIFEST.map((templateId) =>
+        this.loadTemplate(templateId, { loadCSS: false }),
+      ),
     );
 
     return templateCache.getAll();

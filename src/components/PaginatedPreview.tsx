@@ -18,6 +18,8 @@ import {
   A4_HEIGHT_MM,
   A4_WIDTH_MM,
   ATLANTIC_BLUE_PAGINATED_PAGE_BG,
+  getTemplateContinuationTopMm,
+  pageContentHeightPx,
   pageVerticalGuttersMm,
   resolveEffectiveLayoutPaddingMm,
 } from "@/lib/resume-page-dimensions";
@@ -142,7 +144,15 @@ export const PaginatedPreview: React.FC<PaginatedPreviewProps> = ({
   }, [template, currentLayout.type, currentLayout.padding?.top, currentLayout.padding?.bottom, currentLayout.padding?.left, currentLayout.padding?.right]);
 
   const { contentHeightMm: CONTENT_HEIGHT_MM } = pageVerticalGuttersMm(paddingMm);
-  const pageHeightLimit = (CONTENT_HEIGHT_MM / A4_HEIGHT_MM) * 1122.5;
+  const continuationTopMm = getTemplateContinuationTopMm(
+    template.id,
+    paddingMm.top,
+  );
+  const pageHeightLimit = pageContentHeightPx(CONTENT_HEIGHT_MM);
+  const continuationPageHeightLimit =
+    continuationTopMm > 0
+      ? pageContentHeightPx(CONTENT_HEIGHT_MM - continuationTopMm)
+      : undefined;
 
   const typographyKey = useMemo(() => {
     const fs = currentLayout.fontSize as
@@ -166,9 +176,11 @@ export const PaginatedPreview: React.FC<PaginatedPreviewProps> = ({
       resume,
       sections: sections || [],
       pageHeightLimit,
+      continuationPageHeightLimit,
+      /** Snap page cuts to line boundaries for all templates (rich text / multi-line items). */
+      snapPageBreaksToLineBounds: true,
       measureKey: rendererKey,
     });
-
   const [frame, setFrame] = useState<PreviewFrame>(() => ({
     key: "", pages: [], pageUnits: [], allUnitIds: [], resume, sections, layout, template,
   }));

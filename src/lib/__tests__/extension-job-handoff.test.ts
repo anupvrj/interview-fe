@@ -123,6 +123,7 @@ describe("extension-job-handoff", () => {
     ).toBe(PRACTICE_INTERVIEW_PATH);
     expect(isExtensionHandoffPath(FROM_JOB_PATH)).toBe(true);
     expect(isExtensionHandoffPath(`${PRACTICE_INTERVIEW_PATH}?x=1`)).toBe(true);
+    expect(isExtensionHandoffPath("/dashboard/resumes/new")).toBe(true);
     expect(isExtensionHandoffPath("/dashboard")).toBe(false);
   });
 });

@@ -60,6 +60,8 @@ export type PendingJobCapture = {
   intent?: JobCaptureIntent;
   sourceResumeId?: string;
   matchInsights?: JobMatchHandoffInsights;
+  /** Job tracker application to sync the practice interview back to. */
+  jobApplicationId?: string;
 };
 
 function normalizeIntent(value: unknown): JobCaptureIntent | undefined {
@@ -89,7 +91,11 @@ export function isExtensionHandoffPath(
 ): boolean {
   if (!pathname) return false;
   const path = pathname.split("?")[0];
-  return path === FROM_JOB_PATH || path === PRACTICE_INTERVIEW_PATH;
+  return (
+    path === FROM_JOB_PATH ||
+    path === PRACTICE_INTERVIEW_PATH ||
+    path === "/dashboard/resumes/new"
+  );
 }
 
 function isPendingJobCapture(value: unknown): value is PendingJobCapture {
@@ -201,10 +207,16 @@ export function parsePendingJobCapture(raw: string | null): PendingJobCapture | 
       typeof parsed.sourceResumeId === "string" && parsed.sourceResumeId.trim()
         ? parsed.sourceResumeId.trim()
         : undefined;
+    const jobApplicationId =
+      typeof parsed.jobApplicationId === "string" &&
+      parsed.jobApplicationId.trim()
+        ? parsed.jobApplicationId.trim()
+        : undefined;
     return {
       ...parsed,
       intent: normalizeIntent(parsed.intent),
       sourceResumeId,
+      jobApplicationId,
       matchInsights: parseMatchInsights(
         (parsed as PendingJobCapture).matchInsights,
       ),
@@ -300,6 +312,7 @@ export function normalizeCapturedJob(
     details: capture.details,
     intent: normalizeIntent(capture.intent),
     sourceResumeId: capture.sourceResumeId,
+    jobApplicationId: capture.jobApplicationId,
     matchInsights: capture.matchInsights,
   };
 }
