@@ -1393,7 +1393,7 @@ export default function EditResumePage() {
       value.trim().length >= MIN_JOB_DESCRIPTION_CHARS;
 
     const localJd = ready(lastMatchedJd)
-      ? (lastMatchedJd as string)
+      ? lastMatchedJd
       : resumeRef.current?.atsScoringContext?.lastJobDescription;
     if (ready(localJd)) {
       return {
