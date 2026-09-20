@@ -140,3 +140,28 @@ export function normalizeATSReportV3(report: ATSReportV3): ATSReportV3 {
     categories,
   };
 }
+
+/** Prefer the persisted sibling Job Match % over any stale blended overallMatch. */
+export function applyPersistedJobMatchScore(
+  report: ATSReportV3,
+  jobMatchScore?: number | null,
+): ATSReportV3 {
+  if (
+    typeof jobMatchScore !== "number" ||
+    !Number.isFinite(jobMatchScore) ||
+    !report.jobMatch
+  ) {
+    return report;
+  }
+  const score = Math.max(0, Math.min(100, Math.round(jobMatchScore)));
+  return {
+    ...report,
+    jobMatch: { ...report.jobMatch, overallMatch: score },
+    categories: report.categories.jobMatch
+      ? {
+          ...report.categories,
+          jobMatch: { ...report.categories.jobMatch, score },
+        }
+      : report.categories,
+  };
+}

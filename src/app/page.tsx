@@ -50,6 +50,7 @@ import { CodingRoundHeroPreview } from "@/components/coding-interviews/CodingRou
 import { InterviewPracticeHeroPreview } from "@/components/marketing/InterviewPracticeHeroPreview";
 import { SystemDesignHeroPreview } from "@/components/system-design/SystemDesignHeroPreview";
 import { AiJobSearchNotifyButton } from "@/components/AiJobSearchNotifyButton";
+import { usePublicPlatformStats } from "@/hooks/usePublicPlatformStats";
 import { appMarketingSection, appMarketingSectionAlt, appMarketingSectionPurple, appMarketingSectionLight } from "@/lib/app-theme";
 import { cn } from "@/lib/utils";
 
@@ -80,40 +81,43 @@ function useCountUp(
   const hasStartedRef = useRef(false);
 
   useEffect(() => {
+    hasStartedRef.current = false;
+    setCount(0);
+    if (end <= 0) return;
+
     const element = document.getElementById("stats-section");
     if (!element) return;
 
+    const run = () => {
+      if (hasStartedRef.current) return;
+      hasStartedRef.current = true;
+      const startTime = Date.now();
+      const animate = () => {
+        const elapsed = Date.now() - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        const easeOutQuart = 1 - Math.pow(1 - progress, 4);
+        setCount(Math.floor(end * easeOutQuart));
+        if (progress < 1) requestAnimationFrame(animate);
+        else setCount(end);
+      };
+      if (delay > 0) {
+        window.setTimeout(() => requestAnimationFrame(animate), delay);
+      } else {
+        requestAnimationFrame(animate);
+      }
+    };
+
     const observer = new IntersectionObserver(
       (entries) => {
-        if (!entries[0]?.isIntersecting || hasStartedRef.current) return;
-        hasStartedRef.current = true;
-
-        const run = () => {
-          const startTime = Date.now();
-          const animate = () => {
-            const elapsed = Date.now() - startTime;
-            const progress = Math.min(elapsed / duration, 1);
-            const easeOutQuart = 1 - Math.pow(1 - progress, 4);
-            setCount(Math.floor(end * easeOutQuart));
-            if (progress < 1) requestAnimationFrame(animate);
-            else setCount(end);
-          };
-          requestAnimationFrame(animate);
-        };
-
-        if (delay > 0) {
-          window.setTimeout(run, delay);
-        } else {
-          run();
-        }
+        if (entries[0]?.isIntersecting) run();
       },
-      { threshold: 0.25 },
+      { threshold: 0.1 },
     );
-
     observer.observe(element);
     return () => observer.disconnect();
   }, [end, duration, delay]);
 
+  if (end <= 0) return "";
   return prefix + count.toLocaleString("en-IN") + suffix;
 }
 
@@ -169,11 +173,12 @@ export default function LandingPage() {
   const [currentJobIndex, setCurrentJobIndex] = useState(0);
   const [scrollPosition, setScrollPosition] = useState(0);
   const jobResultsRef = useRef<HTMLDivElement>(null);
-  
+  const { stats } = usePublicPlatformStats();
+
   // Animated counts (scroll into view → count up over ~2s, staggered)
-  const usersCount = useCountUp(3000, 2000, "+", "", 0);
-  const resumesCount = useCountUp(3000, 2000, "+", "", 200);
-  const interviewsCount = useCountUp(5000, 2200, "+", "", 400);
+  const usersCount = useCountUp(stats?.users ?? 0, 2000, "+", "", 0);
+  const resumesCount = useCountUp(stats?.resumes ?? 0, 2000, "+", "", 200);
+  const interviewsCount = useCountUp(stats?.interviews ?? 0, 2200, "+", "", 400);
 
   const resumeTemplates = [
     "/resume-template-images/atlantic-blue-template-design.webp",
@@ -425,7 +430,11 @@ export default function LandingPage() {
                 </div>
                 <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
                   <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-primary shrink-0" />
-                  <span className="whitespace-nowrap">5,000+ students trained</span>
+                  <span className="whitespace-nowrap">
+                    {stats?.users
+                      ? `${stats.users.toLocaleString("en-IN")}+ students trained`
+                      : "Students trained"}
+                  </span>
                 </div>
               </div>
             </div>

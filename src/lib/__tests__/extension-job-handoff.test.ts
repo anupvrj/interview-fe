@@ -53,6 +53,41 @@ describe("extension-job-handoff", () => {
     expect(isResumeHandoffCapture(parsed!)).toBe(true);
   });
 
+  it("keeps the matched resume id and job-match insights for tailoring", () => {
+    const parsed = parsePendingJobCapture(
+      JSON.stringify({
+        ...basePayload,
+        intent: "resume",
+        sourceResumeId: "res_U1jcSA2BSJLz_ko-",
+        matchInsights: {
+          resumeId: "res_U1jcSA2BSJLz_ko-",
+          matchScore: 78,
+          verdict: "moderate",
+          summary: "Backend is strong; React is missing.",
+          matchedSkills: ["Node.js", "AWS"],
+          missingSkills: ["React"],
+          unlistedSkills: ["GCP", "Azure"],
+          strengths: ["Node.js"],
+          gaps: ["No React"],
+          matrices: [
+            {
+              id: "mustHaveSkillsMatch",
+              label: "Must-Have Skills",
+              score: 80,
+              matched: ["Node.js", "AWS"],
+              missing: ["React"],
+              unlisted: ["GCP", "Azure"],
+            },
+          ],
+        },
+      }),
+    );
+    expect(parsed?.sourceResumeId).toBe("res_U1jcSA2BSJLz_ko-");
+    expect(parsed?.matchInsights?.missingSkills).toEqual(["React"]);
+    expect(parsed?.matchInsights?.unlistedSkills).toEqual(["GCP", "Azure"]);
+    expect(parsed?.matchInsights?.matrices[0]?.id).toBe("mustHaveSkillsMatch");
+  });
+
   it("treats legacy payloads without intent as resume handoff", () => {
     const parsed = parsePendingJobCapture(JSON.stringify(basePayload));
     expect(isResumeHandoffCapture(parsed!)).toBe(true);
@@ -88,6 +123,7 @@ describe("extension-job-handoff", () => {
     ).toBe(PRACTICE_INTERVIEW_PATH);
     expect(isExtensionHandoffPath(FROM_JOB_PATH)).toBe(true);
     expect(isExtensionHandoffPath(`${PRACTICE_INTERVIEW_PATH}?x=1`)).toBe(true);
+    expect(isExtensionHandoffPath("/dashboard/resumes/new")).toBe(true);
     expect(isExtensionHandoffPath("/dashboard")).toBe(false);
   });
 });
@@ -185,6 +221,22 @@ describe("pending job capture storage", () => {
     savePendingJobCapture({
       ...basePayload,
       capturedAt: "2020-01-01T00:00:00.000Z",
+    });
+    expect(loadPendingJobCapture()).toBeNull();
+  });
+
+  it("ignores a capture the app already consumed after the extension re-injects it", () => {
+    savePendingJobCapture(freshPayload);
+    clearPendingJobCapture();
+    localStorage.setItem(PENDING_JOB_STORAGE_KEY, JSON.stringify(freshPayload));
+    expect(loadPendingJobCapture()).toBeNull();
+    expect(loadPendingJobHandoffPath()).toBeNull();
+  });
+
+  it("treats a missing capturedAt as stale so leftover payloads cannot hijack login", () => {
+    savePendingJobCapture({
+      ...freshPayload,
+      capturedAt: "",
     });
     expect(loadPendingJobCapture()).toBeNull();
   });

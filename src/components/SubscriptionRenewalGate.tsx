@@ -82,7 +82,6 @@ function SubscriptionRenewalGateContent({
 
         <PricingPlansBlock
           showHeading={false}
-          paidOnly
           renewalMode
           showAutoRenewNote
         />

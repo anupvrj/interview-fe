@@ -6,6 +6,11 @@
 
 import html2canvas from "html2canvas";
 import { jsPDF } from "jspdf";
+import {
+  PDF_RASTER_ATTEMPTS,
+  isPdfOverAtsLimit,
+  type PdfRasterAttempt,
+} from "@/lib/resume-pdf-budget";
 
 export interface PDFGenerationOptions {
   filename?: string;
@@ -64,7 +69,7 @@ export async function generatePDFFromPages(
     // A4 dimensions in mm
     const a4Width = 210;
 
-    // Create PDF document
+    const rasterizeOnce = async (attempt: PdfRasterAttempt): Promise<Blob> => {
     const pdf = new jsPDF({
       orientation: "portrait",
       unit: "mm",
@@ -72,7 +77,6 @@ export async function generatePDFFromPages(
       compress: true,
     });
 
-    // Process each page
     for (let i = 0; i < pageElements.length; i++) {
       const pageElement = pageElements[i];
 
@@ -127,10 +131,7 @@ export async function generatePDFFromPages(
 
         // Convert HTML to canvas
         const canvas = await html2canvas(clonedElement, {
-          scale: Math.min(
-            3,
-            Math.max(2, (window.devicePixelRatio || 1) * 1.5),
-          ),
+          scale: attempt.scale,
           useCORS: true,
           allowTaint: false,
           foreignObjectRendering: false,
@@ -223,9 +224,10 @@ export async function generatePDFFromPages(
           },
         } as any);
 
-        // Convert canvas to image.
-        // PNG avoids JPEG banding/seam artifacts on flat colored sidebars.
-        const imgData = canvas.toDataURL("image/png");
+        const imgData =
+          attempt.format === "JPEG"
+            ? canvas.toDataURL("image/jpeg", attempt.quality)
+            : canvas.toDataURL("image/png");
 
         // Calculate dimensions to fit A4
         const imgWidth = a4Width;
@@ -239,13 +241,13 @@ export async function generatePDFFromPages(
         // Add image to PDF
         pdf.addImage(
           imgData,
-          "PNG",
+          attempt.format,
           0,
           0,
           imgWidth,
           imgHeight,
           undefined,
-          "FAST",
+          attempt.format === "JPEG" ? "MEDIUM" : "FAST",
         );
       } finally {
         // Clean up temporary container
@@ -253,9 +255,16 @@ export async function generatePDFFromPages(
       }
     }
 
-    // Generate PDF blob
-    const pdfBlob = pdf.output("blob");
-    return pdfBlob;
+    return pdf.output("blob");
+    };
+
+    let last: Blob | null = null;
+    for (const attempt of PDF_RASTER_ATTEMPTS) {
+      last = await rasterizeOnce(attempt);
+      if (!isPdfOverAtsLimit(last.size)) return last;
+    }
+    if (!last) throw new Error("Failed to generate PDF");
+    return last;
   } catch (error) {
     console.error("Error generating PDF:", error);
     throw new Error("Failed to generate PDF");

@@ -20,9 +20,9 @@ export const ABOUT_US_FAQ = [
       "Yes. Resume building starts with ATS compatibility in mind—parser-friendly templates, keyword alignment, and a Smart ATS Score so you know your resume clears automated screening before a recruiter ever sees it.",
   },
   {
-    question: "Can I practice interviews in multiple languages?",
+    question: "How realistic is AI Interview Practice?",
     answer:
-      "Yes. AI Interview Practice supports multiple languages including English and Hindi, so you can rehearse the way you'll actually communicate in real interviews—especially valuable for candidates interviewing in India.",
+      "AI Interview Practice runs a live voice conversation with company- and role-specific questions, then scores technical, behavioral, and communication skills so you can rehearse the way you'll actually interview.",
   },
   {
     question: "What are peer interviews on Interview Trix?",
@@ -107,7 +107,7 @@ export const DIFFERENTIATORS = [
   {
     title: "India-first, globally capable",
     description:
-      "Multi-language practice, pricing in INR, and prep paths tuned for companies candidates actually target—from service firms to product startups.",
+      "INR pricing and prep paths tuned for companies candidates actually target—from service firms to product startups.",
   },
   {
     title: "Measurable progress",

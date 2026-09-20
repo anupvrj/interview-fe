@@ -49,7 +49,10 @@ import { ResumeBuilderJobDescriptionStep } from "@/components/resume-builder/Res
 import { ResumeCreationStepper } from "@/components/resume-builder/ResumeCreationStepper";
 import { ResumeEnhanceChoiceDialog } from "@/components/resume-builder/ResumeEnhanceChoiceDialog";
 import { trimJobDescriptionForSend } from "@/lib/job-description-limits";
-import { loadPendingJobCaptureFor } from "@/lib/extension-job-handoff";
+import {
+  loadPendingJobCaptureFor,
+  normalizeCapturedJob,
+} from "@/lib/extension-job-handoff";
 import type { ResumeImportSource } from "@/components/resume-builder/ResumeBuilderImportChoiceCards";
 import type {
   ChatCollectedProfile,
@@ -92,6 +95,24 @@ export default function NewResumePage() {
   const router = useRouter();
   const { invalidate } = useDashboardInvalidation();
   const searchParams = useSearchParams();
+  const resumeEditorPath = (resumeId: string) =>
+    searchParams.get("extensionSync") === "1"
+      ? `/dashboard/resumes/${resumeId}/edit?extensionSync=1`
+      : `/dashboard/resumes/${resumeId}/edit`;
+  const newResumeReturnUrl = () => {
+    const params = new URLSearchParams();
+    const templateParam = searchParams.get("template");
+    const skipTemplate = searchParams.get("skipTemplate");
+    if (templateParam && skipTemplate) {
+      params.set("template", templateParam);
+      params.set("skipTemplate", skipTemplate);
+    }
+    if (searchParams.get("extensionSync") === "1") {
+      params.set("extensionSync", "1");
+    }
+    const query = params.toString();
+    return query ? `/dashboard/resumes/new?${query}` : "/dashboard/resumes/new";
+  };
   const [step, setStep] = useState<Step>("template");
   const [importSource, setImportSource] = useState<ResumeImportSource | null>(
     null,
@@ -116,6 +137,7 @@ export default function NewResumePage() {
   const [chatSubMode, setChatSubMode] = useState<ResumeChatSubMode | null>(null);
   const [showChatModeModal, setShowChatModeModal] = useState(false);
   const [jobDescription, setJobDescription] = useState("");
+  const [jobFromExtension, setJobFromExtension] = useState(false);
   const [jdRequirements, setJdRequirements] = useState<JDRequirements | null>(
     null,
   );
@@ -124,10 +146,26 @@ export default function NewResumePage() {
   const [enhanceChoiceOpen, setEnhanceChoiceOpen] = useState(false);
 
   useEffect(() => {
-    const pending = loadPendingJobCaptureFor("resume");
-    if (pending?.jobDescription) {
-      setJobDescription(pending.jobDescription);
-    }
+    const apply = () => {
+      const pending = loadPendingJobCaptureFor("resume");
+      if (!pending?.jobDescription) return false;
+      const normalized = normalizeCapturedJob(pending);
+      if (normalized.jobDescription.trim().length < 50) return false;
+      setJobDescription(normalized.jobDescription);
+      setJobFromExtension(true);
+      return true;
+    };
+
+    if (apply()) return;
+
+    let ticks = 0;
+    const timer = window.setInterval(() => {
+      ticks += 1;
+      if (apply() || ticks >= 20) {
+        window.clearInterval(timer);
+      }
+    }, 150);
+    return () => window.clearInterval(timer);
   }, []);
 
   const processingMessages = getResumeProcessingMessages(
@@ -160,12 +198,7 @@ export default function NewResumePage() {
     if (isLoaded) {
       if (!user) {
         // User not logged in - redirect to sign-in with return URL
-        const templateParam = searchParams.get("template");
-        const skipTemplate = searchParams.get("skipTemplate");
-        const returnUrl =
-          templateParam && skipTemplate
-            ? `/dashboard/resumes/new?template=${templateParam}&skipTemplate=true`
-            : "/dashboard/resumes/new";
+        const returnUrl = newResumeReturnUrl();
         router.push(`/sign-in?redirect_url=${encodeURIComponent(returnUrl)}`);
         return;
       }
@@ -185,12 +218,7 @@ export default function NewResumePage() {
 
       if (!profile.onboardingCompleted) {
         // Onboarding not completed - redirect to onboarding with return URL
-        const templateParam = searchParams.get("template");
-        const skipTemplate = searchParams.get("skipTemplate");
-        const returnUrl =
-          templateParam && skipTemplate
-            ? `/dashboard/resumes/new?template=${templateParam}&skipTemplate=true`
-            : "/dashboard/resumes/new";
+        const returnUrl = newResumeReturnUrl();
         localStorage.setItem("resumeBuilderReturnUrl", returnUrl);
         router.push("/onboarding");
         return;
@@ -283,9 +311,11 @@ export default function NewResumePage() {
     setChatProfile(null);
     setChatSessionId(null);
     setChatSubMode(null);
-    setJobDescription("");
-    setJdRequirements(null);
-    setJdSummary(null);
+    if (!jobFromExtension) {
+      setJobDescription("");
+      setJdRequirements(null);
+      setJdSummary(null);
+    }
     setEnhanceChoiceOpen(false);
     setStep("import");
   };
@@ -419,7 +449,7 @@ export default function NewResumePage() {
       });
 
       await invalidate(["resumes"]);
-      router.push(`/dashboard/resumes/${resume.resumeId}/edit`);
+      router.push(resumeEditorPath(resume.resumeId));
     } catch (error: any) {
       console.error("Error building resume:", error);
       setStep("jobDescription");
@@ -560,7 +590,7 @@ export default function NewResumePage() {
 
       console.log("✅ Resume created with dummy content:", resume.resumeId);
       await invalidate(["resumes"]);
-      router.push(`/dashboard/resumes/${resume.resumeId}/edit`);
+      router.push(resumeEditorPath(resume.resumeId));
     } catch (error: any) {
       console.error("❌ Error creating resume with dummy content:", error);
 

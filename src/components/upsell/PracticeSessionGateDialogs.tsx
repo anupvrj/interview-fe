@@ -47,7 +47,9 @@ export function PracticeSessionGateDialogs({
   entitlements,
   upgradeTargetPlan,
 }: GateState) {
-  const upgradeCopy = UPGRADE_COPY[upgradeTargetPlan];
+  const upgradeCopy =
+    UPGRADE_COPY[upgradeTargetPlan as keyof typeof UPGRADE_COPY] ??
+    UPGRADE_COPY.general_pass;
 
   return (
     <>

@@ -146,7 +146,8 @@ type RoleProfile =
 function isExtensionJobHandoffPath(pathname: string): boolean {
   return (
     pathname === "/dashboard/resumes/from-job" ||
-    pathname === "/dashboard/interviews/new"
+    pathname === "/dashboard/interviews/new" ||
+    pathname === "/dashboard/extension/connected"
   );
 }
 

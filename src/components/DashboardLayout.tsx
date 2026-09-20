@@ -216,7 +216,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const [trialPromoVariant, setTrialPromoVariant] =
     useState<TrialUpsellVariant>("dashboard_promo");
   const [skipDelayedTrialPromo, setSkipDelayedTrialPromo] = useState(false);
-  const { canUse, refresh: refreshEntitlements } = useEntitlements();
+  const { canUse, canUsePlatformFeature, refresh: refreshEntitlements } =
+    useEntitlements();
   const { isNavHrefVisible, matchPath, byKey } = usePlatformFeatures();
   const {
     shouldShowTrialPromo,
@@ -375,21 +376,32 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         profile,
       ),
       (href, featureKey) => {
-        if (activeRole && activeRole !== "super_admin") {
-          const matched = matchPath(href) ?? (featureKey ? byKey.get(featureKey) : undefined);
-          if (matched) {
-            return isFeatureVisibleForActiveRole(
-              matched.status,
-              matched.category,
-              activeRole,
-            );
-          }
+        const matched =
+          matchPath(href) ?? (featureKey ? byKey.get(featureKey) : undefined);
+        let visible = isNavHrefVisible(href, featureKey);
+        if (activeRole && activeRole !== "super_admin" && matched) {
+          visible = isFeatureVisibleForActiveRole(
+            matched.status,
+            matched.category,
+            activeRole,
+          );
         }
-        return isNavHrefVisible(href, featureKey);
+        if (
+          visible &&
+          matched &&
+          matched.builtIn === false &&
+          activeRole !== "super_admin"
+        ) {
+          return canUsePlatformFeature(matched.key);
+        }
+        return visible;
       },
     );
 
     return items.map((item) => {
+      if (item.href === "/dashboard/interviews") {
+        return { ...item, locked: !canUse("aiMockInterview") };
+      }
       if (item.href === "/dashboard/coding-interviews") {
         return { ...item, locked: !canUse("codingRound") };
       }
@@ -409,6 +421,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     activeRole,
     profile,
     canUse,
+    canUsePlatformFeature,
     isNavHrefVisible,
     matchPath,
     byKey,

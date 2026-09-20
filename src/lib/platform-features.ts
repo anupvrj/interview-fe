@@ -18,6 +18,11 @@ export type PlatformFeature = {
   builtIn?: boolean;
   credentialReady?: boolean;
   creditsPerMinute?: number;
+  isDefaultVoice?: boolean;
+  highlightTag?: string;
+  highlightStyle?: "popular" | "trending" | "flash" | "new" | "hot";
+  allowedDurations?: number[];
+  decisionHint?: string;
   updatedAt?: string;
   updatedBy?: string;
 };
@@ -32,6 +37,11 @@ export type PlatformFeaturePatch = {
   navHrefs?: string[] | string;
   marketingHrefs?: string[] | string;
   creditsPerMinute?: number;
+  isDefaultVoice?: boolean;
+  highlightTag?: string;
+  highlightStyle?: string;
+  allowedDurations?: number[];
+  decisionHint?: string;
 };
 
 export type CreatePlatformFeatureInput = {

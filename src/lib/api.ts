@@ -11,6 +11,14 @@ import {
   shouldRedirectUnauthorizedToSignIn,
 } from "@/lib/post-sign-in-redirect";
 import { trimJobDescriptionForSend } from "@/lib/job-description-limits";
+import type { ApplicationProfile } from "@/lib/application-profile";
+import type {
+  JobTrackerBoardResponse,
+  JobTrackerDetail,
+  JobTrackerListFilters,
+  JobTrackerListResponse,
+  JobTrackerStatus,
+} from "@/lib/job-tracker";
 
 /** Base URL for API (includes `/api` path). Use for `<img src>` and other non-axios URLs. */
 export const API_URL =
@@ -168,6 +176,18 @@ export interface User {
     role: string;
     industry?: string;
   };
+  /** Free-text overall experience for job applications */
+  overallExperience?: string;
+  willingToWorkOnsite?: boolean;
+  willingToWorkHybrid?: boolean;
+  currentCtc?: {
+    amount: number;
+    unit: "lpa" | "inr";
+  };
+  expectedCtc?: {
+    amount: number;
+    unit: "lpa" | "inr";
+  };
   industry?: string;
   /** @deprecated legacy multi-select; use `industry` */
   industries?: string[];
@@ -183,6 +203,7 @@ export interface User {
     uploadedAt: string;
     size: number;
   };
+  applicationProfile?: ApplicationProfile;
   subscription?: {
     plan: SubscriptionPlanSlug;
     status: "active" | "cancelled" | "expired";
@@ -508,6 +529,8 @@ export interface CreateInterviewRequest {
   jobDescription?: string;
   /** Voice AI provider for the realtime interview session. */
   voiceProvider?: "gemini" | "chatgpt" | "sarvam";
+  /** Job tracker application this practice interview belongs to. */
+  jobApplicationId?: string;
 }
 
 export interface CreateInterviewResponse {
@@ -657,6 +680,7 @@ export const userApi = {
     name?: string;
     userType?: "student" | "fresher" | "experienced";
     experience?: number;
+    overallExperience?: string;
     targetJobRole?: string;
     targetCompany?: string;
     currentJob?: {
@@ -664,10 +688,21 @@ export const userApi = {
       role: string;
       industry?: string;
     };
+    currentCtc?: {
+      amount: number;
+      unit: "lpa" | "inr";
+    } | null;
+    expectedCtc?: {
+      amount: number;
+      unit: "lpa" | "inr";
+    } | null;
+    willingToWorkOnsite?: boolean | null;
+    willingToWorkHybrid?: boolean | null;
     industry?: string;
     skills?: string[];
     affiliationInstitutionId?: string | null;
     affiliationInstitutionName?: string | null;
+    applicationProfile?: ApplicationProfile;
   }): Promise<User> => {
     const response = await apiClient.put<{ data: User }>(
       "/users/me/profile",
@@ -713,6 +748,9 @@ export const interviewApi = {
     }
     if (data.voiceProvider) {
       formData.append("voiceProvider", data.voiceProvider);
+    }
+    if (data.jobApplicationId?.trim()) {
+      formData.append("jobApplicationId", data.jobApplicationId.trim());
     }
     if (data.resume) {
       const resumeBlob = await snapshotFileForUpload(data.resume);
@@ -1125,16 +1163,85 @@ export interface RazorpayOrder {
   currency: string;
   keyId: string;
   subscriptionId?: string;
+  originalAmount?: number;
+  discountAmount?: number;
+  finalAmount?: number;
+  couponCode?: string;
+  discountPercent?: number;
 }
+
+export type AdminCoupon = {
+  id: string;
+  code: string;
+  discountPercent: number;
+  maxUses: number | null;
+  usedCount: number;
+  quota: number | "unlimited";
+  isActive: boolean;
+  isDefaultWelcome: boolean;
+  validForFirstMonthOnly: boolean;
+  expiresAt: string | null;
+  createdAt: string;
+  status: "active" | "inactive" | "expired" | "exhausted";
+};
+
+export type AdminCouponRedemption = {
+  id: string;
+  clerkId: string;
+  email: string | null;
+  name: string | null;
+  plan: string | null;
+  billingCycle: "monthly" | "quarterly" | "yearly" | null;
+  discountPercent: number;
+  originalAmount: number;
+  discountAmount: number;
+  finalAmount: number;
+  redeemedAt: string;
+};
+
+export type AdminCouponDetail = {
+  coupon: AdminCoupon;
+  redemptions: AdminCouponRedemption[];
+  planBreakdown: Array<{ plan: string; count: number }>;
+  total: number;
+  limit: number;
+  skip: number;
+};
+
+export type AppliedCoupon = {
+  applied: true;
+  couponId: string;
+  code: string;
+  discountPercent: number;
+  originalAmount: number;
+  discountAmount: number;
+  finalAmount: number;
+  appliedAutomatically: boolean;
+  message: string;
+};
+
+export const couponApi = {
+  apply: async (body: {
+    code?: string;
+    plan: string;
+    billingCycle?: "monthly" | "quarterly" | "yearly";
+  }): Promise<AppliedCoupon | { applied: false }> => {
+    const response = await apiClient.post<{
+      data: AppliedCoupon | { applied: false };
+    }>("/coupons/apply", body);
+    return response.data.data;
+  },
+};
 
 export const paymentApi = {
   createOrder: async (
     plan: SelfServePlanSlug,
     billingCycle: "monthly" | "quarterly" | "yearly" = "monthly",
+    couponCode?: string,
   ): Promise<RazorpayOrder> => {
     const response = await apiClient.post<{ data: RazorpayOrder }>(
       "/payments/create-order",
-      { plan, billingCycle },
+      { plan, billingCycle, ...(couponCode ? { couponCode } : {}) },
     );
     return response.data.data;
   },
@@ -1267,6 +1374,7 @@ export type ResolvedEntitlements = {
   periodEnd?: string;
   needsRenewal: boolean;
   entitlements: PlanEntitlements;
+  grantedPlatformFeatures?: string[];
   creditRates: {
     aiMockInterview: number;
     codingRound: number;
@@ -1289,6 +1397,23 @@ export const entitlementApi = {
     const response = await apiClient.get<{ data: ResolvedEntitlements }>(
       "/entitlements",
     );
+    return response.data.data;
+  },
+};
+
+export type ExtensionSessionPayload = {
+  tokenId: string;
+  token: string;
+  prefix: string;
+  name: string;
+};
+
+export const extensionApi = {
+  createSession: async (): Promise<ExtensionSessionPayload> => {
+    const response = await apiClient.post<{
+      success: boolean;
+      data: ExtensionSessionPayload;
+    }>("/extension/v1/session");
     return response.data.data;
   },
 };
@@ -1497,6 +1622,20 @@ export interface Resume {
   };
   atsScore?: number;
   atsFeedback?: ATSReportV3 | LegacyATSFeedback;
+  jobMatchScore?: number;
+  jobMatchFeedback?: {
+    matchScore: number;
+    verdict: "strong" | "moderate" | "weak";
+    tailorRecommended: boolean;
+    headline: string;
+    summary: string;
+    matchedSkills: string[];
+    missingSkills: string[];
+    strengths: string[];
+    gaps: string[];
+    jdHash?: string;
+    scoredAt?: string;
+  };
   atsImprovementMeta?: {
     improvedAt: string;
     previousScore?: number;
@@ -1702,7 +1841,7 @@ export const resumeApi = {
 
   improveFromATS: async (
     resumeId: string,
-    options: { jobDescription?: string } = {},
+    options: { jobDescription?: string; matchInsights?: unknown } = {},
   ): Promise<Resume> => {
     const response = await apiClient.post<{ data: Resume }>(
       `/resumes/${resumeId}/improve-from-ats`,
@@ -1721,7 +1860,10 @@ export const resumeApi = {
    */
   tailorToJobDescription: async (
     resumeId: string,
-    options: { jobDescription: string },
+    options: {
+      jobDescription: string;
+      matchInsights?: unknown;
+    },
   ): Promise<{
     content: Resume["content"];
     profileSummary?: string;
@@ -1737,7 +1879,10 @@ export const resumeApi = {
       };
     }>(
       `/resumes/${resumeId}/tailor-to-jd`,
-      { jobDescription: trimJobDescriptionForSend(options.jobDescription) },
+      {
+        jobDescription: trimJobDescriptionForSend(options.jobDescription),
+        matchInsights: options.matchInsights,
+      },
       { timeout: 300000 },
     );
     return response.data.data;
@@ -2802,6 +2947,111 @@ export const adminApi = {
 
   deletePlatformFeature: async (key: string): Promise<void> => {
     await apiClient.delete(`/admin/features/${encodeURIComponent(key)}`);
+  },
+
+  listCatalogPlans: async (): Promise<
+    import("@/lib/planRecord").AdminPlanRecord[]
+  > => {
+    const response = await apiClient.get<{
+      success: boolean;
+      data: { plans: import("@/lib/planRecord").AdminPlanRecord[] };
+    }>("/admin/plans");
+    return response.data.data.plans;
+  },
+
+  updateCatalogPlan: async (
+    planId: string,
+    patch: {
+      name?: string;
+      displayName?: string;
+      description?: string;
+      pricing?: {
+        monthly?: number;
+        quarterly?: number;
+        yearly?: number;
+      };
+      creditsIncluded?: {
+        monthly?: number;
+        quarterly?: number;
+        yearly?: number;
+      };
+      highlights?: string[];
+      entitlements?: Partial<
+        import("@/lib/planFeatureAccess").PlanEntitlements
+      >;
+      grantedPlatformFeatures?: string[];
+      isActive?: boolean;
+      isPublic?: boolean;
+      isPopular?: boolean;
+      order?: number;
+      metadata?: {
+        bestFor?: string;
+        comingSoonHighlights?: string[];
+      };
+    },
+  ): Promise<import("@/lib/planRecord").AdminPlanRecord> => {
+    const response = await apiClient.patch<{
+      success: boolean;
+      data: import("@/lib/planRecord").AdminPlanRecord;
+    }>(`/admin/plans/${encodeURIComponent(planId)}`, patch);
+    return response.data.data;
+  },
+
+  listCoupons: async (): Promise<AdminCoupon[]> => {
+    const response = await apiClient.get<{ success: boolean; data: AdminCoupon[] }>(
+      "/admin/coupons",
+    );
+    return response.data.data;
+  },
+
+  getCoupon: async (
+    id: string,
+    params?: { limit?: number; skip?: number },
+  ): Promise<AdminCouponDetail> => {
+    const q = new URLSearchParams();
+    if (params?.limit != null) q.set("limit", String(params.limit));
+    if (params?.skip != null) q.set("skip", String(params.skip));
+    const suffix = q.toString() ? `?${q.toString()}` : "";
+    const response = await apiClient.get<{
+      success: boolean;
+      data: AdminCouponDetail;
+    }>(`/admin/coupons/${id}${suffix}`);
+    return response.data.data;
+  },
+
+  createCoupon: async (data: {
+    code?: string;
+    discountPercent: number;
+    maxUses?: number | null;
+    expiresAt?: string | null;
+    isDefaultWelcome?: boolean;
+  }): Promise<AdminCoupon> => {
+    const response = await apiClient.post<{ success: boolean; data: AdminCoupon }>(
+      "/admin/coupons",
+      data,
+    );
+    return response.data.data;
+  },
+
+  updateCoupon: async (
+    id: string,
+    data: { isActive?: boolean; isDefaultWelcome?: boolean },
+  ): Promise<AdminCoupon> => {
+    const response = await apiClient.patch<{ success: boolean; data: AdminCoupon }>(
+      `/admin/coupons/${id}`,
+      data,
+    );
+    return response.data.data;
+  },
+
+  deleteCoupon: async (
+    id: string,
+  ): Promise<{ deleted: boolean; deactivated: boolean }> => {
+    const response = await apiClient.delete<{
+      success: boolean;
+      data: { deleted: boolean; deactivated: boolean };
+    }>(`/admin/coupons/${id}`);
+    return response.data.data;
   },
 };
 
@@ -5030,6 +5280,22 @@ export const connectorApi = {
   },
 };
 
+export type PublicPlatformStats = {
+  users: number;
+  resumes: number;
+  interviews: number;
+};
+
+export const marketingApi = {
+  getPublicStats: async (): Promise<PublicPlatformStats> => {
+    const response = await apiClient.get<{
+      success: boolean;
+      data: PublicPlatformStats;
+    }>("/marketing/stats");
+    return response.data.data;
+  },
+};
+
 export const configApi = {
   getClientCacheVersion: async (): Promise<{
     version: number;
@@ -5048,5 +5314,146 @@ export const configApi = {
       data: { features: import("@/lib/platform-features").PlatformFeature[] };
     }>("/config/features");
     return response.data.data.features;
+  },
+};
+
+function jobTrackerQuery(params?: JobTrackerListFilters & { page?: number; pageSize?: number }) {
+  const search = new URLSearchParams();
+  if (!params) return "";
+  if (params.q?.trim()) search.set("q", params.q.trim());
+  if (params.status) search.set("status", params.status);
+  if (params.jobType) search.set("jobType", params.jobType);
+  if (params.workMode) search.set("workMode", params.workMode);
+  if (params.favorite) search.set("favorite", "true");
+  if (params.archived) search.set("archived", "true");
+  if (params.appliedFrom) search.set("appliedFrom", params.appliedFrom);
+  if (params.appliedUntil) search.set("appliedUntil", params.appliedUntil);
+  if (params.page) search.set("page", String(params.page));
+  if (params.pageSize) search.set("pageSize", String(params.pageSize));
+  const qs = search.toString();
+  return qs ? `?${qs}` : "";
+}
+
+export const jobTrackerApi = {
+  list: async (
+    params?: JobTrackerListFilters & { page?: number; pageSize?: number },
+  ): Promise<JobTrackerListResponse> => {
+    const response = await apiClient.get<{
+      success: boolean;
+      data: JobTrackerListResponse;
+    }>(`/job-tracker/applications${jobTrackerQuery(params)}`);
+    return response.data.data;
+  },
+
+  board: async (
+    params?: JobTrackerListFilters,
+  ): Promise<JobTrackerBoardResponse> => {
+    const response = await apiClient.get<{
+      success: boolean;
+      data: JobTrackerBoardResponse;
+    }>(`/job-tracker/applications/board${jobTrackerQuery(params)}`);
+    return response.data.data;
+  },
+
+  get: async (id: string): Promise<JobTrackerDetail> => {
+    const response = await apiClient.get<{
+      success: boolean;
+      data: JobTrackerDetail;
+    }>(`/job-tracker/applications/${id}`);
+    return response.data.data;
+  },
+
+  create: async (body: Record<string, unknown>): Promise<JobTrackerDetail> => {
+    const response = await apiClient.post<{
+      success: boolean;
+      data: JobTrackerDetail;
+    }>("/job-tracker/applications", body);
+    return response.data.data;
+  },
+
+  patch: async (
+    id: string,
+    body: Record<string, unknown>,
+  ): Promise<JobTrackerDetail> => {
+    const response = await apiClient.patch<{
+      success: boolean;
+      data: JobTrackerDetail;
+    }>(`/job-tracker/applications/${id}`, body);
+    return response.data.data;
+  },
+
+  updateStatus: async (
+    id: string,
+    status: JobTrackerStatus,
+  ): Promise<JobTrackerDetail> => {
+    const response = await apiClient.patch<{
+      success: boolean;
+      data: JobTrackerDetail;
+    }>(`/job-tracker/applications/${id}/status`, { status });
+    return response.data.data;
+  },
+
+  remove: async (id: string): Promise<void> => {
+    await apiClient.delete(`/job-tracker/applications/${id}`);
+  },
+
+  attachResumes: async (
+    id: string,
+    resumeIds: string[],
+  ): Promise<JobTrackerDetail> => {
+    const response = await apiClient.post<{
+      success: boolean;
+      data: JobTrackerDetail;
+    }>(`/job-tracker/applications/${id}/resumes`, { resumeIds });
+    return response.data.data;
+  },
+
+  detachResume: async (
+    id: string,
+    resumeId: string,
+  ): Promise<JobTrackerDetail> => {
+    const response = await apiClient.delete<{
+      success: boolean;
+      data: JobTrackerDetail;
+    }>(`/job-tracker/applications/${id}/resumes/${resumeId}`);
+    return response.data.data;
+  },
+
+  score: async (id: string, resumeId?: string): Promise<JobTrackerDetail> => {
+    const response = await apiClient.post<{
+      success: boolean;
+      data: JobTrackerDetail;
+    }>(
+      `/job-tracker/applications/${id}/score`,
+      { resumeId },
+      { timeout: 120000 },
+    );
+    return response.data.data;
+  },
+
+  practiceInterview: async (
+    id: string,
+  ): Promise<{
+    jobApplicationId: string;
+    title: string;
+    company: string;
+    location: string;
+    jobDescription: string;
+    sourceUrl: string;
+    sourceResumeId?: string;
+  }> => {
+    const response = await apiClient.post<{
+      success: boolean;
+      data: {
+        jobApplicationId: string;
+        title: string;
+        company: string;
+        location: string;
+        jobDescription: string;
+        sourceUrl: string;
+        sourceResumeId?: string;
+      };
+    }>(`/job-tracker/applications/${id}/practice-interview`);
+    return response.data.data;
   },
 };

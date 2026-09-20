@@ -6,6 +6,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import type { ResolvedEntitlements } from "@/lib/api";
 import { invalidateEntitlements } from "@/lib/invalidate-queries";
 import { useEntitlementsQuery } from "@/hooks/queries/useEntitlementsQuery";
+import { platformFeatureIsGranted } from "@/lib/planFeatureAccess";
 
 export function useEntitlements() {
   const { user } = useUser();
@@ -31,6 +32,18 @@ export function useEntitlements() {
     [data],
   );
 
+  const canUsePlatformFeature = useCallback(
+    (featureKey: string) => {
+      if (!data) return false;
+      return platformFeatureIsGranted(
+        data.entitlements,
+        featureKey,
+        data.grantedPlatformFeatures,
+      );
+    },
+    [data],
+  );
+
   const needsTrial =
     data?.isFreeTier === true && data.canPurchaseTrial === true;
 
@@ -46,6 +59,7 @@ export function useEntitlements() {
       : null,
     refresh,
     canUse,
+    canUsePlatformFeature,
     needsTrial,
     isFreeTier,
   };

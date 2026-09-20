@@ -40,13 +40,20 @@ export function interviewRoundLabel(
 
 export type InterviewTypeFilter = "all" | "screening" | "coding";
 
+export function isStartedInterview(
+  interview: Pick<Interview, "status"> | null | undefined,
+): boolean {
+  return Boolean(interview && interview.status !== "draft");
+}
+
 export function filterInterviewsByType(
   interviews: Interview[],
   filter: InterviewTypeFilter,
 ): Interview[] {
-  if (filter === "all") return interviews;
+  const started = interviews.filter(isStartedInterview);
+  if (filter === "all") return started;
   if (filter === "coding") {
-    return interviews.filter((i) => isCodingPracticeInterview(i));
+    return started.filter((i) => isCodingPracticeInterview(i));
   }
-  return interviews.filter((i) => isScreeningInterview(i));
+  return started.filter((i) => isScreeningInterview(i));
 }

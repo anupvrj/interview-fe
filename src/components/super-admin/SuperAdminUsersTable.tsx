@@ -91,7 +91,6 @@ export function SuperAdminUsersTable() {
   const [scheduleAt, setScheduleAt] = useState("");
   const [scheduleRole, setScheduleRole] = useState("");
   const [scheduleExperience, setScheduleExperience] = useState("2");
-  const [scheduleLang, setScheduleLang] = useState<"en" | "hi">("en");
   const [scheduleCompany, setScheduleCompany] = useState("");
   const [scheduleDuration, setScheduleDuration] = useState<"15" | "30">("15");
   const [scheduleQuestionsText, setScheduleQuestionsText] = useState("");
@@ -264,7 +263,6 @@ export function SuperAdminUsersTable() {
     setScheduleUser(u);
     setScheduleRole("Software Engineer");
     setScheduleExperience("2");
-    setScheduleLang("en");
     setScheduleCompany("");
     setScheduleDuration("15");
     setScheduleQuestionsText("");
@@ -312,7 +310,7 @@ export function SuperAdminUsersTable() {
           : {}),
         role: scheduleRole.trim(),
         experience: exp,
-        language: scheduleLang,
+        language: "en",
         targetCompany: scheduleCompany.trim() || undefined,
         interviewDuration: scheduleDuration === "30" ? 30 : 15,
         ...(customQs.length > 0 ? { customQuestions: customQs } : {}),
@@ -832,18 +830,6 @@ export function SuperAdminUsersTable() {
                 onChange={(e) => setScheduleExperience(e.target.value)}
                 className="mt-1"
               />
-            </div>
-            <div>
-              <Label htmlFor="sa-sch-lang">Language</Label>
-              <select
-                id="sa-sch-lang"
-                className="app-control mt-1 w-full bg-card"
-                value={scheduleLang}
-                onChange={(e) => setScheduleLang(e.target.value as "en" | "hi")}
-              >
-                <option value="en">English</option>
-                <option value="hi">Hindi</option>
-              </select>
             </div>
             <div>
               <Label htmlFor="sa-sch-co">Target company (optional)</Label>

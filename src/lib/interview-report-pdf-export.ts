@@ -149,8 +149,10 @@ export function buildInterviewReportPdfHtml(
 ): string {
   const genDate = formatDate(new Date().toISOString());
   const intDate = formatDate(interview.createdAt);
-  const lang =
-    interview.metadata.language === "hi" ? "Hindi" : "English";
+  const experienceLabel =
+    interview.metadata.experience != null
+      ? `${interview.metadata.experience} years`
+      : "Not specified";
 
   const strengthsHtml =
     report.strengths.length > 0
@@ -399,7 +401,7 @@ export function buildInterviewReportPdfHtml(
     <div><strong style="color:#64748b;display:block;font-size:8pt;text-transform:uppercase;">Interview ID</strong>${escapeHtml(interview.interviewId)}</div>
     <div><strong style="color:#64748b;display:block;font-size:8pt;text-transform:uppercase;">Company</strong>${escapeHtml(interview.metadata.targetCompany || "Not specified")}</div>
     <div><strong style="color:#64748b;display:block;font-size:8pt;text-transform:uppercase;">Candidate</strong>${escapeHtml(candidateName)}</div>
-    <div><strong style="color:#64748b;display:block;font-size:8pt;text-transform:uppercase;">Language</strong>${escapeHtml(lang)}</div>
+    <div><strong style="color:#64748b;display:block;font-size:8pt;text-transform:uppercase;">Experience</strong>${escapeHtml(experienceLabel)}</div>
   </div>
 
   ${sessionScoresHtml}

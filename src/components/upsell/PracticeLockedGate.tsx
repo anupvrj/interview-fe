@@ -53,7 +53,7 @@ const LOCK_CONFIG: Record<
     badge: "Trial or General Pass required",
     title: "Unlock AI Interview Practice",
     description:
-      "Company-aware AI interviews, multilingual practice, scored reports, and your full interview history.",
+      "Company-aware AI interviews, scored reports, and your full interview history.",
     upgradePlan: "general_pass",
   },
   coding: {
@@ -75,28 +75,28 @@ const LOCK_CONFIG: Record<
 const MOCK_AI_ROWS = [
   {
     title: "SDE-2 · Amazon",
-    subtitle: "Screening · English · 45 min",
+    subtitle: "Screening · 45 min",
     session: "Mar 8, 2026",
     score: 84,
     status: "completed",
   },
   {
     title: "Product Manager · Flipkart",
-    subtitle: "Screening · Hindi · 30 min",
+    subtitle: "Screening · 30 min",
     session: "Mar 3, 2026",
     score: 79,
     status: "completed",
   },
   {
     title: "Backend · Google",
-    subtitle: "Screening · English · 40 min",
+    subtitle: "Screening · 40 min",
     session: "Feb 27, 2026",
     score: 76,
     status: "completed",
   },
   {
     title: "Full Stack · Startup",
-    subtitle: "Screening · English · 35 min",
+    subtitle: "Screening · 35 min",
     session: "Feb 20, 2026",
     score: 81,
     status: "processing",

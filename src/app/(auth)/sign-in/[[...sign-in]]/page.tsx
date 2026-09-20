@@ -9,13 +9,14 @@ import { AuthCardLayout } from "@/components/app/AuthCardLayout";
 import { clerkAuthAppearance } from "@/lib/clerk-appearance";
 import {
   persistPostAuthReturnPath,
+  resolvePostAuthRedirectPath,
   safeAppRedirectPath,
 } from "@/lib/post-sign-in-redirect";
 
 export default function SignInPage() {
   const searchParams = useSearchParams();
   const redirectUrl = safeAppRedirectPath(searchParams.get("redirect_url"));
-  const afterAuth = redirectUrl || "/onboarding";
+  const afterAuth = resolvePostAuthRedirectPath(redirectUrl);
   const signUpHref = redirectUrl
     ? `/sign-up?redirect_url=${encodeURIComponent(redirectUrl)}`
     : "/sign-up";

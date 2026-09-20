@@ -124,7 +124,6 @@ export default function BatchDetailPage() {
   const [schExpires, setSchExpires] = useState("");
   const [schRole, setSchRole] = useState("Software Engineer");
   const [schExp, setSchExp] = useState("2");
-  const [schLang, setSchLang] = useState<"en" | "hi">("en");
   const [schCo, setSchCo] = useState("");
   const [schJobDescription, setSchJobDescription] = useState("");
   const [schDur, setSchDur] = useState<"15" | "30">("15");
@@ -431,7 +430,7 @@ export default function BatchDetailPage() {
         ...(schExpires.trim() ? { expiresAt: new Date(schExpires).toISOString() } : {}),
         role: schRole.trim(),
         experience: expY,
-        language: schLang,
+        language: "en",
         targetCompany: schCo.trim() || undefined,
         interviewDuration: schDur === "30" ? 30 : 15,
         ...(customQs.length > 0 ? { customQuestions: customQs } : {}),
@@ -1300,17 +1299,6 @@ export default function BatchDetailPage() {
                 onChange={(e) => setSchExp(e.target.value)}
                 className="mt-1 w-full"
               />
-            </div>
-            <div className="min-w-0">
-              <Label>Language</Label>
-              <select
-                className="app-control mt-1 w-full bg-card"
-                value={schLang}
-                onChange={(e) => setSchLang(e.target.value as "en" | "hi")}
-              >
-                <option value="en">English</option>
-                <option value="hi">Hindi</option>
-              </select>
             </div>
             <div className="min-w-0">
               <Label>Duration</Label>

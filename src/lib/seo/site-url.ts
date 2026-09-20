@@ -4,6 +4,19 @@ export function getSiteUrl(): string {
   return process.env.NEXT_PUBLIC_APP_URL || "https://interviewtrix.com";
 }
 
+export function getCanonicalHostname(): string {
+  try {
+    return new URL(getSiteUrl()).hostname.toLowerCase();
+  } catch {
+    return "interviewtrix.com";
+  }
+}
+
+export function isInterviewTrixHostname(hostname: string): boolean {
+  const host = hostname.toLowerCase();
+  return host === "interviewtrix.com" || host === "www.interviewtrix.com";
+}
+
 /** Resolve a public asset path (or absolute URL) to a crawlable absolute URL. */
 export function getAbsoluteAssetUrl(path: string): string {
   if (path.startsWith("http://") || path.startsWith("https://")) {

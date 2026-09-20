@@ -7,14 +7,11 @@ import {
   Boxes,
   Loader2,
   ChevronRight,
-  ChevronLeft,
-  FileText,
   GitBranch,
   LayoutGrid,
   Layers,
-  MessageCircle,
   Network,
-  Play,
+  Plus,
   Share2,
   Sparkles,
   Star,
@@ -23,7 +20,7 @@ import {
   CheckCircle,
 } from "lucide-react";
 
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -31,21 +28,26 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { toast } from "sonner";
-
 import {
-  institutePrimaryClass,
-  instituteSecondaryClass,
-} from "@/components/institute/InstituteChrome";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+
+import { institutePrimaryClass } from "@/components/institute/InstituteChrome";
 import { SystemDesignHeroPreview } from "@/components/system-design/SystemDesignHeroPreview";
 import { DashboardStatCard } from "@/components/dashboard/DashboardStatCard";
+import { RecentInterviewsList } from "@/components/dashboard/RecentInterviewsList";
 import { PracticeSessionGateDialogs } from "@/components/upsell/PracticeSessionGateDialogs";
 import { PracticeLockedGate } from "@/components/upsell/PracticeLockedGate";
 import { usePracticeSessionGate } from "@/components/upsell/usePracticeSessionGate";
-import { systemDesignApi, type SystemDesignSession } from "@/lib/api";
+import { type SystemDesignSession } from "@/lib/api";
 import { useSystemDesignSessionsQuery } from "@/hooks/queries/useSystemDesignSessionsQuery";
-import { getProblemById } from "@/lib/systemDesignProblems";
-import { cn, formatDate } from "@/lib/utils";
+import { buildDashboardRecentSessions } from "@/lib/dashboard-recent-sessions";
+import { cn } from "@/lib/utils";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -56,29 +58,13 @@ function sessionScore(session: SystemDesignSession): number | null {
   return raw;
 }
 
-function formatScore(score: number | null): string {
-  if (score == null) return "—";
-  return score % 1 === 0 ? String(score) : score.toFixed(1);
-}
-
-function problemTitle(session: SystemDesignSession): string {
-  return getProblemById(session.problemId)?.title ?? session.problemId;
-}
-
-const getStatusBadge = (status: string) => {
-  const badges = {
-    completed: "bg-green-100 text-green-700 border-green-200",
-    active: "bg-yellow-100 text-yellow-700 border-yellow-200",
-  };
-  return badges[status as keyof typeof badges] || badges.active;
-};
-
 export default function SystemDesignDashboardPage() {
   const { user, isLoaded } = useUser();
 
   const { data: sessions = [], isLoading: sessionsLoading } =
     useSystemDesignSessionsQuery();
   const [currentPage, setCurrentPage] = useState(1);
+  const [videoUnavailableOpen, setVideoUnavailableOpen] = useState(false);
   const practiceGate = usePracticeSessionGate();
   const {
     startPracticeSession,
@@ -93,14 +79,17 @@ export default function SystemDesignDashboardPage() {
     localStorage.setItem("clerk-user-id", user.id);
   }, [isLoaded, user]);
 
-  const totalPages = Math.ceil(sessions.length / ITEMS_PER_PAGE) || 1;
-  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-  const paginatedSessions = sessions.slice(
-    startIndex,
-    startIndex + ITEMS_PER_PAGE,
+  const sessionRows = useMemo(
+    () =>
+      buildDashboardRecentSessions({
+        interviews: [],
+        systemDesignSessions: sessions,
+        peerBookings: [],
+      }),
+    [sessions],
   );
 
-  const goToPage = (page: number) => {
+  const handlePageChange = (page: number) => {
     setCurrentPage(page);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -359,7 +348,9 @@ export default function SystemDesignDashboardPage() {
                 System design history
               </CardTitle>
               <CardDescription className="mt-1 text-sm">
-                Continue an in-progress session or open a completed review.
+                {sessions.length === 0
+                  ? "Start a session to see it here."
+                  : `${sessions.length} session${sessions.length === 1 ? "" : "s"} in your history`}
               </CardDescription>
             </div>
             <Button
@@ -370,189 +361,52 @@ export default function SystemDesignDashboardPage() {
             >
               {checkingSubscription ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : null}
+              ) : (
+                <Plus className="mr-2 h-4 w-4" />
+              )}
               Start New Session
             </Button>
           </div>
         </CardHeader>
         <CardContent className="p-0">
-          {sessions.length === 0 ? (
-            <div className="px-5 py-16 text-center">
-              <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-xl bg-[#7367F0]/10">
-                <LayoutGrid className="h-8 w-8 text-[#7367F0]" aria-hidden />
-              </div>
-              <h3 className="mb-2 text-lg font-semibold text-foreground">
-                No sessions yet
-              </h3>
-              <p className="mx-auto mb-8 max-w-md text-sm text-muted-foreground">
-                Start your first system design session to see it here.
-              </p>
-              <div className="mt-6 flex justify-center">
-                <Button
-                  type="button"
-                  disabled={checkingSubscription}
-                  onClick={openProblemPicker}
-                  className={institutePrimaryClass}
-                >
-                  {checkingSubscription ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : null}
-                  Start New Session
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <>
-              <div className="divide-y divide-border/60">
-                {paginatedSessions.map((row) => {
-                  const score = sessionScore(row);
-                  const chatCount = row.chatHistory?.length ?? 0;
-                  const href =
-                    row.status === "completed"
-                      ? `/dashboard/system-design/${row.sessionId}/report`
-                      : `/dashboard/system-design/${row.sessionId}`;
-                  const isCompleted = row.status === "completed";
-                  const title = problemTitle(row);
-                  return (
-                    <div
-                      key={row.sessionId}
-                      className="flex flex-col gap-3 px-5 py-4 transition-colors hover:bg-muted/30 sm:flex-row sm:items-center sm:justify-between"
-                    >
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <div className="truncate text-sm font-semibold text-foreground">
-                            {title}
-                          </div>
-                          <span
-                            className={cn(
-                              "inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold",
-                              getStatusBadge(row.status),
-                            )}
-                          >
-                            {row.status}
-                          </span>
-                        </div>
-                        <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                          <span>{formatDate(row.updatedAt)}</span>
-                          <span>
-                            Score:{" "}
-                            <span className="font-medium text-foreground">
-                              {formatScore(score)}
-                            </span>
-                          </span>
-                          <span className="inline-flex items-center gap-1">
-                            <MessageCircle className="h-3.5 w-3.5" aria-hidden />
-                            {chatCount} messages
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-                        {isCompleted &&
-                        (row.recordingS3Key?.trim() || row.recordingVideoUrl) ? (
-                          <Button
-                            type="button"
-                            variant="outline"
-                            className={cn(
-                              "h-8 gap-1.5 px-2.5 text-xs font-semibold",
-                            )}
-                            onClick={async () => {
-                              try {
-                                const { videoUrl } =
-                                  await systemDesignApi.getRecordingPlaybackUrl(
-                                    row.sessionId,
-                                  );
-                                if (!videoUrl?.trim()) {
-                                  toast.error("Recording unavailable");
-                                  return;
-                                }
-                                window.open(videoUrl, "_blank", "noopener,noreferrer");
-                              } catch {
-                                toast.error(
-                                  "Could not open recording — try again later.",
-                                );
-                              }
-                            }}
-                          >
-                            <Play className="h-3.5 w-3.5" aria-hidden />
-                            Recording
-                          </Button>
-                        ) : null}
-                        <Link
-                          href={href}
-                          className={cn(
-                            buttonVariants({ size: "sm" }),
-                            institutePrimaryClass,
-                            "h-8 gap-1 px-3 text-xs font-semibold no-underline",
-                          )}
-                        >
-                          {row.status === "active" ? (
-                            <>
-                              Continue
-                              <ChevronRight className="h-3.5 w-3.5" aria-hidden />
-                            </>
-                          ) : (
-                            <>
-                              <FileText
-                                className="h-3.5 w-3.5 shrink-0"
-                                aria-hidden
-                              />
-                              View Report
-                            </>
-                          )}
-                        </Link>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {totalPages > 1 ? (
-                <div className="flex flex-col gap-3 border-t border-border/70 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-                  <p className="text-sm text-muted-foreground">
-                    Showing {(currentPage - 1) * ITEMS_PER_PAGE + 1} to{" "}
-                    {Math.min(currentPage * ITEMS_PER_PAGE, sessions.length)} of{" "}
-                    {sessions.length}
-                  </p>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => goToPage(currentPage - 1)}
-                      disabled={currentPage === 1}
-                      className={cn(
-                        instituteSecondaryClass,
-                        "disabled:cursor-not-allowed disabled:opacity-50",
-                      )}
-                    >
-                      <ChevronLeft className="mr-1 h-4 w-4" aria-hidden />
-                      Previous
-                    </Button>
-                    <span className="px-2 text-sm text-muted-foreground">
-                      {currentPage} / {totalPages}
-                    </span>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => goToPage(currentPage + 1)}
-                      disabled={currentPage === totalPages}
-                      className={cn(
-                        instituteSecondaryClass,
-                        "disabled:cursor-not-allowed disabled:opacity-50",
-                      )}
-                    >
-                      Next
-                      <ChevronRight className="ml-1 h-4 w-4" aria-hidden />
-                    </Button>
-                  </div>
-                </div>
-              ) : null}
-            </>
-          )}
+          <RecentInterviewsList
+            sessionRows={sessionRows}
+            currentPage={currentPage}
+            itemsPerPage={ITEMS_PER_PAGE}
+            onPageChange={handlePageChange}
+            onVideoUnavailable={() => setVideoUnavailableOpen(true)}
+            emptyTitle="No sessions yet"
+            emptyCtaHref="/dashboard/system-design/new"
+            emptyCtaLabel="Start New Session"
+            emptyDescription="Pick a prompt, sketch your architecture, and talk through tradeoffs. Completed sessions show score and recording here."
+          />
         </CardContent>
       </Card>
         </>
       )}
+
+      <Dialog
+        open={videoUnavailableOpen}
+        onOpenChange={setVideoUnavailableOpen}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>No video available</DialogTitle>
+            <DialogDescription>
+              This session does not have a recording, or the video could not
+              be loaded. If you just finished, try again in a few minutes.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              type="button"
+              onClick={() => setVideoUnavailableOpen(false)}
+            >
+              OK
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <PracticeSessionGateDialogs {...practiceGate} />
     </div>
