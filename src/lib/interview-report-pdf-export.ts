@@ -377,6 +377,14 @@ export function buildInterviewReportPdfHtml(
       <p style="margin:6px 0 0;font-size:9.5pt;color:#075985;">Identity matching is still running. Refresh this report in a minute.</p>
     </div>
   </div>`
+      : integrityStatus === "skipped"
+        ? `<h2 class="ir-section-title">Session integrity</h2>
+  <div class="ir-card" style="border-color:#cbd5e1;background:#f8fafc;">
+    <div class="ir-card-b">
+      <strong style="color:#334155;">Integrity score skipped</strong>
+      <p style="margin:6px 0 0;font-size:9.5pt;color:#475569;">Face and voice matching did not run for this session, so there is no integrity score.</p>
+    </div>
+  </div>`
       : report.integrityReport
         ? `<h2 class="ir-section-title">Session integrity</h2>
   <div class="ir-card"><div class="ir-card-b">

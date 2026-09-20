@@ -195,9 +195,15 @@ export function useFacePresence(opts: {
   onEvent: (event: IntegrityEvent) => void;
   aiSpeakingRef?: MutableRefObject<boolean>;
   micMutedRef?: MutableRefObject<boolean>;
+  emitFace?: boolean;
+  emitCamera?: boolean;
+  emitSpeech?: boolean;
 }) {
   const onEventRef = useRef(opts.onEvent);
   onEventRef.current = opts.onEvent;
+  const emitFace = opts.emitFace !== false;
+  const emitCamera = opts.emitCamera !== false;
+  const emitSpeech = opts.emitSpeech !== false;
   const absentSinceRef = useRef<number | null>(null);
   const absentEmittedRef = useRef(false);
   const lastMultiAtRef = useRef(0);
@@ -221,6 +227,15 @@ export function useFacePresence(opts: {
 
     const emit = (event: IntegrityEvent) => {
       if (cancelled) return;
+      if (
+        (event.type === "CAMERA_UNAVAILABLE" && !emitCamera) ||
+        ((event.type === "CANDIDATE_ABSENT" ||
+          event.type === "MULTIPLE_FACES_DETECTED") &&
+          !emitFace) ||
+        (event.type === "SPEECH_WITHOUT_MOUTH_MOVEMENT" && !emitSpeech)
+      ) {
+        return;
+      }
       onEventRef.current(event);
     };
 
@@ -335,7 +350,7 @@ export function useFacePresence(opts: {
         multiSinceRef.current = null;
       }
 
-      if (count === 1 && landmarker) {
+      if (count === 1 && emitSpeech && landmarker) {
         if (!micGraph) micGraph = attachMicAnalyser(video);
         let mouthOpen: number | null = null;
         try {
@@ -417,8 +432,10 @@ export function useFacePresence(opts: {
       }, fast ? SPEECH_MOUTH_SAMPLE_MS : FACE_SAMPLE_MS);
     };
 
-    void Promise.all([createDetector(), createLandmarker()]).then(
-      ([handle, mouth]) => {
+    void Promise.all([
+      createDetector(),
+      emitSpeech ? createLandmarker() : Promise.resolve(null),
+    ]).then(([handle, mouth]) => {
         if (cancelled) {
           handle?.close?.();
           mouth?.close?.();
@@ -454,5 +471,13 @@ export function useFacePresence(opts: {
       closedMouthSpeechSinceRef.current = null;
       multiSinceRef.current = null;
     };
-  }, [opts.enabled, opts.videoEl, opts.kind, opts.sessionId]);
+  }, [
+    opts.enabled,
+    opts.videoEl,
+    opts.kind,
+    opts.sessionId,
+    emitFace,
+    emitCamera,
+    emitSpeech,
+  ]);
 }

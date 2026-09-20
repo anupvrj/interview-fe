@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { configApi } from "@/lib/api";
 import {
-  DEFAULT_INTEGRITY_SETTINGS,
+  normalizeIntegritySettings,
   moduleEnabled,
   type IntegritySettings,
 } from "@/lib/integrity/settings";
@@ -14,7 +14,7 @@ export function useIntegrityConfig() {
     queryFn: configApi.getIntegritySettings,
     staleTime: 15_000,
   });
-  const settings: IntegritySettings = query.data ?? DEFAULT_INTEGRITY_SETTINGS;
+  const settings: IntegritySettings = normalizeIntegritySettings(query.data);
   const live = Boolean(settings.telemetryEnabled);
 
   return {
@@ -23,8 +23,11 @@ export function useIntegrityConfig() {
     live,
     clipboardLock: moduleEnabled(settings, "clipboardLock"),
     tabBlur: moduleEnabled(settings, "tabBlur"),
+    camera: moduleEnabled(settings, "camera"),
     facePresence: moduleEnabled(settings, "facePresence"),
+    faceIdentity: moduleEnabled(settings, "faceIdentity"),
     voiceprint: moduleEnabled(settings, "voiceprint"),
+    liveSpeech: moduleEnabled(settings, "liveSpeech"),
     turnLatency: moduleEnabled(settings, "turnLatency"),
     showReportToCandidate: settings.showReportToCandidate,
     showReportToReviewers: settings.showReportToReviewers,

@@ -2,7 +2,10 @@
 
 import { useId, useState, type ReactNode } from "react";
 import { ClipboardList, ShieldCheck } from "lucide-react";
-import { IntegrityMissingPrompt, IntegrityReportCard } from "@/components/integrity/IntegrityReportCard";
+import {
+  IntegrityMissingPrompt,
+  IntegrityReportCard,
+} from "@/components/integrity/IntegrityReportCard";
 import { useIntegrityConfig } from "@/hooks/useIntegrityConfig";
 import { resolveIntegrityStatus } from "@/lib/integrity/resolveIntegrityStatus";
 import type { IntegrityReport } from "@/lib/integrity/types";
@@ -46,7 +49,9 @@ export function ReportSectionTabs({
   const integrityStatus = resolveIntegrityStatus(integrityReport);
   const score = integrityReport?.score;
   const surfaceMissing =
-    integrityStatus === "missing" || integrityStatus === "processing";
+    integrityStatus === "missing" ||
+    integrityStatus === "processing" ||
+    integrityStatus === "skipped";
   const allowed =
     alwaysShowIntegrity ||
     surfaceMissing ||
@@ -115,6 +120,17 @@ export function ReportSectionTabs({
                 )}
               >
                 Missing
+              </span>
+            ) : integrityStatus === "skipped" ? (
+              <span
+                className={cn(
+                  "shrink-0 rounded-full px-1.5 py-0.5 text-[11px] font-bold",
+                  tab === "integrity"
+                    ? "bg-white/20 text-white"
+                    : "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200",
+                )}
+              >
+                Skipped
               </span>
             ) : integrityStatus === "processing" ? (
               <span

@@ -12,6 +12,9 @@ describe("resolveIntegrityStatus", () => {
     expect(resolveIntegrityStatus({ integrityStatus: "processing" })).toBe(
       "processing",
     );
+    expect(resolveIntegrityStatus({ integrityStatus: "skipped" })).toBe(
+      "skipped",
+    );
     expect(
       resolveIntegrityStatus({
         integrityStatus: "missing",

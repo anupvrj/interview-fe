@@ -7,143 +7,16 @@ import { useQueryClient } from "@tanstack/react-query";
 import { SuperAdminPageHeader } from "@/components/super-admin/SuperAdminPageHeader";
 import { useRequirePlatformAdmin } from "@/components/blog-admin/useRequirePlatformAdmin";
 import { Card, CardContent } from "@/components/ui/card";
+import { IntegritySwitch } from "@/components/integrity/IntegritySwitch";
 import { adminApi } from "@/lib/api";
 import { getApiErrorMessage } from "@/lib/api-error-message";
 import {
   DEFAULT_INTEGRITY_SETTINGS,
+  normalizeIntegritySettings,
   type IntegritySettings,
 } from "@/lib/integrity/settings";
+import { INTEGRITY_SETTING_GROUPS } from "@/lib/integrity/settingGroups";
 import { INTEGRITY_CONFIG_QUERY_KEY } from "@/hooks/useIntegrityConfig";
-import { cn } from "@/lib/utils";
-
-const GROUPS: Array<{
-  title: string;
-  description: string;
-  keys: Array<{
-    key: keyof IntegritySettings;
-    label: string;
-    help: string;
-    requiresMaster?: boolean;
-  }>;
-}> = [
-  {
-    title: "Master switch",
-    description:
-      "Turns collection on or off for coding, AI voice, and system design. Existing reports stay in the database.",
-    keys: [
-      {
-        key: "telemetryEnabled",
-        label: "Integrity telemetry",
-        help: "When off, no new clipboard, tab, face, or latency events are stored.",
-      },
-    ],
-  },
-  {
-    title: "Detection modules",
-    description: "Each module can be turned off independently while telemetry stays on.",
-    keys: [
-      {
-        key: "clipboardLock",
-        label: "Clipboard lock",
-        help: "Block external paste in the coding editor and flag burst keystroke injection.",
-        requiresMaster: true,
-      },
-      {
-        key: "tabBlur",
-        label: "Tab / window blur",
-        help: "Flag when the candidate leaves the interview tab for more than a few seconds.",
-        requiresMaster: true,
-      },
-      {
-        key: "facePresence",
-        label: "Face presence",
-        help: "Face count and long absence. A second face must stay in frame for 2.5s and be a similar size — one noisy frame in low light is not enough. Nearby voice AI is handled by Voiceprint, not mouth-lag heuristics.",
-        requiresMaster: true,
-      },
-      {
-        key: "voiceprint",
-        label: "Voiceprint (WavLM)",
-        help: "Microsoft WavLM speaker verification. Candidate reads a screen-only sentence; later mic audio is matched on the server. This is what catches a nearby voice AI even if the candidate lip-syncs.",
-        requiresMaster: true,
-      },
-      {
-        key: "turnLatency",
-        label: "Turn latency",
-        help: "Flag unusually long delays between interviewer finish and candidate speech.",
-        requiresMaster: true,
-      },
-    ],
-  },
-  {
-    title: "Interviewer behavior",
-    description: "How the AI interviewer reacts during a live session.",
-    keys: [
-      {
-        key: "socraticPushback",
-        label: "Socratic pushback",
-        help: "Ask a short clarifying question when live integrity signals fire.",
-        requiresMaster: true,
-      },
-      {
-        key: "antiCopilotPrompts",
-        label: "Anti-copilot prompts",
-        help: "Tell the interviewer to probe for original reasoning instead of recited answers.",
-        requiresMaster: true,
-      },
-    ],
-  },
-  {
-    title: "Report visibility",
-    description:
-      "Integrity is never mixed into skill scores. These toggles only control who can see the card.",
-    keys: [
-      {
-        key: "showReportToCandidate",
-        label: "Show to candidates",
-        help: "Candidates see the integrity card on their interview and system-design reports.",
-      },
-      {
-        key: "showReportToReviewers",
-        label: "Show to reviewers",
-        help: "Recruiters and institution admins see the integrity card. Super Admin always can.",
-      },
-    ],
-  },
-];
-
-function IntegritySwitch({
-  on,
-  disabled,
-  label,
-  onToggle,
-}: Readonly<{
-  on: boolean;
-  disabled?: boolean;
-  label: string;
-  onToggle: () => void;
-}>) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={on}
-      aria-label={label}
-      disabled={disabled}
-      onClick={onToggle}
-      className={cn(
-        "relative inline-flex h-6 w-11 shrink-0 rounded-full border border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
-        on ? "bg-[#7367F0]" : "bg-muted",
-      )}
-    >
-      <span
-        className={cn(
-          "pointer-events-none mt-0.5 block h-5 w-5 rounded-full bg-white shadow-sm transition-transform",
-          on ? "translate-x-[1.35rem]" : "translate-x-0.5",
-        )}
-      />
-    </button>
-  );
-}
 
 export default function SuperAdminIntegrityPage() {
   const { authorized, loading: authLoading } = useRequirePlatformAdmin();
@@ -165,7 +38,7 @@ export default function SuperAdminIntegrityPage() {
       .getIntegritySettings()
       .then((result) => {
         if (cancelled) return;
-        setSettings(result.settings);
+        setSettings(normalizeIntegritySettings(result.settings));
         setEnvForcedOff(result.envForcedOff);
       })
       .catch((error: unknown) => {
@@ -229,19 +102,25 @@ export default function SuperAdminIntegrityPage() {
         </div>
       ) : (
         <div className="space-y-4">
-          {GROUPS.map((group) => (
+          {INTEGRITY_SETTING_GROUPS.map((group) => (
             <Card
               key={group.title}
               className="overflow-hidden rounded-xl border border-border/60 shadow-card"
             >
-              <CardContent className="space-y-4 p-5 sm:p-6">
+              <CardContent className="space-y-3 p-4 sm:space-y-4 sm:p-6">
                 <div>
-                  <h2 className="text-base font-semibold">{group.title}</h2>
-                  <p className="mt-1 text-sm text-muted-foreground">
+                  <h2 className="text-base font-semibold sm:text-lg">{group.title}</h2>
+                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground sm:text-sm">
                     {group.description}
                   </p>
                 </div>
-                <ul className="divide-y divide-border/60 rounded-lg border border-border/50">
+                <ul
+                  className={
+                    group.keys.length > 1
+                      ? "grid grid-cols-1 gap-3 sm:grid-cols-2"
+                      : "grid grid-cols-1"
+                  }
+                >
                   {group.keys.map((item) => {
                     const on = settings[item.key];
                     const lockedByEnv =
@@ -255,20 +134,22 @@ export default function SuperAdminIntegrityPage() {
                     return (
                       <li
                         key={item.key}
-                        className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+                        className="flex h-full min-w-0 flex-col gap-2 rounded-lg border border-border/60 bg-muted/20 p-3.5 sm:p-4"
                       >
-                        <div className="min-w-0">
-                          <p className="text-sm font-medium">{item.label}</p>
-                          <p className="mt-0.5 text-xs text-muted-foreground">
-                            {item.help}
+                        <div className="flex items-start justify-between gap-3">
+                          <p className="min-w-0 text-sm font-medium leading-snug sm:text-[15px]">
+                            {item.label}
                           </p>
+                          <IntegritySwitch
+                            on={on}
+                            disabled={disabled}
+                            label={item.label}
+                            onToggle={() => void toggle(item.key)}
+                          />
                         </div>
-                        <IntegritySwitch
-                          on={on}
-                          disabled={disabled}
-                          label={item.label}
-                          onToggle={() => void toggle(item.key)}
-                        />
+                        <p className="text-xs leading-relaxed text-muted-foreground sm:text-[13px]">
+                          {item.help}
+                        </p>
                       </li>
                     );
                   })}

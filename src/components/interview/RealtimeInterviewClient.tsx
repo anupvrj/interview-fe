@@ -77,6 +77,7 @@ import { useTabFocusTelemetry } from "@/hooks/integrity/useTabFocusTelemetry";
 import { useTurnTelemetry } from "@/hooks/integrity/useTurnTelemetry";
 import { useFacePresence } from "@/hooks/integrity/useFacePresence";
 import { useBiometricSnapshots } from "@/hooks/integrity/useBiometricSnapshots";
+import { useVoiceprintMonitor } from "@/hooks/integrity/useVoiceprintMonitor";
 import { useIntegrityConfig } from "@/hooks/useIntegrityConfig";
 import type { IntegrityEvent } from "@/lib/integrity/types";
 import type { IntegrityWsSender } from "@/lib/integrity/IntegrityTelemetryClient";
@@ -319,20 +320,39 @@ export function RealtimeInterviewClient({
       isInterviewActive &&
       !codingEmbed &&
       sessionIntegrityOn &&
-      integrityCfg.facePresence,
+      (integrityCfg.facePresence ||
+        integrityCfg.camera ||
+        integrityCfg.liveSpeech),
     videoEl: faceVideoEl,
     kind: "interview",
     sessionId: interviewId,
     onEvent: emitIntegrity,
     aiSpeakingRef,
     micMutedRef,
+    emitFace: integrityCfg.facePresence,
+    emitCamera: integrityCfg.camera,
+    emitSpeech: integrityCfg.liveSpeech,
   });
   useBiometricSnapshots({
     enabled:
       isInterviewActive &&
       !codingEmbed &&
       sessionIntegrityOn &&
-      biometricMatching,
+      biometricMatching &&
+      integrityCfg.faceIdentity,
+    kind: "interview",
+    sessionId: interviewId,
+    stream: videoStreamActive ? mediaStreamRef.current : null,
+    aiSpeakingRef,
+    micMutedRef,
+  });
+  useVoiceprintMonitor({
+    enabled:
+      isInterviewActive &&
+      !codingEmbed &&
+      sessionIntegrityOn &&
+      biometricMatching &&
+      integrityCfg.voiceprint,
     kind: "interview",
     sessionId: interviewId,
     stream: videoStreamActive ? mediaStreamRef.current : null,

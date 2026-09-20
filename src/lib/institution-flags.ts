@@ -20,9 +20,12 @@ export const INSTITUTION_PRODUCT_LABELS: Record<InstitutionProductKey, string> =
   ix_report: "iX Report",
 };
 
+import type { IntegritySettings } from "@/lib/integrity/settings";
+
 export type InstitutionFlags = {
   biometricVerification?: boolean;
   products?: Partial<Record<InstitutionProductKey, boolean>>;
+  integrity?: Partial<IntegritySettings>;
 };
 
 export function defaultInstitutionProducts(): Record<InstitutionProductKey, boolean> {

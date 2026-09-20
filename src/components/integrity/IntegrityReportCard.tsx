@@ -32,14 +32,38 @@ import {
   appPrimaryButton,
 } from "@/lib/app-theme";
 
-type CheckStatus = "pass" | "flagged" | "review";
-type FilterId = "all" | "passed" | "flagged";
+type CheckStatus = "pass" | "flagged" | "review" | "skipped";
+type FilterId = "all" | "passed" | "flagged" | "skipped";
+
+const MATCHING_CHECK_IDS = new Set(["voice", "identity", "speech"]);
+
+const CHECK_SETTING: Record<
+  string,
+  | "clipboardLock"
+  | "tabBlur"
+  | "facePresence"
+  | "camera"
+  | "voiceprint"
+  | "faceIdentity"
+  | "liveSpeech"
+  | "turnLatency"
+> = {
+  clipboard: "clipboardLock",
+  tab: "tabBlur",
+  face: "facePresence",
+  camera: "camera",
+  voice: "voiceprint",
+  identity: "faceIdentity",
+  speech: "liveSpeech",
+  latency: "turnLatency",
+};
 
 const CHECKS: Array<{
   id: string;
   label: string;
   passLabel: string;
   failLabel: string;
+  skipLabel?: string;
   icon: LucideIcon;
   types: IntegrityEventType[];
 }> = [
@@ -80,6 +104,7 @@ const CHECKS: Array<{
     label: "Voiceprint",
     passLabel: "No voice mismatch on the mic",
     failLabel: "Mic voice did not match enrollment",
+    skipLabel: "Voice matching did not run",
     icon: Mic,
     types: ["VOICEPRINT_MISMATCH"],
   },
@@ -88,6 +113,7 @@ const CHECKS: Array<{
     label: "Face identity",
     passLabel: "Face matched the stored credential",
     failLabel: "Face did not match the stored credential",
+    skipLabel: "Face matching did not run",
     icon: UserRound,
     types: ["FACE_IDENTITY_MISMATCH"],
   },
@@ -96,6 +122,7 @@ const CHECKS: Array<{
     label: "Live speech",
     passLabel: "Speech lined up with a visible speaker",
     failLabel: "Speech on the mic while the mouth was still",
+    skipLabel: "Live speech matching did not run",
     icon: UserRound,
     types: ["SPEECH_WITHOUT_MOUTH_MOVEMENT"],
   },
@@ -108,6 +135,41 @@ const CHECKS: Array<{
     types: ["HIGH_TURN_LATENCY"],
   },
 ];
+
+function integrityHeaderIcon(
+  matchingSkipped: boolean,
+  classification: IntegrityReport["classification"],
+): LucideIcon {
+  if (matchingSkipped) return ShieldQuestion;
+  if (classification === "VERIFIED_AUTHENTIC") return ShieldCheck;
+  if (classification === "SUSPICIOUS_REVIEW_REQUIRED") return ShieldQuestion;
+  return ShieldAlert;
+}
+
+function integrityHeaderCopy(
+  matchingSkipped: boolean,
+  audience: "candidate" | "reviewer",
+): string {
+  if (matchingSkipped) {
+    return "Green = ran and stayed clean. Red = flagged. Gray = skipped because face or voice matching did not run. Separate from skill score.";
+  }
+  if (audience === "candidate") {
+    return "Green checks stayed clean. Red items were flagged for review. This is separate from your skill score and never auto-fails.";
+  }
+  return "Green = clean check. Red = flagged for review. Separate from skill score — never auto-fail.";
+}
+
+function timelineEmptyCopy(
+  selectedStatus: CheckStatus | undefined,
+  filter: FilterId,
+  selectedCheck: string | null,
+): string {
+  if (selectedStatus === "skipped" || filter === "skipped") {
+    return "This check was skipped, so nothing was logged.";
+  }
+  if (selectedCheck) return "This check stayed green — nothing was logged.";
+  return "No flagged events in this session.";
+}
 
 function classificationLabel(value: IntegrityReport["classification"]): string {
   switch (value) {
@@ -137,6 +199,9 @@ function ringStroke(classification: IntegrityReport["classification"]): string {
 }
 
 function checkTone(status: CheckStatus): string {
+  if (status === "skipped") {
+    return "border-slate-200/80 bg-slate-100/70 text-slate-500 hover:bg-slate-100 dark:border-slate-700/60 dark:bg-slate-900/40 dark:text-slate-400";
+  }
   if (status === "pass") {
     return "border-emerald-200/80 bg-emerald-50/80 hover:bg-emerald-50 dark:border-emerald-900/50 dark:bg-emerald-950/30";
   }
@@ -147,9 +212,28 @@ function checkTone(status: CheckStatus): string {
 }
 
 function checkIconTone(status: CheckStatus): string {
+  if (status === "skipped") {
+    return "bg-slate-300 text-slate-600 dark:bg-slate-700 dark:text-slate-300";
+  }
   if (status === "pass") return "bg-emerald-600 text-white";
   if (status === "flagged") return "bg-rose-600 text-white";
   return "bg-amber-500 text-white";
+}
+
+function checkBadgeClass(status: CheckStatus): string {
+  if (status === "skipped") {
+    return "inline-flex items-center rounded-md bg-slate-200/80 px-2 py-0.5 text-xs font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300";
+  }
+  if (status === "pass") return appBadgeSuccess;
+  if (status === "flagged") return appBadgeDanger;
+  return "inline-flex items-center rounded-md bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-950/40 dark:text-amber-300";
+}
+
+function checkBadgeLabel(status: CheckStatus): string {
+  if (status === "skipped") return "Skipped";
+  if (status === "pass") return "Passed";
+  if (status === "flagged") return "Flagged";
+  return "Review";
 }
 
 function classificationText(classification: IntegrityReport["classification"]): string {
@@ -173,6 +257,7 @@ function filterChipClass(id: FilterId, active: boolean): string {
   }
   if (id === "passed") return cn(base, "border-emerald-600 bg-emerald-600 text-white");
   if (id === "flagged") return cn(base, "border-rose-600 bg-rose-600 text-white");
+  if (id === "skipped") return cn(base, "border-slate-500 bg-slate-500 text-white");
   return cn(base, "border-[#7367F0] bg-[#7367F0] text-white");
 }
 
@@ -238,12 +323,6 @@ function IntegrityCheckRow({
   onSelect: () => void;
 }>) {
   const isPass = status === "pass";
-  const badgeClass =
-    status === "pass"
-      ? appBadgeSuccess
-      : status === "flagged"
-        ? appBadgeDanger
-        : "inline-flex items-center rounded-md bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-950/40 dark:text-amber-300";
   return (
     <button
       type="button"
@@ -268,12 +347,24 @@ function IntegrityCheckRow({
       </span>
       <span className="min-w-0 flex-1">
         <span className="flex flex-wrap items-center gap-2">
-          <span className="text-sm font-semibold">{label}</span>
-          <span className={badgeClass}>
-            {isPass ? "Passed" : status === "flagged" ? "Flagged" : "Review"}
+          <span
+            className={cn(
+              "text-sm font-semibold",
+              status === "skipped" && "text-slate-600 dark:text-slate-300",
+            )}
+          >
+            {label}
           </span>
+          <span className={checkBadgeClass(status)}>{checkBadgeLabel(status)}</span>
         </span>
-        <span className="mt-0.5 block text-xs leading-relaxed text-muted-foreground sm:text-sm">
+        <span
+          className={cn(
+            "mt-0.5 block text-xs leading-relaxed sm:text-sm",
+            status === "skipped"
+              ? "text-slate-500 dark:text-slate-400"
+              : "text-muted-foreground",
+          )}
+        >
           {detail}
         </span>
       </span>
@@ -341,10 +432,81 @@ export function IntegrityReportCard({
   const [filter, setFilter] = useState<FilterId>("all");
   const [selectedCheck, setSelectedCheck] = useState<string | null>(null);
   const [openEvent, setOpenEvent] = useState<string | null>(null);
+  const {
+    clipboardLock,
+    tabBlur,
+    camera,
+    facePresence,
+    faceIdentity,
+    voiceprint,
+    liveSpeech,
+    turnLatency,
+  } = useIntegrityConfig();
+  const moduleOn = useMemo(
+    () => ({
+      clipboardLock,
+      tabBlur,
+      camera,
+      facePresence,
+      faceIdentity,
+      voiceprint,
+      liveSpeech,
+      turnLatency,
+    }),
+    [
+      clipboardLock,
+      tabBlur,
+      camera,
+      facePresence,
+      faceIdentity,
+      voiceprint,
+      liveSpeech,
+      turnLatency,
+    ],
+  );
+
+  const integrityStatus = resolveIntegrityStatus(report);
+
+  const activeChecks = useMemo(
+    () =>
+      CHECKS.filter((check) => {
+        const key = CHECK_SETTING[check.id];
+        return !key || moduleOn[key];
+      }),
+    [moduleOn],
+  );
+
+  const disabledEventTypes = useMemo(() => {
+    const types = new Set<IntegrityEventType>();
+    for (const check of CHECKS) {
+      const key = CHECK_SETTING[check.id];
+      if (key && !moduleOn[key]) {
+        for (const type of check.types) types.add(type);
+      }
+    }
+    return types;
+  }, [moduleOn]);
 
   const checks = useMemo(() => {
     if (!report) return [];
-    return CHECKS.map((check) => {
+    const skipMatching = integrityStatus === "skipped";
+    const skipVoice = skipMatching || report.voiceMatchRan === false;
+    const skipSpeech =
+      skipMatching ||
+      report.speechMatchRan === false ||
+      (report.speechMatchRan == null && report.voiceMatchRan === false);
+    return activeChecks.map((check) => {
+      if (
+        (skipMatching && MATCHING_CHECK_IDS.has(check.id)) ||
+        (skipVoice && check.id === "voice") ||
+        (skipSpeech && check.id === "speech")
+      ) {
+        return {
+          ...check,
+          status: "skipped" as const,
+          detail: check.skipLabel ?? "This check did not run",
+        };
+      }
       const status = statusOf(check.types, report.timeline ?? []);
       return {
         ...check,
@@ -352,9 +514,7 @@ export function IntegrityReportCard({
         detail: status === "pass" ? check.passLabel : check.failLabel,
       };
     });
-  }, [report]);
-
-  const integrityStatus = resolveIntegrityStatus(report);
+  }, [report, integrityStatus, activeChecks]);
 
   if (integrityStatus === "missing") {
     return <IntegrityMissingPrompt audience={audience} />;
@@ -375,26 +535,33 @@ export function IntegrityReportCard({
     );
   }
 
+  const matchingSkipped = integrityStatus === "skipped";
   const passed = checks.filter((c) => c.status === "pass");
-  const flagged = checks.filter((c) => c.status !== "pass");
-  const Icon =
-    report.classification === "VERIFIED_AUTHENTIC"
-      ? ShieldCheck
-      : report.classification === "SUSPICIOUS_REVIEW_REQUIRED"
-        ? ShieldQuestion
-        : ShieldAlert;
+  const flagged = checks.filter(
+    (c) => c.status === "flagged" || c.status === "review",
+  );
+  const skipped = checks.filter((c) => c.status === "skipped");
+  const Icon = integrityHeaderIcon(matchingSkipped, report.classification);
+  const effectiveSelected = selectedCheck &&
+    checks.some((check) => check.id === selectedCheck)
+      ? selectedCheck
+      : null;
 
   const visibleChecks = checks.filter((check) => {
-    if (selectedCheck) return check.id === selectedCheck;
+    if (effectiveSelected) return check.id === effectiveSelected;
     if (filter === "passed") return check.status === "pass";
-    if (filter === "flagged") return check.status !== "pass";
+    if (filter === "flagged") {
+      return check.status === "flagged" || check.status === "review";
+    }
+    if (filter === "skipped") return check.status === "skipped";
     return true;
   });
 
   const visibleEvents = (report.timeline ?? []).filter((item) => {
     if (item.type === "LIPSYNC_MISMATCH") return false;
-    if (selectedCheck) {
-      const check = CHECKS.find((c) => c.id === selectedCheck);
+    if (disabledEventTypes.has(item.type)) return false;
+    if (effectiveSelected) {
+      const check = activeChecks.find((c) => c.id === effectiveSelected);
       return check ? check.types.includes(item.type) : false;
     }
     if (filter === "passed") return false;
@@ -405,43 +572,76 @@ export function IntegrityReportCard({
     { id: "all", label: "All checks", count: checks.length },
     { id: "passed", label: "Passed", count: passed.length },
     { id: "flagged", label: "Flagged", count: flagged.length },
+    ...(skipped.length > 0
+      ? [{ id: "skipped" as const, label: "Skipped", count: skipped.length }]
+      : []),
   ];
+
+  const selectedStatus = effectiveSelected
+    ? checks.find((check) => check.id === effectiveSelected)?.status
+    : undefined;
 
   return (
     <section className={cn(appCard, "overflow-hidden")}>
       <header className="flex flex-col gap-4 border-b border-border/60 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:py-5">
         <div className="flex min-w-0 items-start gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#7367F0]/10">
-            <Icon className="h-5 w-5 text-[#7367F0]" />
+          <div
+            className={cn(
+              "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg",
+              matchingSkipped ? "bg-slate-500/10" : "bg-[#7367F0]/10",
+            )}
+          >
+            <Icon
+              className={cn(
+                "h-5 w-5",
+                matchingSkipped ? "text-slate-600" : "text-[#7367F0]",
+              )}
+            />
           </div>
           <div className="min-w-0">
             <h2 className="text-base font-semibold sm:text-lg">Session integrity</h2>
             <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground sm:text-sm">
-              {audience === "candidate"
-                ? "Green checks stayed clean. Red items were flagged for review. This is separate from your skill score and never auto-fails."
-                : "Green = clean check. Red = flagged for review. Separate from skill score — never auto-fail."}
+              {integrityHeaderCopy(matchingSkipped, audience)}
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-4">
-          <ScoreRing
-            score={report.score}
-            classification={report.classification}
-          />
-          <div className="min-w-0">
-            <p className={cn("text-sm font-semibold", classificationText(report.classification))}>
-              {classificationLabel(report.classification)}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              {report.deductedPoints > 0
-                ? `${report.deductedPoints} points deducted`
-                : "No points deducted"}
-            </p>
+        {matchingSkipped ? (
+          <div className="flex min-h-11 items-center rounded-xl border border-slate-200 bg-slate-100/80 px-4 py-3 dark:border-slate-700 dark:bg-slate-900/50">
+            <div>
+              <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">
+                Integrity skipped
+              </p>
+              <p className="text-xs text-slate-500">
+                No face or voice score for this session
+              </p>
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="flex items-center gap-4">
+            <ScoreRing
+              score={report.score}
+              classification={report.classification}
+            />
+            <div className="min-w-0">
+              <p className={cn("text-sm font-semibold", classificationText(report.classification))}>
+                {classificationLabel(report.classification)}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {report.deductedPoints > 0
+                  ? `${report.deductedPoints} points deducted`
+                  : "No points deducted"}
+              </p>
+            </div>
+          </div>
+        )}
       </header>
 
-      <div className="grid grid-cols-2 gap-3 px-4 py-4 sm:grid-cols-3 sm:px-6">
+      <div
+        className={cn(
+          "grid gap-3 px-4 py-4 sm:px-6",
+          skipped.length > 0 ? "grid-cols-2 sm:grid-cols-4" : "grid-cols-2 sm:grid-cols-3",
+        )}
+      >
         <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-3 dark:border-emerald-900/50 dark:bg-emerald-950/30 sm:px-4">
           <p className="text-xs font-medium text-emerald-800 dark:text-emerald-300">
             Passed
@@ -458,7 +658,22 @@ export function IntegrityReportCard({
             {flagged.length}
           </p>
         </div>
-        <div className="col-span-2 rounded-xl border border-border/60 bg-muted/20 px-3 py-3 sm:col-span-1 sm:px-4">
+        {skipped.length > 0 ? (
+          <div className="rounded-xl border border-slate-200 bg-slate-100/80 px-3 py-3 dark:border-slate-700 dark:bg-slate-900/40 sm:px-4">
+            <p className="text-xs font-medium text-slate-600 dark:text-slate-300">
+              Skipped
+            </p>
+            <p className="mt-1 text-2xl font-bold tabular-nums text-slate-500 dark:text-slate-400">
+              {skipped.length}
+            </p>
+          </div>
+        ) : null}
+        <div
+          className={cn(
+            "rounded-xl border border-border/60 bg-muted/20 px-3 py-3 sm:px-4",
+            skipped.length === 0 && "col-span-2 sm:col-span-1",
+          )}
+        >
           <p className="text-xs font-medium text-muted-foreground">Events logged</p>
           <p className="mt-1 text-2xl font-bold tabular-nums">{report.eventCount}</p>
         </div>
@@ -473,7 +688,7 @@ export function IntegrityReportCard({
               setFilter(item.id);
               setSelectedCheck(null);
             }}
-            className={filterChipClass(item.id, filter === item.id && !selectedCheck)}
+            className={filterChipClass(item.id, filter === item.id && !effectiveSelected)}
           >
             {item.label} · {item.count}
           </button>
@@ -495,7 +710,7 @@ export function IntegrityReportCard({
             label={check.label}
             detail={check.detail}
             status={check.status}
-            selected={selectedCheck === check.id}
+            selected={effectiveSelected === check.id}
             onSelect={() =>
               setSelectedCheck((current) =>
                 current === check.id ? null : check.id,
@@ -505,14 +720,12 @@ export function IntegrityReportCard({
         ))}
       </div>
 
-      {filter !== "passed" || selectedCheck ? (
+      {filter !== "passed" || effectiveSelected ? (
         <div className="border-t border-border/60 px-4 py-4 sm:px-6">
           <h3 className="text-sm font-semibold">Event timeline</h3>
           {visibleEvents.length === 0 ? (
             <p className="mt-2 text-sm text-muted-foreground">
-              {selectedCheck
-                ? "This check stayed green — nothing was logged."
-                : "No flagged events in this session."}
+              {timelineEmptyCopy(selectedStatus, filter, effectiveSelected)}
             </p>
           ) : (
             <ol className="mt-3 space-y-2">

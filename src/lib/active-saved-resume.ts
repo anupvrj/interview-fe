@@ -6,20 +6,27 @@ export type ActiveSavedResumeDisplay = {
   subtitle: string;
 };
 
+export type DesignedResumeSummary = Pick<
+  Resume,
+  "isDefault" | "title" | "updatedAt"
+> & {
+  pdfS3Key?: string;
+};
+
 function hasUploadedProfileResume(profile: User | null): boolean {
   return Boolean(profile?.resume?.s3Key);
 }
 
 /** Designed resume marked default on the profile page, even if PDF is still generating. */
 export function isDefaultDesignedResume(
-  resume: Resume | null | undefined,
-): resume is Resume {
+  resume: DesignedResumeSummary | null | undefined,
+): resume is DesignedResumeSummary {
   return Boolean(resume?.isDefault);
 }
 
 export function hasActiveSavedResume(
   profile: User | null,
-  defaultDesignedResume: Resume | null,
+  defaultDesignedResume: DesignedResumeSummary | null,
 ): boolean {
   return (
     hasUploadedProfileResume(profile) ||
@@ -29,7 +36,7 @@ export function hasActiveSavedResume(
 
 export function getActiveSavedResumeDisplay(
   profile: User | null,
-  defaultDesignedResume: Resume | null,
+  defaultDesignedResume: DesignedResumeSummary | null,
 ): ActiveSavedResumeDisplay | null {
   if (hasUploadedProfileResume(profile) && profile?.resume) {
     return {
@@ -51,6 +58,5 @@ export function getActiveSavedResumeDisplay(
 export async function loadDefaultDesignedResume(
   userId: string,
 ): Promise<Resume | null> {
-  const resumes = await resumeApi.list(userId);
-  return resumes.find((resume) => resume.isDefault) ?? null;
+  return resumeApi.getDefault(userId);
 }

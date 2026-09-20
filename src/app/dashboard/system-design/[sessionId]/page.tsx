@@ -57,6 +57,7 @@ import { useIntegritySession } from "@/hooks/integrity/useIntegritySession";
 import { useTabFocusTelemetry } from "@/hooks/integrity/useTabFocusTelemetry";
 import { useFacePresence } from "@/hooks/integrity/useFacePresence";
 import { useBiometricSnapshots } from "@/hooks/integrity/useBiometricSnapshots";
+import { useVoiceprintMonitor } from "@/hooks/integrity/useVoiceprintMonitor";
 import { useIntegrityConfig } from "@/hooks/useIntegrityConfig";
 import { useWorkspaceRowWidth } from "@/hooks/useWorkspaceRowWidth";
 
@@ -285,16 +286,40 @@ export default function SystemDesignSessionPage() {
     onEvent: (e) => integrity.emit(e),
   });
   useFacePresence({
-    enabled: integrityEnabled && cameraReady && integrityCfg.facePresence,
+    enabled:
+      integrityEnabled &&
+      cameraReady &&
+      (integrityCfg.facePresence ||
+        integrityCfg.camera ||
+        integrityCfg.liveSpeech),
     videoEl: faceVideoEl,
     kind: "system_design",
     sessionId,
     onEvent: (e) => integrity.emit(e),
     aiSpeakingRef,
     micMutedRef,
+    emitFace: integrityCfg.facePresence,
+    emitCamera: integrityCfg.camera,
+    emitSpeech: integrityCfg.liveSpeech,
   });
   useBiometricSnapshots({
-    enabled: integrityEnabled && cameraReady && biometricMatching,
+    enabled:
+      integrityEnabled &&
+      cameraReady &&
+      biometricMatching &&
+      integrityCfg.faceIdentity,
+    kind: "system_design",
+    sessionId,
+    stream: cameraReady ? mediaStreamRef.current : null,
+    aiSpeakingRef,
+    micMutedRef,
+  });
+  useVoiceprintMonitor({
+    enabled:
+      integrityEnabled &&
+      cameraReady &&
+      biometricMatching &&
+      integrityCfg.voiceprint,
     kind: "system_design",
     sessionId,
     stream: cameraReady ? mediaStreamRef.current : null,

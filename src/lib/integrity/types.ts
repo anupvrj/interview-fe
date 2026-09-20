@@ -124,7 +124,9 @@ export interface IntegrityReport {
   eventCount: number;
   deductedPoints: number;
   timeline: IntegrityViolation[];
-  integrityStatus?: "scored" | "missing" | "processing";
+  integrityStatus?: "scored" | "missing" | "processing" | "skipped";
+  voiceMatchRan?: boolean;
+  speechMatchRan?: boolean;
 }
 
 export type IntegritySessionKind = "interview" | "system_design";

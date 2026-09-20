@@ -639,11 +639,18 @@ export default function CodingInterviewSessionPage() {
     onEvent: (e) => integrity.emit(e),
   });
   useFacePresence({
-    enabled: integrityEnabled && integrityCfg.facePresence,
+    enabled:
+      integrityEnabled &&
+      (integrityCfg.facePresence ||
+        integrityCfg.camera ||
+        integrityCfg.liveSpeech),
     videoEl: faceVideoEl,
     kind: "interview",
     sessionId: interviewId,
     onEvent: (e) => integrity.emit(e),
+    emitFace: integrityCfg.facePresence,
+    emitCamera: integrityCfg.camera,
+    emitSpeech: integrityCfg.liveSpeech,
   });
 
   useEffect(() => {

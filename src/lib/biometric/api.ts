@@ -37,7 +37,7 @@ export const biometricApi = {
   },
 
   presign: async (body: {
-    purpose: "credential" | "id_card" | "snapshot";
+    purpose: "credential" | "id_card" | "snapshot" | "voice_sample";
     contentType?: string;
     sessionKind?: "interview" | "system_design";
     sessionId?: string;
@@ -70,6 +70,18 @@ export const biometricApi = {
       success: boolean;
       data: { count: number };
     }>("/users/me/biometric/snapshots", body);
+    return response.data.data;
+  },
+
+  registerVoiceSample: async (body: {
+    sessionKind: "interview" | "system_design";
+    sessionId: string;
+    s3Key: string;
+  }): Promise<{ count: number }> => {
+    const response = await apiClient.post<{
+      success: boolean;
+      data: { count: number };
+    }>("/users/me/biometric/voice-samples", body);
     return response.data.data;
   },
 

@@ -208,6 +208,7 @@ function SessionHistoryFilterFields({
           <option value="">All</option>
           <option value="scored">Scored</option>
           <option value="missing">Missing</option>
+          <option value="skipped">Skipped</option>
           <option value="processing">Processing</option>
         </select>
       </div>
@@ -231,7 +232,7 @@ export type IxSessionHistoryFetchParams = {
   to?: string;
   minScore?: number;
   maxScore?: number;
-  integrityStatus?: "scored" | "missing" | "processing";
+  integrityStatus?: "scored" | "missing" | "processing" | "skipped";
   page: number;
   limit: number;
 };
@@ -288,7 +289,8 @@ export function IxSessionHistoryTable({
         integrityStatus:
           integrityStatus === "scored" ||
           integrityStatus === "missing" ||
-          integrityStatus === "processing"
+          integrityStatus === "processing" ||
+          integrityStatus === "skipped"
             ? integrityStatus
             : undefined,
         page,
@@ -588,6 +590,13 @@ export function IxSessionHistoryTable({
                         className="ml-1 border-amber-500/40 bg-amber-500/10 text-amber-800"
                       >
                         No integrity
+                      </Badge>
+                    ) : row.integrityStatus === "skipped" ? (
+                      <Badge
+                        variant="outline"
+                        className="ml-1 border-slate-400/40 bg-slate-500/10 text-slate-700"
+                      >
+                        Integrity skipped
                       </Badge>
                     ) : row.integrityStatus === "processing" ? (
                       <Badge

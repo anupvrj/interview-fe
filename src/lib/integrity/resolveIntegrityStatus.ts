@@ -20,7 +20,8 @@ export function resolveIntegrityStatus(
   if (
     report.integrityStatus === "scored" ||
     report.integrityStatus === "missing" ||
-    report.integrityStatus === "processing"
+    report.integrityStatus === "processing" ||
+    report.integrityStatus === "skipped"
   ) {
     return report.integrityStatus;
   }

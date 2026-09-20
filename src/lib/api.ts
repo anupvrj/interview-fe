@@ -203,6 +203,14 @@ export interface User {
     uploadedAt: string;
     size: number;
   };
+  /** Lean default designed resume from the builder, if any. */
+  defaultDesignedResume?: {
+    resumeId: string;
+    title?: string;
+    isDefault?: boolean;
+    pdfS3Key?: string;
+    updatedAt?: string;
+  } | null;
   applicationProfile?: ApplicationProfile;
   subscription?: {
     plan: SubscriptionPlanSlug;
@@ -300,7 +308,7 @@ export interface IxSessionRow {
   status: "completed" | "processing";
   hasVideo?: boolean;
   hasReportPdf?: boolean;
-  integrityStatus?: "scored" | "missing" | "processing";
+  integrityStatus?: "scored" | "missing" | "processing" | "skipped";
 }
 
 export type RecruiterSessionSource = IxSessionRow["source"];
@@ -1734,6 +1742,13 @@ export const resumeApi = {
     return response.data.data;
   },
 
+  getDefault: async (userId: string): Promise<Resume | null> => {
+    const response = await apiClient.get<{ data: Resume | null }>(
+      `/users/${userId}/resumes/default`,
+    );
+    return response.data.data;
+  },
+
   checkResumeLimit: async (): Promise<{
     allowed: boolean;
     reason?: string;
@@ -2602,6 +2617,7 @@ export const adminApi = {
     platformFlags?: {
       biometricVerification?: boolean;
       products?: Record<string, boolean>;
+      integrity?: Partial<import("@/lib/integrity/settings").IntegritySettings>;
     };
   }): Promise<any> => {
     const response = await apiClient.post<{ success: boolean; data: any }>(
@@ -2622,6 +2638,7 @@ export const adminApi = {
       platformFlags?: {
       biometricVerification?: boolean;
       products?: Record<string, boolean>;
+      integrity?: Partial<import("@/lib/integrity/settings").IntegritySettings>;
     };
     }
   ): Promise<any> => {
@@ -4287,7 +4304,7 @@ export const ixScoreApi = {
     to?: string;
     minScore?: number;
     maxScore?: number;
-    integrityStatus?: "scored" | "missing" | "processing";
+    integrityStatus?: "scored" | "missing" | "processing" | "skipped";
     page?: number;
     limit?: number;
   }) =>
@@ -4413,7 +4430,7 @@ export interface TalentCandidateRow {
   experience?: number;
   ixScore: number | null;
   hiringStatus: HiringStatus | null;
-  integrityStatus?: "scored" | "missing" | "processing" | null;
+  integrityStatus?: "scored" | "missing" | "processing" | "skipped" | null;
   hasResume: boolean;
 }
 
@@ -4509,7 +4526,7 @@ export const recruiterApi = {
     industry?: string;
     skills?: string;
     minIxScore?: number;
-    integrityStatus?: "scored" | "missing" | "processing";
+    integrityStatus?: "scored" | "missing" | "processing" | "skipped";
   }) =>
     unwrap<PeerPaginated<TalentCandidateRow>>(
       apiClient.get("/recruiter/candidates", { params }),
@@ -4535,7 +4552,7 @@ export const recruiterApi = {
       to?: string;
       minScore?: number;
       maxScore?: number;
-      integrityStatus?: "scored" | "missing" | "processing";
+      integrityStatus?: "scored" | "missing" | "processing" | "skipped";
       page?: number;
       limit?: number;
     },

@@ -27,13 +27,13 @@ export function useBiometricSnapshots(opts: {
       if (opts.aiSpeakingRef?.current || opts.micMutedRef?.current) return;
       if (countRef.current >= MAX_CLIPS) return;
       try {
-        const live = stream
-          .getTracks()
+        const liveVideo = stream
+          .getVideoTracks()
           .filter((track) => track.readyState === "live");
-        if (live.length === 0) return;
-        const clipStream = new MediaStream(live);
-        const mimeType = MediaRecorder.isTypeSupported("video/webm;codecs=vp8,opus")
-          ? "video/webm;codecs=vp8,opus"
+        if (liveVideo.length === 0) return;
+        const clipStream = new MediaStream(liveVideo);
+        const mimeType = MediaRecorder.isTypeSupported("video/webm;codecs=vp8")
+          ? "video/webm;codecs=vp8"
           : MediaRecorder.isTypeSupported("video/webm")
             ? "video/webm"
             : "";

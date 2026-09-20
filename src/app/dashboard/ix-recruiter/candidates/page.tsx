@@ -57,7 +57,7 @@ type TalentFilters = {
   industry: string;
   skills: string[];
   minIxScore: number;
-  integrityStatus: "" | "missing" | "scored" | "processing";
+  integrityStatus: "" | "missing" | "scored" | "processing" | "skipped";
 };
 
 type ExtraTalentFilters = Pick<
@@ -257,6 +257,7 @@ function TalentExtraFilterFields({
           emptyLabel="Any"
           options={[
             { value: "missing", label: "No integrity score" },
+            { value: "skipped", label: "Integrity skipped" },
             { value: "scored", label: "Integrity scored" },
             { value: "processing", label: "Integrity processing" },
           ]}
@@ -778,6 +779,13 @@ export default function HireTalentPage() {
                             className="mt-1 border-amber-500/40 bg-amber-500/10 text-amber-800"
                           >
                             No integrity
+                          </Badge>
+                        ) : c.integrityStatus === "skipped" ? (
+                          <Badge
+                            variant="outline"
+                            className="mt-1 border-slate-400/40 bg-slate-500/10 text-slate-700"
+                          >
+                            Integrity skipped
                           </Badge>
                         ) : c.integrityStatus === "processing" ? (
                           <Badge

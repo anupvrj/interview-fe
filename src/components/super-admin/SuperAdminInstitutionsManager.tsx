@@ -35,6 +35,12 @@ import {
   INSTITUTION_PRODUCT_KEYS,
   INSTITUTION_PRODUCT_LABELS,
 } from "@/lib/institution-flags";
+import {
+  InstitutionIntegrityFields,
+  integrityFromInstitution,
+} from "@/components/super-admin/InstitutionIntegrityFields";
+import type { IntegritySettings } from "@/lib/integrity/settings";
+import { DEFAULT_INTEGRITY_SETTINGS } from "@/lib/integrity/settings";
 
 export function SuperAdminInstitutionsManager() {
   const router = useRouter();
@@ -48,6 +54,9 @@ export function SuperAdminInstitutionsManager() {
   const [instEmail, setInstEmail] = useState("");
   const [instMaxUsers, setInstMaxUsers] = useState("");
   const [instBiometric, setInstBiometric] = useState(false);
+  const [instIntegrity, setInstIntegrity] = useState<IntegritySettings>(
+    DEFAULT_INTEGRITY_SETTINGS,
+  );
   const [instProducts, setInstProducts] = useState(defaultInstitutionProducts);
   const [instSubmitting, setInstSubmitting] = useState(false);
 
@@ -58,6 +67,9 @@ export function SuperAdminInstitutionsManager() {
   const [editEmail, setEditEmail] = useState("");
   const [editMaxUsers, setEditMaxUsers] = useState("");
   const [editBiometric, setEditBiometric] = useState(false);
+  const [editIntegrity, setEditIntegrity] = useState<IntegritySettings>(
+    DEFAULT_INTEGRITY_SETTINGS,
+  );
   const [editProducts, setEditProducts] = useState(defaultInstitutionProducts);
   const [editSubmitting, setEditSubmitting] = useState(false);
 
@@ -84,7 +96,11 @@ export function SuperAdminInstitutionsManager() {
       slug: instSlug.trim() || undefined,
       domain: instDomain.trim() || undefined,
       contactEmail: instEmail.trim() || undefined,
-      platformFlags: { biometricVerification: instBiometric, products: instProducts },
+      platformFlags: {
+        biometricVerification: instBiometric,
+        products: instProducts,
+        integrity: instIntegrity,
+      },
     };
     const mu = instMaxUsers.trim();
     if (mu !== "") {
@@ -105,6 +121,7 @@ export function SuperAdminInstitutionsManager() {
       setInstEmail("");
       setInstMaxUsers("");
       setInstBiometric(false);
+      setInstIntegrity(DEFAULT_INTEGRITY_SETTINGS);
       setInstProducts(defaultInstitutionProducts());
       await loadInstitutions();
     } catch (err: any) {
@@ -124,6 +141,7 @@ export function SuperAdminInstitutionsManager() {
       inst.maxUsers != null && inst.maxUsers !== "" ? String(inst.maxUsers) : "",
     );
     setEditBiometric(Boolean(inst.platformFlags?.biometricVerification));
+    setEditIntegrity(integrityFromInstitution(inst.platformFlags?.integrity));
     setEditProducts({
       ...defaultInstitutionProducts(),
       ...(inst.platformFlags?.products ?? {}),
@@ -152,7 +170,11 @@ export function SuperAdminInstitutionsManager() {
         domain: editDomain.trim() || null,
         contactEmail: editEmail.trim() || null,
         maxUsers,
-        platformFlags: { biometricVerification: editBiometric, products: editProducts },
+        platformFlags: {
+          biometricVerification: editBiometric,
+          products: editProducts,
+          integrity: editIntegrity,
+        },
       });
       setEditInst(null);
       await loadInstitutions();
@@ -285,7 +307,7 @@ export function SuperAdminInstitutionsManager() {
       </Card>
 
       <Dialog open={instOpen} onOpenChange={setInstOpen}>
-        <DialogContent className="max-h-[min(90vh,760px)] max-w-[calc(100vw-2rem)] overflow-y-auto sm:max-w-lg">
+        <DialogContent className="max-h-[min(90vh,760px)] max-w-[calc(100vw-2rem)] overflow-y-auto sm:max-w-xl">
           <DialogHeader>
             <DialogTitle>Create Institution</DialogTitle>
             <DialogDescription>
@@ -358,6 +380,10 @@ export function SuperAdminInstitutionsManager() {
                 (institute candidates only)
               </span>
             </label>
+            <InstitutionIntegrityFields
+              settings={instIntegrity}
+              onChange={setInstIntegrity}
+            />
             <div className="space-y-2">
               <p className="text-sm font-medium">Product tabs</p>
               <p className="text-xs text-muted-foreground">
@@ -402,7 +428,7 @@ export function SuperAdminInstitutionsManager() {
       </Dialog>
 
       <Dialog open={!!editInst} onOpenChange={(o) => !o && setEditInst(null)}>
-        <DialogContent className="max-h-[min(90vh,760px)] max-w-[calc(100vw-2rem)] overflow-y-auto sm:max-w-lg">
+        <DialogContent className="max-h-[min(90vh,760px)] max-w-[calc(100vw-2rem)] overflow-y-auto sm:max-w-xl">
           <DialogHeader>
             <DialogTitle>Edit institution</DialogTitle>
             <DialogDescription>
@@ -474,6 +500,10 @@ export function SuperAdminInstitutionsManager() {
                 Require biometric identity verification before interviews
               </span>
             </label>
+            <InstitutionIntegrityFields
+              settings={editIntegrity}
+              onChange={setEditIntegrity}
+            />
             <div className="space-y-2">
               <p className="text-sm font-medium">Product tabs</p>
               <p className="text-xs text-muted-foreground">
