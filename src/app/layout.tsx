@@ -7,6 +7,8 @@ import { ClerkAuthTabSync } from "@/components/ClerkAuthTabSync";
 import { ExtensionConnectReturn } from "@/components/chrome-extension/ExtensionConnectReturn";
 import { FeatureRouteGuard } from "@/components/features/FeatureRouteGuard";
 import { TemplateRegistryInitializer } from "@/components/TemplateRegistryInitializer";
+import { ReferralCapture } from "@/components/affiliate/ReferralCapture";
+import { Suspense } from "react";
 import { getGaMeasurementId } from "@/config/google-analytics";
 import { getClarityProjectId } from "@/config/microsoft-clarity";
 import { AppMicrosoftClarity } from "@/components/AppMicrosoftClarity";
@@ -130,6 +132,9 @@ export default function RootLayout({
             <UserProvider>
               <ClerkAuthTabSync />
               <ExtensionConnectReturn />
+              <Suspense fallback={null}>
+                <ReferralCapture />
+              </Suspense>
               <FeatureRouteGuard>{children}</FeatureRouteGuard>
             </UserProvider>
           </QueryProvider>

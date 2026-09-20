@@ -32,18 +32,26 @@ export function usePendingSubscriptionPolling(options?: {
 
   const refresh = useCallback(async () => {
     if (!user) return null;
-    localStorage.setItem("clerk-user-id", user.id);
-    const sub = await paymentApi.getSubscription();
-    setSubscription(sub);
-    return sub;
+    try {
+      localStorage.setItem("clerk-user-id", user.id);
+      const sub = await paymentApi.getSubscription();
+      setSubscription(sub);
+      return sub;
+    } catch {
+      return null;
+    }
   }, [user]);
 
   const syncAndRefresh = useCallback(async () => {
     if (!user) return null;
-    localStorage.setItem("clerk-user-id", user.id);
-    const sub = await paymentApi.syncPendingSubscription();
-    setSubscription(sub);
-    return sub;
+    try {
+      localStorage.setItem("clerk-user-id", user.id);
+      const sub = await paymentApi.syncPendingSubscription();
+      setSubscription(sub);
+      return sub;
+    } catch {
+      return null;
+    }
   }, [user]);
 
   useEffect(() => {
@@ -77,7 +85,7 @@ export function usePendingSubscriptionPolling(options?: {
       }
     };
 
-    refresh().then((sub) => {
+    void refresh().then((sub) => {
       if (cancelled) return;
       const state =
         sub?.activationState ?? (sub?.pendingPayment ? "pending" : "none");

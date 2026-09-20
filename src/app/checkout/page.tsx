@@ -23,10 +23,12 @@ import {
   couponApi,
   paymentApi,
   planApi,
+  affiliateApi,
   Subscription,
   type AppliedCoupon,
 } from "@/lib/api";
 import { CheckoutCouponField } from "@/components/checkout/CheckoutCouponField";
+import { getStoredReferralCode, rememberReferralCode } from "@/lib/affiliate-cookies";
 import { apiErrorMessage } from "@/lib/api-errors";
 import type { PlanRecord } from "@/lib/planRecord";
 import { getPlanMarketingHighlights } from "@/lib/planHighlightsFromFeatures";
@@ -83,6 +85,8 @@ function CheckoutPageContent() {
   const [couponInput, setCouponInput] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState<AppliedCoupon | null>(null);
   const [applyingCoupon, setApplyingCoupon] = useState(false);
+  const [referralCode, setReferralCode] = useState<string | null>(null);
+  const [referralDiscountPercent, setReferralDiscountPercent] = useState(0);
 
   // Plan hierarchy for upgrade checks
   const getPlanLevel = (plan: string): number => {
@@ -273,6 +277,28 @@ function CheckoutPageContent() {
     };
   }, [isLoaded, user, planId, billingCycle, isTrialCheckout, samePlanError]);
 
+  useEffect(() => {
+    const fromQuery = searchParams.get("ref");
+    if (fromQuery) rememberReferralCode(fromQuery);
+    const stored = getStoredReferralCode();
+    setReferralCode(stored);
+    if (!stored || isTrialCheckout) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const data = await affiliateApi.stats();
+        if (!cancelled) {
+          setReferralDiscountPercent(data.referralDiscountPercent || 0);
+        }
+      } catch {
+        setReferralDiscountPercent(10);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [searchParams, isTrialCheckout]);
+
   const handleApplyCoupon = async () => {
     if (!planId || isTrialCheckout) return;
     const code = couponInput.trim();
@@ -315,6 +341,7 @@ function CheckoutPageContent() {
             planId as SelfServePlanSlug,
             billingCycle,
             appliedCoupon?.code,
+            referralCode || undefined,
           );
       console.log("🔍 Order received from backend:", order);
       console.log("💰 Amount in paise:", order.amount);
@@ -489,6 +516,17 @@ function CheckoutPageContent() {
 
   const plan = selectedPlan;
   const planPrice = plan.pricing[billingCycle];
+  const couponPercent = appliedCoupon?.discountPercent ?? 0;
+  const referralApplies =
+    !isTrialCheckout &&
+    Boolean(referralCode) &&
+    referralDiscountPercent > couponPercent;
+  const dueToday = appliedCoupon
+    ? appliedCoupon.finalAmount
+    : referralApplies
+      ? Math.round((planPrice * (100 - referralDiscountPercent)) / 100)
+      : planPrice;
+  const hasIntroDiscount = dueToday < planPrice;
   const planCredits = plan.creditsIncluded[billingCycle];
   const highlightLines = getPlanMarketingHighlights(plan);
   const PlanIcon = getMarketingPlanIcon(plan.planId, plan.icon);
@@ -631,29 +669,32 @@ function CheckoutPageContent() {
                         applied={appliedCoupon}
                       />
                     ) : null}
+                    {!isTrialCheckout && referralApplies ? (
+                      <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/[0.08] px-3 py-2.5 text-sm text-emerald-700 dark:text-emerald-300">
+                        {referralDiscountPercent}% referral discount applied —
+                        first month only
+                      </div>
+                    ) : null}
                     <div className="border-t border-border/60 pt-3">
                       <div className="flex items-end justify-between gap-3">
                         <span className="text-sm font-medium text-muted-foreground">
                           Total due today
                         </span>
                         <span className="text-right">
-                          {appliedCoupon ? (
+                          {hasIntroDiscount ? (
                             <span className="mr-2 text-base font-medium text-muted-foreground line-through">
                               ₹{planPrice.toLocaleString()}
                             </span>
                           ) : null}
                           <span className="text-3xl font-bold tracking-tight text-[#7367F0]">
-                            ₹
-                            {(
-                              appliedCoupon?.finalAmount ?? planPrice
-                            ).toLocaleString()}
+                            ₹{dueToday.toLocaleString()}
                           </span>
                         </span>
                       </div>
-                      {appliedCoupon ? (
+                      {hasIntroDiscount ? (
                         <p className="mt-1.5 text-xs text-muted-foreground">
                           Recurring months bill at the full list price of ₹
-                          {appliedCoupon.originalAmount.toLocaleString()}.
+                          {planPrice.toLocaleString()}.
                         </p>
                       ) : null}
                     </div>
@@ -733,9 +774,7 @@ function CheckoutPageContent() {
                   ) : (
                     <>
                       Pay ₹
-                      {(
-                        appliedCoupon?.finalAmount ?? planPrice
-                      ).toLocaleString()}{" "}
+                      {dueToday.toLocaleString()}{" "}
                       now
                       <ArrowRight className="ml-2 h-5 w-5" />
                     </>
