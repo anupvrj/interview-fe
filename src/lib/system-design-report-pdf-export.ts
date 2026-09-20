@@ -12,6 +12,7 @@ import {
   INTERVIEW_REPORT_PDF_CSS,
   INTERVIEW_REPORT_PDF_PADDING_MM,
 } from "@/lib/interview-report-pdf-export";
+import { resolveIntegrityStatus } from "@/lib/integrity/resolveIntegrityStatus";
 import { formatDate } from "@/lib/utils";
 import { systemDesignApi } from "@/lib/api";
 
@@ -132,6 +133,25 @@ export function buildSystemDesignReportPdfHtml(
   ).join("");
 
   const overallColor = pdfScoreColor(report.overallScore);
+  const integrityStatus = resolveIntegrityStatus(report.integrityReport);
+  const integrityHtml =
+    integrityStatus === "missing"
+      ? `<h2 class="ir-section-title">Session integrity</h2>
+  <div class="ir-card" style="border-color:#fcd34d;background:#fffbeb;">
+    <div class="ir-card-b">
+      <strong style="color:#b45309;">Integrity score missing</strong>
+      <p style="margin:6px 0 0;font-size:9.5pt;color:#92400e;">No identity credential was on file, so biometric matching did not run for this session.</p>
+    </div>
+  </div>`
+      : integrityStatus === "processing"
+        ? `<h2 class="ir-section-title">Session integrity</h2>
+  <div class="ir-card" style="border-color:#bae6fd;background:#f0f9ff;">
+    <div class="ir-card-b">
+      <strong style="color:#0369a1;">Integrity processing</strong>
+      <p style="margin:6px 0 0;font-size:9.5pt;color:#075985;">Identity matching is still running. Refresh this report in a minute.</p>
+    </div>
+  </div>`
+        : "";
 
   return `
 <div class="ir-doc">
@@ -159,6 +179,8 @@ export function buildSystemDesignReportPdfHtml(
       </div>
     </div>
   </div>
+
+  ${integrityHtml}
 
   <h2 class="ir-section-title">Rubric dimensions</h2>
   <div class="ir-grid2">
@@ -275,6 +297,13 @@ export function buildSystemDesignReportPdfBlob(
   doc.setTextColor(17, 24, 39);
   doc.text("System design session report", margin, cursorY);
   cursorY += 24;
+
+  if (resolveIntegrityStatus(report.integrityReport) === "missing") {
+    addTitle("Session integrity");
+    addBody(
+      "Integrity score missing. No identity credential was on file, so biometric matching did not run for this session.",
+    );
+  }
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(11);

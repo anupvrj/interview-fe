@@ -405,9 +405,14 @@ export default function NewCodingInterviewPage() {
       );
     } catch (err: unknown) {
       console.error("Error creating coding session:", err);
+      const data = (err as { response?: { data?: { code?: string; message?: string } } })
+        ?.response?.data;
+      if (data?.code === "BIOMETRIC_REQUIRED") {
+        router.push("/dashboard/identity-verification");
+        return;
+      }
       const errorMessage =
-        (err as { response?: { data?: { message?: string } } })?.response?.data
-          ?.message || "Failed to create coding session. Please try again.";
+        data?.message || "Failed to create coding session. Please try again.";
       if (
         typeof errorMessage === "string" &&
         (errorMessage.includes("limit") || errorMessage.includes("upgrade"))

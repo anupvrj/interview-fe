@@ -30,6 +30,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2, Plus, Trash2, Pencil, LayoutDashboard } from "lucide-react";
 import { adminApi } from "@/lib/api";
+import {
+  defaultInstitutionProducts,
+  INSTITUTION_PRODUCT_KEYS,
+  INSTITUTION_PRODUCT_LABELS,
+} from "@/lib/institution-flags";
 
 export function SuperAdminInstitutionsManager() {
   const router = useRouter();
@@ -42,6 +47,8 @@ export function SuperAdminInstitutionsManager() {
   const [instDomain, setInstDomain] = useState("");
   const [instEmail, setInstEmail] = useState("");
   const [instMaxUsers, setInstMaxUsers] = useState("");
+  const [instBiometric, setInstBiometric] = useState(false);
+  const [instProducts, setInstProducts] = useState(defaultInstitutionProducts);
   const [instSubmitting, setInstSubmitting] = useState(false);
 
   const [editInst, setEditInst] = useState<any | null>(null);
@@ -50,6 +57,8 @@ export function SuperAdminInstitutionsManager() {
   const [editDomain, setEditDomain] = useState("");
   const [editEmail, setEditEmail] = useState("");
   const [editMaxUsers, setEditMaxUsers] = useState("");
+  const [editBiometric, setEditBiometric] = useState(false);
+  const [editProducts, setEditProducts] = useState(defaultInstitutionProducts);
   const [editSubmitting, setEditSubmitting] = useState(false);
 
   useEffect(() => {
@@ -75,6 +84,7 @@ export function SuperAdminInstitutionsManager() {
       slug: instSlug.trim() || undefined,
       domain: instDomain.trim() || undefined,
       contactEmail: instEmail.trim() || undefined,
+      platformFlags: { biometricVerification: instBiometric, products: instProducts },
     };
     const mu = instMaxUsers.trim();
     if (mu !== "") {
@@ -94,6 +104,8 @@ export function SuperAdminInstitutionsManager() {
       setInstDomain("");
       setInstEmail("");
       setInstMaxUsers("");
+      setInstBiometric(false);
+      setInstProducts(defaultInstitutionProducts());
       await loadInstitutions();
     } catch (err: any) {
       alert(err?.response?.data?.message || "Failed to create institution");
@@ -111,6 +123,11 @@ export function SuperAdminInstitutionsManager() {
     setEditMaxUsers(
       inst.maxUsers != null && inst.maxUsers !== "" ? String(inst.maxUsers) : "",
     );
+    setEditBiometric(Boolean(inst.platformFlags?.biometricVerification));
+    setEditProducts({
+      ...defaultInstitutionProducts(),
+      ...(inst.platformFlags?.products ?? {}),
+    });
   };
 
   const handleUpdateInstitution = async () => {
@@ -135,6 +152,7 @@ export function SuperAdminInstitutionsManager() {
         domain: editDomain.trim() || null,
         contactEmail: editEmail.trim() || null,
         maxUsers,
+        platformFlags: { biometricVerification: editBiometric, products: editProducts },
       });
       setEditInst(null);
       await loadInstitutions();
@@ -267,7 +285,7 @@ export function SuperAdminInstitutionsManager() {
       </Card>
 
       <Dialog open={instOpen} onOpenChange={setInstOpen}>
-        <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-lg">
+        <DialogContent className="max-h-[min(90vh,760px)] max-w-[calc(100vw-2rem)] overflow-y-auto sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Create Institution</DialogTitle>
             <DialogDescription>
@@ -328,6 +346,42 @@ export function SuperAdminInstitutionsManager() {
                 for no limit.
               </p>
             </div>
+            <label className="flex items-start gap-2 text-sm">
+              <input
+                type="checkbox"
+                className="mt-1"
+                checked={instBiometric}
+                onChange={(e) => setInstBiometric(e.target.checked)}
+              />
+              <span>
+                Require biometric identity verification before interviews
+                (institute candidates only)
+              </span>
+            </label>
+            <div className="space-y-2">
+              <p className="text-sm font-medium">Product tabs</p>
+              <p className="text-xs text-muted-foreground">
+                Uncheck to hide a product from institute candidates.
+              </p>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {INSTITUTION_PRODUCT_KEYS.map((key) => (
+                  <label key={key} className="flex items-start gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      className="mt-1"
+                      checked={instProducts[key] !== false}
+                      onChange={(e) =>
+                        setInstProducts((prev) => ({
+                          ...prev,
+                          [key]: e.target.checked,
+                        }))
+                      }
+                    />
+                    <span>{INSTITUTION_PRODUCT_LABELS[key]}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
           </div>
           <DialogFooter className="flex flex-col-reverse gap-2 sm:flex-row">
             <Button variant="outline" onClick={() => setInstOpen(false)}>
@@ -348,7 +402,7 @@ export function SuperAdminInstitutionsManager() {
       </Dialog>
 
       <Dialog open={!!editInst} onOpenChange={(o) => !o && setEditInst(null)}>
-        <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-lg">
+        <DialogContent className="max-h-[min(90vh,760px)] max-w-[calc(100vw-2rem)] overflow-y-auto sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Edit institution</DialogTitle>
             <DialogDescription>
@@ -408,6 +462,41 @@ export function SuperAdminInstitutionsManager() {
                 Empty = unlimited. Existing users are not removed if you lower the
                 cap.
               </p>
+            </div>
+            <label className="flex items-start gap-2 text-sm">
+              <input
+                type="checkbox"
+                className="mt-1"
+                checked={editBiometric}
+                onChange={(e) => setEditBiometric(e.target.checked)}
+              />
+              <span>
+                Require biometric identity verification before interviews
+              </span>
+            </label>
+            <div className="space-y-2">
+              <p className="text-sm font-medium">Product tabs</p>
+              <p className="text-xs text-muted-foreground">
+                Uncheck to hide a product from institute candidates.
+              </p>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {INSTITUTION_PRODUCT_KEYS.map((key) => (
+                  <label key={key} className="flex items-start gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      className="mt-1"
+                      checked={editProducts[key] !== false}
+                      onChange={(e) =>
+                        setEditProducts((prev) => ({
+                          ...prev,
+                          [key]: e.target.checked,
+                        }))
+                      }
+                    />
+                    <span>{INSTITUTION_PRODUCT_LABELS[key]}</span>
+                  </label>
+                ))}
+              </div>
             </div>
           </div>
           <DialogFooter className="flex flex-col-reverse gap-2 sm:flex-row">

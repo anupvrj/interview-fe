@@ -567,6 +567,11 @@ export default function NewInterviewPage() {
         error.response?.data?.message ||
         "Failed to create interview. Please try again.";
 
+      if (error.response?.data?.code === "BIOMETRIC_REQUIRED") {
+        router.push("/dashboard/identity-verification");
+        return;
+      }
+
       if (errorMessage.includes("limit") || errorMessage.includes("upgrade")) {
         await checkInterviewLimit();
       }

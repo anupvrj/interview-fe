@@ -220,6 +220,11 @@ export interface User {
   profileCompletionPercentage?: number;
   /** Avg. overall report score (practice + completed interviews), when present */
   averageInterviewScore?: number | null;
+  biometricStatus?: string | null;
+  institutionFlags?: {
+    biometricVerification?: boolean;
+    products?: Record<string, boolean>;
+  };
   /** Peer interview capability derived from an InterviewerProfile */
   peer?: {
     isInterviewer: boolean;
@@ -295,6 +300,7 @@ export interface IxSessionRow {
   status: "completed" | "processing";
   hasVideo?: boolean;
   hasReportPdf?: boolean;
+  integrityStatus?: "scored" | "missing" | "processing";
 }
 
 export type RecruiterSessionSource = IxSessionRow["source"];
@@ -363,6 +369,7 @@ export interface Interview {
     requireSessionRecording?: boolean;
     /** Voice AI provider selected at interview creation. */
     voiceProvider?: "gemini" | "chatgpt" | "sarvam";
+    integrityTelemetry?: boolean;
   };
   codingRound?: {
     status: string;
@@ -500,6 +507,8 @@ export interface InterviewReport {
   };
   /** Set after PDF is uploaded for sharing */
   reportPdfS3Key?: string;
+  /** Shown when Super Admin enables candidate or reviewer visibility. Never mixed into overallScore. */
+  integrityReport?: import("@/lib/integrity/types").IntegrityReport;
   createdAt: string;
   updatedAt: string;
   /** Present when an institution admin loads the report and a passing score was set on the interview */
@@ -2516,6 +2525,7 @@ export const adminApi = {
       overallSummary?: string;
       fullReportMarkdown?: string;
       generatedAt?: string;
+      integrityReport?: import("@/lib/integrity/types").IntegrityReport;
     } | null;
     problem: { problemId: string; title: string; shortTitle: string } | null;
     user: { clerkId: string; name: string; email: string };
@@ -2552,6 +2562,7 @@ export const adminApi = {
           overallSummary?: string;
           fullReportMarkdown?: string;
           generatedAt?: string;
+          integrityReport?: import("@/lib/integrity/types").IntegrityReport;
         } | null;
         problem: { problemId: string; title: string; shortTitle: string } | null;
         user: { clerkId: string; name: string; email: string };
@@ -2588,6 +2599,10 @@ export const adminApi = {
     domain?: string;
     contactEmail?: string;
     maxUsers?: number | null;
+    platformFlags?: {
+      biometricVerification?: boolean;
+      products?: Record<string, boolean>;
+    };
   }): Promise<any> => {
     const response = await apiClient.post<{ success: boolean; data: any }>(
       "/admin/institutions",
@@ -2604,6 +2619,10 @@ export const adminApi = {
       domain?: string | null;
       contactEmail?: string | null;
       maxUsers?: number | null;
+      platformFlags?: {
+      biometricVerification?: boolean;
+      products?: Record<string, boolean>;
+    };
     }
   ): Promise<any> => {
     const response = await apiClient.put<{ success: boolean; data: any }>(
@@ -2947,6 +2966,31 @@ export const adminApi = {
 
   deletePlatformFeature: async (key: string): Promise<void> => {
     await apiClient.delete(`/admin/features/${encodeURIComponent(key)}`);
+  },
+
+  getIntegritySettings: async (): Promise<{
+    settings: import("@/lib/integrity/settings").IntegritySettings;
+    envForcedOff: boolean;
+  }> => {
+    const response = await apiClient.get<{
+      success: boolean;
+      data: import("@/lib/integrity/settings").IntegritySettings;
+      envForcedOff?: boolean;
+    }>("/admin/settings/integrity");
+    return {
+      settings: response.data.data,
+      envForcedOff: Boolean(response.data.envForcedOff),
+    };
+  },
+
+  updateIntegritySettings: async (
+    patch: Partial<import("@/lib/integrity/settings").IntegritySettings>,
+  ): Promise<import("@/lib/integrity/settings").IntegritySettings> => {
+    const response = await apiClient.patch<{
+      success: boolean;
+      data: import("@/lib/integrity/settings").IntegritySettings;
+    }>("/admin/settings/integrity", patch);
+    return response.data.data;
   },
 
   listCatalogPlans: async (): Promise<
@@ -3382,6 +3426,8 @@ export interface SystemDesignPracticeReport {
   fullReportMarkdown: string;
   createdAt?: string;
   updatedAt?: string;
+  /** Shown when Super Admin enables candidate or reviewer visibility. Never mixed into overallScore. */
+  integrityReport?: import("@/lib/integrity/types").IntegrityReport;
 }
 /** Session summary bundled with lazy-generated practice report payload. */
 export interface SystemDesignReportSessionLite {
@@ -4241,6 +4287,7 @@ export const ixScoreApi = {
     to?: string;
     minScore?: number;
     maxScore?: number;
+    integrityStatus?: "scored" | "missing" | "processing";
     page?: number;
     limit?: number;
   }) =>
@@ -4366,6 +4413,7 @@ export interface TalentCandidateRow {
   experience?: number;
   ixScore: number | null;
   hiringStatus: HiringStatus | null;
+  integrityStatus?: "scored" | "missing" | "processing" | null;
   hasResume: boolean;
 }
 
@@ -4461,6 +4509,7 @@ export const recruiterApi = {
     industry?: string;
     skills?: string;
     minIxScore?: number;
+    integrityStatus?: "scored" | "missing" | "processing";
   }) =>
     unwrap<PeerPaginated<TalentCandidateRow>>(
       apiClient.get("/recruiter/candidates", { params }),
@@ -4486,6 +4535,7 @@ export const recruiterApi = {
       to?: string;
       minScore?: number;
       maxScore?: number;
+      integrityStatus?: "scored" | "missing" | "processing";
       page?: number;
       limit?: number;
     },
@@ -5314,6 +5364,16 @@ export const configApi = {
       data: { features: import("@/lib/platform-features").PlatformFeature[] };
     }>("/config/features");
     return response.data.data.features;
+  },
+
+  getIntegritySettings: async (): Promise<
+    import("@/lib/integrity/settings").IntegritySettings
+  > => {
+    const response = await apiClient.get<{
+      success: boolean;
+      data: import("@/lib/integrity/settings").IntegritySettings;
+    }>("/config/integrity");
+    return response.data.data;
   },
 };
 

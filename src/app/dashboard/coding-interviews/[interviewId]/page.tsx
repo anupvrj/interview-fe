@@ -64,6 +64,11 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { RealtimeInterviewClient } from "@/components/interview/RealtimeInterviewClient";
+import { useIntegritySession } from "@/hooks/integrity/useIntegritySession";
+import { useTabFocusTelemetry } from "@/hooks/integrity/useTabFocusTelemetry";
+import { useCodeSandbox } from "@/hooks/integrity/useCodeSandbox";
+import { useFacePresence } from "@/hooks/integrity/useFacePresence";
+import { useIntegrityConfig } from "@/hooks/useIntegrityConfig";
 
 const MonacoEditor = dynamic(() => import("@monaco-editor/react"), {
   ssr: false,
@@ -267,6 +272,15 @@ export default function CodingInterviewSessionPage() {
   const interviewId = params.interviewId as string;
 
   const videoRef = useRef<HTMLVideoElement>(null);
+  const editorWrapRef = useRef<HTMLDivElement>(null);
+  const problemPaneRef = useRef<HTMLDivElement>(null);
+  const monacoEditorRef = useRef<unknown>(null);
+  const monacoNsRef = useRef<unknown>(null);
+  const [monacoReady, setMonacoReady] = useState(0);
+  const [faceVideoEl, setFaceVideoEl] = useState<HTMLVideoElement | null>(null);
+  const [displayPickerOpen, setDisplayPickerOpen] = useState(false);
+  const [editorEl, setEditorEl] = useState<HTMLElement | null>(null);
+  const [problemEl, setProblemEl] = useState<HTMLElement | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const screenStreamRef = useRef<MediaStream | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -604,6 +618,37 @@ export default function CodingInterviewSessionPage() {
   };
 
   const codingStarted = !!interview?.codingRound?.codingPhaseStartedAt;
+  const integrityCfg = useIntegrityConfig();
+  const integrityEnabled =
+    codingStarted &&
+    integrityCfg.live &&
+    interview?.metadata?.integrityTelemetry !== false;
+  const integrity = useIntegritySession("interview", interviewId, integrityEnabled);
+  const tabFocus = useTabFocusTelemetry({
+    enabled: integrityEnabled && integrityCfg.tabBlur,
+    displayPickerOpen,
+    dialogOpen: startSessionOpen || discussionPromptOpen || exitConfirmOpen,
+    onEvent: (e) => integrity.emit(e),
+  });
+  useCodeSandbox({
+    enabled: integrityEnabled && integrityCfg.clipboardLock,
+    editorContainer: editorEl,
+    problemPane: problemEl,
+    monacoEditor: monacoReady ? (monacoEditorRef.current as never) : null,
+    monaco: monacoReady ? (monacoNsRef.current as never) : null,
+    onEvent: (e) => integrity.emit(e),
+  });
+  useFacePresence({
+    enabled: integrityEnabled && integrityCfg.facePresence,
+    videoEl: faceVideoEl,
+    kind: "interview",
+    sessionId: interviewId,
+    onEvent: (e) => integrity.emit(e),
+  });
+
+  useEffect(() => {
+    setFaceVideoEl(videoRef.current);
+  }, [cameraReady, codingStarted]);
 
   /**
    * Workspace mounts a different <video> than pre-start. Reattach an existing
@@ -714,7 +759,9 @@ export default function CodingInterviewSessionPage() {
     if (startCodingInFlightRef.current) return;
     startCodingInFlightRef.current = true;
     setStarting(true);
+    tabFocus.setDisplayPickerOpen(true);
     const cam = await acquireCameraAndMic();
+    tabFocus.setDisplayPickerOpen(false);
     if (!cam.ok) {
       toast.error(cam.message);
       setStarting(false);
@@ -724,6 +771,8 @@ export default function CodingInterviewSessionPage() {
 
     let screen: MediaStream | null = null;
     try {
+      tabFocus.setDisplayPickerOpen(true);
+      setDisplayPickerOpen(true);
       screen = await navigator.mediaDevices.getDisplayMedia({
         video: {
           displaySurface: "browser",
@@ -744,7 +793,11 @@ export default function CodingInterviewSessionPage() {
         preferCurrentTab?: boolean;
         selfBrowserSurface?: string;
       });
+      setDisplayPickerOpen(false);
+      tabFocus.setDisplayPickerOpen(false);
     } catch (e: unknown) {
+      setDisplayPickerOpen(false);
+      tabFocus.setDisplayPickerOpen(false);
       const name = e && typeof e === "object" && "name" in e ? String((e as Error).name) : "";
       if (name === "NotAllowedError" || name === "AbortError") {
         toast.error("Screen sharing is required to start the coding round.");
@@ -780,8 +833,15 @@ export default function CodingInterviewSessionPage() {
     } catch (e: unknown) {
       screen?.getTracks().forEach((t) => t.stop());
       screenStreamRef.current = null;
+      const data = (e as { response?: { data?: { code?: string; message?: string } } })
+        ?.response?.data;
+      if (data?.code === "BIOMETRIC_REQUIRED") {
+        router.push("/dashboard/identity-verification");
+        return;
+      }
       const msg =
-        e instanceof Error ? e.message : "Failed to start coding session.";
+        data?.message ||
+        (e instanceof Error ? e.message : "Failed to start coding session.");
       toast.error(msg);
     } finally {
       setStarting(false);
@@ -1089,6 +1149,8 @@ export default function CodingInterviewSessionPage() {
                     codingEmbed
                     codingDiscussionHost
                     reuseMediaStreamRef={mediaStreamRef}
+                    integrityEmit={integrity.emit}
+                    integrityBindWs={integrity.bindWs}
                     className="w-full"
                     onCodingDiscussionHostNotify={(kind) => {
                       setVoiceEmbedOpen(false);
@@ -1163,6 +1225,10 @@ export default function CodingInterviewSessionPage() {
           ) : null}
 
           <main
+            ref={(el) => {
+              problemPaneRef.current = el;
+              setProblemEl(el);
+            }}
             className={cn(
               "flex min-h-0 min-w-0 w-full flex-1 flex-col border-white/10 bg-card/[0.04] shadow-lg shadow-black/20",
               isXlWorkspaceRow
@@ -1244,14 +1310,29 @@ export default function CodingInterviewSessionPage() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="h-[min(58vh,680px)] min-h-[400px] shrink-0 overflow-hidden rounded-2xl border border-white/10 bg-black/50 shadow-inner shadow-black/40">
+              <div
+                ref={(el) => {
+                  editorWrapRef.current = el;
+                  setEditorEl(el);
+                }}
+                className="h-[min(58vh,680px)] min-h-[400px] shrink-0 overflow-hidden rounded-2xl border border-white/10 bg-black/50 shadow-inner shadow-black/40"
+              >
                 <MonacoEditor
                   height="100%"
                   language={monacoLang}
                   theme="vs-dark"
                   value={code}
                   onChange={(v) => persistDraft(v ?? "")}
-                  options={{ minimap: { enabled: false }, fontSize: 14 }}
+                  options={{
+                    minimap: { enabled: false },
+                    fontSize: 14,
+                    contextmenu: false,
+                  }}
+                  onMount={(editor, monaco) => {
+                    monacoEditorRef.current = editor;
+                    monacoNsRef.current = monaco;
+                    setMonacoReady((n) => n + 1);
+                  }}
                 />
               </div>
               <div className="mt-3 flex flex-wrap gap-2">
