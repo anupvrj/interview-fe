@@ -17,7 +17,10 @@ export function computePcm16Rms(frame: Int16Array): number {
   return Math.sqrt(sumSq / frame.length);
 }
 
-export function computeAnalyserRms(analyser: AnalyserNode, buffer: Uint8Array): number {
+export function computeAnalyserRms(
+  analyser: AnalyserNode,
+  buffer: Uint8Array<ArrayBuffer>,
+): number {
   analyser.getByteTimeDomainData(buffer);
   let sumSq = 0;
   for (let i = 0; i < buffer.length; i += 1) {

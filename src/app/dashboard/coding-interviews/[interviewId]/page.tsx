@@ -272,8 +272,6 @@ export default function CodingInterviewSessionPage() {
   const interviewId = params.interviewId as string;
 
   const videoRef = useRef<HTMLVideoElement>(null);
-  const editorWrapRef = useRef<HTMLDivElement>(null);
-  const problemPaneRef = useRef<HTMLDivElement>(null);
   const monacoEditorRef = useRef<unknown>(null);
   const monacoNsRef = useRef<unknown>(null);
   const [monacoReady, setMonacoReady] = useState(0);
@@ -1232,10 +1230,7 @@ export default function CodingInterviewSessionPage() {
           ) : null}
 
           <main
-            ref={(el) => {
-              problemPaneRef.current = el;
-              setProblemEl(el);
-            }}
+            ref={setProblemEl}
             className={cn(
               "flex min-h-0 min-w-0 w-full flex-1 flex-col border-white/10 bg-card/[0.04] shadow-lg shadow-black/20",
               isXlWorkspaceRow
@@ -1318,10 +1313,7 @@ export default function CodingInterviewSessionPage() {
                 </Select>
               </div>
               <div
-                ref={(el) => {
-                  editorWrapRef.current = el;
-                  setEditorEl(el);
-                }}
+                ref={setEditorEl}
                 className="h-[min(58vh,680px)] min-h-[400px] shrink-0 overflow-hidden rounded-2xl border border-white/10 bg-black/50 shadow-inner shadow-black/40"
               >
                 <MonacoEditor

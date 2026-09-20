@@ -6,11 +6,13 @@ export type ActiveSavedResumeDisplay = {
   subtitle: string;
 };
 
-export type DesignedResumeSummary = Pick<
-  Resume,
-  "isDefault" | "title" | "updatedAt"
-> & {
+/** Lean default from getMyProfile / GET resumes/default — title may be empty. */
+export type DesignedResumeSummary = {
+  resumeId?: string;
+  title?: string;
+  isDefault?: boolean;
   pdfS3Key?: string;
+  updatedAt?: string;
 };
 
 function hasUploadedProfileResume(profile: User | null): boolean {
@@ -46,9 +48,12 @@ export function getActiveSavedResumeDisplay(
   }
 
   if (isDefaultDesignedResume(defaultDesignedResume)) {
+    const updated = defaultDesignedResume.updatedAt
+      ? ` · Updated ${formatDate(defaultDesignedResume.updatedAt)}`
+      : "";
     return {
       title: defaultDesignedResume.title?.trim() || "Designed resume",
-      subtitle: `Default resume · Updated ${formatDate(defaultDesignedResume.updatedAt)}`,
+      subtitle: `Default resume${updated}`,
     };
   }
 
