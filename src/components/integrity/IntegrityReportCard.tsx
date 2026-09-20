@@ -491,6 +491,7 @@ export function IntegrityReportCard({
     if (!report) return [];
     const skipMatching = integrityStatus === "skipped";
     const skipVoice = skipMatching || report.voiceMatchRan === false;
+    const skipFace = skipMatching || report.faceMatchRan === false;
     const skipSpeech =
       skipMatching ||
       report.speechMatchRan === false ||
@@ -499,6 +500,7 @@ export function IntegrityReportCard({
       if (
         (skipMatching && MATCHING_CHECK_IDS.has(check.id)) ||
         (skipVoice && check.id === "voice") ||
+        (skipFace && check.id === "identity") ||
         (skipSpeech && check.id === "speech")
       ) {
         return {

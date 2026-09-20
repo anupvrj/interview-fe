@@ -126,6 +126,7 @@ export interface IntegrityReport {
   timeline: IntegrityViolation[];
   integrityStatus?: "scored" | "missing" | "processing" | "skipped";
   voiceMatchRan?: boolean;
+  faceMatchRan?: boolean;
   speechMatchRan?: boolean;
 }
 
