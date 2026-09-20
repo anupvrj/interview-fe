@@ -17,7 +17,6 @@ import {
   Code2,
   Network,
   BarChart2,
-  FlaskConical,
   UserPlus,
   ClipboardList,
   Award,
@@ -165,13 +164,6 @@ const baseMenuItems: DashboardNavItem[] = [
     accent: accent.amber,
     featureKey: "analytics",
   },
-  // TODO: remove from base nav when Agent Lab is super-admin / env-gated again
-  {
-    title: "Agent Lab",
-    href: "/dashboard/lab",
-    icon: FlaskConical,
-    accent: accent.violet,
-  },
   {
     title: "Subscription",
     href: "/dashboard/plan",
@@ -252,12 +244,6 @@ export function getDashboardNavItems(
         accent: accent.orange,
       },
       {
-        title: "Agent Lab",
-        href: "/dashboard/lab",
-        icon: FlaskConical,
-        accent: accent.violet,
-      },
-      {
         title: "Your Profile",
         href: "/dashboard/profile",
         icon: User,
@@ -280,12 +266,6 @@ export function getDashboardNavItems(
         href: "/dashboard/institute",
         icon: Building2,
         accent: accent.purple,
-      },
-      {
-        title: "Agent Lab",
-        href: "/dashboard/lab",
-        icon: FlaskConical,
-        accent: accent.violet,
       },
       {
         title: "Your Profile",

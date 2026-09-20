@@ -15,6 +15,7 @@ import {
   CalendarClock,
   IndianRupee,
   Ticket,
+  FlaskConical,
 } from "lucide-react";
 import type { DashboardNavAccent, DashboardNavItem } from "@/lib/dashboard-nav";
 
@@ -101,6 +102,14 @@ export const SUPER_ADMIN_NAV_GROUPS: SuperAdminNavGroup[] = [
         accent: accent.violet,
         description:
           "Turn product surfaces on or off. Disabled is Super Admin only; Live is everyone.",
+      },
+      {
+        title: "Agent Lab",
+        href: `${SUPER_ADMIN_HOME}/lab`,
+        icon: FlaskConical,
+        accent: accent.violet,
+        description:
+          "Edit, test, and promote AI agent prompts across development, staging, and production.",
       },
       {
         title: "Voice Models",
