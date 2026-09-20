@@ -12,7 +12,6 @@ export function TemplateRegistryInitializer() {
     const initRegistry = async () => {
       try {
         await initializeTemplateRegistry();
-        console.log("✅ Template registry initialized");
       } catch (error) {
         console.error("❌ Failed to initialize template registry:", error);
       }
