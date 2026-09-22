@@ -60,7 +60,10 @@ export const ROLE_META: Record<ActiveRole, RoleMeta> = {
  * Frontend view-scoping only - the backend still enforces real permissions.
  */
 export function deriveAvailableRoles(
-  profile: Pick<User, "accessRole" | "peer" | "recruiter" | "institutionId"> | null | undefined,
+  profile:
+    | Pick<User, "accessRole" | "peer" | "recruiter" | "institutionId">
+    | null
+    | undefined,
 ): ActiveRole[] {
   const roles: ActiveRole[] = [];
   if (profile?.accessRole === "super_admin") {
@@ -194,7 +197,9 @@ export function isPathAllowedForRole(
   if (
     pathname === "/dashboard/profile" ||
     pathname.startsWith("/dashboard/profile/") ||
-    pathname === "/dashboard/identity-verification"
+    pathname === "/dashboard/identity-verification" ||
+    pathname === "/dashboard/affiliate" ||
+    pathname.startsWith("/dashboard/affiliate/")
   ) {
     return true;
   }

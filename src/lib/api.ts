@@ -1185,6 +1185,8 @@ export interface RazorpayOrder {
   finalAmount?: number;
   couponCode?: string;
   discountPercent?: number;
+  referralCode?: string;
+  referralDiscountPercent?: number;
 }
 
 export type AdminCoupon = {
@@ -1250,15 +1252,136 @@ export const couponApi = {
   },
 };
 
+export type AffiliatePayout = {
+  id: string;
+  amountRequested: number;
+  status: "pending" | "paid" | "rejected";
+  upiId: string;
+  bankDetails: string | null;
+  requestedAt: string;
+  paidAt: string | null;
+  reviewNote: string | null;
+};
+
+export type AffiliateStats = {
+  registered: boolean;
+  referralCode: string | null;
+  referralPath: string | null;
+  totalClicks: number;
+  totalConversions: number;
+  totalEarnings: number;
+  availableBalance: number;
+  minPayoutRupees: number;
+  canRequestPayout: boolean;
+  hasPendingPayout: boolean;
+  upiId: string | null;
+  bankDetails: string | null;
+  referralDiscountPercent: number;
+  partnerCommissionPercent: number;
+  payouts: AffiliatePayout[];
+};
+
+export type AffiliateProgramSettings = {
+  referralDiscountPercent: number;
+  partnerCommissionPercent: number;
+  minPayoutRupees: number;
+  updatedAt: string | null;
+};
+
+export type AdminAffiliate = {
+  id: string;
+  clerkId: string;
+  email: string | null;
+  name: string | null;
+  referralCode: string;
+  totalClicks: number;
+  totalConversions: number;
+  totalEarnings: number;
+  availableBalance: number;
+  isActive: boolean;
+  createdAt: string;
+};
+
+export type AdminAffiliateConversion = {
+  id: string;
+  referredClerkId: string;
+  referredEmail: string | null;
+  referredName: string | null;
+  plan: string | null;
+  billingCycle: string | null;
+  paymentAmount: number;
+  commissionPercent: number;
+  commissionAmount: number;
+  createdAt: string;
+};
+
+export type AdminAffiliateDetail = AdminAffiliate & {
+  upiId: string | null;
+  bankDetails: string | null;
+  referralPath: string;
+  updatedAt: string;
+  payouts: AffiliatePayout[];
+  conversions: AdminAffiliateConversion[];
+};
+
+export type AdminAffiliatePayout = AffiliatePayout & {
+  affiliateId: string;
+  clerkId: string;
+  email: string | null;
+  name: string | null;
+  referralCode: string | null;
+};
+
+export const affiliateApi = {
+  register: async (): Promise<AffiliateStats> => {
+    const response = await apiClient.post<{ data: AffiliateStats }>(
+      "/affiliate/register",
+    );
+    return response.data.data;
+  },
+  stats: async (): Promise<AffiliateStats> => {
+    const response = await apiClient.get<{ data: AffiliateStats }>(
+      "/affiliate/stats",
+    );
+    return response.data.data;
+  },
+  requestPayout: async (body: {
+    amount?: number;
+    upiId: string;
+    bankDetails?: string;
+  }): Promise<AffiliateStats> => {
+    const response = await apiClient.post<{ data: AffiliateStats }>(
+      "/affiliate/request-payout",
+      body,
+    );
+    return response.data.data;
+  },
+  track: async (body: {
+    code: string;
+    visitorId: string;
+  }): Promise<{ counted: boolean; referralCode: string | null }> => {
+    const response = await apiClient.post<{
+      data: { counted: boolean; referralCode: string | null };
+    }>("/affiliate/track", body);
+    return response.data.data;
+  },
+};
+
 export const paymentApi = {
   createOrder: async (
     plan: SelfServePlanSlug,
     billingCycle: "monthly" | "quarterly" | "yearly" = "monthly",
     couponCode?: string,
+    referralCode?: string,
   ): Promise<RazorpayOrder> => {
     const response = await apiClient.post<{ data: RazorpayOrder }>(
       "/payments/create-order",
-      { plan, billingCycle, ...(couponCode ? { couponCode } : {}) },
+      {
+        plan,
+        billingCycle,
+        ...(couponCode ? { couponCode } : {}),
+        ...(referralCode ? { referralCode } : {}),
+      },
     );
     return response.data.data;
   },
@@ -3112,6 +3235,97 @@ export const adminApi = {
       success: boolean;
       data: { deleted: boolean; deactivated: boolean };
     }>(`/admin/coupons/${id}`);
+    return response.data.data;
+  },
+
+  getAffiliateSettings: async (): Promise<AffiliateProgramSettings> => {
+    const response = await apiClient.get<{
+      success: boolean;
+      data: AffiliateProgramSettings;
+    }>("/admin/affiliates/settings");
+    return response.data.data;
+  },
+
+  updateAffiliateSettings: async (data: {
+    referralDiscountPercent: number;
+    partnerCommissionPercent: number;
+    minPayoutRupees: number;
+  }): Promise<AffiliateProgramSettings> => {
+    const response = await apiClient.patch<{
+      success: boolean;
+      data: AffiliateProgramSettings;
+    }>("/admin/affiliates/settings", data);
+    return response.data.data;
+  },
+
+  listAffiliates: async (params?: {
+    limit?: number;
+    skip?: number;
+  }): Promise<{
+    items: AdminAffiliate[];
+    total: number;
+    limit: number;
+    skip: number;
+  }> => {
+    const q = new URLSearchParams();
+    if (params?.limit != null) q.set("limit", String(params.limit));
+    if (params?.skip != null) q.set("skip", String(params.skip));
+    const suffix = q.toString() ? `?${q.toString()}` : "";
+    const response = await apiClient.get<{
+      success: boolean;
+      data: {
+        items: AdminAffiliate[];
+        total: number;
+        limit: number;
+        skip: number;
+      };
+    }>(`/admin/affiliates${suffix}`);
+    return response.data.data;
+  },
+
+  getAffiliate: async (id: string): Promise<AdminAffiliateDetail> => {
+    const response = await apiClient.get<{
+      success: boolean;
+      data: AdminAffiliateDetail;
+    }>(`/admin/affiliates/${id}`);
+    return response.data.data;
+  },
+
+  listAffiliatePayouts: async (params?: {
+    limit?: number;
+    skip?: number;
+    status?: "pending" | "paid" | "rejected" | "all";
+  }): Promise<{
+    items: AdminAffiliatePayout[];
+    total: number;
+    limit: number;
+    skip: number;
+  }> => {
+    const q = new URLSearchParams();
+    if (params?.limit != null) q.set("limit", String(params.limit));
+    if (params?.skip != null) q.set("skip", String(params.skip));
+    if (params?.status) q.set("status", params.status);
+    const suffix = q.toString() ? `?${q.toString()}` : "";
+    const response = await apiClient.get<{
+      success: boolean;
+      data: {
+        items: AdminAffiliatePayout[];
+        total: number;
+        limit: number;
+        skip: number;
+      };
+    }>(`/admin/affiliates/payouts${suffix}`);
+    return response.data.data;
+  },
+
+  reviewAffiliatePayout: async (
+    id: string,
+    data: { status: "paid" | "rejected"; reviewNote?: string },
+  ): Promise<AdminAffiliatePayout> => {
+    const response = await apiClient.patch<{
+      success: boolean;
+      data: AdminAffiliatePayout;
+    }>(`/admin/affiliates/payouts/${id}`, data);
     return response.data.data;
   },
 };
