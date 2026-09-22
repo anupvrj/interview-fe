@@ -72,6 +72,15 @@ import {
 } from "@/lib/voice/speechSyncedTranscript";
 import { createVoiceTransport } from "@/lib/voiceTransport/createVoiceTransport";
 import type { VoiceTransport } from "@/lib/voiceTransport/types";
+import { useIntegritySession } from "@/hooks/integrity/useIntegritySession";
+import { useTabFocusTelemetry } from "@/hooks/integrity/useTabFocusTelemetry";
+import { useTurnTelemetry } from "@/hooks/integrity/useTurnTelemetry";
+import { useFacePresence } from "@/hooks/integrity/useFacePresence";
+import { useBiometricSnapshots } from "@/hooks/integrity/useBiometricSnapshots";
+import { useVoiceprintMonitor } from "@/hooks/integrity/useVoiceprintMonitor";
+import { useIntegrityConfig } from "@/hooks/useIntegrityConfig";
+import type { IntegrityEvent } from "@/lib/integrity/types";
+import type { IntegrityWsSender } from "@/lib/integrity/IntegrityTelemetryClient";
 
 /** Hard fallback minutes added on top of target (used if AI never sends interview_complete). */
 const EXTRA_BUFFER_MINUTES = 5;
@@ -191,6 +200,8 @@ export type RealtimeInterviewClientProps = {
    */
   reuseMediaStreamRef?: RefObject<MediaStream | null>;
   className?: string;
+  integrityEmit?: (event: IntegrityEvent) => void;
+  integrityBindWs?: (send: IntegrityWsSender | null) => void;
 };
 
 export function RealtimeInterviewClient({
@@ -201,6 +212,8 @@ export function RealtimeInterviewClient({
   onCodingDiscussionHostNotify,
   reuseMediaStreamRef,
   className,
+  integrityEmit,
+  integrityBindWs,
 }: RealtimeInterviewClientProps) {
   const router = useRouter();
 
@@ -254,6 +267,7 @@ export function RealtimeInterviewClient({
   const [showConfirmEndInterview, setShowConfirmEndInterview] = useState(false);
   /** Recording consent before interview starts (after "Start Interview"). */
   const [showRecordingOptIn, setShowRecordingOptIn] = useState(false);
+  const [biometricMatching, setBiometricMatching] = useState(false);
   /** First-time draft briefing — socket stays closed until the candidate accepts. */
   const [showBriefing, setShowBriefing] = useState(false);
   const [briefingAccepted, setBriefingAccepted] = useState(false);
@@ -262,6 +276,7 @@ export function RealtimeInterviewClient({
   const launchingInterviewRef = useRef(false);
   /** Avoid double-handling when Radix fires onOpenChange after Yes/No. */
   const recordingOptInResolvedRef = useRef(false);
+  const pendingRecordingChoiceRef = useRef<"yes" | "no" | null>(null);
   const startInterviewLatestRef = useRef<(() => Promise<void>) | null>(null);
   const shouldDiscardUnstartedRef = useRef(false);
   const codingEmbedAutostartStartedRef = useRef(false);
@@ -275,6 +290,93 @@ export function RealtimeInterviewClient({
   const mediaStreamOwnedRef = useRef(true);
   const websocketRef = useRef<WebSocket | null>(null);
   const voiceTransportRef = useRef<VoiceTransport | null>(null);
+  const integrityTurnIdRef = useRef(0);
+  const integrityCfg = useIntegrityConfig();
+  const sessionIntegrityOn =
+    integrityCfg.live && interview?.metadata?.integrityTelemetry !== false;
+  const localIntegrity = useIntegritySession(
+    "interview",
+    interviewId,
+    !integrityEmit && sessionIntegrityOn,
+  );
+  const emitIntegrity = integrityEmit ?? localIntegrity.emit;
+  const bindIntegrityWs = integrityBindWs ?? localIntegrity.bindWs;
+  useTabFocusTelemetry({
+    enabled: isInterviewActive && !codingEmbed && sessionIntegrityOn && integrityCfg.tabBlur,
+    dialogOpen: showBriefing || showRecordingOptIn,
+    onEvent: emitIntegrity,
+  });
+  const turnTelemetry = useTurnTelemetry({
+    enabled: isInterviewActive && sessionIntegrityOn && integrityCfg.turnLatency,
+    onEvent: emitIntegrity,
+  });
+  const [faceVideoEl, setFaceVideoEl] = useState<HTMLVideoElement | null>(null);
+  const aiSpeakingRef = useRef(false);
+  const micMutedRef = useRef(false);
+  aiSpeakingRef.current = isAISpeaking;
+  micMutedRef.current = !isMicOn;
+  useFacePresence({
+    enabled:
+      isInterviewActive &&
+      !codingEmbed &&
+      sessionIntegrityOn &&
+      (integrityCfg.facePresence ||
+        integrityCfg.camera ||
+        integrityCfg.liveSpeech),
+    videoEl: faceVideoEl,
+    kind: "interview",
+    sessionId: interviewId,
+    onEvent: emitIntegrity,
+    aiSpeakingRef,
+    micMutedRef,
+    emitFace: integrityCfg.facePresence,
+    emitCamera: integrityCfg.camera,
+    emitSpeech: integrityCfg.liveSpeech,
+  });
+  useBiometricSnapshots({
+    enabled:
+      isInterviewActive &&
+      !codingEmbed &&
+      sessionIntegrityOn &&
+      biometricMatching &&
+      integrityCfg.faceIdentity,
+    kind: "interview",
+    sessionId: interviewId,
+    stream: videoStreamActive ? mediaStreamRef.current : null,
+    aiSpeakingRef,
+    micMutedRef,
+  });
+  useVoiceprintMonitor({
+    enabled:
+      isInterviewActive &&
+      !codingEmbed &&
+      sessionIntegrityOn &&
+      biometricMatching &&
+      integrityCfg.voiceprint,
+    kind: "interview",
+    sessionId: interviewId,
+    stream: videoStreamActive ? mediaStreamRef.current : null,
+    aiSpeakingRef,
+    micMutedRef,
+  });
+
+  useEffect(() => {
+    void import("@/lib/biometric/api").then(({ biometricApi }) =>
+      biometricApi
+        .getMine()
+        .then((cred) => setBiometricMatching(Boolean(cred?.usable)))
+        .catch(() => setBiometricMatching(false)),
+    );
+  }, []);
+
+  useEffect(() => {
+    turnTelemetry.setMicMuted(!isMicOn);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- attach to mute flag only
+  }, [isMicOn]);
+
+  useEffect(() => {
+    setFaceVideoEl(videoRef.current);
+  }, [videoStreamActive, isInterviewActive]);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const timerStartedRef = useRef(false);
   // AudioWorkletNode is the primary processor; ScriptProcessorNode used as fallback only.
@@ -1137,6 +1239,8 @@ export function RealtimeInterviewClient({
             // Generation finished. Do not abort playback — resetting
             // isPlayingAudioRef here starts a second stream on the next chunk
             // and sounds like digital noise between sentences.
+            integrityTurnIdRef.current += 1;
+            turnTelemetry.notifyTurnComplete(`t${integrityTurnIdRef.current}`);
             setIsAIProcessing(false);
             const ctx = audioContextRef.current;
             const stillPlaying = ctx
@@ -1161,6 +1265,7 @@ export function RealtimeInterviewClient({
           } else if (data.type === "user_transcript") {
             /* processed server-side */
           } else if (data.type === "interrupted") {
+            turnTelemetry.notifyBargeIn();
             stopAiPlayback();
             setIsAISpeaking(false);
             setIsAIProcessing(false);
@@ -1200,6 +1305,11 @@ export function RealtimeInterviewClient({
         }
       });
       voiceTransportRef.current = transport;
+      bindIntegrityWs((payload) => {
+        if (!transport.isControlOpen()) return false;
+        transport.sendControl(payload);
+        return true;
+      });
 
       const ws = await transport.connectControl({
         controlUrl: wsUrl,
@@ -1689,6 +1799,10 @@ export function RealtimeInterviewClient({
       source.connect(processor);
       processor.connect(output);
       audioProcessorRef.current = processor;
+      const analyser = audioContext.createAnalyser();
+      analyser.fftSize = 512;
+      source.connect(analyser);
+      turnTelemetry.attachAnalyser(analyser);
     };
 
     try {
@@ -1713,6 +1827,7 @@ export function RealtimeInterviewClient({
               if (event.data?.type === "drained") {
                 isPlayingAudioRef.current = false;
                 setIsAISpeaking(false);
+                turnTelemetry.notifyPlaybackDrained();
                 if (
                   shouldHoldAssistantCaptionUntilAudio(voiceProviderRef.current)
                 ) {
@@ -1835,6 +1950,10 @@ export function RealtimeInterviewClient({
 
             source.connect(workletNode);
             workletNode.connect(silentOutput);
+            const analyser = audioContext.createAnalyser();
+            analyser.fftSize = 512;
+            source.connect(analyser);
+            turnTelemetry.attachAnalyser(analyser);
             // Store as ref so cleanup can disconnect it
             (audioProcessorRef as any).current = workletNode;
             console.log("🎤 Using AudioWorklet for mic capture");

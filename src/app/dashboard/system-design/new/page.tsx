@@ -111,9 +111,13 @@ export default function SystemDesignNewSessionPage() {
         await invalidate(["systemDesignSessions", "entitlements"]);
         router.push(`/dashboard/system-design/${session.sessionId}`);
       } catch (e: unknown) {
-        const msg =
-          (e as { response?: { data?: { message?: string } } })?.response?.data
-            ?.message ?? "Could not start session";
+        const data = (e as { response?: { data?: { code?: string; message?: string } } })
+          ?.response?.data;
+        if (data?.code === "BIOMETRIC_REQUIRED") {
+          router.push("/dashboard/identity-verification");
+          return;
+        }
+        const msg = data?.message ?? "Could not start session";
         toast.error(msg);
       } finally {
         setCreateBusyProblemId(null);

@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Loader2, ArrowLeft } from "lucide-react";
 import { userApi, adminApi, type InterviewReport } from "@/lib/api";
 import { InterviewReportAnalysis } from "@/components/institution/InterviewReportAnalysis";
+import { ReportSectionTabs } from "@/components/reports/ReportSectionTabs";
 import { formatDate } from "@/lib/utils";
 
 export default function InstitutionInterviewReportPage() {
@@ -134,7 +135,13 @@ export default function InstitutionInterviewReportPage() {
         </p>
       )}
 
-      {!loading && report && <InterviewReportAnalysis report={report} />}
+      {!loading && report && (
+        <ReportSectionTabs
+          audience="reviewer"
+          integrityReport={report.integrityReport}
+          performance={<InterviewReportAnalysis report={report} />}
+        />
+      )}
     </div>
   );
 }

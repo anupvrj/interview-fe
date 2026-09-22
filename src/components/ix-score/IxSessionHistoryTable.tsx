@@ -101,6 +101,8 @@ type SessionHistoryFilterFieldsProps = {
   onMinScoreChange: (value: string) => void;
   maxScore: string;
   onMaxScoreChange: (value: string) => void;
+  integrityStatus: string;
+  onIntegrityStatusChange: (value: string) => void;
   layout?: "grid" | "stack";
 };
 
@@ -116,6 +118,8 @@ function SessionHistoryFilterFields({
   onMinScoreChange,
   maxScore,
   onMaxScoreChange,
+  integrityStatus,
+  onIntegrityStatusChange,
   layout = "grid",
 }: SessionHistoryFilterFieldsProps) {
   const fields = (
@@ -191,6 +195,23 @@ function SessionHistoryFilterFields({
           onChange={(e) => onMaxScoreChange(e.target.value)}
         />
       </div>
+      <div className={filterFieldClass}>
+        <Label htmlFor={`${idPrefix}-integrity`} className={filterLabelClass}>
+          Integrity
+        </Label>
+        <select
+          id={`${idPrefix}-integrity`}
+          className={cn(filterControlClass, "h-10 rounded-md border border-input px-3 text-sm")}
+          value={integrityStatus}
+          onChange={(e) => onIntegrityStatusChange(e.target.value)}
+        >
+          <option value="">All</option>
+          <option value="scored">Scored</option>
+          <option value="missing">Missing</option>
+          <option value="skipped">Skipped</option>
+          <option value="processing">Processing</option>
+        </select>
+      </div>
     </>
   );
 
@@ -199,7 +220,7 @@ function SessionHistoryFilterFields({
   }
 
   return (
-    <div className="grid min-w-0 grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5 xl:items-end">
+    <div className="grid min-w-0 grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6 xl:items-end">
       {fields}
     </div>
   );
@@ -211,6 +232,7 @@ export type IxSessionHistoryFetchParams = {
   to?: string;
   minScore?: number;
   maxScore?: number;
+  integrityStatus?: "scored" | "missing" | "processing" | "skipped";
   page: number;
   limit: number;
 };
@@ -244,6 +266,7 @@ export function IxSessionHistoryTable({
   const [toDate, setToDate] = useState("");
   const [minScore, setMinScore] = useState("");
   const [maxScore, setMaxScore] = useState("");
+  const [integrityStatus, setIntegrityStatus] = useState("");
   const [page, setPage] = useState(1);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [draftCategory, setDraftCategory] = useState<CategoryFilter>("all");
@@ -251,6 +274,7 @@ export function IxSessionHistoryTable({
   const [draftToDate, setDraftToDate] = useState("");
   const [draftMinScore, setDraftMinScore] = useState("");
   const [draftMaxScore, setDraftMaxScore] = useState("");
+  const [draftIntegrityStatus, setDraftIntegrityStatus] = useState("");
   const limit = 10;
 
   const load = async () => {
@@ -262,6 +286,13 @@ export function IxSessionHistoryTable({
         to: toDate || undefined,
         minScore: minScore ? Number(minScore) : undefined,
         maxScore: maxScore ? Number(maxScore) : undefined,
+        integrityStatus:
+          integrityStatus === "scored" ||
+          integrityStatus === "missing" ||
+          integrityStatus === "processing" ||
+          integrityStatus === "skipped"
+            ? integrityStatus
+            : undefined,
         page,
         limit,
       };
@@ -280,7 +311,7 @@ export function IxSessionHistoryTable({
   useEffect(() => {
     void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [category, fromDate, toDate, minScore, maxScore, page, fetchSessions]);
+  }, [category, fromDate, toDate, minScore, maxScore, integrityStatus, page, fetchSessions]);
 
   const filterCount = [
     category !== "all",
@@ -288,6 +319,7 @@ export function IxSessionHistoryTable({
     toDate,
     minScore,
     maxScore,
+    integrityStatus,
   ].filter(Boolean).length;
 
   const hasFilters = filterCount > 0;
@@ -298,11 +330,13 @@ export function IxSessionHistoryTable({
     setToDate("");
     setMinScore("");
     setMaxScore("");
+    setIntegrityStatus("");
     setDraftCategory("all");
     setDraftFromDate("");
     setDraftToDate("");
     setDraftMinScore("");
     setDraftMaxScore("");
+    setDraftIntegrityStatus("");
     setPage(1);
     setFiltersOpen(false);
   };
@@ -313,6 +347,7 @@ export function IxSessionHistoryTable({
     setDraftToDate(toDate);
     setDraftMinScore(minScore);
     setDraftMaxScore(maxScore);
+    setDraftIntegrityStatus(integrityStatus);
     setFiltersOpen(true);
   };
 
@@ -322,6 +357,7 @@ export function IxSessionHistoryTable({
     setToDate(draftToDate);
     setMinScore(draftMinScore);
     setMaxScore(draftMaxScore);
+    setIntegrityStatus(draftIntegrityStatus);
     setPage(1);
     setFiltersOpen(false);
   };
@@ -397,6 +433,11 @@ export function IxSessionHistoryTable({
             setMaxScore(next);
             setPage(1);
           }}
+          integrityStatus={integrityStatus}
+          onIntegrityStatusChange={(next) => {
+            setIntegrityStatus(next);
+            setPage(1);
+          }}
         />
         <div className="mt-3 flex items-center justify-between text-sm">
           <span className="text-muted-foreground">
@@ -440,6 +481,8 @@ export function IxSessionHistoryTable({
               onMinScoreChange={setDraftMinScore}
               maxScore={draftMaxScore}
               onMaxScoreChange={setDraftMaxScore}
+              integrityStatus={draftIntegrityStatus}
+              onIntegrityStatusChange={setDraftIntegrityStatus}
             />
           </div>
 
@@ -541,6 +584,28 @@ export function IxSessionHistoryTable({
                         Completed
                       </Badge>
                     )}
+                    {row.integrityStatus === "missing" ? (
+                      <Badge
+                        variant="outline"
+                        className="ml-1 border-amber-500/40 bg-amber-500/10 text-amber-800"
+                      >
+                        No integrity
+                      </Badge>
+                    ) : row.integrityStatus === "skipped" ? (
+                      <Badge
+                        variant="outline"
+                        className="ml-1 border-slate-400/40 bg-slate-500/10 text-slate-700"
+                      >
+                        Integrity skipped
+                      </Badge>
+                    ) : row.integrityStatus === "processing" ? (
+                      <Badge
+                        variant="outline"
+                        className="ml-1 border-sky-500/40 bg-sky-500/10 text-sky-800"
+                      >
+                        Integrity processing
+                      </Badge>
+                    ) : null}
                   </td>
                   <td
                     className={`px-4 py-4 text-right text-sm font-semibold tabular-nums ${ixScoreColorClass(row.overallScore)}`}

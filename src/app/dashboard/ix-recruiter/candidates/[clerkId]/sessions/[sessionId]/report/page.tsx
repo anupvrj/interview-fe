@@ -12,6 +12,8 @@ import {
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { InterviewReportAnalysis } from "@/components/institution/InterviewReportAnalysis";
+import { ReportSectionTabs } from "@/components/reports/ReportSectionTabs";
+import type { IntegrityReport } from "@/lib/integrity/types";
 import {
   recruiterApi,
   type InterviewReport,
@@ -271,11 +273,24 @@ export default function RecruiterCandidateSessionReportPage() {
       </div>
 
       {payload.kind === "interview" ? (
-        <InterviewReportAnalysis report={payload.report as InterviewReport} />
+        <ReportSectionTabs
+          audience="reviewer"
+          integrityReport={(payload.report as InterviewReport).integrityReport}
+          performance={
+            <InterviewReportAnalysis report={payload.report as InterviewReport} />
+          }
+        />
       ) : null}
 
       {payload.kind === "system_design" ? (
-        <div className="space-y-4">
+        <ReportSectionTabs
+          audience="reviewer"
+          integrityReport={
+            payload.report.integrityReport as IntegrityReport | undefined
+          }
+          performanceLabel="Overall score"
+          performance={
+            <>
           <div className="rounded-xl border border-border/60 bg-card p-5 shadow-card">
             <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
               System design practice
@@ -327,7 +342,9 @@ export default function RecruiterCandidateSessionReportPage() {
                 : null
             }
           />
-        </div>
+            </>
+          }
+        />
       ) : null}
 
       {payload.kind === "peer" ? (

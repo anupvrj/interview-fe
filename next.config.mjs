@@ -9,6 +9,7 @@ const nextConfig = {
   turbopack: {
     root: projectRoot,
   },
+  serverExternalPackages: ["@mediapipe/tasks-vision"],
   images: {
     domains: ["img.clerk.com"],
     remotePatterns: [

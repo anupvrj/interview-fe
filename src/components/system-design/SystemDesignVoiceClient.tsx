@@ -16,6 +16,10 @@ import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { pickRandomPersona } from "@/lib/aiPersonas";
 import type { AIInterviewerPersona } from "@/lib/aiPersonas";
+import { useTurnTelemetry } from "@/hooks/integrity/useTurnTelemetry";
+import { useIntegrityConfig } from "@/hooks/useIntegrityConfig";
+import type { IntegrityEvent } from "@/lib/integrity/types";
+import type { IntegrityWsSender } from "@/lib/integrity/IntegrityTelemetryClient";
 
 const TARGET_SAMPLE_RATE = 24000;
 const GEMINI_MIC_FRAME_SAMPLES_24K = 720;
@@ -67,6 +71,9 @@ type Props = {
   disabledHint?: string;
   /** Backend force-ended the interview (e.g. candidate inactivity) — parent finalizes + navigates. */
   onForceEnd?: (reason: string) => void;
+  integrityEmit?: (event: IntegrityEvent) => void;
+  integrityBindWs?: (send: IntegrityWsSender | null) => void;
+  aiSpeakingRef?: MutableRefObject<boolean>;
 };
 
 export const SystemDesignVoiceClient = forwardRef<
@@ -84,6 +91,9 @@ export const SystemDesignVoiceClient = forwardRef<
     autoStartVoice = false,
     disabledHint,
     onForceEnd,
+    integrityEmit,
+    integrityBindWs,
+    aiSpeakingRef,
   }: Props,
   ref,
 ) {
@@ -97,9 +107,24 @@ export const SystemDesignVoiceClient = forwardRef<
   const [preparing, setPreparing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [aiSpeaking, setAiSpeaking] = useState(false);
+  if (aiSpeakingRef) aiSpeakingRef.current = aiSpeaking;
   const [statusLine, setStatusLine] = useState<string | null>(null);
   /** Spinner on Start New Session until mic + greeting are live */
   const [startupInFlight, setStartupInFlight] = useState(false);
+  const integrityTurnIdRef = useRef(0);
+  const integrityCfg = useIntegrityConfig();
+  const turnTelemetry = useTurnTelemetry({
+    enabled:
+      voiceActive &&
+      Boolean(integrityEmit) &&
+      integrityCfg.live &&
+      integrityCfg.turnLatency,
+    onEvent: integrityEmit ?? (() => undefined),
+  });
+  const notifyDrainedRef = useRef(turnTelemetry.notifyPlaybackDrained);
+  const onUserSpeechRef = useRef(turnTelemetry.onUserSpeechStarted);
+  notifyDrainedRef.current = turnTelemetry.notifyPlaybackDrained;
+  onUserSpeechRef.current = turnTelemetry.onUserSpeechStarted;
 
   const wsRef = useRef<WebSocket | null>(null);
   /** Resolves pending `flushAndDisconnect` when server sends session_ended or socket closes. */
@@ -200,6 +225,7 @@ export const SystemDesignVoiceClient = forwardRef<
       playingRef.current = false;
       aiSpeakingForVadRef.current = false;
       vadResetRef.current?.();
+      notifyDrainedRef.current();
       return;
     }
     playingRef.current = true;
@@ -502,6 +528,7 @@ export const SystemDesignVoiceClient = forwardRef<
 
     const emitSpeechOnsetActivity = () => {
       const now = Date.now();
+      onUserSpeechRef.current();
       if (now - lastActivitySentRef.current < ACTIVITY_SIGNAL_THROTTLE_MS) return;
       lastActivitySentRef.current = now;
       sendLivenessSignal("user_activity");
@@ -740,6 +767,11 @@ export const SystemDesignVoiceClient = forwardRef<
     try {
       const ws = new WebSocket(wsUrl);
       wsRef.current = ws;
+      integrityBindWs?.((payload) => {
+        if (ws.readyState !== WebSocket.OPEN) return false;
+        ws.send(JSON.stringify(payload));
+        return true;
+      });
 
       ws.onopen = () => startHeartbeat();
 
@@ -779,14 +811,18 @@ export const SystemDesignVoiceClient = forwardRef<
               setStatusLine(null);
             }
           } else if (data.type === "turn_complete") {
+            integrityTurnIdRef.current += 1;
+            turnTelemetry.notifyTurnComplete(`sd${integrityTurnIdRef.current}`);
             if (!playingRef.current) {
               aiSpeakingForVadRef.current = false;
               vadResetRef.current?.();
+              notifyDrainedRef.current();
             }
             setAiSpeaking(false);
             setPreparing(false);
             setStatusLine(null);
           } else if (data.type === "interrupted") {
+            turnTelemetry.notifyBargeIn();
             stopAiPlaybackRef.current?.();
             vadResetRef.current?.();
             setPreparing(false);

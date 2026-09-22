@@ -43,8 +43,10 @@ import {
   ChevronLeft,
   ChevronRight,
   Sparkles,
+  ShieldCheck,
 } from "lucide-react";
 import { userApi, adminApi, User } from "@/lib/api";
+import { biometricApi, type BiometricCredential } from "@/lib/biometric/api";
 import { cn, formatDate, parseQuestionLines, toDatetimeLocalValue } from "@/lib/utils";
 import {
   InstituteEmptyState,
@@ -111,6 +113,7 @@ export default function InstituteCandidatesPage() {
   const params = useParams();
   const institutionId = params.institutionId as string;
   const [profile, setProfile] = useState<any>(null);
+  const [showIdentityColumn, setShowIdentityColumn] = useState(false);
   const [users, setUsers] = useState<User[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -142,6 +145,11 @@ export default function InstituteCandidatesPage() {
   const [scheduleJobDescription, setScheduleJobDescription] = useState("");
   const [scheduleSubmitting, setScheduleSubmitting] = useState(false);
 
+  const [reviewUser, setReviewUser] = useState<User | null>(null);
+  const [reviewCred, setReviewCred] = useState<BiometricCredential | null>(null);
+  const [reviewNote, setReviewNote] = useState("");
+  const [reviewBusy, setReviewBusy] = useState(false);
+
   useEffect(() => {
     if (isLoaded && user) {
       localStorage.setItem("clerk-user-id", user.id);
@@ -166,6 +174,22 @@ export default function InstituteCandidatesPage() {
       setProfile(p);
       if (p.accessRole !== "institution_admin" && p.accessRole !== "super_admin") {
         router.replace("/dashboard");
+        return;
+      }
+      if (p.accessRole === "institution_admin") {
+        setShowIdentityColumn(Boolean(p.institutionFlags?.biometricVerification));
+      } else {
+        try {
+          const institutions = await adminApi.listInstitutions();
+          const inst = institutions.find(
+            (item: { _id?: string }) => String(item._id) === String(institutionId),
+          );
+          setShowIdentityColumn(
+            Boolean(inst?.platformFlags?.biometricVerification),
+          );
+        } catch {
+          setShowIdentityColumn(false);
+        }
       }
     } catch {
       router.replace("/dashboard");
@@ -534,6 +558,9 @@ export default function InstituteCandidatesPage() {
                       <TableHead className="align-middle font-semibold text-foreground">Plan</TableHead>
                       <TableHead className="align-middle font-semibold text-foreground">Credits</TableHead>
                       <TableHead className="align-middle font-semibold text-foreground">Joined</TableHead>
+                      {showIdentityColumn ? (
+                      <TableHead className="align-middle font-semibold text-foreground">Identity</TableHead>
+                      ) : null}
                       <TableHead className="w-[272px] min-w-[272px] pr-6 text-right align-middle font-semibold text-foreground">
                         Actions
                       </TableHead>
@@ -585,6 +612,34 @@ export default function InstituteCandidatesPage() {
                           <TableCell className="align-middle text-sm text-muted-foreground whitespace-nowrap">
                             {formatDate(u.createdAt)}
                           </TableCell>
+                          {showIdentityColumn ? (
+                          <TableCell className="align-middle">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className={cn(instituteSecondaryClass, "h-8 gap-1")}
+                              onClick={async () => {
+                                setReviewUser(u);
+                                setReviewNote("");
+                                setReviewCred(null);
+                                try {
+                                  const cred = await biometricApi.getInstitutionCredential(
+                                    institutionId,
+                                    u.clerkId,
+                                  );
+                                  setReviewCred(cred);
+                                } catch {
+                                  setReviewCred(null);
+                                }
+                              }}
+                            >
+                              <ShieldCheck className="h-3.5 w-3.5" />
+                              {u.biometricStatus
+                                ? String(u.biometricStatus).replaceAll("_", " ")
+                                : "None"}
+                            </Button>
+                          </TableCell>
+                          ) : null}
                           <TableCell className="w-[272px] min-w-[272px] pr-6 align-middle">
                             <div className="flex flex-nowrap items-center justify-end gap-1">
                               <Button
@@ -925,6 +980,97 @@ export default function InstituteCandidatesPage() {
               ) : (
                 "Save"
               )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!reviewUser} onOpenChange={(open) => !open && setReviewUser(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Identity review</DialogTitle>
+            <DialogDescription>
+              {reviewUser?.name || reviewUser?.email} — play the 15s clip and ID, then
+              approve or reject.
+            </DialogDescription>
+          </DialogHeader>
+          {reviewCred ? (
+            <div className="space-y-3">
+              <video
+                src={reviewCred.videoUrl}
+                controls
+                className="w-full rounded-lg bg-black"
+              />
+              {reviewCred.idCardUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={reviewCred.idCardUrl}
+                  alt="ID card"
+                  className="max-h-48 rounded-lg border object-contain"
+                />
+              ) : (
+                <p className="text-sm text-muted-foreground">No ID card uploaded.</p>
+              )}
+              <p className="text-sm capitalize text-muted-foreground">
+                Status: {reviewCred.status.replaceAll("_", " ")}
+              </p>
+              <Textarea
+                value={reviewNote}
+                onChange={(e) => setReviewNote(e.target.value)}
+                placeholder="Review note (optional)"
+              />
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              No credential uploaded yet.
+            </p>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setReviewUser(null)}>
+              Close
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={!reviewCred || reviewBusy}
+              onClick={async () => {
+                if (!reviewUser) return;
+                setReviewBusy(true);
+                try {
+                  await biometricApi.reviewInstitutionCredential(
+                    institutionId,
+                    reviewUser.clerkId,
+                    "reject",
+                    reviewNote,
+                  );
+                  setReviewUser(null);
+                  await loadUsers();
+                } finally {
+                  setReviewBusy(false);
+                }
+              }}
+            >
+              Reject
+            </Button>
+            <Button
+              disabled={!reviewCred || reviewBusy}
+              onClick={async () => {
+                if (!reviewUser) return;
+                setReviewBusy(true);
+                try {
+                  await biometricApi.reviewInstitutionCredential(
+                    institutionId,
+                    reviewUser.clerkId,
+                    "approve",
+                    reviewNote,
+                  );
+                  setReviewUser(null);
+                  await loadUsers();
+                } finally {
+                  setReviewBusy(false);
+                }
+              }}
+            >
+              Approve
             </Button>
           </DialogFooter>
         </DialogContent>

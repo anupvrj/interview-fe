@@ -15,6 +15,7 @@ import {
   CalendarClock,
   IndianRupee,
   Ticket,
+  Shield,
   Share2,
 } from "lucide-react";
 import type { DashboardNavAccent, DashboardNavItem } from "@/lib/dashboard-nav";
@@ -102,6 +103,14 @@ export const SUPER_ADMIN_NAV_GROUPS: SuperAdminNavGroup[] = [
         accent: accent.violet,
         description:
           "Turn product surfaces on or off. Disabled is Super Admin only; Live is everyone.",
+      },
+      {
+        title: "Interview Integrity",
+        href: `${SUPER_ADMIN_HOME}/integrity`,
+        icon: Shield,
+        accent: accent.rose,
+        description:
+          "Anti-cheat modules, report visibility, and interviewer pushback for live sessions.",
       },
       {
         title: "Voice Models",
@@ -271,8 +280,7 @@ const NESTED_PAGES: NestedPageRule[] = [
   {
     pattern: /^\/super-admin\/users\/[^/]+\/?$/,
     title: "User",
-    description:
-      "Resumes, practice interviews, and coding practice sessions.",
+    description: "Resumes, practice interviews, and coding practice sessions.",
     crumb: "User",
   },
   {
@@ -333,14 +341,16 @@ const NESTED_PAGES: NestedPageRule[] = [
   {
     pattern: /^\/super-admin\/coupons\/[^/]+\/?$/,
     title: "Coupon redemptions",
-    description: "Users, plans, and first-month amounts for this discount code.",
+    description:
+      "Users, plans, and first-month amounts for this discount code.",
     crumb: "Redemptions",
   },
 ];
 
-export function matchSuperAdminNav(
-  pathname: string | null,
-): { group: string; item: DashboardNavItem } {
+export function matchSuperAdminNav(pathname: string | null): {
+  group: string;
+  item: DashboardNavItem;
+} {
   const path = pathname || SUPER_ADMIN_HOME;
   let matched: { group: string; item: DashboardNavItem } | null = null;
 
