@@ -24,6 +24,15 @@ interface PaginationOptions {
   resume: Resume | null;
   sections: any[];
   pageHeightLimit: number; // A4 content height per page (px)
+  /** Reduced height budget for page 2+ (e.g. Mercury 5mm continuation top gutter). */
+  continuationPageHeightLimit?: number;
+  /** Snap cuts to text line bounds when true (PaginatedPreview enables for all templates). */
+  snapPageBreaksToLineBounds?: boolean;
+  /**
+   * Single key encoding every input that affects layout: section order/visibility,
+   * resume content, typography, padding, template, column layout. A change schedules
+   * a remeasure. The returned `pagesKey` reports which key the current `pages` belong to.
+   */
   measureKey: string;
 }
 
@@ -68,6 +77,8 @@ export function useResumePagination({
   resume,
   sections,
   pageHeightLimit,
+  continuationPageHeightLimit,
+  snapPageBreaksToLineBounds = false,
   measureKey,
 }: PaginationOptions) {
   const measuringRef = useRef<HTMLDivElement>(null);
@@ -87,6 +98,10 @@ export function useResumePagination({
   sectionsRef.current = sections;
   const pageHeightLimitRef = useRef(pageHeightLimit);
   pageHeightLimitRef.current = pageHeightLimit;
+  const continuationPageHeightLimitRef = useRef(continuationPageHeightLimit);
+  continuationPageHeightLimitRef.current = continuationPageHeightLimit;
+  const snapRef = useRef(snapPageBreaksToLineBounds);
+  snapRef.current = snapPageBreaksToLineBounds;
   const measureKeyRef = useRef(measureKey);
   measureKeyRef.current = measureKey;
 
