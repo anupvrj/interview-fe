@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
+import { useActiveRole } from "@/components/roles/ActiveRoleProvider";
 import Link from "next/link";
 import { useDropzone } from "react-dropzone";
 import { Button } from "@/components/ui/button";
@@ -24,18 +25,12 @@ import {
   Check,
   Code2,
 } from "lucide-react";
-import {
-  codingInterviewApi,
-  paymentApi,
-  userApi,
-  User,
-  type Resume,
-} from "@/lib/api";
+import { codingInterviewApi, paymentApi } from "@/lib/api";
 import { useDashboardInvalidation } from "@/hooks/useDashboardInvalidation";
+import { useDefaultResumeQuery } from "@/hooks/queries/useDefaultResumeQuery";
 import {
   getActiveSavedResumeDisplay,
   hasActiveSavedResume,
-  loadDefaultDesignedResume,
 } from "@/lib/active-saved-resume";
 import {
   PDF_RESUME_MAX_BYTES,
@@ -185,48 +180,61 @@ function ResumeOptionCard({
 
 export default function NewCodingInterviewPage() {
   const { user, isLoaded } = useUser();
+  const roleCtx = useActiveRole();
+  const userProfile = roleCtx?.profile ?? null;
+  const profileReady = roleCtx?.ready ?? false;
   const router = useRouter();
   const { invalidate } = useDashboardInvalidation();
+  const { data: queriedDefaultResume, isFetched: defaultResumeFetched } =
+    useDefaultResumeQuery(
+      !userProfile?.resume?.s3Key &&
+        userProfile?.defaultDesignedResume === undefined,
+    );
+  const defaultDesignedResume =
+    userProfile?.defaultDesignedResume ?? queriedDefaultResume ?? null;
+  const savedResumeKnown = Boolean(
+    userProfile?.resume?.s3Key ||
+      userProfile?.defaultDesignedResume ||
+      userProfile?.defaultDesignedResume === null ||
+      defaultResumeFetched,
+  );
   const [loading, setLoading] = useState(false);
-  const [userProfile, setUserProfile] = useState<User | null>(null);
-  const [defaultDesignedResume, setDefaultDesignedResume] =
-    useState<Resume | null>(null);
   const [useSavedResume, setUseSavedResume] = useState(true);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [limitCheck, setLimitCheck] = useState<any>(null);
   const [checkingLimit, setCheckingLimit] = useState(true);
   const [currentStep, setCurrentStep] = useState(1);
-  const [formData, setFormData] = useState({
-    role: "",
-    experience: "0",
-    department: "",
-    discipline: "",
-    targetCompany: "",
+  const [formData, setFormData] = useState(() => {
+    const initial = {
+      role: "",
+      experience: "0",
+      department: "",
+      discipline: "",
+      targetCompany: "",
+    };
+    return userProfile
+      ? mergeInterviewFormDefaults(initial, userProfile)
+      : initial;
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [upgradeUpsellOpen, setUpgradeUpsellOpen] = useState(false);
   const [trialUpsellOpen, setTrialUpsellOpen] = useState(false);
   const { showTrialUpsell, data: entitlements } = useUpsellState();
 
-  const loadUserProfile = async () => {
-    if (!user) return;
-    try {
-      const [profile, designedDefault] = await Promise.all([
-        userApi.getMyProfile(),
-        loadDefaultDesignedResume(user.id),
-      ]);
-      setUserProfile(profile);
-      setDefaultDesignedResume(designedDefault);
-      setFormData((prev) => mergeInterviewFormDefaults(prev, profile));
-      if (hasActiveSavedResume(profile, designedDefault)) {
-        setUseSavedResume(true);
-      } else {
-        setUseSavedResume(false);
-      }
-    } catch (error) {
-      console.error("Error loading profile:", error);
-    }
-  };
+  const filledForm = useMemo(
+    () =>
+      userProfile
+        ? mergeInterviewFormDefaults(formData, userProfile)
+        : formData,
+    [formData, userProfile],
+  );
+
+  useEffect(() => {
+    if (!savedResumeKnown) return;
+    setUseSavedResume(
+      hasActiveSavedResume(userProfile, defaultDesignedResume),
+    );
+  }, [savedResumeKnown, userProfile, defaultDesignedResume]);
 
   const activeSavedResume = getActiveSavedResumeDisplay(
     userProfile,
@@ -275,7 +283,6 @@ export default function NewCodingInterviewPage() {
   useEffect(() => {
     if (isLoaded && user) {
       localStorage.setItem("clerk-user-id", user.id);
-      loadUserProfile();
       const urlParams = new URLSearchParams(window.location.search);
       if (urlParams.get("payment") === "success") {
         setTimeout(() => {
@@ -319,7 +326,7 @@ export default function NewCodingInterviewPage() {
   const validateStep = (step: number): boolean => {
     const newErrors: Record<string, string> = {};
 
-    if (step === 1 && !formData.role.trim()) {
+    if (step === 1 && !filledForm.role.trim()) {
       newErrors.role = "Role is required";
     }
 
@@ -357,7 +364,7 @@ export default function NewCodingInterviewPage() {
     }
 
     if (!validateStep(1) || !validateStep(3)) {
-      if (!formData.role.trim()) setCurrentStep(1);
+      if (!filledForm.role.trim()) setCurrentStep(1);
       else setCurrentStep(3);
       return;
     }
@@ -371,8 +378,8 @@ export default function NewCodingInterviewPage() {
     setLoading(true);
     try {
       const res = await codingInterviewApi.create(user.id, {
-        role: formData.role.trim(),
-        experience: Number.parseInt(formData.experience, 10) || 0,
+        role: filledForm.role.trim(),
+        experience: Number.parseInt(filledForm.experience, 10) || 0,
         language: "en",
         department: formData.department
           ? (formData.department as
@@ -394,7 +401,7 @@ export default function NewCodingInterviewPage() {
               | "bba"
               | "none")
           : undefined,
-        targetCompany: formData.targetCompany.trim() || undefined,
+        targetCompany: filledForm.targetCompany.trim() || undefined,
         resume: useSavedResume ? undefined : uploadedFile || undefined,
         useSavedResume:
           useSavedResume && savedResumeAvailable ? true : undefined,
@@ -405,9 +412,14 @@ export default function NewCodingInterviewPage() {
       );
     } catch (err: unknown) {
       console.error("Error creating coding session:", err);
+      const data = (err as { response?: { data?: { code?: string; message?: string } } })
+        ?.response?.data;
+      if (data?.code === "BIOMETRIC_REQUIRED") {
+        router.push("/dashboard/identity-verification");
+        return;
+      }
       const errorMessage =
-        (err as { response?: { data?: { message?: string } } })?.response?.data
-          ?.message || "Failed to create coding session. Please try again.";
+        data?.message || "Failed to create coding session. Please try again.";
       if (
         typeof errorMessage === "string" &&
         (errorMessage.includes("limit") || errorMessage.includes("upgrade"))
@@ -497,7 +509,7 @@ export default function NewCodingInterviewPage() {
                 <JobRoleSelect
                   id="role"
                   className="w-full"
-                  value={formData.role}
+                  value={filledForm.role}
                   onChange={(value) =>
                     setFormData({ ...formData, role: value })
                   }
@@ -520,7 +532,7 @@ export default function NewCodingInterviewPage() {
                 <Input
                   id="targetCompany"
                   placeholder="e.g. Amazon, Google, TCS"
-                  value={formData.targetCompany}
+                  value={filledForm.targetCompany}
                   onChange={(e) =>
                     setFormData({
                       ...formData,
@@ -538,7 +550,7 @@ export default function NewCodingInterviewPage() {
               <FormField label="Years of experience" htmlFor="experience">
                 <AppSelect
                   id="experience"
-                  value={formData.experience}
+                  value={filledForm.experience}
                   onChange={(value) =>
                     setFormData({ ...formData, experience: value })
                   }
@@ -603,6 +615,11 @@ export default function NewCodingInterviewPage() {
                   icon={FileText}
                   title={activeSavedResume.title}
                   subtitle={activeSavedResume.subtitle}
+                />
+              ) : !savedResumeKnown ? (
+                <div
+                  className="h-[4.5rem] animate-pulse rounded-xl border border-border/60 bg-muted/20"
+                  aria-hidden
                 />
               ) : null}
 
@@ -761,7 +778,7 @@ export default function NewCodingInterviewPage() {
         </Button>
       </div>
 
-      {checkingLimit ? (
+      {checkingLimit || !profileReady ? (
         <div
           className={cn(
             appCard,
@@ -770,7 +787,7 @@ export default function NewCodingInterviewPage() {
         >
           <Loader2 className="h-5 w-5 animate-spin text-[#7367F0]" />
           <p className="text-sm font-medium text-muted-foreground">
-            Checking your credits…
+            {checkingLimit ? "Checking your credits…" : "Loading your profile…"}
           </p>
         </div>
       ) : limitCheck && !limitCheck.allowed ? (
@@ -917,7 +934,9 @@ export default function NewCodingInterviewPage() {
         </div>
       ) : null}
 
-      {!checkingLimit && limitCheck?.allowed ? codingForm : null}
+      {!checkingLimit && profileReady && limitCheck?.allowed
+        ? codingForm
+        : null}
 
       <TrialUpsellDialog
         open={trialUpsellOpen}

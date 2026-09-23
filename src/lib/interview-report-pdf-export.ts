@@ -4,6 +4,7 @@
  */
 
 import { interviewApi, type Interview, type InterviewReport } from "@/lib/api";
+import { resolveIntegrityStatus } from "@/lib/integrity/resolveIntegrityStatus";
 import { buildOverallExperienceParagraph } from "@/lib/interview-report-overall-experience";
 import { sessionAverageScore } from "@/lib/interview-report-session-scores";
 import { formatDate } from "@/lib/utils";
@@ -358,6 +359,42 @@ export function buildInterviewReportPdfHtml(
           .join("")}`
       : "";
 
+  const integrityStatus = resolveIntegrityStatus(report.integrityReport);
+  const integrityHtml =
+    integrityStatus === "missing"
+      ? `<h2 class="ir-section-title">Session integrity</h2>
+  <div class="ir-card" style="border-color:#fcd34d;background:#fffbeb;">
+    <div class="ir-card-b">
+      <strong style="color:#b45309;">Integrity score missing</strong>
+      <p style="margin:6px 0 0;font-size:9.5pt;color:#92400e;">No identity credential was on file, so biometric matching did not run for this session.</p>
+    </div>
+  </div>`
+      : integrityStatus === "processing"
+        ? `<h2 class="ir-section-title">Session integrity</h2>
+  <div class="ir-card" style="border-color:#bae6fd;background:#f0f9ff;">
+    <div class="ir-card-b">
+      <strong style="color:#0369a1;">Integrity processing</strong>
+      <p style="margin:6px 0 0;font-size:9.5pt;color:#075985;">Identity matching is still running. Refresh this report in a minute.</p>
+    </div>
+  </div>`
+      : integrityStatus === "skipped"
+        ? `<h2 class="ir-section-title">Session integrity</h2>
+  <div class="ir-card" style="border-color:#cbd5e1;background:#f8fafc;">
+    <div class="ir-card-b">
+      <strong style="color:#334155;">Integrity score skipped</strong>
+      <p style="margin:6px 0 0;font-size:9.5pt;color:#475569;">Face and voice matching did not run for this session, so there is no integrity score.</p>
+    </div>
+  </div>`
+      : report.integrityReport
+        ? `<h2 class="ir-section-title">Session integrity</h2>
+  <div class="ir-card"><div class="ir-card-b">
+    <p style="margin:0;font-size:10.5pt;color:#334155;">Integrity score:
+      <strong>${report.integrityReport.score}</strong> / 100
+      <span style="color:#64748b;font-size:9pt;"> (separate from skill score)</span>
+    </p>
+  </div></div>`
+        : "";
+
   const reportH1 =
     interview.metadata.interviewKind === "coding_practice"
       ? "Practice coding round report"
@@ -410,6 +447,8 @@ export function buildInterviewReportPdfHtml(
   ${isCodingRoundLayout ? qaSectionHtml : ""}
 
   ${overallPerformanceAndCategoryHtml}
+
+  ${integrityHtml}
 
   <h2 class="ir-section-title">Strengths &amp; improvements</h2>
   <div class="ir-two-col">

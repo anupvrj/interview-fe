@@ -28,6 +28,7 @@ import { Label } from "@/components/ui/label";
 import { AppSelect } from "@/components/ui/app-select";
 import { IndustryRoleFields } from "@/components/career/IndustryRoleFields";
 import { CandidateStatusBadge } from "@/components/recruiter/RecruiterStatusBadges";
+import { Badge } from "@/components/ui/badge";
 import { IxScoreFilterSlider } from "@/components/recruiter/IxScoreFilterSlider";
 import { ProfileSkillsEditor, profileSkillsDialogOutsideHandlers } from "@/components/profile/ProfileSkillsEditor";
 import {
@@ -56,9 +57,13 @@ type TalentFilters = {
   industry: string;
   skills: string[];
   minIxScore: number;
+  integrityStatus: "" | "missing" | "scored" | "processing" | "skipped";
 };
 
-type ExtraTalentFilters = Pick<TalentFilters, "skills" | "minIxScore">;
+type ExtraTalentFilters = Pick<
+  TalentFilters,
+  "skills" | "minIxScore" | "integrityStatus"
+>;
 
 const EMPTY_FILTERS: TalentFilters = {
   q: "",
@@ -67,11 +72,13 @@ const EMPTY_FILTERS: TalentFilters = {
   industry: "",
   skills: [],
   minIxScore: 0,
+  integrityStatus: "",
 };
 
 const EMPTY_EXTRA_FILTERS: ExtraTalentFilters = {
   skills: [],
   minIxScore: 0,
+  integrityStatus: "",
 };
 
 function formatSkillsParam(skills: string[]): string | undefined {
@@ -235,6 +242,28 @@ function TalentExtraFilterFields({
         onChange={(minIxScore) => onChange({ minIxScore })}
         className="w-full"
       />
+      <div className="flex flex-col gap-1.5">
+        <Label className="text-xs font-medium text-muted-foreground">
+          Session integrity
+        </Label>
+        <AppSelect
+          value={values.integrityStatus}
+          onChange={(integrityStatus) =>
+            onChange({
+              integrityStatus: integrityStatus as ExtraTalentFilters["integrityStatus"],
+            })
+          }
+          allowEmpty
+          emptyLabel="Any"
+          options={[
+            { value: "missing", label: "No integrity score" },
+            { value: "skipped", label: "Integrity skipped" },
+            { value: "scored", label: "Integrity scored" },
+            { value: "processing", label: "Integrity processing" },
+          ]}
+          className="h-11"
+        />
+      </div>
     </>
   );
 }
@@ -280,6 +309,9 @@ export default function HireTalentPage() {
   const [industry, setIndustry] = useState("");
   const [skills, setSkills] = useState<string[]>([]);
   const [minIxScore, setMinIxScore] = useState(0);
+  const [integrityStatus, setIntegrityStatus] = useState<
+    ExtraTalentFilters["integrityStatus"]
+  >("");
   const [searchOpen, setSearchOpen] = useState(false);
   const [extraFiltersOpen, setExtraFiltersOpen] = useState(false);
   const [draftFilters, setDraftFilters] = useState<TalentFilters>(EMPTY_FILTERS);
@@ -293,11 +325,13 @@ export default function HireTalentPage() {
     industry,
     skills,
     minIxScore,
+    integrityStatus,
   });
 
   const currentExtraFilters = (): ExtraTalentFilters => ({
     skills,
     minIxScore,
+    integrityStatus,
   });
 
   const applyFilterState = (filters: TalentFilters) => {
@@ -307,11 +341,13 @@ export default function HireTalentPage() {
     setIndustry(filters.industry);
     setSkills(filters.skills);
     setMinIxScore(filters.minIxScore);
+    setIntegrityStatus(filters.integrityStatus);
   };
 
   const applyExtraFilterState = (filters: ExtraTalentFilters) => {
     setSkills(filters.skills);
     setMinIxScore(filters.minIxScore);
+    setIntegrityStatus(filters.integrityStatus);
   };
 
   const updateDraftFilters = (patch: Partial<TalentFilters>) => {
@@ -331,6 +367,7 @@ export default function HireTalentPage() {
         industry: override?.industry ?? industry,
         skills: override?.skills ?? skills,
         minIxScore: override?.minIxScore ?? minIxScore,
+        integrityStatus: override?.integrityStatus ?? integrityStatus,
       };
       setLoading(true);
       try {
@@ -343,6 +380,7 @@ export default function HireTalentPage() {
           industry: filters.industry.trim() || undefined,
           skills: formatSkillsParam(filters.skills),
           minIxScore: filters.minIxScore > 0 ? filters.minIxScore : undefined,
+          integrityStatus: filters.integrityStatus || undefined,
         });
         setData(res);
       } catch (e: any) {
@@ -351,7 +389,7 @@ export default function HireTalentPage() {
         setLoading(false);
       }
     },
-    [q, candidateStatus, role, industry, skills, minIxScore],
+    [q, candidateStatus, role, industry, skills, minIxScore, integrityStatus],
   );
 
   useEffect(() => {
@@ -406,11 +444,15 @@ export default function HireTalentPage() {
   const hasActivePrimaryFilters = Boolean(
     candidateStatus || role.trim() || industry.trim(),
   );
-  const hasActiveExtraFilters = Boolean(skills.length > 0 || minIxScore > 0);
+  const hasActiveExtraFilters = Boolean(
+    skills.length > 0 || minIxScore > 0 || integrityStatus,
+  );
   const hasAnyActive =
     hasActiveSearch || hasActivePrimaryFilters || hasActiveExtraFilters;
   const extraFilterCount =
-    (skills.length > 0 ? 1 : 0) + (minIxScore > 0 ? 1 : 0);
+    (skills.length > 0 ? 1 : 0) +
+    (minIxScore > 0 ? 1 : 0) +
+    (integrityStatus ? 1 : 0);
 
   const downloadResume = async (clerkId: string) => {
     setDownloading(clerkId);
@@ -606,6 +648,7 @@ export default function HireTalentPage() {
                     ...EMPTY_FILTERS,
                     skills,
                     minIxScore,
+                    integrityStatus,
                   };
                   setDraftFilters(next);
                   applyFilterState(next);
@@ -645,8 +688,8 @@ export default function HireTalentPage() {
               More filters
             </DialogTitle>
             <DialogDescription className="text-left text-xs leading-relaxed">
-              Filter by skills and minimum iX Score, then apply to update
-              results.
+              Filter by skills, minimum iX Score, and session integrity, then
+              apply to update results.
             </DialogDescription>
           </DialogHeader>
 
@@ -661,7 +704,8 @@ export default function HireTalentPage() {
           <DialogFooter className="flex-col-reverse gap-2 border-t border-border/60 px-4 py-4 sm:flex-row sm:justify-end sm:px-5">
             {hasActiveExtraFilters ||
             draftExtraFilters.skills.length > 0 ||
-            draftExtraFilters.minIxScore > 0 ? (
+            draftExtraFilters.minIxScore > 0 ||
+            draftExtraFilters.integrityStatus ? (
               <Button
                 type="button"
                 variant="ghost"
@@ -729,6 +773,28 @@ export default function HireTalentPage() {
                         <div className="text-xs text-muted-foreground">
                           {c.email}
                         </div>
+                        {c.integrityStatus === "missing" ? (
+                          <Badge
+                            variant="outline"
+                            className="mt-1 border-amber-500/40 bg-amber-500/10 text-amber-800"
+                          >
+                            No integrity
+                          </Badge>
+                        ) : c.integrityStatus === "skipped" ? (
+                          <Badge
+                            variant="outline"
+                            className="mt-1 border-slate-400/40 bg-slate-500/10 text-slate-700"
+                          >
+                            Integrity skipped
+                          </Badge>
+                        ) : c.integrityStatus === "processing" ? (
+                          <Badge
+                            variant="outline"
+                            className="mt-1 border-sky-500/40 bg-sky-500/10 text-sky-800"
+                          >
+                            Integrity processing
+                          </Badge>
+                        ) : null}
                       </td>
                       <td className="min-w-[9rem] whitespace-normal break-words px-5 py-3.5 text-muted-foreground">
                         {c.role || "—"}

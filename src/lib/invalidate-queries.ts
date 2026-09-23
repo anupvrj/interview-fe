@@ -78,9 +78,14 @@ export function invalidateInterviewSchedules(
 }
 
 export function invalidateResumes(queryClient: QueryClient, userId: string) {
-  return queryClient.invalidateQueries({
-    queryKey: queryKeys.resumes(userId),
-  });
+  return Promise.all([
+    queryClient.invalidateQueries({
+      queryKey: queryKeys.resumes(userId),
+    }),
+    queryClient.invalidateQueries({
+      queryKey: queryKeys.defaultResume(userId),
+    }),
+  ]);
 }
 
 export function invalidateCodingInterviews(

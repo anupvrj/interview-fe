@@ -21,6 +21,7 @@ import {
   ClipboardList,
   Award,
   Plug,
+  Shield,
   Share2,
 } from "lucide-react";
 import type { AccessRole, User as ApiUser } from "@/lib/api";
@@ -40,6 +41,7 @@ export type DashboardNavItem = {
   locked?: boolean;
   featureKey?: string;
   description?: string;
+  badge?: string;
 };
 
 const accent = {
@@ -182,6 +184,12 @@ const baseMenuItems: DashboardNavItem[] = [
     href: "/dashboard/profile",
     icon: User,
     accent: accent.slate,
+  },
+  {
+    title: "Identity",
+    href: "/dashboard/identity-verification",
+    icon: Shield,
+    accent: accent.cyan,
   },
   {
     title: "AI Connectors",

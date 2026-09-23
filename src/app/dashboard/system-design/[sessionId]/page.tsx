@@ -53,6 +53,12 @@ import {
 } from "@/hooks/useHorizontalPaneResize";
 import { useMediaMinWidth } from "@/hooks/useMediaMinWidth";
 import { useSystemDesignSessionRecording } from "@/hooks/useSystemDesignSessionRecording";
+import { useIntegritySession } from "@/hooks/integrity/useIntegritySession";
+import { useTabFocusTelemetry } from "@/hooks/integrity/useTabFocusTelemetry";
+import { useFacePresence } from "@/hooks/integrity/useFacePresence";
+import { useBiometricSnapshots } from "@/hooks/integrity/useBiometricSnapshots";
+import { useVoiceprintMonitor } from "@/hooks/integrity/useVoiceprintMonitor";
+import { useIntegrityConfig } from "@/hooks/useIntegrityConfig";
 import { useWorkspaceRowWidth } from "@/hooks/useWorkspaceRowWidth";
 
 // Dynamically import Excalidraw (no SSR)
@@ -222,6 +228,11 @@ export default function SystemDesignSessionPage() {
   const [leavePageConfirmOpen, setLeavePageConfirmOpen] = useState(false);
   const [recordingStarting, setRecordingStarting] = useState(false);
   const [preStartLeaveOpen, setPreStartLeaveOpen] = useState(false);
+  const [biometricMatching, setBiometricMatching] = useState(false);
+  const [displayPickerOpen, setDisplayPickerOpen] = useState(false);
+  const [faceVideoEl, setFaceVideoEl] = useState<HTMLVideoElement | null>(null);
+  const aiSpeakingRef = useRef(false);
+  const micMutedRef = useRef(false);
 
   const exportFnRef = useRef<(() => Promise<string | null>) | null>(null);
   const voiceDiagramBridgeRef = useRef<SystemDesignVoiceDiagramBridge | null>(
@@ -257,9 +268,79 @@ export default function SystemDesignSessionPage() {
   const timer = useInterviewElapsed(voiceDiagramReady, loading, finalized);
 
   const recordingStarted = Boolean(session?.recordingPhaseStartedAt);
+  const integrityCfg = useIntegrityConfig();
+  const integrityEnabled =
+    recordingStarted && !finalized && integrityCfg.live;
+  const integrity = useIntegritySession(
+    "system_design",
+    sessionId,
+    integrityEnabled,
+  );
+  const tabFocus = useTabFocusTelemetry({
+    enabled: integrityEnabled && integrityCfg.tabBlur,
+    displayPickerOpen,
+    dialogOpen:
+      endInterviewConfirmOpen ||
+      leavePageConfirmOpen ||
+      preStartLeaveOpen,
+    onEvent: (e) => integrity.emit(e),
+  });
+  useFacePresence({
+    enabled:
+      integrityEnabled &&
+      cameraReady &&
+      (integrityCfg.facePresence ||
+        integrityCfg.camera ||
+        integrityCfg.liveSpeech),
+    videoEl: faceVideoEl,
+    kind: "system_design",
+    sessionId,
+    onEvent: (e) => integrity.emit(e),
+    aiSpeakingRef,
+    micMutedRef,
+    emitFace: integrityCfg.facePresence,
+    emitCamera: integrityCfg.camera,
+    emitSpeech: integrityCfg.liveSpeech,
+  });
+  useBiometricSnapshots({
+    enabled:
+      integrityEnabled &&
+      cameraReady &&
+      biometricMatching &&
+      integrityCfg.faceIdentity,
+    kind: "system_design",
+    sessionId,
+    stream: cameraReady ? mediaStreamRef.current : null,
+    aiSpeakingRef,
+    micMutedRef,
+  });
+  useVoiceprintMonitor({
+    enabled:
+      integrityEnabled &&
+      cameraReady &&
+      biometricMatching &&
+      integrityCfg.voiceprint,
+    kind: "system_design",
+    sessionId,
+    stream: cameraReady ? mediaStreamRef.current : null,
+    aiSpeakingRef,
+    micMutedRef,
+  });
+  useEffect(() => {
+    void import("@/lib/biometric/api").then(({ biometricApi }) =>
+      biometricApi
+        .getMine()
+        .then((cred) => setBiometricMatching(Boolean(cred?.usable)))
+        .catch(() => setBiometricMatching(false)),
+    );
+  }, []);
+  useEffect(() => {
+    setFaceVideoEl(videoRef.current);
+  }, [cameraReady, recordingStarted]);
 
   /** Camera/recording microphone (shared stream for Gemini Live — mute toggles audio track.enabled). */
   const [recordingMicOn, setRecordingMicOn] = useState(true);
+  micMutedRef.current = !recordingMicOn;
 
   const toggleRecordingMic = useCallback(() => {
     const stream = mediaStreamRef.current;
@@ -370,7 +451,9 @@ export default function SystemDesignSessionPage() {
 
   const handleRestoreScreenRecording = useCallback(async () => {
     if (finalized || recordingStarting || isRecording) return;
+    tabFocus.setDisplayPickerOpen(true);
     const cam = await acquireCameraAndMic();
+    tabFocus.setDisplayPickerOpen(false);
     if (!cam.ok) {
       toast.error(cam.message);
       return;
@@ -378,10 +461,16 @@ export default function SystemDesignSessionPage() {
 
     let screen: MediaStream | null = null;
     try {
+      tabFocus.setDisplayPickerOpen(true);
+      setDisplayPickerOpen(true);
       screen = await navigator.mediaDevices.getDisplayMedia(
         SCREEN_RECORD_DISPLAY_OPTIONS,
       );
+      setDisplayPickerOpen(false);
+      tabFocus.setDisplayPickerOpen(false);
     } catch (e: unknown) {
+      setDisplayPickerOpen(false);
+      tabFocus.setDisplayPickerOpen(false);
       const name =
         e && typeof e === "object" && "name" in e
           ? String((e as Error).name)
@@ -416,13 +505,16 @@ export default function SystemDesignSessionPage() {
     finalized,
     isRecording,
     recordingStarting,
+    tabFocus,
   ]);
 
   const handleStartPracticeSession = useCallback(async () => {
     if (recordingStarting || isRecording || recordingStarted) return;
     setRecordingStarting(true);
     try {
+      tabFocus.setDisplayPickerOpen(true);
       const cam = await acquireCameraAndMic();
+      tabFocus.setDisplayPickerOpen(false);
       if (!cam.ok) {
         toast.error(cam.message);
         return;
@@ -430,10 +522,16 @@ export default function SystemDesignSessionPage() {
 
       let screen: MediaStream | null = null;
       try {
+        tabFocus.setDisplayPickerOpen(true);
+        setDisplayPickerOpen(true);
         screen = await navigator.mediaDevices.getDisplayMedia(
           SCREEN_RECORD_DISPLAY_OPTIONS,
         );
+        setDisplayPickerOpen(false);
+        tabFocus.setDisplayPickerOpen(false);
       } catch (e: unknown) {
+        setDisplayPickerOpen(false);
+        tabFocus.setDisplayPickerOpen(false);
         const name =
           e && typeof e === "object" && "name" in e
             ? String((e as Error).name)
@@ -473,6 +571,7 @@ export default function SystemDesignSessionPage() {
     recordingStarting,
     recordingStarted,
     sessionId,
+    tabFocus,
   ]);
 
   const performFinalize = useCallback(async () => {
@@ -865,6 +964,9 @@ export default function SystemDesignSessionPage() {
                     <SystemDesignVoiceClient
                       ref={voiceSessionRef}
                       sessionId={sessionId}
+                      integrityEmit={integrity.emit}
+                      integrityBindWs={integrity.bindWs}
+                      aiSpeakingRef={aiSpeakingRef}
                       disabled={Boolean(finalized || !recordingStarted)}
                       autoStartVoice={recordingStarted && !finalized}
                       disabledHint={
@@ -1255,6 +1357,7 @@ export default function SystemDesignSessionPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
     </div>
   );
 }
