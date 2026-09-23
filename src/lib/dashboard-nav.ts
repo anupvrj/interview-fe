@@ -22,6 +22,7 @@ import {
   Award,
   Plug,
   Shield,
+  Share2,
 } from "lucide-react";
 import type { AccessRole, User as ApiUser } from "@/lib/api";
 import { isPathAllowedForRole, type ActiveRole } from "@/lib/roles";
@@ -171,6 +172,12 @@ const baseMenuItems: DashboardNavItem[] = [
     href: "/dashboard/plan",
     icon: Crown,
     accent: accent.orange,
+  },
+  {
+    title: "Affiliate",
+    href: "/dashboard/affiliate",
+    icon: Share2,
+    accent: accent.violet,
   },
   {
     title: "My Profile",

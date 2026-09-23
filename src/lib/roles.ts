@@ -194,7 +194,9 @@ export function isPathAllowedForRole(
   if (
     pathname === "/dashboard/profile" ||
     pathname.startsWith("/dashboard/profile/") ||
-    pathname === "/dashboard/identity-verification"
+    pathname === "/dashboard/identity-verification" ||
+    pathname === "/dashboard/affiliate" ||
+    pathname.startsWith("/dashboard/affiliate/")
   ) {
     return true;
   }
