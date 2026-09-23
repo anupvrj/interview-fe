@@ -12,6 +12,7 @@ import {
 } from "@/lib/post-sign-in-redirect";
 import { trimJobDescriptionForSend } from "@/lib/job-description-limits";
 import type { ApplicationProfile } from "@/lib/application-profile";
+import type { VoiceProvider } from "@/lib/voiceProviders";
 import type {
   JobTrackerBoardResponse,
   JobTrackerDetail,
@@ -376,7 +377,7 @@ export interface Interview {
     /** When true (e.g. institute admin), denying screen capture may block the session. */
     requireSessionRecording?: boolean;
     /** Voice AI provider selected at interview creation. */
-    voiceProvider?: "gemini" | "chatgpt" | "sarvam";
+    voiceProvider?: VoiceProvider;
     integrityTelemetry?: boolean;
   };
   codingRound?: {
@@ -545,7 +546,7 @@ export interface CreateInterviewRequest {
   /** Job posting description from Chrome extension (or pasted) for JD-grounded questions. */
   jobDescription?: string;
   /** Voice AI provider for the realtime interview session. */
-  voiceProvider?: "gemini" | "chatgpt" | "sarvam";
+  voiceProvider?: VoiceProvider;
   /** Job tracker application this practice interview belongs to. */
   jobApplicationId?: string;
 }
