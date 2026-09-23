@@ -68,6 +68,7 @@ import { VoiceProviderSelect } from "@/components/interview/VoiceProviderSelect"
 import {
   DEFAULT_VOICE_PROVIDER_OPTIONS,
   resolveVoiceProviderForDuration,
+  type VoiceProvider,
   type VoiceProviderOption,
 } from "@/lib/voiceProviders";
 
@@ -270,7 +271,7 @@ export default function NewInterviewPage() {
       department: "",
       targetCompany: "",
       duration: "15",
-      voiceProvider: "sarvam" as "gemini" | "chatgpt" | "sarvam",
+      voiceProvider: "sarvam" as VoiceProvider,
     };
     return userProfile
       ? mergeInterviewFormDefaults(initial, userProfile)

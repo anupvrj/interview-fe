@@ -1,3 +1,5 @@
+import type { VoiceProvider } from "@/lib/voiceProviders";
+
 export type InsightPeriod = "all" | "today" | "week" | "month" | "custom";
 
 export type InsightInterviewType =
@@ -196,7 +198,7 @@ export function institutionsInsightsHref(): string {
 }
 
 export type VoiceModelUsageRow = {
-  provider: "gemini" | "chatgpt" | "sarvam";
+  provider: VoiceProvider;
   featureKey: string;
   sessions: number;
   completed: number;
