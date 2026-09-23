@@ -18,7 +18,11 @@ import {
 } from "lucide-react";
 import { computeAnalyserRms } from "@/lib/integrity/vadGate";
 import { countValidFaces, type FaceHit } from "@/lib/integrity/facePresencePolicy";
-import { biometricApi, type BiometricCredential } from "@/lib/biometric/api";
+import {
+  biometricApi,
+  biometricFailedCopy,
+  type BiometricCredential,
+} from "@/lib/biometric/api";
 import {
   accumulateGoodMs,
   activeCredentialLineIndex,
@@ -89,23 +93,20 @@ async function createDetector(): Promise<FaceDetectorHandle | null> {
   }
 }
 
-function uploadResultCopy(status: BiometricCredential["status"]) {
-  if (status === "approved" || status === "human_verified") {
+function uploadResultCopy(credential: BiometricCredential) {
+  if (credential.status === "approved" || credential.status === "human_verified") {
     return {
       title: "Identity clip uploaded",
       body: "Later interviews can match this clip for an integrity score.",
     };
   }
-  if (status === "pending" || status === "in-review") {
+  if (credential.status === "pending" || credential.status === "in-review") {
     return {
       title: "Clip uploaded — checking quality",
       body: "This usually takes under a minute. You can leave this page.",
     };
   }
-  return {
-    title: "Clip uploaded, but it did not pass",
-    body: "Record a clearer 15 second clip with one face and a clear voice.",
-  };
+  return biometricFailedCopy(credential);
 }
 
 function uploadResultTone(status: BiometricCredential["status"]) {
@@ -435,7 +436,7 @@ export function BiometricRecorder({
   const goodSeconds = (goodMs / 1000).toFixed(1);
 
   if (uploaded) {
-    const copy = uploadResultCopy(uploaded.status);
+    const copy = uploadResultCopy(uploaded);
     return (
       <div className="mx-auto flex max-w-lg flex-col items-center gap-4 py-6 text-center sm:py-10">
         <div

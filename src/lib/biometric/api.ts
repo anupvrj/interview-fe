@@ -27,6 +27,34 @@ export type BiometricCredential = {
   idCardUrl?: string | null;
 };
 
+const PROCESSOR_FAIL_REASONS = new Set([
+  "video_unavailable",
+  "processor_error",
+]);
+
+export function isBiometricProcessorFailure(
+  credential: Pick<BiometricCredential, "lambdaResult"> | null | undefined,
+): boolean {
+  return (credential?.lambdaResult?.failReasons ?? []).some((reason) =>
+    PROCESSOR_FAIL_REASONS.has(reason),
+  );
+}
+
+export function biometricFailedCopy(
+  credential: Pick<BiometricCredential, "lambdaResult"> | null | undefined,
+): { title: string; body: string } {
+  if (isBiometricProcessorFailure(credential)) {
+    return {
+      title: "We could not process this clip",
+      body: "The file uploaded, but the quality check did not run. Try again in a minute.",
+    };
+  }
+  return {
+    title: "Clip uploaded, but it did not pass",
+    body: "Record a clearer 15 second clip with one face and a clear voice.",
+  };
+}
+
 export const biometricApi = {
   getMine: async (): Promise<BiometricCredential | null> => {
     const response = await apiClient.get<{

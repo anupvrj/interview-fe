@@ -3,7 +3,12 @@
 import { useEffect, useState } from "react";
 import { Shield, Sparkles } from "lucide-react";
 import { BiometricRecorder } from "@/components/biometric/BiometricRecorder";
-import { biometricApi, type BiometricCredential } from "@/lib/biometric/api";
+import {
+  biometricApi,
+  biometricFailedCopy,
+  isBiometricProcessorFailure,
+  type BiometricCredential,
+} from "@/lib/biometric/api";
 import { userApi } from "@/lib/api";
 import {
   biometricEnrollmentLabel,
@@ -13,8 +18,8 @@ import {
 import { appCard } from "@/lib/app-theme";
 import { cn } from "@/lib/utils";
 
-function statusCopy(status: BiometricCredential["status"]) {
-  switch (status) {
+function statusCopy(credential: BiometricCredential) {
+  switch (credential.status) {
     case "pending":
       return "Uploaded — quality check is running.";
     case "in-review":
@@ -24,11 +29,13 @@ function statusCopy(status: BiometricCredential["status"]) {
     case "human_verified":
       return "Verified by your institute. You can start interviews.";
     case "failed":
-      return "Quality check failed. Record a clearer 15 second clip.";
+      return isBiometricProcessorFailure(credential)
+        ? biometricFailedCopy(credential).body
+        : "Quality check failed. Record a clearer 15 second clip.";
     case "failed_by_admin":
       return "Your institute rejected this credential. Record again.";
     default:
-      return status;
+      return credential.status;
   }
 }
 
@@ -145,7 +152,7 @@ export default function IdentityVerificationPage() {
                     Current credential · {biometricEnrollmentLabel(status)}
                   </p>
                   <p className="mt-0.5 break-words text-sm leading-relaxed text-muted-foreground">
-                    {statusCopy(credential.status)}
+                    {statusCopy(credential)}
                   </p>
                 </div>
               </div>
