@@ -60,6 +60,7 @@ import { supportsDisplayMediaCapture } from "@/lib/codingSessionRecording";
 import {
   buildRealtimeWsPath,
   buildVoiceQueryParam,
+  isVoiceProvider,
   providerDisplayLabel,
   resolveVoiceProvider,
   usesUnifiedVoiceProtocol,
@@ -1150,11 +1151,7 @@ export function RealtimeInterviewClient({
             autoReconnectAttemptsRef.current = 0;
             setConnected(true);
           } else if (data.type === "connected") {
-            if (
-              data.provider === "gemini" ||
-              data.provider === "chatgpt" ||
-              data.provider === "sarvam"
-            ) {
+            if (isVoiceProvider(data.provider)) {
               voiceProviderRef.current = data.provider;
               setActiveVoiceProvider(data.provider);
             }
