@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
-import { readStoredRole } from "@/lib/roles";
 import Link from "next/link";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
@@ -178,13 +177,15 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (!roleReady || !user || !profile) return;
+    // Only bounce when the *active* workspace is institution — not merely because
+    // a previous choice is still in localStorage (that caused institute↔dashboard loops).
     if (
-      readStoredRole(user.id) === "institution_admin" &&
+      roleCtx?.activeRole === "institution_admin" &&
       profile.institutionId
     ) {
       router.replace(`/dashboard/institute/${String(profile.institutionId)}`);
     }
-  }, [roleReady, user, profile, router]);
+  }, [roleReady, user, profile, router, roleCtx?.activeRole]);
 
   const waitingForFirstData =
     roleReady &&

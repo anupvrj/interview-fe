@@ -17,6 +17,7 @@ import {
   Code2,
   Network,
   BarChart2,
+  FlaskConical,
   UserPlus,
   ClipboardList,
   Award,
@@ -25,6 +26,7 @@ import {
   Share2,
 } from "lucide-react";
 import type { AccessRole, User as ApiUser } from "@/lib/api";
+import { canAccessInstituteNav } from "@/lib/institute-access";
 import { isPathAllowedForRole, type ActiveRole } from "@/lib/roles";
 
 export type DashboardNavAccent = {
@@ -167,6 +169,13 @@ const baseMenuItems: DashboardNavItem[] = [
     accent: accent.amber,
     featureKey: "analytics",
   },
+  // TODO: remove from base nav when Agent Lab is super-admin / env-gated again
+  {
+    title: "Agent Lab",
+    href: "/dashboard/lab",
+    icon: FlaskConical,
+    accent: accent.violet,
+  },
   {
     title: "Subscription",
     href: "/dashboard/plan",
@@ -215,7 +224,8 @@ export function getDashboardNavItems(
 
   if (isInstitutionAdmin && institutionId) {
     const base = `/dashboard/institute/${institutionId}`;
-    return [
+    const staffRole = accessRole ?? "institution_admin";
+    const items: DashboardNavItem[] = [
       {
         title: "Overview",
         href: base,
@@ -228,35 +238,51 @@ export function getDashboardNavItems(
         icon: Users,
         accent: accent.blue,
       },
-      {
+    ];
+    if (canAccessInstituteNav(staffRole, "batches")) {
+      items.push({
         title: "Batches",
         href: `${base}/batches`,
         icon: Layers,
         accent: accent.emerald,
-      },
-      {
+      });
+    }
+    if (canAccessInstituteNav(staffRole, "schedules")) {
+      items.push({
         title: "Schedules",
         href: `${base}/schedules`,
         icon: CalendarClock,
         accent: accent.cyan,
-      },
-      {
-        title: "Analytics",
-        href: `${base}/analytics`,
-        icon: BarChart2,
-        accent: accent.amber,
-      },
-      {
+      });
+    }
+    items.push({
+      title: "Analytics",
+      href: `${base}/analytics`,
+      icon: BarChart2,
+      accent: accent.amber,
+    });
+    if (canAccessInstituteNav(staffRole, "settings")) {
+      items.push({
         title: "Institution",
         href: `${base}/settings`,
         icon: Settings,
         accent: accent.indigo,
-      },
-      {
+      });
+    }
+    if (canAccessInstituteNav(staffRole, "billing")) {
+      items.push({
         title: "Plans & Payments",
         href: `${base}/billing`,
         icon: Receipt,
         accent: accent.orange,
+      });
+    }
+    items.push(
+      {
+        title: "Agent Lab",
+        href: "/dashboard/lab",
+        icon: FlaskConical,
+        accent: accent.violet,
       },
       {
         title: "Your Profile",
@@ -271,7 +297,8 @@ export function getDashboardNavItems(
         accent: accent.violet,
         featureKey: "api_connector",
       },
-    ];
+    );
+    return items;
   }
 
   if (isInstitutionAdmin && !institutionId) {
@@ -281,6 +308,12 @@ export function getDashboardNavItems(
         href: "/dashboard/institute",
         icon: Building2,
         accent: accent.purple,
+      },
+      {
+        title: "Agent Lab",
+        href: "/dashboard/lab",
+        icon: FlaskConical,
+        accent: accent.violet,
       },
       {
         title: "Your Profile",
@@ -500,7 +533,7 @@ export function filterNavByActiveRole(
   items: DashboardNavItem[],
   activeRole: ActiveRole | null,
   profile:
-    | Pick<ApiUser, "institutionId" | "peer" | "recruiter">
+    | Pick<ApiUser, "accessRole" | "institutionId" | "peer" | "recruiter">
     | null
     | undefined,
 ): DashboardNavItem[] {
