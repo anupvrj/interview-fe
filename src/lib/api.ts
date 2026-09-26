@@ -280,6 +280,7 @@ export type InvitationPreview = {
   roleLabel: string;
   plan: string | null;
   isStaff: boolean;
+  nextPath: string;
 };
 
 export type InvitationAcceptResult = InvitationPreview & {

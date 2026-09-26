@@ -112,8 +112,10 @@ export function deriveAvailableRoles(
     roles.push("interviewer");
   if (profile?.recruiter?.recruiterStatus === "approved")
     roles.push("recruiter");
-  // Every logged-in user is at least a candidate.
-  roles.push("candidate");
+  // Institute staff are staff-only accounts — do not add a candidate workspace.
+  if (!isInstituteStaff(profile?.accessRole)) {
+    roles.push("candidate");
+  }
   return roles;
 }
 
