@@ -36,7 +36,7 @@ export function SubscriptionExpiredBanner() {
     return null;
   }
 
-  if (!isExpired) {
+  if (!isExpired || subscription?.institutionManaged) {
     return null;
   }
 

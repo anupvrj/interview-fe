@@ -11,6 +11,7 @@ import {
   shouldRedirectUnauthorizedToSignIn,
 } from "@/lib/post-sign-in-redirect";
 import { trimJobDescriptionForSend } from "@/lib/job-description-limits";
+import { isAccessBlockCode } from "@/lib/institution-lifecycle";
 import type { ApplicationProfile } from "@/lib/application-profile";
 import type { VoiceProvider } from "@/lib/voiceProviders";
 import type {
@@ -43,6 +44,113 @@ export type InterviewCreditType =
   | "aiMockInterview"
   | "codingRound"
   | "systemDesign";
+
+export type InstitutionPaymentInput = {
+  amount?: number;
+  currency?: string;
+  paidAt?: string;
+  method?: "bank_transfer" | "upi" | "cheque" | "cash" | "card" | "other";
+  reference?: string;
+  notes?: string;
+};
+
+export type InstitutionBillingRecordRow = {
+  _id: string;
+  kind: "payment" | "go_live" | "grace_extension";
+  amount?: number;
+  currency: string;
+  paidAt?: string;
+  method?: string;
+  reference?: string;
+  term: import("@/lib/institution-lifecycle").InstitutionBillingTerm;
+  periodStart?: string;
+  periodEnd?: string;
+  source: "manual" | "razorpay";
+  notes?: string;
+  recordedByName?: string;
+  createdAt: string;
+};
+
+export type InstitutionBillingStatus = {
+  institution: {
+    _id: string;
+    name: string;
+    slug: string;
+    contactEmail?: string;
+    mode?: import("@/lib/institution-lifecycle").InstitutionMode;
+    accountStatus: import("@/lib/institution-lifecycle").AccountStatus;
+    suspension?: { reason: string; source: "manual" | "auto_non_renewal"; at: string } | null;
+    totalSeats?: number | null;
+  };
+  billing: import("@/lib/institution-lifecycle").InstitutionBillingInfo;
+  lifecycle: import("@/lib/institution-lifecycle").InstitutionLifecycle;
+  seats: {
+    totalSeats: number | null;
+    allocated: number;
+    used: number;
+    rows: Array<{ planId: string; purchased: number; used: number; remaining: number }>;
+  };
+  records: InstitutionBillingRecordRow[];
+};
+
+export type AccountStatusEventRow = {
+  _id: string;
+  targetType: "user" | "institution";
+  targetId: string;
+  targetName?: string | null;
+  action: string;
+  fromStatus?: string;
+  toStatus?: string;
+  reason?: string;
+  actorName?: string;
+  actorRole?: string;
+  metadata?: Record<string, unknown>;
+  createdAt: string;
+};
+
+export type InstitutionFeatureState = {
+  /** Super-admin ceiling. */
+  allowed: Record<string, boolean>;
+  /** Institute-admin toggles. */
+  admin: Record<string, boolean>;
+  /** Effective per-product access for candidates. */
+  effective: Record<string, boolean>;
+};
+
+export type InstitutionRenewalsOverview = {
+  dueSoon: InstitutionRenewalRow[];
+  overdue: InstitutionRenewalRow[];
+  suspended: InstitutionRenewalRow[];
+  demo: InstitutionRenewalRow[];
+};
+
+export type InstitutionRenewalRow = {
+  _id: string;
+  name: string;
+  slug: string;
+  term: import("@/lib/institution-lifecycle").InstitutionBillingTerm;
+  lifecycle: import("@/lib/institution-lifecycle").InstitutionLifecycle;
+  plannedGoLiveDate?: string | null;
+};
+
+export type MyAccessState = {
+  allowed: boolean;
+  code?: import("@/lib/institution-lifecycle").AccessBlockCode | null;
+  scope?: "user" | "institution" | null;
+  message?: string | null;
+  reason?: string | null;
+  institutionManaged: boolean;
+  institution?: {
+    id: string;
+    name: string;
+    mode: import("@/lib/institution-lifecycle").InstitutionMode;
+    billingState: import("@/lib/institution-lifecycle").BillingState;
+    renewalDate: string | null;
+    daysUntilRenewal: number | null;
+    daysLeftInGrace: number | null;
+  } | null;
+  warnings: Array<"INSTITUTION_OVERDUE" | "INSTITUTION_DUE_SOON" | "INSTITUTION_DEMO_MODE">;
+};
 
 export const apiClient: AxiosInstance = axios.create({
   baseURL: API_URL,
@@ -144,6 +252,12 @@ apiClient.interceptors.response.use(
         }
       }
     }
+    if (error.response?.status === 403 && typeof window !== "undefined") {
+      const code = (error.response.data as { code?: unknown } | undefined)?.code;
+      if (isAccessBlockCode(code) && !window.location.pathname.startsWith("/account-blocked")) {
+        window.location.href = `/account-blocked?code=${encodeURIComponent(code)}`;
+      }
+    }
     return Promise.reject(error);
   },
 );
@@ -156,6 +270,24 @@ export type AccessRole =
   | "institution_interview_manager"
   | "user";
 
+export type InvitationPreview = {
+  token: string;
+  email: string;
+  status: "pending" | "accepted";
+  institutionId: string | null;
+  institutionName: string;
+  staffAccessRole: string | null;
+  roleLabel: string;
+  plan: string | null;
+  isStaff: boolean;
+};
+
+export type InvitationAcceptResult = InvitationPreview & {
+  alreadyAccepted?: boolean;
+  accessRole?: string;
+  institutionId: string | null;
+};
+
 export interface User {
   _id: string;
   clerkId: string;
@@ -164,6 +296,11 @@ export interface User {
   role: "student" | "college";
   accessRole?: AccessRole;
   institutionId?: string;
+  /** Joined through an institute invite; plan and billing are managed by the institute. */
+  institutionInvited?: boolean;
+  accountStatus?: import("@/lib/institution-lifecycle").AccountStatus;
+  statusReason?: string;
+  statusChangedAt?: string;
   /** Self-reported institute (optional); separate from institutionId (org membership) */
   affiliationInstitutionId?: string | null;
   affiliationInstitutionName?: string;
@@ -582,6 +719,20 @@ export const userApi = {
     return response.data.data;
   },
 
+  getInvitation: async (token: string): Promise<InvitationPreview> => {
+    const response = await apiClient.get<{ data: InvitationPreview }>(
+      `/invitations/${encodeURIComponent(token)}`,
+    );
+    return response.data.data;
+  },
+
+  acceptInvitation: async (token: string): Promise<InvitationAcceptResult> => {
+    const response = await apiClient.post<{ data: InvitationAcceptResult }>(
+      `/invitations/${encodeURIComponent(token)}/accept`,
+    );
+    return response.data.data;
+  },
+
   sendWelcomeSignup: async (
     signupPath: "candidate" | "recruiter" | "interviewer",
   ): Promise<{ sent: boolean; alreadySent: boolean }> => {
@@ -598,6 +749,12 @@ export const userApi = {
 
   getMyProfile: async (): Promise<User> => {
     const response = await apiClient.get<{ data: User }>("/users/me/profile");
+    return response.data.data;
+  },
+
+  /** Account / institute access decision; reachable even while blocked. */
+  getMyAccess: async (): Promise<MyAccessState> => {
+    const response = await apiClient.get<{ data: MyAccessState }>("/users/me/access");
     return response.data.data;
   },
 
@@ -1148,6 +1305,8 @@ export interface Subscription {
   expiredPlanId?: string;
   resetDate?: string;
   autoRenew?: boolean;
+  /** Plan and renewal are handled by the candidate's institute. */
+  institutionManaged?: boolean;
   pendingPayment?: {
     plan?: SubscriptionPlanSlug;
     planDisplayName?: string;
@@ -1177,7 +1336,7 @@ export interface InterviewLimitCheck {
   minimumRequired?: number;
   ratePerMinute?: number;
   upgradePlan?: string;
-  gate?: "trial_required" | "upgrade_required" | "insufficient_credits";
+  gate?: "trial_required" | "upgrade_required" | "insufficient_credits" | "institution_demo";
   interviewsUsed?: number;
   interviewsLimit?: number;
 }
@@ -1538,6 +1697,8 @@ export type ResolvedEntitlements = {
   hasActiveTrial: boolean;
   canPurchaseTrial: boolean;
   showTrialUpsell: boolean;
+  /** Plan and billing come from the candidate's institute; hide personal upsells. */
+  institutionManaged?: boolean;
 };
 
 export const entitlementApi = {
@@ -2462,8 +2623,10 @@ export const adminApi = {
     period?: string;
     from?: string;
     to?: string;
+    accountStatus?: "active" | "inactive" | "suspended";
   }): Promise<{ data: User[]; total: number }> => {
     const q = new URLSearchParams();
+    if (params?.accountStatus) q.set("accountStatus", params.accountStatus);
     if (params?.limit) q.set("limit", String(params.limit));
     if (params?.skip) q.set("skip", String(params.skip));
     if (params?.search) q.set("search", params.search);
@@ -2752,12 +2915,147 @@ export const adminApi = {
   updateInstitutionSeats: async (
     institutionId: string,
     seats: Array<{ planId: string; purchased: number }>,
+    totalSeats?: number,
   ): Promise<
     Array<{ planId: string; purchased: number; used: number; remaining: number }>
   > => {
     const response = await apiClient.put<{ success: boolean; data: any[] }>(
       `/admin/institutions/${institutionId}/seats`,
-      { seats },
+      { seats, totalSeats },
+    );
+    return response.data.data;
+  },
+
+  getInstitutionBillingStatus: async (
+    institutionId: string,
+  ): Promise<InstitutionBillingStatus> => {
+    const response = await apiClient.get<{ success: boolean; data: InstitutionBillingStatus }>(
+      `/admin/institutions/${institutionId}/billing-status`,
+    );
+    return response.data.data;
+  },
+
+  listInstitutionActivity: async (
+    institutionId: string,
+  ): Promise<AccountStatusEventRow[]> => {
+    const response = await apiClient.get<{ success: boolean; data: AccountStatusEventRow[] }>(
+      `/admin/institutions/${institutionId}/activity`,
+    );
+    return response.data.data;
+  },
+
+  markInstitutionLive: async (
+    institutionId: string,
+    data: {
+      liveAt?: string;
+      payment?: InstitutionPaymentInput;
+    },
+  ): Promise<InstitutionBillingStatus> => {
+    const response = await apiClient.post<{ success: boolean; data: InstitutionBillingStatus }>(
+      `/admin/institutions/${institutionId}/go-live`,
+      data,
+    );
+    return response.data.data;
+  },
+
+  recordInstitutionPayment: async (
+    institutionId: string,
+    data: InstitutionPaymentInput & {
+      reactivate?: boolean;
+      periodStartMode?: "continue" | "from_payment";
+    },
+  ): Promise<InstitutionBillingStatus> => {
+    const response = await apiClient.post<{ success: boolean; data: InstitutionBillingStatus }>(
+      `/admin/institutions/${institutionId}/billing/payments`,
+      data,
+    );
+    return response.data.data;
+  },
+
+  extendInstitutionGrace: async (
+    institutionId: string,
+    data: { until: string; reason: string },
+  ): Promise<InstitutionBillingStatus> => {
+    const response = await apiClient.post<{ success: boolean; data: InstitutionBillingStatus }>(
+      `/admin/institutions/${institutionId}/billing/grace`,
+      data,
+    );
+    return response.data.data;
+  },
+
+  setInstitutionStatus: async (
+    institutionId: string,
+    data: {
+      status: import("@/lib/institution-lifecycle").AccountStatus;
+      reason: string;
+      notifyCandidates?: boolean;
+    },
+  ): Promise<InstitutionBillingStatus> => {
+    const response = await apiClient.post<{ success: boolean; data: InstitutionBillingStatus }>(
+      `/admin/institutions/${institutionId}/status`,
+      data,
+    );
+    return response.data.data;
+  },
+
+  updateInstitutionAdminFeatures: async (
+    institutionId: string,
+    products: Record<string, boolean>,
+  ): Promise<InstitutionFeatureState> => {
+    const response = await apiClient.put<{ success: boolean; data: InstitutionFeatureState }>(
+      `/admin/institutions/${institutionId}/features`,
+      { products },
+    );
+    return response.data.data;
+  },
+
+  /** Super admin: change the product ceiling (and optionally the institute toggles). */
+  updateInstitutionAllowedFeatures: async (
+    institutionId: string,
+    allowed: Record<string, boolean>,
+  ): Promise<InstitutionFeatureState> => {
+    const response = await apiClient.put<{ success: boolean; data: InstitutionFeatureState }>(
+      `/admin/institutions/${institutionId}/features`,
+      { allowed },
+    );
+    return response.data.data;
+  },
+
+  getInstitutionFeatures: async (
+    institutionId: string,
+  ): Promise<InstitutionFeatureState> => {
+    const response = await apiClient.get<{ success: boolean; data: InstitutionFeatureState }>(
+      `/admin/institutions/${institutionId}/features`,
+    );
+    return response.data.data;
+  },
+
+  getInstitutionRenewals: async (): Promise<InstitutionRenewalsOverview> => {
+    const response = await apiClient.get<{ success: boolean; data: InstitutionRenewalsOverview }>(
+      "/admin/institutions/renewals",
+    );
+    return response.data.data;
+  },
+
+  setUserAccountStatus: async (
+    userId: string,
+    data: { status: import("@/lib/institution-lifecycle").AccountStatus; reason: string },
+  ): Promise<{ accountStatus: string }> => {
+    const response = await apiClient.post<{ success: boolean; data: { accountStatus: string } }>(
+      `/admin/users/${encodeURIComponent(userId)}/status`,
+      data,
+    );
+    return response.data.data;
+  },
+
+  setInstitutionCandidateStatus: async (
+    institutionId: string,
+    userId: string,
+    data: { status: import("@/lib/institution-lifecycle").AccountStatus; reason: string },
+  ): Promise<{ accountStatus: string }> => {
+    const response = await apiClient.post<{ success: boolean; data: { accountStatus: string } }>(
+      `/admin/institutions/${institutionId}/candidates/${encodeURIComponent(userId)}/status`,
+      data,
     );
     return response.data.data;
   },
@@ -2818,8 +3116,14 @@ export const adminApi = {
     slug?: string;
     domain?: string;
     contactEmail?: string;
-    maxUsers?: number | null;
+    totalSeats?: number;
     planSeats?: Array<{ planId: string; purchased: number }>;
+    billing?: {
+      term: import("@/lib/institution-lifecycle").InstitutionBillingTerm;
+      plannedGoLiveDate?: string | null;
+      billingEmail?: string | null;
+      graceDays?: number;
+    };
     platformFlags?: {
       biometricVerification?: boolean;
       products?: Record<string, boolean>;
@@ -2841,6 +3145,12 @@ export const adminApi = {
       domain?: string | null;
       contactEmail?: string | null;
       maxUsers?: number | null;
+      billing?: {
+        term?: import("@/lib/institution-lifecycle").InstitutionBillingTerm;
+        plannedGoLiveDate?: string | null;
+        billingEmail?: string | null;
+        graceDays?: number;
+      };
       platformFlags?: {
       biometricVerification?: boolean;
       products?: Record<string, boolean>;
@@ -3197,6 +3507,8 @@ export const adminApi = {
     scheduleCounts: { scheduled: number; started: number; cancelled: number };
     creditsPool: number;
     interviewsCompleted: number;
+    lifecycle?: import("@/lib/institution-lifecycle").InstitutionLifecycle;
+    totalSeats?: number | null;
   }> => {
     const response = await apiClient.get<{ success: boolean; data: any }>(
       `/admin/institutions/${institutionId}/dashboard`

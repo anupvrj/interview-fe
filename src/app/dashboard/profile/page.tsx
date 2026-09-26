@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useUser, useClerk } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -434,12 +434,12 @@ export default function ProfilePage() {
     setError("");
   };
 
-  const handleDefaultResumeChange = (resume: Resume | null) => {
+  const handleDefaultResumeChange = useCallback((resume: Resume | null) => {
     setDefaultDesignedResume(resume);
     setApplicationForm((prev) =>
       prefillApplicationProfileFromResume(prev, resume?.content?.personalInfo),
     );
-  };
+  }, []);
 
   const handleDeleteProfile = async () => {
     try {

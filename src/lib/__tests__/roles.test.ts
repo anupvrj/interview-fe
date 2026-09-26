@@ -26,6 +26,20 @@ describe("deriveAvailableRoles", () => {
     ).toEqual(["super_admin", "institution_admin", "candidate"]);
   });
 
+  it("treats moderators and interview managers as institute staff views", () => {
+    expect(
+      deriveAvailableRoles(profile({ accessRole: "institution_moderator" as User["accessRole"] })),
+    ).toEqual(["institution_admin", "candidate"]);
+  });
+
+  it("lets an institute admin also act as a candidate", () => {
+    expect(
+      deriveAvailableRoles(
+        profile({ accessRole: "institution_admin", institutionId: "dhee" }),
+      ),
+    ).toEqual(["institution_admin", "candidate"]);
+  });
+
   it("includes interviewer and recruiter when those profiles are approved", () => {
     expect(
       deriveAvailableRoles(

@@ -7,7 +7,7 @@ import {
   Briefcase,
 } from "lucide-react";
 import type { User } from "@/lib/api";
-import { canAccessInstituteNav, isInstituteStaff } from "@/lib/institute-access";
+import { canAccessInstituteNav, isInstituteStaff } from "./institute-access";
 
 export type ActiveRole =
   | "super_admin"
@@ -332,6 +332,10 @@ export function resolveInitialActiveRole(
   const roles = deriveAvailableRoles(profile);
   const stored = readStoredRole(userId);
   if (stored && roles.includes(stored)) return stored;
+  if (isInstituteStaff(profile.accessRole) && roles.includes("institution_admin")) {
+    writeStoredRole(userId, "institution_admin");
+    return "institution_admin";
+  }
   if (roles.length === 1) {
     writeStoredRole(userId, roles[0]);
     return roles[0];

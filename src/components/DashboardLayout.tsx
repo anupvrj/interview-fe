@@ -30,6 +30,7 @@ import {
   type DashboardNavItem,
 } from "@/lib/dashboard-nav";
 import { SubscriptionExpiredBanner } from "@/components/SubscriptionExpiredBanner";
+import { AccountAccessGate } from "@/components/institution-lifecycle/AccountAccessGate";
 import { SubscriptionPendingBanner } from "@/components/SubscriptionPendingBanner";
 import { TrialUpsellDialog, type TrialUpsellVariant } from "@/components/upsell/TrialUpsellDialog";
 import { useUpsellState } from "@/components/upsell/useUpsellState";
@@ -741,6 +742,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           </div>
 
           <div className="p-4 sm:p-5 lg:px-6 lg:pb-8 lg:pt-5">
+            <AccountAccessGate />
             <SubscriptionPendingBanner />
             <SubscriptionExpiredBanner />
             <FeatureRouteGuard>{children}</FeatureRouteGuard>
