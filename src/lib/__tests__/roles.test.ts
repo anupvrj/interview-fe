@@ -37,6 +37,36 @@ describe("deriveAvailableRoles", () => {
       ),
     ).toEqual(["super_admin", "interviewer", "recruiter", "candidate"]);
   });
+
+  it("lets institution admins switch to candidate", () => {
+    expect(
+      deriveAvailableRoles(
+        profile({ accessRole: "institution_admin", institutionId: "inst1" }),
+      ),
+    ).toEqual(["institution_admin", "candidate"]);
+  });
+
+  it("lets interview managers use the institution workspace and candidate views", () => {
+    expect(
+      deriveAvailableRoles(
+        profile({
+          accessRole: "institution_interview_manager",
+          institutionId: "inst1",
+        }),
+      ),
+    ).toEqual(["institution_admin", "candidate"]);
+  });
+
+  it("lets institution moderators use the institution workspace and candidate views", () => {
+    expect(
+      deriveAvailableRoles(
+        profile({
+          accessRole: "institution_moderator",
+          institutionId: "inst1",
+        }),
+      ),
+    ).toEqual(["institution_admin", "candidate"]);
+  });
 });
 
 describe("roleHome", () => {

@@ -27,21 +27,27 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Loader2,
   Users,
   Plus,
   Trash2,
-  Coins,
   FileText,
   ChevronLeft,
   ChevronRight,
   ShieldCheck,
   Layers,
   X,
+  Pencil,
 } from "lucide-react";
 import { userApi, adminApi, User, planApi } from "@/lib/api";
 import {
@@ -80,20 +86,27 @@ function candidateInitials(name: string | undefined, email: string | undefined):
   return local.slice(0, 2).toUpperCase();
 }
 
-type InstituteInvitePlan = "free" | "tech_basic" | "tech_pro" | "enterprise";
+type InstituteInvitePlan =
+  | "free"
+  | "general_pass"
+  | "tech_basic"
+  | "tech_pro"
+  | "enterprise";
 
 const INSTITUTE_PLAN_OPTIONS: { value: InstituteInvitePlan; label: string }[] = [
   { value: "free", label: "Free" },
+  { value: "general_pass", label: "General Pass" },
   { value: "tech_basic", label: "Tech Basic" },
   { value: "tech_pro", label: "Tech Pro" },
   { value: "enterprise", label: "Enterprise" },
 ];
 
 function normalizeApiPlan(apiPlan: string | undefined): InstituteInvitePlan {
-  const p = (apiPlan || "free").toLowerCase();
+  const p = (apiPlan || "free").toLowerCase().replace(/-/g, "_");
   if (p === "enterprise") return "enterprise";
   if (p === "tech_pro" || p === "premium" || p === "elite") return "tech_pro";
   if (p === "tech_basic" || p === "starter" || p === "basic") return "tech_basic";
+  if (p === "general_pass" || p === "general") return "general_pass";
   return "free";
 }
 
@@ -106,6 +119,7 @@ type InstituteBatchOption = {
   _id: string;
   name: string;
   memberCount: number;
+  memberClerkIds: string[];
 };
 
 export default function InstituteCandidatesPage() {
@@ -131,16 +145,26 @@ export default function InstituteCandidatesPage() {
   // Add user dialog
   const [addOpen, setAddOpen] = useState(false);
   const [addEmail, setAddEmail] = useState("");
+  const [addCandidateName, setAddCandidateName] = useState("");
+  const [addBatchId, setAddBatchId] = useState("");
+  const [addBatchLabel, setAddBatchLabel] = useState("");
+  const [addBatchSearch, setAddBatchSearch] = useState("");
+  const [addBatchMenuOpen, setAddBatchMenuOpen] = useState(false);
   const [addPlan, setAddPlan] = useState<InstituteInvitePlan>("free");
   const [planOptions, setPlanOptions] = useState(INSTITUTE_PLAN_OPTIONS);
   const [deleteTarget, setDeleteTarget] = useState<User | null>(null);
   const [addSubmitting, setAddSubmitting] = useState(false);
 
-  const [creditsOpen, setCreditsOpen] = useState(false);
-  const [creditsUser, setCreditsUser] = useState<User | null>(null);
-  const [creditsMode, setCreditsMode] = useState<"add" | "set">("add");
-  const [creditsValue, setCreditsValue] = useState("");
-  const [creditsSubmitting, setCreditsSubmitting] = useState(false);
+  // Edit candidate dialog
+  const [editOpen, setEditOpen] = useState(false);
+  const [editUser, setEditUser] = useState<User | null>(null);
+  const [editPlan, setEditPlan] = useState<InstituteInvitePlan>("free");
+  const [editBatchId, setEditBatchId] = useState("");
+  const [editBatchLabel, setEditBatchLabel] = useState("");
+  const [editBatchSearch, setEditBatchSearch] = useState("");
+  const [editBatchMenuOpen, setEditBatchMenuOpen] = useState(false);
+  const [editInitialBatchIds, setEditInitialBatchIds] = useState<string[]>([]);
+  const [editSubmitting, setEditSubmitting] = useState(false);
 
   const [reviewUser, setReviewUser] = useState<User | null>(null);
   const [reviewCred, setReviewCred] = useState<BiometricCredential | null>(null);
@@ -163,8 +187,8 @@ export default function InstituteCandidatesPage() {
     }
   }, [profile, page, search, batchFilter, institutionId]);
 
-  const loadBatchCatalog = useCallback(async () => {
-    if (batchCatalogLoaded) return;
+  const loadBatchCatalog = useCallback(async (opts?: { force?: boolean }) => {
+    if (batchCatalogLoaded && !opts?.force) return batchCatalog;
     setBatchCatalogLoading(true);
     try {
       const list = await adminApi.listBatches(institutionId);
@@ -172,15 +196,20 @@ export default function InstituteCandidatesPage() {
         .map((b) => ({
           _id: String(b._id ?? ""),
           name: String(b.name ?? "Untitled batch"),
+          memberClerkIds: Array.isArray(b.memberClerkIds)
+            ? b.memberClerkIds.map(String)
+            : [],
           memberCount: b.memberClerkIds?.length ?? 0,
         }))
         .filter((b) => b._id);
       mapped.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
       setBatchCatalog(mapped);
       setBatchCatalogLoaded(true);
+      return mapped;
     } catch {
       setBatchCatalog([]);
       setBatchCatalogLoaded(true);
+      return [] as InstituteBatchOption[];
     } finally {
       setBatchCatalogLoading(false);
     }
@@ -203,6 +232,32 @@ export default function InstituteCandidatesPage() {
       .slice(0, 8);
   }, [batchCatalog, batchSearchQuery]);
 
+  const addBatchSearchMatches = useMemo(() => {
+    const q = addBatchSearch.trim().toLowerCase();
+    const list = !q
+      ? batchCatalog
+      : batchCatalog.filter((b) => b.name.toLowerCase().includes(q));
+    return list.slice(0, 50);
+  }, [batchCatalog, addBatchSearch]);
+
+  const editBatchSearchMatches = useMemo(() => {
+    const q = editBatchSearch.trim().toLowerCase();
+    const list = !q
+      ? batchCatalog
+      : batchCatalog.filter((b) => b.name.toLowerCase().includes(q));
+    return list.slice(0, 50);
+  }, [batchCatalog, editBatchSearch]);
+
+  const resetAddUserForm = () => {
+    setAddEmail("");
+    setAddCandidateName("");
+    setAddBatchId("");
+    setAddBatchLabel("");
+    setAddBatchSearch("");
+    setAddBatchMenuOpen(false);
+    setAddPlan("free");
+  };
+
   const clearListFilters = () => {
     setSearch("");
     setBatchFilter("");
@@ -214,19 +269,24 @@ export default function InstituteCandidatesPage() {
     planApi
       .getAllPlans()
       .then((plans) => {
-        const mapped = plans
-          .map((p: { id?: string; slug?: string; name?: string }) => {
-            const slug = normalizeApiPlan(p.slug || p.id);
-            const label =
-              p.name ||
-              INSTITUTE_PLAN_OPTIONS.find((o) => o.value === slug)?.label ||
-              slug;
-            return { value: slug, label };
-          })
-          .filter(
-            (o, i, arr) => arr.findIndex((x) => x.value === o.value) === i,
-          );
-        if (mapped.length > 0) setPlanOptions(mapped);
+        const labelById = new Map<string, string>();
+        for (const p of plans as Array<{
+          planId?: string;
+          id?: string;
+          slug?: string;
+          name?: string;
+          displayName?: string;
+        }>) {
+          const slug = normalizeApiPlan(p.planId || p.slug || p.id);
+          const label = p.displayName || p.name;
+          if (label) labelById.set(slug, label);
+        }
+        setPlanOptions(
+          INSTITUTE_PLAN_OPTIONS.map((o) => ({
+            value: o.value,
+            label: labelById.get(o.value) || o.label,
+          })),
+        );
       })
       .catch(() => {});
   }, []);
@@ -280,7 +340,7 @@ export default function InstituteCandidatesPage() {
   };
 
   const handleAddUser = async () => {
-    if (!addEmail?.trim()) return;
+    if (!addEmail?.trim() || !addCandidateName?.trim()) return;
     const instId =
       profile?.accessRole === "super_admin" ? institutionId : profile?.institutionId;
     if (isInstituteStaff(profile?.accessRole) && !instId) {
@@ -293,10 +353,13 @@ export default function InstituteCandidatesPage() {
         addEmail,
         addPlan,
         instId,
+        {
+          candidateName: addCandidateName.trim(),
+          batchId: addBatchId || undefined,
+        },
       );
       setAddOpen(false);
-      setAddEmail("");
-      setAddPlan("free");
+      resetAddUserForm();
       toast.success(result.message);
       loadUsers();
     } catch (err: any) {
@@ -318,48 +381,67 @@ export default function InstituteCandidatesPage() {
     }
   };
 
-  const openCreditsDialog = (u: User) => {
-    setCreditsUser(u);
-    setCreditsMode("add");
-    setCreditsValue("");
-    setCreditsOpen(true);
+  const resetEditForm = () => {
+    setEditUser(null);
+    setEditPlan("free");
+    setEditBatchId("");
+    setEditBatchLabel("");
+    setEditBatchSearch("");
+    setEditBatchMenuOpen(false);
+    setEditInitialBatchIds([]);
   };
 
-  const handleSaveCredits = async () => {
-    if (!creditsUser) return;
-    const current = creditsUser.credits?.total ?? 0;
-    let delta: number;
-    if (creditsMode === "add") {
-      const n = Number.parseInt(creditsValue.trim(), 10);
-      if (!Number.isFinite(n) || n <= 0) {
-        toast.error("Enter a positive whole number of credits to add.");
-        return;
-      }
-      delta = n;
+  const openEditDialog = async (u: User) => {
+    setEditUser(u);
+    setEditPlan(normalizeApiPlan(u.subscription?.plan));
+    setEditBatchSearch("");
+    setEditBatchMenuOpen(false);
+    setEditOpen(true);
+    const catalog =
+      (await loadBatchCatalog({ force: true })) ?? batchCatalog;
+    const memberships = catalog.filter((b) =>
+      b.memberClerkIds.includes(u.clerkId),
+    );
+    setEditInitialBatchIds(memberships.map((b) => b._id));
+    if (memberships.length > 0) {
+      setEditBatchId(memberships[0]!._id);
+      setEditBatchLabel(memberships[0]!.name);
     } else {
-      const newTotal = Number.parseInt(creditsValue.trim(), 10);
-      if (!Number.isFinite(newTotal) || newTotal < 0) {
-        toast.error("Enter a new balance (0 or greater).");
-        return;
-      }
-      delta = newTotal - current;
+      setEditBatchId("");
+      setEditBatchLabel("");
     }
-    if (delta === 0) {
-      setCreditsOpen(false);
-      setCreditsUser(null);
-      return;
-    }
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editUser) return;
+    const currentPlan = normalizeApiPlan(editUser.subscription?.plan);
     try {
-      setCreditsSubmitting(true);
-      const desc = `Admin adjustment (${delta > 0 ? "+" : ""}${delta}; balance was ${current})`;
-      await adminApi.addCredits(creditsUser.clerkId, delta, desc);
+      setEditSubmitting(true);
+
+      if (editPlan !== currentPlan) {
+        await adminApi.updatePlan(editUser.clerkId, editPlan);
+      }
+
+      const targetBatchId = editBatchId || null;
+      const toRemove = editInitialBatchIds.filter((id) => id !== targetBatchId);
+      for (const batchId of toRemove) {
+        await adminApi.removeBatchMember(batchId, editUser.clerkId);
+      }
+      if (targetBatchId && !editInitialBatchIds.includes(targetBatchId)) {
+        await adminApi.addBatchMembers(targetBatchId, {
+          clerkIds: [editUser.clerkId],
+        });
+      }
+
+      setBatchCatalogLoaded(false);
+      setEditOpen(false);
+      resetEditForm();
+      toast.success("Candidate updated");
       await loadUsers();
-      setCreditsOpen(false);
-      setCreditsUser(null);
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || "Failed to update credits");
+      toast.error(err?.response?.data?.message || "Failed to update candidate");
     } finally {
-      setCreditsSubmitting(false);
+      setEditSubmitting(false);
     }
   };
 
@@ -390,7 +472,7 @@ export default function InstituteCandidatesPage() {
                 {!loading && total > 0
                   ? hasBatchFilter && batchFilterLabel
                     ? `Showing ${total} member${total === 1 ? "" : "s"} in “${batchFilterLabel}”.`
-                    : `Manage plans, credits, and reports for ${total} member${total === 1 ? "" : "s"}.`
+                    : `Manage plans, batches, and reports for ${total} member${total === 1 ? "" : "s"}.`
                   : hasBatchFilter
                     ? "No members match this batch filter."
                     : "Invite your first candidate to populate this list."}
@@ -485,7 +567,11 @@ export default function InstituteCandidatesPage() {
               {canInvite ? (
                 <Button
                   type="button"
-                  onClick={() => setAddOpen(true)}
+                  onClick={() => {
+                    resetAddUserForm();
+                    setAddOpen(true);
+                    void loadBatchCatalog();
+                  }}
                   className={cn(institutePrimaryClass, "h-11 shrink-0 gap-2 sm:w-auto")}
                 >
                   <Plus className="h-4 w-4" />
@@ -662,11 +748,11 @@ export default function InstituteCandidatesPage() {
                                 variant="outline"
                                 size="icon"
                                 className={cn(instituteSecondaryClass, "h-8 w-8 shrink-0 p-0")}
-                                onClick={() => openCreditsDialog(u)}
-                                title="Adjust credits"
-                                aria-label="Adjust credits"
+                                onClick={() => void openEditDialog(u)}
+                                title="Edit candidate"
+                                aria-label={`Edit ${u.email}`}
                               >
-                                <Coins className="h-3.5 w-3.5" />
+                                <Pencil className="h-3.5 w-3.5" />
                               </Button>
                               <Button
                                 variant="ghost"
@@ -723,86 +809,170 @@ export default function InstituteCandidatesPage() {
       </Card>
 
       <Dialog
-        open={creditsOpen}
-        onOpenChange={(o) => {
-          if (!o) {
-            setCreditsOpen(false);
-            setCreditsUser(null);
-          }
+        open={editOpen}
+        onOpenChange={(open) => {
+          setEditOpen(open);
+          if (!open) resetEditForm();
         }}
       >
-        <DialogContent className="border-border/80 sm:max-w-md">
+        <DialogContent
+          className="border-border/80 sm:max-w-md"
+          {...dialogPortaledPickerHandlers}
+        >
           <DialogHeader>
-            <DialogTitle className="text-xl">Adjust credits</DialogTitle>
+            <DialogTitle className="text-xl">Edit candidate</DialogTitle>
             <DialogDescription>
-              {creditsUser ? (
-                <>
-                  {creditsUser.name ?? creditsUser.email} — current balance:{" "}
-                  <span className="font-semibold text-foreground">
-                    {creditsUser.credits?.total ?? 0}
-                  </span>
-                </>
-              ) : null}
+              {editUser
+                ? `Update plan and batch for ${editUser.name || editUser.email}.`
+                : "Update plan and batch."}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-2">
-            <div>
-              <Label htmlFor="credits-mode">Action</Label>
-              <select
-                id="credits-mode"
-                className="app-control mt-2 w-full bg-card"
-                value={creditsMode}
-                onChange={(e) => {
-                  setCreditsMode(e.target.value as "add" | "set");
-                  setCreditsValue("");
-                }}
-              >
-                <option value="add">Add credits</option>
-                <option value="set">Set new balance</option>
-              </select>
-            </div>
-            <div>
-              <Label htmlFor="credits-amount">
-                {creditsMode === "add" ? "Credits to add" : "New balance (total)"}
-              </Label>
+            <FormField label="Email" htmlFor="edit-email">
               <Input
-                id="credits-amount"
-                type="number"
-                min={creditsMode === "add" ? 1 : 0}
-                step={1}
-                value={creditsValue}
-                onChange={(e) => setCreditsValue(e.target.value)}
-                placeholder={creditsMode === "add" ? "e.g. 100" : "e.g. 500"}
-                className="mt-2"
+                id="edit-email"
+                type="email"
+                value={editUser?.email ?? ""}
+                disabled
+                className="h-11 border-border bg-muted/40 shadow-sm"
               />
-              {creditsMode === "set" && creditsUser != null && (
-                <p className="mt-2 text-xs text-muted-foreground">
-                  Change from current ({creditsUser.credits?.total ?? 0}) to the value above.
-                  Reducing balance is allowed if it does not go below zero.
-                </p>
-              )}
-            </div>
+            </FormField>
+            <FormField label="Plan" htmlFor="edit-plan" required>
+              <Select
+                value={editPlan}
+                onValueChange={(v) => setEditPlan(v as InstituteInvitePlan)}
+              >
+                <SelectTrigger
+                  id="edit-plan"
+                  className="h-11 w-full border-border bg-card shadow-sm"
+                >
+                  <SelectValue placeholder="Select plan" />
+                </SelectTrigger>
+                <SelectContent>
+                  {planOptions.map((o) => (
+                    <SelectItem key={o.value} value={o.value}>
+                      {o.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </FormField>
+            <FormField label="Batch Name" htmlFor="edit-batch-search">
+              <div className="relative">
+                {editBatchId ? (
+                  <div className="app-control flex h-11 min-w-0 items-center gap-2.5 border-border bg-card px-3 shadow-sm">
+                    <Layers className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+                    <span className="min-w-0 flex-1 truncate text-sm text-foreground">
+                      {editBatchLabel}
+                    </span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 shrink-0 text-muted-foreground hover:text-foreground"
+                      aria-label="Clear batch"
+                      onClick={() => {
+                        setEditBatchId("");
+                        setEditBatchLabel("");
+                        setEditBatchSearch("");
+                        setEditBatchMenuOpen(false);
+                      }}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <>
+                    <SearchInput
+                      id="edit-batch-search"
+                      leadingIcon={Layers}
+                      placeholder="Select or search batch…"
+                      value={editBatchSearch}
+                      onChange={(e) => {
+                        setEditBatchSearch(e.target.value);
+                        setEditBatchMenuOpen(true);
+                        void loadBatchCatalog();
+                      }}
+                      onFocus={() => {
+                        setEditBatchMenuOpen(true);
+                        void loadBatchCatalog();
+                      }}
+                      containerClassName="max-w-none w-full border-border bg-card shadow-sm"
+                      aria-expanded={editBatchMenuOpen}
+                      aria-controls="edit-batch-search-results"
+                      autoComplete="off"
+                    />
+                    {editBatchMenuOpen ? (
+                      <div
+                        id="edit-batch-search-results"
+                        data-institute-inline-dropdown
+                        className="absolute left-0 right-0 top-[calc(100%+4px)] z-30 overflow-hidden rounded-md border border-border bg-card shadow-lg"
+                      >
+                        {batchCatalogLoading ? (
+                          <p className="flex items-center gap-2 px-3 py-2.5 text-xs text-muted-foreground">
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            Loading batches…
+                          </p>
+                        ) : batchCatalog.length === 0 ? (
+                          <p className="px-3 py-2.5 text-xs text-muted-foreground">
+                            No batches yet. Create a batch first.
+                          </p>
+                        ) : editBatchSearchMatches.length === 0 ? (
+                          <p className="px-3 py-2.5 text-xs text-muted-foreground">
+                            No batches match “{editBatchSearch.trim()}”.
+                          </p>
+                        ) : (
+                          <ul className="max-h-44 overflow-y-auto py-1">
+                            {editBatchSearchMatches.map((b) => (
+                              <li key={b._id}>
+                                <button
+                                  type="button"
+                                  className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm transition-colors hover:bg-muted/40"
+                                  onClick={() => {
+                                    setEditBatchId(b._id);
+                                    setEditBatchLabel(b.name);
+                                    setEditBatchSearch("");
+                                    setEditBatchMenuOpen(false);
+                                  }}
+                                >
+                                  <span className="min-w-0 truncate font-medium text-foreground">
+                                    {b.name}
+                                  </span>
+                                  <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+                                    {b.memberCount} member{b.memberCount === 1 ? "" : "s"}
+                                  </span>
+                                </button>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    ) : null}
+                  </>
+                )}
+              </div>
+            </FormField>
           </div>
           <DialogFooter className="gap-2 sm:gap-0">
             <Button
               variant="outline"
               className={instituteSecondaryClass}
               onClick={() => {
-                setCreditsOpen(false);
-                setCreditsUser(null);
+                setEditOpen(false);
+                resetEditForm();
               }}
             >
               Cancel
             </Button>
             <Button
-              onClick={handleSaveCredits}
-              disabled={creditsSubmitting || !creditsUser}
+              onClick={() => void handleSaveEdit()}
+              disabled={editSubmitting || !editUser}
               className={cn(institutePrimaryClass, "shadow-md")}
             >
-              {creditsSubmitting ? (
+              {editSubmitting ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
-                "Save"
+                "Save changes"
               )}
             </Button>
           </DialogFooter>
@@ -900,15 +1070,35 @@ export default function InstituteCandidatesPage() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={addOpen} onOpenChange={setAddOpen}>
-        <DialogContent className="border-border/80 sm:max-w-md">
+      <Dialog
+        open={addOpen}
+        onOpenChange={(open) => {
+          setAddOpen(open);
+          if (!open) resetAddUserForm();
+        }}
+      >
+        <DialogContent
+          className="border-border/80 sm:max-w-md"
+          {...dialogPortaledPickerHandlers}
+        >
           <DialogHeader>
             <DialogTitle className="text-xl">Add user</DialogTitle>
             <DialogDescription>
-              Enter email and assign a plan. The user will receive an invitation email to verify and sign up.
+              Enter candidate details and assign a plan. The user will receive an invitation email to verify and sign up.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-2">
+            <FormField label="Candidate Name" htmlFor="candidate-name" required>
+              <Input
+                id="candidate-name"
+                type="text"
+                value={addCandidateName}
+                onChange={(e) => setAddCandidateName(e.target.value)}
+                placeholder="Full name"
+                className="h-11 border-border shadow-sm"
+                autoComplete="name"
+              />
+            </FormField>
             <FormField label="Email" htmlFor="email" required>
               <Input
                 id="email"
@@ -919,21 +1109,120 @@ export default function InstituteCandidatesPage() {
                 className="h-11 border-border shadow-sm"
               />
             </FormField>
+            <FormField label="Batch Name" htmlFor="add-batch-search">
+              <div className="relative">
+                {addBatchId ? (
+                  <div className="app-control flex h-11 min-w-0 items-center gap-2.5 border-border bg-card px-3 shadow-sm">
+                    <Layers className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+                    <span className="min-w-0 flex-1 truncate text-sm text-foreground">
+                      {addBatchLabel}
+                    </span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 shrink-0 text-muted-foreground hover:text-foreground"
+                      aria-label="Clear batch"
+                      onClick={() => {
+                        setAddBatchId("");
+                        setAddBatchLabel("");
+                        setAddBatchSearch("");
+                        setAddBatchMenuOpen(false);
+                      }}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <>
+                    <SearchInput
+                      id="add-batch-search"
+                      leadingIcon={Layers}
+                      placeholder="Select or search batch…"
+                      value={addBatchSearch}
+                      onChange={(e) => {
+                        setAddBatchSearch(e.target.value);
+                        setAddBatchMenuOpen(true);
+                        void loadBatchCatalog();
+                      }}
+                      onFocus={() => {
+                        setAddBatchMenuOpen(true);
+                        void loadBatchCatalog();
+                      }}
+                      containerClassName="max-w-none w-full border-border bg-card shadow-sm"
+                      aria-expanded={addBatchMenuOpen}
+                      aria-controls="add-batch-search-results"
+                      autoComplete="off"
+                    />
+                    {addBatchMenuOpen ? (
+                      <div
+                        id="add-batch-search-results"
+                        data-institute-inline-dropdown
+                        className="absolute left-0 right-0 top-[calc(100%+4px)] z-30 overflow-hidden rounded-md border border-border bg-card shadow-lg"
+                      >
+                        {batchCatalogLoading ? (
+                          <p className="flex items-center gap-2 px-3 py-2.5 text-xs text-muted-foreground">
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            Loading batches…
+                          </p>
+                        ) : batchCatalog.length === 0 ? (
+                          <p className="px-3 py-2.5 text-xs text-muted-foreground">
+                            No batches yet. Create a batch first.
+                          </p>
+                        ) : addBatchSearchMatches.length === 0 ? (
+                          <p className="px-3 py-2.5 text-xs text-muted-foreground">
+                            No batches match “{addBatchSearch.trim()}”.
+                          </p>
+                        ) : (
+                          <ul className="max-h-44 overflow-y-auto py-1">
+                            {addBatchSearchMatches.map((b) => (
+                              <li key={b._id}>
+                                <button
+                                  type="button"
+                                  className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm transition-colors hover:bg-muted/40"
+                                  onClick={() => {
+                                    setAddBatchId(b._id);
+                                    setAddBatchLabel(b.name);
+                                    setAddBatchSearch("");
+                                    setAddBatchMenuOpen(false);
+                                  }}
+                                >
+                                  <span className="min-w-0 truncate font-medium text-foreground">
+                                    {b.name}
+                                  </span>
+                                  <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+                                    {b.memberCount} member{b.memberCount === 1 ? "" : "s"}
+                                  </span>
+                                </button>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    ) : null}
+                  </>
+                )}
+              </div>
+            </FormField>
             <FormField label="Plan" htmlFor="plan" required>
-              <select
-                id="plan"
-                className="app-control h-11 w-full bg-card"
+              <Select
                 value={addPlan}
-                onChange={(e) =>
-                  setAddPlan(e.target.value as InstituteInvitePlan)
-                }
+                onValueChange={(v) => setAddPlan(v as InstituteInvitePlan)}
               >
-                {planOptions.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger
+                  id="plan"
+                  className="h-11 w-full border-border bg-card shadow-sm"
+                >
+                  <SelectValue placeholder="Select plan" />
+                </SelectTrigger>
+                <SelectContent>
+                  {planOptions.map((o) => (
+                    <SelectItem key={o.value} value={o.value}>
+                      {o.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </FormField>
           </div>
           <DialogFooter className="gap-2 sm:gap-0">
@@ -942,7 +1231,11 @@ export default function InstituteCandidatesPage() {
             </Button>
             <Button
               onClick={handleAddUser}
-              disabled={!addEmail?.trim() || addSubmitting}
+              disabled={
+                !addEmail?.trim() ||
+                !addCandidateName?.trim() ||
+                addSubmitting
+              }
               className={cn(institutePrimaryClass, "shadow-md")}
             >
               {addSubmitting ? (

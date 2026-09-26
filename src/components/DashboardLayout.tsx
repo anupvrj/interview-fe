@@ -13,7 +13,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { ProfileMenu } from "@/components/app/ProfileMenu";
 import { useActiveRole } from "@/components/roles/ActiveRoleProvider";
 import { RoleSwitcher } from "@/components/roles/RoleSwitcher";
-import { isPathAllowedForRole, roleHome, roleRequiredForPath, type ActiveRole } from "@/lib/roles";
+import { isPathAllowedForRole, roleHome, roleRequiredForPath, readStoredRole, type ActiveRole } from "@/lib/roles";
 import {
   appNavIconWrap,
   appNavItemActive,
@@ -338,6 +338,17 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       if (requiredRole && availableRoles.includes(requiredRole)) {
         return;
       }
+      // Hydrate from localStorage before bouncing to the role picker — otherwise
+      // select-role auto-forwards with a stored role and we loop forever.
+      const stored = user?.id ? readStoredRole(user.id) : null;
+      if (
+        stored &&
+        availableRoles.includes(stored) &&
+        roleCtx?.setActiveRoleSilent
+      ) {
+        roleCtx.setActiveRoleSilent(stored);
+        return;
+      }
       router.replace("/select-role");
       return;
     }
@@ -366,6 +377,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     router,
     availableRoles,
     roleCtx,
+    user?.id,
   ]);
 
   const menuItems = useMemo(() => {
