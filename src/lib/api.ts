@@ -2476,12 +2476,19 @@ export const adminApi = {
   addUser: async (
     email: string,
     plan: string,
-    institutionId?: string
+    institutionId?: string,
+    options?: { candidateName?: string; batchId?: string },
   ): Promise<{ invitationId: string; message: string }> => {
     const response = await apiClient.post<{
       success: boolean;
       data: { invitationId: string; message: string };
-    }>("/admin/users", { email, plan, institutionId });
+    }>("/admin/users", {
+      email,
+      plan,
+      institutionId,
+      candidateName: options?.candidateName,
+      batchId: options?.batchId,
+    });
     return response.data.data;
   },
 
