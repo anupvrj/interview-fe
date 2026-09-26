@@ -12,17 +12,14 @@ import {
   resolvePostAuthRedirectPath,
   safeAppRedirectPath,
 } from "@/lib/post-sign-in-redirect";
+import { pairedAuthHref } from "@/lib/invite-accept";
 
 export default function SignUpPage() {
   const searchParams = useSearchParams();
   const redirectUrl = safeAppRedirectPath(searchParams.get("redirect_url"));
   const afterAuth = resolvePostAuthRedirectPath(redirectUrl);
   const emailPrefill = searchParams.get("email")?.trim() || undefined;
-  const signInHref = redirectUrl
-    ? `/sign-in?redirect_url=${encodeURIComponent(redirectUrl)}${
-        emailPrefill ? `&email=${encodeURIComponent(emailPrefill)}` : ""
-      }`
-    : "/sign-in";
+  const signInHref = pairedAuthHref("/sign-in", redirectUrl, emailPrefill);
 
   if (typeof window !== "undefined") {
     persistPostAuthReturnPath(redirectUrl);
@@ -62,6 +59,7 @@ export default function SignUpPage() {
         path="/sign-up"
         forceRedirectUrl={afterAuth}
         fallbackRedirectUrl={afterAuth}
+        signInUrl={signInHref}
         signInForceRedirectUrl={afterAuth}
         signInFallbackRedirectUrl={afterAuth}
         initialValues={emailPrefill ? { emailAddress: emailPrefill } : undefined}
