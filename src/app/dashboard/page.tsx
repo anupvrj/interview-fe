@@ -64,6 +64,10 @@ import {
   scheduledInterviewCanStartNow,
 } from "@/lib/utils";
 import {
+  instituteScheduleRoundLabel,
+  routeAfterScheduledStart,
+} from "@/lib/institute-schedule-round";
+import {
   institutePrimaryClass,
   instituteSecondaryClass,
 } from "@/components/institute/InstituteChrome";
@@ -201,9 +205,13 @@ export default function DashboardPage() {
   const handleStartScheduled = async (scheduleId: string) => {
     try {
       setStartingScheduleId(scheduleId);
-      const { interviewId } = await interviewScheduleApi.start(scheduleId);
+      const payload = await interviewScheduleApi.start(scheduleId);
       await invalidate(["interviewSchedules", "interviews", "entitlements"]);
-      router.push(`/interview/${interviewId}/realtime`);
+      const path = routeAfterScheduledStart(payload);
+      if (!path) {
+        throw new Error("Could not open this scheduled interview.");
+      }
+      router.push(path);
     } catch (e: any) {
       alert(
         e?.response?.data?.message ||
@@ -292,6 +300,9 @@ export default function DashboardPage() {
                 >
                   <div>
                     <p className="font-semibold text-foreground">{s.role}</p>
+                    <p className="text-xs font-medium text-primary/90">
+                      {instituteScheduleRoundLabel(s.roundType)}
+                    </p>
                     <p className="text-sm text-muted-foreground">
                       {new Date(s.scheduledAt).toLocaleString()}
                       {s.targetCompany ? ` · ${s.targetCompany}` : ""}

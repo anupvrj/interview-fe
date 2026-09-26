@@ -7,6 +7,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Loader2, ArrowLeft } from "lucide-react";
 import { userApi, adminApi, type InterviewReport } from "@/lib/api";
+import { canViewInstitutePage } from "@/lib/institute-access";
 import { InterviewReportAnalysis } from "@/components/institution/InterviewReportAnalysis";
 import { ReportSectionTabs } from "@/components/reports/ReportSectionTabs";
 import { formatDate } from "@/lib/utils";
@@ -38,29 +39,22 @@ export default function InstitutionInterviewReportPage() {
   useEffect(() => {
     if (
       profile &&
-      (profile.accessRole === "institution_admin" || profile.accessRole === "super_admin") &&
+      canViewInstitutePage(profile, institutionId, "candidates") &&
       clerkId &&
       interviewId
     ) {
       loadReport();
     }
-  }, [profile, clerkId, interviewId]);
+  }, [profile, clerkId, interviewId, institutionId]);
 
   const loadProfile = async () => {
     if (!user) return;
     try {
       const p = await userApi.getMyProfile();
       setProfile(p);
-      if (p.accessRole !== "institution_admin" && p.accessRole !== "super_admin") {
+      if (!canViewInstitutePage(p, institutionId, "candidates")) {
         router.replace("/dashboard");
         return;
-      }
-      if (
-        p.accessRole === "institution_admin" &&
-        p.institutionId &&
-        String(p.institutionId) !== institutionId
-      ) {
-        router.replace("/dashboard");
       }
     } catch {
       router.replace("/dashboard");

@@ -17,16 +17,22 @@ import {
 } from "lucide-react";
 import { userApi, adminApi } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import {
+  canAccessInstituteNav,
+  canAccessInstituteShell,
+  type InstituteNavSegment,
+} from "@/lib/institute-access";
 
-const nav = (base: string) => [
-  { href: base, label: "Overview", icon: LayoutDashboard },
-  { href: `${base}/candidates`, label: "Candidates", icon: Users },
-  { href: `${base}/batches`, label: "Batches", icon: Layers },
-  { href: `${base}/schedules`, label: "Schedules", icon: CalendarClock },
-  { href: `${base}/analytics`, label: "Analytics", icon: BarChart2 },
-  { href: `${base}/settings`, label: "Institution", icon: Settings },
-  { href: `${base}/billing`, label: "Plans & payments", icon: Receipt },
-];
+const nav = (base: string) =>
+  [
+    { segment: "overview" as const, href: base, label: "Overview", icon: LayoutDashboard },
+    { segment: "candidates" as const, href: `${base}/candidates`, label: "Candidates", icon: Users },
+    { segment: "batches" as const, href: `${base}/batches`, label: "Batches", icon: Layers },
+    { segment: "schedules" as const, href: `${base}/schedules`, label: "Schedules", icon: CalendarClock },
+    { segment: "analytics" as const, href: `${base}/analytics`, label: "Analytics", icon: BarChart2 },
+    { segment: "settings" as const, href: `${base}/settings`, label: "Institution", icon: Settings },
+    { segment: "billing" as const, href: `${base}/billing`, label: "Plans & payments", icon: Receipt },
+  ] as const;
 
 export default function InstituteDashboardLayout({
   children,
@@ -49,13 +55,15 @@ export default function InstituteDashboardLayout({
         const p = await userApi.getMyProfile();
         if (cancelled) return;
         setAccessRole(p.accessRole || "user");
-        if (p.accessRole === "institution_admin") {
-          const mine = p.institutionId ? String(p.institutionId) : "";
-          if (mine !== institutionId) {
-            globalThis.location.replace("/dashboard");
-            return;
+        if (canAccessInstituteShell(p.accessRole)) {
+          if (p.accessRole !== "super_admin") {
+            const mine = p.institutionId ? String(p.institutionId) : "";
+            if (mine !== institutionId) {
+              globalThis.location.replace("/dashboard");
+              return;
+            }
           }
-        } else if (p.accessRole !== "super_admin") {
+        } else {
           globalThis.location.replace("/dashboard");
           return;
         }
@@ -83,8 +91,8 @@ export default function InstituteDashboardLayout({
     );
   }
 
-  /** Institution admins use the main app sidebar only (DashboardLayout); avoid duplicate nav. */
-  if (accessRole === "institution_admin") {
+  /** Institution staff use the main app sidebar only; avoid duplicate nav. */
+  if (accessRole && canAccessInstituteShell(accessRole) && accessRole !== "super_admin") {
     return (
       <div className="min-w-0 w-full max-w-7xl mx-auto space-y-6">{children}</div>
     );
@@ -112,7 +120,9 @@ export default function InstituteDashboardLayout({
           </div>
         </div>
         <nav className="flex flex-row flex-wrap gap-1 lg:flex-col">
-          {nav(base).map((item) => {
+          {nav(base)
+            .filter((item) => canAccessInstituteNav(accessRole, item.segment))
+            .map((item) => {
             const active =
               item.href === base
                 ? pathname === base

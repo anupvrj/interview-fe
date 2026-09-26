@@ -53,6 +53,8 @@ export function SuperAdminInstitutionsManager() {
   const [instDomain, setInstDomain] = useState("");
   const [instEmail, setInstEmail] = useState("");
   const [instMaxUsers, setInstMaxUsers] = useState("");
+  const [instTechBasicSeats, setInstTechBasicSeats] = useState("");
+  const [instTechProSeats, setInstTechProSeats] = useState("");
   const [instBiometric, setInstBiometric] = useState(false);
   const [instIntegrity, setInstIntegrity] = useState<IntegritySettings>(
     DEFAULT_INTEGRITY_SETTINGS,
@@ -66,6 +68,8 @@ export function SuperAdminInstitutionsManager() {
   const [editDomain, setEditDomain] = useState("");
   const [editEmail, setEditEmail] = useState("");
   const [editMaxUsers, setEditMaxUsers] = useState("");
+  const [editTechBasicSeats, setEditTechBasicSeats] = useState("");
+  const [editTechProSeats, setEditTechProSeats] = useState("");
   const [editBiometric, setEditBiometric] = useState(false);
   const [editIntegrity, setEditIntegrity] = useState<IntegritySettings>(
     DEFAULT_INTEGRITY_SETTINGS,
@@ -113,13 +117,23 @@ export function SuperAdminInstitutionsManager() {
     }
     try {
       setInstSubmitting(true);
-      await adminApi.createInstitution(payload);
+      const created = await adminApi.createInstitution(payload);
+      const seats: Array<{ planId: string; purchased: number }> = [];
+      const tb = instTechBasicSeats.trim();
+      const tp = instTechProSeats.trim();
+      if (tb) seats.push({ planId: "tech_basic", purchased: Number.parseInt(tb, 10) });
+      if (tp) seats.push({ planId: "tech_pro", purchased: Number.parseInt(tp, 10) });
+      if (seats.length && created?._id) {
+        await adminApi.updateInstitutionSeats(String(created._id), seats);
+      }
       setInstOpen(false);
       setInstName("");
       setInstSlug("");
       setInstDomain("");
       setInstEmail("");
       setInstMaxUsers("");
+      setInstTechBasicSeats("");
+      setInstTechProSeats("");
       setInstBiometric(false);
       setInstIntegrity(DEFAULT_INTEGRITY_SETTINGS);
       setInstProducts(defaultInstitutionProducts());
@@ -139,6 +153,13 @@ export function SuperAdminInstitutionsManager() {
     setEditEmail(inst.contactEmail ?? "");
     setEditMaxUsers(
       inst.maxUsers != null && inst.maxUsers !== "" ? String(inst.maxUsers) : "",
+    );
+    const seatRows = (inst.planSeats || []) as Array<{ planId: string; purchased: number }>;
+    setEditTechBasicSeats(
+      String(seatRows.find((s) => s.planId === "tech_basic")?.purchased ?? ""),
+    );
+    setEditTechProSeats(
+      String(seatRows.find((s) => s.planId === "tech_pro")?.purchased ?? ""),
     );
     setEditBiometric(Boolean(inst.platformFlags?.biometricVerification));
     setEditIntegrity(integrityFromInstitution(inst.platformFlags?.integrity));
@@ -176,6 +197,14 @@ export function SuperAdminInstitutionsManager() {
           integrity: editIntegrity,
         },
       });
+      const seats: Array<{ planId: string; purchased: number }> = [];
+      const tb = editTechBasicSeats.trim();
+      const tp = editTechProSeats.trim();
+      if (tb) seats.push({ planId: "tech_basic", purchased: Number.parseInt(tb, 10) });
+      if (tp) seats.push({ planId: "tech_pro", purchased: Number.parseInt(tp, 10) });
+      if (seats.length) {
+        await adminApi.updateInstitutionSeats(String(editInst._id), seats);
+      }
       setEditInst(null);
       await loadInstitutions();
     } catch (err: any) {
@@ -368,6 +397,30 @@ export function SuperAdminInstitutionsManager() {
                 for no limit.
               </p>
             </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div>
+                <Label htmlFor="inst-tech-basic">Tech Basic seats</Label>
+                <Input
+                  id="inst-tech-basic"
+                  type="number"
+                  min={0}
+                  value={instTechBasicSeats}
+                  onChange={(e) => setInstTechBasicSeats(e.target.value)}
+                  placeholder="0"
+                />
+              </div>
+              <div>
+                <Label htmlFor="inst-tech-pro">Tech Pro seats</Label>
+                <Input
+                  id="inst-tech-pro"
+                  type="number"
+                  min={0}
+                  value={instTechProSeats}
+                  onChange={(e) => setInstTechProSeats(e.target.value)}
+                  placeholder="0"
+                />
+              </div>
+            </div>
             <label className="flex items-start gap-2 text-sm">
               <input
                 type="checkbox"
@@ -488,6 +541,28 @@ export function SuperAdminInstitutionsManager() {
                 Empty = unlimited. Existing users are not removed if you lower the
                 cap.
               </p>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div>
+                <Label htmlFor="edit-tech-basic">Tech Basic seats</Label>
+                <Input
+                  id="edit-tech-basic"
+                  type="number"
+                  min={0}
+                  value={editTechBasicSeats}
+                  onChange={(e) => setEditTechBasicSeats(e.target.value)}
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-tech-pro">Tech Pro seats</Label>
+                <Input
+                  id="edit-tech-pro"
+                  type="number"
+                  min={0}
+                  value={editTechProSeats}
+                  onChange={(e) => setEditTechProSeats(e.target.value)}
+                />
+              </div>
             </div>
             <label className="flex items-start gap-2 text-sm">
               <input
