@@ -294,7 +294,7 @@ export interface User {
   clerkId: string;
   email: string;
   name: string;
-  role: "student" | "college" | "candidate" | "staff";
+  role: "student" | "college" | "staff";
   accessRole?: AccessRole;
   institutionId?: string;
   /** Joined through an institute invite; plan and billing are managed by the institute. */
