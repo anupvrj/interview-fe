@@ -1,38 +1,105 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
-import { useClerk, useUser } from "@clerk/nextjs";
+import { Suspense, useEffect, useState } from "react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { SignIn, SignUp, useClerk, useUser } from "@clerk/nextjs";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import { AuthCardLayout } from "@/components/app/AuthCardLayout";
 import { Button } from "@/components/ui/button";
 import { userApi, type InvitationPreview } from "@/lib/api";
+import { clerkAuthAppearance } from "@/lib/clerk-appearance";
 import { isInstituteStaff } from "@/lib/institute-access";
-import { roleHome, writeStoredRole } from "@/lib/roles";
+import { writeStoredRole } from "@/lib/roles";
 import { ensureUserProfile } from "@/lib/ensure-user-profile";
+import { persistPostAuthReturnPath } from "@/lib/post-sign-in-redirect";
+import {
+  INVITE_ACCEPT_LABEL,
+  destinationAfterInvite,
+  inviteClerkSignInProps,
+  inviteClerkSignUpProps,
+  invitePagePath,
+  inviteWorkspaceRole,
+  isInviteSignInMode,
+} from "@/lib/invite-accept";
 
-function authHref(path: "/sign-in" | "/sign-up", token: string, email: string) {
-  const redirect = `/invite/${encodeURIComponent(token)}`;
-  const params = new URLSearchParams({
-    redirect_url: redirect,
-    email,
-  });
-  return `${path}?${params.toString()}`;
+function InviteFallback() {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-background">
+      <Loader2 className="h-8 w-8 animate-spin text-[#7367F0]" />
+    </div>
+  );
 }
 
-export default function AcceptInvitePage() {
+function InviteAuthPanel({
+  token,
+  email,
+  useSignIn,
+  onStartSignUp,
+}: Readonly<{
+  token: string;
+  email: string;
+  useSignIn: boolean;
+  onStartSignUp: () => void;
+}>) {
+  return (
+    <>
+      {useSignIn ? (
+        <SignIn
+          {...inviteClerkSignInProps(token, email)}
+          appearance={clerkAuthAppearance}
+        />
+      ) : (
+        <SignUp
+          {...inviteClerkSignUpProps(token, email)}
+          appearance={clerkAuthAppearance}
+        />
+      )}
+      <p className="text-center text-sm text-muted-foreground">
+        {useSignIn ? (
+          <>
+            Need to set up this email?{" "}
+            <Link
+              href={invitePagePath(token)}
+              className="font-semibold text-primary hover:underline"
+              onClick={onStartSignUp}
+            >
+              Create credentials
+            </Link>
+          </>
+        ) : (
+          <>
+            Already have an account?{" "}
+            <Link
+              href={invitePagePath(token, "sign-in")}
+              className="font-semibold text-primary hover:underline"
+            >
+              Sign in
+            </Link>
+          </>
+        )}
+      </p>
+    </>
+  );
+}
+
+function AcceptInvitePageBody() {
   const params = useParams();
   const token = String(params.token || "");
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user, isLoaded } = useUser();
   const { signOut } = useClerk();
   const [invite, setInvite] = useState<InvitationPreview | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [started, setStarted] = useState(false);
+  const signInMode = isInviteSignInMode(searchParams.get("mode"));
+  const showAuth = started || signInMode;
 
   useEffect(() => {
     if (!token) return;
+    persistPostAuthReturnPath(invitePagePath(token));
     let cancelled = false;
     userApi
       .getInvitation(token)
@@ -58,18 +125,25 @@ export default function AcceptInvitePage() {
     void (async () => {
       try {
         await ensureUserProfile(user);
-        if (invite.status === "pending") {
-          await userApi.acceptInvitation(token);
-        }
+        const accepted =
+          invite.status === "pending"
+            ? await userApi.acceptInvitation(token)
+            : invite;
+        if (cancelled) return;
         const profile = await userApi.getMyProfile();
         if (cancelled) return;
-        if (isInstituteStaff(profile.accessRole)) {
-          writeStoredRole(user.id, "institution_admin");
-          router.replace(roleHome("institution_admin", profile));
-          return;
-        }
-        writeStoredRole(user.id, "candidate");
-        router.replace(roleHome("candidate", profile));
+        const staff =
+          Boolean(accepted.isStaff) || isInstituteStaff(profile.accessRole);
+        writeStoredRole(user.id, inviteWorkspaceRole(staff));
+        router.replace(
+          destinationAfterInvite({
+            nextPath: accepted.nextPath,
+            isStaff: staff,
+            institutionId:
+              accepted.institutionId ??
+              (profile.institutionId ? String(profile.institutionId) : null),
+          }),
+        );
       } catch (err: unknown) {
         if (cancelled) return;
         const message =
@@ -126,7 +200,7 @@ export default function AcceptInvitePage() {
           </p>
           <Button
             className="h-11 w-full"
-            onClick={() => void signOut({ redirectUrl: `/invite/${token}` })}
+            onClick={() => void signOut({ redirectUrl: invitePagePath(token) })}
           >
             Use a different account
           </Button>
@@ -135,32 +209,51 @@ export default function AcceptInvitePage() {
     );
   }
 
+  const destinationLabel = invite.isStaff ? "institute dashboard" : "candidate workspace";
+  const useSignIn = signInMode || invite.status === "accepted";
+
   return (
     <AuthCardLayout
       title={`Join ${invite.institutionName}`}
-      subtitle={`You've been invited as ${invite.roleLabel}. Continue with ${invite.email} to open the ${
-        invite.isStaff ? "institute dashboard" : "candidate workspace"
-      }.`}
+      subtitle={`You've been invited as ${invite.roleLabel}. Continue with ${invite.email} to open the ${destinationLabel}.`}
     >
       <div className="space-y-3">
-        {invite.status === "accepted" ? (
+        {invite.status === "accepted" && !showAuth ? (
           <p className="text-sm text-muted-foreground">
             This invite was already accepted. Sign in with {invite.email} to continue.
           </p>
         ) : null}
-        <Button className="h-11 w-full" asChild>
-          <Link href={authHref("/sign-up", token, invite.email)}>Create account</Link>
-        </Button>
-        <Button variant="outline" className="h-11 w-full" asChild>
-          <Link href={authHref("/sign-in", token, invite.email)}>I already have an account</Link>
-        </Button>
+
+        {showAuth ? (
+          <InviteAuthPanel
+            token={token}
+            email={invite.email}
+            useSignIn={useSignIn}
+            onStartSignUp={() => setStarted(true)}
+          />
+        ) : (
+          <Button className="h-11 w-full" onClick={() => setStarted(true)}>
+            {INVITE_ACCEPT_LABEL}
+          </Button>
+        )}
+
         {invite.isStaff ? (
           <p className="text-xs leading-relaxed text-muted-foreground">
             After you join, you can switch to Candidate from the role menu anytime to
             practice interviews yourself. Institute admin access stays on this account.
           </p>
         ) : null}
+
+        {error ? <p className="text-sm text-destructive">{error}</p> : null}
       </div>
     </AuthCardLayout>
+  );
+}
+
+export default function AcceptInvitePage() {
+  return (
+    <Suspense fallback={<InviteFallback />}>
+      <AcceptInvitePageBody />
+    </Suspense>
   );
 }
