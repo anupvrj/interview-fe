@@ -39,6 +39,7 @@ import {
   DashboardSectionIcon,
   DashboardStatCard,
 } from "@/components/dashboard/DashboardStatCard";
+import { ChartPanel } from "@/components/app/ChartPanel";
 import { appCard } from "@/lib/app-theme";
 import { cn } from "@/lib/utils";
 import {
@@ -105,33 +106,6 @@ function sumDaily(
   key: keyof Omit<InsightDailyPoint, "date" | "label">,
 ) {
   return daily.reduce((sum, row) => sum + (row[key] ?? 0), 0);
-}
-
-function ChartPanel({
-  title,
-  description,
-  children,
-  className,
-}: Readonly<{
-  title: string;
-  description: string;
-  children: ReactNode;
-  className?: string;
-}>) {
-  return (
-    <div
-      className={cn(
-        "min-w-0 overflow-hidden rounded-xl border border-border/60 bg-muted/10",
-        className,
-      )}
-    >
-      <div className="border-b border-border/50 px-3 py-3 sm:px-4">
-        <p className="text-sm font-semibold text-foreground">{title}</p>
-        <p className="text-xs text-muted-foreground">{description}</p>
-      </div>
-      <div className="p-2 sm:p-3">{children}</div>
-    </div>
-  );
 }
 
 function SectionHeader({

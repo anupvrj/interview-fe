@@ -1,4 +1,5 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
+import type { NextFetchEvent, NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import {
   getCanonicalHostname,
@@ -48,6 +49,27 @@ const isPublicRoute = createRouteMatcher([
   "/sitemap.xml",
 ]);
 
+/** Clerk handshake cookies trigger remote JWKS fetches; stale ones can hang Edge ~50s when offline. */
+const DEV_HANDSHAKE_COOKIE_NAMES = [
+  "__clerk_handshake",
+  "__clerk_handshake_nonce",
+] as const;
+
+function devClearStaleHandshakeCookies(request: NextRequest): NextResponse | null {
+  if (process.env.NODE_ENV !== "development") return null;
+  if (request.nextUrl.searchParams.has("__clerk_handshake")) return null;
+
+  const hasStale = DEV_HANDSHAKE_COOKIE_NAMES.some((name) => request.cookies.has(name));
+  if (!hasStale) return null;
+
+  const url = request.nextUrl.clone();
+  const res = NextResponse.redirect(url);
+  for (const name of DEV_HANDSHAKE_COOKIE_NAMES) {
+    res.cookies.set(name, "", { path: "/", maxAge: 0 });
+  }
+  return withSearchHeaders(res, url.pathname);
+}
+
 function canonicalHostRedirect(request: Request): NextResponse | null {
   if (process.env.NODE_ENV !== "production") return null;
 
@@ -62,7 +84,7 @@ function canonicalHostRedirect(request: Request): NextResponse | null {
   return NextResponse.redirect(url, 308);
 }
 
-export default clerkMiddleware(
+const clerkHandler = clerkMiddleware(
   async (auth, request) => {
     const hostRedirect = canonicalHostRedirect(request);
     if (hostRedirect) {
@@ -102,6 +124,14 @@ export default clerkMiddleware(
     debug: false,
   },
 );
+
+export default function middleware(request: NextRequest, event: NextFetchEvent) {
+  const handshakeReset = devClearStaleHandshakeCookies(request);
+  if (handshakeReset) {
+    return handshakeReset;
+  }
+  return clerkHandler(request, event);
+}
 
 export const config = {
   matcher: [

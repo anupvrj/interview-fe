@@ -11,6 +11,27 @@ export function toDatetimeLocalValue(d: Date): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
+export function splitDatetimeLocalValue(value: string): {
+  date: string;
+  time: string;
+} {
+  if (!value.includes("T")) {
+    return { date: value.trim(), time: "" };
+  }
+  const [date, timePart] = value.split("T");
+  return {
+    date: date ?? "",
+    time: (timePart ?? "").slice(0, 5),
+  };
+}
+
+export function mergeDatetimeLocalParts(date: string, time: string): string {
+  const d = date.trim();
+  if (!d) return "";
+  const t = time.trim() || "09:00";
+  return `${d}T${t}`;
+}
+
 /** Non-empty lines from a textarea → ordered question list for institution scheduling. */
 export function parseQuestionLines(text: string): string[] {
   return text
