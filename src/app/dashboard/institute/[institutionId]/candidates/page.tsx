@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useUser } from "@clerk/nextjs";
 import { useRouter, useParams } from "next/navigation";
 import {
@@ -30,7 +30,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { InterviewQuestionsField } from "@/components/institute/InterviewQuestionsField";
 import {
   Loader2,
   Users,
@@ -38,27 +37,33 @@ import {
   Trash2,
   Coins,
   FileText,
-  Search,
-  CalendarClock,
   ChevronLeft,
   ChevronRight,
-  Sparkles,
   ShieldCheck,
+  Layers,
+  X,
 } from "lucide-react";
-import { userApi, adminApi, User } from "@/lib/api";
+import { userApi, adminApi, User, planApi } from "@/lib/api";
+import {
+  canViewInstitutePage,
+  instituteRoleCanInviteCandidates,
+  isInstituteStaff,
+} from "@/lib/institute-access";
+import { dialogPortaledPickerHandlers } from "@/lib/dialog-portaled-picker-handlers";
 import { biometricApi, type BiometricCredential } from "@/lib/biometric/api";
-import { cn, formatDate, parseQuestionLines, toDatetimeLocalValue } from "@/lib/utils";
+import { cn, formatDate } from "@/lib/utils";
 import {
   InstituteEmptyState,
   InstituteLoader,
-  InstitutePageHeader,
   InstituteTableShell,
-  institutePanelClass,
   institutePrimaryClass,
   instituteSecondaryClass,
 } from "@/components/institute/InstituteChrome";
-
-const MAX_JOB_DESCRIPTION_CHARS = 32000;
+import { InstituteCandidatesHero } from "@/components/institute/InstituteCandidatesHero";
+import { FormField } from "@/components/app/FormField";
+import { SearchInput } from "@/components/app/SearchInput";
+import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
+import { toast } from "sonner";
 
 function candidateInitials(name: string | undefined, email: string | undefined): string {
   const n = (name || "").trim();
@@ -75,37 +80,33 @@ function candidateInitials(name: string | undefined, email: string | undefined):
   return local.slice(0, 2).toUpperCase();
 }
 
-/** Institution UI plan labels; API only accepts free | premium | enterprise. */
-type InstitutionUiPlan = "free" | "starter" | "premium" | "elite";
-type ApiSubscriptionPlan = "free" | "premium" | "enterprise";
+type InstituteInvitePlan = "free" | "tech_basic" | "tech_pro" | "enterprise";
 
-function uiPlanToApi(plan: InstitutionUiPlan): ApiSubscriptionPlan {
-  switch (plan) {
-    case "free":
-      return "free";
-    case "starter":
-      return "premium";
-    case "premium":
-      return "premium";
-    case "elite":
-      return "enterprise";
-    default:
-      return "free";
-  }
-}
+const INSTITUTE_PLAN_OPTIONS: { value: InstituteInvitePlan; label: string }[] = [
+  { value: "free", label: "Free" },
+  { value: "tech_basic", label: "Tech Basic" },
+  { value: "tech_pro", label: "Tech Pro" },
+  { value: "enterprise", label: "Enterprise" },
+];
 
-function subscriptionToUiPlanSelect(apiPlan: string | undefined): InstitutionUiPlan {
+function normalizeApiPlan(apiPlan: string | undefined): InstituteInvitePlan {
   const p = (apiPlan || "free").toLowerCase();
-  if (p === "enterprise") return "elite";
-  if (p === "premium") return "premium";
+  if (p === "enterprise") return "enterprise";
+  if (p === "tech_pro" || p === "premium" || p === "elite") return "tech_pro";
+  if (p === "tech_basic" || p === "starter" || p === "basic") return "tech_basic";
   return "free";
 }
 
 function planBadgeLabel(apiPlan: string): string {
-  const p = (apiPlan || "free").toLowerCase();
-  if (p === "enterprise") return "Elite";
-  return p.charAt(0).toUpperCase() + p.slice(1);
+  const id = normalizeApiPlan(apiPlan);
+  return INSTITUTE_PLAN_OPTIONS.find((o) => o.value === id)?.label ?? id;
 }
+
+type InstituteBatchOption = {
+  _id: string;
+  name: string;
+  memberCount: number;
+};
 
 export default function InstituteCandidatesPage() {
   const { user, isLoaded } = useUser();
@@ -118,13 +119,21 @@ export default function InstituteCandidatesPage() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [batchFilter, setBatchFilter] = useState("");
+  const [selectedBatchLabel, setSelectedBatchLabel] = useState("");
+  const [batchSearchQuery, setBatchSearchQuery] = useState("");
+  const [batchCatalog, setBatchCatalog] = useState<InstituteBatchOption[]>([]);
+  const [batchCatalogLoaded, setBatchCatalogLoaded] = useState(false);
+  const [batchCatalogLoading, setBatchCatalogLoading] = useState(false);
   const [page, setPage] = useState(0);
   const limit = 20;
 
   // Add user dialog
   const [addOpen, setAddOpen] = useState(false);
   const [addEmail, setAddEmail] = useState("");
-  const [addPlan, setAddPlan] = useState<InstitutionUiPlan>("free");
+  const [addPlan, setAddPlan] = useState<InstituteInvitePlan>("free");
+  const [planOptions, setPlanOptions] = useState(INSTITUTE_PLAN_OPTIONS);
+  const [deleteTarget, setDeleteTarget] = useState<User | null>(null);
   const [addSubmitting, setAddSubmitting] = useState(false);
 
   const [creditsOpen, setCreditsOpen] = useState(false);
@@ -133,23 +142,10 @@ export default function InstituteCandidatesPage() {
   const [creditsValue, setCreditsValue] = useState("");
   const [creditsSubmitting, setCreditsSubmitting] = useState(false);
 
-  const [scheduleUser, setScheduleUser] = useState<User | null>(null);
-  const [scheduleAt, setScheduleAt] = useState("");
-  const [scheduleRole, setScheduleRole] = useState("");
-  const [scheduleExperience, setScheduleExperience] = useState("2");
-  const [scheduleCompany, setScheduleCompany] = useState("");
-  const [scheduleDuration, setScheduleDuration] = useState<"15" | "30">("15");
-  const [scheduleQuestionsText, setScheduleQuestionsText] = useState("");
-  const [schedulePassingScore, setSchedulePassingScore] = useState("");
-  const [scheduleExpiresAt, setScheduleExpiresAt] = useState("");
-  const [scheduleJobDescription, setScheduleJobDescription] = useState("");
-  const [scheduleSubmitting, setScheduleSubmitting] = useState(false);
-
   const [reviewUser, setReviewUser] = useState<User | null>(null);
   const [reviewCred, setReviewCred] = useState<BiometricCredential | null>(null);
   const [reviewNote, setReviewNote] = useState("");
   const [reviewBusy, setReviewBusy] = useState(false);
-
   useEffect(() => {
     if (isLoaded && user) {
       localStorage.setItem("clerk-user-id", user.id);
@@ -159,24 +155,92 @@ export default function InstituteCandidatesPage() {
 
   useEffect(() => {
     setPage(0);
-  }, [search]);
+  }, [search, batchFilter]);
 
   useEffect(() => {
-    if (profile && (profile.accessRole === "institution_admin" || profile.accessRole === "super_admin")) {
+    if (profile && canViewInstitutePage(profile, institutionId, "candidates")) {
       loadUsers();
     }
-  }, [profile, page, search, institutionId]);
+  }, [profile, page, search, batchFilter, institutionId]);
+
+  const loadBatchCatalog = useCallback(async () => {
+    if (batchCatalogLoaded) return;
+    setBatchCatalogLoading(true);
+    try {
+      const list = await adminApi.listBatches(institutionId);
+      const mapped = (list as Array<{ _id?: string; name?: string; memberClerkIds?: string[] }>)
+        .map((b) => ({
+          _id: String(b._id ?? ""),
+          name: String(b.name ?? "Untitled batch"),
+          memberCount: b.memberClerkIds?.length ?? 0,
+        }))
+        .filter((b) => b._id);
+      mapped.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
+      setBatchCatalog(mapped);
+      setBatchCatalogLoaded(true);
+    } catch {
+      setBatchCatalog([]);
+      setBatchCatalogLoaded(true);
+    } finally {
+      setBatchCatalogLoading(false);
+    }
+  }, [batchCatalogLoaded, institutionId]);
+
+  useEffect(() => {
+    const q = batchSearchQuery.trim();
+    if (!q || batchFilter) return;
+    const timer = setTimeout(() => {
+      void loadBatchCatalog();
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [batchSearchQuery, batchFilter, loadBatchCatalog]);
+
+  const batchSearchMatches = useMemo(() => {
+    const q = batchSearchQuery.trim().toLowerCase();
+    if (!q) return [];
+    return batchCatalog
+      .filter((b) => b.name.toLowerCase().includes(q))
+      .slice(0, 8);
+  }, [batchCatalog, batchSearchQuery]);
+
+  const clearListFilters = () => {
+    setSearch("");
+    setBatchFilter("");
+    setSelectedBatchLabel("");
+    setBatchSearchQuery("");
+  };
+
+  useEffect(() => {
+    planApi
+      .getAllPlans()
+      .then((plans) => {
+        const mapped = plans
+          .map((p: { id?: string; slug?: string; name?: string }) => {
+            const slug = normalizeApiPlan(p.slug || p.id);
+            const label =
+              p.name ||
+              INSTITUTE_PLAN_OPTIONS.find((o) => o.value === slug)?.label ||
+              slug;
+            return { value: slug, label };
+          })
+          .filter(
+            (o, i, arr) => arr.findIndex((x) => x.value === o.value) === i,
+          );
+        if (mapped.length > 0) setPlanOptions(mapped);
+      })
+      .catch(() => {});
+  }, []);
 
   const loadProfile = async () => {
     if (!user) return;
     try {
       const p = await userApi.getMyProfile();
       setProfile(p);
-      if (p.accessRole !== "institution_admin" && p.accessRole !== "super_admin") {
+      if (!canViewInstitutePage(p, institutionId, "candidates")) {
         router.replace("/dashboard");
         return;
       }
-      if (p.accessRole === "institution_admin") {
+      if (isInstituteStaff(p.accessRole)) {
         setShowIdentityColumn(Boolean(p.institutionFlags?.biometricVerification));
       } else {
         try {
@@ -203,6 +267,7 @@ export default function InstituteCandidatesPage() {
         limit,
         skip: page * limit,
         search: search || undefined,
+        ...(batchFilter ? { batchId: batchFilter } : {}),
         ...(profile?.accessRole === "super_admin" && { institutionId }),
       });
       setUsers(data);
@@ -218,41 +283,38 @@ export default function InstituteCandidatesPage() {
     if (!addEmail?.trim()) return;
     const instId =
       profile?.accessRole === "super_admin" ? institutionId : profile?.institutionId;
-    if (profile?.accessRole === "institution_admin" && !instId) {
-      alert("Institution is required");
+    if (isInstituteStaff(profile?.accessRole) && !instId) {
+      toast.error("Institution is required");
       return;
     }
     try {
       setAddSubmitting(true);
       const result = await adminApi.addUser(
         addEmail,
-        uiPlanToApi(addPlan),
+        addPlan,
         instId,
       );
       setAddOpen(false);
       setAddEmail("");
       setAddPlan("free");
-      alert(result.message);
+      toast.success(result.message);
       loadUsers();
     } catch (err: any) {
-      alert(err?.response?.data?.message || "Failed to add user");
+      toast.error(err?.response?.data?.message || "Failed to add user");
     } finally {
       setAddSubmitting(false);
     }
   };
 
   const handleDeleteUser = async (u: User) => {
-    if (
-      !confirm(
-        `Delete ${u.name} (${u.email})? This will permanently delete the user, their resumes, interviews, reports, and all related data. This cannot be undone.`
-      )
-    )
-      return;
     try {
       await adminApi.deleteUser(u.clerkId);
+      toast.success("User removed");
       loadUsers();
     } catch (err: any) {
-      alert(err?.response?.data?.message || "Failed to delete user");
+      toast.error(err?.response?.data?.message || "Failed to delete user");
+    } finally {
+      setDeleteTarget(null);
     }
   };
 
@@ -270,14 +332,14 @@ export default function InstituteCandidatesPage() {
     if (creditsMode === "add") {
       const n = Number.parseInt(creditsValue.trim(), 10);
       if (!Number.isFinite(n) || n <= 0) {
-        alert("Enter a positive whole number of credits to add.");
+        toast.error("Enter a positive whole number of credits to add.");
         return;
       }
       delta = n;
     } else {
       const newTotal = Number.parseInt(creditsValue.trim(), 10);
       if (!Number.isFinite(newTotal) || newTotal < 0) {
-        alert("Enter a new balance (0 or greater).");
+        toast.error("Enter a new balance (0 or greater).");
         return;
       }
       delta = newTotal - current;
@@ -295,252 +357,183 @@ export default function InstituteCandidatesPage() {
       setCreditsOpen(false);
       setCreditsUser(null);
     } catch (err: any) {
-      alert(err?.response?.data?.message || "Failed to update credits");
+      toast.error(err?.response?.data?.message || "Failed to update credits");
     } finally {
       setCreditsSubmitting(false);
     }
   };
 
-  const handleUpdatePlan = async (u: User, plan: InstitutionUiPlan) => {
-    try {
-      await adminApi.updatePlan(u.clerkId, uiPlanToApi(plan));
-      loadUsers();
-    } catch (err: any) {
-      alert(err?.response?.data?.message || "Failed to update plan");
-    }
-  };
-
-  const openScheduleDialog = (u: User) => {
-    const instId =
-      profile?.accessRole === "super_admin" ? institutionId : profile?.institutionId;
-    if (!instId) {
-      alert("This user must belong to an institution before you can schedule an interview.");
-      return;
-    }
-    setScheduleUser(u);
-    setScheduleRole("Software Engineer");
-    setScheduleExperience("2");
-    setScheduleCompany("");
-    setScheduleDuration("15");
-    setScheduleQuestionsText("");
-    setSchedulePassingScore("");
-    setScheduleJobDescription("");
-    const t = new Date();
-    t.setDate(t.getDate() + 1);
-    t.setHours(10, 0, 0, 0);
-    setScheduleAt(toDatetimeLocalValue(t));
-    const exp = new Date(t);
-    exp.setDate(exp.getDate() + 7);
-    exp.setHours(23, 59, 0, 0);
-    setScheduleExpiresAt(toDatetimeLocalValue(exp));
-  };
-
-  const handleCreateSchedule = async () => {
-    if (!scheduleUser || !profile || !scheduleRole.trim() || !scheduleAt) return;
-    const instId =
-      profile.accessRole === "super_admin" ? institutionId : profile.institutionId;
-    if (!instId) {
-      alert("Institution is required.");
-      return;
-    }
-    const exp = Number.parseInt(scheduleExperience, 10);
-    if (!Number.isFinite(exp) || exp < 0) {
-      alert("Enter a valid years of experience (0 or more).");
-      return;
-    }
-    let passingScorePayload: number | undefined;
-    if (schedulePassingScore.trim()) {
-      const ps = Number.parseFloat(schedulePassingScore.trim());
-      if (!Number.isFinite(ps) || ps < 0 || ps > 100) {
-        alert("Passing score must be a number from 0 to 100.");
-        return;
-      }
-      passingScorePayload = ps;
-    }
-    const jd = scheduleJobDescription.trim();
-    if (jd.length > MAX_JOB_DESCRIPTION_CHARS) {
-      alert(
-        `Job description must be at most ${MAX_JOB_DESCRIPTION_CHARS.toLocaleString()} characters (you have ${jd.length.toLocaleString()}).`
-      );
-      return;
-    }
-    const customQs = parseQuestionLines(scheduleQuestionsText);
-    try {
-      setScheduleSubmitting(true);
-      await adminApi.createInterviewSchedule({
-        candidateClerkId: scheduleUser.clerkId,
-        ...(profile.accessRole === "super_admin" && {
-          institutionId: String(instId),
-        }),
-        scheduledAt: new Date(scheduleAt).toISOString(),
-        ...(scheduleExpiresAt.trim()
-          ? { expiresAt: new Date(scheduleExpiresAt).toISOString() }
-          : {}),
-        role: scheduleRole.trim(),
-        experience: exp,
-        language: "en",
-        targetCompany: scheduleCompany.trim() || undefined,
-        interviewDuration: scheduleDuration === "30" ? 30 : 15,
-        ...(customQs.length > 0 ? { customQuestions: customQs } : {}),
-        ...(passingScorePayload !== undefined ? { passingScore: passingScorePayload } : {}),
-        ...(jd ? { jobDescription: jd } : {}),
-      });
-      setScheduleUser(null);
-    } catch (err: any) {
-      alert(err?.response?.data?.message || "Failed to schedule interview");
-    } finally {
-      setScheduleSubmitting(false);
-    }
-  };
+  const rangeStart = total === 0 ? 0 : page * limit + 1;
+  const rangeEnd = Math.min((page + 1) * limit, total);
+  const hasBatchFilter = Boolean(batchFilter);
+  const batchFilterLabel = selectedBatchLabel || batchFilter;
+  const hasSearch = Boolean(search.trim());
 
   if (!profile) {
     return <InstituteLoader />;
   }
 
-  const rangeStart = total === 0 ? 0 : page * limit + 1;
-  const rangeEnd = Math.min((page + 1) * limit, total);
+  const canInvite = instituteRoleCanInviteCandidates(profile.accessRole);
 
   return (
-    <div className="space-y-8">
-      <InstitutePageHeader
-        badge="People"
-        title="Candidates"
-        actions={
-          <Button
-            size="sm"
-            onClick={() => setAddOpen(true)}
-            className={cn(institutePrimaryClass, "h-9 gap-2 shadow-lg")}
-          >
-            <Plus className="h-4 w-4" />
-            Add user
-          </Button>
-        }
-      />
+    <div className="mx-auto w-full max-w-7xl space-y-4 lg:space-y-6">
+      <InstituteCandidatesHero memberCount={total} loading={loading} />
 
-      <section
-        className={cn(
-          institutePanelClass,
-          "relative overflow-hidden border-border bg-gradient-to-br from-card via-card to-muted/30"
-        )}
-      >
-        <div className="pointer-events-none absolute -right-16 -top-12 h-40 w-40 rounded-full bg-primary/80/10 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-8 -left-8 h-32 w-32 rounded-full bg-indigo-400/10 blur-2xl" />
-        <div className="relative flex flex-col gap-5 p-5 lg:flex-row lg:items-center lg:gap-8 lg:p-6">
-          <div className="flex shrink-0 justify-center lg:justify-start">
-            {loading ? (
-              <div
-                className="h-16 w-16 animate-pulse rounded-2xl bg-slate-200/90 ring-2 ring-white lg:h-[4.5rem] lg:w-[4.5rem]"
-                aria-hidden
-              />
-            ) : (
-              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary shadow-lg shadow-primary/30 ring-2 ring-border/60 lg:h-[4.5rem] lg:w-[4.5rem]">
-                <Users className="h-8 w-8 text-white lg:h-9 lg:w-9" strokeWidth={1.75} />
-              </div>
-            )}
-          </div>
-          <div className="min-w-0 flex-1 space-y-3 text-center lg:text-left">
-            <div>
-              <p className="text-xs font-bold uppercase tracking-wide text-primary">
+      <Card className="overflow-hidden rounded-xl border border-border/60 bg-card shadow-card">
+        <CardHeader className="border-b border-border/60 px-5 py-4">
+          <div className="flex flex-col items-start justify-between gap-4 lg:flex-row lg:items-center">
+            <div className="min-w-0">
+              <CardTitle className="text-lg font-semibold text-foreground">
                 Candidate directory
-              </p>
-              <p className="mt-2 text-sm leading-relaxed text-muted-foreground sm:text-base">
-                Invite people, assign <span className="font-semibold text-foreground">plans</span> and{" "}
-                <span className="font-semibold text-foreground">credits</span>, open{" "}
-                <span className="font-semibold text-foreground">reports</span>, and schedule interviews
-                — all in one place.
-              </p>
+              </CardTitle>
+              <CardDescription className="mt-1 text-sm">
+                {!loading && total > 0
+                  ? hasBatchFilter && batchFilterLabel
+                    ? `Showing ${total} member${total === 1 ? "" : "s"} in “${batchFilterLabel}”.`
+                    : `Manage plans, credits, and reports for ${total} member${total === 1 ? "" : "s"}.`
+                  : hasBatchFilter
+                    ? "No members match this batch filter."
+                    : "Invite your first candidate to populate this list."}
+              </CardDescription>
             </div>
-            {!loading ? (
-              <p className="text-2xl font-bold tabular-nums tracking-tight text-foreground sm:text-3xl">
-                {total.toLocaleString()}{" "}
-                <span className="text-base font-semibold text-muted-foreground sm:text-lg">
-                  {total === 1 ? "member" : "members"}
-                </span>
-              </p>
-            ) : (
-              <div className="h-9 w-40 animate-pulse rounded-lg bg-slate-200/80" aria-hidden />
-            )}
-          </div>
-          <div className="w-full shrink-0 lg:max-w-sm">
-            <Label
-              htmlFor="cand-search"
-              className="text-xs font-bold uppercase tracking-wide text-muted-foreground"
-            >
-              Search
-            </Label>
-            <div className="relative mt-2">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
+            <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center lg:w-auto lg:min-w-[min(100%,42rem)] lg:flex-1 lg:max-w-2xl">
+              <SearchInput
                 id="cand-search"
-                placeholder="Name or email…"
+                placeholder="Search name or email…"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="h-11 border-border bg-card pl-10 shadow-sm transition-shadow focus-visible:ring-2 focus-visible:ring-primary/25"
+                containerClassName="max-w-none w-full min-w-0 flex-1 border-border bg-card shadow-sm"
               />
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <Card className={cn(institutePanelClass, "overflow-hidden shadow-xl")}>
-        <CardHeader className="border-b border-border/60 bg-gradient-to-r from-muted/50 via-card to-indigo-50/30">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-            <div className="flex gap-4">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary shadow-md shadow-primary/25 ring-2 ring-border/40">
-                <Users className="h-5 w-5" strokeWidth={1.75} />
-              </div>
-              <div className="min-w-0 space-y-1.5">
-                <CardTitle className="text-lg leading-tight">Member list</CardTitle>
-                <CardDescription>
-                  {!loading && total > 0 ? (
-                    <span>
-                      Showing{" "}
-                      <span className="font-semibold text-foreground">
-                        {rangeStart}–{rangeEnd}
-                      </span>{" "}
-                      of <span className="font-semibold text-foreground">{total}</span>
+              <div className="relative w-full min-w-0 sm:max-w-[240px] sm:flex-1">
+                {hasBatchFilter ? (
+                  <div className="app-control flex h-11 min-w-0 items-center gap-2.5 border-border bg-card px-3 shadow-sm">
+                    <Layers className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+                    <span className="min-w-0 flex-1 truncate text-sm text-foreground">
+                      {batchFilterLabel}
                     </span>
-                  ) : (
-                    "Everyone enrolled under your institution"
-                  )}
-                </CardDescription>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 shrink-0 text-muted-foreground hover:text-foreground"
+                      aria-label="Clear batch filter"
+                      onClick={() => {
+                        setBatchFilter("");
+                        setSelectedBatchLabel("");
+                        setBatchSearchQuery("");
+                      }}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <>
+                    <SearchInput
+                      id="cand-batch-search"
+                      leadingIcon={Layers}
+                      placeholder="Search batch…"
+                      value={batchSearchQuery}
+                      onChange={(e) => setBatchSearchQuery(e.target.value)}
+                      containerClassName="max-w-none w-full border-border bg-card shadow-sm"
+                      aria-expanded={batchSearchMatches.length > 0}
+                      aria-controls="cand-batch-search-results"
+                      autoComplete="off"
+                    />
+                    {batchSearchQuery.trim() ? (
+                      <div
+                        id="cand-batch-search-results"
+                        className="absolute left-0 right-0 top-[calc(100%+4px)] z-30 overflow-hidden rounded-md border border-border bg-card shadow-lg"
+                      >
+                        {batchCatalogLoading ? (
+                          <p className="flex items-center gap-2 px-3 py-2.5 text-xs text-muted-foreground">
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            Loading batches…
+                          </p>
+                        ) : batchSearchMatches.length === 0 ? (
+                          <p className="px-3 py-2.5 text-xs text-muted-foreground">
+                            No batches match “{batchSearchQuery.trim()}”.
+                          </p>
+                        ) : (
+                          <ul className="max-h-44 overflow-y-auto py-1">
+                            {batchSearchMatches.map((b) => (
+                              <li key={b._id}>
+                                <button
+                                  type="button"
+                                  className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm transition-colors hover:bg-muted/40"
+                                  onClick={() => {
+                                    setBatchFilter(b._id);
+                                    setSelectedBatchLabel(b.name);
+                                    setBatchSearchQuery("");
+                                  }}
+                                >
+                                  <span className="min-w-0 truncate font-medium text-foreground">
+                                    {b.name}
+                                  </span>
+                                  <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+                                    {b.memberCount} member{b.memberCount === 1 ? "" : "s"}
+                                  </span>
+                                </button>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    ) : null}
+                  </>
+                )}
               </div>
+              {canInvite ? (
+                <Button
+                  type="button"
+                  onClick={() => setAddOpen(true)}
+                  className={cn(institutePrimaryClass, "h-11 shrink-0 gap-2 sm:w-auto")}
+                >
+                  <Plus className="h-4 w-4" />
+                  Add user
+                </Button>
+              ) : null}
             </div>
-            {!loading && total > 0 ? (
-              <span className="inline-flex w-fit shrink-0 items-center gap-1.5 self-start rounded-full border border-border/80 bg-card/90 px-3 py-1.5 text-xs font-medium text-primary shadow-sm sm:mt-1">
-                <Sparkles className="h-3.5 w-3.5" />
-                Live directory
-              </span>
-            ) : null}
           </div>
         </CardHeader>
         <CardContent className="p-0 sm:p-0">
           {loading ? (
             <div className="flex justify-center py-16">
-              <Loader2 className="h-9 w-9 animate-spin text-primary" />
+              <Loader2 className="h-9 w-9 animate-spin text-[#7367F0]" />
             </div>
           ) : users.length === 0 ? (
             <div className="px-4 py-6 sm:px-6">
               <InstituteEmptyState
                 icon={Users}
-                title={search.trim() ? "No matches" : "No candidates yet"}
+                title={
+                  hasSearch
+                    ? "No matches"
+                    : hasBatchFilter
+                      ? "No members in this batch"
+                      : "No candidates yet"
+                }
                 description={
-                  search.trim()
-                    ? "Try a different search term, or clear the search to see everyone."
-                    : "Invite your first candidate to appear in this list."
+                  hasSearch
+                    ? "Try a different search term, or clear filters to see more people."
+                    : hasBatchFilter
+                      ? "This batch has no enrolled members yet, or try another batch."
+                      : "Invite your first candidate to appear in this list."
                 }
                 action={
-                  !search.trim() ? (
+                  hasSearch || hasBatchFilter ? (
+                    <Button
+                      variant="outline"
+                      className={instituteSecondaryClass}
+                      onClick={clearListFilters}
+                    >
+                      Clear filters
+                    </Button>
+                  ) : (
                     <Button
                       onClick={() => setAddOpen(true)}
                       className={cn(institutePrimaryClass, "gap-2")}
                     >
                       <Plus className="h-4 w-4" />
                       Add user
-                    </Button>
-                  ) : (
-                    <Button variant="outline" className={instituteSecondaryClass} onClick={() => setSearch("")}>
-                      Clear search
                     </Button>
                   )
                 }
@@ -556,12 +549,12 @@ export default function InstituteCandidatesPage() {
                         Candidate
                       </TableHead>
                       <TableHead className="align-middle font-semibold text-foreground">Plan</TableHead>
-                      <TableHead className="align-middle font-semibold text-foreground">Credits</TableHead>
+                      <TableHead className="align-middle font-semibold text-foreground">Batch</TableHead>
                       <TableHead className="align-middle font-semibold text-foreground">Joined</TableHead>
                       {showIdentityColumn ? (
                       <TableHead className="align-middle font-semibold text-foreground">Identity</TableHead>
                       ) : null}
-                      <TableHead className="w-[272px] min-w-[272px] pr-6 text-right align-middle font-semibold text-foreground">
+                      <TableHead className="w-[200px] min-w-[200px] pr-6 text-right align-middle font-semibold text-foreground">
                         Actions
                       </TableHead>
                     </TableRow>
@@ -569,11 +562,10 @@ export default function InstituteCandidatesPage() {
                   <TableBody>
                     {users.map((u) => {
                       const apiPlan = String(u.subscription?.plan || "free");
-                      const uiPlanValue = subscriptionToUiPlanSelect(apiPlan);
                       return (
                         <TableRow
                           key={u._id}
-                          className="group border-border align-middle transition-colors hover:bg-gradient-to-r hover:bg-muted/50 hover:to-transparent"
+                          className="group border-border align-middle transition-colors hover:bg-muted/40"
                         >
                           <TableCell className="pl-6 align-middle">
                             <div className="flex items-center gap-3 py-2">
@@ -604,10 +596,17 @@ export default function InstituteCandidatesPage() {
                               {planBadgeLabel(apiPlan)}
                             </span>
                           </TableCell>
-                          <TableCell className="align-middle">
-                            <span className="inline-flex min-w-[2.5rem] items-center justify-center rounded-lg bg-slate-100/90 px-2 py-1 text-sm font-semibold tabular-nums text-foreground">
-                              {u.credits?.total ?? 0}
-                            </span>
+                          <TableCell className="max-w-[200px] align-middle">
+                            {(u.instituteBatchNames?.length ?? 0) > 0 ? (
+                              <span
+                                className="line-clamp-2 text-sm text-foreground"
+                                title={u.instituteBatchNames?.join(", ")}
+                              >
+                                {u.instituteBatchNames?.join(", ")}
+                              </span>
+                            ) : (
+                              <span className="text-sm text-muted-foreground">—</span>
+                            )}
                           </TableCell>
                           <TableCell className="align-middle text-sm text-muted-foreground whitespace-nowrap">
                             {formatDate(u.createdAt)}
@@ -640,7 +639,7 @@ export default function InstituteCandidatesPage() {
                             </Button>
                           </TableCell>
                           ) : null}
-                          <TableCell className="w-[272px] min-w-[272px] pr-6 align-middle">
+                          <TableCell className="w-[200px] min-w-[200px] pr-6 align-middle">
                             <div className="flex flex-nowrap items-center justify-end gap-1">
                               <Button
                                 variant="outline"
@@ -663,43 +662,17 @@ export default function InstituteCandidatesPage() {
                                 variant="outline"
                                 size="icon"
                                 className={cn(instituteSecondaryClass, "h-8 w-8 shrink-0 p-0")}
-                                onClick={() => openScheduleDialog(u)}
-                                title="Schedule interview"
-                                aria-label="Schedule interview"
-                              >
-                                <CalendarClock className="h-3.5 w-3.5" />
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="icon"
-                                className={cn(instituteSecondaryClass, "h-8 w-8 shrink-0 p-0")}
                                 onClick={() => openCreditsDialog(u)}
                                 title="Adjust credits"
                                 aria-label="Adjust credits"
                               >
                                 <Coins className="h-3.5 w-3.5" />
                               </Button>
-                              <select
-                                className="app-control h-8 w-[104px] shrink-0 cursor-pointer px-2 text-xs font-medium shadow-sm"
-                                value={uiPlanValue}
-                                onChange={(e) =>
-                                  handleUpdatePlan(
-                                    u,
-                                    e.target.value as InstitutionUiPlan,
-                                  )
-                                }
-                                aria-label={`Plan for ${u.email}`}
-                              >
-                                <option value="free">Free</option>
-                                <option value="starter">Starter</option>
-                                <option value="premium">Premium</option>
-                                <option value="elite">Elite</option>
-                              </select>
                               <Button
                                 variant="ghost"
                                 size="icon"
                                 className="h-8 w-8 shrink-0 rounded-lg text-red-600 hover:bg-red-50 hover:text-red-700"
-                                onClick={() => handleDeleteUser(u)}
+                                onClick={() => setDeleteTarget(u)}
                                 title="Remove user"
                                 aria-label={`Remove ${u.email}`}
                               >
@@ -715,7 +688,7 @@ export default function InstituteCandidatesPage() {
               </InstituteTableShell>
 
               {total > limit && (
-                <div className="flex flex-col items-center justify-between gap-3 border-t border-border/80 bg-gradient-to-r from-slate-50/60 to-card px-4 py-4 sm:flex-row sm:px-6">
+                <div className="flex flex-col items-center justify-between gap-3 border-t border-border/60 bg-muted/10 px-4 py-4 sm:flex-row sm:px-6">
                   <p className="text-sm text-muted-foreground">
                     Page <span className="font-semibold text-foreground">{page + 1}</span> ·{" "}
                     {rangeStart}–{rangeEnd} of {total}
@@ -748,155 +721,6 @@ export default function InstituteCandidatesPage() {
           )}
         </CardContent>
       </Card>
-
-      <Dialog
-        open={!!scheduleUser}
-        onOpenChange={(o) => {
-          if (!o) setScheduleUser(null);
-        }}
-      >
-        <DialogContent className="max-h-[90vh] overflow-y-auto border-border/80 sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="text-xl">Schedule interview</DialogTitle>
-            <DialogDescription>
-              {scheduleUser
-                ? `${scheduleUser.name ?? scheduleUser.email} will see this on their dashboard. They need a saved resume to start.`
-                : null}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-3 py-2">
-            <div>
-              <Label htmlFor="sch-at">Date & time</Label>
-              <Input
-                id="sch-at"
-                type="datetime-local"
-                value={scheduleAt}
-                onChange={(e) => setScheduleAt(e.target.value)}
-                className="mt-1"
-              />
-            </div>
-            <div>
-              <Label htmlFor="sch-expires">Expire deadline (optional)</Label>
-              <Input
-                id="sch-expires"
-                type="datetime-local"
-                value={scheduleExpiresAt}
-                onChange={(e) => setScheduleExpiresAt(e.target.value)}
-                className="mt-1"
-              />
-              <p className="mt-1 text-xs text-muted-foreground">
-                Latest time the candidate can start. Must be on or after 24 hours before the
-                scheduled time above. Clear to allow starting anytime after the window opens
-                (no upper limit).
-              </p>
-            </div>
-            <div>
-              <Label htmlFor="sch-role">Role / position</Label>
-              <Input
-                id="sch-role"
-                value={scheduleRole}
-                onChange={(e) => setScheduleRole(e.target.value)}
-                placeholder="e.g. Backend Engineer"
-                className="mt-1"
-              />
-            </div>
-            <div>
-              <Label htmlFor="sch-exp">Years of experience</Label>
-              <Input
-                id="sch-exp"
-                type="number"
-                min={0}
-                value={scheduleExperience}
-                onChange={(e) => setScheduleExperience(e.target.value)}
-                className="mt-1"
-              />
-            </div>
-            <div>
-              <Label htmlFor="sch-co">Target company (optional)</Label>
-              <Input
-                id="sch-co"
-                value={scheduleCompany}
-                onChange={(e) => setScheduleCompany(e.target.value)}
-                className="mt-1"
-              />
-            </div>
-            <div>
-              <Label htmlFor="sch-jd">Job description (optional)</Label>
-              <Textarea
-                id="sch-jd"
-                value={scheduleJobDescription}
-                onChange={(e) => setScheduleJobDescription(e.target.value)}
-                placeholder="Paste the role’s JD — the AI uses it when the candidate starts the interview."
-                className="mt-1 min-h-[100px] resize-y text-sm"
-                disabled={scheduleSubmitting}
-                maxLength={MAX_JOB_DESCRIPTION_CHARS}
-              />
-              <p className="mt-1 text-xs text-muted-foreground">
-                Stored on this schedule and passed into the interview context (max{" "}
-                {MAX_JOB_DESCRIPTION_CHARS.toLocaleString()} characters).
-              </p>
-            </div>
-            <div>
-              <Label htmlFor="sch-dur">Duration</Label>
-              <select
-                id="sch-dur"
-                className="app-control mt-1 w-full bg-card"
-                value={scheduleDuration}
-                onChange={(e) => setScheduleDuration(e.target.value as "15" | "30")}
-              >
-                <option value="15">15 minutes</option>
-                <option value="30">30 minutes</option>
-              </select>
-            </div>
-            <div>
-              <Label htmlFor="sch-q" className="mb-1 block">
-                Interview questions (optional)
-              </Label>
-              <InterviewQuestionsField
-                id="sch-q"
-                value={scheduleQuestionsText}
-                onChange={setScheduleQuestionsText}
-                disabled={scheduleSubmitting}
-                className="mt-1"
-              />
-            </div>
-            <div>
-              <Label htmlFor="sch-pass">Passing score (optional)</Label>
-              <Input
-                id="sch-pass"
-                type="number"
-                min={0}
-                max={100}
-                step={1}
-                value={schedulePassingScore}
-                onChange={(e) => setSchedulePassingScore(e.target.value)}
-                placeholder="0–100; overall score needed to pass"
-                className="mt-1"
-              />
-            </div>
-          </div>
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button
-              variant="outline"
-              className={instituteSecondaryClass}
-              onClick={() => setScheduleUser(null)}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleCreateSchedule}
-              disabled={scheduleSubmitting || !scheduleRole.trim() || !scheduleAt}
-              className={cn(institutePrimaryClass, "shadow-md")}
-            >
-              {scheduleSubmitting ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                "Create schedule"
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       <Dialog
         open={creditsOpen}
@@ -1085,33 +909,32 @@ export default function InstituteCandidatesPage() {
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-2">
-            <div>
-              <Label htmlFor="email">Email</Label>
+            <FormField label="Email" htmlFor="email" required>
               <Input
                 id="email"
                 type="email"
                 value={addEmail}
                 onChange={(e) => setAddEmail(e.target.value)}
                 placeholder="user@example.com"
-                className="mt-1 h-11 border-border shadow-sm"
+                className="h-11 border-border shadow-sm"
               />
-            </div>
-            <div>
-              <Label htmlFor="plan">Plan</Label>
+            </FormField>
+            <FormField label="Plan" htmlFor="plan" required>
               <select
                 id="plan"
-                className="app-control mt-1 h-11 w-full bg-card"
+                className="app-control h-11 w-full bg-card"
                 value={addPlan}
                 onChange={(e) =>
-                  setAddPlan(e.target.value as InstitutionUiPlan)
+                  setAddPlan(e.target.value as InstituteInvitePlan)
                 }
               >
-                <option value="free">Free</option>
-                <option value="starter">Starter</option>
-                <option value="premium">Premium</option>
-                <option value="elite">Elite</option>
+                {planOptions.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
               </select>
-            </div>
+            </FormField>
           </div>
           <DialogFooter className="gap-2 sm:gap-0">
             <Button variant="outline" className={instituteSecondaryClass} onClick={() => setAddOpen(false)}>
@@ -1131,6 +954,24 @@ export default function InstituteCandidatesPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ConfirmationDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTarget(null);
+        }}
+        title="Remove candidate?"
+        description={
+          deleteTarget
+            ? `Delete ${deleteTarget.name} (${deleteTarget.email})? This permanently removes their account, resumes, interviews, and reports.`
+            : ""
+        }
+        confirmText="Delete"
+        variant="destructive"
+        onConfirm={() => {
+          if (deleteTarget) void handleDeleteUser(deleteTarget);
+        }}
+      />
     </div>
   );
 }

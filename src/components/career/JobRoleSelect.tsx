@@ -7,13 +7,16 @@ import {
   useRef,
   useState,
 } from "react";
-import { createPortal } from "react-dom";
 import { Input } from "@/components/ui/input";
 import {
   filterJobRoleSuggestions,
   isKnownJobRole,
 } from "@/lib/career-catalog";
 import { cn } from "@/lib/utils";
+import {
+  instituteInlineDropdownItemClass,
+  instituteInlineDropdownListClass,
+} from "@/components/institute/institute-inline-dropdown-styles";
 
 type JobRoleSelectProps = {
   id?: string;
@@ -25,12 +28,6 @@ type JobRoleSelectProps = {
   className?: string;
   inputClassName?: string;
   suggestionLimit?: number;
-};
-
-type DropdownPosition = {
-  top: number;
-  left: number;
-  width: number;
 };
 
 export function JobRoleSelect({
@@ -46,14 +43,7 @@ export function JobRoleSelect({
 }: Readonly<JobRoleSelectProps>) {
   const safeValue = value ?? "";
   const [open, setOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
-  const [dropdownPos, setDropdownPos] = useState<DropdownPosition>({
-    top: 0,
-    left: 0,
-    width: 0,
-  });
   const wrapRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
 
   const suggestions = useMemo(
@@ -61,42 +51,13 @@ export function JobRoleSelect({
     [safeValue, industry, suggestionLimit],
   );
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  const updateDropdownPosition = useCallback(() => {
-    const el = inputRef.current;
-    if (!el) return;
-    const rect = el.getBoundingClientRect();
-    setDropdownPos({
-      top: rect.bottom + 4,
-      left: rect.left,
-      width: rect.width,
-    });
-  }, []);
-
   const openSuggestions = useCallback(() => {
-    updateDropdownPosition();
     setOpen(true);
-  }, [updateDropdownPosition]);
+  }, []);
 
   useEffect(() => {
     if (!open) return;
 
-    updateDropdownPosition();
-
-    const onScrollOrResize = () => updateDropdownPosition();
-    window.addEventListener("resize", onScrollOrResize);
-    window.addEventListener("scroll", onScrollOrResize, true);
-
-    return () => {
-      window.removeEventListener("resize", onScrollOrResize);
-      window.removeEventListener("scroll", onScrollOrResize, true);
-    };
-  }, [open, updateDropdownPosition]);
-
-  useEffect(() => {
     const onDoc = (event: MouseEvent) => {
       const target = event.target as Node;
       if (
@@ -109,73 +70,74 @@ export function JobRoleSelect({
     };
     document.addEventListener("mousedown", onDoc);
     return () => document.removeEventListener("mousedown", onDoc);
-  }, []);
+  }, [open]);
 
-  const pickRole = (role: string) => {
-    onChange(role);
-    setOpen(false);
-  };
+  const pickRole = useCallback(
+    (role: string) => {
+      onChange(role);
+      setOpen(false);
+    },
+    [onChange],
+  );
 
   const showSuggestions = open && !disabled && suggestions.length > 0;
 
-  const suggestionList =
-    mounted && showSuggestions ? (
-      <ul
-        ref={listRef}
-        className="fixed z-[10050] max-h-52 overflow-auto rounded-xl border border-border/60 bg-card text-sm text-foreground shadow-lg"
-        style={{
-          top: dropdownPos.top,
-          left: dropdownPos.left,
-          width: dropdownPos.width,
-        }}
-      >
-        {suggestions.map((role) => (
-          <li key={role}>
-            <button
-              type="button"
-              className="w-full px-4 py-2.5 text-left transition-colors hover:bg-muted"
-              onMouseDown={(event) => event.preventDefault()}
-              onClick={() => pickRole(role)}
-            >
-              {role}
-            </button>
-          </li>
-        ))}
-      </ul>
-    ) : null;
-
   return (
-    <>
-      <div ref={wrapRef} className={cn("relative", className)}>
-        <Input
-          ref={inputRef}
-          id={id}
-          value={safeValue}
-          disabled={disabled}
-          placeholder={placeholder}
-          autoComplete="off"
-          className={cn("h-11 w-full bg-card", inputClassName)}
-          onChange={(event) => {
-            onChange(event.target.value);
-            openSuggestions();
-          }}
-          onFocus={openSuggestions}
-          onKeyDown={(event) => {
-            if (event.key === "Enter") {
-              event.preventDefault();
-              onChange(safeValue.trim());
-              setOpen(false);
-            }
-            if (event.key === "Escape") {
-              setOpen(false);
-            }
-          }}
-        />
-      </div>
-      {mounted && suggestionList
-        ? createPortal(suggestionList, document.body)
-        : null}
-    </>
+    <div ref={wrapRef} className={cn("relative", open && "z-30", className)}>
+      <Input
+        id={id}
+        value={safeValue}
+        disabled={disabled}
+        placeholder={placeholder}
+        autoComplete="off"
+        className={cn("h-11 w-full bg-card", inputClassName)}
+        onChange={(event) => {
+          onChange(event.target.value);
+          openSuggestions();
+        }}
+        onFocus={openSuggestions}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") {
+            event.preventDefault();
+            onChange(safeValue.trim());
+            setOpen(false);
+          }
+          if (event.key === "Escape") {
+            setOpen(false);
+          }
+        }}
+      />
+      {showSuggestions ? (
+        <ul
+          ref={listRef}
+          data-institute-inline-dropdown
+          data-job-role-dropdown
+          role="listbox"
+          className={instituteInlineDropdownListClass}
+        >
+          {suggestions.map((role) => (
+            <li key={role}>
+              <button
+                type="button"
+                role="option"
+                className={instituteInlineDropdownItemClass}
+                onMouseDown={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                }}
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  pickRole(role);
+                }}
+              >
+                {role}
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </div>
   );
 }
 

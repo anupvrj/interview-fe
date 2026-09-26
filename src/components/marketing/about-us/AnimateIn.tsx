@@ -47,11 +47,14 @@ export function AnimateIn({
     <div
       ref={ref}
       className={cn(
-        "transition-all duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform",
+        "transition-all duration-700 will-change-transform",
         visible ? "translate-x-0 translate-y-0 opacity-100" : cn("opacity-0", hiddenTransform),
         className,
       )}
-      style={{ transitionDelay: `${delay}ms` }}
+      style={{
+        transitionDelay: `${delay}ms`,
+        transitionTimingFunction: "cubic-bezier(0.22, 1, 0.36, 1)",
+      }}
     >
       {children}
     </div>

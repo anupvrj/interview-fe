@@ -271,10 +271,7 @@ export function SuperAdminUsersTable() {
     t.setDate(t.getDate() + 1);
     t.setHours(10, 0, 0, 0);
     setScheduleAt(toDatetimeLocalValue(t));
-    const exp = new Date(t);
-    exp.setDate(exp.getDate() + 7);
-    exp.setHours(23, 59, 0, 0);
-    setScheduleExpiresAt(toDatetimeLocalValue(exp));
+    setScheduleExpiresAt("");
   };
 
   const handleCreateSchedule = async () => {
@@ -806,8 +803,8 @@ export function SuperAdminUsersTable() {
                 className="mt-1"
               />
               <p className="mt-1 text-xs text-muted-foreground">
-                Latest time the candidate can start. Must be on or after 24 hours
-                before the scheduled time. Leave empty for no upper limit.
+                Optional latest start. Must be ≥24h before scheduled time; clear for
+                no limit.
               </p>
             </div>
             <div>

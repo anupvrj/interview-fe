@@ -12,9 +12,20 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { FormField } from "@/components/app/FormField";
 import { Textarea } from "@/components/ui/textarea";
-import { InterviewQuestionsField } from "@/components/institute/InterviewQuestionsField";
+import {
+  INSTITUTE_BATCH_SCHEDULE_WIZARD_STEPS,
+  InstituteBatchScheduleWizardForm,
+  validateInstituteBatchScheduleWizardStep,
+} from "@/components/institute/InstituteBatchScheduleWizard";
+import {
+  buildInstituteScheduleRoundApiFields,
+  instituteScheduleRoundLabel,
+  validateInstituteScheduleRound,
+  type InstituteScheduleRoundType,
+} from "@/lib/institute-schedule-round";
+import { InstituteBatchDetailHero } from "@/components/institute/InstituteBatchDetailHero";
 import {
   Dialog,
   DialogContent,
@@ -44,11 +55,14 @@ import {
   Trophy,
   ExternalLink,
   ChevronRight,
-  Sparkles,
-  Layers,
   Users,
+  Target,
+  FileCheck,
   Clock,
+  CheckCircle,
+  XCircle,
 } from "lucide-react";
+import { DashboardStatCard } from "@/components/dashboard/DashboardStatCard";
 import { toast } from "sonner";
 import { userApi, adminApi, type User } from "@/lib/api";
 import { apiErrorMessage, isConflictError } from "@/lib/api-errors";
@@ -58,17 +72,21 @@ import {
   parseQuestionLines,
   toDatetimeLocalValue,
 } from "@/lib/utils";
+import { dialogPortaledPickerHandlers } from "@/lib/dialog-portaled-picker-handlers";
 import {
   InstituteEmptyState,
   InstituteLoader,
-  InstitutePageHeader,
-  InstituteStatCard,
   InstituteTableShell,
-  instituteFilterBarClass,
-  institutePanelClass,
   institutePrimaryClass,
   instituteSecondaryClass,
 } from "@/components/institute/InstituteChrome";
+
+const instituteCardClass =
+  "overflow-hidden rounded-xl border border-border/60 bg-card shadow-card";
+import {
+  canViewInstitutePage,
+  instituteRoleCanManageBatches,
+} from "@/lib/institute-access";
 
 const MAX_JOB_DESCRIPTION_CHARS = 32000;
 
@@ -85,6 +103,18 @@ function memberInitials(name: string | undefined, email: string | undefined): st
   }
   const local = (email || "").split("@")[0] || "?";
   return local.slice(0, 2).toUpperCase();
+}
+
+function batchDateSubtitle(batch: {
+  startDate?: string | Date | null;
+  endDate?: string | Date | null;
+}): string | null {
+  const start = batch.startDate ? formatDate(String(batch.startDate)) : null;
+  const end = batch.endDate ? formatDate(String(batch.endDate)) : null;
+  if (start && end) return `${start} – ${end}`;
+  if (start) return `Starts ${start}`;
+  if (end) return `Ends ${end}`;
+  return null;
 }
 
 function parseEmailsFromText(text: string): string[] {
@@ -110,6 +140,9 @@ export default function BatchDetailPage() {
   const [loading, setLoading] = useState(true);
 
   const [editName, setEditName] = useState("");
+  const [editMaxStudents, setEditMaxStudents] = useState("");
+  const [editStartDate, setEditStartDate] = useState("");
+  const [editEndDate, setEditEndDate] = useState("");
   const [savingName, setSavingName] = useState(false);
 
   const [emailInput, setEmailInput] = useState("");
@@ -122,14 +155,19 @@ export default function BatchDetailPage() {
   const [bulkOpen, setBulkOpen] = useState(false);
   const [schAt, setSchAt] = useState("");
   const [schExpires, setSchExpires] = useState("");
-  const [schRole, setSchRole] = useState("Software Engineer");
+  const [schRole, setSchRole] = useState("");
   const [schExp, setSchExp] = useState("2");
   const [schCo, setSchCo] = useState("");
   const [schJobDescription, setSchJobDescription] = useState("");
   const [schDur, setSchDur] = useState<"15" | "30">("15");
   const [schQuestionsText, setSchQuestionsText] = useState("");
   const [schPassingScore, setSchPassingScore] = useState("");
+  const [schRoundType, setSchRoundType] =
+    useState<InstituteScheduleRoundType>("ai_mock");
+  const [schCodingProblemIds, setSchCodingProblemIds] = useState<string[]>([]);
+  const [schSystemDesignProblemId, setSchSystemDesignProblemId] = useState("");
   const [bulkSubmitting, setBulkSubmitting] = useState(false);
+  const [bulkWizardStep, setBulkWizardStep] = useState(1);
 
   const [addUsersOpen, setAddUsersOpen] = useState(false);
   const [editBatchOpen, setEditBatchOpen] = useState(false);
@@ -156,18 +194,7 @@ export default function BatchDetailPage() {
 
   useEffect(() => {
     if (!profile) return;
-    if (
-      profile.accessRole !== "institution_admin" &&
-      profile.accessRole !== "super_admin"
-    ) {
-      router.replace("/dashboard");
-      return;
-    }
-    if (
-      profile.accessRole === "institution_admin" &&
-      profile.institutionId &&
-      String(profile.institutionId) !== institutionId
-    ) {
+    if (!canViewInstitutePage(profile, institutionId, "batches")) {
       router.replace("/dashboard");
       return;
     }
@@ -348,13 +375,25 @@ export default function BatchDetailPage() {
   const handleSaveName = async () => {
     const n = editName.trim();
     if (!n) return;
+    const maxParsed = editMaxStudents.trim()
+      ? Number.parseInt(editMaxStudents, 10)
+      : null;
+    if (editMaxStudents.trim() && (!Number.isFinite(maxParsed!) || maxParsed! < 0)) {
+      toast.error("Max students must be a non-negative number.");
+      return;
+    }
     try {
       setSavingName(true);
-      await adminApi.updateBatch(batchId, n);
+      await adminApi.updateBatch(batchId, {
+        name: n,
+        maxStudents: maxParsed,
+        startDate: editStartDate || null,
+        endDate: editEndDate || null,
+      });
       await loadBatch();
       setEditBatchOpen(false);
-      toast.success("Batch renamed", {
-        description: "The batch name was updated.",
+      toast.success("Batch updated", {
+        description: "Batch details were saved.",
       });
     } catch (err: unknown) {
       const msg = apiErrorMessage(err, "Failed to rename batch.");
@@ -379,17 +418,58 @@ export default function BatchDetailPage() {
     t.setDate(t.getDate() + 1);
     t.setHours(10, 0, 0, 0);
     setSchAt(toDatetimeLocalValue(t));
-    const exp = new Date(t);
-    exp.setDate(exp.getDate() + 7);
-    exp.setHours(23, 59, 0, 0);
-    setSchExpires(toDatetimeLocalValue(exp));
+    setSchExpires("");
     setSchQuestionsText("");
     setSchJobDescription("");
     setSchPassingScore("");
+    setSchRoundType("ai_mock");
+    setSchCodingProblemIds([]);
+    setSchSystemDesignProblemId("");
+    setBulkWizardStep(1);
     setBulkOpen(true);
   };
 
+  const closeBulkDialog = () => {
+    setBulkOpen(false);
+    setBulkWizardStep(1);
+  };
+
+  const bulkMemberCount = members.length;
+
+  const bulkBatchSummary = batch
+    ? {
+        name: batch.name?.trim() || "Untitled batch",
+        memberCount: bulkMemberCount,
+      }
+    : null;
+
+  const validateBulkWizardStep = (step: number): boolean =>
+    validateInstituteBatchScheduleWizardStep(step, {
+      memberCount: bulkMemberCount,
+      hasSelectedBatch: !!batch,
+      scheduleAt: schAt,
+      role: schRole,
+      roundType: schRoundType,
+      codingProblemIds: schCodingProblemIds,
+      systemDesignProblemId: schSystemDesignProblemId,
+    });
+
+  const goBulkWizardNext = () => {
+    if (!validateBulkWizardStep(bulkWizardStep)) return;
+    setBulkWizardStep((s) =>
+      Math.min(s + 1, INSTITUTE_BATCH_SCHEDULE_WIZARD_STEPS.length),
+    );
+  };
+
+  const goBulkWizardBack = () => {
+    setBulkWizardStep((s) => Math.max(s - 1, 1));
+  };
+
   const handleBulkSchedule = async () => {
+    if (!validateBulkWizardStep(3)) {
+      setBulkWizardStep(3);
+      return;
+    }
     if (!schRole.trim() || !schAt) return;
     const expY = Number.parseInt(schExp, 10);
     if (!Number.isFinite(expY) || expY < 0) {
@@ -422,6 +502,15 @@ export default function BatchDetailPage() {
       });
       return;
     }
+    const roundErr = validateInstituteScheduleRound(
+      schRoundType,
+      schCodingProblemIds,
+      schSystemDesignProblemId,
+    );
+    if (roundErr) {
+      toast.error(roundErr);
+      return;
+    }
     const customQs = parseQuestionLines(schQuestionsText);
     try {
       setBulkSubmitting(true);
@@ -433,9 +522,13 @@ export default function BatchDetailPage() {
         language: "en",
         targetCompany: schCo.trim() || undefined,
         interviewDuration: schDur === "30" ? 30 : 15,
-        ...(customQs.length > 0 ? { customQuestions: customQs } : {}),
         ...(passingScorePayload !== undefined ? { passingScore: passingScorePayload } : {}),
         ...(jd ? { jobDescription: jd } : {}),
+        ...buildInstituteScheduleRoundApiFields(schRoundType, {
+          customQuestions: customQs,
+          codingProblemIds: schCodingProblemIds,
+          systemDesignProblemId: schSystemDesignProblemId,
+        }),
       });
       const failLines =
         result.failures?.length > 0
@@ -460,7 +553,7 @@ export default function BatchDetailPage() {
           }
         );
       }
-      setBulkOpen(false);
+      closeBulkDialog();
       try {
         const [p, runsRes] = await Promise.all([
           adminApi.getBatchPerformance(batchId),
@@ -500,33 +593,22 @@ export default function BatchDetailPage() {
 
   if (loading || !batch) {
     return (
-      <div className="space-y-8">
+      <div className="mx-auto w-full max-w-7xl space-y-4 lg:space-y-6">
         <Button
           variant="outline"
           size="sm"
           asChild
-          className={cn(
-            instituteSecondaryClass,
-            "-ml-1 h-9 gap-2 rounded-full border-border px-4 shadow-sm transition-all hover:border-border/80"
-          )}
+          className={cn(instituteSecondaryClass, "h-9 gap-2 px-3")}
         >
           <Link href={`/dashboard/institute/${institutionId}/batches`}>
             <ArrowLeft className="h-4 w-4" />
             Batches
           </Link>
         </Button>
-        <div className="space-y-3">
-          <div className="h-9 w-56 animate-pulse rounded-lg bg-slate-200/80" />
-          <div className="h-4 max-w-md animate-pulse rounded bg-slate-100" />
-        </div>
-        <div className={cn(instituteFilterBarClass, "grid gap-3 sm:grid-cols-3")}>
-          <div className="h-28 animate-pulse rounded-xl bg-slate-100/90" />
-          <div className="h-28 animate-pulse rounded-xl bg-slate-100/90" />
-          <div className="h-28 animate-pulse rounded-xl bg-slate-100/90" />
-        </div>
-        <Card className={cn(institutePanelClass, "overflow-hidden")}>
+        <div className="h-[7.5rem] animate-pulse rounded-2xl bg-muted/60" />
+        <Card className={instituteCardClass}>
           <CardContent className="flex min-h-[200px] items-center justify-center py-16">
-            <Loader2 className="h-10 w-10 animate-spin text-primary" />
+            <Loader2 className="h-9 w-9 animate-spin text-[#7367F0]" />
           </CardContent>
         </Card>
       </div>
@@ -536,16 +618,17 @@ export default function BatchDetailPage() {
   const runDetailHref = (runId: string) =>
     `/dashboard/institute/${institutionId}/batches/${batchId}/runs/${encodeURIComponent(runId)}`;
 
+  const heroSubtitle = batchDateSubtitle(batch);
+  const reportsCompleted =
+    perfLoading || !performance ? null : performance.reportsCompleted;
+
   return (
-    <div className="space-y-8">
+    <div className="mx-auto w-full max-w-7xl space-y-4 lg:space-y-6">
       <Button
         variant="outline"
         size="sm"
         asChild
-        className={cn(
-          instituteSecondaryClass,
-          "-ml-1 h-9 gap-2 rounded-full border-border px-4 shadow-sm transition-all hover:border-border/80"
-        )}
+        className={cn(instituteSecondaryClass, "h-9 gap-2 px-3")}
       >
         <Link href={`/dashboard/institute/${institutionId}/batches`}>
           <ArrowLeft className="h-4 w-4" />
@@ -553,238 +636,84 @@ export default function BatchDetailPage() {
         </Link>
       </Button>
 
-      <InstitutePageHeader
-        badge="Batch"
-        title={batch.name}
-        description="Manage members, schedule interview rounds, and track cohort performance."
-        actions={
-          <div className="flex flex-wrap items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              className={cn(instituteSecondaryClass, "h-9 gap-2")}
-              onClick={() => setAddUsersOpen(true)}
-            >
-              <UserPlus className="h-4 w-4" />
-              Add users
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className={cn(instituteSecondaryClass, "h-9 gap-2")}
-              onClick={() => {
-                setEditName(batch.name || "");
-                setEditBatchOpen(true);
-              }}
-            >
-              <Pencil className="h-4 w-4" />
-              Edit
-            </Button>
-            <Button
-              size="sm"
-              className={cn(institutePrimaryClass, "h-9 gap-2 shadow-lg")}
-              onClick={openBulkSchedule}
-              disabled={members.length === 0}
-            >
-              <CalendarClock className="h-4 w-4" />
-              Schedule for batch
-            </Button>
-            <Button
-              variant="outline"
-              size="icon"
-              className="h-9 w-9 shrink-0 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
-              title="Delete batch"
-              onClick={handleDeleteBatch}
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          </div>
-        }
+      <InstituteBatchDetailHero
+        batchName={batch.name || "Untitled batch"}
+        memberCount={members.length}
+        scheduledRounds={runsLoading ? undefined : scheduleRuns.length}
+        reportsCompleted={reportsCompleted}
+        subtitle={heroSubtitle}
+        loading={runsLoading && perfLoading}
       />
 
-      <div
-        className={cn(
-          instituteFilterBarClass,
-          "grid gap-3 sm:grid-cols-2 lg:grid-cols-3"
-        )}
-      >
-        <InstituteStatCard
-          layout="horizontal"
-          icon={Users}
-          label="Members"
-          value={members.length}
-          footer="In this cohort"
-        />
-        <InstituteStatCard
-          layout="horizontal"
-          icon={CalendarClock}
-          label="Scheduled rounds"
-          value={runsLoading ? "—" : scheduleRuns.length}
-          footer={runsLoading ? "Loading…" : "Bulk schedule runs"}
-        />
-        <InstituteStatCard
-          layout="horizontal"
-          icon={Clock}
-          label="Last updated"
-          value={batch.updatedAt ? formatDate(batch.updatedAt) : "—"}
-          footer="Renames and membership"
-        />
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          className={cn(instituteSecondaryClass, "h-10 gap-2")}
+          onClick={() => setAddUsersOpen(true)}
+        >
+          <UserPlus className="h-4 w-4" />
+          Add users
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          className={cn(instituteSecondaryClass, "h-10 gap-2")}
+          onClick={() => {
+            setEditName(batch.name || "");
+            setEditBatchOpen(true);
+          }}
+        >
+          <Pencil className="h-4 w-4" />
+          Edit batch
+        </Button>
+        <Button
+          size="sm"
+          className={cn(institutePrimaryClass, "h-10 gap-2")}
+          onClick={openBulkSchedule}
+          disabled={members.length === 0}
+        >
+          <CalendarClock className="h-4 w-4" />
+          Schedule for batch
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          className={cn(instituteSecondaryClass, "h-10 gap-2")}
+          asChild
+        >
+          <Link href={`/dashboard/institute/${institutionId}/batches/${batchId}/report`}>
+            <BarChart2 className="h-4 w-4" />
+            Report
+          </Link>
+        </Button>
+        <Button
+          variant="outline"
+          size="icon"
+          className="h-10 w-10 shrink-0 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+          title="Delete batch"
+          onClick={handleDeleteBatch}
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
       </div>
 
-      <Card className={cn(institutePanelClass, "overflow-hidden shadow-xl")}>
-        <CardHeader className="border-b border-border/60 bg-gradient-to-r from-muted/50 via-card to-indigo-50/30">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary shadow-md shadow-primary/20">
-                  <CalendarClock className="h-4 w-4 text-white" />
-                </span>
-                Scheduled interview rounds
-              </CardTitle>
-              <CardDescription className="mt-1.5">
-                Each bulk schedule is a round. Open a round for scores, pass counts, and candidate
-                detail.
-              </CardDescription>
-            </div>
-            {!runsLoading && scheduleRuns.length > 0 ? (
-              <span className="inline-flex w-fit items-center gap-1.5 rounded-full border border-border/80 bg-card/90 px-3 py-1 text-xs font-medium text-primary shadow-sm">
-                <Sparkles className="h-3.5 w-3.5" />
-                {scheduleRuns.length} round{scheduleRuns.length === 1 ? "" : "s"}
-              </span>
-            ) : null}
-          </div>
-        </CardHeader>
-        <CardContent className="p-0 sm:p-0">
-          {runsLoading ? (
-            <div className="flex justify-center py-16">
-              <Loader2 className="h-9 w-9 animate-spin text-primary" />
-            </div>
-          ) : scheduleRuns.length === 0 ? (
-            <div className="px-4 py-6 sm:px-6">
-              <InstituteEmptyState
-                icon={CalendarClock}
-                title="No rounds yet"
-                description={
-                  <>
-                    Use <span className="font-semibold text-foreground">Schedule for batch</span> to
-                    create the first interview round for everyone in this cohort.
-                  </>
-                }
-                action={
-                  <Button
-                    size="sm"
-                    className={cn(institutePrimaryClass, "gap-2 shadow-lg")}
-                    onClick={openBulkSchedule}
-                    disabled={members.length === 0}
-                  >
-                    <CalendarClock className="h-4 w-4" />
-                    Schedule for batch
-                  </Button>
-                }
-              />
-            </div>
-          ) : (
-            <InstituteTableShell>
-              <Table className="w-full min-w-[720px]">
-                <TableHeader>
-                  <TableRow className="border-b border-border/80 bg-muted/30 hover:bg-muted/30">
-                    <TableHead className="pl-6 align-middle font-semibold text-foreground">
-                      Role
-                    </TableHead>
-                    <TableHead className="hidden align-middle font-semibold text-foreground sm:table-cell">
-                      Scheduled for
-                    </TableHead>
-                    <TableHead className="align-middle font-semibold text-foreground">
-                      Candidates
-                    </TableHead>
-                    <TableHead className="hidden text-right align-middle font-semibold text-foreground md:table-cell">
-                      Pass at
-                    </TableHead>
-                    <TableHead className="w-[128px] min-w-[128px] pr-6 text-right align-middle font-semibold text-foreground">
-                      Open
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {scheduleRuns.map((run) => (
-                    <TableRow
-                      key={run.runId}
-                      className="group cursor-pointer border-border align-middle transition-colors hover:bg-gradient-to-r hover:bg-muted/50 hover:to-transparent"
-                      onClick={() => router.push(runDetailHref(run.runId))}
-                    >
-                      <TableCell className="pl-6 align-middle">
-                        <span className="font-semibold text-foreground">{run.role}</span>
-                      </TableCell>
-                      <TableCell className="hidden align-middle text-sm text-muted-foreground sm:table-cell whitespace-nowrap">
-                        {new Date(run.scheduledAt).toLocaleString()}
-                      </TableCell>
-                      <TableCell className="align-middle">
-                        <span className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-muted/30 px-2.5 py-1 text-sm font-semibold tabular-nums text-foreground">
-                          <Users className="h-3.5 w-3.5 text-muted-foreground" />
-                          {run.candidateCount}
-                        </span>
-                      </TableCell>
-                      <TableCell className="hidden text-right align-middle tabular-nums md:table-cell">
-                        {run.passingScore != null ? `${run.passingScore}` : "—"}
-                      </TableCell>
-                      <TableCell
-                        className="w-[128px] min-w-[128px] pr-6 text-right align-middle"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className={cn(
-                            instituteSecondaryClass,
-                            "h-8 gap-1 px-3 opacity-90 transition group-hover:opacity-100"
-                          )}
-                          asChild
-                        >
-                          <Link href={runDetailHref(run.runId)}>
-                            Open
-                            <ChevronRight className="h-4 w-4" />
-                          </Link>
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </InstituteTableShell>
-          )}
-        </CardContent>
-      </Card>
-
-      <Card className={cn(institutePanelClass, "overflow-hidden shadow-xl")}>
-        <CardHeader className="border-b border-border/60 bg-gradient-to-r from-muted/50 via-card to-indigo-50/30">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary shadow-md shadow-primary/20">
-                  <BarChart2 className="h-4 w-4 text-white" />
-                </span>
-                Performance &amp; leaderboard
-              </CardTitle>
-              <CardDescription className="mt-1.5 max-w-3xl">
-                Scores reflect <span className="font-medium text-foreground">bulk-scheduled</span>{" "}
-                interviews for this batch. At interview start we use each candidate&apos;s{" "}
-                <span className="font-medium text-foreground">resume</span> and{" "}
-                <span className="font-medium text-foreground">profile experience</span>. Rankings
-                update when reports are ready.
-              </CardDescription>
-            </div>
-            {!perfLoading && performance && performance.topPerformers.length > 0 ? (
-              <span className="inline-flex w-fit shrink-0 items-center gap-1.5 rounded-full border border-amber-200/90 bg-amber-50/90 px-3 py-1 text-xs font-medium text-amber-900 shadow-sm">
-                <Trophy className="h-3.5 w-3.5 text-amber-600" />
-                Leaderboard
-              </span>
-            ) : null}
+      <Card className={instituteCardClass}>
+        <CardHeader className="border-b border-border/60 px-5 py-4">
+          <div className="min-w-0">
+            <CardTitle className="text-lg font-semibold text-foreground">
+              Performance &amp; leaderboard
+            </CardTitle>
+            <CardDescription className="mt-1 max-w-3xl text-sm">
+              Scores from bulk-scheduled interviews in this cohort. Rankings update when reports
+              are ready.
+            </CardDescription>
           </div>
         </CardHeader>
         <CardContent className="p-0 sm:p-0">
           {perfLoading ? (
             <div className="flex justify-center py-16">
-              <Loader2 className="h-9 w-9 animate-spin text-primary" />
+              <Loader2 className="h-9 w-9 animate-spin text-[#7367F0]" />
             </div>
           ) : performance ? (
             <div className="space-y-6 p-4 sm:p-6">
@@ -795,75 +724,84 @@ export default function BatchDetailPage() {
                   tagged so results aggregate here.
                 </p>
               ) : null}
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                <div className="rounded-xl border border-border bg-gradient-to-br from-card to-card p-4 shadow-sm transition hover:border-border/50 hover:shadow-md">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-primary">
-                    Average score
-                  </p>
-                  <p className="mt-1 text-2xl font-bold tabular-nums text-foreground">
-                    {performance.averageScore != null
-                      ? performance.averageScore.toFixed(1)
-                      : "—"}
-                    {performance.averageScore != null ? (
-                      <span className="text-base font-semibold text-muted-foreground"> /100</span>
-                    ) : null}
-                  </p>
-                </div>
-                <div className="rounded-xl border border-border bg-gradient-to-br from-card to-card p-4 shadow-sm transition hover:border-border/50 hover:shadow-md">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-primary">
-                    Highest score
-                  </p>
-                  <p className="mt-1 text-2xl font-bold tabular-nums text-foreground">
-                    {performance.highestScore != null ? performance.highestScore : "—"}
-                    {performance.highestScore != null ? (
-                      <span className="text-base font-semibold text-muted-foreground"> /100</span>
-                    ) : null}
-                  </p>
-                </div>
-                <div className="rounded-xl border border-border/90 bg-gradient-to-br from-slate-50/90 to-card p-4 shadow-sm transition hover:border-slate-300/60 hover:shadow-md">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    Reports ready
-                  </p>
-                  <p className="mt-1 text-2xl font-bold tabular-nums text-foreground">
-                    {performance.reportsCompleted}
-                  </p>
-                  <p className="text-xs text-muted-foreground">of {performance.interviewsStarted} started</p>
-                </div>
-                <div className="rounded-xl border border-border/90 bg-gradient-to-br from-slate-50/90 to-card p-4 shadow-sm transition hover:border-slate-300/60 hover:shadow-md">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    Awaiting report
-                  </p>
-                  <p className="mt-1 text-2xl font-bold tabular-nums text-foreground">
-                    {performance.inProgress.length}
-                  </p>
-                  <p className="text-xs text-muted-foreground">started, not ready yet</p>
-                </div>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4">
+                <DashboardStatCard
+                  theme="violet"
+                  label="Average score"
+                  icon={Target}
+                  value={
+                    performance.averageScore != null
+                      ? `${performance.averageScore.toFixed(1)}/100`
+                      : "—"
+                  }
+                  progress={
+                    performance.averageScore != null
+                      ? Math.round(performance.averageScore)
+                      : undefined
+                  }
+                  hint={<span>Batch cohort average</span>}
+                />
+                <DashboardStatCard
+                  theme="amber"
+                  label="Highest score"
+                  icon={Trophy}
+                  value={
+                    performance.highestScore != null
+                      ? `${performance.highestScore}/100`
+                      : "—"
+                  }
+                  progress={
+                    performance.highestScore != null
+                      ? performance.highestScore
+                      : undefined
+                  }
+                  hint={<span>Top score in this batch</span>}
+                />
+                <DashboardStatCard
+                  theme="emerald"
+                  label="Reports ready"
+                  icon={FileCheck}
+                  value={performance.reportsCompleted}
+                  hint={
+                    <span>
+                      of {performance.interviewsStarted} interview
+                      {performance.interviewsStarted === 1 ? "" : "s"} started
+                    </span>
+                  }
+                />
+                <DashboardStatCard
+                  theme="sky"
+                  label="Awaiting report"
+                  icon={Clock}
+                  value={performance.inProgress.length}
+                  hint={<span>Started, not ready yet</span>}
+                />
               </div>
 
               {performance.gradedWithThreshold > 0 ? (
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <div className="rounded-xl border border-emerald-200/80 bg-gradient-to-br from-emerald-50/90 to-card p-4 shadow-sm transition hover:shadow-md">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-emerald-800">
-                      Passed (threshold)
-                    </p>
-                    <p className="mt-1 text-2xl font-bold tabular-nums text-emerald-950">
-                      {performance.totalPassed}
-                    </p>
-                    <p className="text-xs text-emerald-900/75">
-                      of {performance.gradedWithThreshold} graded with pass line
-                    </p>
-                  </div>
-                  <div className="rounded-xl border border-rose-200/80 bg-gradient-to-br from-rose-50/90 to-card p-4 shadow-sm transition hover:shadow-md">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-rose-800">
-                      Did not pass
-                    </p>
-                    <p className="mt-1 text-2xl font-bold tabular-nums text-rose-950">
-                      {performance.totalFailed}
-                    </p>
-                    <p className="text-xs text-rose-900/75">
-                      of {performance.gradedWithThreshold} graded with pass line
-                    </p>
-                  </div>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
+                  <DashboardStatCard
+                    theme="emerald"
+                    label="Passed (threshold)"
+                    icon={CheckCircle}
+                    value={performance.totalPassed}
+                    hint={
+                      <span>
+                        of {performance.gradedWithThreshold} graded with pass line
+                      </span>
+                    }
+                  />
+                  <DashboardStatCard
+                    theme="rose"
+                    label="Did not pass"
+                    icon={XCircle}
+                    value={performance.totalFailed}
+                    hint={
+                      <span>
+                        of {performance.gradedWithThreshold} graded with pass line
+                      </span>
+                    }
+                  />
                 </div>
               ) : null}
 
@@ -902,7 +840,7 @@ export default function BatchDetailPage() {
                             <TableCell className="align-middle">
                               <div className="flex items-center gap-3">
                                 <div
-                                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-muted to-indigo-100 text-xs font-bold text-primary shadow-inner ring-2 ring-white"
+                                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-indigo-600 text-sm font-bold text-white shadow-md shadow-primary/15 ring-2 ring-white"
                                   aria-hidden
                                 >
                                   {memberInitials(
@@ -950,12 +888,12 @@ export default function BatchDetailPage() {
                   </InstituteTableShell>
                 </div>
               ) : performance.schedulesWithBatchTag > 0 && performance.interviewsStarted === 0 ? (
-                <p className="rounded-lg border border-border/80 bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
+                <p className="rounded-xl border border-[#7367F0]/20 bg-card px-4 py-3 text-sm text-muted-foreground shadow-card">
                   Interviews are scheduled — candidates have not started yet. Scores appear after they
                   finish and the report is generated.
                 </p>
               ) : performance.interviewsStarted > 0 && performance.reportsCompleted === 0 ? (
-                <p className="rounded-lg border border-border/80 bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
+                <p className="rounded-xl border border-[#7367F0]/20 bg-card px-4 py-3 text-sm text-muted-foreground shadow-card">
                   {performance.inProgress.length} interview
                   {performance.inProgress.length === 1 ? " has" : "s have"} started; overall scores
                   appear when processing finishes.
@@ -966,6 +904,128 @@ export default function BatchDetailPage() {
             <div className="px-6 py-10 text-center text-sm text-muted-foreground">
               Could not load performance data.
             </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className={instituteCardClass}>
+        <CardHeader className="border-b border-border/60 px-5 py-4">
+          <div className="min-w-0">
+            <CardTitle className="text-lg font-semibold text-foreground">
+              Interview rounds
+            </CardTitle>
+            <CardDescription className="mt-1 text-sm">
+              {runsLoading
+                ? "Loading scheduled rounds…"
+                : scheduleRuns.length > 0
+                  ? `${scheduleRuns.length} bulk schedule run${scheduleRuns.length === 1 ? "" : "s"} — open a round for scores and candidate detail.`
+                  : "Schedule a round for everyone in this cohort."}
+            </CardDescription>
+          </div>
+        </CardHeader>
+        <CardContent className="p-0 sm:p-0">
+          {runsLoading ? (
+            <div className="flex justify-center py-16">
+              <Loader2 className="h-9 w-9 animate-spin text-[#7367F0]" />
+            </div>
+          ) : scheduleRuns.length === 0 ? (
+            <div className="px-4 py-6 sm:px-6">
+              <InstituteEmptyState
+                icon={CalendarClock}
+                title="No rounds yet"
+                description={
+                  <>
+                    Use <span className="font-semibold text-foreground">Schedule for batch</span> to
+                    create the first interview round for everyone in this cohort.
+                  </>
+                }
+                action={
+                  <Button
+                    size="sm"
+                    className={cn(institutePrimaryClass, "gap-2")}
+                    onClick={openBulkSchedule}
+                    disabled={members.length === 0}
+                  >
+                    <CalendarClock className="h-4 w-4" />
+                    Schedule for batch
+                  </Button>
+                }
+              />
+            </div>
+          ) : (
+            <InstituteTableShell>
+              <Table className="w-full min-w-[720px]">
+                <TableHeader>
+                  <TableRow className="border-b border-border/80 bg-muted/30 hover:bg-muted/30">
+                    <TableHead className="pl-6 align-middle font-semibold text-foreground">
+                      Role
+                    </TableHead>
+                    <TableHead className="align-middle font-semibold text-foreground">
+                      Round
+                    </TableHead>
+                    <TableHead className="hidden align-middle font-semibold text-foreground sm:table-cell">
+                      Scheduled
+                    </TableHead>
+                    <TableHead className="align-middle font-semibold text-foreground">
+                      Candidates
+                    </TableHead>
+                    <TableHead className="hidden text-right align-middle font-semibold text-foreground md:table-cell">
+                      Pass at
+                    </TableHead>
+                    <TableHead className="w-[88px] min-w-[88px] pr-6 text-right align-middle font-semibold text-foreground">
+                      Open
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {scheduleRuns.map((run) => (
+                    <TableRow
+                      key={run.runId}
+                      className="group cursor-pointer border-border align-middle transition-colors hover:bg-muted/40"
+                      onClick={() => router.push(runDetailHref(run.runId))}
+                    >
+                      <TableCell className="pl-6 align-middle">
+                        <span className="font-semibold text-foreground">{run.role}</span>
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground align-middle">
+                        {instituteScheduleRoundLabel(
+                          (run.roundType as InstituteScheduleRoundType | null) ?? undefined,
+                        )}
+                      </TableCell>
+                      <TableCell className="hidden align-middle whitespace-nowrap text-sm text-foreground sm:table-cell">
+                        {new Date(run.scheduledAt).toLocaleString()}
+                      </TableCell>
+                      <TableCell className="align-middle">
+                        <span className="inline-flex items-center gap-1.5 text-sm font-semibold tabular-nums text-foreground">
+                          <Users className="h-3.5 w-3.5 text-muted-foreground" />
+                          {run.candidateCount}
+                        </span>
+                      </TableCell>
+                      <TableCell className="hidden text-right align-middle tabular-nums md:table-cell">
+                        {run.passingScore != null ? `${run.passingScore}` : "—"}
+                      </TableCell>
+                      <TableCell
+                        className="w-[88px] min-w-[88px] pr-6 text-right align-middle"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className={cn(instituteSecondaryClass, "h-8 w-8 shrink-0 p-0")}
+                          asChild
+                          title="Open round"
+                          aria-label={`Open ${run.role} round`}
+                        >
+                          <Link href={runDetailHref(run.runId)}>
+                            <ChevronRight className="h-4 w-4" />
+                          </Link>
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </InstituteTableShell>
           )}
         </CardContent>
       </Card>
@@ -1083,28 +1143,71 @@ export default function BatchDetailPage() {
         open={editBatchOpen}
         onOpenChange={(open) => {
           setEditBatchOpen(open);
-          if (open && batch) setEditName(batch.name || "");
+          if (open && batch) {
+            setEditName(batch.name || "");
+            setEditMaxStudents(
+              batch.maxStudents != null ? String(batch.maxStudents) : "",
+            );
+            setEditStartDate(
+              batch.startDate ? String(batch.startDate).slice(0, 10) : "",
+            );
+            setEditEndDate(
+              batch.endDate ? String(batch.endDate).slice(0, 10) : "",
+            );
+          }
         }}
       >
         <DialogContent className="border-border/80 sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="text-xl">Edit batch</DialogTitle>
             <DialogDescription>
-              Change the name of this batch. The new name must be unique within your institution
-              (case-insensitive).
+              Update batch name, capacity, and cohort dates. Names must be unique within your
+              institution (case-insensitive).
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div>
-              <Label htmlFor="dlg-bn">Batch name</Label>
+          <div className="grid gap-4 py-2 sm:grid-cols-2">
+            <FormField label="Batch name" htmlFor="dlg-bn" required className="sm:col-span-2">
               <Input
                 id="dlg-bn"
                 value={editName}
                 onChange={(e) => setEditName(e.target.value)}
-                className="mt-1 h-11 border-border shadow-sm"
-                placeholder="Batch name"
+                className="h-11 border-border shadow-sm"
+                placeholder="e.g. Placement batch Jan 2026"
               />
-            </div>
+            </FormField>
+            <FormField
+              label="Max students"
+              htmlFor="dlg-max"
+              hint="Optional cap for roster size"
+            >
+              <Input
+                id="dlg-max"
+                type="number"
+                min={0}
+                value={editMaxStudents}
+                onChange={(e) => setEditMaxStudents(e.target.value)}
+                className="h-11 border-border shadow-sm"
+                placeholder="No limit"
+              />
+            </FormField>
+            <FormField label="Start date" htmlFor="dlg-start">
+              <Input
+                id="dlg-start"
+                type="date"
+                value={editStartDate}
+                onChange={(e) => setEditStartDate(e.target.value)}
+                className="h-11 border-border shadow-sm"
+              />
+            </FormField>
+            <FormField label="End date" htmlFor="dlg-end">
+              <Input
+                id="dlg-end"
+                type="date"
+                value={editEndDate}
+                onChange={(e) => setEditEndDate(e.target.value)}
+                className="h-11 border-border shadow-sm"
+              />
+            </FormField>
           </div>
           <DialogFooter className="gap-2 sm:justify-end">
             <Button
@@ -1117,9 +1220,7 @@ export default function BatchDetailPage() {
             <Button
               className={institutePrimaryClass}
               onClick={handleSaveName}
-              disabled={
-                savingName || !editName.trim() || editName.trim() === batch.name
-              }
+              disabled={savingName || !editName.trim() || !instituteRoleCanManageBatches(profile?.accessRole)}
             >
               {savingName ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -1131,27 +1232,22 @@ export default function BatchDetailPage() {
         </DialogContent>
       </Dialog>
 
-      <Card className={cn(institutePanelClass, "overflow-hidden shadow-xl")}>
-        <CardHeader className="border-b border-border/60 bg-gradient-to-r from-muted/50 via-card to-indigo-50/30">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary shadow-md shadow-primary/20">
-                  <Layers className="h-4 w-4 text-white" />
-                </span>
-                Members
-              </CardTitle>
-              <CardDescription className="mt-1.5">
-                <span className="font-semibold text-foreground">{members.length}</span>{" "}
-                {members.length === 1 ? "person" : "people"} in this cohort — open reports or remove
-                from the batch.
+      <Card className={instituteCardClass}>
+        <CardHeader className="border-b border-border/60 px-5 py-4">
+          <div className="flex flex-col items-start justify-between gap-4 lg:flex-row lg:items-center">
+            <div className="min-w-0">
+              <CardTitle className="text-lg font-semibold text-foreground">Members</CardTitle>
+              <CardDescription className="mt-1 text-sm">
+                {members.length > 0
+                  ? `${members.length} ${members.length === 1 ? "person" : "people"} in this cohort — open reports or remove from the batch.`
+                  : "Add people from your institution to schedule interviews for the whole batch."}
               </CardDescription>
             </div>
             {members.length > 0 ? (
               <Button
                 size="sm"
                 variant="outline"
-                className={cn(instituteSecondaryClass, "shrink-0 gap-2")}
+                className={cn(instituteSecondaryClass, "h-10 shrink-0 gap-2")}
                 onClick={() => setAddUsersOpen(true)}
               >
                 <UserPlus className="h-4 w-4" />
@@ -1170,7 +1266,7 @@ export default function BatchDetailPage() {
                 action={
                   <Button
                     size="sm"
-                    className={cn(institutePrimaryClass, "gap-2 shadow-lg")}
+                    className={cn(institutePrimaryClass, "gap-2")}
                     onClick={() => setAddUsersOpen(true)}
                   >
                     <UserPlus className="h-4 w-4" />
@@ -1199,12 +1295,12 @@ export default function BatchDetailPage() {
                   {members.map((m) => (
                     <TableRow
                       key={m.clerkId}
-                      className="group border-border align-middle transition-colors hover:bg-gradient-to-r hover:bg-muted/50 hover:to-transparent"
+                      className="group border-border align-middle transition-colors hover:bg-muted/40"
                     >
                       <TableCell className="pl-6 align-middle">
                         <div className="flex items-center gap-3 py-0.5">
                           <div
-                            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-slate-100 to-slate-200/80 text-xs font-bold text-primary shadow-inner ring-2 ring-white"
+                            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-indigo-600 text-sm font-bold text-white shadow-md shadow-primary/15 ring-2 ring-white"
                             aria-hidden
                           >
                             {memberInitials(m.name, m.email)}
@@ -1218,14 +1314,15 @@ export default function BatchDetailPage() {
                       <TableCell className="text-right align-middle">
                         <Button
                           variant="outline"
-                          size="sm"
-                          className={cn(instituteSecondaryClass, "h-8 gap-1 px-3 opacity-90 transition group-hover:opacity-100")}
+                          size="icon"
+                          className={cn(instituteSecondaryClass, "h-8 w-8 shrink-0 p-0")}
                           asChild
+                          title="Open reports"
+                          aria-label={`Open reports for ${m.name || m.email}`}
                         >
                           <Link
                             href={`/dashboard/institute/${institutionId}/candidates/${encodeURIComponent(m.clerkId)}/reports`}
                           >
-                            Open
                             <ChevronRight className="h-4 w-4" />
                           </Link>
                         </Button>
@@ -1250,134 +1347,110 @@ export default function BatchDetailPage() {
         </CardContent>
       </Card>
 
-      <Dialog open={bulkOpen} onOpenChange={setBulkOpen}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto border-border/80 sm:max-w-2xl lg:max-w-3xl">
+      <Dialog
+        open={bulkOpen}
+        onOpenChange={(o) => {
+          if (!o) closeBulkDialog();
+        }}
+      >
+        <DialogContent
+          className="max-h-[90vh] gap-4 overflow-y-auto border-border/80 sm:max-w-xl"
+          {...dialogPortaledPickerHandlers}
+        >
           <DialogHeader>
             <DialogTitle className="text-xl">Bulk schedule interviews</DialogTitle>
             <DialogDescription>
-              Creates one scheduled interview per member with the same role, time, and settings
-              (same rules as individual scheduling).
+              Same 3-step flow as institute scheduling: timing and type, role context, then
+              interview content. Creates one schedule per member (saved resume required to start).
             </DialogDescription>
           </DialogHeader>
-          <div className="grid grid-cols-1 gap-3 py-2 sm:grid-cols-2 sm:gap-x-4 sm:gap-y-3">
-            <div className="min-w-0">
-              <Label htmlFor="bulk-at">Date & time</Label>
-              <Input
-                id="bulk-at"
-                type="datetime-local"
-                value={schAt}
-                onChange={(e) => setSchAt(e.target.value)}
-                className="mt-1 w-full"
-              />
-            </div>
-            <div className="min-w-0">
-              <Label htmlFor="bulk-ex">Expire deadline (optional)</Label>
-              <Input
-                id="bulk-ex"
-                type="datetime-local"
-                value={schExpires}
-                onChange={(e) => setSchExpires(e.target.value)}
-                className="mt-1 w-full"
-              />
-            </div>
-            <div className="min-w-0">
-              <Label htmlFor="bulk-role">Role</Label>
-              <Input
-                id="bulk-role"
-                value={schRole}
-                onChange={(e) => setSchRole(e.target.value)}
-                className="mt-1 w-full"
-              />
-            </div>
-            <div className="min-w-0">
-              <Label htmlFor="bulk-exp">Years of experience</Label>
-              <Input
-                id="bulk-exp"
-                type="number"
-                min={0}
-                value={schExp}
-                onChange={(e) => setSchExp(e.target.value)}
-                className="mt-1 w-full"
-              />
-            </div>
-            <div className="min-w-0">
-              <Label>Duration</Label>
-              <select
-                className="app-control mt-1 w-full bg-card"
-                value={schDur}
-                onChange={(e) => setSchDur(e.target.value as "15" | "30")}
+
+          <InstituteBatchScheduleWizardForm
+            idPrefix="bulk"
+            wizardStep={bulkWizardStep}
+            disabled={bulkSubmitting}
+            fixedBatch={bulkBatchSummary}
+            batchSummary={bulkBatchSummary}
+            roundType={schRoundType}
+            onRoundTypeChange={setSchRoundType}
+            scheduleAt={schAt}
+            onScheduleAtChange={setSchAt}
+            expiresAt={schExpires}
+            onExpiresAtChange={setSchExpires}
+            role={schRole}
+            onRoleChange={setSchRole}
+            experience={schExp}
+            onExperienceChange={setSchExp}
+            company={schCo}
+            onCompanyChange={setSchCo}
+            jobDescription={schJobDescription}
+            onJobDescriptionChange={setSchJobDescription}
+            maxJobDescriptionChars={MAX_JOB_DESCRIPTION_CHARS}
+            duration={schDur}
+            onDurationChange={setSchDur}
+            questionsText={schQuestionsText}
+            onQuestionsTextChange={setSchQuestionsText}
+            passingScore={schPassingScore}
+            onPassingScoreChange={setSchPassingScore}
+            codingProblemIds={schCodingProblemIds}
+            onCodingProblemIdsChange={setSchCodingProblemIds}
+            systemDesignProblemId={schSystemDesignProblemId}
+            onSystemDesignProblemIdChange={setSchSystemDesignProblemId}
+          />
+
+          <DialogFooter className="flex-col gap-2 sm:flex-row sm:justify-between">
+            <div className="flex w-full gap-2 sm:w-auto">
+              <Button
+                type="button"
+                variant="outline"
+                className={instituteSecondaryClass}
+                onClick={closeBulkDialog}
+                disabled={bulkSubmitting}
               >
-                <option value="15">15 minutes</option>
-                <option value="30">30 minutes</option>
-              </select>
+                Cancel
+              </Button>
+              {bulkWizardStep > 1 ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className={instituteSecondaryClass}
+                  onClick={goBulkWizardBack}
+                  disabled={bulkSubmitting}
+                >
+                  Back
+                </Button>
+              ) : null}
             </div>
-            <div className="min-w-0">
-              <Label htmlFor="bulk-co">Target company (optional)</Label>
-              <Input
-                id="bulk-co"
-                value={schCo}
-                onChange={(e) => setSchCo(e.target.value)}
-                className="mt-1 w-full"
-              />
-            </div>
-            <div className="min-w-0">
-              <Label htmlFor="bulk-pass">Passing score (optional)</Label>
-              <Input
-                id="bulk-pass"
-                type="number"
-                min={0}
-                max={100}
-                step={1}
-                value={schPassingScore}
-                onChange={(e) => setSchPassingScore(e.target.value)}
-                placeholder="0–100"
-                className="mt-1 w-full"
-              />
-            </div>
-            <div className="min-w-0 sm:col-span-2">
-              <Label htmlFor="bulk-jd">Job description (optional)</Label>
-              <Textarea
-                id="bulk-jd"
-                value={schJobDescription}
-                onChange={(e) => setSchJobDescription(e.target.value)}
-                placeholder="Paste the role’s JD — the AI uses it when the candidate starts the interview."
-                className="mt-1 min-h-[100px] resize-y text-sm"
+            {bulkWizardStep < INSTITUTE_BATCH_SCHEDULE_WIZARD_STEPS.length ? (
+              <Button
+                type="button"
+                onClick={goBulkWizardNext}
                 disabled={bulkSubmitting}
-                maxLength={MAX_JOB_DESCRIPTION_CHARS}
-              />
-              <p className="mt-1 text-xs text-muted-foreground">
-                Stored on each schedule and passed into the interview context (max{" "}
-                {MAX_JOB_DESCRIPTION_CHARS.toLocaleString()} characters).
-              </p>
-            </div>
-            <div className="min-w-0 sm:col-span-2">
-              <Label htmlFor="bulk-q" className="mb-1 block">
-                Interview questions (optional)
-              </Label>
-              <InterviewQuestionsField
-                id="bulk-q"
-                value={schQuestionsText}
-                onChange={setSchQuestionsText}
-                disabled={bulkSubmitting}
-                className="mt-1"
-              />
-            </div>
-          </div>
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button
-              variant="outline"
-              className={instituteSecondaryClass}
-              onClick={() => setBulkOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleBulkSchedule}
-              disabled={bulkSubmitting || !schAt || !schRole.trim()}
-              className={cn(institutePrimaryClass, "shadow-md")}
-            >
-              {bulkSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Schedule for all"}
-            </Button>
+                className={cn(institutePrimaryClass, "w-full sm:w-auto")}
+              >
+                Continue
+              </Button>
+            ) : (
+              <Button
+                type="button"
+                onClick={() => void handleBulkSchedule()}
+                disabled={
+                  bulkSubmitting ||
+                  bulkMemberCount === 0 ||
+                  !schAt ||
+                  !schRole.trim()
+                }
+                className={cn(institutePrimaryClass, "w-full sm:w-auto shadow-md")}
+              >
+                {bulkSubmitting ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : bulkMemberCount > 0 ? (
+                  `Schedule ${bulkMemberCount} interview${bulkMemberCount === 1 ? "" : "s"}`
+                ) : (
+                  "Schedule for all"
+                )}
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

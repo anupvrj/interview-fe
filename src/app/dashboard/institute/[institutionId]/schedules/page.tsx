@@ -1,7 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
+import {
+  canViewInstitutePage,
+  instituteRoleCanManageBatches,
+} from "@/lib/institute-access";
 import {
   Card,
   CardContent,
@@ -27,74 +31,85 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { InterviewQuestionsField } from "@/components/institute/InterviewQuestionsField";
-import { Loader2, CalendarClock, Pencil, Search } from "lucide-react";
+import { FormField } from "@/components/app/FormField";
+import { SearchInput } from "@/components/app/SearchInput";
+import {
+  INSTITUTE_BATCH_SCHEDULE_WIZARD_STEPS,
+  InstituteBatchScheduleWizardForm,
+  validateInstituteBatchScheduleWizardStep,
+} from "@/components/institute/InstituteBatchScheduleWizard";
+import {
+  buildInstituteScheduleRoundApiFields,
+  instituteScheduleRoundLabel,
+  validateInstituteScheduleRound,
+  type InstituteScheduleRoundType,
+} from "@/lib/institute-schedule-round";
+import { Loader2, CalendarClock, ChevronRight, Layers, Users } from "lucide-react";
 import { toast } from "sonner";
-import { userApi, adminApi, type User } from "@/lib/api";
+import Link from "next/link";
+import { userApi, adminApi } from "@/lib/api";
 import { apiErrorMessage } from "@/lib/api-errors";
+import { dialogPortaledPickerHandlers } from "@/lib/dialog-portaled-picker-handlers";
 import { cn, parseQuestionLines, toDatetimeLocalValue } from "@/lib/utils";
 import {
+  InstituteEmptyState,
   InstituteLoader,
-  InstitutePageHeader,
   InstituteTableShell,
-  instituteFilterBarClass,
-  institutePanelClass,
   institutePrimaryClass,
   instituteSecondaryClass,
 } from "@/components/institute/InstituteChrome";
+import { InstituteSchedulesHero } from "@/components/institute/InstituteSchedulesHero";
 
 const MAX_JOB_DESCRIPTION_CHARS = 32000;
 
-type ScheduleRow = {
-  _id: string;
-  scheduledAt: string;
-  expiresAt?: string;
-  candidateClerkId: string;
-  candidateName?: string | null;
-  candidateEmail?: string | null;
+type BatchScheduleRunRow = {
+  batchId: string;
+  batchName: string;
+  runId: string;
   role: string;
-  experience?: number;
-  language?: "en" | "hi";
-  targetCompany?: string;
-  interviewDuration?: 15 | 30;
-  notes?: string;
-  customQuestions?: string[];
-  passingScore?: number;
-  jobDescription?: string;
-  status: string;
+  roundType: string | null;
+  scheduledAt: string;
+  expiresAt: string | null;
+  passingScore: number | null;
+  candidateCount: number;
+  pendingCount: number;
+  createdAt: string;
+  scheduleGroupId: string | null;
 };
+
+type InstitutionBatchRow = {
+  _id: string;
+  name?: string;
+  memberClerkIds?: string[];
+};
+
+function batchInitials(name: string | undefined): string {
+  const n = (name || "").trim();
+  if (!n) return "B";
+  const parts = n.split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) {
+    return `${parts[0]?.[0] ?? ""}${parts.at(-1)?.[0] ?? ""}`.toUpperCase();
+  }
+  return n.slice(0, 2).toUpperCase();
+}
 
 export default function InstituteSchedulesPage() {
   const params = useParams();
+  const router = useRouter();
   const institutionId = params.institutionId as string;
   const [profile, setProfile] = useState<any>(null);
-  const [schedules, setSchedules] = useState<ScheduleRow[]>([]);
+  const [batchRuns, setBatchRuns] = useState<BatchScheduleRunRow[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const [editOpen, setEditOpen] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editAt, setEditAt] = useState("");
-  const [editRole, setEditRole] = useState("");
-  const [editExperience, setEditExperience] = useState("");
-  const [editCompany, setEditCompany] = useState("");
-  const [editDuration, setEditDuration] = useState<"15" | "30">("15");
-  const [editQuestionsText, setEditQuestionsText] = useState("");
-  const [editPassingScore, setEditPassingScore] = useState("");
-  const [editExpiresAt, setEditExpiresAt] = useState("");
-  const [editJobDescription, setEditJobDescription] = useState("");
-  const [editSubmitting, setEditSubmitting] = useState(false);
-
-  const [candidateQuery, setCandidateQuery] = useState("");
+  const [listSearch, setListSearch] = useState("");
   const [scheduledFrom, setScheduledFrom] = useState("");
   const [scheduledTo, setScheduledTo] = useState("");
 
   const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false);
-  const [scheduleSelectedUser, setScheduleSelectedUser] = useState<User | null>(null);
-  const [scheduleSearch, setScheduleSearch] = useState("");
-  const [scheduleSearchResults, setScheduleSearchResults] = useState<User[]>([]);
-  const [scheduleSearching, setScheduleSearching] = useState(false);
+  const [institutionBatches, setInstitutionBatches] = useState<InstitutionBatchRow[]>([]);
+  const [batchesLoading, setBatchesLoading] = useState(false);
+  const [batchSearch, setBatchSearch] = useState("");
+  const [selectedBatchId, setSelectedBatchId] = useState<string | null>(null);
   const [scheduleAt, setScheduleAt] = useState("");
   const [scheduleRole, setScheduleRole] = useState("");
   const [scheduleExperience, setScheduleExperience] = useState("2");
@@ -104,24 +119,37 @@ export default function InstituteSchedulesPage() {
   const [schedulePassingScore, setSchedulePassingScore] = useState("");
   const [scheduleExpiresAt, setScheduleExpiresAt] = useState("");
   const [scheduleJobDescription, setScheduleJobDescription] = useState("");
+  const [scheduleRoundType, setScheduleRoundType] =
+    useState<InstituteScheduleRoundType>("ai_mock");
+  const [scheduleCodingProblemIds, setScheduleCodingProblemIds] = useState<string[]>([]);
+  const [scheduleSystemDesignProblemId, setScheduleSystemDesignProblemId] =
+    useState("");
   const [scheduleSubmitting, setScheduleSubmitting] = useState(false);
+  const [scheduleWizardStep, setScheduleWizardStep] = useState(1);
 
   const load = useCallback(async () => {
     try {
-      const s = await adminApi.listInterviewSchedules(
-        profile?.accessRole === "super_admin" ? institutionId : undefined
-      );
-      setSchedules(s as ScheduleRow[]);
+      const { runs } = await adminApi.listInstitutionBatchScheduleRuns(institutionId);
+      setBatchRuns(Array.isArray(runs) ? runs : []);
     } catch (e) {
       console.error(e);
+      setBatchRuns([]);
     } finally {
       setLoading(false);
     }
-  }, [profile?.accessRole, institutionId]);
+  }, [institutionId]);
 
   useEffect(() => {
-    userApi.getMyProfile().then(setProfile).catch(() => {});
-  }, []);
+    userApi
+      .getMyProfile()
+      .then((p) => {
+        setProfile(p);
+        if (!canViewInstitutePage(p, institutionId, "schedules")) {
+          router.replace("/dashboard");
+        }
+      })
+      .catch(() => router.replace("/dashboard"));
+  }, [institutionId, router]);
 
   useEffect(() => {
     if (!profile) return;
@@ -131,60 +159,103 @@ export default function InstituteSchedulesPage() {
 
   useEffect(() => {
     if (!scheduleDialogOpen || !profile) return;
-    const q = scheduleSearch.trim();
-    if (q.length < 2) {
-      setScheduleSearchResults([]);
-      return;
-    }
-    const t = globalThis.setTimeout(() => {
-      (async () => {
-        try {
-          setScheduleSearching(true);
-          const { data } = await adminApi.listUsers({
-            limit: 15,
-            skip: 0,
-            search: q,
-            ...(profile.accessRole === "super_admin" ? { institutionId } : {}),
-          });
-          setScheduleSearchResults(Array.isArray(data) ? data : []);
-        } catch {
-          setScheduleSearchResults([]);
-        } finally {
-          setScheduleSearching(false);
+    let cancelled = false;
+    (async () => {
+      try {
+        setBatchesLoading(true);
+        const list = await adminApi.listBatches(institutionId);
+        if (!cancelled) {
+          setInstitutionBatches(Array.isArray(list) ? list : []);
         }
-      })();
-    }, 300);
-    return () => globalThis.clearTimeout(t);
-  }, [scheduleSearch, scheduleDialogOpen, profile, institutionId]);
+      } catch {
+        if (!cancelled) setInstitutionBatches([]);
+      } finally {
+        if (!cancelled) setBatchesLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [scheduleDialogOpen, profile, institutionId]);
+
+  const filteredBatches = useMemo(() => {
+    const q = batchSearch.trim().toLowerCase();
+    const sorted = [...institutionBatches].sort((a, b) =>
+      (a.name || "").localeCompare(b.name || "", undefined, { sensitivity: "base" }),
+    );
+    if (!q) return sorted;
+    return sorted.filter((b) => (b.name || "").toLowerCase().includes(q));
+  }, [institutionBatches, batchSearch]);
+
+  const selectedBatch = useMemo(
+    () =>
+      selectedBatchId
+        ? institutionBatches.find((b) => String(b._id) === selectedBatchId) ?? null
+        : null,
+    [institutionBatches, selectedBatchId],
+  );
+
+  const selectedBatchMemberCount = selectedBatch?.memberClerkIds?.length ?? 0;
 
   const openScheduleDialog = () => {
-    setScheduleSelectedUser(null);
-    setScheduleSearch("");
-    setScheduleSearchResults([]);
-    setScheduleRole("Software Engineer");
+    setSelectedBatchId(null);
+    setBatchSearch("");
+    setInstitutionBatches([]);
+    setScheduleRole("");
     setScheduleExperience("2");
     setScheduleCompany("");
     setScheduleDuration("15");
     setScheduleQuestionsText("");
     setSchedulePassingScore("");
     setScheduleJobDescription("");
+    setScheduleRoundType("ai_mock");
+    setScheduleCodingProblemIds([]);
+    setScheduleSystemDesignProblemId("");
+    setScheduleWizardStep(1);
     const t = new Date();
     t.setDate(t.getDate() + 1);
     t.setHours(10, 0, 0, 0);
     setScheduleAt(toDatetimeLocalValue(t));
-    const exp = new Date(t);
-    exp.setDate(exp.getDate() + 7);
-    exp.setHours(23, 59, 0, 0);
-    setScheduleExpiresAt(toDatetimeLocalValue(exp));
+    setScheduleExpiresAt("");
     setScheduleDialogOpen(true);
   };
 
+  const validateScheduleWizardStep = (step: number): boolean =>
+    validateInstituteBatchScheduleWizardStep(step, {
+      memberCount: selectedBatchMemberCount,
+      hasSelectedBatch: !!selectedBatchId,
+      scheduleAt,
+      role: scheduleRole,
+      roundType: scheduleRoundType,
+      codingProblemIds: scheduleCodingProblemIds,
+      systemDesignProblemId: scheduleSystemDesignProblemId,
+    });
+
+  const goScheduleWizardNext = () => {
+    if (!validateScheduleWizardStep(scheduleWizardStep)) return;
+    setScheduleWizardStep((s) =>
+      Math.min(s + 1, INSTITUTE_BATCH_SCHEDULE_WIZARD_STEPS.length),
+    );
+  };
+
+  const goScheduleWizardBack = () => {
+    setScheduleWizardStep((s) => Math.max(s - 1, 1));
+  };
+
+  const closeScheduleDialog = () => {
+    setScheduleDialogOpen(false);
+    setSelectedBatchId(null);
+    setBatchSearch("");
+    setScheduleJobDescription("");
+    setScheduleWizardStep(1);
+  };
+
   const handleCreateSchedule = async () => {
-    if (!scheduleSelectedUser || !profile || !scheduleRole.trim() || !scheduleAt) return;
-    const instId =
-      profile.accessRole === "super_admin" ? institutionId : profile.institutionId;
-    if (!instId) {
-      toast.error("Institution is required.");
+    if (!selectedBatchId || !profile || !scheduleRole.trim() || !scheduleAt) return;
+    if (selectedBatchMemberCount === 0) {
+      toast.error("Batch has no members", {
+        description: "Add candidates to this batch before scheduling.",
+      });
       return;
     }
     const exp = Number.parseInt(scheduleExperience, 10);
@@ -208,14 +279,19 @@ export default function InstituteSchedulesPage() {
       });
       return;
     }
+    const roundErr = validateInstituteScheduleRound(
+      scheduleRoundType,
+      scheduleCodingProblemIds,
+      scheduleSystemDesignProblemId,
+    );
+    if (roundErr) {
+      toast.error(roundErr);
+      return;
+    }
     const customQs = parseQuestionLines(scheduleQuestionsText);
     try {
       setScheduleSubmitting(true);
-      await adminApi.createInterviewSchedule({
-        candidateClerkId: scheduleSelectedUser.clerkId,
-        ...(profile.accessRole === "super_admin" && {
-          institutionId: String(instId),
-        }),
+      const result = await adminApi.bulkScheduleBatchInterviews(selectedBatchId, {
         scheduledAt: new Date(scheduleAt).toISOString(),
         ...(scheduleExpiresAt.trim()
           ? { expiresAt: new Date(scheduleExpiresAt).toISOString() }
@@ -225,15 +301,33 @@ export default function InstituteSchedulesPage() {
         language: "en",
         targetCompany: scheduleCompany.trim() || undefined,
         interviewDuration: scheduleDuration === "30" ? 30 : 15,
-        ...(customQs.length > 0 ? { customQuestions: customQs } : {}),
         ...(passingScorePayload !== undefined ? { passingScore: passingScorePayload } : {}),
         ...(jd ? { jobDescription: jd } : {}),
+        ...buildInstituteScheduleRoundApiFields(scheduleRoundType, {
+          customQuestions: customQs,
+          codingProblemIds: scheduleCodingProblemIds,
+          systemDesignProblemId: scheduleSystemDesignProblemId,
+        }),
       });
-      toast.success("Interview scheduled", {
-        description: `${scheduleSelectedUser.name ?? scheduleSelectedUser.email ?? "Candidate"} will see this on their dashboard.`,
-      });
-      setScheduleDialogOpen(false);
-      setScheduleSelectedUser(null);
+      const failLines =
+        result.failures?.length > 0
+          ? result.failures
+              .slice(0, 8)
+              .map((f) => f.error)
+              .join(" · ")
+          : "";
+      const batchLabel = selectedBatch?.name?.trim() || "Batch";
+      if (result.created === result.total && !failLines) {
+        toast.success(`Scheduled ${result.created} interview${result.created === 1 ? "" : "s"}`, {
+          description: `Everyone in “${batchLabel}” now has this interview on their dashboard.`,
+        });
+      } else {
+        toast.warning(
+          `Scheduled ${result.created} of ${result.total} in “${batchLabel}”`,
+          { description: failLines || undefined, duration: failLines ? 10000 : 5000 },
+        );
+      }
+      closeScheduleDialog();
       load();
     } catch (err: unknown) {
       toast.error(apiErrorMessage(err, "Failed to schedule interview"));
@@ -242,676 +336,460 @@ export default function InstituteSchedulesPage() {
     }
   };
 
-  const openEdit = (s: ScheduleRow) => {
-    setEditingId(String(s._id));
-    setEditAt(toDatetimeLocalValue(new Date(s.scheduledAt)));
-    setEditRole(s.role || "");
-    setEditExperience(String(s.experience ?? 0));
-    setEditCompany(s.targetCompany || "");
-    setEditDuration(s.interviewDuration === 30 ? "30" : "15");
-    setEditQuestionsText((s.customQuestions ?? []).join("\n"));
-    setEditPassingScore(
-      s.passingScore != null && !Number.isNaN(Number(s.passingScore))
-        ? String(s.passingScore)
-        : ""
-    );
-    setEditExpiresAt(
-      s.expiresAt ? toDatetimeLocalValue(new Date(s.expiresAt)) : ""
-    );
-    setEditJobDescription(s.jobDescription ?? "");
-    setEditOpen(true);
-  };
-
-  const handleSaveEdit = async () => {
-    if (!editingId || !editRole.trim() || !editAt) return;
-    const exp = Number.parseInt(editExperience, 10);
-    if (!Number.isFinite(exp) || exp < 0) {
-      alert("Enter a valid years of experience (0 or more).");
-      return;
-    }
-    let passingPatch: number | null | undefined;
-    if (editPassingScore.trim()) {
-      const ps = Number.parseFloat(editPassingScore.trim());
-      if (!Number.isFinite(ps) || ps < 0 || ps > 100) {
-        alert("Passing score must be a number from 0 to 100.");
-        return;
-      }
-      passingPatch = ps;
-    } else {
-      passingPatch = null;
-    }
-    const jdEdit = editJobDescription.trim();
-    if (jdEdit.length > MAX_JOB_DESCRIPTION_CHARS) {
-      alert(
-        `Job description must be at most ${MAX_JOB_DESCRIPTION_CHARS.toLocaleString()} characters (you have ${jdEdit.length.toLocaleString()}).`
-      );
-      return;
-    }
-    const qLines = parseQuestionLines(editQuestionsText);
-    try {
-      setEditSubmitting(true);
-      await adminApi.updateInterviewSchedule(editingId, {
-        scheduledAt: new Date(editAt).toISOString(),
-        expiresAt: editExpiresAt.trim()
-          ? new Date(editExpiresAt).toISOString()
-          : null,
-        role: editRole.trim(),
-        experience: exp,
-        language: "en",
-        targetCompany: editCompany.trim() || undefined,
-        interviewDuration: editDuration === "30" ? 30 : 15,
-        customQuestions: qLines.length > 0 ? qLines : null,
-        passingScore: passingPatch,
-        jobDescription: jdEdit ? jdEdit : null,
-      });
-      setEditOpen(false);
-      setEditingId(null);
-      load();
-    } catch (err: any) {
-      alert(err?.response?.data?.message || "Failed to update schedule");
-    } finally {
-      setEditSubmitting(false);
-    }
-  };
-
-  const handleCancel = async (id: string) => {
-    if (!confirm("Cancel this scheduled interview?")) return;
-    try {
-      await adminApi.cancelInterviewSchedule(id);
-      load();
-    } catch (err: any) {
-      alert(err?.response?.data?.message || "Failed to cancel");
-    }
-  };
-
-  const pending = schedules.filter((s) => s.status === "scheduled");
-
-  const filteredPending = useMemo(() => {
-    let list = pending;
-    const q = candidateQuery.trim().toLowerCase();
+  const filteredRuns = useMemo(() => {
+    let list = batchRuns;
+    const q = listSearch.trim().toLowerCase();
     if (q) {
-      list = list.filter((s) => {
-        const name = (s.candidateName ?? "").toLowerCase();
-        const email = (s.candidateEmail ?? "").toLowerCase();
-        const id = (s.candidateClerkId ?? "").toLowerCase();
-        return name.includes(q) || email.includes(q) || id.includes(q);
+      list = list.filter((run) => {
+        const batch = run.batchName.toLowerCase();
+        const role = run.role.toLowerCase();
+        return batch.includes(q) || role.includes(q);
       });
     }
     if (scheduledFrom.trim()) {
       const fromMs = new Date(scheduledFrom).getTime();
       if (!Number.isNaN(fromMs)) {
-        list = list.filter(
-          (s) => new Date(s.scheduledAt).getTime() >= fromMs
-        );
+        list = list.filter((run) => new Date(run.scheduledAt).getTime() >= fromMs);
       }
     }
     if (scheduledTo.trim()) {
       const toMs = new Date(scheduledTo).getTime();
       if (!Number.isNaN(toMs)) {
-        list = list.filter(
-          (s) => new Date(s.scheduledAt).getTime() <= toMs
-        );
+        list = list.filter((run) => new Date(run.scheduledAt).getTime() <= toMs);
       }
     }
     return list;
-  }, [pending, candidateQuery, scheduledFrom, scheduledTo]);
+  }, [batchRuns, listSearch, scheduledFrom, scheduledTo]);
 
   const hasActiveFilters =
-    candidateQuery.trim() !== "" ||
+    listSearch.trim() !== "" ||
     scheduledFrom.trim() !== "" ||
     scheduledTo.trim() !== "";
+
+  const pendingInterviewTotal = useMemo(
+    () => batchRuns.reduce((sum, run) => sum + run.pendingCount, 0),
+    [batchRuns],
+  );
+
+  const runDetailHref = (run: BatchScheduleRunRow) =>
+    `/dashboard/institute/${institutionId}/batches/${run.batchId}/runs/${encodeURIComponent(run.runId)}`;
 
   if (!profile) {
     return <InstituteLoader />;
   }
 
+  const canScheduleBatch = instituteRoleCanManageBatches(profile.accessRole);
+
   return (
-    <div className="space-y-8">
-      <InstitutePageHeader
-        badge="Scheduling"
-        title="Scheduled interviews"
-        description="Candidates see these on their dashboard. They can start from 24 hours before the scheduled time (saved resume required)."
-        actions={
-          <Button
-            type="button"
-            className={cn(institutePrimaryClass, "shrink-0 gap-2")}
-            onClick={openScheduleDialog}
-            disabled={
-              profile.accessRole !== "institution_admin" && profile.accessRole !== "super_admin"
-            }
-          >
-            <CalendarClock className="h-4 w-4" />
-            Schedule interview
-          </Button>
-        }
+    <div className="mx-auto w-full max-w-7xl space-y-4 lg:space-y-6">
+      <InstituteSchedulesHero
+        roundCount={batchRuns.length}
+        pendingInterviewCount={pendingInterviewTotal}
+        loading={loading}
       />
 
-      <Card className={cn(institutePanelClass, "overflow-hidden shadow-xl")}>
-        <CardHeader className="border-b border-border/60 bg-gradient-to-r from-muted/40 to-card">
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <CalendarClock className="h-5 w-5 text-primary" />
-            Upcoming & pending
-          </CardTitle>
-          <CardDescription>
-            Use <span className="font-medium text-foreground">Schedule interview</span> above to pick
-            a candidate and set time and details, or use the calendar on each row on the Candidates
-            tab. Edit time, role, and details here anytime before the interview starts.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="pt-6">
-          {loading ? (
-            <div className="flex justify-center py-12">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <Card className="overflow-hidden rounded-xl border border-border/60 bg-card shadow-card">
+        <CardHeader className="border-b border-border/60 px-5 py-4">
+          <div className="flex flex-col items-start justify-between gap-4 lg:flex-row lg:items-center">
+            <div className="min-w-0">
+              <CardTitle className="text-lg font-semibold text-foreground">
+                Schedule directory
+              </CardTitle>
+              <CardDescription className="mt-1 text-sm">
+                {!loading && batchRuns.length > 0
+                  ? hasActiveFilters
+                    ? `${filteredRuns.length} of ${batchRuns.length} batch round${batchRuns.length === 1 ? "" : "s"} match your filters.`
+                    : "Each row is one batch interview round — open it to see every candidate, scores, and edit or cancel the run."
+                  : "Schedule interviews for a batch; each member gets their own slot under that round."}
+              </CardDescription>
             </div>
-          ) : pending.length === 0 ? (
-            <p className="rounded-xl border border-dashed border-border/60 bg-muted/20 px-4 py-8 text-center text-sm text-muted-foreground">
-              No pending schedules.
-            </p>
-          ) : (
-            <div className="space-y-4">
-              <div
-                className={cn(
-                  instituteFilterBarClass,
-                  "flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end"
-                )}
-              >
-                <div className="min-w-[200px] flex-1">
-                  <Label htmlFor="sch-filter-candidate" className="text-xs text-muted-foreground">
-                    Candidate (name or email)
-                  </Label>
-                  <div className="relative mt-1">
-                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                    <Input
-                      id="sch-filter-candidate"
-                      placeholder="Search…"
-                      value={candidateQuery}
-                      onChange={(e) => setCandidateQuery(e.target.value)}
-                      className="pl-9"
-                    />
-                  </div>
-                </div>
-                <div className="min-w-[180px]">
-                  <Label htmlFor="sch-filter-from" className="text-xs text-muted-foreground">
-                    Scheduled from
-                  </Label>
-                  <Input
-                    id="sch-filter-from"
-                    type="datetime-local"
-                    value={scheduledFrom}
-                    onChange={(e) => setScheduledFrom(e.target.value)}
-                    className="mt-1"
-                  />
-                </div>
-                <div className="min-w-[180px]">
-                  <Label htmlFor="sch-filter-to" className="text-xs text-muted-foreground">
-                    Scheduled to
-                  </Label>
-                  <Input
-                    id="sch-filter-to"
-                    type="datetime-local"
-                    value={scheduledTo}
-                    onChange={(e) => setScheduledTo(e.target.value)}
-                    className="mt-1"
-                  />
-                </div>
-                {hasActiveFilters ? (
+            <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center lg:w-auto lg:min-w-[min(100%,32rem)] lg:flex-1 lg:max-w-2xl">
+              <SearchInput
+                id="sch-filter-batch"
+                leadingIcon={Layers}
+                placeholder="Search batch or role…"
+                value={listSearch}
+                onChange={(e) => setListSearch(e.target.value)}
+                containerClassName="max-w-none w-full min-w-0 flex-1 border-border bg-card shadow-sm"
+              />
+              {canScheduleBatch ? (
+                <Button
+                  type="button"
+                  onClick={openScheduleDialog}
+                  className={cn(institutePrimaryClass, "h-11 shrink-0 gap-2 sm:w-auto")}
+                >
+                  <CalendarClock className="h-4 w-4" />
+                  Schedule batch
+                </Button>
+              ) : null}
+            </div>
+          </div>
+          {!loading && batchRuns.length > 0 ? (
+            <div className="mt-4 flex flex-col gap-2 border-t border-border/60 pt-4 sm:flex-row sm:flex-wrap sm:items-center">
+              <Input
+                id="sch-filter-from"
+                type="datetime-local"
+                aria-label="Scheduled from"
+                value={scheduledFrom}
+                onChange={(e) => setScheduledFrom(e.target.value)}
+                className="h-11 w-full min-w-0 border-border bg-card shadow-sm sm:max-w-[220px]"
+              />
+              <Input
+                id="sch-filter-to"
+                type="datetime-local"
+                aria-label="Scheduled to"
+                value={scheduledTo}
+                onChange={(e) => setScheduledTo(e.target.value)}
+                className="h-11 w-full min-w-0 border-border bg-card shadow-sm sm:max-w-[220px]"
+              />
+              {hasActiveFilters ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className={cn(instituteSecondaryClass, "h-11 shrink-0")}
+                  onClick={() => {
+                    setListSearch("");
+                    setScheduledFrom("");
+                    setScheduledTo("");
+                  }}
+                >
+                  Clear filters
+                </Button>
+              ) : null}
+            </div>
+          ) : null}
+        </CardHeader>
+        <CardContent className="p-0 sm:p-0">
+          {loading ? (
+            <div className="flex justify-center py-16">
+              <Loader2 className="h-9 w-9 animate-spin text-[#7367F0]" />
+            </div>
+          ) : batchRuns.length === 0 ? (
+            <div className="px-4 py-6 sm:px-6">
+              <InstituteEmptyState
+                icon={CalendarClock}
+                title="No pending batch rounds"
+                description="Use Schedule batch to create an interview round for everyone in a cohort."
+                action={
+                  canScheduleBatch ? (
+                    <Button
+                      onClick={openScheduleDialog}
+                      className={cn(institutePrimaryClass, "gap-2")}
+                    >
+                      <CalendarClock className="h-4 w-4" />
+                      Schedule batch
+                    </Button>
+                  ) : undefined
+                }
+              />
+            </div>
+          ) : filteredRuns.length === 0 ? (
+            <div className="px-4 py-6 sm:px-6">
+              <InstituteEmptyState
+                icon={CalendarClock}
+                title="No matches"
+                description="Try a different batch name, role, or adjust the scheduled date range."
+                action={
                   <Button
-                    type="button"
                     variant="outline"
-                    size="sm"
-                    className="shrink-0"
+                    className={instituteSecondaryClass}
                     onClick={() => {
-                      setCandidateQuery("");
+                      setListSearch("");
                       setScheduledFrom("");
                       setScheduledTo("");
                     }}
                   >
                     Clear filters
                   </Button>
-                ) : null}
-              </div>
-
-              <p className="text-xs text-muted-foreground">
-                Showing {filteredPending.length} of {pending.length} schedule
-                {pending.length === 1 ? "" : "s"}
-              </p>
-
-              {filteredPending.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  No schedules match your filters. Try adjusting search or date range.
-                </p>
-              ) : (
-                <InstituteTableShell>
-              <Table>
+                }
+              />
+            </div>
+          ) : (
+            <InstituteTableShell>
+              <Table className="w-full min-w-[880px]">
                 <TableHeader>
                   <TableRow className="border-b border-border/80 bg-muted/30 hover:bg-muted/30">
-                    <TableHead className="font-semibold text-foreground">When</TableHead>
-                    <TableHead className="font-semibold text-foreground">Expire by</TableHead>
-                    <TableHead className="font-semibold text-foreground">Candidate</TableHead>
+                    <TableHead className="pl-6 font-semibold text-foreground">Batch</TableHead>
                     <TableHead className="font-semibold text-foreground">Role</TableHead>
-                    <TableHead className="text-right font-semibold text-foreground">Actions</TableHead>
+                    <TableHead className="font-semibold text-foreground">Round</TableHead>
+                    <TableHead className="font-semibold text-foreground">Scheduled</TableHead>
+                    <TableHead className="font-semibold text-foreground">Expire by</TableHead>
+                    <TableHead className="font-semibold text-foreground">Candidates</TableHead>
+                    <TableHead className="w-[88px] min-w-[88px] pr-6 text-right font-semibold text-foreground">
+                      Open
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredPending.map((s) => (
-                    <TableRow key={s._id} className="border-border hover:bg-muted/40">
-                      <TableCell className="whitespace-nowrap">
-                        {new Date(s.scheduledAt).toLocaleString()}
-                      </TableCell>
-                      <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
-                        {s.expiresAt
-                          ? new Date(s.expiresAt).toLocaleString()
-                          : "—"}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex min-w-[10rem] max-w-[18rem] flex-col gap-0.5">
-                          <span className="font-medium text-foreground">
-                            {s.candidateName?.trim()
-                              ? s.candidateName.trim()
-                              : "—"}
-                          </span>
-                          <span className="break-all text-sm text-muted-foreground">
-                            {s.candidateEmail?.trim()
-                              ? s.candidateEmail.trim()
-                              : "—"}
-                          </span>
-                          {!s.candidateName?.trim() && !s.candidateEmail?.trim() ? (
-                            <span className="font-mono text-[11px] text-muted-foreground">
-                              {s.candidateClerkId}
-                            </span>
-                          ) : null}
+                  {filteredRuns.map((run) => (
+                    <TableRow
+                      key={`${run.batchId}-${run.runId}`}
+                      className="group cursor-pointer border-border align-middle transition-colors hover:bg-muted/40"
+                      onClick={() => router.push(runDetailHref(run))}
+                    >
+                      <TableCell className="pl-6 align-middle">
+                        <div className="flex items-center gap-3 py-2">
+                          <div
+                            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-indigo-600 text-sm font-bold text-white shadow-md shadow-primary/15 ring-2 ring-white"
+                            aria-hidden
+                          >
+                            {batchInitials(run.batchName)}
+                          </div>
+                          <p className="min-w-0 max-w-[200px] truncate font-semibold text-foreground">
+                            {run.batchName}
+                          </p>
                         </div>
                       </TableCell>
-                      <TableCell>{s.role}</TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="max-w-[140px] truncate align-middle font-medium text-foreground">
+                        {run.role}
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground align-middle">
+                        {instituteScheduleRoundLabel(
+                          (run.roundType as InstituteScheduleRoundType | null) ?? undefined,
+                        )}
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap text-sm text-foreground align-middle">
+                        {new Date(run.scheduledAt).toLocaleString()}
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap text-sm text-muted-foreground align-middle">
+                        {run.expiresAt ? new Date(run.expiresAt).toLocaleString() : "—"}
+                      </TableCell>
+                      <TableCell className="align-middle">
+                        <span className="inline-flex items-center gap-1.5 text-sm font-semibold tabular-nums text-foreground">
+                          <Users className="h-3.5 w-3.5 text-muted-foreground" />
+                          {run.pendingCount}/{run.candidateCount}
+                        </span>
+                      </TableCell>
+                      <TableCell
+                        className="w-[88px] min-w-[88px] pr-6 text-right align-middle"
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         <Button
                           variant="outline"
-                          size="sm"
-                          className={cn("mr-1 gap-1", instituteSecondaryClass)}
-                          onClick={() => openEdit(s)}
+                          size="icon"
+                          className={cn(instituteSecondaryClass, "h-8 w-8 shrink-0 p-0")}
+                          asChild
+                          title="Open batch round"
+                          aria-label={`Open ${run.batchName} round`}
                         >
-                          <Pencil className="h-4 w-4" />
-                          Edit
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-red-600"
-                          onClick={() => handleCancel(String(s._id))}
-                        >
-                          Cancel
+                          <Link href={runDetailHref(run)}>
+                            <ChevronRight className="h-4 w-4" />
+                          </Link>
                         </Button>
                       </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
               </Table>
-                </InstituteTableShell>
-              )}
-            </div>
+            </InstituteTableShell>
           )}
         </CardContent>
       </Card>
 
       <Dialog
-        open={editOpen}
-        onOpenChange={(o) => {
-          if (!o) {
-            setEditOpen(false);
-            setEditingId(null);
-          }
-        }}
-      >
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Edit scheduled interview</DialogTitle>
-            <DialogDescription>
-              Changes apply immediately. The candidate sees the updated time and details on
-              their dashboard.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-3 py-2">
-            <div>
-              <Label htmlFor="edit-sch-at">Date & time</Label>
-              <Input
-                id="edit-sch-at"
-                type="datetime-local"
-                value={editAt}
-                onChange={(e) => setEditAt(e.target.value)}
-                className="mt-1"
-              />
-            </div>
-            <div>
-              <Label htmlFor="edit-sch-expires">Expire deadline</Label>
-              <Input
-                id="edit-sch-expires"
-                type="datetime-local"
-                value={editExpiresAt}
-                onChange={(e) => setEditExpiresAt(e.target.value)}
-                className="mt-1"
-              />
-              <p className="mt-1 text-xs text-muted-foreground">
-                Latest time the candidate can start. Clear to remove the deadline. Must be on or
-                after 24 hours before the scheduled time.
-              </p>
-            </div>
-            <div>
-              <Label htmlFor="edit-sch-role">Role / position</Label>
-              <Input
-                id="edit-sch-role"
-                value={editRole}
-                onChange={(e) => setEditRole(e.target.value)}
-                className="mt-1"
-              />
-            </div>
-            <div>
-              <Label htmlFor="edit-sch-exp">Years of experience</Label>
-              <Input
-                id="edit-sch-exp"
-                type="number"
-                min={0}
-                value={editExperience}
-                onChange={(e) => setEditExperience(e.target.value)}
-                className="mt-1"
-              />
-            </div>
-            <div>
-              <Label htmlFor="edit-sch-co">Target company (optional)</Label>
-              <Input
-                id="edit-sch-co"
-                value={editCompany}
-                onChange={(e) => setEditCompany(e.target.value)}
-                className="mt-1"
-              />
-            </div>
-            <div>
-              <Label htmlFor="edit-sch-jd">Job description (optional)</Label>
-              <Textarea
-                id="edit-sch-jd"
-                value={editJobDescription}
-                onChange={(e) => setEditJobDescription(e.target.value)}
-                placeholder="Paste the role’s JD — the AI uses it when the candidate starts the interview."
-                className="mt-1 min-h-[100px] resize-y text-sm"
-                disabled={editSubmitting}
-                maxLength={MAX_JOB_DESCRIPTION_CHARS}
-              />
-              <p className="mt-1 text-xs text-muted-foreground">
-                Stored on this schedule and passed into the interview context (max{" "}
-                {MAX_JOB_DESCRIPTION_CHARS.toLocaleString()} characters).
-              </p>
-            </div>
-            <div>
-              <Label htmlFor="edit-sch-dur">Duration</Label>
-              <select
-                id="edit-sch-dur"
-                className="app-control mt-1 w-full bg-card"
-                value={editDuration}
-                onChange={(e) => setEditDuration(e.target.value as "15" | "30")}
-              >
-                <option value="15">15 minutes</option>
-                <option value="30">30 minutes</option>
-              </select>
-            </div>
-            <div>
-              <Label htmlFor="edit-sch-q" className="mb-1 block">
-                Interview questions (optional)
-              </Label>
-              <InterviewQuestionsField
-                id="edit-sch-q"
-                value={editQuestionsText}
-                onChange={setEditQuestionsText}
-                disabled={editSubmitting}
-                className="mt-1"
-              />
-            </div>
-            <div>
-              <Label htmlFor="edit-sch-pass">Passing score (optional)</Label>
-              <Input
-                id="edit-sch-pass"
-                type="number"
-                min={0}
-                max={100}
-                step={1}
-                value={editPassingScore}
-                onChange={(e) => setEditPassingScore(e.target.value)}
-                placeholder="Clear to remove threshold"
-                className="mt-1"
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditOpen(false)}>
-              Close
-            </Button>
-            <Button
-              onClick={handleSaveEdit}
-              disabled={editSubmitting || !editRole.trim() || !editAt}
-              className={institutePrimaryClass}
-            >
-              {editSubmitting ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                "Save changes"
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog
         open={scheduleDialogOpen}
         onOpenChange={(o) => {
-          if (!o) {
-            setScheduleDialogOpen(false);
-            setScheduleSelectedUser(null);
-            setScheduleSearch("");
-            setScheduleSearchResults([]);
-            setScheduleJobDescription("");
-          }
+          if (!o) closeScheduleDialog();
         }}
       >
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+        <DialogContent
+          className="max-h-[90vh] gap-4 overflow-y-auto border-border/80 sm:max-w-xl"
+          {...dialogPortaledPickerHandlers}
+        >
           <DialogHeader>
-            <DialogTitle>Schedule interview</DialogTitle>
+            <DialogTitle className="text-xl">Schedule batch interviews</DialogTitle>
             <DialogDescription>
-              Search for a candidate in your institution, then set date, role, and questions. They
-              need a saved resume to start.
+              Choose batch and timing, set role context, then pick interview content. Each member
+              gets their own schedule (saved resume required to start).
             </DialogDescription>
           </DialogHeader>
-          <div className="grid gap-3 py-2">
-            <div>
-              <Label htmlFor="inst-sch-pick">Find candidate</Label>
-              <Input
-                id="inst-sch-pick"
-                placeholder="Type name or email (min. 2 characters)…"
-                value={scheduleSearch}
-                onChange={(e) => setScheduleSearch(e.target.value)}
-                className="mt-1"
-                autoComplete="off"
-              />
-              {scheduleSearching ? (
-                <p className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  Searching…
-                </p>
-              ) : scheduleSearch.trim().length >= 2 && scheduleSearchResults.length === 0 ? (
-                <p className="mt-2 text-xs text-muted-foreground">No users match.</p>
-              ) : null}
-              {scheduleSearchResults.length > 0 ? (
-                <ul className="mt-2 max-h-40 overflow-y-auto rounded-md border border-border bg-card">
-                  {scheduleSearchResults.map((u) => (
-                    <li key={u._id}>
-                      <button
-                        type="button"
-                        className={`flex w-full flex-col items-start gap-0.5 px-3 py-2 text-left text-sm hover:bg-muted/20 ${
-                          scheduleSelectedUser?.clerkId === u.clerkId ? "bg-muted/30" : ""
-                        }`}
-                        onClick={() => setScheduleSelectedUser(u)}
-                      >
-                        <span className="font-medium text-foreground">{u.name || "—"}</span>
-                        <span className="text-xs text-muted-foreground">{u.email}</span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              ) : null}
-              {scheduleSelectedUser ? (
-                <p className="mt-2 rounded-md bg-muted/20 px-3 py-2 text-sm text-foreground">
-                  Scheduling for:{" "}
-                  <span className="font-medium">
-                    {scheduleSelectedUser.name ?? scheduleSelectedUser.email}
-                  </span>
-                  {scheduleSelectedUser.email && scheduleSelectedUser.name ? (
-                    <span className="text-muted-foreground"> ({scheduleSelectedUser.email})</span>
-                  ) : null}
-                </p>
-              ) : scheduleSearch.trim().length >= 2 ? (
-                <p className="mt-2 text-xs text-amber-800/90">
-                  Select a candidate from the search results to continue.
-                </p>
-              ) : (
-                <p className="mt-2 text-xs text-muted-foreground">
-                  Type at least 2 characters to search your institution.
-                </p>
-              )}
-            </div>
-            <div>
-              <Label htmlFor="inst-sch-at">Date & time</Label>
-              <Input
-                id="inst-sch-at"
-                type="datetime-local"
-                value={scheduleAt}
-                onChange={(e) => setScheduleAt(e.target.value)}
-                className="mt-1"
-              />
-            </div>
-            <div>
-              <Label htmlFor="inst-sch-expires">Expire deadline (optional)</Label>
-              <Input
-                id="inst-sch-expires"
-                type="datetime-local"
-                value={scheduleExpiresAt}
-                onChange={(e) => setScheduleExpiresAt(e.target.value)}
-                className="mt-1"
-              />
-              <p className="mt-1 text-xs text-muted-foreground">
-                Latest time the candidate can start. Must be on or after 24 hours before the
-                scheduled time above. Clear to allow starting anytime after the window opens (no
-                upper limit).
-              </p>
-            </div>
-            <div>
-              <Label htmlFor="inst-sch-role">Role / position</Label>
-              <Input
-                id="inst-sch-role"
-                value={scheduleRole}
-                onChange={(e) => setScheduleRole(e.target.value)}
-                placeholder="e.g. Backend Engineer"
-                className="mt-1"
-              />
-            </div>
-            <div>
-              <Label htmlFor="inst-sch-exp">Years of experience</Label>
-              <Input
-                id="inst-sch-exp"
-                type="number"
-                min={0}
-                value={scheduleExperience}
-                onChange={(e) => setScheduleExperience(e.target.value)}
-                className="mt-1"
-              />
-            </div>
-            <div>
-              <Label htmlFor="inst-sch-co">Target company (optional)</Label>
-              <Input
-                id="inst-sch-co"
-                value={scheduleCompany}
-                onChange={(e) => setScheduleCompany(e.target.value)}
-                className="mt-1"
-              />
-            </div>
-            <div>
-              <Label htmlFor="inst-sch-jd">Job description (optional)</Label>
-              <Textarea
-                id="inst-sch-jd"
-                value={scheduleJobDescription}
-                onChange={(e) => setScheduleJobDescription(e.target.value)}
-                placeholder="Paste the role’s JD — the AI uses it when the candidate starts the interview."
-                className="mt-1 min-h-[100px] resize-y text-sm"
-                disabled={scheduleSubmitting}
-                maxLength={MAX_JOB_DESCRIPTION_CHARS}
-              />
-              <p className="mt-1 text-xs text-muted-foreground">
-                Stored on this schedule and passed into the interview context (max{" "}
-                {MAX_JOB_DESCRIPTION_CHARS.toLocaleString()} characters).
-              </p>
-            </div>
-            <div>
-              <Label htmlFor="inst-sch-dur">Duration</Label>
-              <select
-                id="inst-sch-dur"
-                className="app-control mt-1 w-full bg-card"
-                value={scheduleDuration}
-                onChange={(e) => setScheduleDuration(e.target.value as "15" | "30")}
+
+          <InstituteBatchScheduleWizardForm
+            idPrefix="inst-sch"
+            wizardStep={scheduleWizardStep}
+            disabled={scheduleSubmitting}
+            batchSummary={
+              selectedBatch
+                ? {
+                    name: selectedBatch.name?.trim() || "Untitled batch",
+                    memberCount: selectedBatchMemberCount,
+                  }
+                : null
+            }
+            batchPicker={
+              <FormField
+                label="Batch"
+                htmlFor="inst-sch-batch-search"
+                required
+                hint={
+                  selectedBatch
+                    ? `${selectedBatchMemberCount} member${selectedBatchMemberCount === 1 ? "" : "s"} will be scheduled.`
+                    : "Type a batch name to search — matches appear below."
+                }
               >
-                <option value="15">15 minutes</option>
-                <option value="30">30 minutes</option>
-              </select>
-            </div>
-            <div>
-              <Label htmlFor="inst-sch-q" className="mb-1 block">
-                Interview questions (optional)
-              </Label>
-              <InterviewQuestionsField
-                id="inst-sch-q"
-                value={scheduleQuestionsText}
-                onChange={setScheduleQuestionsText}
+                <SearchInput
+                  id="inst-sch-batch-search"
+                  placeholder="Search batches by name…"
+                  value={batchSearch}
+                  onChange={(e) => {
+                    setBatchSearch(e.target.value);
+                    setSelectedBatchId(null);
+                  }}
+                  disabled={batchesLoading || scheduleSubmitting}
+                  containerClassName="max-w-none w-full border-border bg-card shadow-sm"
+                />
+                {batchesLoading ? (
+                  <p className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    Loading batches…
+                  </p>
+                ) : institutionBatches.length === 0 ? (
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    No batches yet.{" "}
+                    <Link
+                      href={`/dashboard/institute/${institutionId}/batches`}
+                      className="font-medium text-primary underline-offset-2 hover:underline"
+                    >
+                      Create a batch
+                    </Link>{" "}
+                    and add members first.
+                  </p>
+                ) : selectedBatch ? (
+                  <p className="mt-2 rounded-md border border-border/80 bg-muted/20 px-3 py-2 text-sm text-foreground">
+                    Selected:{" "}
+                    <span className="font-medium">
+                      {selectedBatch.name?.trim() || "Untitled batch"}
+                    </span>
+                    <span className="text-muted-foreground">
+                      {" "}
+                      · {selectedBatchMemberCount} member
+                      {selectedBatchMemberCount === 1 ? "" : "s"}
+                    </span>
+                  </p>
+                ) : batchSearch.trim().length === 0 ? (
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Start typing to find a batch.
+                  </p>
+                ) : filteredBatches.length === 0 ? (
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    No batches match your search.
+                  </p>
+                ) : (
+                  <ul className="mt-2 max-h-44 overflow-y-auto rounded-md border border-border bg-card">
+                    {filteredBatches.map((b) => {
+                      const id = String(b._id);
+                      const count = b.memberClerkIds?.length ?? 0;
+                      const selected = selectedBatchId === id;
+                      return (
+                        <li key={id}>
+                          <button
+                            type="button"
+                            className={cn(
+                              "flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left text-sm transition-colors hover:bg-muted/30",
+                              selected &&
+                                "bg-primary/5 ring-1 ring-inset ring-primary/20",
+                            )}
+                            onClick={() => setSelectedBatchId(id)}
+                          >
+                            <span className="min-w-0 truncate font-medium text-foreground">
+                              {b.name?.trim() || "Untitled batch"}
+                            </span>
+                            <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+                              {count} member{count === 1 ? "" : "s"}
+                            </span>
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </FormField>
+            }
+            roundType={scheduleRoundType}
+            onRoundTypeChange={setScheduleRoundType}
+            scheduleAt={scheduleAt}
+            onScheduleAtChange={setScheduleAt}
+            expiresAt={scheduleExpiresAt}
+            onExpiresAtChange={setScheduleExpiresAt}
+            role={scheduleRole}
+            onRoleChange={setScheduleRole}
+            experience={scheduleExperience}
+            onExperienceChange={setScheduleExperience}
+            company={scheduleCompany}
+            onCompanyChange={setScheduleCompany}
+            jobDescription={scheduleJobDescription}
+            onJobDescriptionChange={setScheduleJobDescription}
+            maxJobDescriptionChars={MAX_JOB_DESCRIPTION_CHARS}
+            duration={scheduleDuration}
+            onDurationChange={setScheduleDuration}
+            questionsText={scheduleQuestionsText}
+            onQuestionsTextChange={setScheduleQuestionsText}
+            passingScore={schedulePassingScore}
+            onPassingScoreChange={setSchedulePassingScore}
+            codingProblemIds={scheduleCodingProblemIds}
+            onCodingProblemIdsChange={setScheduleCodingProblemIds}
+            systemDesignProblemId={scheduleSystemDesignProblemId}
+            onSystemDesignProblemIdChange={setScheduleSystemDesignProblemId}
+          />
+          <DialogFooter className="flex-col gap-2 sm:flex-row sm:justify-between">
+            <div className="flex w-full gap-2 sm:w-auto">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={closeScheduleDialog}
                 disabled={scheduleSubmitting}
-                className="mt-1"
-              />
+              >
+                Cancel
+              </Button>
+              {scheduleWizardStep > 1 ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className={instituteSecondaryClass}
+                  onClick={goScheduleWizardBack}
+                  disabled={scheduleSubmitting}
+                >
+                  Back
+                </Button>
+              ) : null}
             </div>
-            <div>
-              <Label htmlFor="inst-sch-pass">Passing score (optional)</Label>
-              <Input
-                id="inst-sch-pass"
-                type="number"
-                min={0}
-                max={100}
-                step={1}
-                value={schedulePassingScore}
-                onChange={(e) => setSchedulePassingScore(e.target.value)}
-                placeholder="0–100; overall score needed to pass"
-                className="mt-1"
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setScheduleDialogOpen(false);
-                setScheduleSelectedUser(null);
-                setScheduleJobDescription("");
-              }}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleCreateSchedule}
-              disabled={
-                scheduleSubmitting ||
-                !scheduleSelectedUser ||
-                !scheduleRole.trim() ||
-                !scheduleAt
-              }
-              className={institutePrimaryClass}
-            >
-              {scheduleSubmitting ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                "Create schedule"
-              )}
-            </Button>
+            {scheduleWizardStep < INSTITUTE_BATCH_SCHEDULE_WIZARD_STEPS.length ? (
+              <Button
+                type="button"
+                onClick={goScheduleWizardNext}
+                disabled={scheduleSubmitting}
+                className={cn(institutePrimaryClass, "w-full sm:w-auto")}
+              >
+                Continue
+              </Button>
+            ) : (
+              <Button
+                type="button"
+                onClick={() => {
+                  if (!validateScheduleWizardStep(3)) {
+                    setScheduleWizardStep(3);
+                    return;
+                  }
+                  void handleCreateSchedule();
+                }}
+                disabled={
+                  scheduleSubmitting ||
+                  !selectedBatchId ||
+                  selectedBatchMemberCount === 0 ||
+                  !scheduleRole.trim() ||
+                  !scheduleAt
+                }
+                className={cn(institutePrimaryClass, "w-full sm:w-auto")}
+              >
+                {scheduleSubmitting ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : selectedBatchMemberCount > 0 ? (
+                  `Schedule ${selectedBatchMemberCount} interview${selectedBatchMemberCount === 1 ? "" : "s"}`
+                ) : (
+                  "Schedule batch"
+                )}
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
