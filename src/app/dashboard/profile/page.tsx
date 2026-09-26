@@ -49,6 +49,8 @@ import { ProfileSkillsEditor } from "@/components/profile/ProfileSkillsEditor";
 import { ProfileDesignedResumePicker, type ProfileDesignedResumePickerHandle } from "@/components/profile/ProfileDesignedResumePicker";
 import { ProfilePhoneFields } from "@/components/profile/ProfilePhoneFields";
 import { ProfileWelcomeHero } from "@/components/profile/ProfileWelcomeHero";
+import { InstitutionStaffProfileView } from "@/components/profile/InstitutionStaffProfileView";
+import { useActiveRole } from "@/components/roles/ActiveRoleProvider";
 import { IxScoreSummaryCard } from "@/components/ix-score/IxScoreSummaryCard";
 import { CandidateStatusInlineSelect } from "@/components/recruiter/CandidateStatusInlineSelect";
 import { CANDIDATE_STATUS_LABELS } from "@/lib/recruiter";
@@ -171,6 +173,7 @@ export default function ProfilePage() {
   const { user: clerkUser, isLoaded } = useUser();
   const { signOut } = useClerk();
   const router = useRouter();
+  const roleCtx = useActiveRole();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -551,6 +554,25 @@ export default function ProfilePage() {
   })();
 
   const hasActiveResume = Boolean(user?.resume || defaultDesignedResume);
+
+  if (roleCtx && !roleCtx.ready) {
+    return (
+      <div className="flex min-h-[400px] items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="mx-auto mb-4 h-12 w-12 animate-spin text-[#7367F0]" />
+          <p className="text-sm text-muted-foreground">Loading your profile…</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (
+    roleCtx?.ready &&
+    roleCtx.activeRole === "institution_admin" &&
+    roleCtx.profile
+  ) {
+    return <InstitutionStaffProfileView profile={roleCtx.profile} />;
+  }
 
   if (!isLoaded || loading) {
     return (

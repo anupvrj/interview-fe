@@ -149,7 +149,12 @@ apiClient.interceptors.response.use(
 );
 
 // API Types
-export type AccessRole = "super_admin" | "institution_admin" | "user";
+export type AccessRole =
+  | "super_admin"
+  | "institution_admin"
+  | "institution_moderator"
+  | "institution_interview_manager"
+  | "user";
 
 export interface User {
   _id: string;

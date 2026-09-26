@@ -3,7 +3,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { Check, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { ROLE_META } from "@/lib/roles";
+import { ROLE_META, workspaceRoleLabel } from "@/lib/roles";
 import { useActiveRole } from "@/components/roles/ActiveRoleProvider";
 
 type RoleSwitcherProps = {
@@ -34,9 +34,10 @@ export function RoleSwitcher({ className }: Readonly<RoleSwitcherProps>) {
 
   if (!ctx || !ctx.activeRole || ctx.availableRoles.length <= 1) return null;
 
-  const { activeRole, availableRoles, setActiveRole } = ctx;
+  const { activeRole, availableRoles, setActiveRole, profile } = ctx;
   const currentMeta = ROLE_META[activeRole];
   const CurrentIcon = currentMeta.icon;
+  const currentLabel = workspaceRoleLabel(activeRole, profile?.accessRole);
 
   return (
     <div ref={rootRef} className={cn("relative", className)}>
@@ -54,7 +55,7 @@ export function RoleSwitcher({ className }: Readonly<RoleSwitcherProps>) {
       >
         <CurrentIcon className="h-4 w-4 shrink-0 text-[#7367F0]" />
         <span className="hidden max-w-[8rem] truncate sm:inline">
-          {currentMeta.label}
+          {currentLabel}
         </span>
         <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
       </button>
@@ -75,6 +76,7 @@ export function RoleSwitcher({ className }: Readonly<RoleSwitcherProps>) {
                 const meta = ROLE_META[role];
                 const Icon = meta.icon;
                 const isActive = role === activeRole;
+                const label = workspaceRoleLabel(role, profile?.accessRole);
                 return (
                   <button
                     key={role}
@@ -94,7 +96,7 @@ export function RoleSwitcher({ className }: Readonly<RoleSwitcherProps>) {
                       <Icon className="h-4 w-4" />
                     </span>
                     <span className="min-w-0 flex-1 truncate font-medium text-foreground">
-                      {meta.label}
+                      {label}
                     </span>
                     {isActive ? (
                       <Check className="h-4 w-4 shrink-0 text-[#7367F0]" />
