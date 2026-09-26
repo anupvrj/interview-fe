@@ -340,6 +340,12 @@ const NESTED_PAGES: NestedPageRule[] = [
     crumb: "Booking",
   },
   {
+    pattern: /^\/super-admin\/institutions\/[^/]+\/?$/,
+    title: "Manage institution",
+    description: "Seats, billing and renewals, products, account status, and activity.",
+    crumb: "Manage",
+  },
+  {
     pattern: /^\/super-admin\/coupons\/[^/]+\/?$/,
     title: "Coupon redemptions",
     description: "Users, plans, and first-month amounts for this discount code.",

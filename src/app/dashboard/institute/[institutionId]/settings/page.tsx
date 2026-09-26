@@ -39,6 +39,7 @@ import {
 } from "@/components/institute/InstituteChrome";
 import { InstituteSettingsHero } from "@/components/institute/InstituteSettingsHero";
 import { FormField } from "@/components/app/FormField";
+import { ProductTogglesCard } from "@/components/institution-lifecycle/ProductTogglesCard";
 
 const instituteCardClass =
   "overflow-hidden rounded-xl border border-border/60 bg-card shadow-card";
@@ -200,6 +201,10 @@ export default function InstituteSettingsPage() {
           )}
         </CardContent>
       </Card>
+
+      {isAdmin ? (
+        <ProductTogglesCard institutionId={institutionId} scope="institution_admin" />
+      ) : null}
 
       {isAdmin ? (
         <Card className={instituteCardClass}>

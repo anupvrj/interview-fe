@@ -15,6 +15,7 @@ import { ensureUserProfile } from "@/lib/ensure-user-profile";
 import { resumeApi, type User } from "@/lib/api";
 import { getQueryClient } from "@/lib/query-client";
 import { queryKeys } from "@/lib/query-keys";
+import { isInstituteStaff } from "@/lib/institute-access";
 import {
   deriveAvailableRoles,
   readStoredRole,
@@ -107,9 +108,15 @@ export function ActiveRoleProvider({ children }: Readonly<{ children: ReactNode 
   }, [user?.id, profile]);
 
   useEffect(() => {
-    if (!profile || profile.onboardingCompleted || pathname.startsWith("/onboarding")) {
+    if (
+      !profile ||
+      profile.onboardingCompleted ||
+      pathname.startsWith("/onboarding") ||
+      pathname.startsWith("/invite")
+    ) {
       return;
     }
+    if (isInstituteStaff(profile.accessRole)) return;
     router.replace("/onboarding");
   }, [profile, pathname, router]);
 

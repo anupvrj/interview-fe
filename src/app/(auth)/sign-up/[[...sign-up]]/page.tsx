@@ -17,8 +17,11 @@ export default function SignUpPage() {
   const searchParams = useSearchParams();
   const redirectUrl = safeAppRedirectPath(searchParams.get("redirect_url"));
   const afterAuth = resolvePostAuthRedirectPath(redirectUrl);
+  const emailPrefill = searchParams.get("email")?.trim() || undefined;
   const signInHref = redirectUrl
-    ? `/sign-in?redirect_url=${encodeURIComponent(redirectUrl)}`
+    ? `/sign-in?redirect_url=${encodeURIComponent(redirectUrl)}${
+        emailPrefill ? `&email=${encodeURIComponent(emailPrefill)}` : ""
+      }`
     : "/sign-in";
 
   if (typeof window !== "undefined") {
@@ -61,6 +64,7 @@ export default function SignUpPage() {
         fallbackRedirectUrl={afterAuth}
         signInForceRedirectUrl={afterAuth}
         signInFallbackRedirectUrl={afterAuth}
+        initialValues={emailPrefill ? { emailAddress: emailPrefill } : undefined}
         appearance={clerkAuthAppearance}
       />
     </AuthCardLayout>

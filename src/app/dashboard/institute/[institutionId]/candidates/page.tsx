@@ -42,6 +42,7 @@ import {
   ShieldCheck,
   Layers,
   X,
+  ShieldBan,
 } from "lucide-react";
 import { userApi, adminApi, User, planApi } from "@/lib/api";
 import {
@@ -64,6 +65,16 @@ import { FormField } from "@/components/app/FormField";
 import { SearchInput } from "@/components/app/SearchInput";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import { toast } from "sonner";
+import { AccountStatusBadge } from "@/components/institution-lifecycle/StatusBadges";
+import { StatusChangeDialog } from "@/components/institution-lifecycle/StatusChangeDialog";
+import { seatPlanLabel } from "@/lib/institution-lifecycle";
+
+type SeatRow = { planId: string; purchased: number; used: number; remaining: number };
+
+/** Mirrors backend seatBucketForPlan: General Pass consumes Tech Basic seats. */
+function seatBucket(plan: string): string {
+  return plan === "general_pass" ? "tech_basic" : plan;
+}
 
 function candidateInitials(name: string | undefined, email: string | undefined): string {
   const n = (name || "").trim();
@@ -142,6 +153,8 @@ export default function InstituteCandidatesPage() {
   const [creditsValue, setCreditsValue] = useState("");
   const [creditsSubmitting, setCreditsSubmitting] = useState(false);
 
+  const [seatRows, setSeatRows] = useState<SeatRow[]>([]);
+  const [statusUser, setStatusUser] = useState<User | null>(null);
   const [reviewUser, setReviewUser] = useState<User | null>(null);
   const [reviewCred, setReviewCred] = useState<BiometricCredential | null>(null);
   const [reviewNote, setReviewNote] = useState("");
@@ -162,6 +175,28 @@ export default function InstituteCandidatesPage() {
       loadUsers();
     }
   }, [profile, page, search, batchFilter, institutionId]);
+
+  const loadSeats = useCallback(async () => {
+    try {
+      setSeatRows(await adminApi.getInstitutionSeats(institutionId));
+    } catch {
+      setSeatRows([]);
+    }
+  }, [institutionId]);
+
+  useEffect(() => {
+    if (profile && canViewInstitutePage(profile, institutionId, "candidates")) {
+      void loadSeats();
+    }
+  }, [profile, institutionId, loadSeats]);
+
+  const seatLimited = seatRows.some((r) => r.planId !== "free" && r.purchased > 0);
+  const seatFor = (plan: string) => seatRows.find((r) => r.planId === seatBucket(plan));
+  const planHasNoSeats = (plan: string) => {
+    if (!seatLimited || plan === "free") return false;
+    const row = seatFor(plan);
+    return !row || row.remaining <= 0;
+  };
 
   const loadBatchCatalog = useCallback(async () => {
     if (batchCatalogLoaded) return;
@@ -299,6 +334,7 @@ export default function InstituteCandidatesPage() {
       setAddPlan("free");
       toast.success(result.message);
       loadUsers();
+      void loadSeats();
     } catch (err: any) {
       toast.error(err?.response?.data?.message || "Failed to add user");
     } finally {
@@ -374,6 +410,8 @@ export default function InstituteCandidatesPage() {
   }
 
   const canInvite = instituteRoleCanInviteCandidates(profile.accessRole);
+  const canChangeStatus =
+    profile.accessRole === "institution_admin" || profile.accessRole === "super_admin";
 
   return (
     <div className="mx-auto w-full max-w-7xl space-y-4 lg:space-y-6">
@@ -496,6 +534,28 @@ export default function InstituteCandidatesPage() {
           </div>
         </CardHeader>
         <CardContent className="p-0 sm:p-0">
+          {seatLimited ? (
+            <div className="flex flex-wrap gap-2 border-b border-border/60 px-4 py-3 sm:px-6">
+              {seatRows
+                .filter((r) => r.planId !== "free" && r.purchased > 0)
+                .map((r) => (
+                  <span
+                    key={r.planId}
+                    className={cn(
+                      "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium",
+                      r.remaining <= 0
+                        ? "border-red-200 bg-red-50 text-red-700 dark:border-red-500/30 dark:bg-red-950/30 dark:text-red-300"
+                        : "border-border bg-muted/30 text-foreground",
+                    )}
+                  >
+                    {seatPlanLabel(r.planId)}
+                    <span className="tabular-nums text-muted-foreground">
+                      {r.used}/{r.purchased} seats
+                    </span>
+                  </span>
+                ))}
+            </div>
+          ) : null}
           {loading ? (
             <div className="flex justify-center py-16">
               <Loader2 className="h-9 w-9 animate-spin text-[#7367F0]" />
@@ -542,13 +602,14 @@ export default function InstituteCandidatesPage() {
           ) : (
             <>
               <InstituteTableShell>
-                <Table className="w-full min-w-[860px]">
+                <Table className="w-full min-w-[960px]">
                   <TableHeader>
                     <TableRow className="border-b border-border/80 bg-muted/30 hover:bg-muted/30">
                       <TableHead className="pl-6 text-left align-middle font-semibold text-foreground">
                         Candidate
                       </TableHead>
                       <TableHead className="align-middle font-semibold text-foreground">Plan</TableHead>
+                      <TableHead className="align-middle font-semibold text-foreground">Status</TableHead>
                       <TableHead className="align-middle font-semibold text-foreground">Batch</TableHead>
                       <TableHead className="align-middle font-semibold text-foreground">Joined</TableHead>
                       {showIdentityColumn ? (
@@ -595,6 +656,17 @@ export default function InstituteCandidatesPage() {
                             >
                               {planBadgeLabel(apiPlan)}
                             </span>
+                          </TableCell>
+                          <TableCell className="align-middle">
+                            <AccountStatusBadge status={u.accountStatus} />
+                            {u.statusReason && u.accountStatus && u.accountStatus !== "active" ? (
+                              <p
+                                className="mt-1 max-w-[10rem] truncate text-xs text-muted-foreground"
+                                title={u.statusReason}
+                              >
+                                {u.statusReason}
+                              </p>
+                            ) : null}
                           </TableCell>
                           <TableCell className="max-w-[200px] align-middle">
                             {(u.instituteBatchNames?.length ?? 0) > 0 ? (
@@ -668,6 +740,18 @@ export default function InstituteCandidatesPage() {
                               >
                                 <Coins className="h-3.5 w-3.5" />
                               </Button>
+                              {canChangeStatus ? (
+                                <Button
+                                  variant="outline"
+                                  size="icon"
+                                  className={cn(instituteSecondaryClass, "h-8 w-8 shrink-0 p-0")}
+                                  onClick={() => setStatusUser(u)}
+                                  title="Suspend or reactivate"
+                                  aria-label={`Change status for ${u.email}`}
+                                >
+                                  <ShieldBan className="h-3.5 w-3.5" />
+                                </Button>
+                              ) : null}
                               <Button
                                 variant="ghost"
                                 size="icon"
@@ -928,13 +1012,28 @@ export default function InstituteCandidatesPage() {
                   setAddPlan(e.target.value as InstituteInvitePlan)
                 }
               >
-                {planOptions.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
+                {planOptions.map((o) => {
+                  const row = seatLimited && o.value !== "free" ? seatFor(o.value) : undefined;
+                  const full = planHasNoSeats(o.value);
+                  return (
+                    <option key={o.value} value={o.value} disabled={full}>
+                      {o.label}
+                      {full ? " (no seats left)" : row ? ` (${row.remaining} left)` : ""}
+                    </option>
+                  );
+                })}
               </select>
             </FormField>
+            {seatLimited ? (
+              <p className="text-xs text-muted-foreground">
+                Seats in use:{" "}
+                {seatRows
+                  .filter((r) => r.planId !== "free" && r.purchased > 0)
+                  .map((r) => `${seatPlanLabel(r.planId)} ${r.used}/${r.purchased}`)
+                  .join(" · ")}
+                . Need more? Contact InterviewTrix.
+              </p>
+            ) : null}
           </div>
           <DialogFooter className="gap-2 sm:gap-0">
             <Button variant="outline" className={instituteSecondaryClass} onClick={() => setAddOpen(false)}>
@@ -942,7 +1041,7 @@ export default function InstituteCandidatesPage() {
             </Button>
             <Button
               onClick={handleAddUser}
-              disabled={!addEmail?.trim() || addSubmitting}
+              disabled={!addEmail?.trim() || addSubmitting || planHasNoSeats(addPlan)}
               className={cn(institutePrimaryClass, "shadow-md")}
             >
               {addSubmitting ? (
@@ -954,6 +1053,30 @@ export default function InstituteCandidatesPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <StatusChangeDialog
+        open={Boolean(statusUser)}
+        onOpenChange={(o) => {
+          if (!o) setStatusUser(null);
+        }}
+        targetLabel={statusUser ? statusUser.name?.trim() || statusUser.email : ""}
+        currentStatus={statusUser?.accountStatus}
+        emailNote="The candidate gets an email with this reason."
+        onSubmit={async (next, reason) => {
+          if (!statusUser) return;
+          try {
+            await adminApi.setInstitutionCandidateStatus(institutionId, statusUser.clerkId, {
+              status: next,
+              reason,
+            });
+            toast.success("Candidate status updated");
+            await Promise.all([loadUsers(), loadSeats()]);
+          } catch (err: any) {
+            toast.error(err?.response?.data?.message || "Could not update status");
+            throw err;
+          }
+        }}
+      />
 
       <ConfirmationDialog
         open={!!deleteTarget}

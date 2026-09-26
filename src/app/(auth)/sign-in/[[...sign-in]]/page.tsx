@@ -17,8 +17,11 @@ export default function SignInPage() {
   const searchParams = useSearchParams();
   const redirectUrl = safeAppRedirectPath(searchParams.get("redirect_url"));
   const afterAuth = resolvePostAuthRedirectPath(redirectUrl);
+  const emailPrefill = searchParams.get("email")?.trim() || undefined;
   const signUpHref = redirectUrl
-    ? `/sign-up?redirect_url=${encodeURIComponent(redirectUrl)}`
+    ? `/sign-up?redirect_url=${encodeURIComponent(redirectUrl)}${
+        emailPrefill ? `&email=${encodeURIComponent(emailPrefill)}` : ""
+      }`
     : "/sign-up";
 
   // Persist before paint so a fast Google/SSO click does not drop the extension return path.
@@ -62,6 +65,7 @@ export default function SignInPage() {
         fallbackRedirectUrl={afterAuth}
         signUpForceRedirectUrl={afterAuth}
         signUpFallbackRedirectUrl={afterAuth}
+        initialValues={emailPrefill ? { emailAddress: emailPrefill } : undefined}
         appearance={clerkAuthAppearance}
       />
     </AuthCardLayout>
