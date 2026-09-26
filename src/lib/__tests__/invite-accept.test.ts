@@ -4,6 +4,7 @@ import {
   destinationAfterInvite,
   inviteClerkSignInProps,
   inviteClerkSignUpProps,
+  inviteClerkStaffSignInProps,
   invitePagePath,
   inviteWorkspaceRole,
   isInviteSignInMode,
@@ -31,6 +32,13 @@ describe("invite auth mode", () => {
     expect(props.signInUrl).toBe("/invite/abc?mode=sign-in");
     expect(props.signInUrl).not.toContain("/sign-in?");
     expect(props.initialValues.emailAddress).toBe("a@x.com");
+  });
+
+  it("uses password/OTP sign-in for staff and never opens SignUp", () => {
+    const props = inviteClerkStaffSignInProps("abc", "staff@x.com");
+    expect(props.withSignUp).toBe(false);
+    expect(props.initialValues.emailAddress).toBe("staff@x.com");
+    expect("signUpUrl" in props).toBe(false);
   });
 });
 

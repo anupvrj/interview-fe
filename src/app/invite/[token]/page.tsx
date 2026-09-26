@@ -8,7 +8,7 @@ import Link from "next/link";
 import { AuthCardLayout } from "@/components/app/AuthCardLayout";
 import { Button } from "@/components/ui/button";
 import { userApi, type InvitationPreview } from "@/lib/api";
-import { clerkAuthAppearance } from "@/lib/clerk-appearance";
+import { clerkAuthAppearance, clerkStaffInviteAppearance } from "@/lib/clerk-appearance";
 import { isInstituteStaff } from "@/lib/institute-access";
 import { writeStoredRole } from "@/lib/roles";
 import { ensureUserProfile } from "@/lib/ensure-user-profile";
@@ -18,6 +18,7 @@ import {
   destinationAfterInvite,
   inviteClerkSignInProps,
   inviteClerkSignUpProps,
+  inviteClerkStaffSignInProps,
   invitePagePath,
   inviteWorkspaceRole,
   isInviteSignInMode,
@@ -34,14 +35,24 @@ function InviteFallback() {
 function InviteAuthPanel({
   token,
   email,
+  isStaff,
   useSignIn,
   onStartSignUp,
 }: Readonly<{
   token: string;
   email: string;
+  isStaff: boolean;
   useSignIn: boolean;
   onStartSignUp: () => void;
 }>) {
+  if (isStaff) {
+    return (
+      <SignIn
+        {...inviteClerkStaffSignInProps(token, email)}
+        appearance={clerkStaffInviteAppearance}
+      />
+    );
+  }
   return (
     <>
       {useSignIn ? (
@@ -210,12 +221,15 @@ function AcceptInvitePageBody() {
   }
 
   const destinationLabel = invite.isStaff ? "institute dashboard" : "candidate workspace";
-  const useSignIn = signInMode || invite.status === "accepted";
+  const staffAuthHint = invite.isStaff
+    ? `Set a password or verify with a one-time code sent to ${invite.email}. Google, GitHub, and LinkedIn are not used for institute staff.`
+    : `Continue with ${invite.email} to open the ${destinationLabel}.`;
+  const useSignIn = invite.isStaff || signInMode || invite.status === "accepted";
 
   return (
     <AuthCardLayout
       title={`Join ${invite.institutionName}`}
-      subtitle={`You've been invited as ${invite.roleLabel}. Continue with ${invite.email} to open the ${destinationLabel}.`}
+      subtitle={`You've been invited as ${invite.roleLabel}. ${staffAuthHint}`}
     >
       <div className="space-y-3">
         {invite.status === "accepted" && !showAuth ? (
@@ -228,6 +242,7 @@ function AcceptInvitePageBody() {
           <InviteAuthPanel
             token={token}
             email={invite.email}
+            isStaff={invite.isStaff}
             useSignIn={useSignIn}
             onStartSignUp={() => setStarted(true)}
           />
@@ -239,8 +254,8 @@ function AcceptInvitePageBody() {
 
         {invite.isStaff ? (
           <p className="text-xs leading-relaxed text-muted-foreground">
-            After you join, you can switch to Candidate from the role menu anytime to
-            practice interviews yourself. Institute admin access stays on this account.
+            This account is for institute staff only. You will not get a candidate
+            workspace from this invitation.
           </p>
         ) : null}
 

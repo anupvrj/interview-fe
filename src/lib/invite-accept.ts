@@ -55,6 +55,18 @@ export function inviteClerkSignInProps(token: string, email: string) {
   };
 }
 
+/** Staff already have a Clerk user. Accept is sign-in + password / OTP, never SignUp. */
+export function inviteClerkStaffSignInProps(token: string, email: string) {
+  const after = invitePagePath(token);
+  return {
+    routing: "hash" as const,
+    withSignUp: false as const,
+    forceRedirectUrl: after,
+    fallbackRedirectUrl: after,
+    initialValues: { emailAddress: email },
+  };
+}
+
 export function pairedAuthHref(
   path: "/sign-in" | "/sign-up",
   redirectUrl: string | null | undefined,
