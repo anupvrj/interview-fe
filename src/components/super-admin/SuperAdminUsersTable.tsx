@@ -40,9 +40,10 @@ import {
   ChevronDown,
   CalendarClock,
   FileText,
+  ShieldBan,
 } from "lucide-react";
 import { toast } from "sonner";
-import { adminApi, User } from "@/lib/api";
+import { adminApi, User, type PendingInvitation } from "@/lib/api";
 import {
   formatDate,
   getScoreColor,
@@ -50,15 +51,28 @@ import {
   toDatetimeLocalValue,
 } from "@/lib/utils";
 import { useInsightFilters } from "@/hooks/useInsightFilters";
+import { AppSelect } from "@/components/ui/app-select";
+import { AccountStatusBadge } from "@/components/institution-lifecycle/StatusBadges";
+import { StatusChangeDialog } from "@/components/institution-lifecycle/StatusChangeDialog";
+import type { AccountStatus } from "@/lib/institution-lifecycle";
+
+const STATUS_FILTER_OPTIONS = [
+  { value: "active", label: "Active" },
+  { value: "suspended", label: "Suspended" },
+  { value: "inactive", label: "Inactive" },
+];
 
 export function SuperAdminUsersTable() {
   const router = useRouter();
   const { period, from, to, setFilters } = useInsightFilters();
   const [institutions, setInstitutions] = useState<any[]>([]);
   const [users, setUsers] = useState<User[]>([]);
+  const [pendingInvites, setPendingInvites] = useState<PendingInvitation[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"" | AccountStatus>("");
+  const [statusUser, setStatusUser] = useState<User | null>(null);
   const [page, setPage] = useState(0);
   const limit = 20;
   const [defaultResumeLoadingId, setDefaultResumeLoadingId] = useState<
@@ -129,7 +143,7 @@ export function SuperAdminUsersTable() {
 
   useEffect(() => {
     setPage(0);
-  }, [period, from, to, search]);
+  }, [period, from, to, search, statusFilter]);
 
   useEffect(() => {
     void loadInstitutions();
@@ -137,7 +151,7 @@ export function SuperAdminUsersTable() {
 
   useEffect(() => {
     void loadUsers();
-  }, [page, search, period, from, to]);
+  }, [page, search, period, from, to, statusFilter]);
 
   const loadInstitutions = async () => {
     try {
@@ -155,12 +169,26 @@ export function SuperAdminUsersTable() {
         limit,
         skip: page * limit,
         search: search || undefined,
+        accountStatus: statusFilter || undefined,
         period: period === "all" ? undefined : period,
         from: period === "custom" ? from || undefined : undefined,
         to: period === "custom" ? to || undefined : undefined,
       });
       setUsers(data);
       setTotal(t);
+      if (page === 0 && !statusFilter) {
+        try {
+          const invites = await adminApi.listAllInvitations({
+            kind: "candidate",
+            search: search || undefined,
+          });
+          setPendingInvites(invites);
+        } catch {
+          setPendingInvites([]);
+        }
+      } else {
+        setPendingInvites([]);
+      }
     } catch (err) {
       console.error(err);
     } finally {
@@ -409,6 +437,17 @@ export function SuperAdminUsersTable() {
                   className="h-11 pl-9"
                 />
               </div>
+              <div className="w-full sm:w-44">
+                <AppSelect
+                  value={statusFilter}
+                  onChange={(v) => setStatusFilter(v as "" | AccountStatus)}
+                  options={STATUS_FILTER_OPTIONS}
+                  allowEmpty
+                  emptyLabel="All statuses"
+                  placeholder="All statuses"
+                  className="h-11"
+                />
+              </div>
               <Button onClick={() => setAddOpen(true)} className="h-11 w-full gap-2 sm:w-auto">
                 <Plus className="h-4 w-4" />
                 Add User
@@ -423,7 +462,7 @@ export function SuperAdminUsersTable() {
             </div>
           ) : (
             <div className="w-full overflow-x-auto">
-              <Table className="min-w-[1080px] border-collapse text-left">
+              <Table className="min-w-[1180px] border-collapse text-left">
                 <TableHeader>
                   <TableRow className="border-b border-border/70 hover:bg-transparent">
                     <TableHead className="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-[#a8aaae]">
@@ -434,6 +473,9 @@ export function SuperAdminUsersTable() {
                     </TableHead>
                     <TableHead className="whitespace-nowrap px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-[#a8aaae]">
                       Default upload
+                    </TableHead>
+                    <TableHead className="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-[#a8aaae]">
+                      Status
                     </TableHead>
                     <TableHead className="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-[#a8aaae]">
                       Role
@@ -459,6 +501,71 @@ export function SuperAdminUsersTable() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
+                  {pendingInvites.map((inv) => (
+                    <TableRow key={`invite-${inv._id}`} className="border-b border-border/60 bg-amber-50/40">
+                      <TableCell className="font-medium">Invited</TableCell>
+                      <TableCell className="break-all">{inv.email}</TableCell>
+                      <TableCell className="text-muted-foreground">—</TableCell>
+                      <TableCell>
+                        <span className="inline-flex rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-900">
+                          Pending
+                        </span>
+                      </TableCell>
+                      <TableCell>{inv.roleLabel || (inv.kind === "staff" ? "Staff" : "Candidate")}</TableCell>
+                      <TableCell>{inv.institutionName}</TableCell>
+                      <TableCell>{inv.plan || "—"}</TableCell>
+                      <TableCell className="text-muted-foreground">—</TableCell>
+                      <TableCell className="text-muted-foreground">—</TableCell>
+                      <TableCell className="whitespace-nowrap">
+                        {new Date(inv.createdAt).toLocaleDateString()}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {inv.institutionId ? (
+                          <div className="flex justify-end gap-1">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={async () => {
+                                try {
+                                  const res = await adminApi.resendInvitation(
+                                    inv.institutionId!,
+                                    inv._id,
+                                  );
+                                  toast.success(res.message || "Invitation resent");
+                                } catch (err: unknown) {
+                                  toast.error(
+                                    (err as { response?: { data?: { message?: string } } })?.response
+                                      ?.data?.message || "Could not resend",
+                                  );
+                                }
+                              }}
+                            >
+                              Resend
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-red-600"
+                              onClick={async () => {
+                                try {
+                                  await adminApi.revokeInvitation(inv.institutionId!, inv._id);
+                                  toast.success("Invitation revoked");
+                                  setPendingInvites((prev) => prev.filter((p) => p._id !== inv._id));
+                                } catch (err: unknown) {
+                                  toast.error(
+                                    (err as { response?: { data?: { message?: string } } })?.response
+                                      ?.data?.message || "Could not revoke",
+                                  );
+                                }
+                              }}
+                            >
+                              Revoke
+                            </Button>
+                          </div>
+                        ) : null}
+                      </TableCell>
+                    </TableRow>
+                  ))}
                   {users.map((u) => (
                     <TableRow
                       key={u._id}
@@ -491,6 +598,17 @@ export function SuperAdminUsersTable() {
                         ) : (
                           <span className="text-xs text-muted-foreground">—</span>
                         )}
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap">
+                        <AccountStatusBadge status={u.accountStatus} />
+                        {u.statusReason && u.accountStatus && u.accountStatus !== "active" ? (
+                          <p
+                            className="mt-1 max-w-[12rem] truncate text-xs text-muted-foreground"
+                            title={u.statusReason}
+                          >
+                            {u.statusReason}
+                          </p>
+                        ) : null}
                       </TableCell>
                       <TableCell className="min-w-[140px]">
                         <div
@@ -730,6 +848,18 @@ export function SuperAdminUsersTable() {
                         >
                           View
                         </Button>
+                        {u.accessRole !== "super_admin" ? (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="ml-2"
+                            onClick={() => setStatusUser(u)}
+                            title="Suspend or reactivate"
+                            aria-label="Change account status"
+                          >
+                            <ShieldBan className="h-4 w-4" />
+                          </Button>
+                        ) : null}
                         <Button
                           variant="ghost"
                           size="sm"
@@ -1015,6 +1145,27 @@ export function SuperAdminUsersTable() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <StatusChangeDialog
+        open={Boolean(statusUser)}
+        onOpenChange={(o) => {
+          if (!o) setStatusUser(null);
+        }}
+        targetLabel={statusUser ? `${statusUser.name || statusUser.email} (${statusUser.email})` : ""}
+        currentStatus={statusUser?.accountStatus}
+        emailNote="The user gets an email with this reason."
+        onSubmit={async (next, reason) => {
+          if (!statusUser) return;
+          try {
+            await adminApi.setUserAccountStatus(String(statusUser._id), { status: next, reason });
+            toast.success("Account status updated");
+            await loadUsers();
+          } catch (err: any) {
+            toast.error(err?.response?.data?.message || "Could not update status");
+            throw err;
+          }
+        }}
+      />
     </>
   );
 }

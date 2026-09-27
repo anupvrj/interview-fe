@@ -1393,7 +1393,7 @@ export default function EditResumePage() {
       value.trim().length >= MIN_JOB_DESCRIPTION_CHARS;
 
     const localJd = ready(lastMatchedJd)
-      ? (lastMatchedJd as string)
+      ? lastMatchedJd
       : resumeRef.current?.atsScoringContext?.lastJobDescription;
     if (ready(localJd)) {
       return {
@@ -1936,6 +1936,9 @@ export default function EditResumePage() {
         await downloadPdfFromUrl(compiled.downloadUrl, compiled.filename);
       }
 
+      // Capture and upload thumbnail (run in background, don't block user)
+      // Use setTimeout to let the page render completely before capturing
+      // Store resumeId in closure to ensure we capture the correct resume
       const currentResumeId = resumeId;
       setTimeout(async () => {
         try {

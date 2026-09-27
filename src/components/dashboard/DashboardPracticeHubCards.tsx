@@ -12,6 +12,8 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { usePlatformFeatures } from "@/hooks/usePlatformFeatures";
+import { useActiveRole } from "@/components/roles/ActiveRoleProvider";
+import { canManagedCandidateSelfStart } from "@/lib/institution-flags";
 
 type CardTheme = {
   shell: string;
@@ -134,9 +136,22 @@ const practiceHubCards: PracticeHubCard[] = [
 
 export function DashboardPracticeHubCards() {
   const { isNavHrefVisible } = usePlatformFeatures();
-  const cards = practiceHubCards.filter((card) =>
-    isNavHrefVisible(card.href, card.featureKey),
-  );
+  const canSelfStart = canManagedCandidateSelfStart(useActiveRole()?.profile);
+  const cards = practiceHubCards
+    .map((card) => {
+      if (canSelfStart) return card;
+      if (card.href === "/dashboard/interviews/new") {
+        return { ...card, href: "/dashboard/interviews" };
+      }
+      if (card.href === "/dashboard/coding-interviews/new") {
+        return { ...card, href: "/dashboard/coding-interviews" };
+      }
+      if (card.href === "/dashboard/system-design/new") {
+        return { ...card, href: "/dashboard/system-design" };
+      }
+      return card;
+    })
+    .filter((card) => isNavHrefVisible(card.href, card.featureKey));
 
   return (
     <section aria-label="Practice options" className="space-y-3">

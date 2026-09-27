@@ -377,6 +377,8 @@ export const DEFAULT_REPORT_COACHING_PASS2_FIXTURE = {
 export const DEFAULT_RESUME_DATA_EXTRACT_FIXTURE = {
   sectionNames: "personalInfo, experience, skills",
   resumeText: "Jane Doe\nSoftware Engineer at Acme\nSkills: Node.js, PostgreSQL",
+  jdBlock: "",
+  enrichmentInstructions: "",
 };
 
 export const DEFAULT_SD_SCORING_FIXTURE = {

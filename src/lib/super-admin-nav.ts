@@ -289,8 +289,7 @@ const NESTED_PAGES: NestedPageRule[] = [
   {
     pattern: /^\/super-admin\/users\/[^/]+\/?$/,
     title: "User",
-    description:
-      "Resumes, practice interviews, and coding practice sessions.",
+    description: "Resumes, practice interviews, and coding practice sessions.",
     crumb: "User",
   },
   {
@@ -349,16 +348,24 @@ const NESTED_PAGES: NestedPageRule[] = [
     crumb: "Booking",
   },
   {
+    pattern: /^\/super-admin\/institutions\/[^/]+\/?$/,
+    title: "Manage institution",
+    description: "Seats, billing and renewals, products, account status, and activity.",
+    crumb: "Manage",
+  },
+  {
     pattern: /^\/super-admin\/coupons\/[^/]+\/?$/,
     title: "Coupon redemptions",
-    description: "Users, plans, and first-month amounts for this discount code.",
+    description:
+      "Users, plans, and first-month amounts for this discount code.",
     crumb: "Redemptions",
   },
 ];
 
-export function matchSuperAdminNav(
-  pathname: string | null,
-): { group: string; item: DashboardNavItem } {
+export function matchSuperAdminNav(pathname: string | null): {
+  group: string;
+  item: DashboardNavItem;
+} {
   const path = pathname || SUPER_ADMIN_HOME;
   let matched: { group: string; item: DashboardNavItem } | null = null;
 
