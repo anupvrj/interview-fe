@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import { interviewApi, InterviewReport, Interview } from "@/lib/api";
 import { InterviewReportAnalysis } from "@/components/institution/InterviewReportAnalysis";
+import { ReportSectionTabs } from "@/components/reports/ReportSectionTabs";
 import {
   buildInterviewReportPdfHtml,
   generateInterviewReportPdfViaServer,
@@ -914,7 +915,11 @@ export default function ReportPage() {
         </div>
       </div>
 
-      <InterviewReportAnalysis report={report} />
+      <ReportSectionTabs
+        audience="candidate"
+        integrityReport={report.integrityReport}
+        performance={<InterviewReportAnalysis report={report} />}
+      />
 
       <Card className="overflow-hidden rounded-xl border border-[#7367F0]/15 bg-gradient-to-br from-[#7367F0]/[0.06] via-card to-[#7367F0]/[0.04] shadow-card">
         <CardContent className="p-6 text-center sm:p-8">

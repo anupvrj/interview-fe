@@ -3,8 +3,8 @@ import type { LucideIcon } from "lucide-react";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import { PageHeader } from "@/components/app/PageHeader";
 import { HubHero } from "@/components/app/HubHero";
+import { InstitutePageHeader } from "@/components/institute/InstitutePageHeader";
 import { EmptyState } from "@/components/app/EmptyState";
 import { FilterBar } from "@/components/app/FilterBar";
 import {
@@ -28,11 +28,7 @@ export {
 
 export { FilterBar as InstituteFilterBar };
 
-export function InstitutePageHeader(
-  props: React.ComponentProps<typeof PageHeader>,
-) {
-  return <PageHeader {...props} />;
-}
+export { InstitutePageHeader };
 
 export function InstituteHero(props: React.ComponentProps<typeof HubHero>) {
   return <HubHero {...props} />;

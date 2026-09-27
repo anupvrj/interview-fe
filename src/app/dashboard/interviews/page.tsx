@@ -56,6 +56,10 @@ import { appHeroBullet, appHeroCaption } from "@/lib/app-theme";
 import { DashboardStatCard } from "@/components/dashboard/DashboardStatCard";
 import { RecentInterviewsList } from "@/components/dashboard/RecentInterviewsList";
 import { filterInterviewsByType } from "@/lib/interview-kind";
+import {
+  instituteScheduleRoundLabel,
+  routeAfterScheduledStart,
+} from "@/lib/institute-schedule-round";
 import { PracticeSessionGateDialogs } from "@/components/upsell/PracticeSessionGateDialogs";
 import { PracticeLockedGate } from "@/components/upsell/PracticeLockedGate";
 import { usePracticeSessionGate } from "@/components/upsell/usePracticeSessionGate";
@@ -113,9 +117,13 @@ export default function InterviewsPage() {
   const handleStartScheduled = async (scheduleId: string) => {
     try {
       setStartingScheduleId(scheduleId);
-      const { interviewId } = await interviewScheduleApi.start(scheduleId);
+      const payload = await interviewScheduleApi.start(scheduleId);
       await invalidate(["interviewSchedules", "interviews", "entitlements"]);
-      router.push(`/interview/${interviewId}/realtime`);
+      const path = routeAfterScheduledStart(payload);
+      if (!path) {
+        throw new Error("Could not open this scheduled interview.");
+      }
+      router.push(path);
     } catch (e: any) {
       alert(
         e?.response?.data?.message ||
@@ -577,6 +585,9 @@ export default function InterviewsPage() {
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-semibold text-foreground">
                         {s.role}
+                      </p>
+                      <p className="mt-0.5 text-xs font-medium text-primary/90">
+                        {instituteScheduleRoundLabel(s.roundType)}
                       </p>
                       <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
                         <span className="inline-flex items-center gap-1">

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useUser, useClerk } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useDropzone } from "react-dropzone";
 import { Button } from "@/components/ui/button";
 import {
@@ -41,6 +42,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { userApi, User, type CandidateStatus, type Resume } from "@/lib/api";
+import { ProfileBiometricMark } from "@/components/profile/ProfileBiometricMark";
 import { TEMPLATES_CATALOG } from "@/configs/resume-templates/templates-catalog";
 import { InstitutionAffiliationFields } from "@/components/profile/InstitutionAffiliationFields";
 import { ProfileSkillsEditor } from "@/components/profile/ProfileSkillsEditor";
@@ -650,8 +652,9 @@ export default function ProfilePage() {
                     </div>
                   )}
                   <div className="min-w-0 flex-1">
-                    <CardTitle className="truncate text-xl font-bold text-foreground">
-                      {displayName}
+                    <CardTitle className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1.5 text-xl font-bold text-foreground">
+                      <span className="min-w-0 truncate">{displayName}</span>
+                      <ProfileBiometricMark status={user?.biometricStatus} />
                     </CardTitle>
                     <CardDescription className="mt-1 truncate text-sm">
                       {displayEmail}

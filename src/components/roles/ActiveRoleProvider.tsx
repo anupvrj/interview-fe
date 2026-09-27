@@ -12,7 +12,9 @@ import {
 import { useRouter, usePathname } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import { ensureUserProfile } from "@/lib/ensure-user-profile";
-import type { User } from "@/lib/api";
+import { resumeApi, type User } from "@/lib/api";
+import { getQueryClient } from "@/lib/query-client";
+import { queryKeys } from "@/lib/query-keys";
 import {
   deriveAvailableRoles,
   readStoredRole,
@@ -56,6 +58,19 @@ export function ActiveRoleProvider({ children }: Readonly<{ children: ReactNode 
       try {
         const p = await ensureUserProfile(user);
         if (cancelled) return;
+        const queryClient = getQueryClient();
+        queryClient.setQueryData(queryKeys.profile(user.id), p);
+        if (p.defaultDesignedResume !== undefined) {
+          queryClient.setQueryData(
+            queryKeys.defaultResume(user.id),
+            p.defaultDesignedResume,
+          );
+        } else {
+          void queryClient.prefetchQuery({
+            queryKey: queryKeys.defaultResume(user.id),
+            queryFn: () => resumeApi.getDefault(user.id),
+          });
+        }
         setProfile(p);
         setCurrentRole(resolveInitialActiveRole(p, user.id));
       } catch {
@@ -71,6 +86,25 @@ export function ActiveRoleProvider({ children }: Readonly<{ children: ReactNode 
       cancelled = true;
     };
   }, [isLoaded, user]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    const queryClient = getQueryClient();
+    if (queryClient.getQueryData(queryKeys.defaultResume(user.id)) !== undefined) {
+      return;
+    }
+    if (profile?.defaultDesignedResume !== undefined) {
+      queryClient.setQueryData(
+        queryKeys.defaultResume(user.id),
+        profile.defaultDesignedResume,
+      );
+      return;
+    }
+    void queryClient.prefetchQuery({
+      queryKey: queryKeys.defaultResume(user.id),
+      queryFn: () => resumeApi.getDefault(user.id),
+    });
+  }, [user?.id, profile]);
 
   useEffect(() => {
     if (!profile || profile.onboardingCompleted || pathname.startsWith("/onboarding")) {

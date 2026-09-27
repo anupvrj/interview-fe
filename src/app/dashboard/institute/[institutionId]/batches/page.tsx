@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import {
@@ -12,7 +12,6 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
@@ -29,7 +28,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Loader2, Layers, Plus, ChevronRight, Sparkles, Users } from "lucide-react";
+import { Loader2, Layers, Plus, ChevronRight, Users } from "lucide-react";
 import { toast } from "sonner";
 import { userApi, adminApi } from "@/lib/api";
 import { apiErrorMessage, isConflictError } from "@/lib/api-errors";
@@ -37,23 +36,51 @@ import { cn, formatDate } from "@/lib/utils";
 import {
   InstituteEmptyState,
   InstituteLoader,
-  InstitutePageHeader,
   InstituteTableShell,
-  institutePanelClass,
   institutePrimaryClass,
   instituteSecondaryClass,
 } from "@/components/institute/InstituteChrome";
+import { InstituteBatchesHero } from "@/components/institute/InstituteBatchesHero";
+import { FormField } from "@/components/app/FormField";
+import { SearchInput } from "@/components/app/SearchInput";
+import { canViewInstitutePage } from "@/lib/institute-access";
+
+type BatchRow = {
+  _id: string;
+  name: string;
+  memberClerkIds?: string[];
+  updatedAt?: string;
+  startDate?: string | null;
+  endDate?: string | null;
+  scheduledInterviewCount?: number;
+  averageBatchScore?: number | null;
+};
+
+function batchInitials(name: string | undefined): string {
+  const n = (name || "").trim();
+  if (!n) return "B";
+  const parts = n.split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) {
+    return `${parts[0]?.[0] ?? ""}${parts.at(-1)?.[0] ?? ""}`.toUpperCase();
+  }
+  return n.slice(0, 2).toUpperCase();
+}
 
 export default function InstituteBatchesPage() {
   const params = useParams();
   const router = useRouter();
   const institutionId = params.institutionId as string;
   const [profile, setProfile] = useState<any>(null);
-  const [batches, setBatches] = useState<any[]>([]);
+  const [batches, setBatches] = useState<BatchRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
   const [newName, setNewName] = useState("");
+  const [maxStudents, setMaxStudents] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
   const [creating, setCreating] = useState(false);
+  const [totalMembers, setTotalMembers] = useState<number | null>(null);
 
   useEffect(() => {
     userApi.getMyProfile().then(setProfile).catch(() => {});
@@ -62,8 +89,14 @@ export default function InstituteBatchesPage() {
   const load = async () => {
     try {
       setLoading(true);
-      const list = await adminApi.listBatches(institutionId);
-      setBatches(list);
+      const [list, stats] = await Promise.all([
+        adminApi.listBatches(institutionId),
+        adminApi.getInstitutionBatchStats(institutionId).catch(() => null),
+      ]);
+      setBatches(Array.isArray(list) ? list : []);
+      setTotalMembers(
+        stats && typeof stats.totalMembers === "number" ? stats.totalMembers : null,
+      );
     } catch (e) {
       console.error(e);
     } finally {
@@ -73,32 +106,40 @@ export default function InstituteBatchesPage() {
 
   useEffect(() => {
     if (!profile) return;
-    if (
-      profile.accessRole !== "institution_admin" &&
-      profile.accessRole !== "super_admin"
-    ) {
-      router.replace("/dashboard");
-      return;
-    }
-    if (
-      profile.accessRole === "institution_admin" &&
-      profile.institutionId &&
-      String(profile.institutionId) !== institutionId
-    ) {
+    if (!canViewInstitutePage(profile, institutionId, "batches")) {
       router.replace("/dashboard");
       return;
     }
     load();
   }, [profile, institutionId, router]);
 
+  const filteredBatches = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    const sorted = [...batches].sort((a, b) =>
+      (a.name || "").localeCompare(b.name || "", undefined, { sensitivity: "base" }),
+    );
+    if (!q) return sorted;
+    return sorted.filter((b) => (b.name || "").toLowerCase().includes(q));
+  }, [batches, search]);
+
   const handleCreate = async () => {
     const n = newName.trim();
     if (!n) return;
     try {
       setCreating(true);
-      const b = await adminApi.createBatch(institutionId, n);
+      const b = await adminApi.createBatch(institutionId, {
+        name: n,
+        maxStudents: maxStudents.trim()
+          ? Number.parseInt(maxStudents, 10)
+          : null,
+        startDate: startDate || null,
+        endDate: endDate || null,
+      });
       setCreateOpen(false);
       setNewName("");
+      setMaxStudents("");
+      setStartDate("");
+      setEndDate("");
       router.push(`/dashboard/institute/${institutionId}/batches/${b._id}`);
     } catch (err: unknown) {
       const msg = apiErrorMessage(err, "Failed to create batch");
@@ -123,109 +164,54 @@ export default function InstituteBatchesPage() {
   }
 
   const batchCount = batches.length;
+  const hasSearch = Boolean(search.trim());
 
   return (
-    <div className="space-y-8">
-      <InstitutePageHeader
-        badge="Cohorts"
-        title="Batches"
-        actions={
-          <Button
-            onClick={() => setCreateOpen(true)}
-            className={cn(institutePrimaryClass, "gap-2 shadow-lg")}
-          >
-            <Plus className="h-4 w-4" />
-            New batch
-          </Button>
-        }
+    <div className="mx-auto w-full max-w-7xl space-y-4 lg:space-y-6">
+      <InstituteBatchesHero
+        batchCount={batchCount}
+        totalMembers={totalMembers}
+        loading={loading}
       />
 
-      <section
-        className={cn(
-          institutePanelClass,
-          "relative overflow-hidden border-border bg-gradient-to-br from-card via-card to-muted/30"
-        )}
-      >
-        <div className="pointer-events-none absolute -right-16 -top-12 h-40 w-40 rounded-full bg-primary/80/10 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-8 -left-8 h-32 w-32 rounded-full bg-indigo-400/10 blur-2xl" />
-        <div className="relative flex flex-col gap-5 p-5 sm:flex-row sm:items-center sm:gap-8 sm:p-6">
-          <div className="flex shrink-0 justify-center sm:justify-start">
-            {loading ? (
-              <div
-                className="h-16 w-16 animate-pulse rounded-2xl bg-slate-200/90 ring-2 ring-white"
-                aria-hidden
+      <Card className="overflow-hidden rounded-xl border border-border/60 bg-card shadow-card">
+        <CardHeader className="border-b border-border/60 px-5 py-4">
+          <div className="flex flex-col items-start justify-between gap-4 lg:flex-row lg:items-center">
+            <div className="min-w-0">
+              <CardTitle className="text-lg font-semibold text-foreground">
+                Batch directory
+              </CardTitle>
+              <CardDescription className="mt-1 text-sm">
+                {!loading && batchCount > 0
+                  ? hasSearch
+                    ? `${filteredBatches.length} of ${batchCount} batch${batchCount === 1 ? "" : "es"} match your search.`
+                    : `Open a batch to manage members, runs, and bulk schedules.`
+                  : "Create your first batch to group candidates."}
+              </CardDescription>
+            </div>
+            <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center lg:w-auto lg:min-w-[min(100%,28rem)] lg:flex-1 lg:max-w-xl">
+              <SearchInput
+                id="batch-list-search"
+                placeholder="Search batch name…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                containerClassName="max-w-none w-full min-w-0 flex-1 border-border bg-card shadow-sm"
               />
-            ) : (
-              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary shadow-lg shadow-primary/30 ring-2 ring-border/60 sm:h-[4.5rem] sm:w-[4.5rem]">
-                <Layers className="h-8 w-8 text-white sm:h-9 sm:w-9" strokeWidth={1.75} />
-              </div>
-            )}
-          </div>
-          <div className="min-w-0 flex-1 space-y-3 text-center sm:text-left">
-            <div>
-              <p className="text-xs font-bold uppercase tracking-wide text-primary">
-                Total batches
-              </p>
-              <div className="mt-2 flex flex-wrap items-end justify-center gap-x-3 gap-y-1 sm:justify-start">
-                {loading ? (
-                  <div className="h-11 w-20 animate-pulse rounded-lg bg-slate-200/90" aria-hidden />
-                ) : (
-                  <span className="text-4xl font-bold tabular-nums leading-none tracking-tight text-foreground sm:text-5xl">
-                    {batchCount}
-                  </span>
-                )}
-                <span className="pb-1 text-sm font-medium text-muted-foreground">
-                  {loading
-                    ? ""
-                    : batchCount === 1
-                      ? "cohort in this institution"
-                      : "cohorts in this institution"}
-                </span>
-              </div>
+              <Button
+                type="button"
+                onClick={() => setCreateOpen(true)}
+                className={cn(institutePrimaryClass, "h-11 shrink-0 gap-2 sm:w-auto")}
+              >
+                <Plus className="h-4 w-4" />
+                New batch
+              </Button>
             </div>
-            <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground">
-              Group candidates by cohort or class, add members, then bulk-schedule interviews for the
-              whole group. Each batch has its own members and scheduled rounds — open one to manage
-              people and schedules.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      <Card className={cn(institutePanelClass, "overflow-hidden shadow-xl")}>
-        <CardHeader className="border-b border-border/60 bg-gradient-to-r from-muted/50 via-card to-indigo-50/30">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-            <div className="flex gap-4">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary shadow-md shadow-primary/25 ring-2 ring-border/40">
-                <Layers className="h-5 w-5" strokeWidth={1.75} />
-              </div>
-              <div className="min-w-0 space-y-1.5">
-                <CardTitle className="text-lg leading-tight">Your batches</CardTitle>
-                <CardDescription>
-                  {!loading && batchCount > 0 ? (
-                    <span>
-                      <span className="font-semibold text-foreground">{batchCount}</span>{" "}
-                      {batchCount === 1 ? "batch" : "batches"} — open one to manage members and
-                      schedules
-                    </span>
-                  ) : (
-                    "Create a batch to start grouping candidates"
-                  )}
-                </CardDescription>
-              </div>
-            </div>
-            {!loading && batchCount > 0 ? (
-              <span className="inline-flex w-fit shrink-0 items-center gap-1.5 self-start rounded-full border border-border/80 bg-card/90 px-3 py-1.5 text-xs font-medium text-primary shadow-sm sm:mt-1">
-                <Sparkles className="h-3.5 w-3.5" />
-                Cohort list
-              </span>
-            ) : null}
           </div>
         </CardHeader>
         <CardContent className="p-0 sm:p-0">
           {loading ? (
             <div className="flex justify-center py-16">
-              <Loader2 className="h-9 w-9 animate-spin text-primary" />
+              <Loader2 className="h-9 w-9 animate-spin text-[#7367F0]" />
             </div>
           ) : batchCount === 0 ? (
             <div className="px-4 py-6 sm:px-6">
@@ -244,58 +230,112 @@ export default function InstituteBatchesPage() {
                 }
               />
             </div>
+          ) : filteredBatches.length === 0 ? (
+            <div className="px-4 py-6 sm:px-6">
+              <InstituteEmptyState
+                icon={Layers}
+                title="No matches"
+                description="Try a different batch name or clear the search."
+                action={
+                  <Button
+                    variant="outline"
+                    className={instituteSecondaryClass}
+                    onClick={() => setSearch("")}
+                  >
+                    Clear search
+                  </Button>
+                }
+              />
+            </div>
           ) : (
             <InstituteTableShell>
-              <Table className="w-full min-w-[640px]">
+              <Table className="w-full min-w-[760px]">
                 <TableHeader>
                   <TableRow className="border-b border-border/80 bg-muted/30 hover:bg-muted/30">
                     <TableHead className="pl-6 text-left align-middle font-semibold text-foreground">
                       Batch
                     </TableHead>
-                    <TableHead className="align-middle font-semibold text-foreground">Members</TableHead>
-                    <TableHead className="align-middle font-semibold text-foreground">Updated</TableHead>
-                    <TableHead className="w-[120px] min-w-[120px] pr-6 text-right align-middle font-semibold text-foreground">
+                    <TableHead className="align-middle font-semibold text-foreground">
+                      Members
+                    </TableHead>
+                    <TableHead className="align-middle font-semibold text-foreground">
+                      Scheduled
+                    </TableHead>
+                    <TableHead className="align-middle font-semibold text-foreground">
+                      Avg. score
+                    </TableHead>
+                    <TableHead className="align-middle font-semibold text-foreground">
+                      Updated
+                    </TableHead>
+                    <TableHead className="w-[88px] min-w-[88px] pr-6 text-right align-middle font-semibold text-foreground">
                       Open
                     </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {batches.map((b) => {
-                    const n = Array.isArray(b.memberClerkIds) ? b.memberClerkIds.length : 0;
+                  {filteredBatches.map((b) => {
+                    const memberCount = Array.isArray(b.memberClerkIds)
+                      ? b.memberClerkIds.length
+                      : 0;
                     return (
                       <TableRow
                         key={b._id}
-                        className="group border-border align-middle transition-colors hover:bg-gradient-to-r hover:bg-muted/50 hover:to-transparent"
+                        className="group border-border align-middle transition-colors hover:bg-muted/40"
                       >
                         <TableCell className="pl-6 align-middle">
-                          <div className="flex items-center gap-3 py-1">
+                          <div className="flex items-center gap-3 py-2">
                             <div
-                              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-slate-100 to-slate-200/80 text-primary shadow-inner ring-2 ring-white"
+                              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-indigo-600 text-sm font-bold text-white shadow-md shadow-primary/15 ring-2 ring-white"
                               aria-hidden
                             >
-                              <Layers className="h-5 w-5" />
+                              {batchInitials(b.name)}
                             </div>
-                            <span className="font-semibold text-foreground">{b.name}</span>
+                            <div className="min-w-0">
+                              <p className="truncate font-semibold text-foreground">
+                                {b.name?.trim() || "Untitled batch"}
+                              </p>
+                              {b.startDate || b.endDate ? (
+                                <p className="truncate text-sm text-muted-foreground">
+                                  {b.startDate ? formatDate(b.startDate) : "—"}
+                                  {b.endDate ? ` → ${formatDate(b.endDate)}` : ""}
+                                </p>
+                              ) : (
+                                <p className="text-sm text-muted-foreground">Cohort roster</p>
+                              )}
+                            </div>
                           </div>
                         </TableCell>
                         <TableCell className="align-middle">
-                          <span className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-muted/30 px-2.5 py-1 text-sm font-semibold tabular-nums text-foreground">
+                          <span className="inline-flex items-center gap-1.5 text-sm font-semibold tabular-nums text-foreground">
                             <Users className="h-3.5 w-3.5 text-muted-foreground" />
-                            {n}
+                            {memberCount}
                           </span>
+                        </TableCell>
+                        <TableCell className="align-middle text-sm font-semibold tabular-nums text-foreground">
+                          {b.scheduledInterviewCount ?? 0}
+                        </TableCell>
+                        <TableCell className="align-middle text-sm tabular-nums text-foreground">
+                          {b.averageBatchScore != null ? (
+                            <span>{Math.round(b.averageBatchScore)}/100</span>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
                         </TableCell>
                         <TableCell className="align-middle text-sm text-muted-foreground whitespace-nowrap">
                           {b.updatedAt ? formatDate(b.updatedAt) : "—"}
                         </TableCell>
-                        <TableCell className="w-[120px] min-w-[120px] pr-6 text-right align-middle">
+                        <TableCell className="w-[88px] min-w-[88px] pr-6 text-right align-middle">
                           <Button
                             variant="outline"
-                            size="sm"
-                            className={cn(instituteSecondaryClass, "h-8 gap-1 px-3")}
+                            size="icon"
+                            className={cn(instituteSecondaryClass, "h-8 w-8 shrink-0 p-0")}
                             asChild
+                            title="Open batch"
+                            aria-label={`Open ${b.name}`}
                           >
-                            <Link href={`/dashboard/institute/${institutionId}/batches/${b._id}`}>
-                              Open
+                            <Link
+                              href={`/dashboard/institute/${institutionId}/batches/${b._id}`}
+                            >
                               <ChevronRight className="h-4 w-4" />
                             </Link>
                           </Button>
@@ -320,19 +360,52 @@ export default function InstituteBatchesPage() {
               the same name).
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-2 py-2">
-            <Label htmlFor="batch-name">Batch name</Label>
-            <Input
-              id="batch-name"
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-              placeholder="e.g. Placement batch Jan 2026"
-              className="h-11 border-border shadow-sm"
-              onKeyDown={(e) => e.key === "Enter" && handleCreate()}
-            />
+          <div className="grid gap-4 py-2 sm:grid-cols-2">
+            <FormField label="Batch name" htmlFor="batch-name" required className="sm:col-span-2">
+              <Input
+                id="batch-name"
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                placeholder="e.g. Placement batch Jan 2026"
+                className="h-11 border-border shadow-sm"
+                onKeyDown={(e) => e.key === "Enter" && handleCreate()}
+              />
+            </FormField>
+            <FormField label="Max students" htmlFor="batch-max" hint="Optional cap for roster size">
+              <Input
+                id="batch-max"
+                type="number"
+                min={1}
+                value={maxStudents}
+                onChange={(e) => setMaxStudents(e.target.value)}
+                className="h-11 border-border shadow-sm"
+              />
+            </FormField>
+            <FormField label="Start date" htmlFor="batch-start">
+              <Input
+                id="batch-start"
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="h-11 border-border shadow-sm"
+              />
+            </FormField>
+            <FormField label="End date" htmlFor="batch-end">
+              <Input
+                id="batch-end"
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="h-11 border-border shadow-sm"
+              />
+            </FormField>
           </div>
           <DialogFooter className="gap-2 sm:gap-0">
-            <Button variant="outline" className={instituteSecondaryClass} onClick={() => setCreateOpen(false)}>
+            <Button
+              variant="outline"
+              className={instituteSecondaryClass}
+              onClick={() => setCreateOpen(false)}
+            >
               Cancel
             </Button>
             <Button

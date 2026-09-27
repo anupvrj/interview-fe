@@ -16,6 +16,7 @@ import {
   IndianRupee,
   Ticket,
   FlaskConical,
+  Shield,
   Share2,
 } from "lucide-react";
 import type { DashboardNavAccent, DashboardNavItem } from "@/lib/dashboard-nav";
@@ -111,6 +112,14 @@ export const SUPER_ADMIN_NAV_GROUPS: SuperAdminNavGroup[] = [
         accent: accent.violet,
         description:
           "Edit, test, and promote AI agent prompts across development, staging, and production.",
+      },
+      {
+        title: "Interview Integrity",
+        href: `${SUPER_ADMIN_HOME}/integrity`,
+        icon: Shield,
+        accent: accent.rose,
+        description:
+          "Anti-cheat modules, report visibility, and interviewer pushback for live sessions.",
       },
       {
         title: "Voice Models",

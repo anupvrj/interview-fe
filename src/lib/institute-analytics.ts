@@ -83,6 +83,12 @@ export async function fetchInstitutionAnalytics(
   institutionId: string,
   days: number = 14,
 ): Promise<InstituteAnalyticsData> {
+  try {
+    return await adminApi.getInstitutionAnalytics(institutionId, days);
+  } catch {
+    /* fall back to client-side aggregation */
+  }
+
   const [users, schedules, batches] = await Promise.all([
     listAllInstitutionUsers(institutionId),
     adminApi.listInterviewSchedules(institutionId).catch(() => [] as any[]),

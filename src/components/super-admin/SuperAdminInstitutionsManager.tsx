@@ -30,6 +30,17 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2, Plus, Trash2, Pencil, LayoutDashboard } from "lucide-react";
 import { adminApi } from "@/lib/api";
+import {
+  defaultInstitutionProducts,
+  INSTITUTION_PRODUCT_KEYS,
+  INSTITUTION_PRODUCT_LABELS,
+} from "@/lib/institution-flags";
+import {
+  InstitutionIntegrityFields,
+  integrityFromInstitution,
+} from "@/components/super-admin/InstitutionIntegrityFields";
+import type { IntegritySettings } from "@/lib/integrity/settings";
+import { DEFAULT_INTEGRITY_SETTINGS } from "@/lib/integrity/settings";
 
 export function SuperAdminInstitutionsManager() {
   const router = useRouter();
@@ -42,6 +53,13 @@ export function SuperAdminInstitutionsManager() {
   const [instDomain, setInstDomain] = useState("");
   const [instEmail, setInstEmail] = useState("");
   const [instMaxUsers, setInstMaxUsers] = useState("");
+  const [instTechBasicSeats, setInstTechBasicSeats] = useState("");
+  const [instTechProSeats, setInstTechProSeats] = useState("");
+  const [instBiometric, setInstBiometric] = useState(false);
+  const [instIntegrity, setInstIntegrity] = useState<IntegritySettings>(
+    DEFAULT_INTEGRITY_SETTINGS,
+  );
+  const [instProducts, setInstProducts] = useState(defaultInstitutionProducts);
   const [instSubmitting, setInstSubmitting] = useState(false);
 
   const [editInst, setEditInst] = useState<any | null>(null);
@@ -50,6 +68,13 @@ export function SuperAdminInstitutionsManager() {
   const [editDomain, setEditDomain] = useState("");
   const [editEmail, setEditEmail] = useState("");
   const [editMaxUsers, setEditMaxUsers] = useState("");
+  const [editTechBasicSeats, setEditTechBasicSeats] = useState("");
+  const [editTechProSeats, setEditTechProSeats] = useState("");
+  const [editBiometric, setEditBiometric] = useState(false);
+  const [editIntegrity, setEditIntegrity] = useState<IntegritySettings>(
+    DEFAULT_INTEGRITY_SETTINGS,
+  );
+  const [editProducts, setEditProducts] = useState(defaultInstitutionProducts);
   const [editSubmitting, setEditSubmitting] = useState(false);
 
   useEffect(() => {
@@ -75,6 +100,11 @@ export function SuperAdminInstitutionsManager() {
       slug: instSlug.trim() || undefined,
       domain: instDomain.trim() || undefined,
       contactEmail: instEmail.trim() || undefined,
+      platformFlags: {
+        biometricVerification: instBiometric,
+        products: instProducts,
+        integrity: instIntegrity,
+      },
     };
     const mu = instMaxUsers.trim();
     if (mu !== "") {
@@ -87,13 +117,26 @@ export function SuperAdminInstitutionsManager() {
     }
     try {
       setInstSubmitting(true);
-      await adminApi.createInstitution(payload);
+      const created = await adminApi.createInstitution(payload);
+      const seats: Array<{ planId: string; purchased: number }> = [];
+      const tb = instTechBasicSeats.trim();
+      const tp = instTechProSeats.trim();
+      if (tb) seats.push({ planId: "tech_basic", purchased: Number.parseInt(tb, 10) });
+      if (tp) seats.push({ planId: "tech_pro", purchased: Number.parseInt(tp, 10) });
+      if (seats.length && created?._id) {
+        await adminApi.updateInstitutionSeats(String(created._id), seats);
+      }
       setInstOpen(false);
       setInstName("");
       setInstSlug("");
       setInstDomain("");
       setInstEmail("");
       setInstMaxUsers("");
+      setInstTechBasicSeats("");
+      setInstTechProSeats("");
+      setInstBiometric(false);
+      setInstIntegrity(DEFAULT_INTEGRITY_SETTINGS);
+      setInstProducts(defaultInstitutionProducts());
       await loadInstitutions();
     } catch (err: any) {
       alert(err?.response?.data?.message || "Failed to create institution");
@@ -111,6 +154,19 @@ export function SuperAdminInstitutionsManager() {
     setEditMaxUsers(
       inst.maxUsers != null && inst.maxUsers !== "" ? String(inst.maxUsers) : "",
     );
+    const seatRows = (inst.planSeats || []) as Array<{ planId: string; purchased: number }>;
+    setEditTechBasicSeats(
+      String(seatRows.find((s) => s.planId === "tech_basic")?.purchased ?? ""),
+    );
+    setEditTechProSeats(
+      String(seatRows.find((s) => s.planId === "tech_pro")?.purchased ?? ""),
+    );
+    setEditBiometric(Boolean(inst.platformFlags?.biometricVerification));
+    setEditIntegrity(integrityFromInstitution(inst.platformFlags?.integrity));
+    setEditProducts({
+      ...defaultInstitutionProducts(),
+      ...(inst.platformFlags?.products ?? {}),
+    });
   };
 
   const handleUpdateInstitution = async () => {
@@ -135,7 +191,20 @@ export function SuperAdminInstitutionsManager() {
         domain: editDomain.trim() || null,
         contactEmail: editEmail.trim() || null,
         maxUsers,
+        platformFlags: {
+          biometricVerification: editBiometric,
+          products: editProducts,
+          integrity: editIntegrity,
+        },
       });
+      const seats: Array<{ planId: string; purchased: number }> = [];
+      const tb = editTechBasicSeats.trim();
+      const tp = editTechProSeats.trim();
+      if (tb) seats.push({ planId: "tech_basic", purchased: Number.parseInt(tb, 10) });
+      if (tp) seats.push({ planId: "tech_pro", purchased: Number.parseInt(tp, 10) });
+      if (seats.length) {
+        await adminApi.updateInstitutionSeats(String(editInst._id), seats);
+      }
       setEditInst(null);
       await loadInstitutions();
     } catch (err: any) {
@@ -267,7 +336,7 @@ export function SuperAdminInstitutionsManager() {
       </Card>
 
       <Dialog open={instOpen} onOpenChange={setInstOpen}>
-        <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-lg">
+        <DialogContent className="max-h-[min(90vh,760px)] max-w-[calc(100vw-2rem)] overflow-y-auto sm:max-w-xl">
           <DialogHeader>
             <DialogTitle>Create Institution</DialogTitle>
             <DialogDescription>
@@ -328,6 +397,70 @@ export function SuperAdminInstitutionsManager() {
                 for no limit.
               </p>
             </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div>
+                <Label htmlFor="inst-tech-basic">Tech Basic seats</Label>
+                <Input
+                  id="inst-tech-basic"
+                  type="number"
+                  min={0}
+                  value={instTechBasicSeats}
+                  onChange={(e) => setInstTechBasicSeats(e.target.value)}
+                  placeholder="0"
+                />
+              </div>
+              <div>
+                <Label htmlFor="inst-tech-pro">Tech Pro seats</Label>
+                <Input
+                  id="inst-tech-pro"
+                  type="number"
+                  min={0}
+                  value={instTechProSeats}
+                  onChange={(e) => setInstTechProSeats(e.target.value)}
+                  placeholder="0"
+                />
+              </div>
+            </div>
+            <label className="flex items-start gap-2 text-sm">
+              <input
+                type="checkbox"
+                className="mt-1"
+                checked={instBiometric}
+                onChange={(e) => setInstBiometric(e.target.checked)}
+              />
+              <span>
+                Require biometric identity verification before interviews
+                (institute candidates only)
+              </span>
+            </label>
+            <InstitutionIntegrityFields
+              settings={instIntegrity}
+              onChange={setInstIntegrity}
+            />
+            <div className="space-y-2">
+              <p className="text-sm font-medium">Product tabs</p>
+              <p className="text-xs text-muted-foreground">
+                Uncheck to hide a product from institute candidates.
+              </p>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {INSTITUTION_PRODUCT_KEYS.map((key) => (
+                  <label key={key} className="flex items-start gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      className="mt-1"
+                      checked={instProducts[key] !== false}
+                      onChange={(e) =>
+                        setInstProducts((prev) => ({
+                          ...prev,
+                          [key]: e.target.checked,
+                        }))
+                      }
+                    />
+                    <span>{INSTITUTION_PRODUCT_LABELS[key]}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
           </div>
           <DialogFooter className="flex flex-col-reverse gap-2 sm:flex-row">
             <Button variant="outline" onClick={() => setInstOpen(false)}>
@@ -348,7 +481,7 @@ export function SuperAdminInstitutionsManager() {
       </Dialog>
 
       <Dialog open={!!editInst} onOpenChange={(o) => !o && setEditInst(null)}>
-        <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-lg">
+        <DialogContent className="max-h-[min(90vh,760px)] max-w-[calc(100vw-2rem)] overflow-y-auto sm:max-w-xl">
           <DialogHeader>
             <DialogTitle>Edit institution</DialogTitle>
             <DialogDescription>
@@ -408,6 +541,67 @@ export function SuperAdminInstitutionsManager() {
                 Empty = unlimited. Existing users are not removed if you lower the
                 cap.
               </p>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div>
+                <Label htmlFor="edit-tech-basic">Tech Basic seats</Label>
+                <Input
+                  id="edit-tech-basic"
+                  type="number"
+                  min={0}
+                  value={editTechBasicSeats}
+                  onChange={(e) => setEditTechBasicSeats(e.target.value)}
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-tech-pro">Tech Pro seats</Label>
+                <Input
+                  id="edit-tech-pro"
+                  type="number"
+                  min={0}
+                  value={editTechProSeats}
+                  onChange={(e) => setEditTechProSeats(e.target.value)}
+                />
+              </div>
+            </div>
+            <label className="flex items-start gap-2 text-sm">
+              <input
+                type="checkbox"
+                className="mt-1"
+                checked={editBiometric}
+                onChange={(e) => setEditBiometric(e.target.checked)}
+              />
+              <span>
+                Require biometric identity verification before interviews
+              </span>
+            </label>
+            <InstitutionIntegrityFields
+              settings={editIntegrity}
+              onChange={setEditIntegrity}
+            />
+            <div className="space-y-2">
+              <p className="text-sm font-medium">Product tabs</p>
+              <p className="text-xs text-muted-foreground">
+                Uncheck to hide a product from institute candidates.
+              </p>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {INSTITUTION_PRODUCT_KEYS.map((key) => (
+                  <label key={key} className="flex items-start gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      className="mt-1"
+                      checked={editProducts[key] !== false}
+                      onChange={(e) =>
+                        setEditProducts((prev) => ({
+                          ...prev,
+                          [key]: e.target.checked,
+                        }))
+                      }
+                    />
+                    <span>{INSTITUTION_PRODUCT_LABELS[key]}</span>
+                  </label>
+                ))}
+              </div>
             </div>
           </div>
           <DialogFooter className="flex flex-col-reverse gap-2 sm:flex-row">

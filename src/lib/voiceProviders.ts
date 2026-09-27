@@ -1,4 +1,36 @@
-export type VoiceProvider = "gemini" | "chatgpt" | "sarvam";
+export const VOICE_PROVIDERS = [
+  "gemini",
+  "gemini38",
+  "gemini38extended",
+  "chatgpt",
+  "sarvam",
+] as const;
+
+export type VoiceProvider = (typeof VOICE_PROVIDERS)[number];
+
+export const GEMINI_FAMILY_PROVIDERS = [
+  "gemini",
+  "gemini38",
+  "gemini38extended",
+] as const;
+
+export type GeminiFamilyProvider = (typeof GEMINI_FAMILY_PROVIDERS)[number];
+
+export function isVoiceProvider(value: unknown): value is VoiceProvider {
+  return (
+    typeof value === "string" &&
+    (VOICE_PROVIDERS as readonly string[]).includes(value)
+  );
+}
+
+export function isGeminiFamilyProvider(
+  value: unknown,
+): value is GeminiFamilyProvider {
+  return (
+    typeof value === "string" &&
+    (GEMINI_FAMILY_PROVIDERS as readonly string[]).includes(value)
+  );
+}
 
 export const VOICE_HIGHLIGHT_STYLES = [
   "popular",
@@ -34,7 +66,11 @@ export function normalizeVoiceAllowedDurations(
   value?: number[] | null,
 ): VoiceInterviewDuration[] {
   const unique = [
-    ...new Set((value ?? []).filter((item): item is VoiceInterviewDuration => item === 15 || item === 30)),
+    ...new Set(
+      (value ?? []).filter(
+        (item): item is VoiceInterviewDuration => item === 15 || item === 30,
+      ),
+    ),
   ].sort((a, b) => a - b);
   return unique.length > 0 ? unique : [...DEFAULT_VOICE_ALLOWED_DURATIONS];
 }
@@ -48,9 +84,7 @@ export function voiceAllowsDuration(
   );
 }
 
-export function formatVoiceAllowedDurations(
-  value?: number[] | null,
-): string {
+export function formatVoiceAllowedDurations(value?: number[] | null): string {
   return normalizeVoiceAllowedDurations(value)
     .map((minutes) => `${minutes} min`)
     .join(" · ");
@@ -67,12 +101,7 @@ export function resolveVoiceProviderForDuration(
       option.enabled !== false && voiceAllowsDuration(option, durationMinutes),
   );
   const ids = new Set(available.map((option) => option.id));
-  if (
-    (preferred === "gemini" ||
-      preferred === "chatgpt" ||
-      preferred === "sarvam") &&
-    ids.has(preferred)
-  ) {
+  if (isVoiceProvider(preferred) && ids.has(preferred)) {
     return preferred;
   }
   if (current && ids.has(current)) return current;
@@ -134,7 +163,9 @@ export function resolveVoiceHighlightStyle(
 }
 
 const PROVIDER_LABELS: Record<VoiceProvider, string> = {
-  gemini: "Gemini Live",
+  gemini: "Gemini 3.1 Live",
+  gemini38: "Gemini 3.8 Live",
+  gemini38extended: "Gemini 3.8 Live Extended",
   chatgpt: "ChatGPT Realtime",
   sarvam: "Sarvam AI",
 };
@@ -143,28 +174,26 @@ export function resolveVoiceProvider(
   raw: string | undefined,
   fallback: VoiceProvider = "gemini",
 ): VoiceProvider {
-  if (raw === "gemini" || raw === "chatgpt" || raw === "sarvam") return raw;
+  if (isVoiceProvider(raw)) return raw;
   return fallback;
 }
 
 /** Uses Gemini-style WSS protocol (audio, start_interview, end_session). */
 export function usesUnifiedVoiceProtocol(provider: VoiceProvider): boolean {
-  return provider === "gemini" || provider === "sarvam";
+  return isGeminiFamilyProvider(provider) || provider === "sarvam";
 }
 
 export function buildRealtimeWsPath(
   interviewId: string,
   provider: VoiceProvider,
 ): string {
-  switch (provider) {
-    case "gemini":
-      return `interviews/${interviewId}/realtime/gemini`;
-    case "sarvam":
-      return `interviews/${interviewId}/realtime/sarvam`;
-    case "chatgpt":
-    default:
-      return `interviews/${interviewId}/realtime`;
+  if (isGeminiFamilyProvider(provider)) {
+    return `interviews/${interviewId}/realtime/gemini`;
   }
+  if (provider === "sarvam") {
+    return `interviews/${interviewId}/realtime/sarvam`;
+  }
+  return `interviews/${interviewId}/realtime`;
 }
 
 export function buildVoiceQueryParam(
@@ -175,15 +204,13 @@ export function buildVoiceQueryParam(
     sarvamVoice: string;
   },
 ): string {
-  switch (provider) {
-    case "gemini":
-      return `&geminiVoice=${encodeURIComponent(persona.geminiVoice)}`;
-    case "sarvam":
-      return `&sarvamVoice=${encodeURIComponent(persona.sarvamVoice)}`;
-    case "chatgpt":
-    default:
-      return `&openaiVoice=${encodeURIComponent(persona.openaiVoice)}`;
+  if (isGeminiFamilyProvider(provider)) {
+    return `&geminiVoice=${encodeURIComponent(persona.geminiVoice)}`;
   }
+  if (provider === "sarvam") {
+    return `&sarvamVoice=${encodeURIComponent(persona.sarvamVoice)}`;
+  }
+  return `&openaiVoice=${encodeURIComponent(persona.openaiVoice)}`;
 }
 
 export function providerDisplayLabel(provider: VoiceProvider): string {
@@ -197,6 +224,26 @@ export const DEFAULT_VOICE_PROVIDER_OPTIONS: VoiceProviderOption[] = [
     creditsPerMinute: DEFAULT_VOICE_CREDITS_PER_MINUTE,
     allowedDurations: [...DEFAULT_VOICE_ALLOWED_DURATIONS],
     enabled: true,
+  },
+  {
+    id: "gemini38",
+    label: PROVIDER_LABELS.gemini38,
+    creditsPerMinute: DEFAULT_VOICE_CREDITS_PER_MINUTE,
+    allowedDurations: [...DEFAULT_VOICE_ALLOWED_DURATIONS],
+    enabled: true,
+    highlightTag: "New",
+    highlightStyle: "new",
+    decisionHint: "Fast, fluid voice interviews with low latency.",
+  },
+  {
+    id: "gemini38extended",
+    label: PROVIDER_LABELS.gemini38extended,
+    creditsPerMinute: DEFAULT_VOICE_CREDITS_PER_MINUTE,
+    allowedDurations: [...DEFAULT_VOICE_ALLOWED_DURATIONS],
+    enabled: true,
+    highlightTag: "New",
+    highlightStyle: "new",
+    decisionHint: "Deeper reasoning for complex technical follow-ups.",
   },
   {
     id: "chatgpt",

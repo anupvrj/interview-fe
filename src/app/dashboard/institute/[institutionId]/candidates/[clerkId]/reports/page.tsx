@@ -36,6 +36,8 @@ import {
   FileText,
 } from "lucide-react";
 import { userApi, adminApi } from "@/lib/api";
+import { canViewInstitutePage } from "@/lib/institute-access";
+import { toast } from "sonner";
 import { formatDate, getScoreColor } from "@/lib/utils";
 
 export default function InstitutionCandidateReportsPage() {
@@ -64,11 +66,7 @@ export default function InstitutionCandidateReportsPage() {
   }, [isLoaded, user]);
 
   useEffect(() => {
-    if (
-      profile &&
-      (profile.accessRole === "institution_admin" || profile.accessRole === "super_admin") &&
-      clerkId
-    ) {
+    if (profile && canViewInstitutePage(profile, institutionId, "candidates") && clerkId) {
       loadData();
     }
   }, [profile, clerkId, institutionId, router]);
@@ -78,16 +76,9 @@ export default function InstitutionCandidateReportsPage() {
     try {
       const p = await userApi.getMyProfile();
       setProfile(p);
-      if (p.accessRole !== "institution_admin" && p.accessRole !== "super_admin") {
+      if (!canViewInstitutePage(p, institutionId, "candidates")) {
         router.replace("/dashboard");
         return;
-      }
-      if (
-        p.accessRole === "institution_admin" &&
-        p.institutionId &&
-        String(p.institutionId) !== institutionId
-      ) {
-        router.replace("/dashboard");
       }
     } catch {
       router.replace("/dashboard");
@@ -117,7 +108,7 @@ export default function InstitutionCandidateReportsPage() {
       const data = await adminApi.getResumeForAdmin(resumeId);
       setResumePreview(data);
     } catch (err: any) {
-      alert(err?.response?.data?.message || "Failed to load resume");
+      toast.error(err?.response?.data?.message || "Failed to load resume");
     } finally {
       setResumePreviewLoading(false);
     }
@@ -128,7 +119,7 @@ export default function InstitutionCandidateReportsPage() {
       const { videoUrl } = await adminApi.getInterviewVideoUrl(interviewId);
       window.open(videoUrl, "_blank");
     } catch (err: any) {
-      alert(err?.response?.data?.message || "Failed to load video");
+      toast.error(err?.response?.data?.message || "Failed to load video");
     }
   };
 

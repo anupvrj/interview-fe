@@ -8,7 +8,6 @@ import { SuperAdminPeriodFilter } from "@/components/super-admin/SuperAdminPerio
 import { SuperAdminScheduledInterviewsCard } from "@/components/super-admin/SuperAdminScheduledInterviewsCard";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Table,
   TableBody,
@@ -87,101 +86,117 @@ function InterviewsPageBody() {
   }, [page, search, period, type, from, to]);
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 space-y-4 sm:space-y-6">
       <SuperAdminPageHeader />
 
       <SuperAdminScheduledInterviewsCard />
 
       <Card className="overflow-hidden rounded-xl border border-border/60 bg-card shadow-card">
         <CardHeader className="space-y-3 border-b border-border/60 px-4 py-4 sm:px-5">
-          <CardTitle className="text-base sm:text-lg">Interview report</CardTitle>
+          <CardTitle className="text-base sm:text-lg">Interview reports</CardTitle>
           <SuperAdminPeriodFilter
             period={period}
             from={from}
             to={to}
             type={type}
             showType
+            className="w-full border-0 bg-transparent p-0 shadow-none"
             onPeriodChange={(next) => setFilters({ period: next })}
             onTypeChange={(next) => setFilters({ type: next })}
             onRangeChange={(nextFrom, nextTo) =>
               setFilters({ period: "custom", from: nextFrom, to: nextTo })
             }
+            leading={
+              <label className="flex h-11 w-full min-w-0 items-center gap-2 rounded-[0.625rem] border border-input bg-card px-3 shadow-sm transition-colors focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20">
+                <Search
+                  className="h-4 w-4 shrink-0 text-muted-foreground"
+                  aria-hidden
+                />
+                <input
+                  type="search"
+                  aria-label="Search interviews"
+                  placeholder="Search name, email, or id"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="h-full min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground [&::-webkit-search-cancel-button]:hidden"
+                />
+              </label>
+            }
           />
-          <div className="relative min-w-0 sm:max-w-sm">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Search name, email, or interview id..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="h-11 pl-9"
-            />
-          </div>
         </CardHeader>
-        <CardContent className="px-4 py-4 sm:px-5">
+        <CardContent className="px-0 py-0">
           {loading ? (
-            <div className="flex justify-center py-12">
+            <div className="flex justify-center px-4 py-12">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
           ) : rows.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
+            <p className="px-4 py-6 text-sm text-muted-foreground sm:px-5">
               No completed interviews in this range.
             </p>
           ) : (
             <div className="w-full overflow-x-auto">
-              <Table className="min-w-[960px]">
+              <Table className="min-w-[860px]">
                 <TableHeader>
-                  <TableRow className="border-b border-border/70 hover:bg-transparent">
-                    <TableHead className="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-[#a8aaae]">
+                  <TableRow className="h-auto border-b border-border/70 bg-muted/30 hover:bg-muted/30">
+                    <TableHead className="w-[1%] min-w-[10rem] max-w-[18rem] px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-[#a8aaae] sm:px-5">
                       Interview
                     </TableHead>
-                    <TableHead className="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-[#a8aaae]">
+                    <TableHead className="w-[12rem] max-w-[12rem] px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-[#a8aaae] sm:px-5">
                       ID
                     </TableHead>
-                    <TableHead className="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-[#a8aaae]">
+                    <TableHead className="w-[14rem] max-w-[14rem] px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-[#a8aaae] sm:px-5">
                       User
                     </TableHead>
-                    <TableHead className="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-[#a8aaae]">
+                    <TableHead className="w-[1%] whitespace-nowrap px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-[#a8aaae] sm:px-5">
                       Type
                     </TableHead>
-                    <TableHead className="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-[#a8aaae]">
+                    <TableHead className="w-[1%] whitespace-nowrap px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-[#a8aaae] sm:px-5">
                       Time
                     </TableHead>
-                    <TableHead className="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-[#a8aaae]">
+                    <TableHead className="w-[1%] whitespace-nowrap px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-[#a8aaae] sm:px-5">
                       Score
                     </TableHead>
-                    <TableHead className="px-5 py-3 text-right text-[11px] font-semibold uppercase tracking-[0.06em] text-[#a8aaae]">
+                    <TableHead className="w-[1%] whitespace-nowrap px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-[0.06em] text-[#a8aaae] sm:px-5">
                       Action
                     </TableHead>
+                    <TableHead aria-hidden className="w-full p-0" />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {rows.map((row) => (
-                    <TableRow key={`${row.type}-${row.id}`}>
-                      <TableCell className="max-w-[220px]">
-                        <p className="truncate font-medium">{row.name}</p>
+                    <TableRow key={`${row.type}-${row.id}`} className="h-auto">
+                      <TableCell className="w-[1%] min-w-0 max-w-[18rem] px-4 py-3 align-top sm:px-5">
+                        <p className="truncate font-medium" title={row.name}>
+                          {row.name}
+                        </p>
                       </TableCell>
-                      <TableCell className="font-mono text-xs text-muted-foreground">
-                        {row.id}
+                      <TableCell className="w-[12rem] max-w-[12rem] min-w-0 px-4 py-3 align-top font-mono text-xs text-muted-foreground sm:px-5">
+                        <p className="truncate" title={row.id}>
+                          {row.id}
+                        </p>
                       </TableCell>
-                      <TableCell>
-                        <div className="min-w-[10rem] max-w-[16rem]">
-                          <p className="truncate font-medium">
-                            {row.user.name || "—"}
-                          </p>
-                          <p className="truncate break-all text-sm text-muted-foreground">
-                            {row.user.email || "—"}
-                          </p>
-                        </div>
+                      <TableCell className="w-[14rem] max-w-[14rem] min-w-0 px-4 py-3 align-top sm:px-5">
+                        <p className="truncate font-medium" title={row.user.name || undefined}>
+                          {row.user.name || "—"}
+                        </p>
+                        <p
+                          className="truncate text-xs text-muted-foreground sm:text-sm"
+                          title={row.user.email || undefined}
+                        >
+                          {row.user.email || "—"}
+                        </p>
                       </TableCell>
-                      <TableCell>
-                        <Badge variant="neutral">
+                      <TableCell className="px-4 py-3 align-top sm:px-5">
+                        <Badge variant="neutral" className="max-w-full truncate">
                           {INTERVIEW_TYPE_LABEL[row.type]}
                         </Badge>
                       </TableCell>
-                      <TableCell className="whitespace-nowrap text-muted-foreground">
-                        {formatDate(row.occurredAt)}
+                      <TableCell className="px-4 py-3 align-top text-sm text-muted-foreground sm:px-5">
+                        <span className="whitespace-nowrap">
+                          {formatDate(row.occurredAt)}
+                        </span>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="px-4 py-3 align-top sm:px-5">
                         {row.score != null ? (
                           <span
                             className={`font-semibold tabular-nums ${getScoreColor(row.score)}`}
@@ -192,8 +207,8 @@ function InterviewsPageBody() {
                           <span className="text-muted-foreground">—</span>
                         )}
                       </TableCell>
-                      <TableCell className="text-right">
-                        <Button variant="outline" size="sm" asChild>
+                      <TableCell className="px-4 py-3 text-right align-top sm:px-5">
+                        <Button variant="outline" size="sm" className="h-11" asChild>
                           <Link
                             href={(() => {
                               if (row.type !== "screening" && row.type !== "coding") {
@@ -211,6 +226,7 @@ function InterviewsPageBody() {
                           </Link>
                         </Button>
                       </TableCell>
+                      <TableCell aria-hidden className="w-full p-0" />
                     </TableRow>
                   ))}
                 </TableBody>
@@ -218,9 +234,10 @@ function InterviewsPageBody() {
             </div>
           )}
           {total > limit && (
-            <div className="mt-4 flex justify-between gap-2">
+            <div className="flex flex-col-reverse gap-2 border-t border-border/60 px-4 py-3 sm:flex-row sm:justify-between sm:px-5">
               <Button
                 variant="outline"
+                className="h-11 w-full sm:w-auto"
                 disabled={page === 0}
                 onClick={() => setPage((p) => p - 1)}
               >
@@ -228,6 +245,7 @@ function InterviewsPageBody() {
               </Button>
               <Button
                 variant="outline"
+                className="h-11 w-full sm:w-auto"
                 disabled={(page + 1) * limit >= total}
                 onClick={() => setPage((p) => p + 1)}
               >

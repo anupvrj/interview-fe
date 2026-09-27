@@ -1,14 +1,18 @@
+import type { VoiceProvider } from "@/lib/voiceProviders";
 import { BaseVoiceAgent, type VoiceAgentCallbacks, type VoiceAgentMessage } from "./types";
 
 export class GeminiVoiceAgent extends BaseVoiceAgent {
-  constructor(callbacks: VoiceAgentCallbacks) {
-    super("gemini", 24000, callbacks);
+  constructor(
+    callbacks: VoiceAgentCallbacks,
+    provider: VoiceProvider = "gemini",
+  ) {
+    super(provider, 24000, callbacks);
   }
 
   handleMessage(message: VoiceAgentMessage): void {
     switch (message.type) {
       case "connected":
-        this.callbacks.onConnected?.("gemini");
+        this.callbacks.onConnected?.(this.provider);
         break;
       case "preparing":
         this.callbacks.onPreparing?.(

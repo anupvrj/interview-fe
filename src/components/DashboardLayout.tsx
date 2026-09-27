@@ -38,6 +38,11 @@ import { usePlatformFeatures } from "@/hooks/usePlatformFeatures";
 import { FeatureRouteGuard } from "@/components/features/FeatureRouteGuard";
 import { POST_ONBOARDING_TRIAL_OFFER_KEY } from "@/lib/trialFeatures";
 import { isFeatureVisibleForActiveRole } from "@/lib/platform-features";
+import {
+  biometricEnrollmentState,
+  isIdentitySurfaceEnabled,
+  isInstitutionProductEnabled,
+} from "@/lib/institution-flags";
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -341,7 +346,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       activeRole === "super_admin" &&
       pathname?.startsWith("/dashboard") &&
       !pathname.startsWith("/dashboard/institute") &&
-      !pathname.startsWith("/dashboard/profile")
+      !pathname.startsWith("/dashboard/profile") &&
+      pathname !== "/dashboard/identity-verification"
     ) {
       router.replace("/super-admin");
       return;
@@ -398,7 +404,25 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       },
     );
 
-    return items.map((item) => {
+    const withInstitutePacks = items.filter((item) => {
+      if (item.href === "/dashboard/identity-verification") {
+        return isIdentitySurfaceEnabled(profile);
+      }
+      if (
+        profile?.institutionId &&
+        profile.accessRole === "user" &&
+        item.featureKey &&
+        !isInstitutionProductEnabled(
+          profile.institutionFlags?.products,
+          item.featureKey,
+        )
+      ) {
+        return false;
+      }
+      return true;
+    });
+
+    return withInstitutePacks.map((item) => {
       if (item.href === "/dashboard/interviews") {
         return { ...item, locked: !canUse("aiMockInterview") };
       }
@@ -410,6 +434,15 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       }
       if (item.href === "/dashboard/ix-report") {
         return { ...item, locked: !canUse("ixScore") };
+      }
+      if (item.href === "/dashboard/identity-verification") {
+        const state = biometricEnrollmentState(profile?.biometricStatus);
+        if (state === "missing") {
+          return { ...item, badge: "Not done" };
+        }
+        if (state === "pending") {
+          return { ...item, badge: "Pending" };
+        }
       }
       return item;
     });
@@ -457,7 +490,13 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         key={item.href}
         href={item.href}
         onClick={() => setMobileMenuOpen(false)}
-        title={!showNavLabels ? item.title : undefined}
+        title={
+          !showNavLabels
+            ? item.badge
+              ? `${item.title} — ${item.badge}`
+              : item.title
+            : undefined
+        }
         className={cn(
           "group relative flex items-center gap-2 rounded-[0.625rem] px-2.5 py-2 text-sm font-medium leading-tight transition-all duration-200 lg:py-1.5",
           showNavLabels ? "justify-start" : "justify-center px-2",
@@ -491,6 +530,18 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 aria-hidden
               />
             ) : null}
+            {item.badge ? (
+              <span
+                className={cn(
+                  "ml-auto shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold leading-none",
+                  isActive
+                    ? "bg-white/20 text-white"
+                    : "bg-amber-500/15 text-amber-800 dark:text-amber-300",
+                )}
+              >
+                {item.badge}
+              </span>
+            ) : null}
           </span>
         ) : item.locked ? (
           <Lock
@@ -499,6 +550,11 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               isActive ? "text-white" : "text-muted-foreground",
             )}
             strokeWidth={2.5}
+            aria-hidden
+          />
+        ) : item.badge ? (
+          <span
+            className="pointer-events-none absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-amber-500"
             aria-hidden
           />
         ) : null}

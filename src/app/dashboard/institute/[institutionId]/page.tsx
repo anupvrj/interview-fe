@@ -1,37 +1,34 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import {
-  Users,
-  CalendarClock,
-  ArrowRight,
-  Building2,
-  Sparkles,
-  Layers,
-  Coins,
-  BarChart2,
-  CheckCircle2,
-  PlayCircle,
-  Clock,
-  Wallet,
-} from "lucide-react";
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { ArrowRight, PlayCircle, Clock } from "lucide-react";
 import { adminApi } from "@/lib/api";
+import { InstituteAdminHubCards } from "@/components/institute/InstituteAdminHubCards";
+import { InstituteOverviewHero } from "@/components/institute/InstituteOverviewHero";
+import { DashboardInsightTile } from "@/components/dashboard/DashboardStatCard";
+import { InstituteLoader, instituteSecondaryClass } from "@/components/institute/InstituteChrome";
 import {
-  InstituteLoader,
-  InstitutePageHeader,
-  InstituteStatCard,
-  institutePanelClass,
-  institutePrimaryClass,
-  instituteSecondaryClass,
-} from "@/components/institute/InstituteChrome";
+  dashboardAverageScoreTooltipFormatter,
+  dashboardChartCardClass,
+  dashboardChartColors,
+  dashboardChartGrid,
+  dashboardChartTick,
+  dashboardChartTooltipStyle,
+} from "@/lib/dashboard-chart-theme";
 import { cn } from "@/lib/utils";
 import { fetchInstitutionAnalytics, type InstituteAnalyticsData } from "@/lib/institute-analytics";
 import {
   Bar,
-  BarChart,
   CartesianGrid,
   ComposedChart,
   Legend,
@@ -42,8 +39,6 @@ import {
   YAxis,
 } from "recharts";
 
-const PLAN_ORDER = ["free", "starter", "premium", "elite"] as const;
-
 export default function InstituteOverviewPage() {
   const params = useParams();
   const institutionId = params.institutionId as string;
@@ -52,6 +47,12 @@ export default function InstituteOverviewPage() {
     institution: Record<string, unknown> & { userCount?: number; maxUsers?: number | null };
     userCount: number;
     planCounts: Record<string, number>;
+    planSeats?: Array<{
+      planId: string;
+      purchased: number;
+      used: number;
+      remaining: number;
+    }>;
     scheduledPending: number;
     batchCount: number;
     totalBatchMemberSlots: number;
@@ -93,11 +94,6 @@ export default function InstituteOverviewPage() {
     };
   }, [institutionId]);
 
-  const planTotal = useMemo(() => {
-    if (!data) return 0;
-    return Object.values(data.planCounts).reduce((a, n) => a + n, 0);
-  }, [data]);
-
   if (loading) {
     return <InstituteLoader label="Loading institution…" />;
   }
@@ -111,7 +107,6 @@ export default function InstituteOverviewPage() {
   }
 
   const inst = data.institution;
-  const maxU = inst.maxUsers != null ? inst.maxUsers : null;
   const sc = data.scheduleCounts;
   const scheduleTotal = sc.scheduled + sc.started + sc.cancelled;
 
@@ -124,349 +119,206 @@ export default function InstituteOverviewPage() {
       ? inst.contactEmail
       : null;
 
-  const batchFooter =
-    data.totalBatchMemberSlots > 0
-      ? `${data.totalBatchMemberSlots} cohort seat${data.totalBatchMemberSlots === 1 ? "" : "s"} (sum of batch rosters)`
-      : "No cohorts yet";
-
   return (
     <div className="space-y-8">
-      <InstitutePageHeader
-        badge="Institution"
-        title={instName}
-        description={
-          <>
-            {domainStr ?? "—"}
-            {contactStr ? ` · ${contactStr}` : ""}
-          </>
-        }
+      <InstituteOverviewHero
+        institutionName={instName}
+        domain={domainStr}
+        contactEmail={contactStr}
+        memberCount={data.userCount}
+        batchCount={data.batchCount}
+        scheduledCount={sc.scheduled}
+        startedCount={sc.started}
+        completedCount={data.interviewsCompleted}
       />
 
-      <section
-        className={cn(
-          institutePanelClass,
-          "relative overflow-hidden border-border bg-gradient-to-br from-card via-card to-muted/30"
-        )}
-      >
-        <div className="pointer-events-none absolute -right-16 -top-12 h-40 w-40 rounded-full bg-primary/80/10 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-8 -left-8 h-32 w-32 rounded-full bg-indigo-400/10 blur-2xl" />
-        <div className="relative flex flex-col gap-6 p-5 sm:flex-row sm:items-center sm:gap-8 sm:p-6">
-          <div className="flex shrink-0 justify-center sm:justify-start">
-            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary shadow-lg shadow-primary/30 ring-2 ring-border/60 sm:h-[4.5rem] sm:w-[4.5rem]">
-              <Building2 className="h-8 w-8 text-white sm:h-9 sm:w-9" strokeWidth={1.75} />
+      <InstituteAdminHubCards institutionId={institutionId} />
+
+      <Card className={dashboardChartCardClass}>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-lg text-foreground">Schedule activity</CardTitle>
+          <CardDescription>
+            Institution-wide interview schedules — scheduled, in progress, and cancelled.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-3 gap-2 text-center sm:gap-4">
+            <div className="rounded-xl border border-border/80 bg-muted/20 p-3">
+              <div className="flex items-center justify-center gap-1 text-muted-foreground">
+                <Clock className="h-3.5 w-3.5" />
+                <span className="text-[10px] font-semibold uppercase tracking-wide">Scheduled</span>
+              </div>
+              <p className="mt-2 text-2xl font-bold tabular-nums text-foreground">{sc.scheduled}</p>
+            </div>
+            <div className="rounded-xl border border-border/80 bg-muted/20 p-3">
+              <div className="flex items-center justify-center gap-1 text-primary">
+                <PlayCircle className="h-3.5 w-3.5" />
+                <span className="text-[10px] font-semibold uppercase tracking-wide">Started</span>
+              </div>
+              <p className="mt-2 text-2xl font-bold tabular-nums text-foreground">{sc.started}</p>
+            </div>
+            <div className="rounded-xl border border-border/80 bg-muted/20 p-3">
+              <div className="flex items-center justify-center gap-1 text-muted-foreground">
+                <span className="text-[10px] font-semibold uppercase tracking-wide">Cancelled</span>
+              </div>
+              <p className="mt-2 text-2xl font-bold tabular-nums text-foreground">{sc.cancelled}</p>
             </div>
           </div>
-          <div className="min-w-0 flex-1 space-y-4 text-center sm:text-left">
-            <div>
-              <p className="text-xs font-bold uppercase tracking-wide text-primary">
-                Admin overview
-              </p>
-              <p className="mt-2 text-base leading-relaxed text-muted-foreground sm:text-lg">
-                Invite candidates, organize <span className="font-semibold text-foreground">batches</span>
-                , schedule interviews, and track{" "}
-                <span className="font-semibold text-foreground">plans &amp; credits</span> from one
-                place.
-              </p>
+          {scheduleTotal > 0 ? (
+            <div className="mt-4 h-2 overflow-hidden rounded-full bg-muted">
+              <div className="flex h-full w-full">
+                <div
+                  className="bg-muted-foreground/40 transition-all"
+                  style={{ width: `${(sc.scheduled / scheduleTotal) * 100}%` }}
+                  title="Scheduled"
+                />
+                <div
+                  className="transition-all"
+                  style={{
+                    width: `${(sc.started / scheduleTotal) * 100}%`,
+                    backgroundColor: dashboardChartColors.barPrimary,
+                  }}
+                  title="Started"
+                />
+                <div
+                  className="bg-rose-400/70 transition-all"
+                  style={{ width: `${(sc.cancelled / scheduleTotal) * 100}%` }}
+                  title="Cancelled"
+                />
+              </div>
             </div>
-            <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-start">
-              <Button asChild className={cn(institutePrimaryClass, "gap-2 shadow-lg")}>
-                <Link href={`/dashboard/institute/${institutionId}/candidates`}>
-                  <Users className="h-4 w-4" />
-                  Candidates
-                </Link>
-              </Button>
-              <Button asChild variant="outline" className={cn(instituteSecondaryClass, "gap-2")}>
-                <Link href={`/dashboard/institute/${institutionId}/batches`}>
-                  <Layers className="h-4 w-4" />
-                  Batches
-                </Link>
-              </Button>
-              <Button asChild variant="outline" className={cn(instituteSecondaryClass, "gap-2")}>
-                <Link href={`/dashboard/institute/${institutionId}/schedules`}>
-                  <CalendarClock className="h-4 w-4" />
-                  Schedules
-                </Link>
-              </Button>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-        <InstituteStatCard
-          layout="horizontal"
-          icon={Users}
-          label="Members"
-          value={data.userCount}
-          footer={maxU != null ? `Cap ${maxU}` : "No member cap"}
-          href={`/dashboard/institute/${institutionId}/candidates`}
-        />
-        <InstituteStatCard
-          layout="horizontal"
-          icon={Layers}
-          label="Batches"
-          value={data.batchCount}
-          footer={batchFooter}
-          href={`/dashboard/institute/${institutionId}/batches`}
-        />
-        <InstituteStatCard
-          layout="horizontal"
-          icon={CalendarClock}
-          label="Schedules (pending)"
-          value={sc.scheduled}
-          footer="Awaiting candidate start"
-          href={`/dashboard/institute/${institutionId}/schedules`}
-        />
-        <InstituteStatCard
-          layout="horizontal"
-          icon={PlayCircle}
-          label="Interviews in progress"
-          value={sc.started}
-          footer="Schedule started, session active"
-          href={`/dashboard/institute/${institutionId}/schedules`}
-        />
-        <InstituteStatCard
-          layout="horizontal"
-          icon={CheckCircle2}
-          label="Interviews completed"
-          value={data.interviewsCompleted}
-          footer="Finished sessions (candidates)"
-          href={`/dashboard/institute/${institutionId}/analytics`}
-        />
-        <InstituteStatCard
-          layout="horizontal"
-          icon={Coins}
-          label="Credits pool"
-          value={data.creditsPool.toLocaleString()}
-          footer="Sum of available credits (candidates)"
-          href={`/dashboard/institute/${institutionId}/billing`}
-        />
-      </div>
-
-      <div className="grid gap-4 lg:grid-cols-2">
-        <section
-          className={cn(
-            institutePanelClass,
-            "overflow-hidden border-border bg-gradient-to-br from-card to-slate-50/80"
+          ) : (
+            <p className="mt-4 text-center text-sm text-muted-foreground">No schedules yet.</p>
           )}
-        >
-          <div className="flex gap-4 border-b border-border/60 bg-gradient-to-r from-muted/40 to-transparent p-5">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary shadow-md ring-2 ring-border/40">
-              <BarChart2 className="h-5 w-5" strokeWidth={1.75} />
-            </div>
-            <div className="min-w-0 space-y-1">
-              <h2 className="text-base font-bold text-foreground">Schedule activity</h2>
-              <p className="text-xs text-muted-foreground">
-                Pipeline for institution-wide interview schedules (not batch-only).
-              </p>
-            </div>
-          </div>
-          <div className="p-5">
-            <div className="grid grid-cols-3 gap-2 text-center sm:gap-4">
-              <div className="rounded-xl border border-border bg-card p-3 shadow-sm">
-                <div className="flex items-center justify-center gap-1 text-muted-foreground">
-                  <Clock className="h-3.5 w-3.5" />
-                  <span className="text-[10px] font-bold uppercase tracking-wide">Scheduled</span>
-                </div>
-                <p className="mt-2 text-2xl font-bold tabular-nums text-foreground">{sc.scheduled}</p>
-              </div>
-              <div className="rounded-xl border border-border/60 bg-muted/30 p-3 shadow-sm">
-                <div className="flex items-center justify-center gap-1 text-primary">
-                  <PlayCircle className="h-3.5 w-3.5" />
-                  <span className="text-[10px] font-bold uppercase tracking-wide">Started</span>
-                </div>
-                <p className="mt-2 text-2xl font-bold tabular-nums text-foreground">{sc.started}</p>
-              </div>
-              <div className="rounded-xl border border-border bg-card p-3 shadow-sm">
-                <div className="flex items-center justify-center gap-1 text-muted-foreground">
-                  <span className="text-[10px] font-bold uppercase tracking-wide">Cancelled</span>
-                </div>
-                <p className="mt-2 text-2xl font-bold tabular-nums text-foreground">{sc.cancelled}</p>
-              </div>
-            </div>
-            {scheduleTotal > 0 ? (
-              <div className="mt-4 h-2.5 overflow-hidden rounded-full bg-slate-100">
-                <div className="flex h-full w-full">
-                  <div
-                    className="bg-slate-400/90 transition-all"
-                    style={{ width: `${(sc.scheduled / scheduleTotal) * 100}%` }}
-                    title="Scheduled"
-                  />
-                  <div
-                    className="bg-primary transition-all"
-                    style={{ width: `${(sc.started / scheduleTotal) * 100}%` }}
-                    title="Started"
-                  />
-                  <div
-                    className="bg-rose-300/90 transition-all"
-                    style={{ width: `${(sc.cancelled / scheduleTotal) * 100}%` }}
-                    title="Cancelled"
-                  />
-                </div>
-              </div>
-            ) : (
-              <p className="mt-4 text-center text-sm text-muted-foreground">No schedules yet.</p>
+          <Link
+            href={`/dashboard/institute/${institutionId}/schedules`}
+            className={cn(
+              buttonVariants({ variant: "link" }),
+              "mt-3 flex h-auto w-full items-center justify-center gap-1 p-0 text-sm font-semibold",
             )}
-            <Button
-              variant="link"
-              className="mt-3 h-auto w-full justify-center p-0 text-sm font-semibold text-primary"
-              asChild
-            >
-              <Link href={`/dashboard/institute/${institutionId}/schedules`}>
-                View all schedules <ArrowRight className="ml-1 inline h-3.5 w-3.5" />
-              </Link>
-            </Button>
-          </div>
-        </section>
-
-        <section
-          className={cn(
-            institutePanelClass,
-            "overflow-hidden border-border bg-gradient-to-br from-card to-slate-50/80"
-          )}
-        >
-          <div className="flex gap-4 border-b border-border/60 bg-gradient-to-r from-muted/40 to-transparent p-5">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary shadow-md ring-2 ring-border/40">
-              <Sparkles className="h-5 w-5" strokeWidth={1.75} />
-            </div>
-            <div className="min-w-0 space-y-1">
-              <h2 className="text-base font-bold text-foreground">Plans (candidates)</h2>
-              <p className="text-xs text-muted-foreground">
-                Distribution across member accounts{planTotal > 0 ? ` · ${planTotal} total` : ""}.
-              </p>
-            </div>
-          </div>
-          <div className="space-y-3 p-5">
-            {PLAN_ORDER.map((plan) => {
-              const n = data.planCounts[plan] ?? 0;
-              const pct = planTotal > 0 ? Math.round((n / planTotal) * 100) : 0;
-              return (
-                <div key={plan}>
-                  <div className="mb-1 flex items-center justify-between text-xs">
-                    <span className="font-semibold capitalize text-foreground">{plan}</span>
-                    <span className="tabular-nums text-muted-foreground">
-                      {n} <span className="text-muted-foreground">({pct}%)</span>
-                    </span>
-                  </div>
-                  <div className="h-2 overflow-hidden rounded-full bg-slate-100">
-                    <div
-                      className="h-full rounded-full bg-gradient-to-r from-primary to-primary transition-all"
-                      style={{ width: `${planTotal > 0 ? (n / planTotal) * 100 : 0}%` }}
-                    />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </section>
-      </div>
+          >
+            View all schedules
+            <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
+        </CardContent>
+      </Card>
 
       {analytics && (
         <>
-          <div className="grid gap-4 xl:grid-cols-3">
-            <section className={cn(institutePanelClass, "xl:col-span-2")}>
-              <div className="border-b border-border p-4">
-                <h3 className="text-sm font-bold text-foreground">
-                  Day wise interviews and score trend
-                </h3>
-                <p className="text-xs text-muted-foreground">
-                  Last 14 days: bar = interviews, line = average score
-                </p>
-              </div>
-              <div className="h-[280px] p-3">
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
+            <Card className={cn(dashboardChartCardClass, "xl:col-span-2")}>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg text-foreground">
+                  Daily interviews and score trend
+                </CardTitle>
+                <CardDescription>
+                  Bars = daily sessions, line = average score (last 14 days).
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="h-[280px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <ComposedChart data={analytics.daily}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                    <XAxis dataKey="label" tick={{ fontSize: 12 }} />
-                    <YAxis yAxisId="left" allowDecimals={false} tick={{ fontSize: 12 }} />
+                    <CartesianGrid {...dashboardChartGrid} />
+                    <XAxis dataKey="label" tick={dashboardChartTick} />
+                    <YAxis yAxisId="left" allowDecimals={false} tick={dashboardChartTick} />
                     <YAxis
                       yAxisId="right"
                       orientation="right"
                       domain={[0, 100]}
-                      tick={{ fontSize: 12 }}
+                      tick={dashboardChartTick}
                     />
-                    <Tooltip contentStyle={{ borderRadius: 8, borderColor: "#cbd5e1" }} />
+                    <Tooltip
+                      contentStyle={dashboardChartTooltipStyle}
+                      formatter={dashboardAverageScoreTooltipFormatter}
+                    />
                     <Legend />
                     <Bar
                       yAxisId="left"
                       dataKey="interviews"
                       name="Interviews"
-                      fill="hsl(var(--primary))"
+                      fill={dashboardChartColors.barPrimary}
                       radius={[4, 4, 0, 0]}
                     />
                     <Line
                       yAxisId="right"
                       type="monotone"
                       dataKey="avgScore"
-                      name="Avg score"
-                      stroke="#16a34a"
+                      name="Average score"
+                      stroke={dashboardChartColors.lineScore}
                       strokeWidth={2}
                       dot={{ r: 2 }}
+                      activeDot={{ r: 4 }}
                     />
                   </ComposedChart>
                 </ResponsiveContainer>
-              </div>
-            </section>
+              </CardContent>
+            </Card>
 
-            <section className={cn(institutePanelClass)}>
-              <div className="border-b border-border p-4">
-                <h3 className="text-sm font-bold text-foreground">Insights</h3>
-                <p className="text-xs text-muted-foreground">Quick institution snapshot</p>
-              </div>
-              <div className="space-y-3 p-4">
-                <div className="rounded-md border border-border bg-muted/20 p-3">
-                  <p className="text-xs font-semibold text-muted-foreground">Users invited</p>
-                  <p className="text-xl font-bold tabular-nums text-foreground">
-                    {analytics.totals.usersInvited}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Pending onboarding: {analytics.totals.usersPendingOnboarding}
-                  </p>
-                </div>
-                <div className="rounded-md border border-border bg-muted/20 p-3">
-                  <p className="text-xs font-semibold text-muted-foreground">Token spend (credits)</p>
-                  <p className="text-xl font-bold tabular-nums text-foreground">
-                    {analytics.totals.totalCreditsSpent}
-                  </p>
-                </div>
-                <div className="rounded-md border border-border bg-muted/20 p-3">
-                  <p className="text-xs font-semibold text-muted-foreground">Schedules</p>
-                  <p className="text-xl font-bold tabular-nums text-foreground">
-                    {analytics.totals.schedulesCount}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {analytics.totals.schedulesStarted} started · {analytics.totals.schedulesCompleted} completed
-                  </p>
-                </div>
-                <Button asChild variant="outline" className={cn(instituteSecondaryClass, "w-full")}>
-                  <Link href={`/dashboard/institute/${institutionId}/analytics`}>
-                    Open full analytics <ArrowRight className="ml-1 h-4 w-4" />
-                  </Link>
-                </Button>
-              </div>
-            </section>
+            <Card className={dashboardChartCardClass}>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg text-foreground">Insights</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <DashboardInsightTile
+                  theme="purple"
+                  label="Users invited"
+                  value={analytics.totals.usersInvited}
+                  description={`Pending onboarding: ${analytics.totals.usersPendingOnboarding}`}
+                />
+                <DashboardInsightTile
+                  theme="emerald"
+                  label="Token spend (credits)"
+                  value={analytics.totals.totalCreditsSpent}
+                  description="Institution-wide credit consumption"
+                />
+                <DashboardInsightTile
+                  theme="amber"
+                  label="Interview schedules"
+                  value={analytics.totals.schedulesCount}
+                  description={`${analytics.totals.schedulesStarted} started · ${analytics.totals.schedulesCompleted} completed`}
+                />
+                <Link
+                  href={`/dashboard/institute/${institutionId}/analytics`}
+                  className={cn(
+                    buttonVariants({ variant: "outline" }),
+                    instituteSecondaryClass,
+                    "w-full no-underline",
+                  )}
+                >
+                  Open full analytics
+                  <ArrowRight className="ml-1 h-4 w-4" />
+                </Link>
+              </CardContent>
+            </Card>
           </div>
 
-          <div className="grid gap-4 xl:grid-cols-2">
-            <section className={cn(institutePanelClass)}>
-              <div className="border-b border-border p-4">
-                <h3 className="text-sm font-bold text-foreground">Day wise resume creation & credit spend</h3>
-                <p className="text-xs text-muted-foreground">Resumes vs daily credit consumption</p>
-              </div>
-              <div className="h-[260px] p-3">
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+            <Card className={dashboardChartCardClass}>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg text-foreground">
+                  Daily resumes and credit spend
+                </CardTitle>
+                <CardDescription>Resumes created vs daily credit consumption.</CardDescription>
+              </CardHeader>
+              <CardContent className="h-[280px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <ComposedChart data={analytics.daily}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                    <XAxis dataKey="label" tick={{ fontSize: 11 }} />
-                    <YAxis yAxisId="left" allowDecimals={false} tick={{ fontSize: 12 }} />
-                    <YAxis yAxisId="right" orientation="right" allowDecimals={false} tick={{ fontSize: 12 }} />
-                    <Tooltip contentStyle={{ borderRadius: 8, borderColor: "#cbd5e1" }} />
+                    <CartesianGrid {...dashboardChartGrid} />
+                    <XAxis dataKey="label" tick={dashboardChartTick} />
+                    <YAxis yAxisId="left" allowDecimals={false} tick={dashboardChartTick} />
+                    <YAxis
+                      yAxisId="right"
+                      orientation="right"
+                      allowDecimals={false}
+                      tick={dashboardChartTick}
+                    />
+                    <Tooltip contentStyle={dashboardChartTooltipStyle} />
                     <Legend />
                     <Bar
                       yAxisId="left"
                       dataKey="resumes"
                       name="Resumes"
-                      fill="#64748b"
+                      fill={dashboardChartColors.barMuted}
                       radius={[4, 4, 0, 0]}
                     />
                     <Line
@@ -474,69 +326,68 @@ export default function InstituteOverviewPage() {
                       type="monotone"
                       dataKey="credits"
                       name="Credits spent"
-                      stroke="#0f172a"
+                      stroke={dashboardChartColors.lineCredits}
                       strokeWidth={2}
                       dot={false}
                     />
                   </ComposedChart>
                 </ResponsiveContainer>
-              </div>
-            </section>
+              </CardContent>
+            </Card>
 
-            <section className={cn(institutePanelClass)}>
-              <div className="border-b border-border p-4">
-                <h3 className="text-sm font-bold text-foreground">Top performing batches</h3>
-                <p className="text-xs text-muted-foreground">Average score and completed reports</p>
-              </div>
-              <div className="h-[260px] p-3">
+            <Card className={dashboardChartCardClass}>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg text-foreground">Top performing batches</CardTitle>
+                <CardDescription>Completed reports and average score by batch.</CardDescription>
+              </CardHeader>
+              <CardContent className="h-[280px]">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={analytics.batchPerformance.slice(0, 6)}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                    <XAxis dataKey="batchName" tick={{ fontSize: 11 }} interval={0} angle={-12} height={52} />
-                    <YAxis yAxisId="left" allowDecimals={false} tick={{ fontSize: 12 }} />
-                    <YAxis yAxisId="right" orientation="right" domain={[0, 100]} tick={{ fontSize: 12 }} />
-                    <Tooltip contentStyle={{ borderRadius: 8, borderColor: "#cbd5e1" }} />
+                  <ComposedChart data={analytics.batchPerformance.slice(0, 6)}>
+                    <CartesianGrid {...dashboardChartGrid} />
+                    <XAxis
+                      dataKey="batchName"
+                      tick={{ fontSize: 11 }}
+                      interval={0}
+                      angle={-12}
+                      height={52}
+                    />
+                    <YAxis yAxisId="left" allowDecimals={false} tick={dashboardChartTick} />
+                    <YAxis
+                      yAxisId="right"
+                      orientation="right"
+                      domain={[0, 100]}
+                      tick={dashboardChartTick}
+                    />
+                    <Tooltip
+                      contentStyle={dashboardChartTooltipStyle}
+                      formatter={dashboardAverageScoreTooltipFormatter}
+                    />
                     <Legend />
                     <Bar
                       yAxisId="left"
                       dataKey="reportsCompleted"
                       name="Completed reports"
-                      fill="#2563eb"
-                      radius={[3, 3, 0, 0]}
+                      fill={dashboardChartColors.barReports}
+                      radius={[4, 4, 0, 0]}
                     />
                     <Line
                       yAxisId="right"
                       type="monotone"
                       dataKey="averageScore"
-                      name="Avg score"
-                      stroke="#16a34a"
+                      name="Average score"
+                      stroke={dashboardChartColors.lineScore}
                       strokeWidth={2}
+                      dot={{ r: 2 }}
+                      activeDot={{ r: 4 }}
                     />
-                  </BarChart>
+                  </ComposedChart>
                 </ResponsiveContainer>
-              </div>
-            </section>
+              </CardContent>
+            </Card>
           </div>
         </>
       )}
 
-      <div className="flex flex-wrap items-center gap-3 border-t border-border/80 pt-6">
-        <Button asChild className={cn(institutePrimaryClass, "gap-2 shadow-md")}>
-          <Link href={`/dashboard/institute/${institutionId}/candidates`}>
-            <Users className="h-4 w-4" />
-            Manage candidates
-          </Link>
-        </Button>
-        <Button asChild variant="outline" className={cn(instituteSecondaryClass, "gap-2")}>
-          <Link href={`/dashboard/institute/${institutionId}/billing`}>
-            <Wallet className="h-4 w-4" />
-            Billing &amp; credits
-          </Link>
-        </Button>
-        <Button asChild variant="outline" className={instituteSecondaryClass}>
-          <Link href={`/dashboard/institute/${institutionId}/settings`}>Institution settings</Link>
-        </Button>
-      </div>
     </div>
   );
 }

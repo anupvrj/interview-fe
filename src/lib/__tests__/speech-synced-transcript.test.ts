@@ -28,5 +28,7 @@ describe("shouldHoldAssistantCaptionUntilAudio", () => {
   it("holds Sarvam captions until audio, leaves Gemini live", () => {
     expect(shouldHoldAssistantCaptionUntilAudio("sarvam")).toBe(true);
     expect(shouldHoldAssistantCaptionUntilAudio("gemini")).toBe(false);
+    expect(shouldHoldAssistantCaptionUntilAudio("gemini38")).toBe(false);
+    expect(shouldHoldAssistantCaptionUntilAudio("gemini38extended")).toBe(false);
   });
 });

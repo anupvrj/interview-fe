@@ -57,6 +57,7 @@ import {
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import { uploadPDFToS3 } from "@/lib/pdf-generator";
+import { ReportSectionTabs } from "@/components/reports/ReportSectionTabs";
 import {
   buildSystemDesignReportPdfBlob,
   buildSystemDesignReportPdfHtml,
@@ -509,6 +510,12 @@ export default function SystemDesignPracticeReportPage() {
         </div>
       </div>
 
+      <ReportSectionTabs
+        audience="candidate"
+        integrityReport={report.integrityReport}
+        performanceLabel="Overall score"
+        performance={
+          <>
         {/* Final whiteboard */}
         <Card className={reportCardClass}>
           <Dialog>
@@ -751,6 +758,9 @@ export default function SystemDesignPracticeReportPage() {
             )}
           </CardContent>
         </Card>
+          </>
+        }
+      />
 
         <Card className="overflow-hidden rounded-xl border border-[#7367F0]/15 bg-gradient-to-br from-[#7367F0]/[0.06] via-card to-[#7367F0]/[0.04] shadow-card">
           <CardContent className="p-6 text-center sm:p-8">

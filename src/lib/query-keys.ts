@@ -3,6 +3,7 @@ export const queryKeys = {
   interviews: (userId: string) => ["interviews", userId] as const,
   interviewSchedules: (userId: string) => ["interviewSchedules", userId] as const,
   resumes: (userId: string) => ["resumes", userId] as const,
+  defaultResume: (userId: string) => ["defaultResume", userId] as const,
   codingInterviews: (userId: string) => ["codingInterviews", userId] as const,
   systemDesignSessions: (userId: string) =>
     ["systemDesignSessions", userId] as const,

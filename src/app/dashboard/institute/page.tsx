@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import Link from "next/link";
 import { userApi, adminApi } from "@/lib/api";
+import { isInstituteStaff } from "@/lib/institute-access";
 import {
   Card,
   CardContent,
@@ -29,7 +30,7 @@ export default function InstituteHubPage() {
     (async () => {
       try {
         const p = await userApi.getMyProfile();
-        if (p.accessRole === "institution_admin" && p.institutionId) {
+        if (isInstituteStaff(p.accessRole) && p.institutionId) {
           router.replace(`/dashboard/institute/${p.institutionId}`);
           return;
         }

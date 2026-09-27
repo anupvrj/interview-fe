@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { SuperAdminPageHeader } from "@/components/super-admin/SuperAdminPageHeader";
+import { ReportSectionTabs } from "@/components/reports/ReportSectionTabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { adminApi } from "@/lib/api";
 import { formatDate, getScoreColor } from "@/lib/utils";
@@ -99,7 +100,13 @@ export default function SuperAdminSystemDesignReportPage() {
       )}
 
       {!loading && data && (
-        <div className="space-y-4">
+        <ReportSectionTabs
+          audience="reviewer"
+          alwaysShowIntegrity
+          integrityReport={data.report?.integrityReport}
+          performanceLabel="Overall score"
+          performance={
+            <>
           <Card className="overflow-hidden rounded-xl border border-border/60 shadow-card">
             <CardHeader className="border-b border-border/60 px-4 py-4 sm:px-5">
               <CardTitle className="text-base sm:text-lg">Overall score</CardTitle>
@@ -192,7 +199,9 @@ export default function SuperAdminSystemDesignReportPage() {
               No detailed report has been generated for this session yet.
             </p>
           )}
-        </div>
+            </>
+          }
+        />
       )}
     </div>
   );

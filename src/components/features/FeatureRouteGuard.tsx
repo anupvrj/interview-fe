@@ -7,9 +7,8 @@ import { usePlatformFeatures } from "@/hooks/usePlatformFeatures";
 import { useEntitlements } from "@/hooks/useEntitlements";
 import { useActiveRole } from "@/components/roles/ActiveRoleProvider";
 import { isPlatformAdmin } from "@/lib/dashboard-nav";
-import {
-  isFeatureAccessibleForActiveRole,
-} from "@/lib/platform-features";
+import { isFeatureAccessibleForActiveRole } from "@/lib/platform-features";
+import { isInstitutionProductEnabled } from "@/lib/institution-flags";
 
 export function FeatureRouteGuard({ children }: { children: ReactNode }) {
   const pathname = usePathname();
@@ -41,7 +40,16 @@ export function FeatureRouteGuard({ children }: { children: ReactNode }) {
     Boolean(pathname?.startsWith("/dashboard")) &&
     !entitlementsLoading &&
     !canUsePlatformFeature(feature.key);
-  if (allowed && !planLocked) return children;
+  const instituteLocked =
+    allowed &&
+    !planLocked &&
+    Boolean(roleCtx?.profile?.institutionId) &&
+    roleCtx?.profile?.accessRole === "user" &&
+    !isInstitutionProductEnabled(
+      roleCtx?.profile?.institutionFlags?.products,
+      feature.key,
+    );
+  if (allowed && !planLocked && !instituteLocked) return children;
 
   const backHref = pathname?.startsWith("/dashboard") ? "/dashboard" : "/";
   const backLabel = pathname?.startsWith("/dashboard")
@@ -53,12 +61,16 @@ export function FeatureRouteGuard({ children }: { children: ReactNode }) {
       title={
         planLocked
           ? `${feature.name} is not in your plan`
-          : feature.unavailableTitle
+          : instituteLocked
+            ? `${feature.name} is not enabled for your institute`
+            : feature.unavailableTitle
       }
       message={
         planLocked
           ? `Upgrade your plan to use ${feature.name}.`
-          : feature.unavailableMessage
+          : instituteLocked
+            ? `Your institute has not enabled ${feature.name}.`
+            : feature.unavailableMessage
       }
       backHref={backHref}
       backLabel={backLabel}

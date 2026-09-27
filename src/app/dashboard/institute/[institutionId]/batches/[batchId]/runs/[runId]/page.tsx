@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, use } from "react";
+import { useCallback, useEffect, useMemo, useState, use } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -11,6 +11,31 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Loader2, Pencil, UserPlus } from "lucide-react";
+import { toast } from "sonner";
+import { parseQuestionLines, toDatetimeLocalValue } from "@/lib/utils";
+import { JobRoleSelect } from "@/components/career/JobRoleSelect";
+import {
+  canViewInstitutePage,
+  instituteRoleCanManageBatches,
+} from "@/lib/institute-access";
 import {
   Table,
   TableBody,
@@ -57,6 +82,40 @@ export default function BatchScheduleRunPage({
     ReturnType<typeof adminApi.getBatchScheduleRunDetail>
   > | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [editOpen, setEditOpen] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
+  const [editSubmitting, setEditSubmitting] = useState(false);
+  const [addSubmitting, setAddSubmitting] = useState(false);
+  const [editAt, setEditAt] = useState("");
+  const [editExpires, setEditExpires] = useState("");
+  const [editRole, setEditRole] = useState("");
+  const [editExp, setEditExp] = useState("2");
+  const [editPassing, setEditPassing] = useState("");
+  const [editDuration, setEditDuration] = useState<"15" | "30">("15");
+  const [editQuestions, setEditQuestions] = useState("");
+  const [batchMembers, setBatchMembers] = useState<
+    { clerkId: string; name: string; email: string }[]
+  >([]);
+  const [addClerkId, setAddClerkId] = useState("");
+
+  const canManage = instituteRoleCanManageBatches(profile?.accessRole);
+
+  const loadRun = useCallback(async () => {
+    try {
+      setLoading(true);
+      const d = await adminApi.getBatchScheduleRunDetail(batchId, runId);
+      setData(d);
+      setError(null);
+    } catch (e: unknown) {
+      setData(null);
+      setError(
+        (e as { response?: { data?: { message?: string } } })?.response?.data
+          ?.message || "Could not load this run.",
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, [batchId, runId]);
 
   useEffect(() => {
     userApi.getMyProfile().then(setProfile).catch(() => {});
@@ -64,38 +123,101 @@ export default function BatchScheduleRunPage({
 
   useEffect(() => {
     if (!profile) return;
-    if (
-      profile.accessRole !== "institution_admin" &&
-      profile.accessRole !== "super_admin"
-    ) {
+    if (!canViewInstitutePage(profile, institutionId, "batches")) {
       router.replace("/dashboard");
       return;
     }
-    if (
-      profile.accessRole === "institution_admin" &&
-      profile.institutionId &&
-      String(profile.institutionId) !== institutionId
-    ) {
-      router.replace("/dashboard");
+    loadRun();
+  }, [profile, institutionId, batchId, runId, router, loadRun]);
+
+  useEffect(() => {
+    if (!canManage || !batchId) return;
+    adminApi
+      .getBatch(batchId)
+      .then((b) => {
+        setBatchMembers(Array.isArray(b.members) ? b.members : []);
+      })
+      .catch(() => setBatchMembers([]));
+  }, [batchId, canManage]);
+
+  const membersNotInRun = useMemo(() => {
+    if (!data) return batchMembers;
+    const scheduled = new Set(data.participants.map((p) => p.clerkId));
+    return batchMembers.filter((m) => !scheduled.has(m.clerkId));
+  }, [batchMembers, data]);
+
+  const openEdit = () => {
+    if (!data) return;
+    setEditAt(toDatetimeLocalValue(new Date(data.scheduledAt)));
+    setEditExpires("");
+    setEditRole(data.role || "");
+    setEditPassing(data.passingScore != null ? String(data.passingScore) : "");
+    setEditOpen(true);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editRole.trim() || !editAt) return;
+    const exp = Number.parseInt(editExp, 10);
+    if (!Number.isFinite(exp) || exp < 0) {
+      toast.error("Enter valid years of experience (0 or more).");
       return;
     }
-    (async () => {
-      try {
-        setLoading(true);
-        const d = await adminApi.getBatchScheduleRunDetail(batchId, runId);
-        setData(d);
-        setError(null);
-      } catch (e: unknown) {
-        setData(null);
-        setError(
-          (e as { response?: { data?: { message?: string } } })?.response?.data
-            ?.message || "Could not load this run."
-        );
-      } finally {
-        setLoading(false);
+    let passing: number | null | undefined;
+    if (editPassing.trim()) {
+      const ps = Number.parseFloat(editPassing.trim());
+      if (!Number.isFinite(ps) || ps < 0 || ps > 100) {
+        toast.error("Passing score must be between 0 and 100.");
+        return;
       }
-    })();
-  }, [profile, institutionId, batchId, runId, router]);
+      passing = ps;
+    } else {
+      passing = null;
+    }
+    const qLines = parseQuestionLines(editQuestions);
+    try {
+      setEditSubmitting(true);
+      await adminApi.updateBatchScheduleRun(batchId, runId, {
+        scheduledAt: new Date(editAt).toISOString(),
+        ...(editExpires.trim()
+          ? { expiresAt: new Date(editExpires).toISOString() }
+          : {}),
+        role: editRole.trim(),
+        experience: exp,
+        interviewDuration: editDuration === "30" ? 30 : 15,
+        customQuestions: qLines.length > 0 ? qLines : null,
+        passingScore: passing,
+      });
+      toast.success("Round updated");
+      setEditOpen(false);
+      await loadRun();
+    } catch (e: unknown) {
+      toast.error(
+        (e as { response?: { data?: { message?: string } } })?.response?.data
+          ?.message || "Failed to update round",
+      );
+    } finally {
+      setEditSubmitting(false);
+    }
+  };
+
+  const handleAddParticipant = async () => {
+    if (!addClerkId) return;
+    try {
+      setAddSubmitting(true);
+      await adminApi.addBatchRunParticipant(batchId, runId, addClerkId);
+      toast.success("Participant added to this round");
+      setAddOpen(false);
+      setAddClerkId("");
+      await loadRun();
+    } catch (e: unknown) {
+      toast.error(
+        (e as { response?: { data?: { message?: string } } })?.response?.data
+          ?.message || "Failed to add participant",
+      );
+    } finally {
+      setAddSubmitting(false);
+    }
+  };
 
   if (!profile || loading) {
     return <InstituteLoader />;
@@ -130,7 +252,6 @@ export default function BatchScheduleRunPage({
       </Button>
 
       <InstitutePageHeader
-        badge="Interview round"
         title={data.role}
         description={
           <>
@@ -144,7 +265,165 @@ export default function BatchScheduleRunPage({
             ) : null}
           </>
         }
+        actions={
+          canManage ? (
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="gap-1.5"
+                onClick={openEdit}
+              >
+                <Pencil className="h-4 w-4" />
+                Edit round
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                className="gap-1.5"
+                onClick={() => setAddOpen(true)}
+                disabled={membersNotInRun.length === 0}
+              >
+                <UserPlus className="h-4 w-4" />
+                Add late joiner
+              </Button>
+            </div>
+          ) : null
+        }
       />
+
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Edit scheduled round</DialogTitle>
+            <DialogDescription>
+              Updates apply to all pending schedules in this bulk run. Candidates can be notified
+              automatically.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-1">
+            <div>
+              <Label htmlFor="run-at">Scheduled time</Label>
+              <Input
+                id="run-at"
+                type="datetime-local"
+                value={editAt}
+                onChange={(e) => setEditAt(e.target.value)}
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <Label htmlFor="run-exp">Expires (optional)</Label>
+              <Input
+                id="run-exp"
+                type="datetime-local"
+                value={editExpires}
+                onChange={(e) => setEditExpires(e.target.value)}
+                className="mt-1"
+              />
+            </div>
+            <div className="sm:col-span-2">
+              <Label htmlFor="run-role">Role / position</Label>
+              <JobRoleSelect
+                id="run-role"
+                value={editRole}
+                onChange={setEditRole}
+                placeholder="e.g. Software Engineer, Product Manager"
+                inputClassName="mt-1 h-11 w-full border-border bg-card shadow-sm"
+                className="mt-1"
+              />
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div>
+                <Label htmlFor="run-exp-y">Experience (years)</Label>
+                <Input
+                  id="run-exp-y"
+                  value={editExp}
+                  onChange={(e) => setEditExp(e.target.value)}
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label htmlFor="run-pass">Passing score</Label>
+                <Input
+                  id="run-pass"
+                  value={editPassing}
+                  onChange={(e) => setEditPassing(e.target.value)}
+                  placeholder="Optional"
+                  className="mt-1"
+                />
+              </div>
+            </div>
+            <div>
+              <Label>Duration</Label>
+              <Select
+                value={editDuration}
+                onValueChange={(v) => setEditDuration(v === "30" ? "30" : "15")}
+              >
+                <SelectTrigger className="mt-1">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="15">15 minutes</SelectItem>
+                  <SelectItem value="30">30 minutes</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="run-q">Custom questions (one per line)</Label>
+              <textarea
+                id="run-q"
+                className="mt-1 min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                value={editQuestions}
+                onChange={(e) => setEditQuestions(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSaveEdit} disabled={editSubmitting}>
+              {editSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={addOpen} onOpenChange={setAddOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add batch member to round</DialogTitle>
+            <DialogDescription>
+              Creates a schedule for a batch member who was not in the original bulk run.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-2">
+            <Label>Candidate</Label>
+            <Select value={addClerkId} onValueChange={setAddClerkId}>
+              <SelectTrigger className="mt-1">
+                <SelectValue placeholder="Select member" />
+              </SelectTrigger>
+              <SelectContent>
+                {membersNotInRun.map((m) => (
+                  <SelectItem key={m.clerkId} value={m.clerkId}>
+                    {m.name || m.email || m.clerkId}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAddOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleAddParticipant} disabled={addSubmitting || !addClerkId}>
+              {addSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Add"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <InstituteStatCard icon={CalendarClock} label="Total scheduled" value={data.totalScheduled} />

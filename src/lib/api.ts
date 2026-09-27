@@ -12,6 +12,7 @@ import {
 } from "@/lib/post-sign-in-redirect";
 import { trimJobDescriptionForSend } from "@/lib/job-description-limits";
 import type { ApplicationProfile } from "@/lib/application-profile";
+import type { VoiceProvider } from "@/lib/voiceProviders";
 import type {
   JobTrackerBoardResponse,
   JobTrackerDetail,
@@ -203,6 +204,14 @@ export interface User {
     uploadedAt: string;
     size: number;
   };
+  /** Lean default designed resume from the builder, if any. */
+  defaultDesignedResume?: {
+    resumeId: string;
+    title?: string;
+    isDefault?: boolean;
+    pdfS3Key?: string;
+    updatedAt?: string;
+  } | null;
   applicationProfile?: ApplicationProfile;
   subscription?: {
     plan: SubscriptionPlanSlug;
@@ -220,6 +229,13 @@ export interface User {
   profileCompletionPercentage?: number;
   /** Avg. overall report score (practice + completed interviews), when present */
   averageInterviewScore?: number | null;
+  biometricStatus?: string | null;
+  /** Institute batches this member belongs to (admin user list) */
+  instituteBatchNames?: string[];
+  institutionFlags?: {
+    biometricVerification?: boolean;
+    products?: Record<string, boolean>;
+  };
   /** Peer interview capability derived from an InterviewerProfile */
   peer?: {
     isInterviewer: boolean;
@@ -295,6 +311,7 @@ export interface IxSessionRow {
   status: "completed" | "processing";
   hasVideo?: boolean;
   hasReportPdf?: boolean;
+  integrityStatus?: "scored" | "missing" | "processing" | "skipped";
 }
 
 export type RecruiterSessionSource = IxSessionRow["source"];
@@ -362,7 +379,8 @@ export interface Interview {
     /** When true (e.g. institute admin), denying screen capture may block the session. */
     requireSessionRecording?: boolean;
     /** Voice AI provider selected at interview creation. */
-    voiceProvider?: "gemini" | "chatgpt" | "sarvam";
+    voiceProvider?: VoiceProvider;
+    integrityTelemetry?: boolean;
   };
   codingRound?: {
     status: string;
@@ -500,6 +518,8 @@ export interface InterviewReport {
   };
   /** Set after PDF is uploaded for sharing */
   reportPdfS3Key?: string;
+  /** Shown when Super Admin enables candidate or reviewer visibility. Never mixed into overallScore. */
+  integrityReport?: import("@/lib/integrity/types").IntegrityReport;
   createdAt: string;
   updatedAt: string;
   /** Present when an institution admin loads the report and a passing score was set on the interview */
@@ -528,7 +548,7 @@ export interface CreateInterviewRequest {
   /** Job posting description from Chrome extension (or pasted) for JD-grounded questions. */
   jobDescription?: string;
   /** Voice AI provider for the realtime interview session. */
-  voiceProvider?: "gemini" | "chatgpt" | "sarvam";
+  voiceProvider?: VoiceProvider;
   /** Job tracker application this practice interview belongs to. */
   jobApplicationId?: string;
 }
@@ -1848,6 +1868,13 @@ export const resumeApi = {
     return response.data.data;
   },
 
+  getDefault: async (userId: string): Promise<Resume | null> => {
+    const response = await apiClient.get<{ data: Resume | null }>(
+      `/users/${userId}/resumes/default`,
+    );
+    return response.data.data;
+  },
+
   checkResumeLimit: async (): Promise<{
     allowed: boolean;
     reason?: string;
@@ -2425,6 +2452,8 @@ export const adminApi = {
     search?: string;
     /** Super admin: scope list to this institution */
     institutionId?: string;
+    /** Limit to members of this institute batch */
+    batchId?: string;
     period?: string;
     from?: string;
     to?: string;
@@ -2434,6 +2463,7 @@ export const adminApi = {
     if (params?.skip) q.set("skip", String(params.skip));
     if (params?.search) q.set("search", params.search);
     if (params?.institutionId) q.set("institutionId", params.institutionId);
+    if (params?.batchId) q.set("batchId", params.batchId);
     if (params?.period) q.set("period", params.period);
     if (params?.from) q.set("from", params.from);
     if (params?.to) q.set("to", params.to);
@@ -2445,7 +2475,7 @@ export const adminApi = {
 
   addUser: async (
     email: string,
-    plan: "free" | "premium" | "enterprise",
+    plan: string,
     institutionId?: string
   ): Promise<{ invitationId: string; message: string }> => {
     const response = await apiClient.post<{
@@ -2485,7 +2515,7 @@ export const adminApi = {
 
   updatePlan: async (
     userId: string,
-    plan: "free" | "premium" | "enterprise"
+    plan: string
   ): Promise<User> => {
     const response = await apiClient.put<{ success: boolean; data: User }>(
       `/admin/users/${userId}/plan`,
@@ -2639,6 +2669,7 @@ export const adminApi = {
       overallSummary?: string;
       fullReportMarkdown?: string;
       generatedAt?: string;
+      integrityReport?: import("@/lib/integrity/types").IntegrityReport;
     } | null;
     problem: { problemId: string; title: string; shortTitle: string } | null;
     user: { clerkId: string; name: string; email: string };
@@ -2675,6 +2706,7 @@ export const adminApi = {
           overallSummary?: string;
           fullReportMarkdown?: string;
           generatedAt?: string;
+          integrityReport?: import("@/lib/integrity/types").IntegrityReport;
         } | null;
         problem: { problemId: string; title: string; shortTitle: string } | null;
         user: { clerkId: string; name: string; email: string };
@@ -2705,12 +2737,82 @@ export const adminApi = {
     return response.data.data;
   },
 
+  updateInstitutionSeats: async (
+    institutionId: string,
+    seats: Array<{ planId: string; purchased: number }>,
+  ): Promise<
+    Array<{ planId: string; purchased: number; used: number; remaining: number }>
+  > => {
+    const response = await apiClient.put<{ success: boolean; data: any[] }>(
+      `/admin/institutions/${institutionId}/seats`,
+      { seats },
+    );
+    return response.data.data;
+  },
+
+  getInstitutionSeats: async (
+    institutionId: string,
+  ): Promise<
+    Array<{ planId: string; purchased: number; used: number; remaining: number }>
+  > => {
+    const response = await apiClient.get<{ success: boolean; data: any[] }>(
+      `/admin/institutions/${institutionId}/seats`,
+    );
+    return response.data.data;
+  },
+
+  listInstitutionStaff: async (institutionId: string): Promise<
+    Array<{ clerkId: string; name: string; email: string; accessRole: string }>
+  > => {
+    const response = await apiClient.get<{ success: boolean; data: any[] }>(
+      `/admin/institutions/${institutionId}/staff`,
+    );
+    return response.data.data;
+  },
+
+  inviteInstitutionStaff: async (
+    institutionId: string,
+    data: { email: string; staffRole: string },
+  ): Promise<{ message: string }> => {
+    const response = await apiClient.post<{ success: boolean; data: { message: string } }>(
+      `/admin/institutions/${institutionId}/staff`,
+      data,
+    );
+    return response.data.data;
+  },
+
+  updateInstitutionStaffRole: async (
+    institutionId: string,
+    clerkId: string,
+    staffRole: string,
+  ): Promise<void> => {
+    await apiClient.patch(
+      `/admin/institutions/${institutionId}/staff/${encodeURIComponent(clerkId)}`,
+      { staffRole },
+    );
+  },
+
+  removeInstitutionStaff: async (
+    institutionId: string,
+    clerkId: string,
+  ): Promise<void> => {
+    await apiClient.delete(
+      `/admin/institutions/${institutionId}/staff/${encodeURIComponent(clerkId)}`,
+    );
+  },
+
   createInstitution: async (data: {
     name: string;
     slug?: string;
     domain?: string;
     contactEmail?: string;
     maxUsers?: number | null;
+    planSeats?: Array<{ planId: string; purchased: number }>;
+    platformFlags?: {
+      biometricVerification?: boolean;
+      products?: Record<string, boolean>;
+      integrity?: Partial<import("@/lib/integrity/settings").IntegritySettings>;
+    };
   }): Promise<any> => {
     const response = await apiClient.post<{ success: boolean; data: any }>(
       "/admin/institutions",
@@ -2727,6 +2829,11 @@ export const adminApi = {
       domain?: string | null;
       contactEmail?: string | null;
       maxUsers?: number | null;
+      platformFlags?: {
+      biometricVerification?: boolean;
+      products?: Record<string, boolean>;
+      integrity?: Partial<import("@/lib/integrity/settings").IntegritySettings>;
+    };
     }
   ): Promise<any> => {
     const response = await apiClient.put<{ success: boolean; data: any }>(
@@ -2747,12 +2854,85 @@ export const adminApi = {
     return response.data.data;
   },
 
-  createBatch: async (institutionId: string, name: string): Promise<any> => {
+  createBatch: async (
+    institutionId: string,
+    data: {
+      name: string;
+      maxStudents?: number | null;
+      startDate?: string | null;
+      endDate?: string | null;
+    },
+  ): Promise<any> => {
     const response = await apiClient.post<{ success: boolean; data: any }>(
       `/admin/institutions/${institutionId}/batches`,
-      { name }
+      data,
     );
     return response.data.data;
+  },
+
+  getInstitutionBatchStats: async (institutionId: string): Promise<{
+    batchCount: number;
+    totalMembers: number;
+    averageBatchScore: number | null;
+  }> => {
+    const response = await apiClient.get<{ success: boolean; data: any }>(
+      `/admin/institutions/${institutionId}/batches/stats`,
+    );
+    return response.data.data;
+  },
+
+  updateBatch: async (
+    batchId: string,
+    data: {
+      name?: string;
+      maxStudents?: number | null;
+      startDate?: string | null;
+      endDate?: string | null;
+    },
+  ): Promise<any> => {
+    const response = await apiClient.put<{ success: boolean; data: any }>(
+      `/admin/batches/${batchId}`,
+      data,
+    );
+    return response.data.data;
+  },
+
+  getBatchReport: async (batchId: string): Promise<any> => {
+    const response = await apiClient.get<{ success: boolean; data: any }>(
+      `/admin/batches/${batchId}/report`,
+    );
+    return response.data.data;
+  },
+
+  exportBatchCandidatesCsv: async (batchId: string): Promise<string> => {
+    const response = await apiClient.get<string>(
+      `/admin/batches/${batchId}/export/candidates.csv`,
+      { responseType: "text" as "json" },
+    );
+    return response.data as unknown as string;
+  },
+
+  updateBatchScheduleRun: async (
+    batchId: string,
+    runId: string,
+    data: Record<string, unknown>,
+  ): Promise<{ updated: number }> => {
+    const response = await apiClient.patch<{ success: boolean; data: { updated: number } }>(
+      `/admin/batches/${batchId}/runs/${encodeURIComponent(runId)}`,
+      data,
+    );
+    return response.data.data;
+  },
+
+  addBatchRunParticipant: async (
+    batchId: string,
+    runId: string,
+    candidateClerkId: string,
+  ): Promise<void> => {
+    await apiClient.post(
+      `/admin/batches/${batchId}/runs/${encodeURIComponent(runId)}/participants`,
+      { candidateClerkId },
+    );
   },
 
   getBatch: async (batchId: string): Promise<any> => {
@@ -2795,12 +2975,37 @@ export const adminApi = {
     return response.data.data;
   },
 
+  listInstitutionBatchScheduleRuns: async (
+    institutionId: string,
+  ): Promise<{
+    runs: Array<{
+      batchId: string;
+      batchName: string;
+      runId: string;
+      role: string;
+      roundType: string | null;
+      scheduledAt: string;
+      expiresAt: string | null;
+      passingScore: number | null;
+      candidateCount: number;
+      pendingCount: number;
+      createdAt: string;
+      scheduleGroupId: string | null;
+    }>;
+  }> => {
+    const response = await apiClient.get<{ success: boolean; data: any }>(
+      `/admin/institutions/${institutionId}/batch-schedule-runs`,
+    );
+    return response.data.data;
+  },
+
   listBatchScheduleRuns: async (
     batchId: string
   ): Promise<{
     runs: Array<{
       runId: string;
       role: string;
+      roundType: string | null;
       scheduledAt: string;
       passingScore: number | null;
       candidateCount: number;
@@ -2864,14 +3069,6 @@ export const adminApi = {
     return response.data.data;
   },
 
-  updateBatch: async (batchId: string, name: string): Promise<any> => {
-    const response = await apiClient.put<{ success: boolean; data: any }>(
-      `/admin/batches/${batchId}`,
-      { name }
-    );
-    return response.data.data;
-  },
-
   deleteBatch: async (batchId: string): Promise<void> => {
     await apiClient.delete(`/admin/batches/${batchId}`);
   },
@@ -2894,6 +3091,35 @@ export const adminApi = {
     return response.data.data;
   },
 
+  listCodingProblemsCatalog: async (params?: {
+    search?: string;
+    limit?: number;
+  }): Promise<
+    Array<{
+      problemId: string;
+      title: string;
+      difficulty: string;
+      categories: string[];
+    }>
+  > => {
+    const q = new URLSearchParams();
+    if (params?.search?.trim()) q.set("search", params.search.trim());
+    if (params?.limit) q.set("limit", String(params.limit));
+    const suffix = q.toString() ? `?${q.toString()}` : "";
+    const response = await apiClient.get<{
+      success: boolean;
+      data: {
+        problems: Array<{
+          problemId: string;
+          title: string;
+          difficulty: string;
+          categories: string[];
+        }>;
+      };
+    }>(`/admin/coding-problems/catalog${suffix}`);
+    return response.data.data.problems;
+  },
+
   bulkScheduleBatchInterviews: async (
     batchId: string,
     data: {
@@ -2911,6 +3137,9 @@ export const adminApi = {
       passingScore?: number;
       /** Optional; copied to each schedule and into interview context when they start */
       jobDescription?: string;
+      roundType?: "ai_mock" | "coding_practice" | "system_design";
+      codingProblemIds?: string[];
+      systemDesignProblemId?: string;
     }
   ): Promise<{
     institutionId: string;
@@ -2944,6 +3173,12 @@ export const adminApi = {
     institution: Record<string, unknown> & { userCount?: number };
     userCount: number;
     planCounts: Record<string, number>;
+    planSeats?: Array<{
+      planId: string;
+      purchased: number;
+      used: number;
+      remaining: number;
+    }>;
     scheduledPending: number;
     batchCount: number;
     totalBatchMemberSlots: number;
@@ -2953,6 +3188,17 @@ export const adminApi = {
   }> => {
     const response = await apiClient.get<{ success: boolean; data: any }>(
       `/admin/institutions/${institutionId}/dashboard`
+    );
+    return response.data.data;
+  },
+
+  getInstitutionAnalytics: async (
+    institutionId: string,
+    days = 14,
+  ): Promise<import("@/lib/institute-analytics").InstituteAnalyticsData> => {
+    const response = await apiClient.get<{ success: boolean; data: any }>(
+      `/admin/institutions/${institutionId}/analytics`,
+      { params: { days } },
     );
     return response.data.data;
   },
@@ -2989,6 +3235,9 @@ export const adminApi = {
     passingScore?: number;
     /** Pasted JD — passed into interview context when the candidate starts */
     jobDescription?: string;
+    roundType?: "ai_mock" | "coding_practice" | "system_design";
+    codingProblemIds?: string[];
+    systemDesignProblemId?: string;
   }): Promise<any> => {
     const response = await apiClient.post<{ success: boolean; data: any }>(
       "/admin/interview-schedules",
@@ -3011,6 +3260,9 @@ export const adminApi = {
       customQuestions?: string[] | null;
       passingScore?: number | null;
       jobDescription?: string | null;
+      roundType?: "ai_mock" | "coding_practice" | "system_design";
+      codingProblemIds?: string[] | null;
+      systemDesignProblemId?: string | null;
     }
   ): Promise<any> => {
     const response = await apiClient.put<{ success: boolean; data: any }>(
@@ -3070,6 +3322,31 @@ export const adminApi = {
 
   deletePlatformFeature: async (key: string): Promise<void> => {
     await apiClient.delete(`/admin/features/${encodeURIComponent(key)}`);
+  },
+
+  getIntegritySettings: async (): Promise<{
+    settings: import("@/lib/integrity/settings").IntegritySettings;
+    envForcedOff: boolean;
+  }> => {
+    const response = await apiClient.get<{
+      success: boolean;
+      data: import("@/lib/integrity/settings").IntegritySettings;
+      envForcedOff?: boolean;
+    }>("/admin/settings/integrity");
+    return {
+      settings: response.data.data,
+      envForcedOff: Boolean(response.data.envForcedOff),
+    };
+  },
+
+  updateIntegritySettings: async (
+    patch: Partial<import("@/lib/integrity/settings").IntegritySettings>,
+  ): Promise<import("@/lib/integrity/settings").IntegritySettings> => {
+    const response = await apiClient.patch<{
+      success: boolean;
+      data: import("@/lib/integrity/settings").IntegritySettings;
+    }>("/admin/settings/integrity", patch);
+    return response.data.data;
   },
 
   listCatalogPlans: async (): Promise<
@@ -3278,10 +3555,12 @@ export const interviewScheduleApi = {
     return response.data.data;
   },
 
-  start: async (scheduleId: string): Promise<{ interviewId: string }> => {
+  start: async (
+    scheduleId: string,
+  ): Promise<import("@/lib/institute-schedule-round").StartScheduledInterviewPayload> => {
     const response = await apiClient.post<{
       success: boolean;
-      data: { interviewId: string };
+      data: import("@/lib/institute-schedule-round").StartScheduledInterviewPayload;
     }>(`/interview-schedules/${scheduleId}/start`);
     return response.data.data;
   },
@@ -3596,6 +3875,8 @@ export interface SystemDesignPracticeReport {
   fullReportMarkdown: string;
   createdAt?: string;
   updatedAt?: string;
+  /** Shown when Super Admin enables candidate or reviewer visibility. Never mixed into overallScore. */
+  integrityReport?: import("@/lib/integrity/types").IntegrityReport;
 }
 /** Session summary bundled with lazy-generated practice report payload. */
 export interface SystemDesignReportSessionLite {
@@ -4455,6 +4736,7 @@ export const ixScoreApi = {
     to?: string;
     minScore?: number;
     maxScore?: number;
+    integrityStatus?: "scored" | "missing" | "processing" | "skipped";
     page?: number;
     limit?: number;
   }) =>
@@ -4580,6 +4862,7 @@ export interface TalentCandidateRow {
   experience?: number;
   ixScore: number | null;
   hiringStatus: HiringStatus | null;
+  integrityStatus?: "scored" | "missing" | "processing" | "skipped" | null;
   hasResume: boolean;
 }
 
@@ -4675,6 +4958,7 @@ export const recruiterApi = {
     industry?: string;
     skills?: string;
     minIxScore?: number;
+    integrityStatus?: "scored" | "missing" | "processing" | "skipped";
   }) =>
     unwrap<PeerPaginated<TalentCandidateRow>>(
       apiClient.get("/recruiter/candidates", { params }),
@@ -4700,6 +4984,7 @@ export const recruiterApi = {
       to?: string;
       minScore?: number;
       maxScore?: number;
+      integrityStatus?: "scored" | "missing" | "processing" | "skipped";
       page?: number;
       limit?: number;
     },
@@ -5528,6 +5813,16 @@ export const configApi = {
       data: { features: import("@/lib/platform-features").PlatformFeature[] };
     }>("/config/features");
     return response.data.data.features;
+  },
+
+  getIntegritySettings: async (): Promise<
+    import("@/lib/integrity/settings").IntegritySettings
+  > => {
+    const response = await apiClient.get<{
+      success: boolean;
+      data: import("@/lib/integrity/settings").IntegritySettings;
+    }>("/config/integrity");
+    return response.data.data;
   },
 };
 

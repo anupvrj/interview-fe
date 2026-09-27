@@ -17,7 +17,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { CreditCard, ExternalLink, Receipt } from "lucide-react";
+import { Coins, CreditCard, ExternalLink, Receipt, ShieldCheck, Users } from "lucide-react";
 import { userApi, adminApi } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import {
@@ -27,6 +27,14 @@ import {
   InstituteTableShell,
   institutePanelClass,
 } from "@/components/institute/InstituteChrome";
+
+const PLAN_LABELS: Record<string, string> = {
+  free: "Free",
+  tech_basic: "Tech Basic",
+  tech_pro: "Tech Pro",
+  enterprise: "Enterprise",
+  general_pass: "General Pass",
+};
 
 const PAYMENT_TYPE_LABEL: Record<string, string> = {
   credit_purchase: "Credit purchase",
@@ -67,54 +75,99 @@ export default function InstituteBillingPage() {
   }
 
   const planCounts = dashboard?.planCounts || {};
-  const inst = dashboard?.institution;
+  const planSeats = dashboard?.planSeats || [];
+  const seatRows = (planSeats as Array<{ purchased: number; used: number }>).filter(
+    (s) => s.purchased > 0 || s.used > 0,
+  );
+  const seatsPurchased = seatRows.reduce((n, s) => n + s.purchased, 0);
+  const seatsUsed = seatRows.reduce((n, s) => n + s.used, 0);
+  const creditsPool = dashboard?.creditsPool ?? 0;
+  const userCount = dashboard?.userCount ?? 0;
+  const maxUsers = dashboard?.institution?.maxUsers as number | null | undefined;
 
   return (
     <div className="space-y-8">
       <InstitutePageHeader
-        badge="Billing"
+        hideBack
         title="Plans & payments"
-        description="Candidate plan mix for members in this institution. Institute billing (subscriptions and credit purchases paid by your admin account) appears under recent payments."
+        description="Purchased seat packs, member plan mix, credits across candidates, and institute payment history."
       />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {Object.entries(planCounts).map(([plan, count]) => (
-          <InstituteStatCard
-            key={plan}
-            icon={Receipt}
-            label={String(plan)}
-            value={String(count)}
-            footer="candidates on this plan"
-          />
-        ))}
-        {Object.keys(planCounts).length === 0 && (
-          <Card className={cn(institutePanelClass, "sm:col-span-2")}>
-            <CardContent className="pt-6">
-              <p className="text-sm text-muted-foreground">No plan breakdown yet.</p>
-            </CardContent>
-          </Card>
-        )}
+        <InstituteStatCard
+          icon={ShieldCheck}
+          label="Plan seats used"
+          value={seatsPurchased > 0 ? `${seatsUsed} / ${seatsPurchased}` : "—"}
+          footer={
+            seatsPurchased > 0
+              ? `${Math.round((seatsUsed / seatsPurchased) * 100)}% utilization · ${seatsPurchased - seatsUsed} open`
+              : "No purchased seat packs"
+          }
+        />
+        <InstituteStatCard
+          icon={Users}
+          label="Members enrolled"
+          value={String(userCount)}
+          footer={maxUsers != null ? `Institution cap ${maxUsers}` : "No member cap set"}
+        />
+        <InstituteStatCard
+          icon={Coins}
+          label="Credits pool"
+          value={creditsPool.toLocaleString()}
+          footer="Sum of available credits (all candidates)"
+        />
+        <InstituteStatCard
+          icon={CreditCard}
+          label="Active plan types"
+          value={String(Object.keys(planCounts).length)}
+          footer="Distribution by plan below"
+        />
       </div>
 
-      {inst?.stripeCustomerId && (
-        <Card className={cn(institutePanelClass, "overflow-hidden shadow-xl")}>
-          <CardHeader className="border-b border-border/60 bg-gradient-to-r from-muted/40 to-card">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <CreditCard className="h-4 w-4 text-primary" />
-              Billing account
-            </CardTitle>
-            <CardDescription>Stripe customer linked to this institution</CardDescription>
-          </CardHeader>
-          <CardContent className="pt-6">
-            <code className="rounded-lg border border-border bg-muted/20 px-3 py-2 text-sm">
-              {inst.stripeCustomerId}
-            </code>
-            <p className="mt-2 text-xs text-muted-foreground">
-              Full invoices and subscription management may be available in your Stripe dashboard.
-            </p>
-          </CardContent>
-        </Card>
-      )}
+      <section className="space-y-3">
+        <h2 className="text-lg font-semibold text-foreground">Seat quotas by plan</h2>
+        <p className="text-sm text-muted-foreground">
+          Purchased seats are allocated by Interview Trix. You can enroll candidates only while seats
+          remain on each plan. Credits and features match consumer (B2C) plans.
+        </p>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {planSeats
+            .filter((row: { purchased: number }) => row.purchased > 0)
+            .map((row: { planId: string; purchased: number; used: number; remaining: number }) => (
+              <InstituteStatCard
+                key={row.planId}
+                icon={Receipt}
+                label={PLAN_LABELS[row.planId] || row.planId}
+                value={`${row.used} / ${row.purchased}`}
+                footer={`${row.remaining} remaining`}
+              />
+            ))}
+          {planSeats.filter((r: { purchased: number }) => r.purchased > 0).length === 0 && (
+            <Card className={cn(institutePanelClass, "sm:col-span-2")}>
+              <CardContent className="pt-6">
+                <p className="text-sm text-muted-foreground">
+                  No purchased seat packs yet. Contact your account manager or use member cap only.
+                </p>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-lg font-semibold text-foreground">Candidate plan mix</h2>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {Object.entries(planCounts).map(([plan, count]) => (
+            <InstituteStatCard
+              key={plan}
+              icon={CreditCard}
+              label={PLAN_LABELS[plan] || plan}
+              value={String(count)}
+              footer="active members"
+            />
+          ))}
+        </div>
+      </section>
 
       <Card className={cn(institutePanelClass, "overflow-hidden shadow-xl")}>
         <CardHeader className="border-b border-border/60 bg-gradient-to-r from-muted/40 to-card">

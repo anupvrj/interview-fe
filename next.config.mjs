@@ -9,9 +9,14 @@ const nextConfig = {
   turbopack: {
     root: projectRoot,
   },
+  serverExternalPackages: ["@mediapipe/tasks-vision"],
   images: {
-    domains: ["img.clerk.com"],
     remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "img.clerk.com",
+        pathname: "/**",
+      },
       {
         protocol: "https",
         hostname: "interview-trix-public.s3.ap-south-1.amazonaws.com",

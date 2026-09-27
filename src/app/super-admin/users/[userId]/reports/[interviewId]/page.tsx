@@ -6,6 +6,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { userApi, adminApi, type InterviewReport } from "@/lib/api";
 import { InterviewReportAnalysis } from "@/components/institution/InterviewReportAnalysis";
+import { ReportSectionTabs } from "@/components/reports/ReportSectionTabs";
 import { SuperAdminPageHeader } from "@/components/super-admin/SuperAdminPageHeader";
 import { formatDate } from "@/lib/utils";
 
@@ -117,7 +118,14 @@ export default function SuperAdminUserInterviewReportPage() {
         </p>
       )}
 
-      {!loading && report && <InterviewReportAnalysis report={report} />}
+      {!loading && report && (
+        <ReportSectionTabs
+          audience="reviewer"
+          alwaysShowIntegrity
+          integrityReport={report.integrityReport}
+          performance={<InterviewReportAnalysis report={report} />}
+        />
+      )}
     </div>
   );
 }
