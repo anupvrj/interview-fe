@@ -32,6 +32,7 @@ import {
   AlertTriangle,
   FileEdit,
   Star,
+  Building2,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
@@ -60,6 +61,7 @@ import {
   toProfileAffiliationPayload,
   type AffiliationValue,
 } from "@/lib/affiliation-payload";
+import { isInstituteManagedCandidate } from "@/lib/institution-flags";
 import { getApiErrorMessage } from "@/lib/api-error-message";
 import { formatDate, cn } from "@/lib/utils";
 import { parseStoredPhone, formatPhoneForStorage, isValidPhoneForStorage } from "@/lib/phone-utils";
@@ -554,6 +556,7 @@ export default function ProfilePage() {
   })();
 
   const hasActiveResume = Boolean(user?.resume || defaultDesignedResume);
+  const managedByInstitute = isInstituteManagedCandidate(user);
 
   if (roleCtx && !roleCtx.ready) {
     return (
@@ -590,6 +593,21 @@ export default function ProfilePage() {
       <ProfileWelcomeHero
         firstName={clerkUser?.firstName || user?.name?.split(/\s+/)[0] || ""}
       />
+
+      {managedByInstitute ? (
+        <div className="flex items-start gap-3 rounded-xl border border-[#7367F0]/25 bg-[#7367F0]/8 px-4 py-3">
+          <Building2 className="mt-0.5 h-5 w-5 shrink-0 text-[#7367F0]" />
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-foreground">
+              Your account is managed by {user?.institutionName || "your institute"}
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Name, email, and institute membership are set by your institute. You can still update
+              the rest of your profile.
+            </p>
+          </div>
+        </div>
+      ) : null}
 
       {(error || success) && (
         <div className="space-y-2">
@@ -729,7 +747,7 @@ export default function ProfilePage() {
                           }))
                         }
                         className={profileInputClass}
-                        disabled={savingProfileInfo}
+                        disabled={savingProfileInfo || managedByInstitute}
                       />
                     </div>
                     <div className={profileFormFieldClass}>
@@ -746,7 +764,7 @@ export default function ProfilePage() {
                           }))
                         }
                         className={profileInputClass}
-                        disabled={savingProfileInfo}
+                        disabled={savingProfileInfo || managedByInstitute}
                       />
                     </div>
                     <div className={profileFormFieldClass}>
@@ -763,7 +781,7 @@ export default function ProfilePage() {
                           }))
                         }
                         className={profileInputClass}
-                        disabled={savingProfileInfo}
+                        disabled={savingProfileInfo || managedByInstitute}
                       />
                     </div>
                     <div className={profileFormFieldClass}>
@@ -780,7 +798,7 @@ export default function ProfilePage() {
                           }))
                         }
                         className={profileInputClass}
-                        disabled={savingProfileInfo}
+                        disabled={savingProfileInfo || managedByInstitute}
                       />
                     </div>
                     <div className={profileFormFieldClass}>
@@ -797,7 +815,7 @@ export default function ProfilePage() {
                           }))
                         }
                         className={profileInputClass}
-                        disabled={savingProfileInfo}
+                        disabled={savingProfileInfo || managedByInstitute}
                       />
                     </div>
                     <div className={profileFormFieldClass}>
@@ -1332,13 +1350,22 @@ export default function ProfilePage() {
                     </div>
                   ) : null}
 
-                  <InstitutionAffiliationFields
-                    value={profileData.affiliation}
-                    onChange={(affiliation) =>
-                      setProfileData((prev) => ({ ...prev, affiliation }))
-                    }
-                    disabled={savingProfile}
-                  />
+                  {managedByInstitute ? (
+                    <div className="rounded-lg border border-border/60 bg-muted/20 px-3 py-2.5 text-sm">
+                      <p className="text-xs font-medium text-muted-foreground">Institute</p>
+                      <p className="font-medium text-foreground">
+                        {user?.institutionName || "Your institute"}
+                      </p>
+                    </div>
+                  ) : (
+                    <InstitutionAffiliationFields
+                      value={profileData.affiliation}
+                      onChange={(affiliation) =>
+                        setProfileData((prev) => ({ ...prev, affiliation }))
+                      }
+                      disabled={savingProfile}
+                    />
+                  )}
 
                   <div className="space-y-3">
                     <Label className={profileFormLabelClass}>Skills</Label>

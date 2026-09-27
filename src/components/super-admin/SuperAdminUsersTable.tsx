@@ -43,7 +43,7 @@ import {
   ShieldBan,
 } from "lucide-react";
 import { toast } from "sonner";
-import { adminApi, User } from "@/lib/api";
+import { adminApi, User, type PendingInvitation } from "@/lib/api";
 import {
   formatDate,
   getScoreColor,
@@ -67,6 +67,7 @@ export function SuperAdminUsersTable() {
   const { period, from, to, setFilters } = useInsightFilters();
   const [institutions, setInstitutions] = useState<any[]>([]);
   const [users, setUsers] = useState<User[]>([]);
+  const [pendingInvites, setPendingInvites] = useState<PendingInvitation[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -175,6 +176,19 @@ export function SuperAdminUsersTable() {
       });
       setUsers(data);
       setTotal(t);
+      if (page === 0 && !statusFilter) {
+        try {
+          const invites = await adminApi.listAllInvitations({
+            kind: "candidate",
+            search: search || undefined,
+          });
+          setPendingInvites(invites);
+        } catch {
+          setPendingInvites([]);
+        }
+      } else {
+        setPendingInvites([]);
+      }
     } catch (err) {
       console.error(err);
     } finally {
@@ -487,6 +501,71 @@ export function SuperAdminUsersTable() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
+                  {pendingInvites.map((inv) => (
+                    <TableRow key={`invite-${inv._id}`} className="border-b border-border/60 bg-amber-50/40">
+                      <TableCell className="font-medium">Invited</TableCell>
+                      <TableCell className="break-all">{inv.email}</TableCell>
+                      <TableCell className="text-muted-foreground">—</TableCell>
+                      <TableCell>
+                        <span className="inline-flex rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-900">
+                          Pending
+                        </span>
+                      </TableCell>
+                      <TableCell>{inv.roleLabel || (inv.kind === "staff" ? "Staff" : "Candidate")}</TableCell>
+                      <TableCell>{inv.institutionName}</TableCell>
+                      <TableCell>{inv.plan || "—"}</TableCell>
+                      <TableCell className="text-muted-foreground">—</TableCell>
+                      <TableCell className="text-muted-foreground">—</TableCell>
+                      <TableCell className="whitespace-nowrap">
+                        {new Date(inv.createdAt).toLocaleDateString()}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {inv.institutionId ? (
+                          <div className="flex justify-end gap-1">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={async () => {
+                                try {
+                                  const res = await adminApi.resendInvitation(
+                                    inv.institutionId!,
+                                    inv._id,
+                                  );
+                                  toast.success(res.message || "Invitation resent");
+                                } catch (err: unknown) {
+                                  toast.error(
+                                    (err as { response?: { data?: { message?: string } } })?.response
+                                      ?.data?.message || "Could not resend",
+                                  );
+                                }
+                              }}
+                            >
+                              Resend
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-red-600"
+                              onClick={async () => {
+                                try {
+                                  await adminApi.revokeInvitation(inv.institutionId!, inv._id);
+                                  toast.success("Invitation revoked");
+                                  setPendingInvites((prev) => prev.filter((p) => p._id !== inv._id));
+                                } catch (err: unknown) {
+                                  toast.error(
+                                    (err as { response?: { data?: { message?: string } } })?.response
+                                      ?.data?.message || "Could not revoke",
+                                  );
+                                }
+                              }}
+                            >
+                              Revoke
+                            </Button>
+                          </div>
+                        ) : null}
+                      </TableCell>
+                    </TableRow>
+                  ))}
                   {users.map((u) => (
                     <TableRow
                       key={u._id}

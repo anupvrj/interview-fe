@@ -29,10 +29,12 @@ import {
   InstitutionIntegrityFields,
   integrityFromInstitution,
 } from "@/components/super-admin/InstitutionIntegrityFields";
+import { IntegritySwitch } from "@/components/integrity/IntegritySwitch";
 import { adminApi } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import {
   defaultInstitutionProducts,
+  INSTITUTION_PRODUCT_HINTS,
   INSTITUTION_PRODUCT_KEYS,
   INSTITUTION_PRODUCT_LABELS,
 } from "@/lib/institution-flags";
@@ -122,7 +124,8 @@ export function InstitutionOnboardingWizard({ open, onOpenChange, institution, o
   const [billingEmail, setBillingEmail] = useState("");
   const [graceDays, setGraceDays] = useState(String(DEFAULT_GRACE_DAYS));
 
-  const [biometric, setBiometric] = useState(false);
+  const [biometric, setBiometric] = useState(true);
+  const [allowSelfStart, setAllowSelfStart] = useState(true);
   const [integrity, setIntegrity] = useState<IntegritySettings>(DEFAULT_INTEGRITY_SETTINGS);
   const [products, setProducts] = useState(defaultInstitutionProducts);
 
@@ -149,7 +152,8 @@ export function InstitutionOnboardingWizard({ open, onOpenChange, institution, o
     setPlannedGoLive(toDateInputValue(inst?.billing?.plannedGoLiveDate));
     setBillingEmail(inst?.billing?.billingEmail ?? "");
     setGraceDays(String(inst?.billing?.graceDays ?? DEFAULT_GRACE_DAYS));
-    setBiometric(Boolean(inst?.platformFlags?.biometricVerification));
+    setBiometric(inst ? inst.platformFlags?.biometricVerification !== false : true);
+    setAllowSelfStart(inst?.adminFlags?.allowCandidateSelfStart !== false);
     setIntegrity(
       inst ? integrityFromInstitution(inst.platformFlags?.integrity) : DEFAULT_INTEGRITY_SETTINGS,
     );
@@ -234,6 +238,7 @@ export function InstitutionOnboardingWizard({ open, onOpenChange, institution, o
       graceDays: graceNum,
     };
     const platformFlags = { biometricVerification: biometric, products, integrity };
+    const adminFlags = { allowCandidateSelfStart: allowSelfStart };
     try {
       setSubmitting(true);
       if (isEdit) {
@@ -245,6 +250,7 @@ export function InstitutionOnboardingWizard({ open, onOpenChange, institution, o
           contactEmail: contactEmail.trim() || null,
           billing,
           platformFlags,
+          adminFlags,
         });
         await adminApi.updateInstitutionSeats(id, seatPayload, seatCheck.total);
         toast.success("Institution updated");
@@ -258,6 +264,7 @@ export function InstitutionOnboardingWizard({ open, onOpenChange, institution, o
           planSeats: seatPayload,
           billing,
           platformFlags,
+          adminFlags,
         });
         toast.success("Institution created in demo mode");
       }
@@ -450,22 +457,32 @@ export function InstitutionOnboardingWizard({ open, onOpenChange, institution, o
                   This is the ceiling. Institute admins can turn products off, but not on beyond this.
                 </p>
                 <div className="grid gap-2 sm:grid-cols-2">
-                  {INSTITUTION_PRODUCT_KEYS.map((key) => (
-                    <label
-                      key={key}
-                      className="flex cursor-pointer items-center gap-3 rounded-lg border border-border/80 bg-card px-3 py-2.5 text-sm hover:border-primary/40"
-                    >
-                      <input
-                        type="checkbox"
-                        className="h-4 w-4 accent-[#7367F0]"
-                        checked={products[key] !== false}
-                        onChange={(e) =>
-                          setProducts((prev) => ({ ...prev, [key]: e.target.checked }))
-                        }
-                      />
-                      <span>{INSTITUTION_PRODUCT_LABELS[key]}</span>
-                    </label>
-                  ))}
+                  {INSTITUTION_PRODUCT_KEYS.map((key) => {
+                    const on = products[key] !== false;
+                    const hint = INSTITUTION_PRODUCT_HINTS[key];
+                    return (
+                      <div
+                        key={key}
+                        className="flex items-center justify-between gap-3 rounded-lg border border-border/80 bg-card px-3 py-2.5"
+                      >
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium">{INSTITUTION_PRODUCT_LABELS[key]}</p>
+                          {hint ? (
+                            <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground">
+                              {hint}
+                            </p>
+                          ) : null}
+                        </div>
+                        <IntegritySwitch
+                          on={on}
+                          label={`${on ? "Disable" : "Enable"} ${INSTITUTION_PRODUCT_LABELS[key]}`}
+                          onToggle={() =>
+                            setProducts((prev) => ({ ...prev, [key]: !on }))
+                          }
+                        />
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
               <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-border/80 bg-card px-3 py-3 text-sm">
@@ -476,7 +493,18 @@ export function InstitutionOnboardingWizard({ open, onOpenChange, institution, o
                   onChange={(e) => setBiometric(e.target.checked)}
                 />
                 <span>
-                  Require biometric identity verification before interviews (institute candidates only)
+                  Require identity verification (ID card + face video) before institute candidates can use interviews and other products
+                </span>
+              </label>
+              <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-border/80 bg-card px-3 py-3 text-sm">
+                <input
+                  type="checkbox"
+                  className="mt-0.5 h-4 w-4 accent-[#7367F0]"
+                  checked={allowSelfStart}
+                  onChange={(e) => setAllowSelfStart(e.target.checked)}
+                />
+                <span>
+                  Candidates can start interviews themselves (AI mock, coding, and system design). Turn this off to allow scheduled interviews only.
                 </span>
               </label>
               <InstitutionIntegrityFields settings={integrity} onChange={setIntegrity} />
@@ -507,6 +535,10 @@ export function InstitutionOnboardingWizard({ open, onOpenChange, institution, o
                 }
               />
               <ReviewRow label="Biometric check" value={biometric ? "Required" : "Off"} />
+              <ReviewRow
+                label="Self-start interviews"
+                value={allowSelfStart ? "Allowed" : "Scheduled only"}
+              />
             </dl>
           ) : null}
         </div>

@@ -21,9 +21,9 @@ import { cn } from "@/lib/utils";
 function statusCopy(credential: BiometricCredential) {
   switch (credential.status) {
     case "pending":
-      return "Uploaded — quality check is running.";
+      return "Uploaded — quality check is running. Your institute will review this within 24 to 48 hours.";
     case "in-review":
-      return "Waiting for your institute TPO to verify this clip.";
+      return "Your identity verification is being processed. Please wait 24 to 48 hours, or reach out to your institute support.";
     case "approved":
       return "Approved. Interview snapshots can match this credential.";
     case "human_verified":
