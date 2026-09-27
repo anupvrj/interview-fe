@@ -22,7 +22,6 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { InstitutionAffiliationFields } from "@/components/profile/InstitutionAffiliationFields";
 import { ProfileSkillsEditor } from "@/components/profile/ProfileSkillsEditor";
 import {
   FormField,
@@ -33,10 +32,6 @@ import { isPaidPlanId } from "@/lib/pricingPageContent";
 import { consumePostSignInReturnUrl } from "@/lib/post-sign-in-redirect";
 import { POST_ONBOARDING_TRIAL_OFFER_KEY } from "@/lib/trialFeatures";
 import { userApi } from "@/lib/api";
-import {
-  toOnboardingAffiliationPayload,
-  type AffiliationValue,
-} from "@/lib/affiliation-payload";
 import {
   PDF_RESUME_MAX_BYTES,
   pdfResumeDropzoneAccept,
@@ -66,8 +61,7 @@ const STEPS = [
     title: "Profile",
     icon: User,
     headline: "Who are you?",
-    description:
-      "Pick your profile type and optionally link your college or institution.",
+    description: "Pick the profile type that best describes you.",
   },
   {
     number: 2,
@@ -245,10 +239,6 @@ export function CandidateOnboardingForm() {
     industry: "",
     skills: [] as string[],
   });
-  const [affiliation, setAffiliation] = useState<AffiliationValue>({
-    affiliationInstitutionId: null,
-    affiliationInstitutionName: "",
-  });
   const [interviewOptIns, setInterviewOptIns] = useState<InterviewOptIns>(
     DEFAULT_INTERVIEW_OPT_INS,
   );
@@ -302,32 +292,27 @@ export function CandidateOnboardingForm() {
     );
   };
 
-  const buildPayload = (minimal = false) => ({
+  const buildPayload = () => ({
     userType: userType as "student" | "fresher" | "experienced",
-    experience: minimal
-      ? undefined
-      : reviewData.overallExperience > 0
+    experience:
+      reviewData.overallExperience > 0
         ? reviewData.overallExperience
         : userType === "experienced"
           ? reviewData.experience
           : undefined,
     currentJob:
-      minimal || userType !== "experienced" || !reviewData.currentJob.company
+      userType !== "experienced" || !reviewData.currentJob.company
         ? undefined
         : reviewData.currentJob,
-    industry: minimal || !reviewData.industry ? undefined : reviewData.industry,
-    targetJobRole:
-      minimal || !reviewData.targetJobRole.trim()
-        ? undefined
-        : reviewData.targetJobRole.trim(),
-    targetCompany:
-      minimal || !reviewData.targetCompany.trim()
-        ? undefined
-        : reviewData.targetCompany.trim(),
-    skills:
-      minimal || reviewData.skills.length === 0 ? undefined : reviewData.skills,
-    interviewOptIns: minimal ? undefined : interviewOptIns,
-    ...toOnboardingAffiliationPayload(affiliation),
+    industry: !reviewData.industry ? undefined : reviewData.industry,
+    targetJobRole: !reviewData.targetJobRole.trim()
+      ? undefined
+      : reviewData.targetJobRole.trim(),
+    targetCompany: !reviewData.targetCompany.trim()
+      ? undefined
+      : reviewData.targetCompany.trim(),
+    skills: reviewData.skills.length === 0 ? undefined : reviewData.skills,
+    interviewOptIns,
   });
 
   const handleStep1Next = () => {
@@ -339,20 +324,25 @@ export function CandidateOnboardingForm() {
     setCurrentStep(2);
   };
 
+  const continueWithoutResume = () => {
+    setResumeFile(null);
+    setExtractedData({ skills: [] });
+    setReviewData({
+      overallExperience: 0,
+      experience: 0,
+      currentJob: { company: "", role: "" },
+      targetJobRole: "",
+      targetCompany: "",
+      industry: "",
+      skills: [],
+    });
+    setError("");
+    setCurrentStep(3);
+  };
+
   const handleStep2Next = async () => {
     if (!resumeFile) {
-      setExtractedData({ skills: [] });
-      setReviewData({
-        overallExperience: 0,
-        experience: 0,
-        currentJob: { company: "", role: "" },
-        targetJobRole: "",
-        targetCompany: "",
-        industry: "",
-        skills: [],
-      });
-      setError("");
-      setCurrentStep(3);
+      continueWithoutResume();
       return;
     }
     try {
@@ -397,7 +387,7 @@ export function CandidateOnboardingForm() {
     });
   };
 
-  const completeOnboarding = async (minimal = false) => {
+  const completeOnboarding = async () => {
     if (!userType) {
       setError("Please select your profile type");
       return;
@@ -406,7 +396,7 @@ export function CandidateOnboardingForm() {
       setLoading(true);
       setError("");
       await ensureUser();
-      await userApi.completeOnboarding(buildPayload(minimal));
+      await userApi.completeOnboarding(buildPayload());
       redirectAfterComplete();
     } catch (err: unknown) {
       const message =
@@ -524,19 +514,6 @@ export function CandidateOnboardingForm() {
                     />
                   ))}
                 </div>
-              </StepBlock>
-
-              <StepBlock
-                title="College or institution"
-                description="Optional — link your account to your campus for institute features."
-              >
-                <InstitutionAffiliationFields
-                  value={affiliation}
-                  onChange={setAffiliation}
-                  disabled={loading || extracting}
-                  embedded
-                  collapsible
-                />
               </StepBlock>
             </div>
           ) : null}
@@ -899,17 +876,6 @@ export function CandidateOnboardingForm() {
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Back
               </Button>
-            ) : currentStep < 4 ? (
-              <Button
-                type="button"
-                variant="outline"
-                size="lg"
-                onClick={() => void completeOnboarding(true)}
-                disabled={loading || extracting || !userType}
-                className="w-full sm:w-auto"
-              >
-                Skip for now
-              </Button>
             ) : (
               <span className="hidden sm:block" />
             )}
@@ -932,28 +898,40 @@ export function CandidateOnboardingForm() {
               ) : null}
 
               {currentStep === 2 ? (
-                <Button
-                  type="button"
-                  size="lg"
-                  onClick={() => void handleStep2Next()}
-                  disabled={extracting}
-                  className={cn(
-                    "h-12 w-full px-8 text-base font-semibold sm:w-auto",
-                    appPrimaryButton,
-                  )}
-                >
-                  {extracting ? (
-                    <>
-                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                      Reading resume…
-                    </>
-                  ) : (
-                    <>
-                      Continue
-                      <ArrowRight className="ml-2 h-5 w-5" />
-                    </>
-                  )}
-                </Button>
+                <>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="lg"
+                    onClick={continueWithoutResume}
+                    disabled={extracting}
+                    className="w-full sm:w-auto"
+                  >
+                    Skip for now
+                  </Button>
+                  <Button
+                    type="button"
+                    size="lg"
+                    onClick={() => void handleStep2Next()}
+                    disabled={extracting}
+                    className={cn(
+                      "h-12 w-full px-8 text-base font-semibold sm:w-auto",
+                      appPrimaryButton,
+                    )}
+                  >
+                    {extracting ? (
+                      <>
+                        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                        Reading resume…
+                      </>
+                    ) : (
+                      <>
+                        Continue
+                        <ArrowRight className="ml-2 h-5 w-5" />
+                      </>
+                    )}
+                  </Button>
+                </>
               ) : null}
 
               {currentStep === 3 ? (
@@ -962,7 +940,7 @@ export function CandidateOnboardingForm() {
                     type="button"
                     variant="outline"
                     size="lg"
-                    onClick={() => void completeOnboarding(false)}
+                    onClick={() => void completeOnboarding()}
                     disabled={loading}
                     className="w-full sm:w-auto sm:hidden"
                   >
@@ -991,7 +969,7 @@ export function CandidateOnboardingForm() {
                 <Button
                   type="button"
                   size="lg"
-                  onClick={() => void completeOnboarding(false)}
+                  onClick={() => void completeOnboarding()}
                   disabled={loading}
                   className={cn(
                     "h-12 w-full px-8 text-base font-semibold sm:w-auto",

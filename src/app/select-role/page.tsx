@@ -9,9 +9,9 @@ import { userApi, type User } from "@/lib/api";
 import {
   ROLE_META,
   deriveAvailableRoles,
-  readStoredRole,
   roleHome,
   writeStoredRole,
+  workspaceRoleLabel,
   type ActiveRole,
 } from "@/lib/roles";
 import { cn } from "@/lib/utils";
@@ -35,7 +35,6 @@ export default function SelectRolePage() {
       .then((p) => {
         if (cancelled) return;
         const available = deriveAvailableRoles(p);
-        const stored = readStoredRole(user.id);
 
         if (available.length <= 1) {
           const only = available[0] ?? "candidate";
@@ -43,10 +42,8 @@ export default function SelectRolePage() {
           router.replace(roleHome(only, p));
           return;
         }
-        if (stored && available.includes(stored)) {
-          router.replace(roleHome(stored, p));
-          return;
-        }
+        // Always show the chooser when multiple workspaces exist so the user
+        // can pick — do not auto-forward from a stale stored role.
         setProfile(p);
         setRoles(available);
       })
@@ -104,6 +101,7 @@ export default function SelectRolePage() {
         {roles.map((role) => {
           const meta = ROLE_META[role];
           const Icon = meta.icon;
+          const label = workspaceRoleLabel(role, profile?.accessRole);
           return (
             <button
               key={role}
@@ -121,7 +119,7 @@ export default function SelectRolePage() {
               <span className="min-w-0 flex-1">
                 <span className="flex items-center justify-between gap-2">
                   <span className="text-base font-semibold text-foreground">
-                    {meta.label}
+                    {label}
                   </span>
                   <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-primary" />
                 </span>

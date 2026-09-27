@@ -7,7 +7,7 @@ import {
   Briefcase,
 } from "lucide-react";
 import type { User } from "@/lib/api";
-import { isInstituteStaff } from "./institute-access";
+import { canAccessInstituteNav, isInstituteStaff } from "./institute-access";
 
 export type ActiveRole =
   | "super_admin"
@@ -56,19 +56,58 @@ export const ROLE_META: Record<ActiveRole, RoleMeta> = {
   },
 };
 
+/** Human-readable label for the account's backend accessRole. */
+export function accessRoleLabel(accessRole: string | null | undefined): string {
+  switch (String(accessRole || "")) {
+    case "super_admin":
+      return "Super Admin";
+    case "institution_admin":
+      return "Institution Admin";
+    case "institution_moderator":
+      return "Institution Moderator";
+    case "institution_interview_manager":
+      return "Interview Manager";
+    case "user":
+      return "Candidate";
+    default:
+      return accessRole ? String(accessRole).replaceAll("_", " ") : "—";
+  }
+}
+
+/**
+ * Label shown in the role switcher for a workspace role.
+ * Institute staff keep their real title (e.g. Interview Manager) while using
+ * the shared institution workspace.
+ */
+export function workspaceRoleLabel(
+  role: ActiveRole,
+  accessRole: string | null | undefined,
+): string {
+  if (role === "institution_admin" && isInstituteStaff(accessRole)) {
+    return accessRoleLabel(accessRole);
+  }
+  return ROLE_META[role].label;
+}
+
 /**
  * Roles a user is allowed to act as, ordered by precedence.
  * Frontend view-scoping only - the backend still enforces real permissions.
  */
 export function deriveAvailableRoles(
-  profile: Pick<User, "accessRole" | "peer" | "recruiter" | "institutionId"> | null | undefined,
+  profile:
+    | Pick<User, "accessRole" | "peer" | "recruiter" | "institutionId">
+    | null
+    | undefined,
 ): ActiveRole[] {
   const roles: ActiveRole[] = [];
   if (profile?.accessRole === "super_admin") {
     roles.push("super_admin");
     if (profile.institutionId) roles.push("institution_admin");
   }
-  if (isInstituteStaff(profile?.accessRole)) roles.push("institution_admin");
+  // All institute staff share the institution workspace role in the switcher.
+  if (isInstituteStaff(profile?.accessRole)) {
+    if (!roles.includes("institution_admin")) roles.push("institution_admin");
+  }
   if (profile?.peer?.interviewerStatus === "approved")
     roles.push("interviewer");
   if (profile?.recruiter?.recruiterStatus === "approved")
@@ -243,10 +282,30 @@ export function isPathAllowedForRole(
     const base = profile?.institutionId
       ? `/dashboard/institute/${String(profile.institutionId)}`
       : "/dashboard/institute";
-    return (
+    const onInstitute =
       pathname === base ||
       pathname.startsWith(`${base}/`) ||
-      pathname === "/dashboard/institute" ||
+      pathname === "/dashboard/institute";
+    if (onInstitute) {
+      if (pathname === base || pathname === "/dashboard/institute") return true;
+      const rest = pathname.startsWith(`${base}/`)
+        ? pathname.slice(`${base}/`.length).split("/")[0]
+        : "";
+      const segmentMap: Record<string, import("@/lib/institute-access").InstituteNavSegment> = {
+        candidates: "candidates",
+        batches: "batches",
+        schedules: "schedules",
+        analytics: "analytics",
+        settings: "settings",
+        billing: "billing",
+      };
+      const segment = segmentMap[rest];
+      if (segment) {
+        return canAccessInstituteNav(profile?.accessRole, segment);
+      }
+      return true;
+    }
+    return (
       pathname === "/dashboard/coding-interviews" ||
       pathname.startsWith("/dashboard/coding-interviews/")
     );
