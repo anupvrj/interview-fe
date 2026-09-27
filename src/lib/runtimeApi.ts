@@ -1,11 +1,35 @@
-const RUNTIME_API_URL =
-  process.env.NEXT_PUBLIC_RUNTIME_API_URL ||
-  process.env.NEXT_PUBLIC_RESEARCH_API_URL?.replace(":8001", ":8002") ||
-  "http://localhost:8002";
+/** Prefer explicit env; otherwise map APP_ENV so stage/prod never hit localhost. */
+function resolveRuntimeApiUrl(): string {
+  const explicit = process.env.NEXT_PUBLIC_RUNTIME_API_URL?.trim();
+  if (explicit) return explicit.replace(/\/$/, "");
+
+  const appEnv = (process.env.NEXT_PUBLIC_APP_ENV || "").toLowerCase();
+  if (appEnv === "staging" || appEnv === "stage") {
+    return "https://llm-runtime--stage.fly.dev";
+  }
+  if (appEnv === "production" || appEnv === "prod") {
+    return "https://llm-runtime.fly.dev";
+  }
+
+  const fromResearch = process.env.NEXT_PUBLIC_RESEARCH_API_URL?.trim()?.replace(
+    ":8001",
+    ":8002",
+  );
+  if (fromResearch) return fromResearch.replace(/\/$/, "");
+
+  return "http://localhost:8002";
+}
+
+const RUNTIME_API_URL = resolveRuntimeApiUrl();
 
 const RUNTIME_WS_URL =
-  process.env.NEXT_PUBLIC_RUNTIME_WS_URL ||
+  process.env.NEXT_PUBLIC_RUNTIME_WS_URL?.trim().replace(/\/$/, "") ||
   RUNTIME_API_URL.replace(/^http/, "ws");
+
+/** Exposed for Lab error UI — which host the browser is calling. */
+export function getRuntimeApiUrl(): string {
+  return RUNTIME_API_URL;
+}
 
 /** Lab + voice sessions — gemini unless explicitly chatgpt/openai. */
 export function getDefaultVoiceProvider(): "openai" | "gemini" {

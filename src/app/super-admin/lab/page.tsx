@@ -8,6 +8,7 @@ import {
   deleteFixture,
   executePrompt,
   getDefaultVoiceProvider,
+  getRuntimeApiUrl,
   listFixtures,
   listPrompts,
   promotePrompt,
@@ -468,7 +469,13 @@ export default function LabPage() {
           <p className="font-medium text-destructive">Could not load agents</p>
           <p className="mt-1 text-xs text-muted-foreground">{loadError}</p>
           <p className="mt-2 text-xs text-muted-foreground">
-            Seed:{" "}
+            Runtime:{" "}
+            <code className="rounded bg-muted px-1">{getRuntimeApiUrl()}</code>
+            . Set{" "}
+            <code className="rounded bg-muted px-1">
+              NEXT_PUBLIC_RUNTIME_API_URL
+            </code>{" "}
+            on the FE deploy if this looks wrong. Seed only if prompts are empty:{" "}
             <code className="rounded bg-muted px-1">
               cd interview-core && npm run seed:prompts development
             </code>
