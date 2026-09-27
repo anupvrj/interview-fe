@@ -3,9 +3,9 @@
 import type { ReactNode } from "react";
 import { InstituteCandidateFeatureLock } from "@/components/upsell/InstituteCandidateFeatureLock";
 
-export default function SystemDesignLayout({ children }: { children: ReactNode }) {
+export default function AtsCheckerLayout({ children }: { children: ReactNode }) {
   return (
-    <InstituteCandidateFeatureLock featureLabel="System design">
+    <InstituteCandidateFeatureLock featureLabel="ATS checker">
       {children}
     </InstituteCandidateFeatureLock>
   );

@@ -115,6 +115,7 @@ export type InstitutionFeatureState = {
   admin: Record<string, boolean>;
   /** Effective per-product access for candidates. */
   effective: Record<string, boolean>;
+  allowCandidateSelfStart?: boolean;
 };
 
 export type InstitutionRenewalsOverview = {
@@ -270,6 +271,20 @@ export type AccessRole =
   | "institution_interview_manager"
   | "user";
 
+export type PendingInvitation = {
+  _id: string;
+  email: string;
+  status: "pending" | "revoked";
+  kind: "candidate" | "staff";
+  plan: string | null;
+  staffAccessRole: string | null;
+  roleLabel: string;
+  institutionId: string | null;
+  institutionName: string;
+  invitedBy: string;
+  createdAt: string;
+};
+
 export type InvitationPreview = {
   token: string;
   email: string;
@@ -379,6 +394,9 @@ export interface User {
     biometricVerification?: boolean;
     products?: Record<string, boolean>;
   };
+  institutionName?: string | null;
+  institutionMode?: "demo" | "live" | null;
+  allowCandidateSelfStart?: boolean;
   /** Peer interview capability derived from an InterviewerProfile */
   peer?: {
     isInterviewer: boolean;
@@ -2642,6 +2660,51 @@ export const adminApi = {
     return { data: response.data.data, total: response.data.total };
   },
 
+  listInstitutionInvitations: async (
+    institutionId: string,
+    params?: { kind?: "candidate" | "staff"; search?: string },
+  ): Promise<PendingInvitation[]> => {
+    const q = new URLSearchParams();
+    if (params?.kind) q.set("kind", params.kind);
+    if (params?.search) q.set("search", params.search);
+    const response = await apiClient.get<{ success: boolean; data: PendingInvitation[] }>(
+      `/admin/institutions/${institutionId}/invitations?${q.toString()}`,
+    );
+    return response.data.data;
+  },
+
+  listAllInvitations: async (
+    params?: { kind?: "candidate" | "staff"; search?: string },
+  ): Promise<PendingInvitation[]> => {
+    const q = new URLSearchParams();
+    if (params?.kind) q.set("kind", params.kind);
+    if (params?.search) q.set("search", params.search);
+    const response = await apiClient.get<{ success: boolean; data: PendingInvitation[] }>(
+      `/admin/invitations?${q.toString()}`,
+    );
+    return response.data.data;
+  },
+
+  revokeInvitation: async (
+    institutionId: string,
+    invitationId: string,
+  ): Promise<void> => {
+    await apiClient.delete(
+      `/admin/institutions/${institutionId}/invitations/${invitationId}`,
+    );
+  },
+
+  resendInvitation: async (
+    institutionId: string,
+    invitationId: string,
+  ): Promise<{ message: string }> => {
+    const response = await apiClient.post<{
+      success: boolean;
+      data: { message: string };
+    }>(`/admin/institutions/${institutionId}/invitations/${invitationId}/resend`);
+    return response.data.data;
+  },
+
   addUser: async (
     email: string,
     plan: string,
@@ -2952,6 +3015,24 @@ export const adminApi = {
     return response.data.data;
   },
 
+  markInstitutionDemo: async (
+    institutionId: string,
+  ): Promise<InstitutionBillingStatus> => {
+    const response = await apiClient.post<{ success: boolean; data: InstitutionBillingStatus }>(
+      `/admin/institutions/${institutionId}/mark-demo`,
+    );
+    return response.data.data;
+  },
+
+  resumeInstitutionLive: async (
+    institutionId: string,
+  ): Promise<InstitutionBillingStatus> => {
+    const response = await apiClient.post<{ success: boolean; data: InstitutionBillingStatus }>(
+      `/admin/institutions/${institutionId}/resume-live`,
+    );
+    return response.data.data;
+  },
+
   recordInstitutionPayment: async (
     institutionId: string,
     data: InstitutionPaymentInput & {
@@ -2995,10 +3076,22 @@ export const adminApi = {
   updateInstitutionAdminFeatures: async (
     institutionId: string,
     products: Record<string, boolean>,
+    extra?: { allowCandidateSelfStart?: boolean },
   ): Promise<InstitutionFeatureState> => {
     const response = await apiClient.put<{ success: boolean; data: InstitutionFeatureState }>(
       `/admin/institutions/${institutionId}/features`,
-      { products },
+      { products, ...extra },
+    );
+    return response.data.data;
+  },
+
+  updateInstitutionSelfStart: async (
+    institutionId: string,
+    allowCandidateSelfStart: boolean,
+  ): Promise<InstitutionFeatureState> => {
+    const response = await apiClient.put<{ success: boolean; data: InstitutionFeatureState }>(
+      `/admin/institutions/${institutionId}/features`,
+      { allowCandidateSelfStart },
     );
     return response.data.data;
   },
@@ -3118,10 +3211,13 @@ export const adminApi = {
       billingEmail?: string | null;
       graceDays?: number;
     };
-    platformFlags?: {
+      platformFlags?: {
       biometricVerification?: boolean;
       products?: Record<string, boolean>;
       integrity?: Partial<import("@/lib/integrity/settings").IntegritySettings>;
+    };
+    adminFlags?: {
+      allowCandidateSelfStart?: boolean;
     };
   }): Promise<any> => {
     const response = await apiClient.post<{ success: boolean; data: any }>(
@@ -3149,6 +3245,9 @@ export const adminApi = {
       biometricVerification?: boolean;
       products?: Record<string, boolean>;
       integrity?: Partial<import("@/lib/integrity/settings").IntegritySettings>;
+    };
+    adminFlags?: {
+      allowCandidateSelfStart?: boolean;
     };
     }
   ): Promise<any> => {

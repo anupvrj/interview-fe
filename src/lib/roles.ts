@@ -140,7 +140,10 @@ function matchesPrefix(pathname: string, prefixes: string[]): boolean {
  * super_admin can view everything. Non-dashboard paths are always allowed.
  */
 type RoleProfile =
-  | Pick<User, "accessRole" | "institutionId" | "peer" | "recruiter">
+  | Pick<
+      User,
+      "accessRole" | "institutionId" | "institutionInvited" | "peer" | "recruiter" | "allowCandidateSelfStart"
+    >
   | null
   | undefined;
 
@@ -191,6 +194,39 @@ export function isPathAllowedForRole(
   }
 
   if (role === "super_admin") return true;
+
+  const managedCandidate =
+    Boolean(profile?.institutionId) &&
+    (profile?.accessRole || "user") === "user" &&
+    profile?.institutionInvited === true;
+
+  if (managedCandidate) {
+    if (
+      pathname === INTERVIEWER_APPLY ||
+      pathname.startsWith(`${INTERVIEWER_APPLY}/`) ||
+      pathname === RECRUITER_APPLY ||
+      pathname.startsWith(`${RECRUITER_APPLY}/`) ||
+      pathname === "/dashboard/lab" ||
+      pathname.startsWith("/dashboard/lab/")
+    ) {
+      return false;
+    }
+    if (
+      profile?.allowCandidateSelfStart === false &&
+      (pathname === "/dashboard/interviews/new" ||
+        pathname === "/dashboard/coding-interviews/new" ||
+        pathname === "/dashboard/system-design/new")
+    ) {
+      return false;
+    }
+  }
+
+  if (
+    pathname === "/dashboard/lab" ||
+    pathname.startsWith("/dashboard/lab/")
+  ) {
+    return profile?.accessRole === "super_admin";
+  }
 
   // Profile is always reachable from any role.
   if (

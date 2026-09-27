@@ -62,7 +62,9 @@ export function BillingSummaryCard({
           <div className="flex flex-wrap items-center gap-2">
             <InstitutionModeBadge mode={lifecycle.mode} />
             <AccountStatusBadge status={lifecycle.effectiveStatus} />
-            <BillingStateBadge state={lifecycle.billingState} />
+            {lifecycle.billingState !== "demo" ? (
+              <BillingStateBadge state={lifecycle.billingState} />
+            ) : null}
           </div>
         </div>
         {actions ? <div className="flex flex-wrap gap-2">{actions}</div> : null}
@@ -232,6 +234,7 @@ export function SeatUsageCard({
 const ACTION_LABEL: Record<string, string> = {
   status_change: "Status changed",
   go_live: "Marked live",
+  mode_changed: "Demo / live switched",
   payment_recorded: "Payment recorded",
   grace_extended: "Grace extended",
   auto_suspended: "Auto-suspended for non-renewal",
@@ -259,7 +262,9 @@ export function ActivityTimeline({ events }: Readonly<{ events: AccountStatusEve
               {ACTION_LABEL[e.action] ?? e.action}
               {e.action === "status_change" && e.toStatus
                 ? `: ${statusText(e.fromStatus) ?? "—"} → ${statusText(e.toStatus)}`
-                : ""}
+                : e.action === "mode_changed" && e.toStatus
+                  ? `: ${e.fromStatus ?? "—"} → ${e.toStatus}`
+                  : ""}
             </p>
             <span className="text-xs text-muted-foreground">
               {new Date(e.createdAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}

@@ -43,8 +43,10 @@ import {
   Layers,
   X,
   ShieldBan,
+  Mail,
+  RotateCcw,
 } from "lucide-react";
-import { userApi, adminApi, User, planApi } from "@/lib/api";
+import { userApi, adminApi, User, planApi, type PendingInvitation } from "@/lib/api";
 import {
   canViewInstitutePage,
   instituteRoleCanInviteCandidates,
@@ -127,6 +129,7 @@ export default function InstituteCandidatesPage() {
   const [profile, setProfile] = useState<any>(null);
   const [showIdentityColumn, setShowIdentityColumn] = useState(false);
   const [users, setUsers] = useState<User[]>([]);
+  const [pendingInvites, setPendingInvites] = useState<PendingInvitation[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -275,8 +278,8 @@ export default function InstituteCandidatesPage() {
         router.replace("/dashboard");
         return;
       }
-      if (isInstituteStaff(p.accessRole)) {
-        setShowIdentityColumn(Boolean(p.institutionFlags?.biometricVerification));
+      if (isInstituteStaff(p.accessRole) || p.accessRole === "super_admin") {
+        setShowIdentityColumn(true);
       } else {
         try {
           const institutions = await adminApi.listInstitutions();
@@ -307,6 +310,19 @@ export default function InstituteCandidatesPage() {
       });
       setUsers(data);
       setTotal(t);
+      if (!batchFilter && instituteRoleCanInviteCandidates(profile?.accessRole)) {
+        try {
+          const invites = await adminApi.listInstitutionInvitations(institutionId, {
+            kind: "candidate",
+            search: search || undefined,
+          });
+          setPendingInvites(invites);
+        } catch {
+          setPendingInvites([]);
+        }
+      } else {
+        setPendingInvites([]);
+      }
     } catch (err) {
       console.error(err);
     } finally {
@@ -560,7 +576,7 @@ export default function InstituteCandidatesPage() {
             <div className="flex justify-center py-16">
               <Loader2 className="h-9 w-9 animate-spin text-[#7367F0]" />
             </div>
-          ) : users.length === 0 ? (
+          ) : users.length === 0 && pendingInvites.length === 0 ? (
             <div className="px-4 py-6 sm:px-6">
               <InstituteEmptyState
                 icon={Users}
@@ -621,6 +637,91 @@ export default function InstituteCandidatesPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
+                    {pendingInvites.map((inv) => (
+                      <TableRow
+                        key={`invite-${inv._id}`}
+                        className="border-border align-middle bg-amber-50/40 hover:bg-amber-50/70 dark:bg-amber-950/20"
+                      >
+                        <TableCell className="pl-6 align-middle">
+                          <div className="flex items-center gap-3 py-2">
+                            <div
+                              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-amber-500 text-sm font-bold text-white"
+                              aria-hidden
+                            >
+                              {candidateInitials("", inv.email)}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="truncate font-semibold text-foreground">Invited</p>
+                              <p className="truncate text-sm text-muted-foreground">{inv.email}</p>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell className="align-middle">
+                          <span className="inline-flex rounded-full border px-2.5 py-0.5 text-xs font-semibold capitalize border-border bg-muted/20">
+                            {planBadgeLabel(inv.plan || "free")}
+                          </span>
+                        </TableCell>
+                        <TableCell className="align-middle">
+                          <span className="inline-flex rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-900">
+                            Pending
+                          </span>
+                        </TableCell>
+                        <TableCell className="align-middle text-sm text-muted-foreground">—</TableCell>
+                        <TableCell className="align-middle text-sm text-muted-foreground whitespace-nowrap">
+                          {formatDate(inv.createdAt)}
+                        </TableCell>
+                        {showIdentityColumn ? (
+                          <TableCell className="align-middle text-sm text-muted-foreground">—</TableCell>
+                        ) : null}
+                        <TableCell className="w-[200px] min-w-[200px] pr-6 align-middle">
+                          {canInvite ? (
+                            <div className="flex flex-nowrap items-center justify-end gap-1">
+                              <Button
+                                variant="outline"
+                                size="icon"
+                                className={cn(instituteSecondaryClass, "h-8 w-8 shrink-0 p-0")}
+                                title="Resend invitation"
+                                aria-label={`Resend invitation to ${inv.email}`}
+                                onClick={async () => {
+                                  try {
+                                    const res = await adminApi.resendInvitation(institutionId, inv._id);
+                                    toast.success(res.message || "Invitation resent");
+                                  } catch (err: unknown) {
+                                    toast.error(
+                                      (err as { response?: { data?: { message?: string } } })?.response
+                                        ?.data?.message || "Could not resend",
+                                    );
+                                  }
+                                }}
+                              >
+                                <RotateCcw className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 shrink-0 rounded-lg text-red-600 hover:bg-red-50 hover:text-red-700"
+                                title="Revoke invitation"
+                                aria-label={`Revoke invitation for ${inv.email}`}
+                                onClick={async () => {
+                                  try {
+                                    await adminApi.revokeInvitation(institutionId, inv._id);
+                                    toast.success("Invitation revoked");
+                                    setPendingInvites((prev) => prev.filter((p) => p._id !== inv._id));
+                                  } catch (err: unknown) {
+                                    toast.error(
+                                      (err as { response?: { data?: { message?: string } } })?.response
+                                        ?.data?.message || "Could not revoke",
+                                    );
+                                  }
+                                }}
+                              >
+                                <Mail className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          ) : null}
+                        </TableCell>
+                      </TableRow>
+                    ))}
                     {users.map((u) => {
                       const apiPlan = String(u.subscription?.plan || "free");
                       return (

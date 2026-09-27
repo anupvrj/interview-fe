@@ -5,8 +5,13 @@ import { Loader2, Lock } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { IntegritySwitch } from "@/components/integrity/IntegritySwitch";
 import { adminApi, type InstitutionFeatureState } from "@/lib/api";
-import { INSTITUTION_PRODUCT_KEYS, INSTITUTION_PRODUCT_LABELS } from "@/lib/institution-flags";
+import {
+  INSTITUTION_PRODUCT_HINTS,
+  INSTITUTION_PRODUCT_KEYS,
+  INSTITUTION_PRODUCT_LABELS,
+} from "@/lib/institution-flags";
 import { cn } from "@/lib/utils";
 import { lifecycleCardClass } from "./BillingPanels";
 
@@ -26,7 +31,15 @@ export function ProductTogglesCard({ institutionId, scope }: Props) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  const source = (s: InstitutionFeatureState) => (scope === "super_admin" ? s.allowed : s.admin);
+  const source = (s: InstitutionFeatureState) => {
+    const raw = scope === "super_admin" ? s.allowed : s.admin;
+    if (scope !== "institution_admin") return raw;
+    const next = { ...raw };
+    for (const key of INSTITUTION_PRODUCT_KEYS) {
+      if (!s.allowed[key]) next[key] = false;
+    }
+    return next;
+  };
 
   useEffect(() => {
     setLoading(true);
@@ -73,8 +86,8 @@ export function ProductTogglesCard({ institutionId, scope }: Props) {
         <CardTitle className="text-base">Products for candidates</CardTitle>
         <CardDescription>
           {scope === "super_admin"
-            ? "What this institute's plan includes. Institute admins can switch these off, but cannot turn on anything you disable."
-            : "Turn products on or off for your candidates. Locked products are not included in your plan."}
+            ? "Plan ceiling for this institute, including Peer interviews and AI connector. Institute admins can switch these off, but cannot turn on anything you disable."
+            : "Turn products on or off for your candidates, including Peer interviews and AI connector. Locked products are not included in your plan."}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4 p-4 sm:p-5">
@@ -84,37 +97,54 @@ export function ProductTogglesCard({ institutionId, scope }: Props) {
           </div>
         ) : (
           <>
-            <div className="grid gap-2 sm:grid-cols-2">
+            <ul className="grid gap-2 sm:grid-cols-2">
               {INSTITUTION_PRODUCT_KEYS.map((key) => {
                 const locked = scope === "institution_admin" && !state.allowed[key];
-                const checked = !locked && draft[key] !== false;
-                const offByInstitute = scope === "super_admin" && state.allowed[key] && !state.admin[key];
+                const on = !locked && draft[key] !== false;
+                const offByInstitute =
+                  scope === "super_admin" && state.allowed[key] && !state.admin[key];
+                const hint = INSTITUTION_PRODUCT_HINTS[key];
+                const name = INSTITUTION_PRODUCT_LABELS[key];
+                const switchLabel = locked
+                  ? `${name} is not in your plan`
+                  : `${on ? "Disable" : "Enable"} ${name}`;
                 return (
-                  <label
+                  <li
                     key={key}
                     className={cn(
-                      "flex items-center gap-3 rounded-lg border border-border/80 bg-card px-3 py-2.5 text-sm",
-                      locked ? "cursor-not-allowed opacity-60" : "cursor-pointer hover:border-primary/40",
+                      "flex items-center justify-between gap-3 rounded-lg border border-border/80 bg-card px-3 py-2.5",
+                      locked && "opacity-60",
                     )}
                   >
-                    <input
-                      type="checkbox"
-                      className="h-4 w-4 accent-[#7367F0]"
-                      checked={checked}
-                      disabled={locked || saving}
-                      onChange={(e) => setDraft((prev) => ({ ...prev, [key]: e.target.checked }))}
-                    />
-                    <span className="min-w-0 flex-1">{INSTITUTION_PRODUCT_LABELS[key]}</span>
-                    {locked ? <Lock className="h-3.5 w-3.5 text-muted-foreground" aria-label="Not in plan" /> : null}
-                    {offByInstitute ? (
-                      <span className="text-[11px] text-muted-foreground">Off by institute</span>
-                    ) : null}
-                  </label>
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-foreground">{name}</p>
+                      {hint ? (
+                        <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground">{hint}</p>
+                      ) : null}
+                      {offByInstitute ? (
+                        <p className="mt-0.5 text-[11px] text-muted-foreground">Off by institute</p>
+                      ) : null}
+                    </div>
+                    <div className="flex shrink-0 items-center gap-2">
+                      {locked ? (
+                        <Lock className="h-3.5 w-3.5 text-muted-foreground" aria-label="Not in plan" />
+                      ) : null}
+                      <IntegritySwitch
+                        on={on}
+                        disabled={locked || saving}
+                        label={switchLabel}
+                        onToggle={() => {
+                          if (locked || saving) return;
+                          setDraft((prev) => ({ ...prev, [key]: !on }));
+                        }}
+                      />
+                    </div>
+                  </li>
                 );
               })}
-            </div>
+            </ul>
             <div className="flex justify-end">
-              <Button className="h-11 w-full sm:w-auto" onClick={save} disabled={!dirty || saving}>
+              <Button className="h-11 w-full sm:w-auto" onClick={() => void save()} disabled={!dirty || saving}>
                 {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                 Save products
               </Button>

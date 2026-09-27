@@ -260,6 +260,47 @@ export function MarkLiveDialog({ open, onOpenChange, status, onDone }: DialogBas
   );
 }
 
+export function RevertToDemoDialog({ open, onOpenChange, status, onDone }: DialogBase) {
+  const [submitting, setSubmitting] = useState(false);
+
+  const submit = async () => {
+    setSubmitting(true);
+    try {
+      const next = await adminApi.markInstitutionDemo(status.institution._id);
+      toast.success(`${status.institution.name} is back in demo mode.`);
+      onDone(next);
+      onOpenChange(false);
+    } catch (err) {
+      toast.error(apiError(err, "Could not switch to demo mode"));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => !submitting && onOpenChange(o)}>
+      <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Switch {status.institution.name} to demo?</DialogTitle>
+          <DialogDescription>
+            Candidates will see that the institute is still being set up, and product pages stay
+            locked until you mark it live again. Billing history is kept.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <Button variant="outline" className="h-11" onClick={() => onOpenChange(false)} disabled={submitting}>
+            Cancel
+          </Button>
+          <Button className="h-11" onClick={() => void submit()} disabled={submitting}>
+            {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+            Switch to demo
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export function RecordPaymentDialog({ open, onOpenChange, status, onDone }: DialogBase) {
   const { lifecycle, billing, institution } = status;
   const blocked = lifecycle.effectiveStatus === "suspended";

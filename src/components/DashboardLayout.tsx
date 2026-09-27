@@ -33,6 +33,7 @@ import { SubscriptionExpiredBanner } from "@/components/SubscriptionExpiredBanne
 import { AccountAccessGate } from "@/components/institution-lifecycle/AccountAccessGate";
 import { SubscriptionPendingBanner } from "@/components/SubscriptionPendingBanner";
 import { TrialUpsellDialog, type TrialUpsellVariant } from "@/components/upsell/TrialUpsellDialog";
+import { ResumeRequiredDialogProvider } from "@/components/resume/ResumeRequiredDialog";
 import { useUpsellState } from "@/components/upsell/useUpsellState";
 import { useEntitlements } from "@/hooks/useEntitlements";
 import { usePlatformFeatures } from "@/hooks/usePlatformFeatures";
@@ -43,6 +44,7 @@ import {
   biometricEnrollmentState,
   isIdentitySurfaceEnabled,
   isInstitutionProductEnabled,
+  isInstituteManagedCandidate,
 } from "@/lib/institution-flags";
 
 interface DashboardLayoutProps {
@@ -410,9 +412,30 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         return isIdentitySurfaceEnabled(profile);
       }
       if (
+        isInstituteManagedCandidate(profile) &&
+        (item.href === "/dashboard/peer-interviews/interviewer/apply" ||
+          item.href === "/dashboard/ix-recruiter/apply" ||
+          item.href === "/dashboard/lab" ||
+          item.href.startsWith("/dashboard/lab/") ||
+          item.title === "Agent Lab" ||
+          item.title === "Become an Interviewer" ||
+          item.title === "Become a Recruiter")
+      ) {
+        return false;
+      }
+      if (
+        profile?.accessRole !== "super_admin" &&
+        (item.href === "/dashboard/lab" ||
+          item.href.startsWith("/dashboard/lab/") ||
+          item.title === "Agent Lab")
+      ) {
+        return false;
+      }
+      if (
         profile?.institutionId &&
-        profile.accessRole === "user" &&
+        profile.accessRole !== "super_admin" &&
         item.featureKey &&
+        (profile.accessRole === "user" || item.featureKey === "api_connector") &&
         !isInstitutionProductEnabled(
           profile.institutionFlags?.products,
           item.featureKey,
@@ -564,6 +587,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   };
 
   return (
+    <ResumeRequiredDialogProvider>
     <div className="min-h-screen bg-background text-foreground">
       {/* Mobile header */}
       <header className="sticky top-0 z-50 border-b border-border/80 bg-header shadow-header lg:hidden">
@@ -750,5 +774,6 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         hasPurchasedTrial={upsellData ? !upsellData.canPurchaseTrial : false}
       />
     </div>
+    </ResumeRequiredDialogProvider>
   );
 }

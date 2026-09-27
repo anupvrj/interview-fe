@@ -31,11 +31,13 @@ import {
 } from "@/components/institution-lifecycle/BillingPanels";
 import { ProductTogglesCard } from "@/components/institution-lifecycle/ProductTogglesCard";
 import { StatusChangeDialog } from "@/components/institution-lifecycle/StatusChangeDialog";
-import { AccountStatusBadge } from "@/components/institution-lifecycle/StatusBadges";
+import { AccountStatusBadge, InstitutionModeBadge } from "@/components/institution-lifecycle/StatusBadges";
+import { IntegritySwitch } from "@/components/integrity/IntegritySwitch";
 import {
   ExtendGraceDialog,
   MarkLiveDialog,
   RecordPaymentDialog,
+  RevertToDemoDialog,
 } from "@/components/super-admin/institution-lifecycle/BillingActionDialogs";
 import { InstitutionOnboardingWizard } from "@/components/super-admin/institution-onboarding/InstitutionOnboardingWizard";
 import {
@@ -85,7 +87,9 @@ function InstitutionDetail() {
   const [loading, setLoading] = useState(true);
 
   const [goLiveOpen, setGoLiveOpen] = useState(false);
+  const [demoOpen, setDemoOpen] = useState(false);
   const [paymentOpen, setPaymentOpen] = useState(false);
+  const [modeSaving, setModeSaving] = useState(false);
   const [graceOpen, setGraceOpen] = useState(false);
   const [statusOpen, setStatusOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
@@ -139,8 +143,29 @@ function InstitutionDetail() {
     );
   }
 
-  const { lifecycle, institution } = status;
+  const { lifecycle, institution, billing } = status;
   const isDemo = lifecycle.mode === "demo";
+  const wasLiveBefore = Boolean(billing.liveAt);
+
+  const switchToLive = async () => {
+    if (!wasLiveBefore) {
+      setGoLiveOpen(true);
+      return;
+    }
+    setModeSaving(true);
+    try {
+      const next = await adminApi.resumeInstitutionLive(institutionId);
+      toast.success(`${institution.name} is live again.`);
+      onBillingChanged(next);
+    } catch (err) {
+      toast.error(
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+          "Could not mark the institute live",
+      );
+    } finally {
+      setModeSaving(false);
+    }
+  };
   const canRecordPayment = !isDemo && Boolean(status.billing.currentPeriodEnd);
   const canExtendGrace =
     canRecordPayment && ["overdue", "lapsed", "due_soon"].includes(lifecycle.billingState);
@@ -148,9 +173,9 @@ function InstitutionDetail() {
   const billingActions = (
     <>
       {isDemo ? (
-        <Button className="h-10" onClick={() => setGoLiveOpen(true)}>
+        <Button className="h-10" onClick={() => void switchToLive()} disabled={modeSaving}>
           <Rocket className="mr-2 h-4 w-4" />
-          Mark live
+          {wasLiveBefore ? "Resume live" : "Mark live"}
         </Button>
       ) : null}
       {canRecordPayment ? (
@@ -220,49 +245,94 @@ function InstitutionDetail() {
       {tab === "features" ? <ProductTogglesCard institutionId={institutionId} scope="super_admin" /> : null}
 
       {tab === "status" ? (
-        <Card className={lifecycleCardClass}>
-          <CardHeader className="border-b border-border/60 px-4 py-4 sm:px-5">
-            <CardTitle className="text-base">Account status</CardTitle>
-            <CardDescription>
-              Suspending blocks every admin and candidate of this institute after sign-in. Data is kept.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4 p-4 sm:p-5">
-            <div className="flex flex-wrap items-center gap-3">
-              <AccountStatusBadge status={lifecycle.effectiveStatus} />
-              {institution.suspension?.at ? (
-                <span className="text-sm text-muted-foreground">
-                  since {formatLifecycleDate(institution.suspension.at)} ·{" "}
-                  {institution.suspension.source === "auto_non_renewal" ? "non-renewal" : "manual"}
-                </span>
+        <div className="space-y-6">
+          <Card className={lifecycleCardClass}>
+            <CardHeader className="border-b border-border/60 px-4 py-4 sm:px-5">
+              <CardTitle className="text-base">Demo / live</CardTitle>
+              <CardDescription>
+                Demo locks resume, ATS, interviews, and other products for candidates. Identity and
+                profile stay open. Switch back to demo any time after go-live.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-4 sm:p-5">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0 space-y-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <InstitutionModeBadge mode={lifecycle.mode} />
+                    {billing.liveAt ? (
+                      <span className="text-sm text-muted-foreground">
+                        First live {formatLifecycleDate(billing.liveAt)}
+                      </span>
+                    ) : (
+                      <span className="text-sm text-muted-foreground">Not marked live yet</span>
+                    )}
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    {isDemo
+                      ? "Candidates cannot start product features until this institute is live."
+                      : "Candidates can use enabled products (subject to identity and self-start)."}
+                  </p>
+                </div>
+                <div className="flex shrink-0 items-center gap-3">
+                  <span className="text-sm font-medium text-muted-foreground">Demo</span>
+                  <IntegritySwitch
+                    on={!isDemo}
+                    disabled={modeSaving}
+                    label={isDemo ? "Switch institute to live" : "Switch institute to demo"}
+                    onToggle={() => {
+                      if (isDemo) void switchToLive();
+                      else setDemoOpen(true);
+                    }}
+                  />
+                  <span className="text-sm font-medium text-foreground">Live</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className={lifecycleCardClass}>
+            <CardHeader className="border-b border-border/60 px-4 py-4 sm:px-5">
+              <CardTitle className="text-base">Account status</CardTitle>
+              <CardDescription>
+                Suspending blocks every admin and candidate of this institute after sign-in. Data is kept.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4 p-4 sm:p-5">
+              <div className="flex flex-wrap items-center gap-3">
+                <AccountStatusBadge status={lifecycle.effectiveStatus} />
+                {institution.suspension?.at ? (
+                  <span className="text-sm text-muted-foreground">
+                    since {formatLifecycleDate(institution.suspension.at)} ·{" "}
+                    {institution.suspension.source === "auto_non_renewal" ? "non-renewal" : "manual"}
+                  </span>
+                ) : null}
+              </div>
+              {institution.suspension?.reason ? (
+                <p className="rounded-lg border border-border/60 bg-muted/20 px-4 py-3 text-sm">
+                  {institution.suspension.reason}
+                </p>
               ) : null}
-            </div>
-            {institution.suspension?.reason ? (
-              <p className="rounded-lg border border-border/60 bg-muted/20 px-4 py-3 text-sm">
-                {institution.suspension.reason}
-              </p>
-            ) : null}
-            {lifecycle.lapsedPendingSuspension ? (
-              <p className="text-sm text-amber-700 dark:text-amber-300">
-                Grace period has ended. Access is already blocked; the automation will record the
-                suspension on its next run.
-              </p>
-            ) : null}
-            <div className="flex flex-col gap-2 sm:flex-row">
-              {institution.accountStatus === "active" ? (
-                <Button variant="destructive" className="h-11" onClick={() => setStatusOpen(true)}>
-                  <Ban className="mr-2 h-4 w-4" />
-                  Suspend or deactivate
-                </Button>
-              ) : (
-                <Button className="h-11" onClick={() => setStatusOpen(true)}>
-                  <Power className="mr-2 h-4 w-4" />
-                  Change status
-                </Button>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+              {lifecycle.lapsedPendingSuspension ? (
+                <p className="text-sm text-amber-700 dark:text-amber-300">
+                  Grace period has ended. Access is already blocked; the automation will record the
+                  suspension on its next run.
+                </p>
+              ) : null}
+              <div className="flex flex-col gap-2 sm:flex-row">
+                {institution.accountStatus === "active" ? (
+                  <Button variant="destructive" className="h-11" onClick={() => setStatusOpen(true)}>
+                    <Ban className="mr-2 h-4 w-4" />
+                    Suspend or deactivate
+                  </Button>
+                ) : (
+                  <Button className="h-11" onClick={() => setStatusOpen(true)}>
+                    <Power className="mr-2 h-4 w-4" />
+                    Change status
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       ) : null}
 
       {tab === "activity" ? (
@@ -278,6 +348,7 @@ function InstitutionDetail() {
       ) : null}
 
       <MarkLiveDialog open={goLiveOpen} onOpenChange={setGoLiveOpen} status={status} onDone={onBillingChanged} />
+      <RevertToDemoDialog open={demoOpen} onOpenChange={setDemoOpen} status={status} onDone={onBillingChanged} />
       <RecordPaymentDialog open={paymentOpen} onOpenChange={setPaymentOpen} status={status} onDone={onBillingChanged} />
       <ExtendGraceDialog open={graceOpen} onOpenChange={setGraceOpen} status={status} onDone={onBillingChanged} />
       <StatusChangeDialog

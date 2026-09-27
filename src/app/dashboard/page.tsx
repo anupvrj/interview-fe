@@ -81,6 +81,12 @@ import { IxOptInNotice } from "@/components/ix-score/IxOptInNotice";
 import { RecentInterviewsList } from "@/components/dashboard/RecentInterviewsList";
 import { PracticeSessionGateDialogs } from "@/components/upsell/PracticeSessionGateDialogs";
 import { usePracticeSessionGate } from "@/components/upsell/usePracticeSessionGate";
+import {
+  isMissingResumeError,
+  useResumeRequiredDialog,
+} from "@/components/resume/ResumeRequiredDialog";
+import { canManagedCandidateSelfStart } from "@/lib/institution-flags";
+import { toast } from "sonner";
 
 const ONBOARDING_BANNER_DISMISSED_KEY = "dashboard-onboarding-banner-dismissed";
 
@@ -114,6 +120,8 @@ export default function DashboardPage() {
   const [startingScheduleId, setStartingScheduleId] = useState<string | null>(
     null,
   );
+  const { openResumeRequired } = useResumeRequiredDialog();
+  const canSelfStart = canManagedCandidateSelfStart(profile);
   /** null = not read yet (avoid flash); false = show banner; true = user dismissed */
   const [onboardingBannerDismissed, setOnboardingBannerDismissed] = useState<
     boolean | null
@@ -212,11 +220,18 @@ export default function DashboardPage() {
         throw new Error("Could not open this scheduled interview.");
       }
       router.push(path);
-    } catch (e: any) {
-      alert(
-        e?.response?.data?.message ||
-          "Could not start interview. You may need a saved resume, or the scheduled time is not open yet (starts 24 hours before).",
-      );
+    } catch (e: unknown) {
+      const message =
+        (e as { response?: { data?: { message?: string } } })?.response?.data
+          ?.message ||
+        "Could not start interview. You may need a saved resume, or the scheduled time is not open yet (starts 24 hours before).";
+      if (isMissingResumeError(message)) {
+        openResumeRequired({
+          onReady: () => handleStartScheduled(scheduleId),
+        });
+        return;
+      }
+      toast.error(message);
     } finally {
       setStartingScheduleId(null);
     }
@@ -502,6 +517,7 @@ export default function DashboardPage() {
               >
                 View all
               </Link>
+              {canSelfStart ? (
               <Button
                 type="button"
                 disabled={checkingSubscription}
@@ -519,6 +535,7 @@ export default function DashboardPage() {
                 )}
                 Start Interview
               </Button>
+              ) : null}
             </div>
           </div>
         </CardHeader>
@@ -530,6 +547,7 @@ export default function DashboardPage() {
             onPageChange={setCurrentPage}
             onVideoUnavailable={() => setVideoUnavailableOpen(true)}
             emptyDescription="Start an AI interview, coding round, system design session, or book a peer interview."
+            emptyCtaHref={canSelfStart ? "/dashboard/interviews/new" : null}
           />
         </CardContent>
       </Card>
