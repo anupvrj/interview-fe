@@ -12,14 +12,14 @@ import {
   resolvePostAuthRedirectPath,
   safeAppRedirectPath,
 } from "@/lib/post-sign-in-redirect";
+import { pairedAuthHref } from "@/lib/invite-accept";
 
 export default function SignInPage() {
   const searchParams = useSearchParams();
   const redirectUrl = safeAppRedirectPath(searchParams.get("redirect_url"));
   const afterAuth = resolvePostAuthRedirectPath(redirectUrl);
-  const signUpHref = redirectUrl
-    ? `/sign-up?redirect_url=${encodeURIComponent(redirectUrl)}`
-    : "/sign-up";
+  const emailPrefill = searchParams.get("email")?.trim() || undefined;
+  const signUpHref = pairedAuthHref("/sign-up", redirectUrl, emailPrefill);
 
   // Persist before paint so a fast Google/SSO click does not drop the extension return path.
   if (typeof window !== "undefined") {
@@ -60,8 +60,10 @@ export default function SignInPage() {
         path="/sign-in"
         forceRedirectUrl={afterAuth}
         fallbackRedirectUrl={afterAuth}
+        signUpUrl={signUpHref}
         signUpForceRedirectUrl={afterAuth}
         signUpFallbackRedirectUrl={afterAuth}
+        initialValues={emailPrefill ? { emailAddress: emailPrefill } : undefined}
         appearance={clerkAuthAppearance}
       />
     </AuthCardLayout>

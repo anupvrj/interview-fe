@@ -48,6 +48,8 @@ import { type SystemDesignSession } from "@/lib/api";
 import { useSystemDesignSessionsQuery } from "@/hooks/queries/useSystemDesignSessionsQuery";
 import { buildDashboardRecentSessions } from "@/lib/dashboard-recent-sessions";
 import { cn } from "@/lib/utils";
+import { useActiveRole } from "@/components/roles/ActiveRoleProvider";
+import { canManagedCandidateSelfStart } from "@/lib/institution-flags";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -60,6 +62,7 @@ function sessionScore(session: SystemDesignSession): number | null {
 
 export default function SystemDesignDashboardPage() {
   const { user, isLoaded } = useUser();
+  const canSelfStart = canManagedCandidateSelfStart(useActiveRole()?.profile);
 
   const { data: sessions = [], isLoading: sessionsLoading } =
     useSystemDesignSessionsQuery();
@@ -256,6 +259,7 @@ export default function SystemDesignDashboardPage() {
             </ul>
 
             <div className="mt-7 flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:gap-4">
+              {canSelfStart ? (
               <Button
                 type="button"
                 disabled={checkingSubscription}
@@ -272,6 +276,7 @@ export default function SystemDesignDashboardPage() {
                 Start New Session
                 <ChevronRight className="ml-2 h-4 w-4" aria-hidden />
               </Button>
+              ) : null}
               <div
                 className="flex items-center gap-1.5 sm:gap-2"
                 aria-label="Rated 4.9 out of 5"
@@ -353,6 +358,7 @@ export default function SystemDesignDashboardPage() {
                   : `${sessions.length} session${sessions.length === 1 ? "" : "s"} in your history`}
               </CardDescription>
             </div>
+            {canSelfStart ? (
             <Button
               type="button"
               disabled={checkingSubscription}
@@ -366,6 +372,7 @@ export default function SystemDesignDashboardPage() {
               )}
               Start New Session
             </Button>
+            ) : null}
           </div>
         </CardHeader>
         <CardContent className="p-0">
@@ -376,7 +383,7 @@ export default function SystemDesignDashboardPage() {
             onPageChange={handlePageChange}
             onVideoUnavailable={() => setVideoUnavailableOpen(true)}
             emptyTitle="No sessions yet"
-            emptyCtaHref="/dashboard/system-design/new"
+            emptyCtaHref={canSelfStart ? "/dashboard/system-design/new" : null}
             emptyCtaLabel="Start New Session"
             emptyDescription="Pick a prompt, sketch your architecture, and talk through tradeoffs. Completed sessions show score and recording here."
           />

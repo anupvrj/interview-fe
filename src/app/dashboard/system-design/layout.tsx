@@ -1,7 +1,12 @@
-import "@excalidraw/excalidraw/index.css";
+"use client";
 
-export default function SystemDesignLayout({
-  children,
-}: Readonly<{ children: React.ReactNode }>) {
-  return children;
+import type { ReactNode } from "react";
+import { InstituteCandidateFeatureLock } from "@/components/upsell/InstituteCandidateFeatureLock";
+
+export default function SystemDesignLayout({ children }: { children: ReactNode }) {
+  return (
+    <InstituteCandidateFeatureLock featureLabel="System design">
+      {children}
+    </InstituteCandidateFeatureLock>
+  );
 }
