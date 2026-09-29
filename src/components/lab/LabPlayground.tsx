@@ -1,8 +1,19 @@
 "use client";
 
-import type { PromptClassification } from "@/lib/labPromptCatalog";
+import { useMemo } from "react";
 import type { LabInterviewSetup } from "@/lib/labInterviewSetup";
-import type { LabComposeLiveResult, PromptFixture } from "@/lib/runtimeApi";
+import {
+  AGENT_TYPE_GROUPS,
+  classifyPrompt,
+  getAgentDisplayName,
+  groupAgentsByKind,
+  type PromptClassification,
+} from "@/lib/labPromptCatalog";
+import type {
+  LabComposeLiveResult,
+  PromptFixture,
+  PromptRecord,
+} from "@/lib/runtimeApi";
 import { LabCompositionPanel } from "@/components/lab/LabCompositionPanel";
 import { LabVoicePanel } from "@/components/lab/LabVoicePanel";
 import { Badge } from "@/components/ui/badge";
@@ -12,7 +23,9 @@ import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -21,6 +34,14 @@ import { ChevronDown, Loader2 } from "lucide-react";
 
 type Props = {
   meta: PromptClassification;
+  /** Full catalog — agent switcher on the Test pane (left sidebar stays). */
+  catalogPrompts: PromptRecord[];
+  selectedPromptName: string;
+  onSelectPrompt: (prompt: PromptRecord) => void;
+  /** Department profiles — compose Live Test + fixture profileRef. */
+  profilePrompts: PromptRecord[];
+  selectedProfile: string;
+  onProfileChange: (name: string) => void;
   /** When set, show production-path composition flow (interviewer-system). */
   composition?: {
     interviewId: string | null;
@@ -50,7 +71,6 @@ type Props = {
   useEditorDraft: boolean;
   onUseEditorDraftChange: (value: boolean) => void;
   testSourceLabel: string;
-  profileLabel?: string;
   loading: boolean;
   onRenderTest: () => void;
   onExecuteTest: () => void;
@@ -66,6 +86,12 @@ type Props = {
 
 export function LabPlayground({
   meta,
+  catalogPrompts,
+  selectedPromptName,
+  onSelectPrompt,
+  profilePrompts,
+  selectedProfile,
+  onProfileChange,
   composition,
   fixtureName,
   onFixtureNameChange,
@@ -81,7 +107,6 @@ export function LabPlayground({
   useEditorDraft,
   onUseEditorDraftChange,
   testSourceLabel,
-  profileLabel,
   loading,
   onRenderTest,
   onExecuteTest,
@@ -103,6 +128,16 @@ export function LabPlayground({
     voiceStatus !== "live test ended" &&
     voiceStatus !== "error";
 
+  const agentGroups = useMemo(
+    () => groupAgentsByKind(catalogPrompts),
+    [catalogPrompts],
+  );
+
+  const showFixtureProfileSelect =
+    !productionPath &&
+    (meta.needsProfileRef || meta.previewViaLiveWrapper) &&
+    profilePrompts.length > 0;
+
   const voiceBlock = meta.supportsVoiceTest ? (
     <div className="space-y-1.5">
       <LabVoicePanel
@@ -118,134 +153,104 @@ export function LabPlayground({
   ) : null;
 
   const advancedBlock = (
-    <details className="group rounded-lg border border-border/50">
-      <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2.5 text-xs font-medium text-muted-foreground hover:text-foreground [&::-webkit-details-marker]:hidden">
-        <ChevronDown className="h-3.5 w-3.5 shrink-0 transition-transform group-open:rotate-180" />
+    <details className="rounded-lg border border-border/50">
+      <summary className="flex cursor-pointer list-none items-center gap-1.5 px-3 py-2 text-xs font-medium text-muted-foreground hover:text-foreground [&::-webkit-details-marker]:hidden">
+        <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-70" />
         More options
+        <span className="font-normal opacity-70">
+          · scenarios, capture, draft toggle
+        </span>
       </summary>
-      <div className="space-y-4 border-t border-border/40 px-3 py-3">
-        {!productionPath ? (
+      <div className="space-y-3 border-t border-border/40 px-3 py-3">
+        <p className="text-[11px] text-muted-foreground">
+          {productionPath
+            ? "Live Test uses the production builder by default. These are for fixture JSON / capture."
+            : "Scenario JSON and capture helpers for this agent."}
+        </p>
+        <div className="grid gap-2">
           <div>
-            <Label className="text-xs font-medium">Test data (JSON)</Label>
-            <Textarea
-              className="mt-1.5 min-h-[10rem] font-mono text-xs"
-              value={fixtureInput}
-              onChange={(e) => onFixtureInputChange(e.target.value)}
-              spellCheck={false}
-            />
-          </div>
-        ) : (
-          <div>
-            <Label className="text-xs font-medium">Fixture JSON</Label>
-            <p className="mt-0.5 text-[11px] text-muted-foreground">
-              Optional override — Live Test uses the production builder by default.
-            </p>
-            <Textarea
-              className="mt-1.5 min-h-[7rem] font-mono text-xs"
-              value={fixtureInput}
-              onChange={(e) => onFixtureInputChange(e.target.value)}
-              spellCheck={false}
-            />
-          </div>
-        )}
-
-        <div>
-          <Label className="text-xs font-medium">Saved scenarios</Label>
-          <div className="mt-1.5 flex flex-wrap gap-2">
+            <Label className="text-[11px] text-muted-foreground">Scenario name</Label>
             <Input
-              className="h-8 min-w-[6rem] flex-1 text-xs"
-              placeholder="Scenario name"
+              className="mt-1 h-8 text-xs"
               value={fixtureName}
               onChange={(e) => onFixtureNameChange(e.target.value)}
             />
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="h-8 text-xs"
-              disabled={loading}
-              onClick={onSaveFixture}
-            >
-              Save
-            </Button>
-            {fixtures.length > 0 ? (
-              <Select
-                onValueChange={(v) => {
-                  if (v) onLoadFixture(v);
-                }}
-              >
-                <SelectTrigger className="h-8 w-[7.5rem] text-xs">
-                  <SelectValue placeholder="Load…" />
-                </SelectTrigger>
-                <SelectContent>
-                  {fixtures.map((f) => (
-                    <SelectItem key={f.name} value={f.name}>
-                      {f.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            ) : null}
           </div>
-          {fixtures.length > 0 ? (
-            <ul className="mt-2 space-y-1 text-[11px] text-muted-foreground">
-              {fixtures.map((f) => (
-                <li key={f.name} className="flex items-center justify-between gap-2">
-                  <span className="truncate">{f.name}</span>
-                  <button
-                    type="button"
-                    className="shrink-0 text-destructive hover:underline"
-                    onClick={() => onDeleteFixture(f.name)}
-                  >
-                    Remove
-                  </button>
-                </li>
-              ))}
-            </ul>
-          ) : null}
-        </div>
-
-        {showCapture ? (
           <div>
-            <Label className="text-xs font-medium">Checkpoint inject</Label>
-            <p className="mt-0.5 text-[11px] text-muted-foreground">
-              Load input from a past interview into the fixture JSON.
-            </p>
-            <div className="mt-1.5 flex gap-2">
-              <Input
-                className="h-8 flex-1 font-mono text-xs"
-                placeholder="Interview ID"
-                value={captureInterviewId}
-                onChange={(e) => onCaptureInterviewIdChange(e.target.value)}
-              />
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                className="h-8 shrink-0 text-xs"
-                disabled={loading || !captureInterviewId.trim()}
-                onClick={onCaptureInput}
-              >
-                Inject
+            <Label className="text-[11px] text-muted-foreground">Scenario input (JSON)</Label>
+            <Textarea
+              className="mt-1 min-h-[100px] font-mono text-[11px]"
+              value={fixtureInput}
+              onChange={(e) => onFixtureInputChange(e.target.value)}
+            />
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" size="sm" variant="outline" disabled={loading} onClick={onSaveFixture}>
+              Save scenario
+            </Button>
+            {fixtures
+              .filter((f) => f.promptName === selectedPromptName || f.promptName === "interviewer-system")
+              .slice(0, 6)
+              .map((f) => (
+                <Button
+                  key={f.name}
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 text-[11px]"
+                  onClick={() => onLoadFixture(f.name)}
+                >
+                  {f.name}
+                </Button>
+              ))}
+          </div>
+          {showCapture ? (
+            <div className="flex flex-wrap items-end gap-2">
+              <div className="min-w-[140px] flex-1">
+                <Label className="text-[11px] text-muted-foreground">
+                  Capture from interviewId
+                </Label>
+                <Input
+                  className="mt-1 h-8 text-xs"
+                  value={captureInterviewId}
+                  onChange={(e) => onCaptureInterviewIdChange(e.target.value)}
+                  placeholder="intv_…"
+                />
+              </div>
+              <Button type="button" size="sm" variant="outline" disabled={loading} onClick={onCaptureInput}>
+                Capture
               </Button>
             </div>
-          </div>
-        ) : null}
-
-        {meta.supportsExecuteTest ? (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={loading}
-            onClick={onExecuteTest}
-          >
-            Run execute{meta.executeReturnsJson ? " (JSON)" : ""}
-          </Button>
-        ) : null}
-
-        {!productionPath && (resolvedPrompt || executeOutput) ? (
-          <div className="space-y-2">
+          ) : null}
+          {!productionPath ? (
+            <label className="flex items-center gap-2 text-[11px] text-muted-foreground">
+              <input
+                type="checkbox"
+                checked={useEditorDraft}
+                onChange={(e) => onUseEditorDraftChange(e.target.checked)}
+              />
+              Overlay Lab draft when testing
+            </label>
+          ) : null}
+          {fixtures.length > 0 ? (
+            <div className="flex flex-wrap gap-1">
+              {fixtures.slice(0, 8).map((f) => (
+                <Button
+                  key={`del-${f.name}`}
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  className="h-6 text-[10px] text-destructive"
+                  onClick={() => onDeleteFixture(f.name)}
+                >
+                  Delete {f.name}
+                </Button>
+              ))}
+            </div>
+          ) : null}
+        </div>
+        {resolvedPrompt || executeOutput ? (
+          <div className="space-y-2 border-t border-border/40 pt-3">
             {resolvedPrompt ? (
               <div>
                 <Label className="text-[11px] text-muted-foreground">Composed prompt</Label>
@@ -270,7 +275,7 @@ export function LabPlayground({
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden">
-      <div className="shrink-0 border-b border-border/60 px-4 py-3">
+      <div className="shrink-0 space-y-2.5 border-b border-border/60 px-4 py-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <h3 className="text-sm font-semibold">
@@ -286,11 +291,60 @@ export function LabPlayground({
             {testSourceLabel}
           </Badge>
         </div>
-        {profileLabel ? (
-          <p className="mt-1.5 text-[11px] text-muted-foreground">
-            Profile:{" "}
-            <span className="font-medium text-foreground">{profileLabel}</span>
-          </p>
+
+        <div>
+          <Label className="text-[10px] text-muted-foreground">Agent</Label>
+          <Select
+            value={selectedPromptName}
+            onValueChange={(name) => {
+              const p = catalogPrompts.find((x) => x.name === name);
+              if (p) onSelectPrompt(p);
+            }}
+          >
+            <SelectTrigger className="mt-1 h-8 text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className="max-h-72">
+              {AGENT_TYPE_GROUPS.map((group) => {
+                const items = agentGroups.get(group.kind) ?? [];
+                if (items.length === 0) return null;
+                return (
+                  <SelectGroup key={group.kind}>
+                    <SelectLabel className="text-[10px]">{group.label}</SelectLabel>
+                    {items.map((p) => (
+                      <SelectItem key={p.name} value={p.name} className="text-xs">
+                        {getAgentDisplayName(p.name, classifyPrompt(p))}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                );
+              })}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {showFixtureProfileSelect ? (
+          <div>
+            <Label className="text-[10px] text-muted-foreground">
+              Department profile
+            </Label>
+            <Select
+              value={selectedProfile || "__none__"}
+              onValueChange={(v) => onProfileChange(v === "__none__" ? "" : v)}
+            >
+              <SelectTrigger className="mt-1 h-8 text-xs">
+                <SelectValue placeholder="Select profile…" />
+              </SelectTrigger>
+              <SelectContent className="max-h-72">
+                <SelectItem value="__none__">— none —</SelectItem>
+                {profilePrompts.map((p) => (
+                  <SelectItem key={p.name} value={p.name} className="text-xs">
+                    {getAgentDisplayName(p.name, classifyPrompt(p))}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         ) : null}
       </div>
 
@@ -304,6 +358,7 @@ export function LabPlayground({
             onUseDraftChange={composition.onUseDraftChange}
             setup={composition.setup}
             onSetupChange={composition.onSetupChange}
+            profilePrompts={profilePrompts}
             loading={loading}
             composeResult={composition.composeResult}
             onCompose={composition.onCompose}
@@ -336,32 +391,20 @@ export function LabPlayground({
               {meta.supportsExecuteTest ? (
                 <Button
                   type="button"
-                  variant="outline"
                   size="sm"
+                  variant="outline"
                   disabled={loading}
                   onClick={onExecuteTest}
                 >
-                  Run{meta.executeReturnsJson ? " (JSON)" : ""}
+                  Execute
                 </Button>
               ) : null}
             </div>
-
-            {!meta.previewViaLiveWrapper ? (
-              <label className="flex items-center gap-2 text-xs text-muted-foreground">
-                <input
-                  type="checkbox"
-                  checked={useEditorDraft}
-                  onChange={(e) => onUseEditorDraftChange(e.target.checked)}
-                />
-                Use unsaved prompt draft
-              </label>
-            ) : null}
-
             {voiceBlock}
+            {advancedBlock}
           </>
         )}
-
-        {advancedBlock}
+        {composition ? advancedBlock : null}
       </div>
     </div>
   );
