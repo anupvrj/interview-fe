@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { connectVoiceSession } from "@/lib/runtimeApi";
+import { connectVoiceSession, getRuntimeApiUrl, getRuntimeWsUrl } from "@/lib/runtimeApi";
 
 const TARGET_SAMPLE_RATE = 24000;
 const MIC_FRAME_SAMPLES = 720;
@@ -26,7 +26,6 @@ type TranscriptLine = {
   id: string;
   role: "ai" | "user";
   text: string;
-  partial?: boolean;
 };
 
 type Props = {
@@ -46,6 +45,7 @@ export function LabVoicePanel({
   onEnded,
 }: Props) {
   const [active, setActive] = useState(false);
+  const [connecting, setConnecting] = useState(false);
   const [aiSpeaking, setAiSpeaking] = useState(false);
   const [lines, setLines] = useState<TranscriptLine[]>([]);
   const [elapsedSec, setElapsedSec] = useState(0);
@@ -64,7 +64,21 @@ export function LabVoicePanel({
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const autoStartedForRef = useRef<string | null>(null);
   const lineIdRef = useRef(0);
-  const endTestRef = useRef<() => void>(() => {});
+  /** Bumps on every start/end so stale WS handlers cannot reopen mic. */
+  const connGenRef = useRef(0);
+  const onStatusRef = useRef(onStatus);
+  const onEndedRef = useRef(onEnded);
+  const onTranscriptRef = useRef(onTranscript);
+
+  useEffect(() => {
+    onStatusRef.current = onStatus;
+  }, [onStatus]);
+  useEffect(() => {
+    onEndedRef.current = onEnded;
+  }, [onEnded]);
+  useEffect(() => {
+    onTranscriptRef.current = onTranscript;
+  }, [onTranscript]);
 
   const stopTimer = useCallback(() => {
     if (timerRef.current) {
@@ -73,21 +87,75 @@ export function LabVoicePanel({
     }
   }, []);
 
+  const hardStopAudio = useCallback(() => {
+    audioQueueRef.current = [];
+    playingRef.current = false;
+    setAiSpeaking(false);
+    processorRef.current?.disconnect?.();
+    processorRef.current = null;
+    mediaStreamRef.current?.getTracks().forEach((t) => t.stop());
+    mediaStreamRef.current = null;
+    const ctx = audioContextRef.current;
+    audioContextRef.current = null;
+    if (ctx) {
+      void ctx.close().catch(() => undefined);
+    }
+  }, []);
+
+  const closeWs = useCallback(() => {
+    const ws = wsRef.current;
+    wsRef.current = null;
+    if (!ws) return;
+    ws.onopen = null;
+    ws.onerror = null;
+    ws.onclose = null;
+    ws.onmessage = null;
+    try {
+      if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
+        ws.close();
+      }
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  const teardown = useCallback(
+    (opts?: { showDeployHint?: boolean; status?: string }) => {
+      connGenRef.current += 1;
+      voiceActiveRef.current = false;
+      setActive(false);
+      setConnecting(false);
+      hardStopAudio();
+      closeWs();
+      stopTimer();
+      setAiPartial("");
+      setUserPartial("");
+      if (opts?.status) onStatusRef.current(opts.status);
+      if (opts?.showDeployHint) {
+        setEndedHint(true);
+        onEndedRef.current?.();
+      }
+    },
+    [closeWs, hardStopAudio, stopTimer],
+  );
+
   const startTimer = useCallback(() => {
     stopTimer();
     startedAtRef.current = Date.now();
     setElapsedSec(0);
+    const gen = connGenRef.current;
     timerRef.current = setInterval(() => {
+      if (connGenRef.current !== gen) return;
       const started = startedAtRef.current;
       if (!started) return;
       const sec = Math.floor((Date.now() - started) / 1000);
       setElapsedSec(sec);
       if (sec >= LIVE_TEST_CAP_SEC) {
-        onStatus("live test cap reached — ending");
-        endTestRef.current();
+        onStatusRef.current("live test cap reached — ending");
+        teardown({ showDeployHint: true, status: "live test ended" });
       }
     }, 1000);
-  }, [onStatus, stopTimer]);
+  }, [stopTimer, teardown]);
 
   const playNext = useCallback(async () => {
     const ctx = audioContextRef.current;
@@ -112,6 +180,7 @@ export function LabVoicePanel({
 
   const enqueueAudio = useCallback(
     (base64: string) => {
+      if (!voiceActiveRef.current) return;
       try {
         const binary = atob(base64);
         const bytes = new Uint8Array(binary.length);
@@ -126,38 +195,7 @@ export function LabVoicePanel({
     [playNext],
   );
 
-  const cleanup = useCallback(
-    (opts?: { showDeployHint?: boolean }) => {
-      voiceActiveRef.current = false;
-      setActive(false);
-      setAiSpeaking(false);
-      processorRef.current?.disconnect?.();
-      processorRef.current = null;
-      mediaStreamRef.current?.getTracks().forEach((t) => t.stop());
-      mediaStreamRef.current = null;
-      wsRef.current?.close();
-      wsRef.current = null;
-      stopTimer();
-      setAiPartial("");
-      setUserPartial("");
-      if (opts?.showDeployHint) {
-        setEndedHint(true);
-        onEnded?.();
-      }
-    },
-    [onEnded, stopTimer],
-  );
-
-  const endTest = useCallback(() => {
-    onStatus("live test ended");
-    cleanup({ showDeployHint: true });
-  }, [cleanup, onStatus]);
-
-  useEffect(() => {
-    endTestRef.current = endTest;
-  }, [endTest]);
-
-  const setupMic = useCallback(async () => {
+  const setupMic = useCallback(async (gen: number) => {
     const stream = await navigator.mediaDevices.getUserMedia({
       audio: {
         echoCancellation: true,
@@ -167,6 +205,10 @@ export function LabVoicePanel({
         channelCount: 1,
       } as MediaTrackConstraints,
     });
+    if (connGenRef.current !== gen) {
+      stream.getTracks().forEach((t) => t.stop());
+      return;
+    }
     mediaStreamRef.current = stream;
 
     const WK = (globalThis as typeof globalThis & { webkitAudioContext?: typeof AudioContext })
@@ -175,6 +217,11 @@ export function LabVoicePanel({
     const ctx = new AudioCtx!();
     audioContextRef.current = ctx;
     await ctx.resume();
+    if (connGenRef.current !== gen) {
+      void ctx.close().catch(() => undefined);
+      stream.getTracks().forEach((t) => t.stop());
+      return;
+    }
 
     const source = ctx.createMediaStreamSource(stream);
     const pending: number[] = [];
@@ -197,6 +244,7 @@ export function LabVoicePanel({
     if (ctx.audioWorklet) {
       try {
         await ctx.audioWorklet.addModule("/mic-processor.worklet.js");
+        if (connGenRef.current !== gen) return;
         const worklet = new AudioWorkletNode(ctx, "mic-processor", {
           processorOptions: { targetSampleRate: TARGET_SAMPLE_RATE },
         });
@@ -231,61 +279,89 @@ export function LabVoicePanel({
     processorRef.current = processor;
   }, []);
 
-  const appendLine = useCallback(
-    (role: "ai" | "user", text: string) => {
-      const trimmed = text.trim();
-      if (!trimmed) return;
-      lineIdRef.current += 1;
-      const id = `t-${lineIdRef.current}`;
-      setLines((prev) => [...prev, { id, role, text: trimmed }]);
-      const labeled = role === "ai" ? `[AI] ${trimmed}` : `[You] ${trimmed}`;
-      onTranscript?.(labeled);
-    },
-    [onTranscript],
-  );
+  const appendLine = useCallback((role: "ai" | "user", text: string) => {
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    lineIdRef.current += 1;
+    const id = `t-${lineIdRef.current}`;
+    setLines((prev) => [...prev, { id, role, text: trimmed }]);
+    const labeled = role === "ai" ? `[AI] ${trimmed}` : `[You] ${trimmed}`;
+    onTranscriptRef.current?.(labeled);
+  }, []);
 
   const startVoice = useCallback(async () => {
     if (!sessionId) {
-      onStatus("Create a session first (Live Test or Render)");
+      onStatusRef.current("Create a session first (Live Test or Render)");
       return;
     }
-    cleanup();
+
+    teardown();
+    const gen = connGenRef.current;
     setEndedHint(false);
     setLines([]);
     setAiPartial("");
     setUserPartial("");
-    onStatus("connecting voice…");
+    setConnecting(true);
     voiceActiveRef.current = true;
+    onStatusRef.current(
+      `connecting voice… (${getRuntimeWsUrl().replace(/^wss?:\/\//, "")})`,
+    );
 
     const ws = connectVoiceSession(sessionId);
+    if (connGenRef.current !== gen) {
+      try {
+        ws.close();
+      } catch {
+        /* ignore */
+      }
+      return;
+    }
     wsRef.current = ws;
 
-    ws.onopen = () => onStatus("WS open — waiting for Gemini proxy…");
-    ws.onerror = () => onStatus("voice WS error");
+    ws.onopen = () => {
+      if (connGenRef.current !== gen) return;
+      onStatusRef.current("WS open — waiting for Gemini proxy…");
+    };
+    ws.onerror = () => {
+      if (connGenRef.current !== gen) return;
+      onStatusRef.current("voice WS error");
+    };
     ws.onclose = () => {
+      if (connGenRef.current !== gen) return;
       if (voiceActiveRef.current) {
-        onStatus("voice disconnected");
+        onStatusRef.current("voice disconnected");
       }
       voiceActiveRef.current = false;
       setActive(false);
+      setConnecting(false);
       stopTimer();
     };
 
     ws.onmessage = async (ev) => {
+      if (connGenRef.current !== gen || !voiceActiveRef.current) return;
       try {
         const msg = JSON.parse(ev.data as string) as Record<string, unknown>;
         const type = String(msg.type ?? "");
 
         if (type === "proxy_connected") {
-          onStatus("proxy ready — starting mic");
+          onStatusRef.current("proxy ready — starting mic");
           try {
-            await setupMic();
+            await setupMic(gen);
+            if (connGenRef.current !== gen) return;
+            setConnecting(false);
             setActive(true);
             startTimer();
-            ws.send(JSON.stringify({ type: "response.create" }));
-            onStatus("live — speak into your mic");
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(JSON.stringify({ type: "response.create" }));
+            }
+            onStatusRef.current(
+              `live on ${getRuntimeApiUrl().replace(/^https?:\/\//, "")} — speak`,
+            );
           } catch (e) {
-            onStatus(`mic error: ${e instanceof Error ? e.message : String(e)}`);
+            onStatusRef.current(
+              `mic error: ${e instanceof Error ? e.message : String(e)}`,
+            );
+            teardown({ status: "mic error" });
           }
           return;
         }
@@ -306,7 +382,6 @@ export function LabVoicePanel({
           return;
         }
 
-        // Optional user partials when provider emits them
         if (
           type === "conversation.item.input_audio_transcription.delta" &&
           typeof msg.delta === "string"
@@ -325,24 +400,51 @@ export function LabVoicePanel({
         }
 
         if (type === "error") {
-          onStatus(`error: ${JSON.stringify(msg.error ?? msg)}`);
+          onStatusRef.current(`error: ${JSON.stringify(msg.error ?? msg)}`);
         }
       } catch {
         /* binary */
       }
     };
-  }, [
-    sessionId,
-    cleanup,
-    enqueueAudio,
-    onStatus,
-    setupMic,
-    startTimer,
-    stopTimer,
-    appendLine,
-  ]);
+  }, [sessionId, teardown, setupMic, startTimer, stopTimer, enqueueAudio, appendLine]);
 
-  useEffect(() => () => cleanup(), [cleanup]);
+  const endTest = useCallback(() => {
+    teardown({ showDeployHint: true, status: "live test ended" });
+  }, [teardown]);
+
+  // Unmount only — do not depend on teardown identity (avoids closing live WS on re-render).
+  useEffect(() => {
+    return () => {
+      connGenRef.current += 1;
+      voiceActiveRef.current = false;
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+      audioQueueRef.current = [];
+      playingRef.current = false;
+      processorRef.current?.disconnect?.();
+      processorRef.current = null;
+      mediaStreamRef.current?.getTracks().forEach((t) => t.stop());
+      mediaStreamRef.current = null;
+      const ctx = audioContextRef.current;
+      audioContextRef.current = null;
+      if (ctx) void ctx.close().catch(() => undefined);
+      const ws = wsRef.current;
+      wsRef.current = null;
+      if (ws) {
+        ws.onopen = null;
+        ws.onerror = null;
+        ws.onclose = null;
+        ws.onmessage = null;
+        try {
+          ws.close();
+        } catch {
+          /* ignore */
+        }
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (!autoStart || !sessionId) return;
@@ -352,7 +454,8 @@ export function LabVoicePanel({
   }, [autoStart, sessionId, startVoice]);
 
   const remaining = Math.max(0, LIVE_TEST_CAP_SEC - elapsedSec);
-  const showTimer = active || endedHint;
+  const showTimer = active || endedHint || connecting;
+  const canEnd = active || connecting || !!sessionId;
 
   return (
     <div className="rounded-lg border border-border/60 bg-muted/20 p-3">
@@ -360,16 +463,16 @@ export function LabVoicePanel({
         <Button
           type="button"
           size="sm"
-          disabled={!sessionId || active}
+          disabled={!sessionId || active || connecting}
           onClick={() => void startVoice()}
         >
-          {active ? "Live…" : "Start"}
+          {active || connecting ? "Live…" : "Start"}
         </Button>
         <Button
           type="button"
           size="sm"
-          variant={active ? "destructive" : "outline"}
-          disabled={!active && !sessionId}
+          variant={active || connecting ? "destructive" : "outline"}
+          disabled={!canEnd}
           onClick={endTest}
         >
           End Test
@@ -384,6 +487,8 @@ export function LabVoicePanel({
           <span className="text-xs text-muted-foreground">AI speaking…</span>
         ) : active ? (
           <span className="text-xs text-muted-foreground">Listening…</span>
+        ) : connecting ? (
+          <span className="text-xs text-muted-foreground">Connecting…</span>
         ) : null}
       </div>
 
@@ -426,8 +531,9 @@ export function LabVoicePanel({
         </div>
       ) : (
         <p className="text-xs text-muted-foreground">
-          Multi-turn Lab voice on the runtime session (mic + speaker). Soft cap{" "}
-          {LIVE_TEST_CAP_SEC / 60} min — End Test closes WS and mic.
+          Multi-turn Lab voice via runtime WS (
+          {getRuntimeWsUrl().replace(/^wss?:\/\//, "")}
+          ). Soft cap {LIVE_TEST_CAP_SEC / 60} min — End Test closes WS and mic.
         </p>
       )}
     </div>

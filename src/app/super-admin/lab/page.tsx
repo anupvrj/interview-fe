@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { toast } from "sonner";
 import {
   captureLabInput,
@@ -36,6 +36,22 @@ import { Bot, Loader2, Plus, RefreshCw } from "lucide-react";
 
 const APP_ENV = process.env.NEXT_PUBLIC_APP_ENV || "development";
 
+/** Only mount one Lab layout — CSS `hidden` still mounts both and duplicated Live Test WS. */
+function subscribeLg(onChange: () => void) {
+  const mq = window.matchMedia("(min-width: 1024px)");
+  mq.addEventListener("change", onChange);
+  return () => mq.removeEventListener("change", onChange);
+}
+function getLgSnapshot() {
+  return window.matchMedia("(min-width: 1024px)").matches;
+}
+function getLgServerSnapshot() {
+  return true;
+}
+function useIsLgLayout() {
+  return useSyncExternalStore(subscribeLg, getLgSnapshot, getLgServerSnapshot);
+}
+
 type ModelConfigState = {
   model: string;
   temperature: string;
@@ -67,6 +83,7 @@ function buildModelConfigPayload(state: ModelConfigState): Record<string, unknow
 }
 
 export default function LabPage() {
+  const isLg = useIsLgLayout();
   const [prompts, setPrompts] = useState<PromptRecord[]>([]);
   const [fixtures, setFixtures] = useState<PromptFixture[]>([]);
   const [selectedName, setSelectedName] = useState("interviewer-system");
@@ -497,6 +514,11 @@ export default function LabPage() {
         voiceAutoStart,
         voiceStatus,
         onVoiceStatus: setVoiceStatus,
+        onVoiceEnded: () => {
+          setVoiceAutoStart(false);
+          setVoiceSessionId(null);
+          setVoiceStatus("live test ended");
+        },
         resolvedPrompt,
         executeOutput,
       }
@@ -608,45 +630,46 @@ export default function LabPage() {
         </div>
       ) : null}
 
-      <div className="hidden min-h-0 flex-1 lg:flex">
-        <LabResizablePanels
-          left={
-            <LabAgentSidebar
-              prompts={prompts}
-              selectedName={selectedName}
-              onSelect={selectPrompt}
-            />
-          }
-          center={agentDetail}
-          right={playgroundProps ? <LabPlayground {...playgroundProps} /> : <div />}
-        />
-      </div>
+      <div className="min-h-0 flex-1 overflow-hidden">
+        {isLg ? (
+          <LabResizablePanels
+            left={
+              <LabAgentSidebar
+                prompts={prompts}
+                selectedName={selectedName}
+                onSelect={selectPrompt}
+              />
+            }
+            center={agentDetail}
+            right={playgroundProps ? <LabPlayground {...playgroundProps} /> : <div />}
+          />
+        ) : (
+          <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
+            <details className="shrink-0 border-b border-border/60">
+              <summary className="cursor-pointer px-4 py-2.5 text-sm font-medium">
+                Browse agents ({catalog.length})
+              </summary>
+              <div className="max-h-48 overflow-y-auto border-t border-border/60">
+                <LabAgentSidebar
+                  prompts={prompts}
+                  selectedName={selectedName}
+                  onSelect={selectPrompt}
+                />
+              </div>
+            </details>
 
-      {/* Tablet / mobile: stacked panes with internal scroll */}
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden lg:hidden">
-        <details className="shrink-0 border-b border-border/60">
-          <summary className="cursor-pointer px-4 py-2.5 text-sm font-medium">
-            Browse agents ({catalog.length})
-          </summary>
-          <div className="max-h-48 overflow-y-auto border-t border-border/60">
-            <LabAgentSidebar
-              prompts={prompts}
-              selectedName={selectedName}
-              onSelect={selectPrompt}
-            />
-          </div>
-        </details>
-
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-          <div className="min-h-0 flex-1 overflow-hidden border-b border-border/60">
-            {agentDetail}
-          </div>
-          {playgroundProps ? (
-            <div className="min-h-0 flex-1 overflow-hidden bg-muted/10">
-              <LabPlayground {...playgroundProps} />
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+              <div className="min-h-0 flex-1 overflow-hidden border-b border-border/60">
+                {agentDetail}
+              </div>
+              {playgroundProps ? (
+                <div className="min-h-0 flex-1 overflow-hidden bg-muted/10">
+                  <LabPlayground {...playgroundProps} />
+                </div>
+              ) : null}
             </div>
-          ) : null}
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );
