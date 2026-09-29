@@ -44,6 +44,7 @@ type Props = {
   voiceAutoStart: boolean;
   voiceStatus: string;
   onVoiceStatus: (status: string) => void;
+  onVoiceEnded?: () => void;
   resolvedPrompt: string;
   executeOutput: string;
 };
@@ -73,6 +74,7 @@ export function LabPlayground({
   voiceAutoStart,
   voiceStatus,
   onVoiceStatus,
+  onVoiceEnded,
   resolvedPrompt,
   executeOutput,
 }: Props) {
@@ -229,6 +231,7 @@ export function LabPlayground({
               sessionId={voiceSessionId}
               onStatus={onVoiceStatus}
               autoStart={voiceAutoStart}
+              onEnded={onVoiceEnded}
             />
             <p className="text-xs text-muted-foreground">Voice: {voiceStatus}</p>
           </>
