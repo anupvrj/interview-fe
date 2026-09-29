@@ -1,9 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useAuth } from "@clerk/nextjs";
 import { toast } from "sonner";
 import {
   captureLabInput,
+  composeLabLive,
+  createLabInterview,
   createSession,
   deleteFixture,
   executePrompt,
@@ -15,6 +18,7 @@ import {
   runLabAgent,
   saveFixture,
   savePrompt,
+  type LabComposeLiveResult,
   type PromptFixture,
   type PromptRecord,
 } from "@/lib/runtimeApi";
@@ -84,6 +88,7 @@ function buildModelConfigPayload(state: ModelConfigState): Record<string, unknow
 
 export default function LabPage() {
   const isLg = useIsLgLayout();
+  const { userId: clerkUserId } = useAuth();
   const [prompts, setPrompts] = useState<PromptRecord[]>([]);
   const [fixtures, setFixtures] = useState<PromptFixture[]>([]);
   const [selectedName, setSelectedName] = useState("interviewer-system");
@@ -97,6 +102,11 @@ export default function LabPage() {
     maxTokens: "",
   });
   const [targetEnv, setTargetEnv] = useState("staging");
+  const [testPromptEnv, setTestPromptEnv] = useState("development");
+  const [labInterviewId, setLabInterviewId] = useState<string | null>(null);
+  const [composeResult, setComposeResult] = useState<LabComposeLiveResult | null>(
+    null,
+  );
   const [fixtureInput, setFixtureInput] = useState("{}");
   const [fixtureName, setFixtureName] = useState("golden-live");
   const [captureInterviewId, setCaptureInterviewId] = useState("");
@@ -127,6 +137,7 @@ export default function LabPage() {
     setExecuteOutput("");
     setVoiceSessionId(null);
     setVoiceAutoStart(false);
+    setComposeResult(null);
   }, []);
 
   const selectPrompt = useCallback(
@@ -420,8 +431,106 @@ export default function LabPage() {
     }
   };
 
+  const ensureLabInterview = async (forceNew = false): Promise<string> => {
+    if (!forceNew && labInterviewId) return labInterviewId;
+    if (!clerkUserId) {
+      throw new Error("Sign in as super-admin to create a Lab interview");
+    }
+    const created = await createLabInterview({
+      userId: clerkUserId,
+      role: "Backend Engineer",
+      experience: 5,
+      language: "en",
+      department: "engineering",
+      discipline: "cse",
+      targetCompany: "Acme Corp",
+    });
+    setLabInterviewId(created.interviewId);
+    toast.success(`Lab interview ${created.interviewId}`);
+    return created.interviewId;
+  };
+
+  const onCreateLabInterview = async () => {
+    setLoading(true);
+    try {
+      setComposeResult(null);
+      await ensureLabInterview(true);
+    } catch (e) {
+      toast.error(String(e));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const onComposePreview = async () => {
+    setLoading(true);
+    try {
+      const id = await ensureLabInterview();
+      const result = await composeLabLive({
+        interviewId: id,
+        environment: testPromptEnv,
+        useDraft: useEditorDraft,
+        promptDraft: useEditorDraft ? editorContent : undefined,
+        promptName: "interviewer-system",
+        startVoice: false,
+      });
+      setComposeResult(result);
+      setResolvedPrompt(result.systemPrompt);
+      toast.success("Composition preview ready");
+    } catch (e) {
+      toast.error(String(e));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const onCompositionLiveTest = async () => {
+    setLoading(true);
+    setVoiceStatus("preparing production-path Live Test…");
+    setVoiceAutoStart(false);
+    try {
+      const id = await ensureLabInterview();
+      const provider = getDefaultVoiceProvider();
+      const result = await composeLabLive({
+        interviewId: id,
+        environment: testPromptEnv,
+        useDraft: useEditorDraft,
+        promptDraft: useEditorDraft ? editorContent : undefined,
+        promptName: "interviewer-system",
+        startVoice: true,
+        provider,
+        passthrough: provider === "openai",
+      });
+      setComposeResult(result);
+      setResolvedPrompt(result.systemPrompt);
+      if (!result.sessionId) {
+        throw new Error("compose-live did not return sessionId");
+      }
+      setVoiceSessionId(result.sessionId);
+      setVoiceAutoStart(true);
+      setVoiceStatus("Live Test starting…");
+      toast.success(
+        useEditorDraft
+          ? `Live Test (${testPromptEnv} + draft overlay)`
+          : `Live Test (${testPromptEnv})`,
+      );
+    } catch (e) {
+      setVoiceStatus("error");
+      toast.error(String(e));
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const onLiveTest = async () => {
     if (!meta?.supportsVoiceTest) return;
+
+    // interviewer-system uses production-path composition panel
+    if (selectedName === "interviewer-system") {
+      await onCompositionLiveTest();
+      return;
+    }
+
     if (!hasUsableInput()) {
       toast.error(
         "Add fixture JSON or Capture-from-interview before Live Test",
@@ -442,7 +551,7 @@ export default function LabPage() {
         const result = await runLabAgent({
           promptName: promptRef.name,
           input,
-          environment: "development",
+          environment: testPromptEnv,
           profileRef,
           provider,
           passthrough: provider === "openai",
@@ -485,12 +594,26 @@ export default function LabPage() {
   };
 
   const testSourceLabel = useEditorDraft
-    ? "testing draft"
-    : `testing development v${editorVersion}`;
+    ? `testing ${testPromptEnv} + draft`
+    : `testing ${testPromptEnv} v${editorVersion}`;
 
   const playgroundProps = meta
     ? {
         meta,
+        composition:
+          selectedName === "interviewer-system"
+            ? {
+                interviewId: labInterviewId,
+                environment: testPromptEnv,
+                onEnvironmentChange: setTestPromptEnv,
+                useDraft: useEditorDraft,
+                onUseDraftChange: setUseEditorDraft,
+                composeResult,
+                onCompose: () => void onComposePreview(),
+                onLiveTest: () => void onCompositionLiveTest(),
+                onCreateInterview: () => void onCreateLabInterview(),
+              }
+            : undefined,
         fixtureName,
         onFixtureNameChange: setFixtureName,
         fixtureInput,

@@ -252,6 +252,98 @@ export async function runLabAgent(
   return res.json();
 }
 
+export type LabComposeLayer = {
+  id: string;
+  label: string;
+  promptName?: string;
+  content: string;
+  draftOverlay?: boolean;
+};
+
+export type LabComposeLiveResult = {
+  interviewId: string;
+  environment: string;
+  promptRef: { name: string; environment: string };
+  profileRef: { name: string; environment: string };
+  input: Record<string, unknown>;
+  layers: LabComposeLayer[];
+  systemPrompt: string;
+  sessionId?: string;
+  rag: {
+    resumeSnippets: number;
+    pastInterviewSnippets: number;
+    performanceSnippets: number;
+  };
+};
+
+async function labCoreFetch<T>(
+  path: string,
+  init?: RequestInit,
+): Promise<T> {
+  const res = await fetch(`${CORE_API_URL}/internal/lab${path}`, {
+    ...init,
+    headers: {
+      "Content-Type": "application/json",
+      ...(init?.headers ?? {}),
+    },
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    let message = text || `Lab API ${res.status}`;
+    try {
+      const parsed = JSON.parse(text) as { error?: string };
+      if (parsed.error) message = parsed.error;
+    } catch {
+      /* keep */
+    }
+    throw new Error(message);
+  }
+  return res.json();
+}
+
+/** Create Interview with metadata.source=agent_lab (no credits). */
+export async function createLabInterview(body: {
+  userId: string;
+  role?: string;
+  experience?: number;
+  language?: "en" | "hi";
+  targetCompany?: string;
+  department?: string;
+  discipline?: string;
+  jobDescription?: string;
+  interviewDuration?: 15 | 30;
+  resumeText?: string;
+  resumeSkills?: string[];
+}): Promise<{
+  interviewId: string;
+  userId: string;
+  status: string;
+  metadata: Record<string, unknown>;
+}> {
+  return labCoreFetch("/interviews", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+/** Production-path compose + optional voice session for Lab Live Test. */
+export async function composeLabLive(body: {
+  interviewId: string;
+  environment?: string;
+  promptDraft?: string;
+  useDraft?: boolean;
+  promptName?: string;
+  startVoice?: boolean;
+  provider?: "openai" | "gemini";
+  passthrough?: boolean;
+  voice?: string;
+}): Promise<LabComposeLiveResult> {
+  return labCoreFetch("/compose-live", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
 export async function createSession(body: {
   appId?: string;
   mode?: "voice" | "execute";
