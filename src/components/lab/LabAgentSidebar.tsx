@@ -61,15 +61,16 @@ export function LabAgentSidebar({ prompts, selectedName, onSelect }: Props) {
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden">
       <div className="shrink-0 border-b border-border/60 px-3 py-3">
-        <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-          My agents
+        <p className="text-sm font-semibold tracking-tight">Agent catalog</p>
+        <p className="mb-2 mt-0.5 text-[11px] text-muted-foreground">
+          Pick an agent to edit, test, and deploy
         </p>
         <div className="relative">
           <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search agents…"
+            placeholder="Search by name or product area…"
             className="h-8 pl-8 text-xs"
           />
         </div>
@@ -82,9 +83,10 @@ export function LabAgentSidebar({ prompts, selectedName, onSelect }: Props) {
 
           return (
             <div key={group.kind} className="mb-4">
-              <div className="mb-1 px-2">
-                <p className="text-[11px] font-medium text-muted-foreground">
-                  {group.label}
+              <div className="mb-1.5 px-2">
+                <p className="text-xs font-semibold text-foreground">{group.label}</p>
+                <p className="text-[10px] leading-snug text-muted-foreground">
+                  {group.description}
                 </p>
               </div>
               <ul className="space-y-0.5">
@@ -130,7 +132,11 @@ export function LabAgentSidebar({ prompts, selectedName, onSelect }: Props) {
                               <span className="truncate text-[10px] text-muted-foreground">
                                 {meta.categoryLabel}
                               </span>
-                            ) : null}
+                            ) : (
+                              <span className="truncate font-mono text-[10px] text-muted-foreground">
+                                {p.name}
+                              </span>
+                            )}
                           </span>
                         </span>
                       </button>

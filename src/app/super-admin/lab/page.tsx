@@ -213,7 +213,7 @@ export default function LabPage() {
         version: editorVersion,
         content: editorContent,
         environment: "development",
-        inputVariables: editorInputVariables,
+        inputVariables: editorInputVariables.map((s) => s.trim()).filter(Boolean),
         description:
           selectedPrompt?.description ?? `Lab edit ${new Date().toISOString()}`,
         tags: selectedPrompt?.tags,
