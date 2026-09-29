@@ -6,7 +6,8 @@ import {
   getAgentDisplayName,
   getKindLabel,
 } from "@/lib/labPromptCatalog";
-import type { PromptRecord } from "@/lib/runtimeApi";
+import type { PromptRecord, PromptVersionSummary } from "@/lib/runtimeApi";
+import { listPromptVersions, redeployPrompt } from "@/lib/runtimeApi";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,7 +22,8 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { Loader2 } from "lucide-react";
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { toast } from "sonner";
 
 export type AgentDetailTab = "instructions" | "variables" | "model" | "deploy";
 
@@ -37,6 +39,8 @@ const KIND_ACCENT: Record<string, string> = {
   execute: "border-l-violet-500",
   profile: "border-l-amber-500",
 };
+
+const LIVE_ENVS = ["development", "staging", "production"] as const;
 
 type ModelConfigState = {
   model: string;
@@ -62,8 +66,17 @@ type Props = {
   onTargetEnvChange: (env: string) => void;
   loading: boolean;
   onSave: () => void;
-  onPromote: () => void;
+  onPromote: () => void | Promise<void>;
 };
+
+function formatUpdatedAt(value?: string): string {
+  if (!value) return "—";
+  try {
+    return new Date(value).toLocaleString();
+  } catch {
+    return value;
+  }
+}
 
 export function LabAgentDetail({
   selectedPrompt,
@@ -86,9 +99,68 @@ export function LabAgentDetail({
   onPromote,
 }: Props) {
   const [tab, setTab] = useState<AgentDetailTab>("instructions");
-  const displayName = getAgentDisplayName(selectedPrompt.name, meta);
+  const [liveVersions, setLiveVersions] = useState<
+    Partial<Record<(typeof LIVE_ENVS)[number], string>>
+  >({});
+  const [versionHistory, setVersionHistory] = useState<PromptVersionSummary[]>(
+    [],
+  );
+  const [deployMetaLoading, setDeployMetaLoading] = useState(false);
+  const [redeploying, setRedeploying] = useState<string | null>(null);
 
+  const displayName = getAgentDisplayName(selectedPrompt.name, meta);
   const variablesDraft = inputVariables.join(", ");
+
+  const refreshDeployMeta = useCallback(async () => {
+    setDeployMetaLoading(true);
+    try {
+      const versionsRes = await listPromptVersions(selectedPrompt.name);
+      setVersionHistory(versionsRes.versions);
+      // Latest per env by updatedAt (API already sorts newest first).
+      const next: Partial<Record<(typeof LIVE_ENVS)[number], string>> = {};
+      for (const row of versionsRes.versions) {
+        const env = row.environment as (typeof LIVE_ENVS)[number];
+        if (LIVE_ENVS.includes(env) && !next[env]) {
+          next[env] = row.version;
+        }
+      }
+      setLiveVersions(next);
+    } catch (e) {
+      toast.error(String(e));
+      setVersionHistory([]);
+      setLiveVersions({});
+    } finally {
+      setDeployMetaLoading(false);
+    }
+  }, [selectedPrompt.name]);
+
+  useEffect(() => {
+    if (tab !== "deploy") return;
+    void refreshDeployMeta();
+  }, [tab, refreshDeployMeta]);
+
+  const onRedeploy = async (
+    sourceVersion: string,
+    targetEnvironment: "staging" | "production",
+  ) => {
+    const key = `${sourceVersion}→${targetEnvironment}`;
+    setRedeploying(key);
+    try {
+      const result = await redeployPrompt(
+        selectedPrompt.name,
+        sourceVersion,
+        targetEnvironment,
+      );
+      toast.success(
+        `Redeployed v${sourceVersion} → ${targetEnvironment} as v${result.prompt.version}`,
+      );
+      await refreshDeployMeta();
+    } catch (e) {
+      toast.error(String(e));
+    } finally {
+      setRedeploying(null);
+    }
+  };
 
   return (
     <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
@@ -284,25 +356,49 @@ export function LabAgentDetail({
         ) : null}
 
         {tab === "deploy" ? (
-          <div className="max-w-md space-y-4">
+          <div className="max-w-2xl space-y-6">
+            <div className="flex flex-wrap items-center gap-2">
+              {LIVE_ENVS.map((env) => (
+                <Badge
+                  key={env}
+                  variant={env === "production" ? "default" : "secondary"}
+                  className="font-mono text-[10px]"
+                >
+                  {env === "development" ? "dev" : env}{" "}
+                  {liveVersions[env] ? `v${liveVersions[env]}` : "—"}
+                </Badge>
+              ))}
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-7 text-xs"
+                disabled={deployMetaLoading}
+                onClick={() => void refreshDeployMeta()}
+              >
+                {deployMetaLoading ? (
+                  <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                ) : null}
+                Refresh
+              </Button>
+            </div>
+
             <div>
-              <Label className="text-xs text-muted-foreground">Version</Label>
+              <Label className="text-xs text-muted-foreground">Draft version</Label>
               <Input
-                className="mt-1 font-mono text-xs"
+                className="mt-1 max-w-xs font-mono text-xs"
                 value={editorVersion}
                 onChange={(e) => onVersionChange(e.target.value)}
               />
-            </div>
-            <div>
-              <Label className="text-xs text-muted-foreground">Environment</Label>
-              <p className="mt-1 text-sm">
+              <p className="mt-1.5 text-xs text-muted-foreground">
                 Currently editing{" "}
                 <Badge variant="secondary" className="text-[10px]">
                   development
                 </Badge>
               </p>
             </div>
-            <div className="flex flex-wrap items-center gap-2 pt-2">
+
+            <div className="flex flex-wrap items-center gap-2">
               <Select value={targetEnv} onValueChange={onTargetEnvChange}>
                 <SelectTrigger className="h-9 w-[10rem] text-xs">
                   <SelectValue />
@@ -316,16 +412,109 @@ export function LabAgentDetail({
               <Button
                 type="button"
                 disabled={loading}
-                onClick={onPromote}
+                onClick={() => {
+                  void (async () => {
+                    await onPromote();
+                    await refreshDeployMeta();
+                  })();
+                }}
               >
                 {loading ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : null}
                 Deploy
               </Button>
             </div>
             <p className="text-xs text-muted-foreground">
-              Save your draft first, then deploy to copy the latest development version
-              to the target environment.
+              <strong>Test</strong> draft behavior in Playground first.{" "}
+              <strong>Deploy</strong> copies the latest development version to the
+              target environment as a new bumped version.{" "}
+              <strong>Redeploy</strong> restores an older version the same way
+              (rollback without mutating history).
             </p>
+
+            <div>
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <Label className="text-xs text-muted-foreground">Version history</Label>
+                {deployMetaLoading ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+                ) : null}
+              </div>
+              {versionHistory.length === 0 && !deployMetaLoading ? (
+                <p className="text-sm text-muted-foreground">No versions found.</p>
+              ) : (
+                <div className="overflow-x-auto rounded-md border border-border/60">
+                  <table className="w-full min-w-[28rem] text-left text-xs">
+                    <thead className="border-b border-border/60 bg-muted/30 text-muted-foreground">
+                      <tr>
+                        <th className="px-3 py-2 font-medium">Version</th>
+                        <th className="px-3 py-2 font-medium">Env</th>
+                        <th className="px-3 py-2 font-medium">Updated</th>
+                        <th className="px-3 py-2 font-medium">Chars</th>
+                        <th className="px-3 py-2 font-medium">Redeploy</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {versionHistory.map((row) => {
+                        const stagingKey = `${row.version}→staging`;
+                        const prodKey = `${row.version}→production`;
+                        return (
+                          <tr
+                            key={`${row.version}-${row.environment}-${row.updatedAt ?? ""}`}
+                            className="border-b border-border/40 last:border-0"
+                          >
+                            <td className="px-3 py-2 font-mono">v{row.version}</td>
+                            <td className="px-3 py-2">
+                              <Badge variant="outline" className="text-[10px]">
+                                {row.environment}
+                              </Badge>
+                            </td>
+                            <td className="px-3 py-2 text-muted-foreground">
+                              {formatUpdatedAt(row.updatedAt)}
+                            </td>
+                            <td className="px-3 py-2 text-muted-foreground">
+                              {row.contentLength}
+                            </td>
+                            <td className="px-3 py-2">
+                              <div className="flex flex-wrap gap-1">
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-7 text-[10px]"
+                                  disabled={!!redeploying || loading}
+                                  onClick={() =>
+                                    void onRedeploy(row.version, "staging")
+                                  }
+                                >
+                                  {redeploying === stagingKey ? (
+                                    <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                                  ) : null}
+                                  → staging
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-7 text-[10px]"
+                                  disabled={!!redeploying || loading}
+                                  onClick={() =>
+                                    void onRedeploy(row.version, "production")
+                                  }
+                                >
+                                  {redeploying === prodKey ? (
+                                    <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                                  ) : null}
+                                  → production
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
           </div>
         ) : null}
       </div>

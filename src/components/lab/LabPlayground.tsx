@@ -3,6 +3,7 @@
 import type { PromptClassification } from "@/lib/labPromptCatalog";
 import type { PromptFixture } from "@/lib/runtimeApi";
 import { LabVoicePanel } from "@/components/lab/LabVoicePanel";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -31,11 +32,16 @@ type Props = {
   onCaptureInput: () => void;
   useEditorDraft: boolean;
   onUseEditorDraftChange: (value: boolean) => void;
+  /** Status strip: draft vs saved development version. */
+  testSourceLabel: string;
+  profileLabel?: string;
   loading: boolean;
   onRenderTest: () => void;
   onExecuteTest: () => void;
-  onPrepareVoice: () => void;
+  /** One-click: run-agent (draft on) + auto-start voice. */
+  onLiveTest: () => void;
   voiceSessionId: string | null;
+  voiceAutoStart: boolean;
   voiceStatus: string;
   onVoiceStatus: (status: string) => void;
   resolvedPrompt: string;
@@ -57,11 +63,14 @@ export function LabPlayground({
   onCaptureInput,
   useEditorDraft,
   onUseEditorDraftChange,
+  testSourceLabel,
+  profileLabel,
   loading,
   onRenderTest,
   onExecuteTest,
-  onPrepareVoice,
+  onLiveTest,
   voiceSessionId,
+  voiceAutoStart,
   voiceStatus,
   onVoiceStatus,
   resolvedPrompt,
@@ -73,11 +82,25 @@ export function LabPlayground({
         <h3 className="text-sm font-semibold">Playground</h3>
         <p className="mt-0.5 text-xs text-muted-foreground">
           {meta.supportsVoiceTest
-            ? "Full Test uses core run-agent (same builders + session as prod)."
+            ? "Live Test = deployment QA on the draft. Deploy ships to staging/production."
             : meta.supportsExecuteTest
-              ? "Run uses core run-agent when registered — same builders as prod."
-              : "Render to preview composition."}
+              ? "Run (JSON) = Test execute agents. Deploy ships from the Deploy tab."
+              : "Render to preview composition. Deploy from the Deploy tab."}
         </p>
+        <div className="mt-2 flex flex-wrap items-center gap-1.5">
+          <Badge variant="secondary" className="text-[10px] font-normal">
+            {testSourceLabel}
+          </Badge>
+          {profileLabel ? (
+            <Badge variant="outline" className="text-[10px] font-normal">
+              profile: {profileLabel}
+            </Badge>
+          ) : null}
+          <Badge variant="outline" className="text-[10px] font-normal">
+            input: fixture
+            {captureInterviewId.trim() ? " / capture" : ""}
+          </Badge>
+        </div>
       </div>
 
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4">
@@ -162,18 +185,29 @@ export function LabPlayground({
               checked={useEditorDraft}
               onChange={(e) => onUseEditorDraftChange(e.target.checked)}
             />
-            Use unsaved draft when rendering
+            Use unsaved draft (default on for Live Test)
           </label>
         ) : null}
 
         <div className="flex flex-wrap gap-2">
+          {meta.supportsVoiceTest ? (
+            <Button
+              type="button"
+              size="sm"
+              disabled={loading}
+              onClick={onLiveTest}
+            >
+              {loading ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : null}
+              Live Test
+            </Button>
+          ) : null}
           <Button
             type="button"
             size="sm"
+            variant="outline"
             disabled={loading}
             onClick={onRenderTest}
           >
-            {loading ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : null}
             Render
           </Button>
           {meta.supportsExecuteTest ? (
@@ -187,22 +221,15 @@ export function LabPlayground({
               Run{meta.executeReturnsJson ? " (JSON)" : ""}
             </Button>
           ) : null}
-          {meta.supportsVoiceTest ? (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={loading}
-              onClick={onPrepareVoice}
-            >
-              Prepare voice
-            </Button>
-          ) : null}
         </div>
 
         {meta.supportsVoiceTest ? (
           <>
-            <LabVoicePanel sessionId={voiceSessionId} onStatus={onVoiceStatus} />
+            <LabVoicePanel
+              sessionId={voiceSessionId}
+              onStatus={onVoiceStatus}
+              autoStart={voiceAutoStart}
+            />
             <p className="text-xs text-muted-foreground">Voice: {voiceStatus}</p>
           </>
         ) : null}
@@ -210,7 +237,7 @@ export function LabPlayground({
         <div>
           <Label className="text-xs text-muted-foreground">Composed prompt</Label>
           <pre className="mt-1 max-h-36 overflow-auto rounded-md border border-border/60 bg-muted/20 p-2.5 text-[11px] leading-relaxed whitespace-pre-wrap">
-            {resolvedPrompt || "Run Render to preview…"}
+            {resolvedPrompt || "Run Live Test or Render to preview…"}
           </pre>
         </div>
 

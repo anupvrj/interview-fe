@@ -125,6 +125,34 @@ export async function promotePrompt(
   });
 }
 
+export type PromptVersionSummary = {
+  name: string;
+  version: string;
+  environment: string;
+  updatedAt?: string;
+  createdAt?: string;
+  contentLength: number;
+  description?: string;
+  snippet?: string;
+};
+
+export async function listPromptVersions(
+  name: string,
+): Promise<{ name: string; versions: PromptVersionSummary[] }> {
+  return runtimeFetch(`/prompts/${encodeURIComponent(name)}/versions`);
+}
+
+export async function redeployPrompt(
+  name: string,
+  sourceVersion: string,
+  targetEnvironment: string,
+): Promise<{ status: string; prompt: PromptRecord }> {
+  return runtimeFetch(`/prompts/${encodeURIComponent(name)}/redeploy`, {
+    method: "POST",
+    body: JSON.stringify({ sourceVersion, targetEnvironment }),
+  });
+}
+
 export async function listFixtures(appId = "interviewtrix"): Promise<PromptFixture[]> {
   return runtimeFetch(`/prompt-fixtures?appId=${encodeURIComponent(appId)}`);
 }
