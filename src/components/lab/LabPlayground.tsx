@@ -1,7 +1,8 @@
 "use client";
 
 import type { PromptClassification } from "@/lib/labPromptCatalog";
-import type { PromptFixture } from "@/lib/runtimeApi";
+import type { LabComposeLiveResult, PromptFixture } from "@/lib/runtimeApi";
+import { LabCompositionPanel } from "@/components/lab/LabCompositionPanel";
 import { LabVoicePanel } from "@/components/lab/LabVoicePanel";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -16,9 +17,22 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { ChevronDown, Loader2 } from "lucide-react";
+import type { ReactNode } from "react";
 
 type Props = {
   meta: PromptClassification;
+  /** When set, show production-path composition panel (interviewer-system). */
+  composition?: {
+    interviewId: string | null;
+    environment: string;
+    onEnvironmentChange: (env: string) => void;
+    useDraft: boolean;
+    onUseDraftChange: (v: boolean) => void;
+    composeResult: LabComposeLiveResult | null;
+    onCompose: () => void;
+    onLiveTest: () => void;
+    onCreateInterview: () => void;
+  };
   fixtureName: string;
   onFixtureNameChange: (name: string) => void;
   fixtureInput: string;
@@ -45,10 +59,13 @@ type Props = {
   onVoiceEnded?: () => void;
   resolvedPrompt: string;
   executeOutput: string;
+  /** Extra block under primary actions (optional). */
+  children?: ReactNode;
 };
 
 export function LabPlayground({
   meta,
+  composition,
   fixtureName,
   onFixtureNameChange,
   fixtureInput,
@@ -78,6 +95,7 @@ export function LabPlayground({
 }: Props) {
   const showCapture =
     (meta.supportsVoiceTest || meta.needsProfileRef) && !meta.previewViaLiveWrapper;
+  const productionPath = Boolean(composition);
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden">
@@ -86,7 +104,9 @@ export function LabPlayground({
           <div>
             <h3 className="text-sm font-semibold">Test</h3>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              Try the draft here, then deploy from the center panel.
+              {productionPath
+                ? "Full production compose + Live Test for this agent."
+                : "Try the draft here, then deploy from the center panel."}
             </p>
           </div>
           <Badge variant="secondary" className="text-[10px] font-normal">
@@ -102,36 +122,51 @@ export function LabPlayground({
       </div>
 
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4">
-        <div className="flex flex-wrap gap-2">
-          {meta.supportsVoiceTest ? (
-            <Button type="button" size="sm" disabled={loading} onClick={onLiveTest}>
-              {loading ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : null}
-              Live Test
-            </Button>
-          ) : null}
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            disabled={loading}
-            onClick={onRenderTest}
-          >
-            Render
-          </Button>
-          {meta.supportsExecuteTest ? (
+        {composition ? (
+          <LabCompositionPanel
+            interviewId={composition.interviewId}
+            environment={composition.environment}
+            onEnvironmentChange={composition.onEnvironmentChange}
+            useDraft={composition.useDraft}
+            onUseDraftChange={composition.onUseDraftChange}
+            loading={loading}
+            composeResult={composition.composeResult}
+            onCompose={composition.onCompose}
+            onLiveTest={composition.onLiveTest}
+            onCreateInterview={composition.onCreateInterview}
+          />
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            {meta.supportsVoiceTest ? (
+              <Button type="button" size="sm" disabled={loading} onClick={onLiveTest}>
+                {loading ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : null}
+                Live Test
+              </Button>
+            ) : null}
             <Button
               type="button"
-              variant="outline"
               size="sm"
+              variant="outline"
               disabled={loading}
-              onClick={onExecuteTest}
+              onClick={onRenderTest}
             >
-              Run{meta.executeReturnsJson ? " (JSON)" : ""}
+              Render
             </Button>
-          ) : null}
-        </div>
+            {meta.supportsExecuteTest ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={loading}
+                onClick={onExecuteTest}
+              >
+                Run{meta.executeReturnsJson ? " (JSON)" : ""}
+              </Button>
+            ) : null}
+          </div>
+        )}
 
-        {!meta.previewViaLiveWrapper ? (
+        {!productionPath && !meta.previewViaLiveWrapper ? (
           <label className="flex items-center gap-2 text-xs text-muted-foreground">
             <input
               type="checkbox"
@@ -156,18 +191,34 @@ export function LabPlayground({
           </>
         ) : null}
 
-        <div>
-          <Label className="text-xs font-medium">Test data</Label>
-          <p className="mt-0.5 text-[11px] text-muted-foreground">
-            JSON values for prompt inputs — edit or load a saved scenario.
-          </p>
-          <Textarea
-            className="mt-2 min-h-[11rem] font-mono text-xs"
-            value={fixtureInput}
-            onChange={(e) => onFixtureInputChange(e.target.value)}
-            spellCheck={false}
-          />
-        </div>
+        {!productionPath ? (
+          <div>
+            <Label className="text-xs font-medium">Test data</Label>
+            <p className="mt-0.5 text-[11px] text-muted-foreground">
+              JSON values for prompt inputs — edit or load a saved scenario.
+            </p>
+            <Textarea
+              className="mt-2 min-h-[11rem] font-mono text-xs"
+              value={fixtureInput}
+              onChange={(e) => onFixtureInputChange(e.target.value)}
+              spellCheck={false}
+            />
+          </div>
+        ) : (
+          <details className="rounded-lg border border-border/60">
+            <summary className="cursor-pointer px-3 py-2 text-xs font-medium text-muted-foreground">
+              Advanced: fixture JSON / scenarios
+            </summary>
+            <div className="space-y-3 border-t border-border/40 px-3 py-3">
+              <Textarea
+                className="min-h-[8rem] font-mono text-xs"
+                value={fixtureInput}
+                onChange={(e) => onFixtureInputChange(e.target.value)}
+                spellCheck={false}
+              />
+            </div>
+          </details>
+        )}
 
         <div className="rounded-lg border border-border/60 bg-muted/10 p-3">
           <Label className="text-xs font-medium">Saved scenarios</Label>
@@ -229,11 +280,11 @@ export function LabPlayground({
           <details className="group rounded-lg border border-border/60 bg-background/40">
             <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2.5 text-xs font-medium text-muted-foreground hover:text-foreground [&::-webkit-details-marker]:hidden">
               <ChevronDown className="h-3.5 w-3.5 shrink-0 transition-transform group-open:rotate-180" />
-              Import from a real interview
+              Checkpoint: inject from a real interview
             </summary>
             <div className="space-y-2 border-t border-border/40 px-3 pb-3 pt-2">
               <p className="text-[11px] leading-snug text-muted-foreground">
-                Pull the same input map production used for a past session (optional).
+                Load production-shaped input from a past session (optional).
               </p>
               <div className="flex gap-2">
                 <Input
@@ -250,14 +301,26 @@ export function LabPlayground({
                   disabled={loading || !captureInterviewId.trim()}
                   onClick={onCaptureInput}
                 >
-                  Import
+                  Inject
                 </Button>
               </div>
             </div>
           </details>
         ) : null}
 
-        {(resolvedPrompt || executeOutput) ? (
+        {productionPath && meta.supportsExecuteTest ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={loading}
+            onClick={onExecuteTest}
+          >
+            Run{meta.executeReturnsJson ? " (JSON)" : ""}
+          </Button>
+        ) : null}
+
+        {!productionPath && (resolvedPrompt || executeOutput) ? (
           <details className="group rounded-lg border border-border/60">
             <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2.5 text-xs font-medium text-muted-foreground [&::-webkit-details-marker]:hidden">
               <ChevronDown className="h-3.5 w-3.5 transition-transform group-open:rotate-180" />
