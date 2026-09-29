@@ -170,6 +170,60 @@ export async function captureLabInput(
   return res.json();
 }
 
+export type LabRunAgentRequest = {
+  promptName: string;
+  input?: Record<string, unknown>;
+  interviewId?: string;
+  promptDraft?: string;
+  environment?: string;
+  profileRef?: { name: string; environment?: string };
+  provider?: "openai" | "gemini";
+  passthrough?: boolean;
+  model?: string;
+  temperature?: number;
+  voice?: string;
+};
+
+export type LabRunAgentResult =
+  | {
+      mode: "execute";
+      output: string;
+      systemPrompt: string;
+      promptName: string;
+      environment: string;
+    }
+  | {
+      mode: "voice";
+      sessionId: string;
+      systemPrompt: string;
+      promptName: string;
+      environment: string;
+      profileRef?: { name: string; environment?: string };
+    };
+
+/** Full production-path Lab test via interview-core (builders + execute/session). */
+export async function runLabAgent(
+  body: LabRunAgentRequest,
+): Promise<LabRunAgentResult> {
+  const res = await fetch(`${CORE_API_URL}/internal/lab/run-agent`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    let message = text || `run-agent failed ${res.status}`;
+    try {
+      const parsed = JSON.parse(text) as { error?: string };
+      if (parsed.error) message = parsed.error;
+    } catch {
+      /* keep raw text */
+    }
+    throw new Error(message);
+  }
+  return res.json();
+}
+
 export async function createSession(body: {
   appId?: string;
   mode?: "voice" | "execute";

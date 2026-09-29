@@ -73,9 +73,9 @@ export function LabPlayground({
         <h3 className="text-sm font-semibold">Playground</h3>
         <p className="mt-0.5 text-xs text-muted-foreground">
           {meta.supportsVoiceTest
-            ? "Render, then run voice or execute."
+            ? "Full Test uses core run-agent (same builders + session as prod)."
             : meta.supportsExecuteTest
-              ? "Render composed prompt or run one-shot LLM."
+              ? "Run uses core run-agent when registered — same builders as prod."
               : "Render to preview composition."}
         </p>
       </div>
