@@ -88,20 +88,32 @@ export const LAB_CATEGORIES: LabCategory[] = [
 ];
 
 const KIND_LABELS: Record<PromptKind, string> = {
-  voice: "Live",
-  execute: "Batch",
+  voice: "Voice",
+  execute: "Text",
   profile: "Profile",
 };
 
-/** Sidebar groups — agent-type first, not product surface. */
+/** Sidebar groups — plain language, not internal "batch/live" jargon. */
 export const AGENT_TYPE_GROUPS: {
   kind: PromptKind;
   label: string;
   description: string;
 }[] = [
-  { kind: "voice", label: "Live agents", description: "Real-time voice sessions" },
-  { kind: "execute", label: "Batch agents", description: "One-shot text / JSON LLM" },
-  { kind: "profile", label: "Profiles", description: "Composed into live agents" },
+  {
+    kind: "voice",
+    label: "Realtime interviews",
+    description: "Speak with the agent — same path as production voice",
+  },
+  {
+    kind: "execute",
+    label: "Reports & scoring",
+    description: "Single LLM call — JSON or text, no microphone",
+  },
+  {
+    kind: "profile",
+    label: "Interviewer profiles",
+    description: "Domain tone mixed into the main live interviewer",
+  },
 ];
 
 const KIND_DESCRIPTIONS: Record<PromptKind, string> = {
@@ -232,18 +244,49 @@ export function getAgentDisplayName(
   name: string,
   meta?: Pick<PromptClassification, "shortLabel">,
 ): string {
-  if (meta?.shortLabel) return meta.shortLabel;
+  if (meta?.shortLabel && !meta.shortLabel.includes("${")) {
+    return meta.shortLabel;
+  }
   if (name.startsWith("profile-")) {
-    return name
-      .slice("profile-".length)
+    const slug = name.slice("profile-".length);
+    return slug
       .split("-")
       .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
       .join(" ");
   }
+
+  const tail = (prefix: string, label: string) => {
+    const rest = name.slice(prefix.length);
+    const words = rest
+      .split("-")
+      .filter(Boolean)
+      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+      .join(" ");
+    return words ? `${label} · ${words}` : label;
+  };
+
+  if (name.startsWith("report-")) return tail("report-", "Report");
+  if (name.startsWith("ats-")) return tail("ats-", "ATS");
+  if (name.startsWith("resume-")) return tail("resume-", "Resume");
+  if (name.startsWith("system-design-")) return tail("system-design-", "System design");
+  if (name.startsWith("peer-")) return tail("peer-", "Peer interview");
+  if (name.startsWith("interviewer-")) return tail("interviewer-", "Interviewer");
+
   return name
     .split("-")
     .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
     .join(" ");
+}
+
+/** Scan prompt body for ${name} placeholders (Lab Variables tab). */
+export function extractVariablesFromPrompt(content: string): string[] {
+  const found = new Set<string>();
+  const re = /\$\{([a-zA-Z_][a-zA-Z0-9_]*)\}/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(content)) !== null) {
+    found.add(m[1]!);
+  }
+  return [...found].sort((a, b) => a.localeCompare(b));
 }
 
 /** Two-letter initials for agent list avatars. */
