@@ -2,8 +2,19 @@
 
 import { useState, type ReactNode } from "react";
 import type { LabComposeLayer, LabComposeLiveResult } from "@/lib/runtimeApi";
+import {
+  LAB_DEPARTMENT_OPTIONS,
+  LAB_DISCIPLINE_BY_DEPARTMENT,
+  LAB_EXPERIENCE_OPTIONS,
+  labProfileNameFromSetup,
+  normalizeDisciplineForDepartment,
+  type LabDepartment,
+  type LabDiscipline,
+  type LabInterviewSetup,
+} from "@/lib/labInterviewSetup";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -12,6 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { Check, ChevronDown, Loader2 } from "lucide-react";
 
@@ -21,11 +33,14 @@ type Props = {
   onEnvironmentChange: (env: string) => void;
   useDraft: boolean;
   onUseDraftChange: (v: boolean) => void;
+  setup: LabInterviewSetup;
+  onSetupChange: (patch: Partial<LabInterviewSetup>) => void;
   loading: boolean;
   composeResult: LabComposeLiveResult | null;
   onCompose: () => void;
   onLiveTest: () => void;
   onCreateInterview: () => void;
+  onResetInterview: () => void;
   /** Voice controls rendered inside step 4. */
   voiceSlot?: ReactNode;
   voiceActive?: boolean;
@@ -113,41 +128,52 @@ function LayerBlock({ layer }: { layer: LabComposeLayer }) {
   );
 }
 
+function FieldLabel({ children }: { children: ReactNode }) {
+  return (
+    <Label className="text-[10px] text-muted-foreground">{children}</Label>
+  );
+}
+
 export function LabCompositionPanel({
   interviewId,
   environment,
   onEnvironmentChange,
   useDraft,
   onUseDraftChange,
+  setup,
+  onSetupChange,
   loading,
   composeResult,
   onCompose,
   onLiveTest,
   onCreateInterview,
+  onResetInterview,
   voiceSlot,
   voiceActive,
 }: Props) {
   const hasInterview = Boolean(interviewId);
   const hasCompose = Boolean(composeResult);
-  const step1Done = true; // always configured
+  const step1Done = true;
   const step2Done = hasInterview;
   const step3Done = hasCompose;
   const step4Active = hasCompose || voiceActive;
+  const disciplineOptions =
+    LAB_DISCIPLINE_BY_DEPARTMENT[setup.department] ?? [];
+  const predictedProfile = labProfileNameFromSetup(setup);
+  const setupLocked = hasInterview;
 
   return (
     <div className="space-y-3">
       <StepShell
         n={1}
-        title="Choose what to run"
+        title="Prompt source"
         subtitle="Which Mongo env to load, and whether to overlay your Lab editor draft."
         done={step1Done}
         active={!hasInterview}
       >
         <div className="grid gap-2.5">
           <div>
-            <Label className="text-[10px] text-muted-foreground">
-              Prompt environment
-            </Label>
+            <FieldLabel>Prompt environment</FieldLabel>
             <Select value={environment} onValueChange={onEnvironmentChange}>
               <SelectTrigger className="mt-1 h-8 text-xs">
                 <SelectValue />
@@ -179,38 +205,203 @@ export function LabCompositionPanel({
 
       <StepShell
         n={2}
-        title="Create Lab interview"
-        subtitle="Writes a real Interview row (source=agent_lab) for analytics and RAG."
+        title="Interview setup"
+        subtitle="Same fields a candidate fills — department/discipline pick the profile."
         done={step2Done}
         active={!hasInterview}
       >
-        {hasInterview ? (
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="outline" className="font-mono text-[10px]">
-              {interviewId}
-            </Badge>
+        <div className="space-y-2.5">
+          <div className="grid grid-cols-2 gap-2">
+            <div className="col-span-2">
+              <FieldLabel>Role</FieldLabel>
+              <Input
+                className="mt-1 h-8 text-xs"
+                value={setup.role}
+                disabled={setupLocked || loading}
+                onChange={(e) => onSetupChange({ role: e.target.value })}
+                placeholder="e.g. Backend Engineer"
+              />
+            </div>
+            <div>
+              <FieldLabel>Department</FieldLabel>
+              <Select
+                value={setup.department}
+                disabled={setupLocked || loading}
+                onValueChange={(v) => {
+                  const department = v as LabDepartment;
+                  onSetupChange({
+                    department,
+                    discipline: normalizeDisciplineForDepartment(
+                      department,
+                      setup.discipline,
+                    ),
+                  });
+                }}
+              >
+                <SelectTrigger className="mt-1 h-8 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {LAB_DEPARTMENT_OPTIONS.map((d) => (
+                    <SelectItem key={d.value} value={d.value}>
+                      {d.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <FieldLabel>Discipline</FieldLabel>
+              <Select
+                value={
+                  disciplineOptions.length ? setup.discipline : "none"
+                }
+                disabled={
+                  setupLocked || loading || disciplineOptions.length === 0
+                }
+                onValueChange={(v) =>
+                  onSetupChange({ discipline: v as LabDiscipline })
+                }
+              >
+                <SelectTrigger className="mt-1 h-8 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {disciplineOptions.length ? (
+                    disciplineOptions.map((d) => (
+                      <SelectItem key={d.value} value={d.value}>
+                        {d.label}
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <SelectItem value="none">None</SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <FieldLabel>Experience</FieldLabel>
+              <Select
+                value={String(setup.experience)}
+                disabled={setupLocked || loading}
+                onValueChange={(v) =>
+                  onSetupChange({ experience: Number.parseInt(v, 10) || 0 })
+                }
+              >
+                <SelectTrigger className="mt-1 h-8 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {LAB_EXPERIENCE_OPTIONS.map((o) => (
+                    <SelectItem key={o.value} value={String(o.value)}>
+                      {o.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <FieldLabel>Language</FieldLabel>
+              <Select
+                value={setup.language}
+                disabled={setupLocked || loading}
+                onValueChange={(v) =>
+                  onSetupChange({ language: v as "en" | "hi" })
+                }
+              >
+                <SelectTrigger className="mt-1 h-8 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="en">English</SelectItem>
+                  <SelectItem value="hi">Hindi</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <FieldLabel>Target company</FieldLabel>
+              <Input
+                className="mt-1 h-8 text-xs"
+                value={setup.targetCompany}
+                disabled={setupLocked || loading}
+                onChange={(e) =>
+                  onSetupChange({ targetCompany: e.target.value })
+                }
+              />
+            </div>
+            <div>
+              <FieldLabel>Duration</FieldLabel>
+              <Select
+                value={String(setup.interviewDuration)}
+                disabled={setupLocked || loading}
+                onValueChange={(v) =>
+                  onSetupChange({
+                    interviewDuration: (Number(v) === 30 ? 30 : 15) as 15 | 30,
+                  })
+                }
+              >
+                <SelectTrigger className="mt-1 h-8 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="15">15 min</SelectItem>
+                  <SelectItem value="30">30 min</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="col-span-2">
+              <FieldLabel>Job description (optional)</FieldLabel>
+              <Textarea
+                className="mt-1 min-h-[64px] text-xs"
+                value={setup.jobDescription}
+                disabled={setupLocked || loading}
+                onChange={(e) =>
+                  onSetupChange({ jobDescription: e.target.value })
+                }
+                placeholder="Paste JD to mirror a real interview…"
+              />
+            </div>
+          </div>
+
+          <div className="rounded-md border border-border/50 bg-muted/20 px-2.5 py-2">
+            <p className="text-[10px] font-medium text-muted-foreground">
+              Profile (production resolveProfileRef)
+            </p>
+            <p className="mt-0.5 font-mono text-[11px] text-foreground">
+              {predictedProfile}
+            </p>
+          </div>
+
+          {hasInterview ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant="outline" className="font-mono text-[10px]">
+                {interviewId}
+              </Badge>
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                className="h-7 text-[11px]"
+                disabled={loading}
+                onClick={onResetInterview}
+              >
+                Change setup
+              </Button>
+            </div>
+          ) : (
             <Button
               type="button"
               size="sm"
-              variant="ghost"
-              className="h-7 text-[11px]"
-              disabled={loading}
+              disabled={loading || !setup.role.trim()}
               onClick={onCreateInterview}
             >
-              Start over
+              {loading ? (
+                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+              ) : null}
+              Create interview
             </Button>
-          </div>
-        ) : (
-          <Button
-            type="button"
-            size="sm"
-            disabled={loading}
-            onClick={onCreateInterview}
-          >
-            {loading ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : null}
-            Create interview
-          </Button>
-        )}
+          )}
+        </div>
       </StepShell>
 
       <StepShell
@@ -228,7 +419,9 @@ export function LabCompositionPanel({
             disabled={loading || !hasInterview}
             onClick={onCompose}
           >
-            {loading ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : null}
+            {loading ? (
+              <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+            ) : null}
             {hasCompose ? "Re-compose" : "Compose"}
           </Button>
 
@@ -283,7 +476,9 @@ export function LabCompositionPanel({
             disabled={loading || !hasInterview}
             onClick={onLiveTest}
           >
-            {loading ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : null}
+            {loading ? (
+              <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+            ) : null}
             {voiceActive ? "Restart Live Test" : "Start Live Test"}
           </Button>
           {voiceSlot}
