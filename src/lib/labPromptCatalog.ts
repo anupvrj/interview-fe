@@ -533,3 +533,24 @@ export function defaultFixtureForPrompt(name: string, kind: PromptKind): Record<
   if (kind === "voice") return DEFAULT_LIVE_FIXTURE;
   return { note: "(no default fixture — add variables in the editor)" };
 }
+
+/**
+ * Prompts registered on interview-core `agentRunRegistry` for full Lab Test
+ * (POST /api/internal/lab/run-agent). Keep in sync with core registry.
+ */
+export const LAB_RUN_AGENT_PROMPTS = new Set([
+  "ats-jd-extract",
+  "report-qa-analysis",
+  "report-coaching-pass2",
+  "interviewer-system",
+  "interviewer-coding-discussion",
+  "system-design-voice",
+  "system-design-chat",
+  "system-design-diagram-review",
+  "system-design-scoring",
+  "system-design-report",
+]);
+
+export function supportsFullLabRun(promptName: string): boolean {
+  return LAB_RUN_AGENT_PROMPTS.has(promptName);
+}

@@ -12,6 +12,7 @@ import {
   listFixtures,
   listPrompts,
   promotePrompt,
+  runLabAgent,
   saveFixture,
   savePrompt,
   type PromptFixture,
@@ -21,6 +22,7 @@ import {
   classifyPrompt,
   defaultFixtureForPrompt,
   latestPromptsPerName,
+  supportsFullLabRun,
   type PromptClassification,
 } from "@/lib/labPromptCatalog";
 import { LabAgentDetail } from "@/components/lab/LabAgentDetail";
@@ -297,6 +299,31 @@ export default function LabPage() {
     setExecuteOutput("");
     try {
       const input = parseFixtureInput();
+      if (supportsFullLabRun(selectedName) && meta?.supportsVoiceTest) {
+        const provider = getDefaultVoiceProvider();
+        const { promptRef, profileRef } = composeRefs();
+        const result = await runLabAgent({
+          promptName: promptRef.name,
+          input,
+          environment: "development",
+          profileRef,
+          provider,
+          passthrough: provider === "openai",
+          ...(useEditorDraft && !meta.previewViaLiveWrapper
+            ? { promptDraft: editorContent }
+            : {}),
+          ...(captureInterviewId.trim()
+            ? { interviewId: captureInterviewId.trim() }
+            : {}),
+        });
+        if (result.mode !== "voice") {
+          throw new Error(`Expected voice mode, got ${result.mode}`);
+        }
+        setResolvedPrompt(result.systemPrompt);
+        setVoiceSessionId(result.sessionId);
+        toast.success("Prompt rendered (full run-agent)");
+        return;
+      }
       const session = await createSession(sessionPayload(input));
       setResolvedPrompt(session.systemPrompt);
       setVoiceSessionId(session.sessionId);
@@ -316,6 +343,30 @@ export default function LabPage() {
       const input = parseFixtureInput();
       const { promptRef, profileRef } = composeRefs();
       const mc = buildModelConfigPayload(modelConfig);
+
+      if (supportsFullLabRun(promptRef.name)) {
+        const result = await runLabAgent({
+          promptName: promptRef.name,
+          input,
+          environment: "development",
+          profileRef,
+          ...(useEditorDraft && !meta?.previewViaLiveWrapper
+            ? { promptDraft: editorContent }
+            : {}),
+          ...(typeof mc?.model === "string" ? { model: mc.model } : {}),
+          ...(typeof mc?.temperature === "number"
+            ? { temperature: mc.temperature }
+            : {}),
+        });
+        if (result.mode !== "execute") {
+          throw new Error(`Expected execute mode, got ${result.mode}`);
+        }
+        setResolvedPrompt(result.systemPrompt);
+        setExecuteOutput(result.output);
+        toast.success("Execute complete (full run-agent)");
+        return;
+      }
+
       const result = await executePrompt({
         promptRef,
         profileRef,
@@ -342,6 +393,33 @@ export default function LabPage() {
     try {
       const input = parseFixtureInput();
       const provider = getDefaultVoiceProvider();
+
+      if (supportsFullLabRun(selectedName)) {
+        const { promptRef, profileRef } = composeRefs();
+        const result = await runLabAgent({
+          promptName: promptRef.name,
+          input,
+          environment: "development",
+          profileRef,
+          provider,
+          passthrough: provider === "openai",
+          ...(useEditorDraft && !meta?.previewViaLiveWrapper
+            ? { promptDraft: editorContent }
+            : {}),
+          ...(captureInterviewId.trim()
+            ? { interviewId: captureInterviewId.trim() }
+            : {}),
+        });
+        if (result.mode !== "voice") {
+          throw new Error(`Expected voice mode, got ${result.mode}`);
+        }
+        setResolvedPrompt(result.systemPrompt);
+        setVoiceSessionId(result.sessionId);
+        setVoiceStatus("session ready");
+        toast.success(`Voice session ready via run-agent (${provider})`);
+        return;
+      }
+
       const session = await createSession({
         ...sessionPayload(input),
         passthrough: provider === "openai",
