@@ -6,6 +6,8 @@ import { connectVoiceSession } from "@/lib/runtimeApi";
 
 const TARGET_SAMPLE_RATE = 24000;
 const MIC_FRAME_SAMPLES = 720;
+/** Soft Lab live-test cap (5 minutes). */
+const LIVE_TEST_CAP_SEC = 5 * 60;
 
 function pcm16ToBase64(pcm: Int16Array): string {
   const bytes = new Uint8Array(pcm.buffer, pcm.byteOffset, pcm.byteLength);
@@ -14,16 +16,42 @@ function pcm16ToBase64(pcm: Int16Array): string {
   return btoa(binary);
 }
 
+function formatTimer(totalSec: number): string {
+  const m = Math.floor(totalSec / 60);
+  const s = totalSec % 60;
+  return `${m}:${s.toString().padStart(2, "0")}`;
+}
+
+type TranscriptLine = {
+  id: string;
+  role: "ai" | "user";
+  text: string;
+  partial?: boolean;
+};
+
 type Props = {
   sessionId: string | null;
   onStatus: (status: string) => void;
   onTranscript?: (line: string) => void;
+  /** When true, auto-start voice as soon as sessionId is set (Live Test one-click). */
+  autoStart?: boolean;
+  onEnded?: () => void;
 };
 
-export function LabVoicePanel({ sessionId, onStatus, onTranscript }: Props) {
+export function LabVoicePanel({
+  sessionId,
+  onStatus,
+  onTranscript,
+  autoStart = false,
+  onEnded,
+}: Props) {
   const [active, setActive] = useState(false);
   const [aiSpeaking, setAiSpeaking] = useState(false);
-  const [transcript, setTranscript] = useState("");
+  const [lines, setLines] = useState<TranscriptLine[]>([]);
+  const [elapsedSec, setElapsedSec] = useState(0);
+  const [endedHint, setEndedHint] = useState(false);
+  const [aiPartial, setAiPartial] = useState("");
+  const [userPartial, setUserPartial] = useState("");
 
   const wsRef = useRef<WebSocket | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
@@ -32,6 +60,34 @@ export function LabVoicePanel({ sessionId, onStatus, onTranscript }: Props) {
   const audioQueueRef = useRef<Int16Array[]>([]);
   const playingRef = useRef(false);
   const voiceActiveRef = useRef(false);
+  const startedAtRef = useRef<number | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const autoStartedForRef = useRef<string | null>(null);
+  const lineIdRef = useRef(0);
+  const endTestRef = useRef<() => void>(() => {});
+
+  const stopTimer = useCallback(() => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+  }, []);
+
+  const startTimer = useCallback(() => {
+    stopTimer();
+    startedAtRef.current = Date.now();
+    setElapsedSec(0);
+    timerRef.current = setInterval(() => {
+      const started = startedAtRef.current;
+      if (!started) return;
+      const sec = Math.floor((Date.now() - started) / 1000);
+      setElapsedSec(sec);
+      if (sec >= LIVE_TEST_CAP_SEC) {
+        onStatus("live test cap reached — ending");
+        endTestRef.current();
+      }
+    }, 1000);
+  }, [onStatus, stopTimer]);
 
   const playNext = useCallback(async () => {
     const ctx = audioContextRef.current;
@@ -59,7 +115,7 @@ export function LabVoicePanel({ sessionId, onStatus, onTranscript }: Props) {
       try {
         const binary = atob(base64);
         const bytes = new Uint8Array(binary.length);
-        for (let i = 0; i < binary.length; i++) bytes[i] = binary.codePointAt(i) ?? 0;
+        for (let i = 0; i < bytes.length; i++) bytes[i] = binary.codePointAt(i) ?? 0;
         if (bytes.length === 0) return;
         audioQueueRef.current.push(new Int16Array(bytes.buffer));
         if (!playingRef.current) void playNext();
@@ -70,17 +126,36 @@ export function LabVoicePanel({ sessionId, onStatus, onTranscript }: Props) {
     [playNext],
   );
 
-  const cleanup = useCallback(() => {
-    voiceActiveRef.current = false;
-    setActive(false);
-    setAiSpeaking(false);
-    processorRef.current?.disconnect?.();
-    processorRef.current = null;
-    mediaStreamRef.current?.getTracks().forEach((t) => t.stop());
-    mediaStreamRef.current = null;
-    wsRef.current?.close();
-    wsRef.current = null;
-  }, []);
+  const cleanup = useCallback(
+    (opts?: { showDeployHint?: boolean }) => {
+      voiceActiveRef.current = false;
+      setActive(false);
+      setAiSpeaking(false);
+      processorRef.current?.disconnect?.();
+      processorRef.current = null;
+      mediaStreamRef.current?.getTracks().forEach((t) => t.stop());
+      mediaStreamRef.current = null;
+      wsRef.current?.close();
+      wsRef.current = null;
+      stopTimer();
+      setAiPartial("");
+      setUserPartial("");
+      if (opts?.showDeployHint) {
+        setEndedHint(true);
+        onEnded?.();
+      }
+    },
+    [onEnded, stopTimer],
+  );
+
+  const endTest = useCallback(() => {
+    onStatus("live test ended");
+    cleanup({ showDeployHint: true });
+  }, [cleanup, onStatus]);
+
+  useEffect(() => {
+    endTestRef.current = endTest;
+  }, [endTest]);
 
   const setupMic = useCallback(async () => {
     const stream = await navigator.mediaDevices.getUserMedia({
@@ -156,12 +231,29 @@ export function LabVoicePanel({ sessionId, onStatus, onTranscript }: Props) {
     processorRef.current = processor;
   }, []);
 
+  const appendLine = useCallback(
+    (role: "ai" | "user", text: string) => {
+      const trimmed = text.trim();
+      if (!trimmed) return;
+      lineIdRef.current += 1;
+      const id = `t-${lineIdRef.current}`;
+      setLines((prev) => [...prev, { id, role, text: trimmed }]);
+      const labeled = role === "ai" ? `[AI] ${trimmed}` : `[You] ${trimmed}`;
+      onTranscript?.(labeled);
+    },
+    [onTranscript],
+  );
+
   const startVoice = useCallback(async () => {
     if (!sessionId) {
-      onStatus("Create a session first (Render prompt or Start voice)");
+      onStatus("Create a session first (Live Test or Render)");
       return;
     }
     cleanup();
+    setEndedHint(false);
+    setLines([]);
+    setAiPartial("");
+    setUserPartial("");
     onStatus("connecting voice…");
     voiceActiveRef.current = true;
 
@@ -171,9 +263,12 @@ export function LabVoicePanel({ sessionId, onStatus, onTranscript }: Props) {
     ws.onopen = () => onStatus("WS open — waiting for Gemini proxy…");
     ws.onerror = () => onStatus("voice WS error");
     ws.onclose = () => {
-      onStatus("voice disconnected");
+      if (voiceActiveRef.current) {
+        onStatus("voice disconnected");
+      }
       voiceActiveRef.current = false;
       setActive(false);
+      stopTimer();
     };
 
     ws.onmessage = async (ev) => {
@@ -186,6 +281,7 @@ export function LabVoicePanel({ sessionId, onStatus, onTranscript }: Props) {
           try {
             await setupMic();
             setActive(true);
+            startTimer();
             ws.send(JSON.stringify({ type: "response.create" }));
             onStatus("live — speak into your mic");
           } catch (e) {
@@ -200,18 +296,32 @@ export function LabVoicePanel({ sessionId, onStatus, onTranscript }: Props) {
         }
 
         if (type === "response.audio_transcript.delta" && typeof msg.delta === "string") {
-          setTranscript((prev) => {
-            const next = prev + msg.delta;
-            onTranscript?.(next);
-            return next;
-          });
+          setAiPartial((prev) => prev + msg.delta);
           return;
         }
 
         if (type === "response.audio_transcript.done" && typeof msg.transcript === "string") {
-          const line = `[AI] ${msg.transcript}`;
-          setTranscript((prev) => `${prev}\n${line}\n`);
-          onTranscript?.(line);
+          appendLine("ai", msg.transcript);
+          setAiPartial("");
+          return;
+        }
+
+        // Optional user partials when provider emits them
+        if (
+          type === "conversation.item.input_audio_transcription.delta" &&
+          typeof msg.delta === "string"
+        ) {
+          setUserPartial((prev) => prev + msg.delta);
+          return;
+        }
+
+        if (
+          type === "conversation.item.input_audio_transcription.completed" &&
+          typeof msg.transcript === "string"
+        ) {
+          appendLine("user", msg.transcript);
+          setUserPartial("");
+          return;
         }
 
         if (type === "error") {
@@ -221,9 +331,28 @@ export function LabVoicePanel({ sessionId, onStatus, onTranscript }: Props) {
         /* binary */
       }
     };
-  }, [sessionId, cleanup, enqueueAudio, onStatus, onTranscript, setupMic]);
+  }, [
+    sessionId,
+    cleanup,
+    enqueueAudio,
+    onStatus,
+    setupMic,
+    startTimer,
+    stopTimer,
+    appendLine,
+  ]);
 
   useEffect(() => () => cleanup(), [cleanup]);
+
+  useEffect(() => {
+    if (!autoStart || !sessionId) return;
+    if (autoStartedForRef.current === sessionId) return;
+    autoStartedForRef.current = sessionId;
+    void startVoice();
+  }, [autoStart, sessionId, startVoice]);
+
+  const remaining = Math.max(0, LIVE_TEST_CAP_SEC - elapsedSec);
+  const showTimer = active || endedHint;
 
   return (
     <div className="rounded-lg border border-border/60 bg-muted/20 p-3">
@@ -231,28 +360,74 @@ export function LabVoicePanel({ sessionId, onStatus, onTranscript }: Props) {
         <Button
           type="button"
           size="sm"
-          disabled={!sessionId}
+          disabled={!sessionId || active}
           onClick={() => void startVoice()}
         >
-          {active ? "Restart voice" : "Start live voice"}
+          {active ? "Live…" : "Start"}
         </Button>
-        <Button type="button" size="sm" variant="outline" onClick={cleanup}>
-          Stop
+        <Button
+          type="button"
+          size="sm"
+          variant={active ? "destructive" : "outline"}
+          disabled={!active && !sessionId}
+          onClick={endTest}
+        >
+          End Test
         </Button>
+        {showTimer ? (
+          <span className="font-mono text-xs text-muted-foreground">
+            {formatTimer(elapsedSec)}
+            {active ? ` · ${formatTimer(remaining)} left` : null}
+          </span>
+        ) : null}
         {aiSpeaking ? (
           <span className="text-xs text-muted-foreground">AI speaking…</span>
         ) : active ? (
           <span className="text-xs text-muted-foreground">Listening…</span>
         ) : null}
       </div>
-      {transcript ? (
-        <pre className="max-h-32 overflow-auto text-xs whitespace-pre-wrap text-muted-foreground">
-          {transcript}
-        </pre>
+
+      {endedHint ? (
+        <p className="mb-2 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-2 text-xs text-emerald-900 dark:text-emerald-100">
+          Ready to Deploy? Switch to the Deploy tab to promote this agent — Live
+          Test does not auto-promote.
+        </p>
+      ) : null}
+
+      {lines.length > 0 || aiPartial || userPartial ? (
+        <div className="max-h-48 space-y-1.5 overflow-auto rounded-md border border-border/40 bg-background/40 p-2 text-xs">
+          {lines.map((line) => (
+            <p
+              key={line.id}
+              className={
+                line.role === "ai"
+                  ? "text-foreground"
+                  : "text-muted-foreground"
+              }
+            >
+              <span className="font-medium">
+                {line.role === "ai" ? "AI" : "You"}:{" "}
+              </span>
+              {line.text}
+            </p>
+          ))}
+          {aiPartial ? (
+            <p className="italic text-muted-foreground">
+              <span className="font-medium not-italic">AI: </span>
+              {aiPartial}
+            </p>
+          ) : null}
+          {userPartial ? (
+            <p className="italic text-muted-foreground">
+              <span className="font-medium not-italic">You: </span>
+              {userPartial}
+            </p>
+          ) : null}
+        </div>
       ) : (
         <p className="text-xs text-muted-foreground">
-          Uses runtime Gemini proxy with browser mic + speaker (same wire format as
-          production voice).
+          Multi-turn Lab voice on the runtime session (mic + speaker). Soft cap{" "}
+          {LIVE_TEST_CAP_SEC / 60} min — End Test closes WS and mic.
         </p>
       )}
     </div>

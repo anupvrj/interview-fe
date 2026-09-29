@@ -83,10 +83,11 @@ export default function LabPage() {
   const [fixtureInput, setFixtureInput] = useState("{}");
   const [fixtureName, setFixtureName] = useState("golden-live");
   const [captureInterviewId, setCaptureInterviewId] = useState("");
-  const [useEditorDraft, setUseEditorDraft] = useState(false);
+  const [useEditorDraft, setUseEditorDraft] = useState(true);
   const [resolvedPrompt, setResolvedPrompt] = useState("");
   const [executeOutput, setExecuteOutput] = useState("");
   const [voiceSessionId, setVoiceSessionId] = useState<string | null>(null);
+  const [voiceAutoStart, setVoiceAutoStart] = useState(false);
   const [voiceStatus, setVoiceStatus] = useState("idle");
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -108,6 +109,7 @@ export default function LabPage() {
     setResolvedPrompt("");
     setExecuteOutput("");
     setVoiceSessionId(null);
+    setVoiceAutoStart(false);
   }, []);
 
   const selectPrompt = useCallback(
@@ -297,6 +299,7 @@ export default function LabPage() {
     setLoading(true);
     setResolvedPrompt("");
     setExecuteOutput("");
+    setVoiceAutoStart(false);
     try {
       const input = parseFixtureInput();
       if (supportsFullLabRun(selectedName) && meta?.supportsVoiceTest) {
@@ -387,12 +390,35 @@ export default function LabPage() {
     }
   };
 
-  const onPrepareVoice = async () => {
+  const hasUsableInput = (): boolean => {
+    const raw = fixtureInput.trim();
+    if (!raw || raw === "{}") {
+      if (!captureInterviewId.trim()) return false;
+    }
+    try {
+      JSON.parse(fixtureInput);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  const onLiveTest = async () => {
+    if (!meta?.supportsVoiceTest) return;
+    if (!hasUsableInput()) {
+      toast.error(
+        "Add fixture JSON or Capture-from-interview before Live Test",
+      );
+      return;
+    }
     setLoading(true);
-    setVoiceStatus("preparing");
+    setVoiceStatus("preparing Live Test…");
+    setVoiceAutoStart(false);
+    setUseEditorDraft(true);
     try {
       const input = parseFixtureInput();
       const provider = getDefaultVoiceProvider();
+      const draftOn = !meta.previewViaLiveWrapper;
 
       if (supportsFullLabRun(selectedName)) {
         const { promptRef, profileRef } = composeRefs();
@@ -403,9 +429,7 @@ export default function LabPage() {
           profileRef,
           provider,
           passthrough: provider === "openai",
-          ...(useEditorDraft && !meta?.previewViaLiveWrapper
-            ? { promptDraft: editorContent }
-            : {}),
+          ...(draftOn ? { promptDraft: editorContent } : {}),
           ...(captureInterviewId.trim()
             ? { interviewId: captureInterviewId.trim() }
             : {}),
@@ -415,19 +439,26 @@ export default function LabPage() {
         }
         setResolvedPrompt(result.systemPrompt);
         setVoiceSessionId(result.sessionId);
-        setVoiceStatus("session ready");
-        toast.success(`Voice session ready via run-agent (${provider})`);
+        setVoiceAutoStart(true);
+        setVoiceStatus("Live Test starting…");
+        toast.success(
+          draftOn
+            ? "Live Test on unsaved draft"
+            : "Live Test session ready",
+        );
         return;
       }
 
       const session = await createSession({
         ...sessionPayload(input),
+        promptDraft: draftOn ? editorContent : undefined,
         passthrough: provider === "openai",
       });
       setResolvedPrompt(session.systemPrompt);
       setVoiceSessionId(session.sessionId);
-      setVoiceStatus("session ready");
-      toast.success(`Voice session ready (${provider})`);
+      setVoiceAutoStart(true);
+      setVoiceStatus("Live Test starting…");
+      toast.success("Live Test session ready");
     } catch (e) {
       setVoiceStatus("error");
       toast.error(String(e));
@@ -435,6 +466,10 @@ export default function LabPage() {
       setLoading(false);
     }
   };
+
+  const testSourceLabel = useEditorDraft
+    ? "testing draft"
+    : `testing development v${editorVersion}`;
 
   const playgroundProps = meta
     ? {
@@ -452,11 +487,14 @@ export default function LabPage() {
         onCaptureInput,
         useEditorDraft,
         onUseEditorDraftChange: setUseEditorDraft,
+        testSourceLabel,
+        profileLabel: selectedProfile || undefined,
         loading,
         onRenderTest,
         onExecuteTest,
-        onPrepareVoice,
+        onLiveTest,
         voiceSessionId,
+        voiceAutoStart,
         voiceStatus,
         onVoiceStatus: setVoiceStatus,
         resolvedPrompt,
