@@ -29,6 +29,11 @@ import {
   supportsFullLabRun,
   type PromptClassification,
 } from "@/lib/labPromptCatalog";
+import {
+  DEFAULT_LAB_INTERVIEW_SETUP,
+  labProfileNameFromSetup,
+  type LabInterviewSetup,
+} from "@/lib/labInterviewSetup";
 import { LabAgentDetail } from "@/components/lab/LabAgentDetail";
 import { LabAgentSidebar } from "@/components/lab/LabAgentSidebar";
 import { LabPlayground } from "@/components/lab/LabPlayground";
@@ -103,6 +108,9 @@ export default function LabPage() {
   });
   const [targetEnv, setTargetEnv] = useState("staging");
   const [testPromptEnv, setTestPromptEnv] = useState("development");
+  const [labInterviewSetup, setLabInterviewSetup] = useState<LabInterviewSetup>(
+    DEFAULT_LAB_INTERVIEW_SETUP,
+  );
   const [labInterviewId, setLabInterviewId] = useState<string | null>(null);
   const [composeResult, setComposeResult] = useState<LabComposeLiveResult | null>(
     null,
@@ -438,15 +446,21 @@ export default function LabPage() {
     }
     const created = await createLabInterview({
       userId: clerkUserId,
-      role: "Backend Engineer",
-      experience: 5,
-      language: "en",
-      department: "engineering",
-      discipline: "cse",
-      targetCompany: "Acme Corp",
+      role: labInterviewSetup.role.trim() || "Backend Engineer",
+      experience: labInterviewSetup.experience,
+      language: labInterviewSetup.language,
+      department: labInterviewSetup.department,
+      discipline: labInterviewSetup.discipline,
+      targetCompany: labInterviewSetup.targetCompany.trim() || "Acme Corp",
+      interviewDuration: labInterviewSetup.interviewDuration,
+      ...(labInterviewSetup.jobDescription.trim()
+        ? { jobDescription: labInterviewSetup.jobDescription.trim() }
+        : {}),
     });
     setLabInterviewId(created.interviewId);
-    toast.success(`Lab interview ${created.interviewId}`);
+    toast.success(
+      `Lab interview ${created.interviewId} · ${labProfileNameFromSetup(labInterviewSetup)}`,
+    );
     return created.interviewId;
   };
 
@@ -460,6 +474,15 @@ export default function LabPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const onResetLabInterview = () => {
+    setLabInterviewId(null);
+    setComposeResult(null);
+    setVoiceSessionId(null);
+    setVoiceAutoStart(false);
+    setVoiceStatus("idle");
+    setResolvedPrompt("");
   };
 
   const onComposePreview = async () => {
@@ -608,10 +631,14 @@ export default function LabPage() {
                 onEnvironmentChange: setTestPromptEnv,
                 useDraft: useEditorDraft,
                 onUseDraftChange: setUseEditorDraft,
+                setup: labInterviewSetup,
+                onSetupChange: (patch) =>
+                  setLabInterviewSetup((prev) => ({ ...prev, ...patch })),
                 composeResult,
                 onCompose: () => void onComposePreview(),
                 onLiveTest: () => void onCompositionLiveTest(),
                 onCreateInterview: () => void onCreateLabInterview(),
+                onResetInterview: onResetLabInterview,
               }
             : undefined,
         fixtureName,
@@ -628,7 +655,10 @@ export default function LabPage() {
         useEditorDraft,
         onUseEditorDraftChange: setUseEditorDraft,
         testSourceLabel,
-        profileLabel: selectedProfile || undefined,
+        profileLabel:
+          selectedName === "interviewer-system"
+            ? labProfileNameFromSetup(labInterviewSetup)
+            : selectedProfile || undefined,
         loading,
         onRenderTest,
         onExecuteTest,

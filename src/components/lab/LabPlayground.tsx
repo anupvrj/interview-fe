@@ -1,6 +1,7 @@
 "use client";
 
 import type { PromptClassification } from "@/lib/labPromptCatalog";
+import type { LabInterviewSetup } from "@/lib/labInterviewSetup";
 import type { LabComposeLiveResult, PromptFixture } from "@/lib/runtimeApi";
 import { LabCompositionPanel } from "@/components/lab/LabCompositionPanel";
 import { LabVoicePanel } from "@/components/lab/LabVoicePanel";
@@ -27,10 +28,13 @@ type Props = {
     onEnvironmentChange: (env: string) => void;
     useDraft: boolean;
     onUseDraftChange: (v: boolean) => void;
+    setup: LabInterviewSetup;
+    onSetupChange: (patch: Partial<LabInterviewSetup>) => void;
     composeResult: LabComposeLiveResult | null;
     onCompose: () => void;
     onLiveTest: () => void;
     onCreateInterview: () => void;
+    onResetInterview: () => void;
   };
   fixtureName: string;
   onFixtureNameChange: (name: string) => void;
@@ -298,11 +302,14 @@ export function LabPlayground({
             onEnvironmentChange={composition.onEnvironmentChange}
             useDraft={composition.useDraft}
             onUseDraftChange={composition.onUseDraftChange}
+            setup={composition.setup}
+            onSetupChange={composition.onSetupChange}
             loading={loading}
             composeResult={composition.composeResult}
             onCompose={composition.onCompose}
             onLiveTest={composition.onLiveTest}
             onCreateInterview={composition.onCreateInterview}
+            onResetInterview={composition.onResetInterview}
             voiceSlot={voiceBlock}
             voiceActive={voiceActive}
           />

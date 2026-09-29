@@ -251,7 +251,14 @@ export function LabAgentDetail({
           </p>
         ) : null}
 
-        {meta.needsProfileRef ? (
+        {meta.needsProfileRef && selectedPrompt.name === "interviewer-system" ? (
+          <p className="mt-3 rounded-md bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+            Profile is chosen in the <strong>Test flow</strong> via department +
+            discipline (same as a real interview) — not here.
+          </p>
+        ) : null}
+
+        {meta.needsProfileRef && selectedPrompt.name !== "interviewer-system" ? (
           <div className="mt-3 max-w-xs">
             <Label className="text-xs text-muted-foreground">Composes with profile</Label>
             <Select
