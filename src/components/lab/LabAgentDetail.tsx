@@ -1,11 +1,10 @@
 "use client";
 
-import type { PromptClassification } from "@/lib/labPromptCatalog";
 import {
-  classifyPrompt,
   extractVariablesFromPrompt,
   getAgentDisplayName,
   getKindLabel,
+  type PromptClassification,
 } from "@/lib/labPromptCatalog";
 import type { PromptRecord, PromptVersionSummary } from "@/lib/runtimeApi";
 import { listPromptVersions, redeployPrompt } from "@/lib/runtimeApi";
@@ -72,9 +71,6 @@ type ModelConfigState = {
 type Props = {
   selectedPrompt: PromptRecord;
   meta: PromptClassification;
-  profilePrompts: PromptRecord[];
-  selectedProfile: string;
-  onProfileChange: (name: string) => void;
   editorContent: string;
   onContentChange: (value: string) => void;
   editorVersion: string;
@@ -102,9 +98,6 @@ function formatUpdatedAt(value?: string): string {
 export function LabAgentDetail({
   selectedPrompt,
   meta,
-  profilePrompts,
-  selectedProfile,
-  onProfileChange,
   editorContent,
   onContentChange,
   editorVersion,
@@ -246,38 +239,17 @@ export function LabAgentDetail({
           <p className="mt-3 rounded-md bg-amber-500/10 px-3 py-2 text-xs text-amber-900 dark:text-amber-100">
             Profiles compose into{" "}
             <code className="rounded bg-background/60 px-1">interviewer-system</code> via{" "}
-            <code className="rounded bg-background/60 px-1">profileRef</code>. Use{" "}
-            <strong>Test panel → Render</strong> to preview the full system prompt.
+            <code className="rounded bg-background/60 px-1">profileRef</code>. Pick the wrapper
+            profile in the <strong>Test</strong> pane dropdown (left catalog still lists every
+            profile for editing).
           </p>
         ) : null}
 
-        {meta.needsProfileRef && selectedPrompt.name === "interviewer-system" ? (
+        {meta.needsProfileRef ? (
           <p className="mt-3 rounded-md bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
-            Profile is chosen in the <strong>Test flow</strong> via department +
-            discipline (same as a real interview) — not here.
+            Department profile is selected in the <strong>Test</strong> pane — same list as
+            Interviewer profiles on the left.
           </p>
-        ) : null}
-
-        {meta.needsProfileRef && selectedPrompt.name !== "interviewer-system" ? (
-          <div className="mt-3 max-w-xs">
-            <Label className="text-xs text-muted-foreground">Composes with profile</Label>
-            <Select
-              value={selectedProfile || "__none__"}
-              onValueChange={(v) => onProfileChange(v === "__none__" ? "" : v)}
-            >
-              <SelectTrigger className="mt-1 h-8 text-xs">
-                <SelectValue placeholder="Select profile…" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__none__">— none —</SelectItem>
-                {profilePrompts.map((p) => (
-                  <SelectItem key={p.name} value={p.name}>
-                    {getAgentDisplayName(p.name, classifyPrompt(p))}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
         ) : null}
       </div>
 

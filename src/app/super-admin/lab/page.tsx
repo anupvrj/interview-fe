@@ -623,6 +623,12 @@ export default function LabPage() {
   const playgroundProps = meta
     ? {
         meta,
+        catalogPrompts: catalog,
+        selectedPromptName: selectedName,
+        onSelectPrompt: selectPrompt,
+        profilePrompts,
+        selectedProfile,
+        onProfileChange: setSelectedProfile,
         composition:
           selectedName === "interviewer-system"
             ? {
@@ -632,7 +638,7 @@ export default function LabPage() {
                 useDraft: useEditorDraft,
                 onUseDraftChange: setUseEditorDraft,
                 setup: labInterviewSetup,
-                onSetupChange: (patch) =>
+                onSetupChange: (patch: Partial<LabInterviewSetup>) =>
                   setLabInterviewSetup((prev) => ({ ...prev, ...patch })),
                 composeResult,
                 onCompose: () => void onComposePreview(),
@@ -655,10 +661,6 @@ export default function LabPage() {
         useEditorDraft,
         onUseEditorDraftChange: setUseEditorDraft,
         testSourceLabel,
-        profileLabel:
-          selectedName === "interviewer-system"
-            ? labProfileNameFromSetup(labInterviewSetup)
-            : selectedProfile || undefined,
         loading,
         onRenderTest,
         onExecuteTest,
@@ -682,9 +684,6 @@ export default function LabPage() {
       <LabAgentDetail
         selectedPrompt={selectedPrompt}
         meta={meta}
-        profilePrompts={profilePrompts}
-        selectedProfile={selectedProfile}
-        onProfileChange={setSelectedProfile}
         editorContent={editorContent}
         onContentChange={setEditorContent}
         editorVersion={editorVersion}

@@ -90,6 +90,42 @@ export function labProfileNameFromSetup(setup: LabInterviewSetup): string {
   return `profile-${setup.department}-${discipline}`;
 }
 
+const DISCIPLINE_SUFFIXES: LabDiscipline[] = [
+  "cse",
+  "it",
+  "mech",
+  "civil",
+  "mba",
+  "bba",
+  "none",
+];
+
+const DEPARTMENT_SET = new Set<string>(
+  LAB_DEPARTMENT_OPTIONS.map((d) => d.value),
+);
+
+/**
+ * Parse Mongo profile name (`profile-engineering-cse`) back into setup fields.
+ * Returns null if the slug is not a known department/discipline pair.
+ */
+export function parseLabProfileName(
+  profileName: string,
+): { department: LabDepartment; discipline: LabDiscipline } | null {
+  if (!profileName.startsWith("profile-")) return null;
+  const slug = profileName.slice("profile-".length);
+  for (const disc of DISCIPLINE_SUFFIXES) {
+    const suffix = `-${disc}`;
+    if (!slug.endsWith(suffix)) continue;
+    const department = slug.slice(0, -suffix.length);
+    if (!DEPARTMENT_SET.has(department)) continue;
+    return {
+      department: department as LabDepartment,
+      discipline: disc,
+    };
+  }
+  return null;
+}
+
 export function normalizeDisciplineForDepartment(
   department: LabDepartment,
   discipline: LabDiscipline,

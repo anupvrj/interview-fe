@@ -1,17 +1,17 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
-import type { LabComposeLayer, LabComposeLiveResult } from "@/lib/runtimeApi";
 import {
-  LAB_DEPARTMENT_OPTIONS,
-  LAB_DISCIPLINE_BY_DEPARTMENT,
   LAB_EXPERIENCE_OPTIONS,
   labProfileNameFromSetup,
-  normalizeDisciplineForDepartment,
-  type LabDepartment,
-  type LabDiscipline,
+  parseLabProfileName,
   type LabInterviewSetup,
 } from "@/lib/labInterviewSetup";
+import {
+  classifyPrompt,
+  getAgentDisplayName,
+} from "@/lib/labPromptCatalog";
+import type { PromptRecord } from "@/lib/runtimeApi";
+import type { LabComposeLayer, LabComposeLiveResult } from "@/lib/runtimeApi";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,6 +26,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { Check, ChevronDown, Loader2 } from "lucide-react";
+import { useState, type ReactNode } from "react";
 
 type Props = {
   interviewId: string | null;
@@ -35,6 +36,8 @@ type Props = {
   onUseDraftChange: (v: boolean) => void;
   setup: LabInterviewSetup;
   onSetupChange: (patch: Partial<LabInterviewSetup>) => void;
+  /** Catalog profiles (profile-*) — same list as left sidebar. */
+  profilePrompts: PromptRecord[];
   loading: boolean;
   composeResult: LabComposeLiveResult | null;
   onCompose: () => void;
@@ -142,6 +145,7 @@ export function LabCompositionPanel({
   onUseDraftChange,
   setup,
   onSetupChange,
+  profilePrompts,
   loading,
   composeResult,
   onCompose,
@@ -157,10 +161,15 @@ export function LabCompositionPanel({
   const step2Done = hasInterview;
   const step3Done = hasCompose;
   const step4Active = hasCompose || voiceActive;
-  const disciplineOptions =
-    LAB_DISCIPLINE_BY_DEPARTMENT[setup.department] ?? [];
   const predictedProfile = labProfileNameFromSetup(setup);
   const setupLocked = hasInterview;
+  const profileInCatalog = profilePrompts.some((p) => p.name === predictedProfile);
+
+  const onProfileSelect = (profileName: string) => {
+    const parsed = parseLabProfileName(profileName);
+    if (!parsed) return;
+    onSetupChange(parsed);
+  };
 
   return (
     <div className="space-y-3">
@@ -206,11 +215,38 @@ export function LabCompositionPanel({
       <StepShell
         n={2}
         title="Interview setup"
-        subtitle="Same fields a candidate fills — department/discipline pick the profile."
+        subtitle="Pick a department profile from the catalog, then the same fields a candidate fills."
         done={step2Done}
         active={!hasInterview}
       >
         <div className="space-y-2.5">
+          <div>
+            <FieldLabel>Department profile</FieldLabel>
+            <Select
+              value={predictedProfile}
+              disabled={setupLocked || loading || profilePrompts.length === 0}
+              onValueChange={onProfileSelect}
+            >
+              <SelectTrigger className="mt-1 h-8 text-xs">
+                <SelectValue placeholder="Select profile…" />
+              </SelectTrigger>
+              <SelectContent>
+                {profilePrompts.map((p) => (
+                  <SelectItem key={p.name} value={p.name}>
+                    {getAgentDisplayName(p.name, classifyPrompt(p))}
+                    <span className="ml-1.5 font-mono text-[10px] text-muted-foreground">
+                      {p.name}
+                    </span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="mt-1 font-mono text-[10px] text-muted-foreground">
+              {predictedProfile}
+              {!profileInCatalog ? " · not in catalog yet" : ""}
+            </p>
+          </div>
+
           <div className="grid grid-cols-2 gap-2">
             <div className="col-span-2">
               <FieldLabel>Role</FieldLabel>
@@ -221,63 +257,6 @@ export function LabCompositionPanel({
                 onChange={(e) => onSetupChange({ role: e.target.value })}
                 placeholder="e.g. Backend Engineer"
               />
-            </div>
-            <div>
-              <FieldLabel>Department</FieldLabel>
-              <Select
-                value={setup.department}
-                disabled={setupLocked || loading}
-                onValueChange={(v) => {
-                  const department = v as LabDepartment;
-                  onSetupChange({
-                    department,
-                    discipline: normalizeDisciplineForDepartment(
-                      department,
-                      setup.discipline,
-                    ),
-                  });
-                }}
-              >
-                <SelectTrigger className="mt-1 h-8 text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {LAB_DEPARTMENT_OPTIONS.map((d) => (
-                    <SelectItem key={d.value} value={d.value}>
-                      {d.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <FieldLabel>Discipline</FieldLabel>
-              <Select
-                value={
-                  disciplineOptions.length ? setup.discipline : "none"
-                }
-                disabled={
-                  setupLocked || loading || disciplineOptions.length === 0
-                }
-                onValueChange={(v) =>
-                  onSetupChange({ discipline: v as LabDiscipline })
-                }
-              >
-                <SelectTrigger className="mt-1 h-8 text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {disciplineOptions.length ? (
-                    disciplineOptions.map((d) => (
-                      <SelectItem key={d.value} value={d.value}>
-                        {d.label}
-                      </SelectItem>
-                    ))
-                  ) : (
-                    <SelectItem value="none">None</SelectItem>
-                  )}
-                </SelectContent>
-              </Select>
             </div>
             <div>
               <FieldLabel>Experience</FieldLabel>
@@ -361,15 +340,6 @@ export function LabCompositionPanel({
                 placeholder="Paste JD to mirror a real interview…"
               />
             </div>
-          </div>
-
-          <div className="rounded-md border border-border/50 bg-muted/20 px-2.5 py-2">
-            <p className="text-[10px] font-medium text-muted-foreground">
-              Profile (production resolveProfileRef)
-            </p>
-            <p className="mt-0.5 font-mono text-[11px] text-foreground">
-              {predictedProfile}
-            </p>
           </div>
 
           {hasInterview ? (
