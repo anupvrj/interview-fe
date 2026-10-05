@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { useUser } from "@clerk/nextjs";
-import { useRouter } from "next/navigation";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { InterviewTrixLogo } from "@/components/InterviewTrixLogo";
@@ -12,13 +11,14 @@ import {
   OnboardingPathChooser,
   type OnboardingPath,
 } from "@/components/onboarding/OnboardingPathChooser";
-import { isPaidPlanId } from "@/lib/pricingPageContent";
-import { consumePostSignInReturnUrl } from "@/lib/post-sign-in-redirect";
+import {
+  leaveOnboarding,
+  resolveCompletedOnboardingPath,
+} from "@/lib/post-onboarding-redirect";
 import { userApi } from "@/lib/api";
 
 export default function OnboardingPage() {
   const { user, isLoaded } = useUser();
-  const router = useRouter();
   const [checkingStatus, setCheckingStatus] = useState(true);
   const [onboardingPath, setOnboardingPath] = useState<OnboardingPath | null>(
     null,
@@ -39,27 +39,8 @@ export default function OnboardingPage() {
       );
 
       if (createdUser.onboardingCompleted) {
-        const returnUrl = consumePostSignInReturnUrl();
-        if (returnUrl) {
-          didRedirect = true;
-          router.replace(returnUrl);
-          return;
-        }
-
-        const pendingPlan = localStorage.getItem("pendingPlan");
-        if (pendingPlan === "enterprise") {
-          localStorage.removeItem("pendingPlan");
-          didRedirect = true;
-          router.replace("/contact");
-        } else if (pendingPlan && isPaidPlanId(pendingPlan)) {
-          localStorage.removeItem("pendingPlan");
-          didRedirect = true;
-          router.replace(`/checkout?plan=${pendingPlan}&cycle=monthly`);
-        } else {
-          if (pendingPlan) localStorage.removeItem("pendingPlan");
-          didRedirect = true;
-          router.replace("/select-role");
-        }
+        didRedirect = true;
+        leaveOnboarding(resolveCompletedOnboardingPath());
         return;
       }
     } catch (error) {
@@ -84,11 +65,11 @@ export default function OnboardingPage() {
     });
 
     if (path === "interviewer") {
-      router.replace("/dashboard/peer-interviews/interviewer");
+      leaveOnboarding("/dashboard/peer-interviews/interviewer");
       return;
     }
     if (path === "recruiter") {
-      router.replace("/dashboard/ix-recruiter/apply");
+      leaveOnboarding("/dashboard/ix-recruiter/apply");
       return;
     }
     setOnboardingPath("candidate");
