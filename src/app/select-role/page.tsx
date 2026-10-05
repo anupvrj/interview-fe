@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import { ArrowRight, Loader2 } from "lucide-react";
 import { InterviewTrixLogo } from "@/components/InterviewTrixLogo";
@@ -17,7 +16,6 @@ import {
 import { cn } from "@/lib/utils";
 
 export default function SelectRolePage() {
-  const router = useRouter();
   const { user, isLoaded } = useUser();
   const [profile, setProfile] = useState<User | null>(null);
   const [roles, setRoles] = useState<ActiveRole[] | null>(null);
@@ -25,7 +23,7 @@ export default function SelectRolePage() {
   useEffect(() => {
     if (!isLoaded) return;
     if (!user) {
-      router.replace("/sign-in");
+      window.location.replace("/sign-in");
       return;
     }
 
@@ -40,11 +38,11 @@ export default function SelectRolePage() {
         if (available.length <= 1) {
           const only = available[0] ?? "candidate";
           writeStoredRole(user.id, only);
-          router.replace(roleHome(only, p));
+          window.location.replace(roleHome(only, p));
           return;
         }
         if (stored && available.includes(stored)) {
-          router.replace(roleHome(stored, p));
+          window.location.replace(roleHome(stored, p));
           return;
         }
         setProfile(p);
@@ -53,13 +51,13 @@ export default function SelectRolePage() {
       .catch(() => {
         if (cancelled) return;
         writeStoredRole(user.id, "candidate");
-        router.replace("/dashboard");
+        window.location.replace("/dashboard");
       });
 
     return () => {
       cancelled = true;
     };
-  }, [isLoaded, user, router]);
+  }, [isLoaded, user]);
 
   const displayName = useMemo(
     () => user?.firstName?.trim() || user?.fullName?.trim() || "there",
@@ -69,7 +67,7 @@ export default function SelectRolePage() {
   const choose = (role: ActiveRole) => {
     if (!user) return;
     writeStoredRole(user.id, role);
-    router.replace(roleHome(role, profile));
+    window.location.replace(roleHome(role, profile));
   };
 
   if (!roles) {
