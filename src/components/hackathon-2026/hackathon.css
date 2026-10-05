@@ -1,0 +1,742 @@
+/* ==========================================================================
+   Hackathon 2026 campaign microsite — scoped under .hk-root
+   Motion is CSS-only and fully disabled under prefers-reduced-motion.
+   ========================================================================== */
+
+@property --hk-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+
+.hk-root {
+  --hk-bg: #040b17;
+  --hk-panel: #0a1930;
+  --hk-panel-2: #0b1d35;
+  --hk-border: #1b3c62;
+  --hk-border-strong: #27547d;
+  --hk-text: #f6f9ff;
+  --hk-muted: #9eb2ca;
+  --hk-muted-2: #7189a6;
+  --hk-blue: #1677ff;
+  --hk-blue-2: #2aaeff;
+  --hk-cyan: #2bd2ff;
+  --hk-teal: #29d6a0;
+  --hk-amber: #ffc44d;
+  --hk-rose: #ff4e8b;
+  --hk-ease: cubic-bezier(0.22, 1, 0.36, 1);
+
+  position: relative;
+  isolation: isolate;
+  overflow-x: clip;
+  background:
+    radial-gradient(1200px 600px at 85% -5%, rgba(0, 119, 255, 0.16), transparent 60%),
+    radial-gradient(900px 600px at -10% 45%, rgba(0, 68, 170, 0.12), transparent 60%),
+    var(--hk-bg);
+  color: var(--hk-text);
+}
+
+/* Blueprint grid, drifting slowly */
+.hk-root::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.22;
+  background-image:
+    linear-gradient(rgba(75, 150, 220, 0.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(75, 150, 220, 0.07) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: radial-gradient(ellipse 80% 70% at 50% 20%, #000 30%, transparent 85%);
+  animation: hk-grid-drift 60s linear infinite;
+}
+
+/* Slow aurora blobs */
+.hk-aurora {
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 1150px;
+  z-index: 0;
+  mask-image: linear-gradient(to bottom, #000 60%, transparent);
+  overflow: hidden;
+  pointer-events: none;
+}
+.hk-aurora > span {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(70px);
+  opacity: 0.55;
+  will-change: transform;
+}
+.hk-aurora > span:nth-child(1) {
+  width: 520px;
+  height: 520px;
+  right: -140px;
+  top: -160px;
+  background: radial-gradient(circle, rgba(22, 119, 255, 0.55), transparent 70%);
+  animation: hk-drift-a 22s ease-in-out infinite;
+}
+.hk-aurora > span:nth-child(2) {
+  width: 420px;
+  height: 420px;
+  right: 18%;
+  top: 30%;
+  background: radial-gradient(circle, rgba(43, 210, 255, 0.28), transparent 70%);
+  animation: hk-drift-b 26s ease-in-out infinite;
+}
+.hk-aurora > span:nth-child(3) {
+  width: 460px;
+  height: 460px;
+  left: -180px;
+  bottom: -120px;
+  background: radial-gradient(circle, rgba(60, 80, 255, 0.28), transparent 70%);
+  animation: hk-drift-a 30s ease-in-out infinite reverse;
+}
+
+/* ---------- Typography ---------- */
+.hk-grad-text {
+  background: linear-gradient(90deg, #1fb6ff 0%, #4fd2ff 25%, #1a8cff 50%, #1fb6ff 75%, #4fd2ff 100%);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: hk-shimmer 8s linear infinite;
+}
+
+.hk-hand {
+  font-family: var(--font-hackathon-hand), "Segoe Script", cursive;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: #cfe3ff;
+}
+
+.hk-eyebrow {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #42c4ff;
+}
+
+/* ---------- Reveal (driven by data-inview from <Reveal>) ---------- */
+.hk-reveal {
+  opacity: 0;
+  transform: translate3d(var(--hk-rx, 0), var(--hk-ry, 28px), 0) scale(var(--hk-rs, 1));
+  transition:
+    opacity 0.8s var(--hk-ease),
+    transform 0.9s var(--hk-ease);
+  transition-delay: var(--hk-delay, 0ms);
+}
+.hk-reveal[data-inview="true"] {
+  opacity: 1;
+  transform: none;
+}
+
+/* Above-the-fold entrance: pure CSS so it runs from SSR HTML */
+.hk-enter {
+  animation: hk-enter 0.9s var(--hk-ease) both;
+  animation-delay: var(--hk-delay, 0ms);
+}
+.hk-enter .hk-draw path,
+.hk-enter .hk-draw line {
+  stroke-dasharray: var(--hk-len, 240);
+  stroke-dashoffset: var(--hk-len, 240);
+  animation: hk-draw 1.4s var(--hk-ease) forwards;
+  animation-delay: calc(var(--hk-delay, 0ms) + 350ms);
+}
+
+/* SVG stroke draw */
+.hk-draw path,
+.hk-draw line {
+  stroke-dasharray: var(--hk-len, 240);
+  stroke-dashoffset: var(--hk-len, 240);
+  transition: stroke-dashoffset 1.6s var(--hk-ease);
+  transition-delay: var(--hk-delay, 300ms);
+}
+[data-inview="true"] .hk-draw path,
+[data-inview="true"] .hk-draw line,
+[data-inview="true"].hk-draw path {
+  stroke-dashoffset: 0;
+}
+
+/* ---------- Buttons ---------- */
+.hk-btn {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  border-radius: 12px;
+  border: 1px solid #3aa0ff;
+  background: linear-gradient(135deg, #1273f5 0%, #1f95ff 55%, #35b1ff 100%);
+  color: #fff;
+  font-weight: 700;
+  box-shadow:
+    0 14px 36px rgba(20, 130, 255, 0.42),
+    0 0 0 1px rgba(80, 170, 255, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  transition:
+    transform 0.25s var(--hk-ease),
+    box-shadow 0.25s var(--hk-ease),
+    filter 0.25s;
+}
+.hk-btn::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(110deg, transparent 30%, rgba(255, 255, 255, 0.28) 50%, transparent 70%);
+  transform: translateX(-120%);
+  transition: transform 0.8s var(--hk-ease);
+}
+.hk-btn:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.06);
+  box-shadow:
+    0 18px 44px rgba(16, 113, 255, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.22);
+}
+.hk-btn:hover::after {
+  transform: translateX(120%);
+}
+.hk-btn:active {
+  transform: translateY(0);
+}
+.hk-btn .hk-btn-arrow {
+  transition: transform 0.25s var(--hk-ease);
+}
+.hk-btn:hover .hk-btn-arrow {
+  transform: translateX(4px);
+}
+/* Idle attention sweep for hero CTA */
+.hk-btn-idle::after {
+  animation: hk-idle-sheen 5.5s var(--hk-ease) infinite 2s;
+}
+
+/* ---------- Cards with cursor spotlight ---------- */
+.hk-card {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  transition:
+    transform 0.35s var(--hk-ease),
+    border-color 0.35s var(--hk-ease),
+    box-shadow 0.35s var(--hk-ease);
+}
+.hk-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  opacity: 0;
+  background: radial-gradient(
+    380px circle at var(--mx, 50%) var(--my, 0%),
+    rgb(var(--hk-accent, 43 160 255) / 0.16),
+    transparent 45%
+  );
+  transition: opacity 0.35s var(--hk-ease);
+}
+.hk-card:hover {
+  transform: translateY(-6px);
+  box-shadow:
+    0 24px 60px rgba(0, 20, 60, 0.55),
+    0 0 0 1px rgb(var(--hk-accent, 43 160 255) / 0.35);
+}
+.hk-card:hover::before {
+  opacity: 1;
+}
+.hk-card .hk-lift {
+  transition: transform 0.4s var(--hk-ease);
+}
+.hk-card:hover .hk-lift {
+  transform: translateY(-3px) scale(1.06);
+}
+
+/* ---------- Floating hero pieces ---------- */
+.hk-bob-1 {
+  animation: hk-bob 5s ease-in-out infinite;
+}
+.hk-bob-2 {
+  animation: hk-bob 5.8s ease-in-out infinite 0.9s;
+}
+.hk-bob-3 {
+  animation: hk-bob 6.4s ease-in-out infinite 1.6s;
+}
+
+.hk-orbit {
+  position: absolute;
+  border-radius: 50%;
+  border: 1px solid rgba(64, 160, 255, 0.18);
+  pointer-events: none;
+}
+.hk-orbit::after {
+  content: "";
+  position: absolute;
+  top: -4px;
+  left: 50%;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--hk-cyan);
+  box-shadow: 0 0 16px 4px rgba(43, 210, 255, 0.55);
+}
+.hk-orbit-a {
+  animation: hk-spin 38s linear infinite;
+}
+.hk-orbit-b {
+  border-style: dashed;
+  border-color: rgba(64, 160, 255, 0.12);
+  animation: hk-spin 60s linear infinite reverse;
+}
+.hk-orbit-b::after {
+  background: #7ab8ff;
+  width: 6px;
+  height: 6px;
+  top: auto;
+  bottom: -3px;
+}
+
+.hk-verified {
+  animation: hk-pop 3.2s var(--hk-ease) infinite;
+}
+
+/* Rising data particles behind the candidate */
+.hk-particle {
+  position: absolute;
+  bottom: 12%;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: #6ccfff;
+  box-shadow: 0 0 8px 2px rgba(43, 210, 255, 0.5);
+  opacity: 0;
+  animation: hk-rise var(--hk-dur, 7s) linear infinite;
+  animation-delay: var(--hk-delay, 0s);
+}
+
+/* ---------- Live bits ---------- */
+.hk-live-dot {
+  position: relative;
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--hk-teal);
+}
+.hk-live-dot::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: inherit;
+  animation: hk-ping 1.8s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+.hk-marquee {
+  mask-image: linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent);
+}
+.hk-marquee-track {
+  animation: hk-marquee 40s linear infinite;
+}
+.hk-marquee:hover .hk-marquee-track {
+  animation-play-state: paused;
+}
+
+.hk-count-digit {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Steps connectors ---------- */
+.hk-flow {
+  background-image: linear-gradient(90deg, rgba(90, 170, 255, 0.7) 50%, transparent 50%);
+  background-size: 10px 2px;
+  background-repeat: repeat-x;
+  background-position: 0 50%;
+  animation: hk-flow 0.9s linear infinite;
+}
+
+/* ---------- Prize tiers ---------- */
+.hk-tier-gold {
+  --hk-accent: 255 196 77;
+  --hk-tier-a: #ffd45e;
+  --hk-tier-b: #b77a17;
+  background:
+    radial-gradient(460px 260px at 50% -10%, rgba(255, 196, 77, 0.2), transparent 70%),
+    linear-gradient(180deg, #2a2412 0%, #17150f 55%, #121321 100%);
+  border-color: rgba(214, 164, 64, 0.8);
+}
+.hk-tier-silver {
+  --hk-accent: 90 170 255;
+  --hk-tier-a: #e6f0ff;
+  --hk-tier-b: #6b8fb8;
+  background:
+    radial-gradient(460px 260px at 50% -10%, rgba(60, 150, 255, 0.24), transparent 70%),
+    linear-gradient(180deg, #11305a 0%, #0c2143 55%, #0a1730 100%);
+  border-color: rgba(60, 150, 240, 0.85);
+}
+.hk-tier-bronze {
+  --hk-accent: 255 130 90;
+  --hk-tier-a: #ffa46e;
+  --hk-tier-b: #a2451f;
+  background:
+    radial-gradient(460px 260px at 50% -10%, rgba(255, 120, 70, 0.2), transparent 70%),
+    linear-gradient(180deg, #2c1714 0%, #1b1119 55%, #121321 100%);
+  border-color: rgba(200, 100, 70, 0.8);
+}
+
+/* Rotating conic border for #1 */
+.hk-ring-border {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  border-radius: inherit;
+  padding: 1px;
+  pointer-events: none;
+  background: conic-gradient(
+    from var(--hk-angle),
+    transparent 0deg,
+    var(--hk-tier-a) 60deg,
+    transparent 120deg,
+    transparent 360deg
+  );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: hk-angle 5s linear infinite;
+}
+
+.hk-sheen::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  background: linear-gradient(115deg, transparent 35%, rgba(255, 255, 255, 0.09) 50%, transparent 65%);
+  transform: translateX(-110%);
+}
+.hk-sheen:hover::after {
+  transition: transform 1s var(--hk-ease);
+  transform: translateX(110%);
+}
+
+.hk-trophy {
+  animation: hk-bob 4.8s ease-in-out infinite;
+  filter: drop-shadow(0 10px 22px rgb(var(--hk-accent) / 0.35));
+}
+
+.hk-wreath {
+  filter: drop-shadow(0 4px 10px rgb(var(--hk-accent) / 0.28));
+}
+
+.hk-glint {
+  animation: hk-glint 3.6s ease-in-out infinite;
+}
+
+/* ---------- Agenda timeline ---------- */
+.hk-timeline-fill {
+  transform-origin: top;
+  transform: scaleY(0);
+  transition: transform 1.8s var(--hk-ease) 0.2s;
+}
+[data-inview="true"] .hk-timeline-fill {
+  transform: scaleY(1);
+}
+
+.hk-agenda-row {
+  transition:
+    background-color 0.3s var(--hk-ease),
+    border-color 0.3s var(--hk-ease),
+    transform 0.3s var(--hk-ease);
+}
+.hk-agenda-row:hover {
+  transform: translateX(6px);
+}
+.hk-agenda-row:hover .hk-agenda-icon {
+  transform: scale(1.08) rotate(-4deg);
+}
+.hk-agenda-icon {
+  transition: transform 0.35s var(--hk-ease);
+}
+
+.hk-speaker-ring {
+  background: conic-gradient(from var(--hk-angle), #1677ff, #2bd2ff, transparent 40%, transparent 60%, #1677ff);
+  animation: hk-angle 6s linear infinite;
+}
+
+/* ---------- Waves (moving background ribbons) ---------- */
+.hk-wave path {
+  animation: hk-wave 14s ease-in-out infinite alternate;
+  transform-box: fill-box;
+}
+.hk-wave path:nth-child(2) {
+  animation-duration: 18s;
+  animation-delay: -4s;
+}
+.hk-wave path:nth-child(3) {
+  animation-duration: 22s;
+  animation-delay: -9s;
+}
+
+/* ---------- Glossy ribbons (section edge backdrops) ---------- */
+.hk-ribbon {
+  pointer-events: none;
+  position: absolute;
+  z-index: 0;
+  filter: drop-shadow(0 0 40px rgba(22, 119, 255, 0.35));
+  animation: hk-ribbon 16s ease-in-out infinite alternate;
+  transform-origin: center;
+}
+.hk-ribbon-slow {
+  animation-duration: 22s;
+}
+
+/* Solid arrow nudge between step cards */
+.hk-nudge {
+  animation: hk-nudge 1.8s ease-in-out infinite;
+}
+
+/* Section panel (How to Participate) */
+.hk-panel {
+  background:
+    radial-gradient(900px 400px at 50% 0%, rgba(30, 120, 255, 0.14), transparent 70%),
+    linear-gradient(180deg, rgba(13, 32, 64, 0.85), rgba(7, 18, 38, 0.6));
+  border: 1px solid rgba(60, 130, 220, 0.28);
+  box-shadow:
+    inset 0 1px 0 rgba(120, 180, 255, 0.12),
+    0 40px 120px rgba(0, 20, 60, 0.45);
+}
+
+/* ---------- Final CTA beam ---------- */
+.hk-beam {
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  pointer-events: none;
+  background: conic-gradient(
+    from var(--hk-angle),
+    transparent 0deg,
+    rgba(43, 210, 255, 0.9) 40deg,
+    transparent 90deg,
+    transparent 180deg,
+    rgba(22, 119, 255, 0.8) 220deg,
+    transparent 270deg
+  );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: hk-angle 7s linear infinite;
+}
+
+/* ---------- Header ---------- */
+.hk-progress {
+  transform-origin: left;
+  transform: scaleX(var(--hk-scroll, 0));
+}
+.hk-nav-link {
+  position: relative;
+}
+.hk-nav-link::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -6px;
+  height: 2px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, #1677ff, #2bd2ff);
+  transform: scaleX(0);
+  transition: transform 0.3s var(--hk-ease);
+}
+.hk-nav-link:hover::after,
+.hk-nav-link[data-active="true"]::after {
+  transform: scaleX(1);
+}
+
+.hk-faq summary::-webkit-details-marker {
+  display: none;
+}
+
+/* ---------- Keyframes ---------- */
+@keyframes hk-enter {
+  from {
+    opacity: 0;
+    transform: translate3d(var(--hk-rx, 0), var(--hk-ry, 28px), 0) scale(var(--hk-rs, 1));
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes hk-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes hk-ribbon {
+  from {
+    transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
+  }
+  to {
+    transform: translate3d(-18px, 14px, 0) rotate(-2.5deg) scale(1.04);
+  }
+}
+@keyframes hk-nudge {
+  0%,
+  100% {
+    transform: translateX(0);
+    opacity: 0.75;
+  }
+  50% {
+    transform: translateX(4px);
+    opacity: 1;
+  }
+}
+@keyframes hk-grid-drift {
+  to {
+    background-position: 56px 56px;
+  }
+}
+@keyframes hk-drift-a {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(-60px, 50px, 0) scale(1.12);
+  }
+}
+@keyframes hk-drift-b {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(50px, -40px, 0) scale(0.9);
+  }
+}
+@keyframes hk-shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+@keyframes hk-bob {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(0, -9px, 0);
+  }
+}
+@keyframes hk-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes hk-angle {
+  to {
+    --hk-angle: 360deg;
+  }
+}
+@keyframes hk-pop {
+  0%,
+  70%,
+  100% {
+    transform: scale(1);
+  }
+  78% {
+    transform: scale(1.22);
+  }
+  86% {
+    transform: scale(0.95);
+  }
+}
+@keyframes hk-ping {
+  75%,
+  100% {
+    transform: scale(2.4);
+    opacity: 0;
+  }
+}
+@keyframes hk-marquee {
+  to {
+    transform: translateX(-50%);
+  }
+}
+@keyframes hk-flow {
+  to {
+    background-position: 10px 50%;
+  }
+}
+@keyframes hk-idle-sheen {
+  0%,
+  70% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(120%);
+  }
+}
+@keyframes hk-glint {
+  0%,
+  100% {
+    filter: drop-shadow(0 0 0 rgba(90, 200, 255, 0));
+    transform: rotate(0deg) scale(1);
+  }
+  50% {
+    filter: drop-shadow(0 0 14px rgba(90, 200, 255, 0.7));
+    transform: rotate(-6deg) scale(1.06);
+  }
+}
+@keyframes hk-rise {
+  0% {
+    transform: translate3d(0, 0, 0);
+    opacity: 0;
+  }
+  15% {
+    opacity: 0.9;
+  }
+  100% {
+    transform: translate3d(var(--hk-dx, 10px), -340px, 0);
+    opacity: 0;
+  }
+}
+@keyframes hk-wave {
+  from {
+    transform: translate3d(-3%, 0, 0) scaleY(1);
+  }
+  to {
+    transform: translate3d(3%, 8px, 0) scaleY(1.08);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hk-root *,
+  .hk-root *::before,
+  .hk-root *::after,
+  .hk-root::before {
+    animation: none !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
+  }
+  .hk-reveal,
+  .hk-enter {
+    opacity: 1;
+    transform: none;
+  }
+  .hk-draw path,
+  .hk-draw line {
+    stroke-dashoffset: 0;
+  }
+  .hk-timeline-fill {
+    transform: scaleY(1);
+  }
+}
