@@ -3,6 +3,15 @@
    Motion is CSS-only and fully disabled under prefers-reduced-motion.
    ========================================================================== */
 
+/* Paint the page canvas dark while a hackathon page is mounted, so the browser's
+   overscroll bounce (top and bottom) shows navy instead of the site's white.
+   Scoped with :has() because global CSS stays loaded after client-side navigation. */
+html:has(.hk-root),
+html:has(.hk-root) body {
+  background-color: #040b17;
+  color-scheme: dark;
+}
+
 @property --hk-angle {
   syntax: "<angle>";
   initial-value: 0deg;
@@ -34,6 +43,7 @@
     radial-gradient(900px 600px at -10% 45%, rgba(0, 68, 170, 0.12), transparent 60%),
     var(--hk-bg);
   color: var(--hk-text);
+  scroll-behavior: smooth;
 }
 
 /* Blueprint grid, drifting slowly */
@@ -738,5 +748,34 @@
   }
   .hk-timeline-fill {
     transform: scaleY(1);
+  }
+}
+
+/* Dashboard greeting: a short wave every few seconds */
+.hk-wave-hand {
+  transform-origin: 70% 70%;
+  animation: hk-wave-hand 3.2s ease-in-out infinite 0.6s;
+}
+@keyframes hk-wave-hand {
+  0%,
+  60%,
+  100% {
+    transform: rotate(0deg);
+  }
+  10%,
+  30% {
+    transform: rotate(16deg);
+  }
+  20%,
+  40% {
+    transform: rotate(-8deg);
+  }
+  50% {
+    transform: rotate(10deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hk-wave-hand {
+    animation: none;
   }
 }

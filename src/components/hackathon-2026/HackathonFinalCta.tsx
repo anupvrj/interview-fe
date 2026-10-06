@@ -2,8 +2,9 @@
 
 import { Check } from "lucide-react";
 import { HackathonRegisterButton } from "@/components/hackathon-2026/HackathonRegisterButton";
+import { HackathonRegisterHint } from "@/components/hackathon-2026/HackathonRegisterContext";
 import { Reveal, Ribbon } from "@/components/hackathon-2026/HackathonMotion";
-import { HACKATHON_FINAL_CTA, HACKATHON_HERO } from "@/lib/hackathon-2026-content";
+import { HACKATHON_FINAL_CTA } from "@/lib/hackathon-2026-content";
 
 export function HackathonFinalCta() {
   return (
@@ -34,9 +35,10 @@ export function HackathonFinalCta() {
               </div>
 
               <div className="flex flex-col items-center gap-5 lg:items-end">
-                <HackathonRegisterButton size="lg" idle className="min-h-16 w-full rounded-2xl text-lg sm:w-auto sm:min-w-[20rem]">
-                  {HACKATHON_HERO.registerLabel}
-                </HackathonRegisterButton>
+                <div className="w-full sm:w-auto">
+                  <HackathonRegisterButton size="lg" idle className="min-h-16 w-full rounded-2xl text-lg sm:w-auto sm:min-w-[20rem]" />
+                  <HackathonRegisterHint className="mt-2 text-center text-sm font-medium text-[#ffc44d] lg:text-right" />
+                </div>
                 <ul className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-sm font-medium text-[#e2ebf5]">
                   {HACKATHON_FINAL_CTA.points.map((point) => (
                     <li key={point} className="inline-flex items-center gap-2">

@@ -220,7 +220,16 @@ function OptInCard({
   );
 }
 
-export function CandidateOnboardingForm() {
+export function CandidateOnboardingForm({
+  requireResume = false,
+  requireTargetRole = false,
+  onComplete,
+}: Readonly<{
+  requireResume?: boolean;
+  requireTargetRole?: boolean;
+  /** Replaces the default post-onboarding redirect. */
+  onComplete?: () => void;
+}> = {}) {
   const { user } = useUser();
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState(1);
@@ -264,6 +273,10 @@ export function CandidateOnboardingForm() {
   });
 
   const redirectAfterComplete = () => {
+    if (onComplete) {
+      onComplete();
+      return;
+    }
     const returnUrl = consumePostSignInReturnUrl();
     if (returnUrl) {
       router.push(returnUrl);
@@ -342,6 +355,10 @@ export function CandidateOnboardingForm() {
 
   const handleStep2Next = async () => {
     if (!resumeFile) {
+      if (requireResume) {
+        setError("Upload your resume (PDF) to continue.");
+        return;
+      }
       continueWithoutResume();
       return;
     }
@@ -387,9 +404,16 @@ export function CandidateOnboardingForm() {
     });
   };
 
+  const targetRoleMissing = requireTargetRole && !reviewData.targetJobRole.trim();
+
   const completeOnboarding = async () => {
     if (!userType) {
       setError("Please select your profile type");
+      return;
+    }
+    if (targetRoleMissing) {
+      setCurrentStep(3);
+      setError("Enter the role you are applying for.");
       return;
     }
     try {
@@ -412,7 +436,10 @@ export function CandidateOnboardingForm() {
     setCurrentStep((step) => Math.max(step - 1, 1));
   };
 
-  const activeStep = STEPS[currentStep - 1];
+  const activeStep =
+    requireResume && currentStep === 2
+      ? { ...STEPS[1], description: "Upload your CV to pre-fill experience and skills. A resume is required." }
+      : STEPS[currentStep - 1];
   const selectedUserTypeLabel =
     USER_TYPE_OPTIONS.find((option) => option.value === userType)?.label ?? "";
   const enabledInterviewCount = IX_CATEGORY_KEYS.filter(
@@ -521,7 +548,11 @@ export function CandidateOnboardingForm() {
           {currentStep === 2 ? (
             <StepBlock
               title="Resume upload"
-              description="We'll pre-fill your profile from your CV. You can continue without uploading."
+              description={
+                requireResume
+                  ? "We'll pre-fill your profile from your CV. A resume is required to continue."
+                  : "We'll pre-fill your profile from your CV. You can continue without uploading."
+              }
             >
               {!resumeFile ? (
                 <div
@@ -543,7 +574,7 @@ export function CandidateOnboardingForm() {
                       : "Drag & drop or click to upload"}
                   </span>
                   <span className="text-xs text-muted-foreground">
-                    PDF only · Max 5 MB · Optional
+                    PDF only · Max 5 MB · {requireResume ? "Required" : "Optional"}
                   </span>
                 </div>
               ) : (
@@ -700,7 +731,11 @@ export function CandidateOnboardingForm() {
                   <FormField
                     label="Role you are applying for"
                     htmlFor="onboarding-target-role"
-                    hint="Optional — e.g. Software Engineer, Product Manager"
+                    hint={
+                      requireTargetRole
+                        ? "Required — your mock interviews are set for this role"
+                        : "Optional — e.g. Software Engineer, Product Manager"
+                    }
                   >
                     <JobRoleSelect
                       id="onboarding-target-role"
@@ -899,16 +934,18 @@ export function CandidateOnboardingForm() {
 
               {currentStep === 2 ? (
                 <>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="lg"
-                    onClick={continueWithoutResume}
-                    disabled={extracting}
-                    className="w-full sm:w-auto"
-                  >
-                    Skip for now
-                  </Button>
+                  {requireResume ? null : (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="lg"
+                      onClick={continueWithoutResume}
+                      disabled={extracting}
+                      className="w-full sm:w-auto"
+                    >
+                      Skip for now
+                    </Button>
+                  )}
                   <Button
                     type="button"
                     size="lg"
@@ -936,20 +973,26 @@ export function CandidateOnboardingForm() {
 
               {currentStep === 3 ? (
                 <>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="lg"
-                    onClick={() => void completeOnboarding()}
-                    disabled={loading}
-                    className="w-full sm:w-auto sm:hidden"
-                  >
-                    Skip for now
-                  </Button>
+                  {requireTargetRole ? null : (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="lg"
+                      onClick={() => void completeOnboarding()}
+                      disabled={loading}
+                      className="w-full sm:w-auto sm:hidden"
+                    >
+                      Skip for now
+                    </Button>
+                  )}
                   <Button
                     type="button"
                     size="lg"
                     onClick={() => {
+                      if (targetRoleMissing) {
+                        setError("Enter the role you are applying for.");
+                        return;
+                      }
                       setError("");
                       setCurrentStep(4);
                     }}

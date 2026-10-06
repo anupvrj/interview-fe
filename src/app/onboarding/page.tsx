@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useUser } from "@clerk/nextjs";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { InterviewTrixLogo } from "@/components/InterviewTrixLogo";
@@ -13,16 +13,26 @@ import {
   type OnboardingPath,
 } from "@/components/onboarding/OnboardingPathChooser";
 import { isPaidPlanId } from "@/lib/pricingPageContent";
-import { consumePostSignInReturnUrl } from "@/lib/post-sign-in-redirect";
+import {
+  consumePostSignInReturnUrl,
+  persistPostAuthReturnPath,
+  safeAppRedirectPath,
+} from "@/lib/post-sign-in-redirect";
 import { userApi } from "@/lib/api";
 
 export default function OnboardingPage() {
   const { user, isLoaded } = useUser();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [checkingStatus, setCheckingStatus] = useState(true);
   const [onboardingPath, setOnboardingPath] = useState<OnboardingPath | null>(
     null,
   );
+
+  useEffect(() => {
+    const next = safeAppRedirectPath(searchParams.get("redirect_url"));
+    if (next) persistPostAuthReturnPath(next);
+  }, [searchParams]);
 
   const checkOnboardingStatus = async () => {
     let didRedirect = false;

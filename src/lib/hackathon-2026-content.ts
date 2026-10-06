@@ -153,6 +153,7 @@ export const HACKATHON_PRIZES = {
     rank: string;
     title: string;
     tier: "gold" | "silver" | "bronze";
+    icon: string;
     rewards: ReadonlyArray<{ kind: HackathonRewardKind; label: string; note?: string }>;
   }>;
   premium: { title: string; benefits: readonly string[] };
@@ -245,12 +246,3 @@ export const HACKATHON_FINAL_CTA = {
   copy: "Join the Interview Trix Product Launch & Hackathon and take the next step towards your dream career.",
   points: ["Free Registration", "Live Virtual Event", "Open to All"],
 } as const;
-
-export const HACKATHON_PROFESSIONS = [
-  { value: "student", label: "Student" },
-  { value: "developer", label: "Developer" },
-  { value: "job_seeker", label: "Job seeker" },
-  { value: "professional", label: "Professional" },
-] as const;
-
-export type HackathonProfession = (typeof HACKATHON_PROFESSIONS)[number]["value"];

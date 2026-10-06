@@ -9,7 +9,6 @@ import { HackathonHeader } from "@/components/hackathon-2026/HackathonHeader";
 import { HackathonHero } from "@/components/hackathon-2026/HackathonHero";
 import { HackathonParticipate } from "@/components/hackathon-2026/HackathonParticipate";
 import { HackathonPrizes } from "@/components/hackathon-2026/HackathonPrizes";
-import { HackathonRegisterDialog } from "@/components/hackathon-2026/HackathonRegisterDialog";
 import { HackathonRegisterProvider } from "@/components/hackathon-2026/HackathonRegisterContext";
 
 export function HackathonPage() {
@@ -31,7 +30,6 @@ export function HackathonPage() {
           <HackathonFinalCta />
         </main>
         <HackathonFooter />
-        <HackathonRegisterDialog />
       </div>
     </HackathonRegisterProvider>
   );

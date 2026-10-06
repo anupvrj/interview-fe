@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import Link from "next/link";
 import { jsPDF } from "jspdf";
@@ -44,6 +44,10 @@ import {
   practiceHubLabel,
 } from "@/lib/interview-practice-hub";
 import {
+  hackathonDashboardFromTags,
+  resolveInterviewReturnTo,
+} from "@/lib/interview-return-to";
+import {
   institutePrimaryClass,
   instituteSecondaryClass,
 } from "@/components/institute/InstituteChrome";
@@ -53,6 +57,8 @@ import { useEntitlements } from "@/hooks/useEntitlements";
 export default function ReportPage() {
   const params = useParams();
   const interviewId = params.id as string;
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const { user } = useUser();
 
   const [report, setReport] = useState<InterviewReport | null>(null);
@@ -69,12 +75,25 @@ export default function ReportPage() {
   }, [interviewId]);
 
   const loadReport = async () => {
+    let redirected = false;
     try {
+      const fromQuery = resolveInterviewReturnTo(interviewId, searchParams);
+      if (fromQuery) {
+        redirected = true;
+        router.replace(fromQuery);
+        return;
+      }
       // Load report and interview data in parallel
       const [reportData, interviewData] = await Promise.all([
         interviewApi.getReport(interviewId),
         interviewApi.getInterview(interviewId),
       ]);
+      const hackathonDest = hackathonDashboardFromTags(interviewData.metadata?.tags);
+      if (hackathonDest) {
+        redirected = true;
+        router.replace(hackathonDest);
+        return;
+      }
       setReport(reportData);
       setInterview(interviewData);
     } catch (error: any) {
@@ -82,12 +101,18 @@ export default function ReportPage() {
       setError(error.response?.data?.message || "Failed to load report");
       try {
         const interviewData = await interviewApi.getInterview(interviewId);
+        const hackathonDest = hackathonDashboardFromTags(interviewData.metadata?.tags);
+        if (hackathonDest) {
+          redirected = true;
+          router.replace(hackathonDest);
+          return;
+        }
         setInterview(interviewData);
       } catch {
         /* interview stays null; hub link defaults to AI Interview Practice list */
       }
     } finally {
-      setLoading(false);
+      if (!redirected) setLoading(false);
     }
   };
 

@@ -1,15 +1,24 @@
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 
+/**
+ * Hackathon edition of the InterviewTrix logo (recoloured from /brand/interviewtrix-logo.png):
+ * gradient iX + white "Interview" + gradient "Trix". Trimmed, intrinsic 1039×214.
+ */
+const LOGO = { src: "/brand/hackathon-logo.png", width: 1039, height: 214 } as const;
+/** iX mark cut from the same artwork, for tight headers. Intrinsic 236×214. */
+const MARK = { src: "/brand/hackathon-logo-mark.png", width: 236, height: 214 } as const;
+
+/** Rendered logo height in px; width follows the artwork's aspect ratio. */
 const SIZES = {
-  sm: { icon: 32, text: "text-[18px]" },
-  md: { icon: 42, text: "text-[22px]" },
-  lg: { icon: 48, text: "text-[25px]" },
+  sm: 28,
+  md: 34,
+  lg: 42,
 } as const;
 
 /**
- * Site icon + live-text wordmark. The icon asset is tightly cropped (unlike the
- * padded wordmark PNG), so it renders at its full box size and stays crisp.
+ * Hackathon brand logo. The artwork is trimmed to its content (no padding),
+ * so the given height is the visible logo height.
  */
 export function HackathonBrand({
   size = "md",
@@ -19,31 +28,37 @@ export function HackathonBrand({
 }: {
   size?: keyof typeof SIZES;
   className?: string;
-  /** Hide the wordmark below `sm` (for very tight headers). */
+  /** Show only the iX mark below `sm` (for very tight headers). */
   iconOnlyOnMobile?: boolean;
   priority?: boolean;
 }) {
-  const s = SIZES[size];
+  const h = SIZES[size];
+  const w = Math.round((h * LOGO.width) / LOGO.height);
+  const markH = Math.max(28, h);
+  const markW = Math.round((markH * MARK.width) / MARK.height);
+
   return (
-    <span className={cn("inline-flex items-center gap-2", className)}>
+    <span className={cn("inline-flex items-center", className)}>
+      {iconOnlyOnMobile ? (
+        <Image
+          src={MARK.src}
+          alt="InterviewTrix"
+          width={markW}
+          height={markH}
+          priority={priority}
+          className="shrink-0 sm:hidden"
+          style={{ width: markW, height: markH }}
+        />
+      ) : null}
       <Image
-        src="/brand/interviewtrix-icon.png"
-        alt=""
-        width={s.icon}
-        height={s.icon}
+        src={LOGO.src}
+        alt="InterviewTrix"
+        width={w}
+        height={h}
         priority={priority}
-        className="shrink-0 drop-shadow-[0_0_14px_rgba(124,92,255,0.45)]"
-        style={{ width: s.icon, height: s.icon }}
+        className={cn("shrink-0", iconOnlyOnMobile && "hidden sm:block")}
+        style={{ width: w, height: h }}
       />
-      <span
-        className={cn(
-          "font-extrabold leading-none tracking-[-0.03em] text-white",
-          s.text,
-          iconOnlyOnMobile && "hidden sm:inline",
-        )}
-      >
-        Interview<span className="text-[#8f7bff]">Trix</span>
-      </span>
     </span>
   );
 }

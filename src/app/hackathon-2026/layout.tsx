@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Caveat } from "next/font/google";
 import {
   StructuredData,
@@ -22,6 +22,12 @@ const handwriting = Caveat({
 
 const siteUrl = getSiteUrl();
 const pageUrl = `${siteUrl}${HACKATHON_2026_PATH}`;
+
+/** Match the browser UI / overscroll area to the hackathon's navy canvas. */
+export const viewport: Viewport = {
+  themeColor: "#040b17",
+  colorScheme: "dark",
+};
 
 export const metadata: Metadata = {
   title: HACKATHON_2026_META.title,

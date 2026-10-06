@@ -13,6 +13,7 @@ import {
   Zap,
 } from "lucide-react";
 import { HackathonRegisterButton } from "@/components/hackathon-2026/HackathonRegisterButton";
+import { HackathonRegisterHint } from "@/components/hackathon-2026/HackathonRegisterContext";
 import {
   Reveal,
   Ribbon,
@@ -147,9 +148,8 @@ export function HackathonHero() {
                 size="lg"
                 idle
                 className="min-h-16 w-full rounded-2xl text-lg sm:w-auto sm:min-w-[25rem]"
-              >
-                {HACKATHON_HERO.registerLabel}
-              </HackathonRegisterButton>
+              />
+              <HackathonRegisterHint className="mt-3 text-center text-sm font-medium text-[#ffc44d] lg:text-left" />
             </div>
           </Reveal>
 

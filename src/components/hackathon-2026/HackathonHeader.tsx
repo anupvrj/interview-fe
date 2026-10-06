@@ -147,13 +147,10 @@ export function HackathonHeader() {
           <div className="flex justify-end">
             <HackathonRegisterButton
               size="sm"
-              // Arrow hidden on phones so both header columns fit and the logo sits dead-centre
+              compact
+              // Short label + no arrow on phones so both header columns fit and the logo sits dead-centre
               className="min-h-10 px-3.5 text-[13px] sm:min-h-11 sm:px-5 sm:text-[15px] [&_.hk-btn-arrow]:hidden sm:[&_.hk-btn-arrow]:block"
-            >
-              <span>
-                Register<span className="hidden sm:inline"> Now</span>
-              </span>
-            </HackathonRegisterButton>
+            />
           </div>
         </div>
 
