@@ -68,9 +68,17 @@ export default function InstituteDashboardLayout({
           return;
         }
 
-        const dash = await adminApi.getInstitutionDashboard(institutionId);
-        if (!cancelled) {
-          setTitle(String((dash.institution as { name?: string }).name || "Institution"));
+        try {
+          const dash = await adminApi.getInstitutionDashboard(institutionId);
+          if (!cancelled) {
+            setTitle(
+              String((dash.institution as { name?: string }).name || "Institution"),
+            );
+          }
+        } catch {
+          // Title is optional — never bounce to /dashboard here or we loop with
+          // the candidate dashboard's institute-role redirect.
+          if (!cancelled) setTitle("Institution");
         }
       } catch {
         if (!cancelled) globalThis.location.replace("/dashboard");
