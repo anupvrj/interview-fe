@@ -82,6 +82,11 @@ import { useVoiceprintMonitor } from "@/hooks/integrity/useVoiceprintMonitor";
 import { useIntegrityConfig } from "@/hooks/useIntegrityConfig";
 import type { IntegrityEvent } from "@/lib/integrity/types";
 import type { IntegrityWsSender } from "@/lib/integrity/IntegrityTelemetryClient";
+import {
+  isHackathonDashboardReturn,
+  resolveInterviewReturnTo,
+  withInterviewReturnTo,
+} from "@/lib/interview-return-to";
 
 /** Hard fallback minutes added on top of target (used if AI never sends interview_complete). */
 const EXTRA_BUFFER_MINUTES = 5;
@@ -217,6 +222,16 @@ export function RealtimeInterviewClient({
   integrityBindWs,
 }: RealtimeInterviewClientProps) {
   const router = useRouter();
+  const returnToRef = useRef<string | null>(
+    typeof globalThis.location === "undefined"
+      ? null
+      : resolveInterviewReturnTo(interviewId, globalThis.location.search),
+  );
+
+  useEffect(() => {
+    const next = resolveInterviewReturnTo(interviewId, globalThis.location.search);
+    if (next) returnToRef.current = next;
+  }, [interviewId]);
 
   const [interview, setInterview] = useState<Interview | null>(null);
   const [loading, setLoading] = useState(true);
@@ -256,6 +271,7 @@ export function RealtimeInterviewClient({
   // Non-blocking toast shown for soft failures during an active interview
   // (upload errors, WS send errors). Does not interrupt the interview.
   const [activeError, setActiveError] = useState<string>("");
+  const [audioBlocked, setAudioBlocked] = useState(false);
   const [showEndInterviewConfirm, setShowEndInterviewConfirm] = useState(false);
   const [showInterviewComplete, setShowInterviewComplete] = useState(false);
   const [interviewCompleteCountdown, setInterviewCompleteCountdown] = useState(15);
@@ -800,7 +816,7 @@ export function RealtimeInterviewClient({
       } else {
         await invalidateAfterAiInterviewSessionFromStorage();
       }
-      router.push("/dashboard");
+      router.push(returnToRef.current ?? "/dashboard");
     } catch (err: any) {
       setError(err.message || "Failed to close interview.");
     } finally {
@@ -1115,7 +1131,15 @@ export function RealtimeInterviewClient({
       const p = interviewerPersonaRef.current!;
       const voiceQuery = buildVoiceQueryParam(provider, p);
       const personaQuery = `&interviewerName=${encodeURIComponent(p.displayName)}&interviewerTitle=${encodeURIComponent(p.title)}`;
-      const wsUrl = `${wsProtocol}//${baseUrl}/api/${realtimePath}?userId=${encodeURIComponent(userId)}&interviewDurationMinutes=${durationParam}${sessionPhaseQs}${voiceQuery}${personaQuery}`;
+      let sessionTokenQs = "";
+      try {
+        const { sessionToken } = await interviewApi.createSessionToken(interviewId);
+        sessionTokenQs = `&sessionToken=${encodeURIComponent(sessionToken)}`;
+      } catch (tokenError) {
+        // Older servers lack this endpoint; strict sessions are rejected at the handshake instead.
+        console.warn("Could not get interview session token:", tokenError);
+      }
+      const wsUrl = `${wsProtocol}//${baseUrl}/api/${realtimePath}?userId=${encodeURIComponent(userId)}&interviewDurationMinutes=${durationParam}${sessionPhaseQs}${voiceQuery}${personaQuery}${sessionTokenQs}`;
 
       console.log("🔌 Connecting to WebSocket:", wsUrl);
       const transport = createVoiceTransport((data) => {
@@ -1703,9 +1727,45 @@ export function RealtimeInterviewClient({
     }
   };
 
+  const pokeAudioContext = (ctx: AudioContext) => {
+    if (ctx.state === "suspended") {
+      void ctx.resume().catch((err) =>
+        console.warn("AudioContext resume failed:", err),
+      );
+    }
+    try {
+      const buffer = ctx.createBuffer(1, 1, ctx.sampleRate);
+      const src = ctx.createBufferSource();
+      src.buffer = buffer;
+      src.connect(ctx.destination);
+      src.start(0);
+    } catch {
+      /* ignore */
+    }
+  };
+
+  const ensureAudioContext = (): AudioContext => {
+    const Ctx =
+      globalThis.AudioContext ||
+      (globalThis as unknown as { webkitAudioContext: typeof AudioContext })
+        .webkitAudioContext;
+    let ctx = audioContextRef.current;
+    if (!ctx || ctx.state === "closed") {
+      ctx = new Ctx();
+      audioContextRef.current = ctx;
+    }
+    pokeAudioContext(ctx);
+    setAudioBlocked(ctx.state === "suspended");
+    return ctx;
+  };
+
   const setupAudioCapture = () => {
     if (!mediaStreamRef.current) {
       console.error("No media stream available for audio capture");
+      return;
+    }
+    if (audioProcessorRef.current) {
+      pokeAudioContext(ensureAudioContext());
       return;
     }
 
@@ -1803,10 +1863,7 @@ export function RealtimeInterviewClient({
     };
 
     try {
-      const audioContext = new (
-        globalThis.AudioContext || (globalThis as any).webkitAudioContext
-      )();
-      audioContextRef.current = audioContext;
+      const audioContext = ensureAudioContext();
       console.log(`🎵 AudioContext ready: ${audioContext.sampleRate}Hz → ${TARGET_SAMPLE_RATE}Hz`);
       if (audioContext.audioWorklet) {
         audioContext.audioWorklet
@@ -1879,6 +1936,7 @@ export function RealtimeInterviewClient({
       // Resume immediately whenever the context suspends to keep capture running.
       audioContext.onstatechange = () => {
         console.log(`🎵 AudioContext state: ${audioContext.state}`);
+        setAudioBlocked(audioContext.state === "suspended");
         if (audioContext.state === "suspended") {
           audioContext.resume().catch((err) =>
             console.warn("AudioContext resume failed:", err)
@@ -1897,16 +1955,17 @@ export function RealtimeInterviewClient({
         );
       }
       const onVisibility = () => {
-        if (
-          document.visibilityState === "visible" &&
-          audioContextRef.current &&
-          audioContextRef.current.state === "suspended"
-        ) {
-          audioContextRef.current
-            .resume()
+        if (document.visibilityState !== "visible") return;
+        const ctx = audioContextRef.current;
+        if (!ctx || ctx.state === "closed") return;
+        if (ctx.state === "suspended") {
+          ctx.resume()
+            .then(() => setAudioBlocked(ctx.state === "suspended"))
             .catch((err) =>
               console.warn("AudioContext resume on focus failed:", err),
             );
+        } else {
+          setAudioBlocked(false);
         }
       };
       visibilityResumeHandlerRef.current = onVisibility;
@@ -1978,10 +2037,16 @@ export function RealtimeInterviewClient({
         return;
       }
 
+      // Unlock speakers/mic in the same user-gesture turn. Awaiting the API
+      // first lets Chrome create a suspended AudioContext, so nothing is sent
+      // or played until a later click.
+      ensureAudioContext();
+
       // Start interview on backend (skip for coding discussion — coding phase already ran)
       if (!isCodingDiscussion) {
         await interviewApi.start(interviewId);
       }
+      pokeAudioContext(ensureAudioContext());
       shouldDiscardUnstartedRef.current = false;
 
       // Set interview as active BEFORE setting up audio capture
@@ -2214,13 +2279,19 @@ export function RealtimeInterviewClient({
         return;
       }
 
+      const returnTo = returnToRef.current;
       if (isCodingPractice) {
         await invalidateAfterCodingSessionCompleteFromStorage();
-        router.push(`/dashboard/interviews/${interviewId}/processing`);
       } else {
         await invalidateAfterAiInterviewSessionFromStorage();
-        router.push(`/dashboard/interviews/${interviewId}/feedback`);
       }
+      // Hackathon sessions skip the generic report/feedback funnel and go
+      // back to the challenge board (processing waits until the score lands).
+      const afterPath =
+        isHackathonDashboardReturn(returnTo) || isCodingPractice
+          ? `/dashboard/interviews/${interviewId}/processing`
+          : `/dashboard/interviews/${interviewId}/feedback`;
+      router.push(withInterviewReturnTo(afterPath, returnTo));
     } catch (error: any) {
       console.error("Error ending interview:", error);
       // Use non-blocking toast so the interview isn't interrupted.
@@ -2798,6 +2869,7 @@ export function RealtimeInterviewClient({
     recordingOptInResolvedRef.current = true;
     const canCaptureDisplay = supportsDisplayMediaCapture();
     try {
+      ensureAudioContext();
       try {
         sessionStorage.setItem(
           `${RECORDING_OPT_IN_STORAGE_PREFIX}${interviewId}`,
@@ -2812,12 +2884,10 @@ export function RealtimeInterviewClient({
       // can be routed through AudioContext, then record camera + mic.
       if (choice === "yes" && canCaptureDisplay) {
         await startRecording();
+        pokeAudioContext(ensureAudioContext());
       }
 
       setShowRecordingOptIn(false);
-      if (!codingEmbed) {
-        router.replace(`/interview/${interviewId}/realtime`, { scroll: false });
-      }
 
       await startInterview();
 
@@ -3314,6 +3384,18 @@ export function RealtimeInterviewClient({
         </div>
       )}
 
+      {audioBlocked && isInterviewActive && !connectionFailed && (
+        <button
+          type="button"
+          onClick={() => {
+            pokeAudioContext(ensureAudioContext());
+          }}
+          className="fixed top-0 left-0 right-0 z-50 bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md"
+        >
+          Click to enable microphone and speaker
+        </button>
+      )}
+
       {/* Non-blocking recording / soft errors — never replaces full-page Error (camera, WS, etc.) */}
       {activeError && (
         <div className="fixed bottom-4 left-1/2 z-50 max-w-[min(100%-2rem,28rem)] -translate-x-1/2 flex items-center gap-2 rounded-lg bg-amber-950/95 border border-amber-600/40 px-4 py-3 text-sm text-amber-50 shadow-lg">
@@ -3341,7 +3423,7 @@ export function RealtimeInterviewClient({
                 className="h-11 w-11 shrink-0 text-white/90 hover:bg-card/10 hover:text-white"
                 aria-label="Back to interviews"
                 onClick={() => {
-                  router.push("/dashboard/interviews");
+                  router.push(returnToRef.current ?? "/dashboard/interviews");
                 }}
               >
                 <ArrowLeft className="h-5 w-5" />

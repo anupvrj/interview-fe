@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { AlertCircle } from "lucide-react";
 import {
   PostInterviewFeedbackForm,
@@ -11,11 +11,14 @@ import { interviewApi } from "@/lib/api";
 import { getApiErrorMessage } from "@/lib/api-error-message";
 import { cn } from "@/lib/utils";
 import { appCardElevated } from "@/lib/app-theme";
+import { resolveInterviewReturnTo, withInterviewReturnTo } from "@/lib/interview-return-to";
 
 export default function PostInterviewFeedbackPage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const interviewId = params.id as string;
+  const returnTo = resolveInterviewReturnTo(interviewId, searchParams);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
@@ -30,7 +33,9 @@ export default function PostInterviewFeedbackPage() {
         sessionChallenge: payload.sessionChallenge,
         comment: payload.comment || undefined,
       });
-      router.push(`/dashboard/interviews/${interviewId}/processing`);
+      router.push(
+        withInterviewReturnTo(`/dashboard/interviews/${interviewId}/processing`, returnTo),
+      );
     } catch (err: unknown) {
       setSubmitError(
         getApiErrorMessage(err, "Error saving feedback. Please try again."),

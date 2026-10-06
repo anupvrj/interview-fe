@@ -28,6 +28,7 @@ import {
   instituteSecondaryClass,
 } from "@/components/institute/InstituteChrome";
 import { interviewRoundLabel } from "@/lib/interview-kind";
+import { InterviewTagBadges } from "@/components/dashboard/InterviewTagBadges";
 import { toast } from "sonner";
 
 const DEFAULT_TABLE_HEADERS = [
@@ -359,6 +360,7 @@ export function RecentInterviewsList({
                     <td className="px-5 py-3.5 align-top">
                       <p className="truncate text-sm font-semibold text-foreground">
                         {row.title}
+                        <InterviewTagBadges tags={row.tags} />
                       </p>
                       <p className="truncate text-xs text-muted-foreground">
                         {row.subtitle}
@@ -420,6 +422,7 @@ export function RecentInterviewsList({
                   <td className="px-5 py-3.5 align-top">
                     <p className="truncate text-sm font-semibold text-foreground">
                       {role}
+                      <InterviewTagBadges tags={interview.metadata?.tags} />
                     </p>
                     <p className="truncate text-xs text-muted-foreground">
                       {subtitle}

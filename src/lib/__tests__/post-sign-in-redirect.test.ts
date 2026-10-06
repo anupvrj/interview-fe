@@ -12,6 +12,8 @@ import {
   resolvePostAuthRedirectPath,
   safeAppRedirectPath,
   shouldRedirectUnauthorizedToSignIn,
+  unauthorizedNeedsOnboarding,
+  getOnboardingUrlWithRedirect,
 } from "@/lib/post-sign-in-redirect";
 
 describe("safeAppRedirectPath", () => {
@@ -59,6 +61,20 @@ describe("shouldRedirectUnauthorizedToSignIn", () => {
     expect(shouldRedirectUnauthorizedToSignIn("/pricing")).toBe(false);
     expect(shouldRedirectUnauthorizedToSignIn("/ai-resume-builder")).toBe(
       false,
+    );
+  });
+});
+
+describe("unauthorizedNeedsOnboarding", () => {
+  it("treats missing app user as onboarding, not another sign-in", () => {
+    expect(
+      unauthorizedNeedsOnboarding("User not found. Please complete sign-up."),
+    ).toBe(true);
+    expect(unauthorizedNeedsOnboarding("Authentication required. Sign in again and retry.")).toBe(
+      false,
+    );
+    expect(getOnboardingUrlWithRedirect("/hackathon/hackathon-2026/dashboard")).toBe(
+      "/onboarding?redirect_url=%2Fhackathon%2Fhackathon-2026%2Fdashboard",
     );
   });
 });

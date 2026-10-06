@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useUser } from "@clerk/nextjs";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { InterviewTrixLogo } from "@/components/InterviewTrixLogo";
@@ -14,17 +14,35 @@ import {
 } from "@/components/onboarding/OnboardingPathChooser";
 import { isPaidPlanId } from "@/lib/pricingPageContent";
 import { isInstituteStaff } from "@/lib/institute-access";
-import { consumePostSignInReturnUrl } from "@/lib/post-sign-in-redirect";
+import {
+  consumePostSignInReturnUrl,
+  persistPostAuthReturnPath,
+  safeAppRedirectPath,
+} from "@/lib/post-sign-in-redirect";
 import { userApi } from "@/lib/api";
 import { roleHome, writeStoredRole } from "@/lib/roles";
 
-export default function OnboardingPage() {
+function OnboardingFallback() {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-background">
+      <Loader2 className="h-8 w-8 animate-spin text-[#7367F0]" />
+    </div>
+  );
+}
+
+function OnboardingPageContent() {
   const { user, isLoaded } = useUser();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [checkingStatus, setCheckingStatus] = useState(true);
   const [onboardingPath, setOnboardingPath] = useState<OnboardingPath | null>(
     null,
   );
+
+  useEffect(() => {
+    const next = safeAppRedirectPath(searchParams.get("redirect_url"));
+    if (next) persistPostAuthReturnPath(next);
+  }, [searchParams]);
 
   const checkOnboardingStatus = async () => {
     let didRedirect = false;
@@ -109,11 +127,7 @@ export default function OnboardingPage() {
   };
 
   if (!isLoaded || checkingStatus) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-[#7367F0]" />
-      </div>
-    );
+    return <OnboardingFallback />;
   }
 
   if (onboardingPath === null) {
@@ -159,5 +173,13 @@ export default function OnboardingPage() {
         <CandidateOnboardingForm />
       </div>
     </div>
+  );
+}
+
+export default function OnboardingPage() {
+  return (
+    <Suspense fallback={<OnboardingFallback />}>
+      <OnboardingPageContent />
+    </Suspense>
   );
 }

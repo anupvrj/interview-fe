@@ -18,6 +18,7 @@ import {
   FlaskConical,
   Shield,
   Share2,
+  Trophy,
 } from "lucide-react";
 import type { DashboardNavAccent, DashboardNavItem } from "@/lib/dashboard-nav";
 
@@ -237,6 +238,23 @@ export const SUPER_ADMIN_NAV_GROUPS: SuperAdminNavGroup[] = [
       },
     ],
   },
+  ...(process.env.NEXT_PUBLIC_HACKATHON_ENABLED === "true"
+    ? [
+        {
+          label: "Events",
+          items: [
+            {
+              title: "Hackathons",
+              href: `${SUPER_ADMIN_HOME}/hackathons`,
+              icon: Trophy,
+              accent: accent.amber,
+              description:
+                "Create, publish, and operate hackathons. Review submissions when an event is live.",
+            },
+          ],
+        },
+      ]
+    : []),
 ];
 
 export function flattenSuperAdminNav(): DashboardNavItem[] {
@@ -280,6 +298,30 @@ type NestedPageRule = {
 };
 
 const NESTED_PAGES: NestedPageRule[] = [
+  {
+    pattern: /^\/super-admin\/hackathons\/new\/?$/,
+    title: "Create hackathon",
+    description: "Draft a new hackathon with challenges, schedule, and public copy.",
+    crumb: "Create",
+  },
+  {
+    pattern: /^\/super-admin\/hackathons\/[^/]+\/edit\/?$/,
+    title: "Edit hackathon",
+    description: "Update copy, challenges, and schedule. Structure locks after the first registration.",
+    crumb: "Edit",
+  },
+  {
+    pattern: /^\/super-admin\/hackathons\/[^/]+\/participants\/[^/]+\/?$/,
+    title: "Hackathon submission",
+    description: "Resume, both mock interviews, and social links for this participant.",
+    crumb: "Submission",
+  },
+  {
+    pattern: /^\/super-admin\/hackathons\/[^/]+\/?$/,
+    title: "Hackathon submissions",
+    description: "Every participant with their ATS score, interview scores, and progress.",
+    crumb: "Submissions",
+  },
   {
     pattern: /^\/super-admin\/users\/[^/]+\/reports\/[^/]+\/?$/,
     title: "Interview report",

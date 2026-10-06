@@ -93,6 +93,8 @@ import {
   resumeSectionHeader,
 } from "@/components/resume-editor/resumeEditorStyles";
 import { cn } from "@/lib/utils";
+import { appPrimaryButton } from "@/lib/app-theme";
+import { safeAppRedirectPath } from "@/lib/post-sign-in-redirect";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import { LanguagesEditor } from "@/components/LanguagesEditor";
 import { captureAndUploadThumbnail } from "@/lib/resume-thumbnail";
@@ -235,6 +237,9 @@ export default function EditResumePage() {
   const resumeId = params.id as string;
   const showImprovedBanner = searchParams.get("improved") === "1";
   const wantsExtensionSync = searchParams.get("extensionSync") === "1";
+  const resumeReturnTo = safeAppRedirectPath(searchParams.get("returnTo"));
+  const resumeReturnLabel = searchParams.get("returnLabel")?.slice(0, 40) || "previous page";
+  const [savingAndReturning, setSavingAndReturning] = useState(false);
 
   const [mounted, setMounted] = useState(false);
   const [resume, setResumeState] = useState<Resume | null>(null);
@@ -1544,6 +1549,28 @@ export default function EditResumePage() {
     }
   };
 
+  const handleSaveAndReturn = async () => {
+    if (!resume || !resumeReturnTo || savingAndReturning) return;
+    setSavingAndReturning(true);
+    try {
+      // The PDF is compiled from the live preview, so it must be on screen.
+      setViewMode("edit");
+      if (isMobile) closeMobileEditing();
+      const previewId = `resume-preview-container-${resumeId}`;
+      for (let i = 0; i < 20 && !document.getElementById(previewId); i += 1) {
+        await new Promise((resolve) => setTimeout(resolve, 150));
+      }
+      await ensureResumePersisted();
+      await compileCurrentPdfFromPreview();
+      setHasChanges(false);
+      router.push(resumeReturnTo);
+    } catch (error) {
+      console.error("Save and return failed:", error);
+      alert("We couldn't create the PDF for this resume. Please try again.");
+      setSavingAndReturning(false);
+    }
+  };
+
   const handleChangeTemplate = async (newTemplateId: string) => {
     if (!resume || newTemplateId === resume.templateId) {
       setChangeTemplateOpen(false);
@@ -2505,6 +2532,29 @@ export default function EditResumePage() {
 
   return (
     <div className={resumeEditorPage} suppressHydrationWarning>
+      {resumeReturnTo ? (
+        <div className="flex flex-col gap-2 border-b border-border bg-primary/5 px-4 py-2.5 text-sm text-foreground sm:flex-row sm:items-center sm:justify-between">
+          <span>
+            When your resume is ready, save it and go back to the {resumeReturnLabel}.
+          </span>
+          <Button
+            type="button"
+            size="sm"
+            onClick={() => void handleSaveAndReturn()}
+            disabled={savingAndReturning || saving || autoSaving}
+            className={cn(appPrimaryButton, "w-full sm:w-auto")}
+          >
+            {savingAndReturning ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Creating PDF…
+              </>
+            ) : (
+              `Save and return to ${resumeReturnLabel}`
+            )}
+          </Button>
+        </div>
+      ) : null}
       {extensionSyncState !== "idle" ? (
         <div className="border-b border-border bg-primary/5 px-4 py-2 text-center text-sm text-foreground md:text-left">
           {extensionSyncState === "syncing"

@@ -72,6 +72,13 @@ export const PRODUCT_MARKETING_ROUTES: MarketingRoute[] = [
 
 export const SUPPORT_MARKETING_ROUTES: MarketingRoute[] = [
   {
+    path: "/hackathon-2026",
+    name: "Hackathon 2026",
+    description:
+      "Interview Trix Product Launch and Hackathon — Navigating Careers in 2027. Free registration, live virtual event, ₹20,000 prize pool.",
+    sitemap: { changeFrequency: "weekly", priority: 0.8 },
+  },
+  {
     path: "/pricing",
     name: "Pricing",
     description: "Interview Trix plans, trials, and subscription pricing.",

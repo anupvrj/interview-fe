@@ -7,8 +7,10 @@ import type { ATSReportV3 } from "@/types/atsReport";
 export { isATSReportV3 } from "@/types/atsReport";
 import { inferImageContentType } from "@/lib/image-upload";
 import {
+  getOnboardingUrlWithRedirect,
   getSignInUrlWithRedirect,
   shouldRedirectUnauthorizedToSignIn,
+  unauthorizedNeedsOnboarding,
 } from "@/lib/post-sign-in-redirect";
 import { trimJobDescriptionForSend } from "@/lib/job-description-limits";
 import { isAccessBlockCode } from "@/lib/institution-lifecycle";
@@ -243,7 +245,13 @@ apiClient.interceptors.response.use(
     if (error.response?.status === 401) {
       if (typeof window !== "undefined") {
         const returnPath = `${window.location.pathname}${window.location.search}`;
-        if (
+        const body = error.response.data as { message?: string } | undefined;
+        if (unauthorizedNeedsOnboarding(body?.message)) {
+          const onboarding = window.location.pathname.startsWith("/onboarding");
+          if (!onboarding) {
+            window.location.href = getOnboardingUrlWithRedirect(returnPath);
+          }
+        } else if (
           shouldRedirectUnauthorizedToSignIn(
             window.location.pathname,
             String(error.config?.url || ""),
@@ -535,6 +543,8 @@ export interface Interview {
     /** Interview duration in minutes (15 or 30). */
     interviewDuration?: number;
     interviewKind?: "general" | "coding_practice";
+    /** Labels such as event tags, shown as badges in interview lists. */
+    tags?: string[];
     codingPhaseDurationMinutes?: number;
     discussionDurationMinutes?: number;
     /** When true (e.g. institute admin), denying screen capture may block the session. */
@@ -985,6 +995,16 @@ export const interviewApi = {
 
   start: async (interviewId: string): Promise<void> => {
     await apiClient.post(`/interviews/${interviewId}/start`);
+  },
+
+  /** Short-lived token for the realtime WebSocket handshake; fetch one per connect. */
+  createSessionToken: async (
+    interviewId: string,
+  ): Promise<{ sessionToken: string; expiresAt: string }> => {
+    const response = await apiClient.post<{
+      data: { sessionToken: string; expiresAt: string };
+    }>(`/interviews/${interviewId}/session-token`);
+    return response.data.data;
   },
 
   complete: async (interviewId: string, videoFile?: Blob): Promise<void> => {

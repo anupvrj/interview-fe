@@ -8,6 +8,7 @@ import { userApi, ResumeTemplate, resumeApi } from "@/lib/api";
 import { useDashboardInvalidation } from "@/hooks/useDashboardInvalidation";
 import { useDropzone } from "react-dropzone";
 import { Button } from "@/components/ui/button";
+import { safeAppRedirectPath } from "@/lib/post-sign-in-redirect";
 import {
   Dialog,
   DialogContent,
@@ -95,12 +96,25 @@ export default function NewResumePage() {
   const router = useRouter();
   const { invalidate } = useDashboardInvalidation();
   const searchParams = useSearchParams();
-  const resumeEditorPath = (resumeId: string) =>
-    searchParams.get("extensionSync") === "1"
-      ? `/dashboard/resumes/${resumeId}/edit?extensionSync=1`
+  const forwardReturnTo = (params: URLSearchParams) => {
+    const returnTo = safeAppRedirectPath(searchParams.get("returnTo"));
+    if (!returnTo) return;
+    params.set("returnTo", returnTo);
+    const label = searchParams.get("returnLabel");
+    if (label) params.set("returnLabel", label.slice(0, 40));
+  };
+  const resumeEditorPath = (resumeId: string) => {
+    const params = new URLSearchParams();
+    if (searchParams.get("extensionSync") === "1") params.set("extensionSync", "1");
+    forwardReturnTo(params);
+    const query = params.toString();
+    return query
+      ? `/dashboard/resumes/${resumeId}/edit?${query}`
       : `/dashboard/resumes/${resumeId}/edit`;
+  };
   const newResumeReturnUrl = () => {
     const params = new URLSearchParams();
+    forwardReturnTo(params);
     const templateParam = searchParams.get("template");
     const skipTemplate = searchParams.get("skipTemplate");
     if (templateParam && skipTemplate) {

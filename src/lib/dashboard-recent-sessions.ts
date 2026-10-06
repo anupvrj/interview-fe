@@ -42,7 +42,15 @@ export type DashboardRecentSessionRow = {
   canPlayRecording?: boolean;
   canDelete?: boolean;
   showGenerateReport?: boolean;
+  tags?: string[];
 };
+
+/** Display labels for interview tags; slug-style duplicates (e.g. "hackathon-2026") are dropped. */
+export function interviewTagLabels(tags: string[] | undefined): string[] {
+  if (!tags?.length) return [];
+  const primary = tags.filter((tag) => !tags.some((other) => other !== tag && tag.startsWith(`${other}-`)));
+  return primary.slice(0, 2).map((tag) => tag.charAt(0).toUpperCase() + tag.slice(1));
+}
 
 const KIND_LABELS: Record<DashboardSessionKind, string> = {
   screening: IX_CATEGORY_META.screening.label,
@@ -144,6 +152,7 @@ function mapAiInterview(interview: Interview): DashboardRecentSessionRow {
     showGenerateReport:
       (interview.status === "completed" || interview.status === "failed") &&
       !interview.report,
+    tags: interview.metadata.tags,
   };
 }
 
