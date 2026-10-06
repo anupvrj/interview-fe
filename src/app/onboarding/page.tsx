@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useUser } from "@clerk/nextjs";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, Loader2 } from "lucide-react";
@@ -20,7 +20,15 @@ import {
 } from "@/lib/post-sign-in-redirect";
 import { userApi } from "@/lib/api";
 
-export default function OnboardingPage() {
+function OnboardingFallback() {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-background">
+      <Loader2 className="h-8 w-8 animate-spin text-[#7367F0]" />
+    </div>
+  );
+}
+
+function OnboardingPageContent() {
   const { user, isLoaded } = useUser();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -105,11 +113,7 @@ export default function OnboardingPage() {
   };
 
   if (!isLoaded || checkingStatus) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-[#7367F0]" />
-      </div>
-    );
+    return <OnboardingFallback />;
   }
 
   if (onboardingPath === null) {
@@ -155,5 +159,13 @@ export default function OnboardingPage() {
         <CandidateOnboardingForm />
       </div>
     </div>
+  );
+}
+
+export default function OnboardingPage() {
+  return (
+    <Suspense fallback={<OnboardingFallback />}>
+      <OnboardingPageContent />
+    </Suspense>
   );
 }
