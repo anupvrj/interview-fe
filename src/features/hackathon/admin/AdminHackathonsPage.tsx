@@ -41,6 +41,7 @@ const HISTORY_LABELS: Record<string, string> = {
   update_end_time: "End time changed",
   update_limit: "Participant limit changed",
   update_grace: "Interview grace changed",
+  update_reminders: "Reminder schedule changed",
 };
 
 function fmtHistoryValue(value?: string) {
@@ -54,7 +55,10 @@ function HackathonManageCard({ hackathon }: Readonly<{ hackathon: AdminHackathon
   const [endsAt, setEndsAt] = useState(isoToIstInput(hackathon.endsAt));
   const [grace, setGrace] = useState(String(hackathon.interviewGraceMinutes));
   const [limit, setLimit] = useState(hackathon.maxCompletions === null ? "" : String(hackathon.maxCompletions));
-  const [confirm, setConfirm] = useState<null | "start" | "end" | "limit" | "publish" | "unpublish">(null);
+  const [reminderEnabled, setReminderEnabled] = useState(hackathon.reminders?.enabled !== false);
+  const [reminderHour, setReminderHour] = useState(String(hackathon.reminders?.hour ?? 9));
+  const [reminderStart, setReminderStart] = useState(isoToIstInput(hackathon.reminders?.startAt));
+  const [confirm, setConfirm] = useState<null | "start" | "end" | "limit" | "publish" | "unpublish" | "notify">(null);
   const [pendingSave, setPendingSave] = useState<Parameters<typeof hackathonAdminApi.update>[1] | null>(null);
   const [reopenEndsAt, setReopenEndsAt] = useState("");
   const [reopenNote, setReopenNote] = useState("");
@@ -64,7 +68,10 @@ function HackathonManageCard({ hackathon }: Readonly<{ hackathon: AdminHackathon
     setEndsAt(isoToIstInput(hackathon.endsAt));
     setGrace(String(hackathon.interviewGraceMinutes));
     setLimit(hackathon.maxCompletions === null ? "" : String(hackathon.maxCompletions));
-  }, [hackathon.startsAt, hackathon.endsAt, hackathon.interviewGraceMinutes, hackathon.maxCompletions]);
+    setReminderEnabled(hackathon.reminders?.enabled !== false);
+    setReminderHour(String(hackathon.reminders?.hour ?? 9));
+    setReminderStart(isoToIstInput(hackathon.reminders?.startAt));
+  }, [hackathon.startsAt, hackathon.endsAt, hackathon.interviewGraceMinutes, hackathon.maxCompletions, hackathon.reminders]);
 
   const onUpdated = (data: AdminHackathonOverview) => {
     queryClient.setQueryData<AdminHackathonOverview[]>(adminKeys.list, (prev) =>
@@ -135,6 +142,16 @@ function HackathonManageCard({ hackathon }: Readonly<{ hackathon: AdminHackathon
     },
     onError,
   });
+  const runNotifications = useMutation({
+    mutationFn: () => hackathonAdminApi.runNotifications(hackathon.hackathonId),
+    onSuccess: (result) => {
+      setConfirm(null);
+      toast.success(
+        `Checked ${result.scanned} participants. Sent ${result.reminders} reminder${result.reminders === 1 ? "" : "s"}.`,
+      );
+    },
+    onError,
+  });
   const exportCsv = useMutation({
     mutationFn: () => hackathonAdminApi.exportCsv(hackathon.hackathonId),
     onSuccess: (blob) => {
@@ -175,6 +192,19 @@ function HackathonManageCard({ hackathon }: Readonly<{ hackathon: AdminHackathon
       return toast.error("Max participants must be a whole number, or empty for unlimited");
     }
     if (limitNum !== hackathon.maxCompletions) body.maxCompletions = limitNum;
+    const hourNum = Number(reminderHour);
+    if (!Number.isInteger(hourNum) || hourNum < 0 || hourNum > 23) {
+      return toast.error("Reminder hour must be from 0 to 23 IST");
+    }
+    const startIso = reminderStart ? istInputToIso(reminderStart) : null;
+    if (reminderStart && !startIso) return toast.error("Enter a valid reminder start date");
+    const remindersChanged =
+      reminderEnabled !== (hackathon.reminders?.enabled !== false) ||
+      hourNum !== (hackathon.reminders?.hour ?? 9) ||
+      (startIso ?? null) !== (hackathon.reminders?.startAt ?? null);
+    if (remindersChanged) {
+      body.reminders = { enabled: reminderEnabled, hour: hourNum, startAt: startIso };
+    }
     if (Object.keys(body).length === 0) return toast.info("Nothing to save");
     if (
       body.maxCompletions !== undefined &&
@@ -279,6 +309,46 @@ function HackathonManageCard({ hackathon }: Readonly<{ hackathon: AdminHackathon
             />
           </HackathonAdminField>
           <HackathonAdminField
+            id={`remind-hour-${hackathon.hackathonId}`}
+            label="Daily reminder hour (IST)"
+            hint="One email per person inside a 6-hour window starting at this hour. Not in the first 24 hours after they register, unless the deadline is inside 48 hours."
+          >
+            <div className="flex items-center gap-3">
+              <label className="flex items-center gap-2 text-sm text-foreground">
+                <input
+                  type="checkbox"
+                  checked={reminderEnabled}
+                  onChange={(e) => setReminderEnabled(e.target.checked)}
+                />
+                Enabled
+              </label>
+              <Input
+                id={`remind-hour-${hackathon.hackathonId}`}
+                type="number"
+                min={0}
+                max={23}
+                className={hackathonAdminControlClass}
+                value={reminderHour}
+                onChange={(e) => setReminderHour(e.target.value)}
+                disabled={!reminderEnabled}
+              />
+            </div>
+          </HackathonAdminField>
+          <HackathonAdminField
+            id={`remind-start-${hackathon.hackathonId}`}
+            label="Start reminders (IST)"
+            hint="Optional. Empty means as soon as the hackathon is live. Stops when submissions close."
+          >
+            <Input
+              id={`remind-start-${hackathon.hackathonId}`}
+              type="datetime-local"
+              className={hackathonAdminControlClass}
+              value={reminderStart}
+              onChange={(e) => setReminderStart(e.target.value)}
+              disabled={!reminderEnabled}
+            />
+          </HackathonAdminField>
+          <HackathonAdminField
             id={`limit-${hackathon.hackathonId}`}
             label="Max participants"
             hint="Counted when a participant clicks Mark complete. When full, nobody new can start; people already in progress can finish. Leave empty for unlimited."
@@ -309,6 +379,16 @@ function HackathonManageCard({ hackathon }: Readonly<{ hackathon: AdminHackathon
               onChange={(e) => setGrace(e.target.value)}
             />
           </HackathonAdminField>
+        </div>
+
+        <div className="flex flex-col gap-2 border-t border-border/60 pt-6 sm:flex-row sm:items-center">
+          <Button type="button" variant="outline" onClick={() => setConfirm("notify")} disabled={runNotifications.isPending}>
+            {runNotifications.isPending ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-1.5 h-4 w-4" />}
+            Send due emails now
+          </Button>
+          <p className="text-xs leading-5 text-muted-foreground">
+            Runs the hourly check immediately. Welcome, challenge, and thank-you go only to people who have not received them. Reminders send only inside today’s window. Send a test from Notification Hub.
+          </p>
         </div>
 
         <div className="flex flex-wrap gap-2">
@@ -438,6 +518,15 @@ function HackathonManageCard({ hackathon }: Readonly<{ hackathon: AdminHackathon
         ) : null}
       </CardContent>
 
+      <ConfirmationDialog
+        open={confirm === "notify"}
+        onOpenChange={(open) => !open && setConfirm(null)}
+        title="Send due hackathon emails now?"
+        description="This uses the live templates and emails real participants who are due. It does not resend a welcome, challenge, or thank-you that already went out. Reminders still follow the daily window and skip anyone already reminded today."
+        confirmText="Send due emails"
+        onConfirm={() => runNotifications.mutate()}
+        isLoading={runNotifications.isPending}
+      />
       <ConfirmationDialog
         open={confirm === "start"}
         onOpenChange={(open) => !open && setConfirm(null)}

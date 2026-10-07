@@ -99,6 +99,7 @@ export interface HackathonMe {
     status: ParticipantStatus;
     registeredAt: string;
     completedAt: string | null;
+    remindersOptOut?: boolean;
   } | null;
   profile: {
     complete: boolean;
@@ -259,6 +260,15 @@ export const hackathonApi = {
     return res.data.data;
   },
 
+  setReminders: async (slug: string, getToken: TokenGetter, enabled: boolean): Promise<HackathonMe> => {
+    const res = await apiClient.post<{ data: HackathonMe }>(
+      `${hackathonBase(slug)}/me/reminders`,
+      { enabled },
+      { headers: await authHeaders(getToken) },
+    );
+    return res.data.data;
+  },
+
   complete: async (slug: string, getToken: TokenGetter): Promise<HackathonMe> => {
     const res = await apiClient.post<{ data: HackathonMe }>(`${hackathonBase(slug)}/me/complete`, {}, {
       headers: await authHeaders(getToken),
@@ -282,6 +292,7 @@ export interface AdminHackathonOverview {
   endedAt: string | null;
   maxCompletions: number | null;
   interviewGraceMinutes: number;
+  reminders?: { enabled: boolean; hour: number; startAt: string | null };
   interviewConfig: {
     requiredCount: number;
     durationMinutes: number;
@@ -394,6 +405,7 @@ export type AdminHackathonWriteBody = {
     voiceProvider?: "gemini" | "gemini38" | "gemini38extended" | "chatgpt" | "sarvam";
     maxConcurrent?: number;
   };
+  reminders?: { enabled?: boolean; hour?: number; startAt?: string | null };
 };
 
 const adminBase = "/admin/hackathons";
@@ -450,6 +462,13 @@ export const hackathonAdminApi = {
       endsAt,
       note,
     });
+    return res.data.data;
+  },
+  runNotifications: async (hackathonId: string): Promise<{ scanned: number; reminders: number }> => {
+    const res = await apiClient.post<{ data: { scanned: number; reminders: number } }>(
+      `${adminBase}/${hackathonId}/notifications/run`,
+      {},
+    );
     return res.data.data;
   },
   reconcile: async (hackathonId: string): Promise<{ reconciled: number; atsBackfilled: number }> => {

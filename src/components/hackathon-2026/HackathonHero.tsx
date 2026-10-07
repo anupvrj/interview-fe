@@ -21,7 +21,7 @@ import {
   useCountdown,
   useParallax,
 } from "@/components/hackathon-2026/HackathonMotion";
-import { HACKATHON_EVENT, HACKATHON_HERO } from "@/lib/hackathon-2026-content";
+import { HACKATHON_CHALLENGE, HACKATHON_HERO, HACKATHON_LAUNCH } from "@/lib/hackathon-2026-content";
 import { cn } from "@/lib/utils";
 
 const FLOAT_ICONS = { FileText, Mic, Trophy } as const;
@@ -128,15 +128,15 @@ export function HackathonHero() {
             <ul className="mt-7 flex flex-wrap justify-center gap-x-6 gap-y-3 text-sm font-medium text-white sm:text-[15px] lg:justify-start lg:gap-x-7">
               <li className="inline-flex items-center gap-2.5">
                 <Calendar className="size-5 text-[#2e9bff]" aria-hidden />
-                {HACKATHON_EVENT.dateLabel}
+                Challenge {HACKATHON_CHALLENGE.dateLabel}
               </li>
               <li className="inline-flex items-center gap-2.5">
                 <Clock className="size-5 text-[#2e9bff]" aria-hidden />
-                {HACKATHON_EVENT.timeLabel}
+                Launch {HACKATHON_LAUNCH.dateLabel}, {HACKATHON_LAUNCH.timeLabel}
               </li>
               <li className="inline-flex items-center gap-2.5">
                 <MapPin className="size-5 fill-[#2e9bff]/25 text-[#2e9bff]" aria-hidden />
-                {HACKATHON_EVENT.formatLabel}
+                {HACKATHON_LAUNCH.formatLabel}
                 <span className="hk-live-dot" aria-hidden />
               </li>
             </ul>
@@ -315,8 +315,21 @@ export function HackathonHero() {
   );
 }
 
+function countdownTarget(now = Date.now()): { startISO: string; endISO: string; label: string } {
+  const challengeStart = Date.parse(HACKATHON_CHALLENGE.startISO);
+  const challengeEnd = Date.parse(HACKATHON_CHALLENGE.endISO);
+  if (now < challengeStart) {
+    return { startISO: HACKATHON_CHALLENGE.startISO, endISO: HACKATHON_LAUNCH.endISO, label: "Challenge opens in" };
+  }
+  if (now < challengeEnd) {
+    return { startISO: HACKATHON_CHALLENGE.endISO, endISO: HACKATHON_LAUNCH.endISO, label: "Submissions close in" };
+  }
+  return { startISO: HACKATHON_LAUNCH.startISO, endISO: HACKATHON_LAUNCH.endISO, label: "Launch in" };
+}
+
 function HeroTicker() {
-  const countdown = useCountdown(HACKATHON_EVENT.startISO, HACKATHON_EVENT.endISO);
+  const target = countdownTarget();
+  const countdown = useCountdown(target.startISO, target.endISO);
   const items = [...HACKATHON_HERO.marquee, ...HACKATHON_HERO.marquee];
 
   return (
@@ -328,7 +341,7 @@ function HeroTicker() {
         <div className="flex shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-[#1b3c62] px-5 py-3.5 md:flex-nowrap md:border-b-0 md:border-r">
           <span className="inline-flex items-center gap-2 whitespace-nowrap text-[11px] font-bold uppercase tracking-[0.16em] text-[#9cc6f0]">
             <span className="hk-live-dot" aria-hidden />
-            {countdown.phase === "live" ? "Live now" : countdown.phase === "ended" ? "Event wrapped" : "Launch in"}
+            {countdown.phase === "live" ? "Live now" : countdown.phase === "ended" ? "Event wrapped" : target.label}
           </span>
           <CountdownDigits state={countdown} />
         </div>
