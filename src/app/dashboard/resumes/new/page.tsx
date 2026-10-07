@@ -25,6 +25,9 @@ import {
   Sparkles,
   ArrowRight,
   SkipForward,
+  AlertCircle,
+  FileText,
+  X,
 } from "lucide-react";
 import {
   buildResumeFromExtractedData,
@@ -136,6 +139,11 @@ export default function NewResumePage() {
   const [loading, setLoading] = useState(true);
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  /** CV already uploaded on the profile (onboarding / hackathon), offered as a one-click import. */
+  const [uploadedCv, setUploadedCv] = useState<{ url: string; filename: string } | null>(null);
+  const [loadingUploadedCv, setLoadingUploadedCv] = useState(false);
+  /** Shown inline on the job-description step when building/creating the resume fails. */
+  const [createError, setCreateError] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<FilterCategory>("all");
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [resumeText, setResumeText] = useState<string>("");
@@ -265,6 +273,42 @@ export default function NewResumePage() {
       console.error("Error loading templates:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!isLoaded || !user) return;
+    let cancelled = false;
+    userApi
+      .getMyResumeUrl()
+      .then((cv) => {
+        if (!cancelled) setUploadedCv(cv);
+      })
+      .catch(() => {
+        /* 404 = no uploaded CV; nothing to offer */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isLoaded, user]);
+
+  const importUploadedCv = async () => {
+    if (!uploadedCv) return;
+    setImportSource("pdf");
+    setLoadingUploadedCv(true);
+    try {
+      // Signed URLs are short-lived: refresh if needed, then hand the file to the normal PDF import.
+      const fresh = await userApi.getMyResumeUrl().catch(() => uploadedCv);
+      const res = await fetch(fresh.url);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const blob = await res.blob();
+      const file = new File([blob], fresh.filename || "resume.pdf", { type: "application/pdf" });
+      await onDrop([file], []);
+    } catch (error) {
+      console.error("Could not load uploaded CV:", error);
+      alert("We couldn't open your uploaded CV. Upload the PDF here instead.");
+    } finally {
+      setLoadingUploadedCv(false);
     }
   };
 
@@ -408,6 +452,7 @@ export default function NewResumePage() {
 
     try {
       setCreating(true);
+      setCreateError(null);
       setStep("processing");
 
       if (pendingImport.source === "dummy") {
@@ -476,8 +521,8 @@ export default function NewResumePage() {
       if (isLimitError) {
         setShowLimitModal(true);
       } else {
-        alert(
-          `Failed to build resume: ${
+        setCreateError(
+          `Couldn't build your resume: ${
             error?.response?.data?.message ||
             error?.message ||
             "Please try again."
@@ -502,6 +547,7 @@ export default function NewResumePage() {
 
     try {
       setCreating(true);
+      setCreateError(null);
       setStep("processing");
 
       console.log("📋 Loading dummy content from template...");
@@ -624,8 +670,8 @@ export default function NewResumePage() {
       if (isLimitError) {
         setShowLimitModal(true);
       } else {
-        alert(
-          `Failed to create resume: ${
+        setCreateError(
+          `Couldn't create your resume: ${
             error?.response?.data?.message ||
             error?.message ||
             "Please try again."
@@ -940,6 +986,30 @@ export default function NewResumePage() {
 
           {!importSource ? (
             <>
+              {uploadedCv ? (
+                <div className="mb-4 flex flex-col gap-3 rounded-xl border border-primary/40 bg-primary/5 p-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+                      <FileText className="h-5 w-5" aria-hidden />
+                    </span>
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-foreground">Use the CV you already uploaded</p>
+                      <p className="truncate text-xs text-muted-foreground">{uploadedCv.filename}</p>
+                    </div>
+                  </div>
+                  <Button
+                    className={resumeBuilderPrimaryButton}
+                    onClick={() => void importUploadedCv()}
+                    disabled={loadingUploadedCv || extracting}
+                  >
+                    {loadingUploadedCv ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
+                    ) : null}
+                    Use this CV
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
+                </div>
+              ) : null}
               <ResumeBuilderImportChoiceCards
                 selectedSource={importSource}
                 onSelectChat={() => setShowChatModeModal(true)}
@@ -1058,6 +1128,23 @@ export default function NewResumePage() {
         </div>
       )}
 
+      {step === "jobDescription" && createError ? (
+        <div
+          role="alert"
+          className="mb-4 flex items-start gap-3 rounded-xl border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+        >
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+          <p className="min-w-0 flex-1">{createError}</p>
+          <button
+            type="button"
+            onClick={() => setCreateError(null)}
+            className="shrink-0 rounded-md p-0.5 opacity-70 transition-opacity hover:opacity-100"
+            aria-label="Dismiss error"
+          >
+            <X className="h-4 w-4" aria-hidden />
+          </button>
+        </div>
+      ) : null}
       {step === "jobDescription" && (
         <ResumeBuilderJobDescriptionStep
           value={jobDescription}

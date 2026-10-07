@@ -60,10 +60,14 @@ export function ResumeChallenge({ me }: Readonly<{ me: HackathonMe }>) {
 
   const options = useMemo(() => resumes.data ?? [], [resumes.data]);
   useEffect(() => {
-    if (selectedId || options.length === 0) return;
-    const preferred = options.find((r) => r.hasPdf) ?? options[0];
+    if (options.length === 0) return;
+    if (selectedId && options.some((r) => r.resumeId === selectedId)) return;
+    const preferred =
+      options.find((r) => r.resumeId === me.preferredResumeId && r.hasPdf) ??
+      options.find((r) => r.hasPdf) ??
+      options[0];
     setSelectedId(preferred.resumeId);
-  }, [options, selectedId]);
+  }, [me.preferredResumeId, options, selectedId]);
   const selected = options.find((r) => r.resumeId === selectedId);
   const error = submit.error ? toHackathonError(submit.error) : null;
 
@@ -93,15 +97,21 @@ export function ResumeChallenge({ me }: Readonly<{ me: HackathonMe }>) {
               </div>
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-3 sm:flex">
-            <button type="button" onClick={() => void viewSubmitted()} className={cn(hkSecondaryButton, "sm:min-w-[11rem]")} disabled={openPdf.isPending}>
+          <div className="flex flex-wrap gap-3">
+            <button type="button" onClick={() => void viewSubmitted()} className={cn(hkSecondaryButton, "flex-1 whitespace-nowrap sm:min-w-[11rem] sm:flex-none")} disabled={openPdf.isPending}>
               {openPdf.isPending ? <Loader2 className="size-4 animate-spin" /> : <ExternalLink className="size-4" />}
               View PDF
             </button>
             {canChange ? (
-              <button type="button" onClick={() => setChanging(true)} className={cn(hkSecondaryButton, "sm:min-w-[11rem]")}>
-                Change resume
-              </button>
+              <>
+                <Link href={editResumeHref(me.resume.resumeId)} className={cn(hkSecondaryButton, "flex-1 whitespace-nowrap sm:min-w-[11rem] sm:flex-none")}>
+                  <PencilLine className="size-4" aria-hidden />
+                  Edit in builder
+                </Link>
+                <button type="button" onClick={() => setChanging(true)} className={cn(hkSecondaryButton, "flex-1 whitespace-nowrap sm:min-w-[11rem] sm:flex-none")}>
+                  Change resume
+                </button>
+              </>
             ) : null}
           </div>
         </div>
@@ -126,8 +136,9 @@ export function ResumeChallenge({ me }: Readonly<{ me: HackathonMe }>) {
             </p>
           ) : options.length === 0 ? (
             <p className="text-sm text-[#9eb2ca]">
-              You don&apos;t have any builder resumes yet. Click <strong className="text-white">Design a resume</strong> to
-              create one.
+              You don&apos;t have any builder resumes yet. Click <strong className="text-white">Design a resume</strong>,
+              pick a template, then choose <strong className="text-white">Use the CV you already uploaded</strong> to start
+              from your profile CV.
             </p>
           ) : (
             <div className="space-y-3">
@@ -188,7 +199,8 @@ export function ResumeChallenge({ me }: Readonly<{ me: HackathonMe }>) {
                 </p>
               ) : null}
               <p className="text-xs text-[#7189a6]">
-                You can replace this resume until a later challenge starts
+                Save and return to Hackathon updates the PDF this challenge uses. You can replace it
+                until a later challenge starts
                 {passMark != null ? ", or until it meets the passing score" : ""}.
               </p>
             </div>

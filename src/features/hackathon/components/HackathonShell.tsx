@@ -2,8 +2,9 @@
 
 import "@/components/hackathon-2026/hackathon.css";
 import Link from "next/link";
-import { UserButton } from "@clerk/nextjs";
+import { SignedIn } from "@clerk/nextjs";
 import { ArrowLeft } from "lucide-react";
+import { ProfileMenu } from "@/components/app/ProfileMenu";
 import { HackathonBrand } from "@/components/hackathon-2026/HackathonBrand";
 import { Ribbon } from "@/components/hackathon-2026/HackathonMotion";
 import { hackathonDashboardPath, hackathonLandingPath } from "../config";
@@ -82,16 +83,9 @@ export function HackathonShell({ children }: Readonly<{ children: React.ReactNod
               <ArrowLeft className="size-4" aria-hidden />
               <span className="hidden sm:inline">Event page</span>
             </Link>
-            <UserButton
-              showName
-              appearance={{
-                elements: {
-                  userButtonBox: "flex-row-reverse gap-2.5",
-                  userButtonOuterIdentifier: "hidden text-[15px] font-medium !text-white sm:block",
-                  avatarBox: "size-9 ring-2 ring-[#7c5cff]/60",
-                },
-              }}
-            />
+            <SignedIn>
+              <ProfileMenu avatarClassName="ring-[#7c5cff]/60" />
+            </SignedIn>
           </div>
         </div>
 

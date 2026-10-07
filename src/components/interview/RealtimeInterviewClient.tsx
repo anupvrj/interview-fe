@@ -83,8 +83,11 @@ import { useIntegrityConfig } from "@/hooks/useIntegrityConfig";
 import type { IntegrityEvent } from "@/lib/integrity/types";
 import type { IntegrityWsSender } from "@/lib/integrity/IntegrityTelemetryClient";
 import {
+  currentInterviewReturnTo,
   isHackathonDashboardReturn,
+  resolveHackathonInterviewHome,
   resolveInterviewReturnTo,
+  shouldAutoDiscardUnstartedInterview,
   withInterviewReturnTo,
 } from "@/lib/interview-return-to";
 
@@ -616,9 +619,15 @@ export function RealtimeInterviewClient({
     ],
   );
 
-  /** When true (e.g. institute policy), denying screen capture may use blocking error UI. */
+  /** Hackathon (and any flagged session): screen share is required before start. */
   const requireSessionRecording =
-    interview?.metadata?.requireSessionRecording === true;
+    interview?.metadata?.requireSessionRecording === true ||
+    interview?.metadata?.tags?.includes("hackathon") === true ||
+    Boolean(
+      resolveHackathonInterviewHome(
+        currentInterviewReturnTo(interviewId) ?? returnToRef.current,
+      ),
+    );
 
   useEffect(() => {
     codingEmbedAutostartStartedRef.current = false;
@@ -732,10 +741,15 @@ export function RealtimeInterviewClient({
   }, [interviewId, isCodingDiscussion, codingEmbed]);
 
   const loadInterview = async () => {
+    let redirectedHome = false;
     try {
       const data = await interviewApi.get(interviewId);
       setInterview(data);
-      shouldDiscardUnstartedRef.current = data.status === "draft";
+      shouldDiscardUnstartedRef.current = shouldAutoDiscardUnstartedInterview({
+        status: data.status,
+        tags: data.metadata?.tags,
+        returnTo: returnToRef.current,
+      });
       const storedProvider = resolveVoiceProvider(
         data.metadata?.voiceProvider,
         ENV_VOICE_PROVIDER,
@@ -746,12 +760,40 @@ export function RealtimeInterviewClient({
         setShowBriefing(true);
         return;
       }
+      if (data.status === "completed" || data.status === "processing" || data.status === "failed") {
+        const returnTo = currentInterviewReturnTo(interviewId) ?? returnToRef.current;
+        const dest =
+          data.status === "processing"
+            ? `/dashboard/interviews/${interviewId}/processing`
+            : data.status === "completed"
+              ? `/dashboard/interviews/${interviewId}/report`
+              : resolveHackathonInterviewHome(returnTo) ?? "/dashboard/interviews";
+        redirectedHome = true;
+        router.replace(withInterviewReturnTo(dest, returnTo));
+        return;
+      }
       await connectWebSocket(data);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error loading interview:", error);
-      setError("Failed to load interview. Please allow camera/mic access.");
+      const returnTo = currentInterviewReturnTo(interviewId) ?? returnToRef.current;
+      if (returnTo) returnToRef.current = returnTo;
+      const hackathonHome = resolveHackathonInterviewHome(returnTo);
+      if (hackathonHome) {
+        redirectedHome = true;
+        router.replace(hackathonHome);
+        return;
+      }
+      const status = (error as { response?: { status?: number; data?: { message?: string } } })
+        ?.response?.status;
+      const apiMessage = (error as { response?: { data?: { message?: string } } })?.response
+        ?.data?.message;
+      if (status === 404) {
+        setError(apiMessage || "This interview was not found.");
+      } else {
+        setError(apiMessage || "Failed to load interview. Please refresh and try again.");
+      }
     } finally {
-      setLoading(false);
+      if (!redirectedHome) setLoading(false);
     }
   };
 
@@ -2321,9 +2363,9 @@ export function RealtimeInterviewClient({
     }
   };
 
-  const startRecording = async () => {
+  const startRecording = async (): Promise<boolean> => {
     if (isRecording) {
-      return;
+      return true;
     }
     try {
       const canCaptureDisplay = supportsDisplayMediaCapture();
@@ -2391,7 +2433,7 @@ export function RealtimeInterviewClient({
           if (!shouldRetry) {
             // User wants to retry - stop the current stream and return
             screenStream.getTracks().forEach((track) => track.stop());
-            return;
+            return false;
           }
         } else if (displayType === "browser") {
           console.log(
@@ -2797,6 +2839,7 @@ export function RealtimeInterviewClient({
       mediaRecorder.addEventListener("stop", () => {
         clearInterval(recordingHealthCheck);
       });
+      return true;
     } catch (error: any) {
       console.error("Error starting recording:", error);
 
@@ -2813,12 +2856,14 @@ export function RealtimeInterviewClient({
         name === "AbortError";
 
       if (requireSessionRecording && isUserDeniedOrCancelled) {
-        setError(
-          supportsDisplayMediaCapture()
-            ? "Screen recording is required for this interview. Please allow screen sharing and use the record button to try again."
-            : "Recording is required for this interview. Please allow camera access and use the record button to try again.",
-        );
-        return;
+        if (!showRecordingOptIn) {
+          setError(
+            supportsDisplayMediaCapture()
+              ? "Screen recording is required for this hackathon interview. Allow screen sharing to continue."
+              : "This hackathon interview requires screen recording on a desktop browser.",
+          );
+        }
+        return false;
       }
 
       if (isUserDeniedOrCancelled) {
@@ -2827,7 +2872,7 @@ export function RealtimeInterviewClient({
             ? "Screen recording wasn't started — that's OK. Continue your interview anytime; use the red record button if you want to try again."
             : "Recording wasn't started — that's OK. Continue your interview anytime; use the red record button if you want to try again.",
         );
-        return;
+        return false;
       }
 
       if (name === "NotFoundError" || name === "NotReadableError") {
@@ -2844,7 +2889,7 @@ export function RealtimeInterviewClient({
               : "Couldn't access the camera for recording. Your interview continues — try the record button again when ready.",
           );
         }
-        return;
+        return false;
       }
 
       if (requireSessionRecording) {
@@ -2856,15 +2901,33 @@ export function RealtimeInterviewClient({
           `Couldn't start recording: ${error?.message ?? "Unknown error"}. Your interview can continue as normal.`,
         );
       }
+      return false;
     }
   };
 
+  const leaveRequiredRecording = () => {
+    setShowRecordingOptIn(false);
+    const home = resolveHackathonInterviewHome(
+      currentInterviewReturnTo(interviewId) ?? returnToRef.current,
+    );
+    if (home) {
+      router.replace(home);
+      return;
+    }
+    setError("Screen recording is required for this hackathon interview. You cannot continue without it.");
+  };
+
   /**
-   * After user chooses in the recording dialog: optional screen capture, then start interview.
-   * "Yes" awaits startRecording (toast on deny); both paths then call startInterview().
+   * After user chooses in the recording dialog.
+   * Hackathon sessions must share the screen; declining sends them back.
    */
   const resolveRecordingOptIn = async (choice: "yes" | "no") => {
     if (launchingInterviewRef.current) return;
+    if (choice === "no" && requireSessionRecording) {
+      recordingOptInResolvedRef.current = true;
+      leaveRequiredRecording();
+      return;
+    }
     launchingInterviewRef.current = true;
     recordingOptInResolvedRef.current = true;
     const canCaptureDisplay = supportsDisplayMediaCapture();
@@ -2879,12 +2942,28 @@ export function RealtimeInterviewClient({
         /* ignore quota / private mode */
       }
 
+      if (choice === "yes" && requireSessionRecording && !canCaptureDisplay) {
+        setShowRecordingOptIn(false);
+        setError(
+          "This hackathon interview requires screen recording. Open this page on a computer and share your screen to continue.",
+        );
+        return;
+      }
+
       // Desktop: capture screen before the interview starts so tab audio is available.
       // Mobile: screen capture is unavailable — start the interview first so AI audio
       // can be routed through AudioContext, then record camera + mic.
       if (choice === "yes" && canCaptureDisplay) {
-        await startRecording();
-        pokeAudioContext(ensureAudioContext());
+        const started = await startRecording();
+        if (!started) {
+          if (requireSessionRecording) {
+            recordingOptInResolvedRef.current = false;
+            setShowRecordingOptIn(true);
+            return;
+          }
+        } else {
+          pokeAudioContext(ensureAudioContext());
+        }
       }
 
       setShowRecordingOptIn(false);
@@ -3110,8 +3189,20 @@ export function RealtimeInterviewClient({
               <AlertCircle className="mx-auto mb-4 h-12 w-12 text-red-500" />
               <h2 className="mb-2 text-xl font-bold text-gray-900">Error</h2>
               <p className="mb-4 text-gray-600">{error}</p>
-              <Button onClick={() => router.push("/dashboard")}>
-                Go to Dashboard
+              <Button
+                onClick={() => {
+                  const home =
+                    resolveHackathonInterviewHome(
+                      currentInterviewReturnTo(interviewId) ?? returnToRef.current,
+                    ) ?? "/dashboard";
+                  router.push(home);
+                }}
+              >
+                {resolveHackathonInterviewHome(
+                  currentInterviewReturnTo(interviewId) ?? returnToRef.current,
+                )
+                  ? "Back to Hackathon"
+                  : "Go to Dashboard"}
               </Button>
             </CardContent>
           </Card>
@@ -3194,31 +3285,42 @@ export function RealtimeInterviewClient({
           }
         }}
       >
-        <DialogContent className="border border-zinc-700 bg-zinc-900 text-zinc-100 sm:max-w-md">
+        <DialogContent
+          className="max-w-[calc(100vw-2rem)] border border-zinc-700 bg-zinc-900 text-zinc-100 sm:max-w-md"
+          onPointerDownOutside={(event) => {
+            if (requireSessionRecording) event.preventDefault();
+          }}
+          onEscapeKeyDown={(event) => {
+            if (requireSessionRecording) event.preventDefault();
+          }}
+        >
           <DialogHeader>
-            <DialogTitle className="text-lg font-semibold text-white">
-              Would you like to record your interview session
+            <DialogTitle className="text-base font-semibold text-white sm:text-lg">
+              {requireSessionRecording
+                ? "Screen recording is required"
+                : "Would you like to record your interview session"}
             </DialogTitle>
-            <DialogDescription className="text-base text-zinc-300">
-              Record your interview session for future reference and analysis of
-              how you answered each question.
+            <DialogDescription className="text-sm leading-relaxed text-zinc-300 sm:text-base">
+              {requireSessionRecording
+                ? "We record your interview session for assessment and analysis of how you answered each question. You must share this browser tab to continue. If you deny screen sharing, you cannot start this hackathon interview."
+                : "Record your interview session for future reference and analysis of how you answered each question."}
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter className="gap-2 sm:justify-end">
+          <DialogFooter className="flex-col-reverse gap-2 sm:flex-row sm:justify-end">
             <Button
               type="button"
               variant="outline"
-              className="border-zinc-600 bg-zinc-800 text-zinc-100 hover:bg-zinc-700"
+              className="h-11 w-full border-zinc-600 bg-zinc-800 text-zinc-100 hover:bg-zinc-700 sm:w-auto"
               onClick={() => void resolveRecordingOptIn("no")}
             >
-              No
+              {requireSessionRecording ? "Cancel" : "No"}
             </Button>
             <Button
               type="button"
-              className="bg-red-600 text-white hover:bg-red-700"
+              className="h-11 w-full bg-red-600 text-white hover:bg-red-700 sm:w-auto"
               onClick={() => void resolveRecordingOptIn("yes")}
             >
-              Yes
+              {requireSessionRecording ? "Share screen and continue" : "Yes"}
             </Button>
           </DialogFooter>
         </DialogContent>

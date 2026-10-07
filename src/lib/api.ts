@@ -635,6 +635,15 @@ export const userApi = {
     return response.data.data;
   },
 
+  /** Signed URL for the CV the user uploaded during onboarding / hackathon profile (404 when none). */
+  getMyResumeUrl: async (): Promise<{ url: string; filename: string }> => {
+    const response = await apiClient.get<{
+      success: boolean;
+      data: { url: string; filename: string };
+    }>("/users/me/resume/url");
+    return response.data.data;
+  },
+
   updateResume: async (file: File): Promise<{ resume: User["resume"] }> => {
     const blob = await snapshotFileForUpload(file);
     const formData = new FormData();
@@ -684,6 +693,8 @@ export const userApi = {
   },
 
   completeOnboarding: async (data: {
+    /** Display name (e.g. from the CV); applied only over the signup placeholder. */
+    name?: string;
     userType: "student" | "fresher" | "experienced";
     experience?: number;
     targetJobRole?: string;

@@ -236,7 +236,7 @@ export function ProfileSkillsEditor({
             disabled={disabled}
             placeholder={placeholder}
             autoComplete="off"
-            className={cn("h-11 min-w-0 !pl-10 pr-4", inputClassName)}
+            className={cn("h-11 w-full min-w-0 !pl-10 pr-4", inputClassName)}
             onChange={(event) => {
               setDraft(event.target.value);
               openSuggestions();
