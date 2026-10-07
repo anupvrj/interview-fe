@@ -25,9 +25,39 @@ export function withInterviewReturnTo(path: string, returnTo: string | null | un
 }
 
 export function isHackathonDashboardReturn(path: string | null | undefined): boolean {
-  if (!path) return false;
+  return Boolean(hackathonSlugFromDashboardPath(path));
+}
+
+/** Closing the tab must not delete a hackathon attempt the dashboard still points at. */
+export function shouldAutoDiscardUnstartedInterview(input: {
+  status?: string;
+  tags?: string[] | null;
+  returnTo?: string | null;
+}): boolean {
+  if (input.status !== "draft") return false;
+  if (input.tags?.includes("hackathon")) return false;
+  if (isHackathonDashboardReturn(input.returnTo)) return false;
+  return true;
+}
+
+export function hackathonSlugFromDashboardPath(path: string | null | undefined): string | null {
+  if (!path) return null;
   const base = path.split("?")[0]?.replace(/\/$/, "") ?? "";
-  return /^\/hackathon\/[^/]+\/dashboard$/.test(base);
+  const match = /^\/hackathon\/([^/]+)\/dashboard$/.exec(base);
+  return match?.[1] ?? null;
+}
+
+/** Dashboard to open after a hackathon interview error or exit. */
+export function resolveHackathonInterviewHome(
+  returnTo?: string | null,
+): string | null {
+  const slug = hackathonSlugFromDashboardPath(returnTo);
+  if (slug) return `/hackathon/${slug}/dashboard`;
+  if (!returnTo) return null;
+  const base = returnTo.split("?")[0]?.replace(/\/$/, "") ?? "";
+  if (base === "/hackathon-2026") return "/hackathon/hackathon-2026/dashboard";
+  const landing = /^\/hackathon\/([^/]+)$/.exec(base);
+  return landing?.[1] ? `/hackathon/${landing[1]}/dashboard` : null;
 }
 
 export function rememberInterviewReturnTo(
@@ -60,6 +90,11 @@ export function resolveInterviewReturnTo(
   const fromQuery = readInterviewReturnTo(search);
   if (fromQuery) return rememberInterviewReturnTo(interviewId, fromQuery);
   return peekStoredInterviewReturnTo(interviewId);
+}
+
+export function currentInterviewReturnTo(interviewId: string): string | null {
+  if (typeof window === "undefined") return null;
+  return resolveInterviewReturnTo(interviewId, window.location.search);
 }
 
 export function clearStoredInterviewReturnTo(interviewId: string): void {

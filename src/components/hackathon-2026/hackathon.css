@@ -12,6 +12,26 @@ html:has(.hk-root) body {
   color-scheme: dark;
 }
 
+/* Re-tint shared app UI (e.g. the onboarding wizard) with the hackathon palette.
+   Two classes so it wins over `.dark` regardless of stylesheet order. */
+.dark.hk-theme {
+  --background: 219 70% 6%;
+  --card: 217 62% 13%;
+  --card-foreground: 210 40% 96%;
+  --popover: 217 62% 13%;
+  --popover-foreground: 210 40% 96%;
+  --primary: 211 100% 56%;
+  --primary-foreground: 0 0% 100%;
+  --primary-muted: 216 71% 21%;
+  --muted: 217 50% 17%;
+  --muted-foreground: 213 25% 72%;
+  --accent: 217 50% 17%;
+  --accent-foreground: 210 40% 96%;
+  --border: 214 48% 25%;
+  --input: 214 48% 25%;
+  --ring: 211 100% 56%;
+}
+
 @property --hk-angle {
   syntax: "<angle>";
   initial-value: 0deg;

@@ -17,12 +17,26 @@ export function useHackathonSlug(): string {
 }
 
 export const hackathonKeys = {
+  published: ["hackathon", "published"] as const,
   public: (slug: string) => ["hackathon", slug, "public"] as const,
   me: (slug: string) => ["hackathon", slug, "me"] as const,
   resumes: (slug: string) => ["hackathon", slug, "resumes"] as const,
   adminList: ["admin", "hackathons"] as const,
   adminOne: (id: string) => ["admin", "hackathons", id] as const,
 };
+
+export function usePublishedHackathons() {
+  return useQuery({
+    queryKey: hackathonKeys.published,
+    queryFn: () => hackathonApi.listPublished(),
+    enabled: isHackathonEnabled(),
+    retry: false,
+    refetchInterval: (query) => {
+      const rows = query.state.data ?? [];
+      return rows.some((row) => row.phase === "upcoming" || row.phase === "live") ? 60_000 : false;
+    },
+  });
+}
 
 function pollInterval(data: HackathonMe | undefined): number | false {
   if (!data) return false;
@@ -57,14 +71,16 @@ export function useHackathonPublic(slug?: string) {
   });
 }
 
-export function useHackathonMe(slug?: string) {
+export function useHackathonMe(slug?: string, options?: { enabled?: boolean }) {
   const scoped = useHackathonSlug();
   const resolved = slug ?? scoped;
   const { getToken, isLoaded, isSignedIn } = useAuth();
+  const queryEnabled =
+    (options?.enabled ?? true) && isLoaded && Boolean(isSignedIn) && Boolean(resolved);
   const query = useQuery({
     queryKey: hackathonKeys.me(resolved),
     queryFn: () => hackathonApi.me(resolved, () => getToken()),
-    enabled: isLoaded && Boolean(isSignedIn) && Boolean(resolved),
+    enabled: queryEnabled,
     refetchInterval: (query) => pollInterval(query.state.data),
     refetchOnWindowFocus: true,
     retry: (failureCount, error) => {
@@ -76,7 +92,8 @@ export function useHackathonMe(slug?: string) {
   // RQ v5: a disabled query is isPending but not isLoading, so pages must not treat
   // "no data yet" as an error while Clerk is hydrating or the first /me is in flight.
   const waitingForMe =
-    !isLoaded || Boolean(isSignedIn && (query.isPending || (query.isFetching && !query.data)));
+    queryEnabled &&
+    (!isLoaded || Boolean(isSignedIn && (query.isPending || (query.isFetching && !query.data))));
   return { ...query, waitingForMe };
 }
 
@@ -135,14 +152,21 @@ export function useStartHackathonInterview() {
       slot,
       language,
       challengeId,
+      targetRole,
+      targetCompany,
     }: {
       slot: number;
       language: "en" | "hi";
       challengeId?: string;
+      targetRole?: string;
+      targetCompany?: string;
     }) =>
       challengeId
-        ? hackathonApi.startChallenge(slug, () => getToken(), challengeId, slot, language)
-        : hackathonApi.startInterview(slug, () => getToken(), slot, language),
+        ? hackathonApi.startChallenge(slug, () => getToken(), challengeId, slot, language, {
+            targetRole,
+            targetCompany,
+          })
+        : hackathonApi.startInterview(slug, () => getToken(), slot, language, { targetRole, targetCompany }),
     onSettled: () => void queryClient.invalidateQueries({ queryKey: hackathonKeys.me(slug) }),
   });
 }

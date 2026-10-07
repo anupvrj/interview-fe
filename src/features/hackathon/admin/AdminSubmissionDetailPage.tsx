@@ -50,6 +50,15 @@ async function openInNewTab(getUrl: () => Promise<string>) {
   }
 }
 
+function PriorNote({ count }: Readonly<{ count?: number }>) {
+  if (!count) return null;
+  return (
+    <p className="text-xs text-muted-foreground">
+      {count} prior submission{count === 1 ? "" : "s"} archived. Live score is the latest attempt only.
+    </p>
+  );
+}
+
 function StepBadge({ status }: Readonly<{ status: string }>) {
   if (status === "completed") return <Badge variant="success">Submitted</Badge>;
   if (status === "processing") return <Badge variant="info">Report generating</Badge>;
@@ -69,6 +78,27 @@ export function AdminSubmissionDetailPage({
     queryFn: () => hackathonAdminApi.get(hackathonId),
   });
   const [reviewNote, setReviewNote] = useState("");
+
+  const reset = useMutation({
+    mutationFn: ({ challengeId, slot }: { challengeId: string; slot?: number }) =>
+      hackathonAdminApi.resetChallenge(hackathonId, participantId, challengeId, {
+        slot,
+        note: "Requested reattempt",
+      }),
+    onSuccess: (data: AdminParticipantDetail) => {
+      queryClient.setQueryData(key, data);
+      void queryClient.invalidateQueries({ queryKey: ["admin", "hackathons", hackathonId, "participants"] });
+      toast.success("Challenge reopened. The next submission is the live one.");
+    },
+    onError: (err) => toast.error(toHackathonError(err).message),
+  });
+
+  const confirmReset = (label: string, challengeId: string, slot?: number) => {
+    const ok = window.confirm(
+      `Allow ${label} to be submitted again? The current score stays in admin history. Only the next attempt will count.`,
+    );
+    if (ok) reset.mutate({ challengeId, slot });
+  };
 
   const review = useMutation({
     mutationFn: (decision: "approved" | "rejected") =>
@@ -109,7 +139,15 @@ export function AdminSubmissionDetailPage({
   const requiredCount = overview.data?.interviewConfig.requiredCount ?? 2;
   const socialEnabled = overview.data?.socialConfig.enabled !== false;
   const requiredChallenges = overview.data?.challenges?.length ?? (socialEnabled ? 3 : 2);
-  const slots = Array.from({ length: requiredCount }, (_, i) => interviews.find((item) => item.slot === i + 1) ?? null);
+  const challenges = overview.data?.challenges ?? [];
+  const resumeChallengeId = challenges.find((c) => c.kind === "resume")?.challengeId;
+  const socialChallengeId = challenges.find((c) => c.kind === "social")?.challengeId;
+  const interviewChallenge =
+    challenges.find((c) => c.kind === "screening") ??
+    challenges.find((c) => c.kind === "coding" || c.kind === "system_design");
+  const interviewChallengeId = interviewChallenge?.challengeId;
+  const slotTotal = interviewChallenge?.config?.requiredCount ?? requiredCount;
+  const slots = Array.from({ length: slotTotal }, (_, i) => interviews.find((item) => item.slot === i + 1) ?? null);
 
   return (
     <div className="space-y-5">
@@ -146,24 +184,52 @@ export function AdminSubmissionDetailPage({
               {resume ? `${resume.title || "Untitled resume"} · submitted ${formatIst(resume.submittedAt)}` : "No resume submitted yet."}
             </CardDescription>
           </div>
-          {resume ? <StepBadge status={resume.status} /> : null}
+          <div className="flex flex-wrap items-center gap-2">
+            {resume ? <StepBadge status={resume.status} /> : null}
+            {resumeChallengeId && resume ? (
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={reset.isPending || resume.status === "in_progress"}
+                onClick={() => confirmReset("the resume", resumeChallengeId)}
+              >
+                Allow resubmit
+              </Button>
+            ) : null}
+          </div>
         </CardHeader>
         {resume ? (
           <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="sm:w-48">
+            <div className="space-y-2 sm:w-48">
               <ScoreBlock label="ATS score" score={resume.atsScore} target={targets.atsScore} />
+              <PriorNote count={resume.priorCount} />
             </div>
-            <Button
-              variant="outline"
-              onClick={() =>
-                void openInNewTab(async () => (await hackathonAdminApi.resumeUrl(hackathonId, participantId)).url)
-              }
-            >
-              <ExternalLink className="mr-1.5 h-4 w-4" /> View resume PDF
-            </Button>
+            {resume.status === "submitted" ? (
+              <Button
+                variant="outline"
+                onClick={() =>
+                  void openInNewTab(async () => (await hackathonAdminApi.resumeUrl(hackathonId, participantId)).url)
+                }
+              >
+                <ExternalLink className="mr-1.5 h-4 w-4" /> View resume PDF
+              </Button>
+            ) : null}
           </CardContent>
         ) : null}
       </Card>
+
+      {interviewChallengeId && slotTotal > 1 && slots.some((item) => item) ? (
+        <div className="flex justify-end">
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={reset.isPending}
+            onClick={() => confirmReset("every interview in this challenge", interviewChallengeId)}
+          >
+            Allow resubmit (all interviews)
+          </Button>
+        </div>
+      ) : null}
 
       <div className="grid gap-5 lg:grid-cols-2">
         {slots.map((item, idx) => {
@@ -179,10 +245,23 @@ export function AdminSubmissionDetailPage({
                     {item?.submittedAt ? `Submitted ${formatIst(item.submittedAt)}` : "No report yet."}
                   </CardDescription>
                 </div>
-                <StepBadge status={item?.status ?? "not_started"} />
+                <div className="flex flex-wrap items-center gap-2">
+                  <StepBadge status={item?.status ?? "not_started"} />
+                  {interviewChallengeId && item ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={reset.isPending || (item.status === "in_progress" && item.attempts.length === 0)}
+                      onClick={() => confirmReset(`interview ${slot}`, interviewChallengeId, slot)}
+                    >
+                      Reset interview {slot}
+                    </Button>
+                  ) : null}
+                </div>
               </CardHeader>
               <CardContent className="space-y-4">
                 <ScoreBlock label="Overall score" score={item?.overallScore ?? null} target={targets.interviewScore} />
+                <PriorNote count={item?.priorCount} />
                 {item?.categoryScores && Object.keys(item.categoryScores).length > 0 ? (
                   <ul className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
                     {Object.entries(item.categoryScores).map(([name, value]) => (
@@ -254,7 +333,19 @@ export function AdminSubmissionDetailPage({
               {social?.submittedAt ? `Submitted ${formatIst(social.submittedAt)}` : "No links submitted yet."}
             </CardDescription>
           </div>
-          {socialBadge(social?.reviewStatus)}
+          <div className="flex flex-wrap items-center gap-2">
+            {socialBadge(social?.reviewStatus)}
+            {socialChallengeId && social ? (
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={reset.isPending || social.status === "in_progress"}
+                onClick={() => confirmReset("the social posts", socialChallengeId)}
+              >
+                Allow resubmit
+              </Button>
+            ) : null}
+          </div>
         </CardHeader>
         {social?.linkedinUrl || social?.instagramUrl ? (
           <CardContent className="space-y-4">
@@ -279,6 +370,7 @@ export function AdminSubmissionDetailPage({
                 </a>
               ))}
             </div>
+            <PriorNote count={social.priorCount} />
             {social.reviewNote ? (
               <p className="text-xs text-muted-foreground">
                 Review note: “{social.reviewNote}”{social.reviewedAt ? ` · ${formatIst(social.reviewedAt)}` : ""}

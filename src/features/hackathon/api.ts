@@ -106,10 +106,12 @@ export interface HackathonMe {
     name: string | null;
     userType: string | null;
     targetJobRole: string | null;
+    targetCompany: string | null;
     experience: number | null;
   };
   progress: HackathonProgress;
   resume: { resumeId: string; title: string; atsScore: number | null; submittedAt: string | null } | null;
+  preferredResumeId?: string | null;
   social: {
     linkedinUrl: string;
     instagramUrl: string;
@@ -220,10 +222,11 @@ export const hackathonApi = {
     getToken: TokenGetter,
     slot: number,
     language: "en" | "hi",
+    extras?: { targetRole?: string; targetCompany?: string },
   ): Promise<{ interviewId?: string; sessionId?: string }> => {
     const res = await apiClient.post<{ data: { interviewId?: string; sessionId?: string } }>(
       `${hackathonBase(slug)}/me/interviews/${slot}/start`,
-      { language },
+      { language, ...extras },
       { headers: await authHeaders(getToken), timeout: 120_000 },
     );
     return res.data.data;
@@ -235,10 +238,11 @@ export const hackathonApi = {
     challengeId: string,
     slot: number,
     language: "en" | "hi",
+    extras?: { targetRole?: string; targetCompany?: string },
   ): Promise<{ interviewId?: string; sessionId?: string }> => {
     const res = await apiClient.post<{ data: { interviewId?: string; sessionId?: string } }>(
       `${hackathonBase(slug)}/me/challenges/${challengeId}/slots/${slot}/start`,
-      { language },
+      { language, ...extras },
       { headers: await authHeaders(getToken), timeout: 120_000 },
     );
     return res.data.data;
@@ -315,7 +319,14 @@ export interface AdminParticipantRow {
 
 export interface AdminParticipantDetail {
   participant: AdminParticipantRow;
-  resume: { status: string; submittedAt: string | null; resumeId: string; title: string; atsScore: number | null } | null;
+  resume: {
+    status: string;
+    submittedAt: string | null;
+    resumeId: string;
+    title: string;
+    atsScore: number | null;
+    priorCount: number;
+  } | null;
   interviews: Array<{
     slot: number;
     status: string;
@@ -324,6 +335,8 @@ export interface AdminParticipantDetail {
     overallScore: number | null;
     categoryScores: Record<string, number> | null;
     reportId: string | null;
+    challengeId: string | null;
+    priorCount: number;
     hasRecording: boolean;
     attempts: Array<{
       attemptId: string;
@@ -345,6 +358,7 @@ export interface AdminParticipantDetail {
     reviewStatus: SocialReviewStatus;
     reviewNote: string | null;
     reviewedAt: string | null;
+    priorCount: number;
   } | null;
 }
 
@@ -463,6 +477,18 @@ export const hackathonAdminApi = {
   resumeUrl: async (hackathonId: string, participantId: string): Promise<{ url: string; expiresIn: number }> => {
     const res = await apiClient.get<{ data: { url: string; expiresIn: number } }>(
       `${adminBase}/${hackathonId}/participants/${participantId}/resume-url`,
+    );
+    return res.data.data;
+  },
+  resetChallenge: async (
+    hackathonId: string,
+    participantId: string,
+    challengeId: string,
+    body?: { slot?: number; note?: string },
+  ): Promise<AdminParticipantDetail> => {
+    const res = await apiClient.post<{ data: AdminParticipantDetail }>(
+      `${adminBase}/${hackathonId}/participants/${participantId}/challenges/${challengeId}/reset`,
+      body ?? {},
     );
     return res.data.data;
   },

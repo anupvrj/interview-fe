@@ -1,4 +1,19 @@
-import type { LockReason } from "./api";
+import type { HackathonMe, LockReason } from "./api";
+
+export const PROFILE_MISSING_LABELS: Record<HackathonMe["profile"]["missing"][number], string> = {
+  onboarding: "profile details",
+  userType: "profile type",
+  targetJobRole: "the role you're applying for",
+  resume: "your resume",
+};
+
+export function formatProfileMissing(missing: HackathonMe["profile"]["missing"]): string {
+  const labels = missing.map((key) => PROFILE_MISSING_LABELS[key]);
+  if (labels.length === 0) return "your profile details";
+  if (labels.length === 1) return labels[0];
+  if (labels.length === 2) return `${labels[0]} and ${labels[1]}`;
+  return `${labels.slice(0, -1).join(", ")}, and ${labels[labels.length - 1]}`;
+}
 
 export const PHASE_COPY = {
   upcoming: "Hackathon will start soon. Stay tuned...",

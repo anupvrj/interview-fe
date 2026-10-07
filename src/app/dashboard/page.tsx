@@ -74,6 +74,7 @@ import {
   DashboardInsightTile,
 } from "@/components/dashboard/DashboardStatCard";
 import { DashboardWelcomeHero } from "@/components/dashboard/DashboardWelcomeHero";
+import { DashboardHackathonBanner } from "@/features/hackathon/components/DashboardHackathonBanner";
 import { DashboardPracticeHubCards } from "@/components/dashboard/DashboardPracticeHubCards";
 import { InterviewTypeFilterBar } from "@/components/dashboard/InterviewTypeFilterBar";
 import { IxOptInNotice } from "@/components/ix-score/IxOptInNotice";
@@ -283,6 +284,8 @@ export default function DashboardPage() {
   return (
     <div className="w-full max-w-7xl mx-auto space-y-4 lg:space-y-6">
       <DashboardWelcomeHero firstName={user?.firstName || "User"} />
+
+      <DashboardHackathonBanner />
 
       <IxOptInNotice />
 

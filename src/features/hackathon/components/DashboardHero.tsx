@@ -96,7 +96,9 @@ export function DashboardHero({ me }: Readonly<{ me: HackathonMe }>) {
   const required = me.progress.requiredChallengeCount ?? challenges.length;
   const done = me.progress.challengesCompleted;
   const remaining = Math.max(0, required - done);
-  const firstName = me.profile.name?.split(" ")[0];
+  // "User" is the signup placeholder when the account has no real name yet.
+  const rawName = me.profile.name?.trim();
+  const firstName = rawName && rawName !== "User" ? rawName.split(" ")[0] : null;
   const current = (me.progress.challenges ?? []).find(
     (c) => c.state === "available" || c.state === "in_progress" || c.state === "processing",
   );
@@ -111,7 +113,7 @@ export function DashboardHero({ me }: Readonly<{ me: HackathonMe }>) {
         <div className="min-w-0 text-center lg:text-left">
           <PhasePill me={me} />
           <h1 className="mt-4 text-balance text-[2rem] font-extrabold leading-[1.08] tracking-[-0.035em] text-white sm:text-[2.6rem] lg:text-[2.85rem]">
-            {firstName ? `Hi ${firstName}, ` : ""}
+            {firstName ? `Hi ${firstName}, ` : "Hi there, "}
             <span className="hk-grad-text">{phase === "ended" ? "here’s your run" : "let’s do this"}</span>{" "}
             <span className="hk-wave-hand inline-block" role="img" aria-label="waving hand">
               👋

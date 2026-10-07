@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AlertCircle, ArrowRight, CheckCircle2, Code2, FileBarChart2, Loader2, Lock, Mic, Network, PlayCircle } from "lucide-react";
@@ -10,31 +10,77 @@ import { failureReasonText, lockReasonText } from "../copy";
 import { useHackathonSlug, useStartHackathonInterview } from "../hooks";
 import { withInterviewReturnTo } from "@/lib/interview-return-to";
 import { cn } from "@/lib/utils";
-import { hkSecondaryButton } from "./ResumeChallenge";
+import { hkInputClass, hkSecondaryButton } from "./ResumeChallenge";
 
-function roundHref(
+type InterviewTarget = { targetRole?: string; targetCompany?: string };
+
+// Keyed per participant: sessionStorage survives sign-out/sign-in in the same tab, so a
+// slug-only key leaked one person's role/company into the next account's form.
+function targetStorageKey(slug: string, owner: string) {
+  return `hk-interview-target:${slug}:${owner}`;
+}
+
+function readStoredTarget(slug: string, owner: string): InterviewTarget {
+  try {
+    const raw = sessionStorage.getItem(targetStorageKey(slug, owner));
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as InterviewTarget;
+    return {
+      targetRole: typeof parsed.targetRole === "string" ? parsed.targetRole : undefined,
+      targetCompany: typeof parsed.targetCompany === "string" ? parsed.targetCompany : undefined,
+    };
+  } catch {
+    return {};
+  }
+}
+
+function writeStoredTarget(slug: string, owner: string, target: InterviewTarget) {
+  try {
+    sessionStorage.setItem(targetStorageKey(slug, owner), JSON.stringify(target));
+  } catch {
+    /* private mode */
+  }
+}
+
+function asksForTarget(kind?: HackathonChallengeKind) {
+  return kind !== "system_design";
+}
+
+function returnPath(dashboardPath: string, slot: number) {
+  return `${dashboardPath}?fromInterview=1&submitted=${slot}`;
+}
+
+function roundLiveHref(
   kind: HackathonChallengeKind | undefined,
   ids: { interviewId?: string; sessionId?: string },
   slot: number,
   dashboardPath: string,
 ) {
+  const back = returnPath(dashboardPath, slot);
   if (kind === "coding" && ids.interviewId) {
-    return withInterviewReturnTo(
-      `/dashboard/coding-interviews/${ids.interviewId}`,
-      `${dashboardPath}?fromInterview=1&submitted=${slot}`,
-    );
+    return withInterviewReturnTo(`/dashboard/coding-interviews/${ids.interviewId}`, back);
   }
   if (kind === "system_design" && (ids.sessionId || ids.interviewId)) {
-    return withInterviewReturnTo(
-      `/dashboard/system-design/${ids.sessionId ?? ids.interviewId}`,
-      `${dashboardPath}?fromInterview=1&submitted=${slot}`,
-    );
+    return withInterviewReturnTo(`/dashboard/system-design/${ids.sessionId ?? ids.interviewId}`, back);
   }
   if (ids.interviewId) {
-    return withInterviewReturnTo(
-      `/interview/${ids.interviewId}/realtime`,
-      `${dashboardPath}?fromInterview=1&submitted=${slot}`,
-    );
+    return withInterviewReturnTo(`/interview/${ids.interviewId}/realtime`, back);
+  }
+  return dashboardPath;
+}
+
+function roundReportHref(
+  kind: HackathonChallengeKind | undefined,
+  ids: { interviewId?: string; sessionId?: string },
+  slot: number,
+  dashboardPath: string,
+) {
+  const back = returnPath(dashboardPath, slot);
+  if (kind === "system_design" && (ids.sessionId || ids.interviewId)) {
+    return withInterviewReturnTo(`/dashboard/system-design/${ids.sessionId ?? ids.interviewId}`, back);
+  }
+  if (ids.interviewId) {
+    return withInterviewReturnTo(`/dashboard/interviews/${ids.interviewId}/report`, back);
   }
   return dashboardPath;
 }
@@ -120,7 +166,7 @@ function SlotCard({
             </div>
             {slot.interviewId || slot.sessionId ? (
               <Link
-                href={roundHref(kind, { interviewId: slot.interviewId, sessionId: slot.sessionId }, slot.slot, dashboardPath)}
+                href={roundReportHref(kind, { interviewId: slot.interviewId, sessionId: slot.sessionId }, slot.slot, dashboardPath)}
                 className={cn(hkSecondaryButton, "shrink-0")}
               >
                 <FileBarChart2 className="size-4" aria-hidden />
@@ -141,7 +187,7 @@ function SlotCard({
           <div className="space-y-3">
             <p className="text-sm text-[#cfdbe8]">This interview has started but isn&apos;t finished yet.</p>
             {slot.activeInterviewId ? (
-              <Link href={roundHref(kind, { interviewId: slot.activeInterviewId, sessionId: slot.sessionId }, slot.slot, dashboardPath)} className="hk-btn min-h-11 px-5 text-sm">
+              <Link href={roundLiveHref(kind, { interviewId: slot.activeInterviewId, sessionId: slot.sessionId }, slot.slot, dashboardPath)} className="hk-btn min-h-11 px-5 text-sm">
                 <PlayCircle className="size-4" aria-hidden />
                 Continue {roundNoun(kind)} {slot.slot}
               </Link>
@@ -200,16 +246,21 @@ export function InterviewChallenge({
 }: Readonly<{ me: HackathonMe; challenge?: ChallengeProgress }>) {
   const slug = useHackathonSlug();
   const dashboardPath = hackathonDashboardPath(slug);
+  const storageOwner = me.participant?.participantId ?? "anon";
   const targets = eventTargets(me.hackathon);
   const router = useRouter();
   const start = useStartHackathonInterview();
   const [startingSlot, setStartingSlot] = useState<number | null>(null);
+  const [setupSlot, setSetupSlot] = useState<number | null>(null);
+  const [targetRole, setTargetRole] = useState("");
+  const [targetCompany, setTargetCompany] = useState("");
+  const [setupError, setSetupError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [retryIn, setRetryIn] = useState<number | null>(null);
   const [retryEpoch, setRetryEpoch] = useState(0);
-  const pendingStart = useRef<{ slot: number } | null>(null);
+  const pendingStart = useRef<{ slot: number; target?: InterviewTarget } | null>(null);
   const retryAt = useRef<number | null>(null);
-  const onStartRef = useRef<(slot: number) => void>(() => undefined);
+  const onStartRef = useRef<(slot: number, target?: InterviewTarget) => void>(() => undefined);
   const kind = challenge?.kind ?? "screening";
   const slots = challenge?.slots ?? me.progress.interviews.slots;
   const passTarget = challenge?.minScore ?? targets.interviewScore;
@@ -217,18 +268,45 @@ export function InterviewChallenge({
     me.hackathon.challenges.find((c) => c.challengeId === challenge?.challengeId)?.config?.durationMinutes ??
     me.hackathon.interviewConfig.durationMinutes;
 
-  const onStart = (slot: number) => {
+  const openSetup = (slot: number) => {
+    if (!asksForTarget(kind)) {
+      onStart(slot);
+      return;
+    }
+    const stored = readStoredTarget(slug, storageOwner);
+    setTargetRole(stored.targetRole || me.profile.targetJobRole || "");
+    setTargetCompany(stored.targetCompany || me.profile.targetCompany || "");
+    setSetupError(null);
+    setError(null);
+    setSetupSlot(slot);
+  };
+
+  const confirmSetup = (event: FormEvent) => {
+    event.preventDefault();
+    if (setupSlot === null) return;
+    const role = targetRole.trim();
+    if (!role) {
+      setSetupError("Add the role you want this interview to cover.");
+      return;
+    }
+    const target = { targetRole: role, targetCompany: targetCompany.trim() || undefined };
+    writeStoredTarget(slug, storageOwner, target);
+    setSetupSlot(null);
+    onStart(setupSlot, target);
+  };
+
+  const onStart = (slot: number, target?: InterviewTarget) => {
     setError(null);
     setRetryIn(null);
     retryAt.current = null;
     setStartingSlot(slot);
-    pendingStart.current = { slot };
+    pendingStart.current = { slot, target };
     start.mutate(
-      { slot, language: "en", challengeId: challenge?.challengeId },
+      { slot, language: "en", challengeId: challenge?.challengeId, ...target },
       {
         onSuccess: ({ interviewId, sessionId }) => {
           pendingStart.current = null;
-          router.push(roundHref(kind, { interviewId, sessionId }, slot, dashboardPath));
+          router.push(roundLiveHref(kind, { interviewId, sessionId }, slot, dashboardPath));
         },
         onError: (err) => {
           const e = toHackathonError(err);
@@ -239,7 +317,7 @@ export function InterviewChallenge({
           if (e.code === "ATTEMPT_IN_PROGRESS" && activeId) {
             pendingStart.current = null;
             router.push(
-              roundHref(
+              roundLiveHref(
                 kind,
                 { interviewId: typeof e.details?.interviewId === "string" ? e.details.interviewId : undefined, sessionId: typeof e.details?.sessionId === "string" ? e.details.sessionId : undefined },
                 slot,
@@ -275,7 +353,7 @@ export function InterviewChallenge({
         retryAt.current = null;
         setRetryIn(null);
         const next = pendingStart.current;
-        if (next) onStartRef.current(next.slot);
+        if (next) onStartRef.current(next.slot, next.target);
         return;
       }
       setRetryIn(left);
@@ -285,34 +363,110 @@ export function InterviewChallenge({
     return () => window.clearInterval(id);
   }, [retryEpoch]);
 
+  // The card already shows the lock reason; don't repeat it per slot.
+  if (challenge?.state === "locked") return null;
+
   const roundLabel = kind === "coding" ? "coding round" : kind === "system_design" ? "system design round" : "interview";
 
   return (
     <div className="space-y-4">
-      <p className="-mt-2 text-sm text-[#cfdbe8] sm:pl-[4.25rem]">
-        {slots.length === 1 ? `This ${roundLabel} is` : `These ${roundLabel}s are`} free for hackathon participants
-        {me.profile.targetJobRole ? (
-          <>
-            {" "}
-            and uses your role (<strong className="text-white">{me.profile.targetJobRole}</strong>)
-          </>
-        ) : null}
-        {passTarget != null ? `. Aim for ${passTarget}+ on each.` : "."}
-      </p>
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        {slots.map((slot) => (
-          <SlotCard
-            key={slot.slot}
-            slot={slot}
-            kind={kind}
-            dashboardPath={dashboardPath}
-            interviewTarget={slot.minScore ?? passTarget ?? targets.interviewScore}
-            durationMinutes={durationMinutes ?? 15}
-            starting={startingSlot === slot.slot && (start.isPending || start.isSuccess || retryIn !== null)}
-            onStart={onStart}
-          />
-        ))}
-      </div>
+      {setupSlot !== null ? (
+        <form
+          onSubmit={confirmSetup}
+          // Our styled inline error replaces the browser's native "fill out this field" tooltip.
+          noValidate
+          className="space-y-5 rounded-2xl border border-white/45 bg-[#06142c]/60 p-4 sm:p-5"
+        >
+          <div>
+            <h3 className="text-base font-bold text-white sm:text-[17px]">
+              Before {roundHeading(kind)} {setupSlot}
+            </h3>
+            <p className="mt-1 text-sm leading-relaxed text-[#9eb2ca]">
+              We’ll tailor questions to this role{kind === "coding" ? " and problem set" : ""}. Company is optional.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <label htmlFor="hk-target-role" className="text-sm font-semibold text-[#dbe9f8]">
+                Target role
+              </label>
+              <input
+                id="hk-target-role"
+                value={targetRole}
+                onChange={(e) => {
+                  setTargetRole(e.target.value);
+                  if (setupError) setSetupError(null);
+                }}
+                aria-invalid={setupError ? true : undefined}
+                aria-describedby={setupError ? "hk-target-role-error" : undefined}
+                placeholder="e.g. Backend Engineer"
+                autoComplete="organization-title"
+                autoFocus
+                required
+                className={hkInputClass}
+              />
+            </div>
+            <div className="space-y-2">
+              <label htmlFor="hk-target-company" className="text-sm font-semibold text-[#dbe9f8]">
+                Company <span className="font-normal text-[#7189a6]">(optional)</span>
+              </label>
+              <input
+                id="hk-target-company"
+                value={targetCompany}
+                onChange={(e) => setTargetCompany(e.target.value)}
+                placeholder="e.g. Google"
+                autoComplete="organization"
+                className={hkInputClass}
+              />
+            </div>
+          </div>
+          {setupError ? (
+            <p id="hk-target-role-error" role="alert" className="flex items-start gap-2 text-sm text-[#ff6f9f]">
+              <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden />
+              {setupError}
+            </p>
+          ) : null}
+          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+            <button
+              type="button"
+              onClick={() => setSetupSlot(null)}
+              className={cn(hkSecondaryButton, "w-full sm:w-auto")}
+            >
+              Cancel
+            </button>
+            <button type="submit" className="hk-btn h-12 w-full px-6 text-sm sm:w-auto">
+              Start {roundNoun(kind)} {setupSlot}
+              <ArrowRight className="hk-btn-arrow size-4" aria-hidden />
+            </button>
+          </div>
+        </form>
+      ) : (
+        <>
+          <p className="-mt-2 text-sm text-[#cfdbe8] sm:pl-[4.25rem]">
+            {slots.length === 1 ? `This ${roundLabel} is` : `These ${roundLabel}s are`} free for hackathon participants
+            {asksForTarget(kind)
+              ? ". You can set the target role and company before each start."
+              : me.profile.targetJobRole
+                ? ` and uses your role (${me.profile.targetJobRole})`
+                : ""}
+            {passTarget != null ? ` Aim for ${passTarget}+ on each.` : "."}
+          </p>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            {slots.map((slot) => (
+              <SlotCard
+                key={slot.slot}
+                slot={slot}
+                kind={kind}
+                dashboardPath={dashboardPath}
+                interviewTarget={slot.minScore ?? passTarget ?? targets.interviewScore}
+                durationMinutes={durationMinutes ?? 15}
+                starting={startingSlot === slot.slot && (start.isPending || start.isSuccess || retryIn !== null)}
+                onStart={openSetup}
+              />
+            ))}
+          </div>
+        </>
+      )}
       {error ? (
         <p role="alert" className="flex items-start gap-2 text-sm text-[#ff6f9f]">
           <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden />
