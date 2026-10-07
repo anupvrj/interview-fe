@@ -143,6 +143,10 @@ export function useCompleteHackathon() {
   return useMeMutation<void>((slug, getToken) => hackathonApi.complete(slug, getToken));
 }
 
+export function useSetHackathonReminders() {
+  return useMeMutation<boolean>((slug, getToken, enabled) => hackathonApi.setReminders(slug, getToken, enabled));
+}
+
 export function useStartHackathonInterview() {
   const slug = useHackathonSlug();
   const { getToken } = useAuth();

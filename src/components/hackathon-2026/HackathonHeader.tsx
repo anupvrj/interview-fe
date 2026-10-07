@@ -6,7 +6,7 @@ import { ChevronRight, Menu, X } from "lucide-react";
 import { HackathonBrand } from "@/components/hackathon-2026/HackathonBrand";
 import { HackathonRegisterButton } from "@/components/hackathon-2026/HackathonRegisterButton";
 import { SectionLink } from "@/components/hackathon-2026/HackathonMotion";
-import { HACKATHON_2026_PATH, HACKATHON_ABOUT, HACKATHON_EVENT, HACKATHON_NAV } from "@/lib/hackathon-2026-content";
+import { HACKATHON_2026_PATH, HACKATHON_ABOUT, HACKATHON_CHALLENGE, HACKATHON_LAUNCH, HACKATHON_NAV } from "@/lib/hackathon-2026-content";
 import { cn } from "@/lib/utils";
 
 export function HackathonHeader() {
@@ -241,7 +241,7 @@ export function HackathonHeader() {
 
           <div className="mt-auto border-t border-[#132c48] p-5">
             <p className="mb-3 text-xs text-[#7f98b3]">
-              {HACKATHON_EVENT.dateLabel} · {HACKATHON_EVENT.timeLabel}
+              Challenge {HACKATHON_CHALLENGE.dateLabel} · Launch {HACKATHON_LAUNCH.dateLabel}
             </p>
             <HackathonRegisterButton className="w-full" onClick={closeMenu}>
               Register Now — It’s Free

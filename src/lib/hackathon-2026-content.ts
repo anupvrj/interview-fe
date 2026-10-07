@@ -1,18 +1,30 @@
 export const HACKATHON_2026_PATH = "/hackathon-2026";
 
 /** Single source of truth for the event window (IST). Display strings, countdown and JSON-LD derive from this. */
-export const HACKATHON_EVENT = {
-  startISO: "2026-10-10T16:00:00+05:30",
-  endISO: "2026-10-10T17:30:00+05:30",
-  dateLabel: "Sat, 10 Oct 2026",
+/** Challenge window. Submissions open 15 Oct and close at the end of 24 Oct IST. */
+export const HACKATHON_CHALLENGE = {
+  startISO: "2026-10-15T00:00:00+05:30",
+  endISO: "2026-10-24T23:59:00+05:30",
+  dateLabel: "15–24 Oct 2026",
+  timeLabel: "Submit by 24 Oct, 11:59 PM IST",
+} as const;
+
+/** Live launch. Winners are announced here. The joining link is a later email. */
+export const HACKATHON_LAUNCH = {
+  startISO: "2026-10-31T16:00:00+05:30",
+  endISO: "2026-10-31T17:30:00+05:30",
+  dateLabel: "Sat, 31 Oct 2026",
   timeLabel: "4:00 PM – 5:30 PM IST",
   formatLabel: "Live Virtual Event",
 } as const;
 
+/** @deprecated Use HACKATHON_LAUNCH. Kept so older imports still point at the launch. */
+export const HACKATHON_EVENT = HACKATHON_LAUNCH;
+
 export const HACKATHON_2026_META = {
   title: "Navigating Careers in 2027 — InterviewTrix Hackathon & Product Launch",
   description:
-    "Join the Interview Trix Product Launch and Hackathon on 10 Oct 2026. Register, design a 75%+ ATS resume, score 70%+ on two mock interviews, and compete for a ₹20,000 prize pool.",
+    "Join the Interview Trix Hackathon from 15–24 Oct 2026 and the product launch on 31 Oct 2026. Register, design a 75%+ ATS resume, score 70%+ on two mock interviews, and compete for a ₹20,000 prize pool.",
   keywords: [
     "Interview Trix hackathon",
     "career hackathon 2026",

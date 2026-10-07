@@ -8,7 +8,8 @@ import {
 import {
   HACKATHON_2026_META,
   HACKATHON_2026_PATH,
-  HACKATHON_EVENT,
+  HACKATHON_CHALLENGE,
+  HACKATHON_LAUNCH,
   HACKATHON_FAQ,
 } from "@/lib/hackathon-2026-content";
 import { getSiteUrl } from "@/lib/seo/site-url";
@@ -69,8 +70,8 @@ const eventSchema = {
   "@type": "Event",
   name: "InterviewTrix Hackathon & Product Launch — Navigating Careers in 2027",
   description: HACKATHON_2026_META.description,
-  startDate: HACKATHON_EVENT.startISO,
-  endDate: HACKATHON_EVENT.endISO,
+  startDate: HACKATHON_LAUNCH.startISO,
+  endDate: HACKATHON_LAUNCH.endISO,
   eventStatus: "https://schema.org/EventScheduled",
   eventAttendanceMode: "https://schema.org/OnlineEventAttendanceMode",
   location: {
@@ -97,6 +98,23 @@ export default function Hackathon2026Layout({
       <StructuredData id="hackathon-2026-breadcrumb" data={breadcrumbSchema} />
       <StructuredData id="hackathon-2026-faq" data={faqSchema} />
       <StructuredData id="hackathon-2026-event" data={eventSchema} />
+      <StructuredData
+        id="hackathon-2026-challenge"
+        data={{
+          "@context": "https://schema.org",
+          "@type": "Event",
+          name: "InterviewTrix Hackathon Challenge — Navigating Careers in 2027",
+          description: "Submit the resume, mock interview, and social challenges between 15 and 24 October 2026.",
+          startDate: HACKATHON_CHALLENGE.startISO,
+          endDate: HACKATHON_CHALLENGE.endISO,
+          eventStatus: "https://schema.org/EventScheduled",
+          eventAttendanceMode: "https://schema.org/OnlineEventAttendanceMode",
+          location: { "@type": "VirtualLocation", url: pageUrl },
+          organizer: { "@type": "Organization", name: "Interview Trix", url: siteUrl },
+          isAccessibleForFree: true,
+          url: pageUrl,
+        }}
+      />
       <div className={handwriting.variable}>{children}</div>
     </>
   );

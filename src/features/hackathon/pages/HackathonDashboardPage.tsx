@@ -9,7 +9,7 @@ import { consumePostSignInReturnUrl, peekPostSignInReturnUrl } from "@/lib/post-
 import { toHackathonError, type HackathonMe } from "../api";
 import { HACKATHON_SLUG, hackathonDashboardPath, hackathonLandingPath, hackathonProfilePath } from "../config";
 import { formatIst, PHASE_COPY } from "../copy";
-import { hackathonKeys, useHackathonMe, useHackathonSlug, useRegisterForHackathon } from "../hooks";
+import { hackathonKeys, useHackathonMe, useHackathonSlug, useRegisterForHackathon, useSetHackathonReminders } from "../hooks";
 import { ChallengeCard } from "../components/ChallengeCard";
 import { CompleteSection } from "../components/CompleteSection";
 import { Countdown } from "../components/Countdown";
@@ -25,6 +25,24 @@ function challengeKind(challenge: HackathonMe["hackathon"]["challenges"][number]
   if (challenge.key === "resume_submission") return "resume";
   if (challenge.key === "social_share") return "social";
   return "screening";
+}
+
+function ReminderToggle({ me }: Readonly<{ me: HackathonMe }>) {
+  const reminders = useSetHackathonReminders();
+  if (!me.registered || me.participant?.status === "completed") return null;
+  const optedOut = Boolean(me.participant?.remindersOptOut);
+  return (
+    <p className="text-center text-sm text-[#7189a6]">
+      <button
+        type="button"
+        className="font-semibold text-[#6fc0ff] hover:text-white disabled:opacity-60"
+        disabled={reminders.isPending}
+        onClick={() => reminders.mutate(optedOut)}
+      >
+        {optedOut ? "Turn daily submission reminders back on" : "Stop daily submission reminders"}
+      </button>
+    </p>
+  );
 }
 
 function Board({ me }: Readonly<{ me: HackathonMe }>) {
@@ -250,6 +268,7 @@ function DashboardContent() {
           </div>
         </PhaseNotice>
         <Board me={me} />
+        <ReminderToggle me={me} />
       </div>
     );
   }
@@ -277,6 +296,7 @@ function DashboardContent() {
         />
       ) : null}
       <Board me={me} />
+      <ReminderToggle me={me} />
       {slug === HACKATHON_SLUG ? (
         <p className="text-center text-sm text-[#7189a6]">
           Questions? See the{" "}

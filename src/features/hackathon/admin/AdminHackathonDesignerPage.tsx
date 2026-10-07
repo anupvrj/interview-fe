@@ -91,6 +91,9 @@ type FormState = {
   endsAt: string;
   grace: string;
   limit: string;
+  reminderEnabled: boolean;
+  reminderHour: string;
+  reminderStart: string;
 };
 
 function slugFromTitle(title: string) {
@@ -160,6 +163,9 @@ function emptyForm(): FormState {
     endsAt: "",
     grace: "20",
     limit: "",
+    reminderEnabled: true,
+    reminderHour: "9",
+    reminderStart: "",
   };
 }
 
@@ -197,6 +203,9 @@ function fromOverview(h: AdminHackathonOverview): FormState {
     endsAt: isoToIstInput(h.endsAt),
     grace: String(h.interviewGraceMinutes),
     limit: h.maxCompletions === null ? "" : String(h.maxCompletions),
+    reminderEnabled: h.reminders?.enabled !== false,
+    reminderHour: String(h.reminders?.hour ?? 9),
+    reminderStart: isoToIstInput(h.reminders?.startAt),
   };
 }
 
@@ -249,6 +258,11 @@ function toBody(form: FormState): AdminHackathonWriteBody & { title: string; slu
     endsAt: form.endsAt ? istInputToIso(form.endsAt) ?? undefined : undefined,
     interviewGraceMinutes: Number.isInteger(grace) ? grace : 20,
     maxCompletions: trimmedLimit === "" ? null : Number(trimmedLimit),
+    reminders: {
+      enabled: form.reminderEnabled,
+      hour: Number(form.reminderHour),
+      startAt: form.reminderStart ? istInputToIso(form.reminderStart) : null,
+    },
   };
 }
 
@@ -275,6 +289,11 @@ function assertDesignerWrite(form: FormState, body: ReturnType<typeof toBody>, m
   }
   if (form.startsAt && !body.startsAt) throw new Error("Enter a valid start date and time.");
   if (form.endsAt && !body.endsAt) throw new Error("Enter a valid end date and time.");
+  if (form.reminderStart && !body.reminders?.startAt) throw new Error("Enter a valid reminder start date.");
+  const reminderHour = body.reminders?.hour;
+  if (reminderHour === undefined || !Number.isInteger(reminderHour) || reminderHour < 0 || reminderHour > 23) {
+    throw new Error("Reminder hour must be from 0 to 23.");
+  }
   if (mode === "startNow") {
     if (body.endsAt && Date.parse(body.endsAt) <= Date.now()) {
       throw new Error("The end date is already in the past. Clear it or pick a time in the future.");
@@ -665,6 +684,18 @@ export function AdminHackathonDesignerPage({ hackathonId }: Readonly<{ hackathon
                 </HackathonAdminField>
                 <HackathonAdminField id="hk-end" label="End (IST)" hint="Optional. Empty means it stays open until you click End now.">
                   <Input id="hk-end" type="datetime-local" className={hackathonAdminControlClass} value={form.endsAt} onChange={(e) => patch({ endsAt: e.target.value })} />
+                </HackathonAdminField>
+                <HackathonAdminField id="hk-remind-hour" label="Daily reminder hour (IST)" hint="One reminder per person in a 6-hour window from this hour. Copy and on/off for the email itself live in Notification Hub.">
+                  <div className="flex items-center gap-3">
+                    <label className="flex items-center gap-2 text-sm">
+                      <input type="checkbox" checked={form.reminderEnabled} onChange={(e) => patch({ reminderEnabled: e.target.checked })} />
+                      Enabled
+                    </label>
+                    <Input id="hk-remind-hour" type="number" min={0} max={23} className={hackathonAdminControlClass} value={form.reminderHour} disabled={!form.reminderEnabled} onChange={(e) => patch({ reminderHour: e.target.value })} />
+                  </div>
+                </HackathonAdminField>
+                <HackathonAdminField id="hk-remind-start" label="Start reminders (IST)" hint="Optional. Empty means as soon as the hackathon is live.">
+                  <Input id="hk-remind-start" type="datetime-local" className={hackathonAdminControlClass} value={form.reminderStart} disabled={!form.reminderEnabled} onChange={(e) => patch({ reminderStart: e.target.value })} />
                 </HackathonAdminField>
                 <HackathonAdminField id="hk-limit" label="Max participants" hint="Empty means unlimited.">
                   <Input id="hk-limit" type="number" min={1} className={hackathonAdminControlClass} value={form.limit} onChange={(e) => patch({ limit: e.target.value })} />
