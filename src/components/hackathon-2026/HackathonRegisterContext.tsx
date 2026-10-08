@@ -3,7 +3,8 @@
 import { createContext, useCallback, useContext, useMemo, type ReactNode } from "react";
 import { useAuth } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
-import { HACKATHON_DASHBOARD_PATH, isHackathonEnabled } from "@/features/hackathon/config";
+import { HACKATHON_DASHBOARD_PATH, HACKATHON_FEATURE_KEY } from "@/features/hackathon/config";
+import { usePlatformFeatures } from "@/hooks/usePlatformFeatures";
 import { CTA_LABELS, CTA_SHORT_LABELS } from "@/features/hackathon/copy";
 import { useHackathonPublic } from "@/features/hackathon/hooks";
 import type { HackathonPublic } from "@/features/hackathon/api";
@@ -65,6 +66,7 @@ export function HackathonRegisterProvider({ children }: { children: ReactNode })
   const { isSignedIn } = useAuth();
   const router = useRouter();
   const pub = useHackathonPublic();
+  const { isAccessible } = usePlatformFeatures();
   const derived = ctaFromPublic(pub.data, Boolean(isSignedIn));
 
   const openRegister = useCallback(() => {
@@ -81,10 +83,10 @@ export function HackathonRegisterProvider({ children }: { children: ReactNode })
       openRegister,
       label: CTA_LABELS[derived.label],
       shortLabel: CTA_SHORT_LABELS[derived.label],
-      disabled: derived.disabled || !isHackathonEnabled(),
+      disabled: derived.disabled || !isAccessible(HACKATHON_FEATURE_KEY),
       hint: derived.hint,
     }),
-    [derived.disabled, derived.hint, derived.label, openRegister],
+    [derived.disabled, derived.hint, derived.label, isAccessible, openRegister],
   );
 
   return (

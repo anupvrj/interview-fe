@@ -609,7 +609,7 @@ export function AdminHackathonsPage() {
       ) : list.isError ? (
         <Card>
           <CardContent className="py-8 text-sm text-destructive">
-            {toHackathonError(list.error, "Couldn't load hackathons. Is HACKATHON_ENABLED set on the backend?").message}
+            {toHackathonError(list.error, "Couldn't load hackathons. Check that the Hackathon feature is enabled in Feature Controls.").message}
           </CardContent>
         </Card>
       ) : (list.data ?? []).length === 0 ? (

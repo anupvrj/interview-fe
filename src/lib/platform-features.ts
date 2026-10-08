@@ -111,6 +111,11 @@ export function pathMatchesPrefix(pathname: string, prefix: string): boolean {
   return pathname === prefix || pathname.startsWith(`${prefix}/`);
 }
 
+/** Email unsubscribe must stay reachable after the hackathon feature is turned off. */
+export function isFeatureAccessExemptPath(pathname: string): boolean {
+  return /\/reminders\/opt-out\/?$/.test(pathname);
+}
+
 export function matchFeatureForPath(
   features: PlatformFeature[],
   pathname: string,

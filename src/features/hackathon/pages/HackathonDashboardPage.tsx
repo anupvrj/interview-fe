@@ -10,6 +10,7 @@ import { toHackathonError, type HackathonMe } from "../api";
 import { HACKATHON_SLUG, hackathonDashboardPath, hackathonLandingPath, hackathonProfilePath } from "../config";
 import { formatIst, PHASE_COPY } from "../copy";
 import { hackathonKeys, useHackathonMe, useHackathonSlug, useRegisterForHackathon, useSetHackathonReminders } from "../hooks";
+import { HackathonFeatureGate } from "../components/HackathonFeatureGate";
 import { ChallengeCard } from "../components/ChallengeCard";
 import { CompleteSection } from "../components/CompleteSection";
 import { Countdown } from "../components/Countdown";
@@ -312,8 +313,10 @@ function DashboardContent() {
 
 export function HackathonDashboardPage() {
   return (
-    <HackathonShell>
-      <DashboardContent />
-    </HackathonShell>
+    <HackathonFeatureGate backHref="/dashboard" backLabel="Back to dashboard">
+      <HackathonShell>
+        <DashboardContent />
+      </HackathonShell>
+    </HackathonFeatureGate>
   );
 }

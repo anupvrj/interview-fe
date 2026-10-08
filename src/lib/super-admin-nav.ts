@@ -229,23 +229,19 @@ export const SUPER_ADMIN_NAV_GROUPS: SuperAdminNavGroup[] = [
       },
     ],
   },
-  ...(process.env.NEXT_PUBLIC_HACKATHON_ENABLED === "true"
-    ? [
-        {
-          label: "Events",
-          items: [
-            {
-              title: "Hackathons",
-              href: `${SUPER_ADMIN_HOME}/hackathons`,
-              icon: Trophy,
-              accent: accent.amber,
-              description:
-                "Create, publish, and operate hackathons. Review submissions when an event is live.",
-            },
-          ],
-        },
-      ]
-    : []),
+  {
+    label: "Events",
+    items: [
+      {
+        title: "Hackathons",
+        href: `${SUPER_ADMIN_HOME}/hackathons`,
+        icon: Trophy,
+        accent: accent.amber,
+        description:
+          "Create, publish, and operate hackathons. Turn the feature on in Feature Controls to show it to candidates.",
+      },
+    ],
+  },
 ];
 
 export function flattenSuperAdminNav(): DashboardNavItem[] {
