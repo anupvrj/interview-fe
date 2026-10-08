@@ -138,13 +138,25 @@ export interface HackathonApiError {
 
 export function toHackathonError(error: unknown, fallback = "Something went wrong. Please try again."): HackathonApiError {
   const e = error as {
-    response?: { status?: number; data?: { code?: string; message?: string; details?: Record<string, unknown> } };
+    response?: {
+      status?: number;
+      data?: {
+        code?: string;
+        message?: string;
+        details?: Record<string, unknown>;
+        data?: { unavailableTitle?: string; unavailableMessage?: string };
+      };
+    };
   };
+  const payload = e?.response?.data;
   return {
     status: e?.response?.status ?? 0,
-    code: e?.response?.data?.code ?? (e?.response ? "UNKNOWN" : "NETWORK_ERROR"),
-    message: e?.response?.data?.message ?? (e?.response ? fallback : "Network error. Check your connection and try again."),
-    details: e?.response?.data?.details,
+    code: payload?.code ?? (e?.response ? "UNKNOWN" : "NETWORK_ERROR"),
+    message:
+      payload?.data?.unavailableMessage ??
+      payload?.message ??
+      (e?.response ? fallback : "Network error. Check your connection and try again."),
+    details: payload?.details,
   };
 }
 

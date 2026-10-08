@@ -8,6 +8,7 @@ import { CandidateOnboardingForm } from "@/components/onboarding/CandidateOnboar
 import { hackathonDashboardPath } from "../config";
 import { PHASE_COPY } from "../copy";
 import { hackathonKeys, useHackathonMe, useHackathonSlug } from "../hooks";
+import { HackathonFeatureGate } from "../components/HackathonFeatureGate";
 import { HackathonShell } from "../components/HackathonShell";
 import { PhaseNotice } from "../components/PhaseNotice";
 
@@ -63,8 +64,10 @@ function ProfileContent() {
 
 export function HackathonProfilePage() {
   return (
-    <HackathonShell>
-      <ProfileContent />
-    </HackathonShell>
+    <HackathonFeatureGate backHref="/dashboard" backLabel="Back to dashboard">
+      <HackathonShell>
+        <ProfileContent />
+      </HackathonShell>
+    </HackathonFeatureGate>
   );
 }

@@ -9,6 +9,7 @@ import { hackathonDashboardPath } from "../config";
 import { hackathonAdminApi, toHackathonError, type HackathonPublic } from "../api";
 import { useHackathonPublic, useHackathonSlug } from "../hooks";
 import { useQuery } from "@tanstack/react-query";
+import { HackathonFeatureGate } from "../components/HackathonFeatureGate";
 import { HackathonShell } from "../components/HackathonShell";
 import { PhaseNotice } from "../components/PhaseNotice";
 import { Countdown } from "../components/Countdown";
@@ -160,8 +161,10 @@ function PublicContent() {
 
 export function HackathonPublicPage() {
   return (
-    <HackathonShell>
-      <PublicContent />
-    </HackathonShell>
+    <HackathonFeatureGate>
+      <HackathonShell>
+        <PublicContent />
+      </HackathonShell>
+    </HackathonFeatureGate>
   );
 }

@@ -1,10 +1,7 @@
 export const HACKATHON_SLUG = "hackathon-2026";
 export const HACKATHON_LANDING_PATH = "/hackathon-2026";
 export const HACKATHON_ADMIN_PATH = "/super-admin/hackathons";
-
-export function isHackathonEnabled(): boolean {
-  return process.env.NEXT_PUBLIC_HACKATHON_ENABLED === "true";
-}
+export const HACKATHON_FEATURE_KEY = "hackathon";
 
 /** Fallback display targets when an event has not set its own. */
 export const HACKATHON_TARGETS = { atsScore: 75, interviewScore: 70 } as const;

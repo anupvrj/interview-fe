@@ -4,7 +4,8 @@ import { createContext, createElement, useContext, type ReactNode } from "react"
 import { useAuth } from "@clerk/nextjs";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { hackathonApi, type HackathonMe } from "./api";
-import { HACKATHON_SLUG, isHackathonEnabled } from "./config";
+import { usePlatformFeatures } from "@/hooks/usePlatformFeatures";
+import { HACKATHON_FEATURE_KEY, HACKATHON_SLUG } from "./config";
 
 const HackathonSlugContext = createContext<string>(HACKATHON_SLUG);
 
@@ -14,6 +15,20 @@ export function HackathonSlugProvider({ slug, children }: { slug: string; childr
 
 export function useHackathonSlug(): string {
   return useContext(HackathonSlugContext);
+}
+
+export function useHackathonFeature() {
+  const { isAccessible, isVisible, isLoading, byKey } = usePlatformFeatures();
+  const feature = byKey.get(HACKATHON_FEATURE_KEY);
+  return {
+    isLoading,
+    accessible: isAccessible(HACKATHON_FEATURE_KEY),
+    visible: isVisible(HACKATHON_FEATURE_KEY),
+    unavailableTitle: feature?.unavailableTitle ?? "Hackathon is not available",
+    unavailableMessage:
+      feature?.unavailableMessage ??
+      "The InterviewTrix hackathon is currently turned off. Please check back later or contact support if you need access.",
+  };
 }
 
 export const hackathonKeys = {
@@ -26,10 +41,11 @@ export const hackathonKeys = {
 };
 
 export function usePublishedHackathons() {
+  const { isAccessible, isLoading } = usePlatformFeatures();
   return useQuery({
     queryKey: hackathonKeys.published,
     queryFn: () => hackathonApi.listPublished(),
-    enabled: isHackathonEnabled(),
+    enabled: !isLoading && isAccessible(HACKATHON_FEATURE_KEY),
     retry: false,
     refetchInterval: (query) => {
       const rows = query.state.data ?? [];
@@ -59,10 +75,11 @@ function pollInterval(data: HackathonMe | undefined): number | false {
 export function useHackathonPublic(slug?: string) {
   const scoped = useHackathonSlug();
   const resolved = slug ?? scoped;
+  const { isAccessible, isLoading } = usePlatformFeatures();
   return useQuery({
     queryKey: hackathonKeys.public(resolved),
     queryFn: () => hackathonApi.getPublic(resolved),
-    enabled: isHackathonEnabled() && Boolean(resolved),
+    enabled: !isLoading && isAccessible(HACKATHON_FEATURE_KEY) && Boolean(resolved),
     refetchInterval: (query) => {
       const phase = query.state.data?.phase;
       return phase === "upcoming" || phase === "live" ? 30_000 : false;
@@ -75,8 +92,14 @@ export function useHackathonMe(slug?: string, options?: { enabled?: boolean }) {
   const scoped = useHackathonSlug();
   const resolved = slug ?? scoped;
   const { getToken, isLoaded, isSignedIn } = useAuth();
+  const { isAccessible, isLoading: featuresLoading } = usePlatformFeatures();
   const queryEnabled =
-    (options?.enabled ?? true) && isLoaded && Boolean(isSignedIn) && Boolean(resolved);
+    (options?.enabled ?? true) &&
+    !featuresLoading &&
+    isAccessible(HACKATHON_FEATURE_KEY) &&
+    isLoaded &&
+    Boolean(isSignedIn) &&
+    Boolean(resolved);
   const query = useQuery({
     queryKey: hackathonKeys.me(resolved),
     queryFn: () => hackathonApi.me(resolved, () => getToken()),

@@ -4,11 +4,12 @@ import Link from "next/link";
 import { ArrowRight, Flag, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatIst, formatProfileMissing } from "../copy";
+import { usePlatformFeatures } from "@/hooks/usePlatformFeatures";
 import {
+  HACKATHON_FEATURE_KEY,
   hackathonDashboardPath,
   hackathonLandingPath,
   hackathonProfilePath,
-  isHackathonEnabled,
 } from "../config";
 import { useHackathonMe, usePublishedHackathons } from "../hooks";
 import { pickDashboardHackathon } from "../pickDashboardHackathon";
@@ -18,11 +19,12 @@ const primaryBtn =
   "inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-[#1677ff] px-4 text-sm font-semibold text-white hover:bg-[#3a8fff] sm:w-auto";
 
 export function DashboardHackathonBanner() {
+  const { isVisible } = usePlatformFeatures();
   const published = usePublishedHackathons();
   const event = pickDashboardHackathon(published.data ?? []);
   const me = useHackathonMe(event?.slug, { enabled: Boolean(event?.slug) });
 
-  if (!isHackathonEnabled() || published.isError || me.isError || !event) return null;
+  if (!isVisible(HACKATHON_FEATURE_KEY) || published.isError || me.isError || !event) return null;
 
   const participant = me.data?.participant ?? null;
   const registered = !me.waitingForMe && Boolean(me.data?.registered && participant);

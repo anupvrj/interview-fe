@@ -7,7 +7,10 @@ import { usePlatformFeatures } from "@/hooks/usePlatformFeatures";
 import { useEntitlements } from "@/hooks/useEntitlements";
 import { useActiveRole } from "@/components/roles/ActiveRoleProvider";
 import { isPlatformAdmin } from "@/lib/dashboard-nav";
-import { isFeatureAccessibleForActiveRole } from "@/lib/platform-features";
+import {
+  isFeatureAccessExemptPath,
+  isFeatureAccessibleForActiveRole,
+} from "@/lib/platform-features";
 import { isInstitutionProductEnabled } from "@/lib/institution-flags";
 
 export function FeatureRouteGuard({ children }: { children: ReactNode }) {
@@ -47,6 +50,7 @@ export function FeatureRouteGuard({ children }: { children: ReactNode }) {
   const viewingAsSuperAdmin =
     !activeRole || activeRole === "super_admin";
   if (isPlatformAdmin(accessRole) && viewingAsSuperAdmin) return children;
+  if (pathname && isFeatureAccessExemptPath(pathname)) return children;
 
   const feature = matchPath(pathname);
   if (!feature) return children;
