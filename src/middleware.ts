@@ -108,10 +108,23 @@ const clerkHandler = clerkMiddleware(
       return withSearchHeaders(NextResponse.next(), pathname);
     }
 
-    // Protect private routes — preserve the intended destination for post-login redirect
+    // Protect private routes — preserve the intended destination for post-login redirect.
+    // An App Router soft navigation is an RSC fetch (header `rsc: 1`). Clerk cannot
+    // handshake on that fetch. A 307 to the HTML sign-in page makes the router wait
+    // forever on the previous page (new users stuck on /onboarding). A 401 tells
+    // Next to retry the same URL as a document load, which can complete the handshake.
     if (!isPublicRoute(request)) {
       const { userId } = await auth();
       if (!userId) {
+        if (request.headers.get("rsc") === "1") {
+          return withSearchHeaders(
+            new NextResponse(null, {
+              status: 401,
+              headers: { "Cache-Control": "no-store" },
+            }),
+            pathname,
+          );
+        }
         const signInUrl = new URL("/sign-in", request.url);
         const returnPath = `${pathname}${request.nextUrl.search}`;
         signInUrl.searchParams.set("redirect_url", returnPath);
