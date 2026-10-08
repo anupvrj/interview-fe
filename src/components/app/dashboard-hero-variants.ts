@@ -115,14 +115,14 @@ export const dashboardHeroVariants: Record<
   },
   purple: {
     gradient:
-      "bg-gradient-to-br from-[#7367F0] via-violet-600 to-indigo-700 dark:from-[#6254e8] dark:via-violet-700 dark:to-indigo-900",
+      "bg-gradient-to-br from-[#7367F0] via-violet-600 to-indigo-700 dark:from-[#0b3d8c] dark:via-[#1677ff] dark:to-[#06142c]",
     orbBase: "#7367F0",
     orbLight: "#9d93f5",
     orbDark: "#5a4fcf",
     orbHighlight: "#ece9fe",
     orbShadow: "#4538b5",
     actionPrimary:
-      "bg-white text-[#7367F0] shadow-lg shadow-violet-900/20 hover:bg-white/95",
+      "bg-white text-[#7367F0] shadow-lg shadow-violet-900/20 hover:bg-white/95 dark:text-[#1677ff] dark:shadow-blue-950/30",
     actionOutline:
       "border-white/35 bg-white/10 text-white hover:bg-white/20 backdrop-blur-sm",
   },

@@ -90,7 +90,8 @@ const config: Config = {
       boxShadow: {
         card: "var(--shadow-card)",
         header: "var(--shadow-header)",
-        nav: "0 2px 6px 0 rgba(115, 103, 240, 0.45)",
+        nav: "var(--shadow-nav)",
+        "glow-primary": "var(--shadow-glow-primary)",
       },
       fontFamily: {
         sans: ["var(--font-sans)", "ui-sans-serif", "system-ui", "sans-serif"],

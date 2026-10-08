@@ -110,7 +110,7 @@ export function ProfileMenu({
             className="h-9 w-9 rounded-full object-cover"
           />
         ) : (
-          <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#7367F0]/10 text-sm font-semibold text-[#7367F0]">
+          <span className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
             {initials}
           </span>
         )}
@@ -136,7 +136,7 @@ export function ProfileMenu({
                     className="h-10 w-10 shrink-0 rounded-full object-cover ring-2 ring-primary/20"
                   />
                 ) : (
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#7367F0]/10 text-sm font-semibold text-[#7367F0] ring-2 ring-primary/20">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary ring-2 ring-primary/20">
                     {initials}
                   </span>
                 )}
@@ -158,7 +158,7 @@ export function ProfileMenu({
                 className={menuItemClass}
                 onClick={() => setOpen(false)}
               >
-                <LayoutDashboard className="h-4 w-4 shrink-0 text-[#7367F0]" />
+                <LayoutDashboard className="h-4 w-4 shrink-0 text-primary" />
                 Dashboard
               </Link>
               <Link
@@ -167,7 +167,7 @@ export function ProfileMenu({
                 className={menuItemClass}
                 onClick={() => setOpen(false)}
               >
-                <UserRound className="h-4 w-4 shrink-0 text-[#7367F0]" />
+                <UserRound className="h-4 w-4 shrink-0 text-primary" />
                 My Profile
               </Link>
             </div>
@@ -196,12 +196,12 @@ export function ProfileMenu({
                         isActiveRole && "bg-muted/40",
                       )}
                     >
-                      <RoleIcon className="h-4 w-4 shrink-0 text-[#7367F0]" />
+                      <RoleIcon className="h-4 w-4 shrink-0 text-primary" />
                       <span className="min-w-0 flex-1 truncate text-left">
                         {meta.label}
                       </span>
                       {isActiveRole ? (
-                        <Check className="h-4 w-4 shrink-0 text-[#7367F0]" />
+                        <Check className="h-4 w-4 shrink-0 text-primary" />
                       ) : null}
                     </button>
                   );

@@ -5,6 +5,8 @@ export const PROFILE_MISSING_LABELS: Record<HackathonMe["profile"]["missing"][nu
   userType: "profile type",
   targetJobRole: "the role you're applying for",
   resume: "your resume",
+  industry: "your industry",
+  college: "your college",
 };
 
 export function formatProfileMissing(missing: HackathonMe["profile"]["missing"]): string {
@@ -49,7 +51,7 @@ export function lockReasonText(reason: LockReason, challengeNumber: number): str
     case "full":
       return PHASE_COPY.full;
     case "profile_incomplete":
-      return "Complete your hackathon profile and upload your resume to unlock this challenge.";
+      return "Complete your hackathon profile to unlock this challenge.";
     case "previous_step":
       return challengeNumber > 1
         ? `Finish Challenge ${challengeNumber - 1} to unlock this.`

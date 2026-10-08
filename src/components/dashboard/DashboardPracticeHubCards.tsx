@@ -153,7 +153,7 @@ export function DashboardPracticeHubCards() {
                 "group relative flex h-full flex-col overflow-hidden rounded-xl border bg-gradient-to-br p-4 shadow-sm",
                 "transition-all duration-300 ease-out",
                 "hover:-translate-y-1 hover:shadow-lg",
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7367F0]/40",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
                 theme.shell,
                 theme.border,
                 theme.hoverBorder,

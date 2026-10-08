@@ -30,9 +30,7 @@ export function DashboardHackathonBanner() {
   const registered = !me.waitingForMe && Boolean(me.data?.registered && participant);
   const completed = Boolean(me.data?.progress.completed || participant?.status === "completed");
   const withdrawn = participant?.status === "withdrawn" || participant?.status === "disqualified";
-  const profileReady = Boolean(
-    me.data?.profile.complete || me.data?.progress.resume.state === "completed",
-  );
+  const profileReady = Boolean(me.data?.profile.complete);
   const missing = me.data?.profile.missing ?? [];
   const needsDetails = registered && !profileReady && !completed && !withdrawn;
   const started = participant?.status === "in_progress";

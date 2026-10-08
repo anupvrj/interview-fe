@@ -1,6 +1,7 @@
 "use client";
 
 import React, {
+  useCallback,
   useEffect,
   useRef,
   useState,
@@ -18,32 +19,50 @@ function prefersReducedMotion() {
   );
 }
 
-/** Flags `data-inview` once the element scrolls into view. */
+/** Flags `data-inview` once the element scrolls into view (never resets on scroll away). */
 export function useInView<T extends Element>(threshold = 0.15) {
-  const ref = useRef<T>(null);
   const [inView, setInView] = useState(false);
+  const revealedRef = useRef(false);
+  const observerRef = useRef<IntersectionObserver | null>(null);
 
-  useEffect(() => {
-    const node = ref.current;
-    if (!node) return;
-    if (prefersReducedMotion()) {
-      setInView(true);
-      return;
-    }
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry?.isIntersecting) {
+  const ref = useCallback(
+    (node: T | null) => {
+      if (observerRef.current) {
+        observerRef.current.disconnect();
+        observerRef.current = null;
+      }
+      if (!node) return;
+
+      if (revealedRef.current) {
+        setInView(true);
+        return;
+      }
+
+      if (prefersReducedMotion()) {
+        revealedRef.current = true;
+        setInView(true);
+        return;
+      }
+
+      const observer = new IntersectionObserver(
+        ([entry]) => {
+          if (!entry?.isIntersecting) return;
+          revealedRef.current = true;
           setInView(true);
           observer.disconnect();
-        }
-      },
-      { threshold, rootMargin: "0px 0px -60px 0px" },
-    );
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, [threshold]);
+          observerRef.current = null;
+        },
+        { threshold, rootMargin: "0px 0px -60px 0px" },
+      );
+      observerRef.current = observer;
+      observer.observe(node);
+    },
+    [threshold],
+  );
 
-  return { ref, inView };
+  useEffect(() => () => observerRef.current?.disconnect(), []);
+
+  return { ref, inView: revealedRef.current || inView };
 }
 
 type RevealProps = {
@@ -78,7 +97,7 @@ export function Reveal({
   return (
     <Tag
       ref={immediate ? undefined : ref}
-      data-inview={immediate ? undefined : inView}
+      data-inview={immediate ? undefined : inView ? "true" : undefined}
       className={cn(immediate ? "hk-enter" : "hk-reveal", className)}
       style={{ ...FROM[from], "--hk-delay": `${delay}ms`, ...style } as CSSProperties}
     >

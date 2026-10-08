@@ -3,9 +3,14 @@
 import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@clerk/nextjs";
 import { useQueryClient } from "@tanstack/react-query";
 import { AlertCircle, CalendarClock, CheckCircle2, Circle, Flag, Loader2, Users } from "lucide-react";
-import { consumePostSignInReturnUrl, peekPostSignInReturnUrl } from "@/lib/post-sign-in-redirect";
+import {
+  consumePostSignInReturnUrl,
+  getSignInUrlWithRedirect,
+  peekPostSignInReturnUrl,
+} from "@/lib/post-sign-in-redirect";
 import { toHackathonError, type HackathonMe } from "../api";
 import { HACKATHON_SLUG, hackathonDashboardPath, hackathonLandingPath, hackathonProfilePath } from "../config";
 import { formatIst, PHASE_COPY } from "../copy";
@@ -94,8 +99,8 @@ function Board({ me }: Readonly<{ me: HackathonMe }>) {
 
 function ReadinessChecklist({ me }: Readonly<{ me: HackathonMe }>) {
   const items = [
-    { done: me.profile.complete, label: "Profile complete" },
-    { done: !me.profile.missing.includes("resume"), label: "Resume uploaded" },
+    { done: me.profile.complete, label: "Signup profile" },
+    { done: Boolean(me.resume?.resumeId || me.preferredResumeId), label: "Resume ready (optional)" },
   ];
   return (
     <ul className="mx-auto flex max-w-xl flex-col gap-2 text-left text-sm text-[#cfdbe8] sm:flex-row sm:justify-center sm:gap-4">
@@ -130,6 +135,7 @@ function DashboardContent() {
   const landingPath = hackathonLandingPath(slug);
   const profilePath = hackathonProfilePath(slug);
   const router = useRouter();
+  const { isLoaded, isSignedIn } = useAuth();
   const queryClient = useQueryClient();
   const meQuery = useHackathonMe();
   const register = useRegisterForHackathon();
@@ -182,14 +188,25 @@ function DashboardContent() {
     me?.registered &&
     !me.profile.complete &&
     me.hackathon.phase !== "ended" &&
-    !me.progress.completed &&
-    me.progress.challenges?.[0]?.state !== "completed" &&
-    me.progress.resume.state !== "completed";
+    !me.progress.completed;
   useEffect(() => {
     if (needsProfile) router.replace(profilePath);
   }, [needsProfile, profilePath, router]);
 
-  if (meQuery.waitingForMe || (me && !me.registered && register.isPending) || needsProfile) {
+  useEffect(() => {
+    if (isLoaded && !isSignedIn) {
+      router.replace(getSignInUrlWithRedirect(hackathonDashboardPath(slug)));
+    }
+  }, [isLoaded, isSignedIn, router, slug]);
+
+  if (
+    !isLoaded ||
+    !isSignedIn ||
+    meQuery.waitingForMe ||
+    (me && !me.registered && register.isPending) ||
+    needsProfile ||
+    (!me && !meQuery.isError)
+  ) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center text-[#9eb2ca]">
         <Loader2 className="mr-2 size-5 animate-spin" aria-hidden /> Loading your hackathon…

@@ -18,7 +18,7 @@ function HeroStatCardShell({ children }: { children: ReactNode }) {
     >
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_90%_0%,rgba(115,103,240,0.08),transparent_50%)]"
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_90%_0%,hsl(var(--primary)/0.14),transparent_50%)]"
       />
       <div className="relative">{children}</div>
     </div>

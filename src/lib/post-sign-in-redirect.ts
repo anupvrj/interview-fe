@@ -74,6 +74,21 @@ export function getOnboardingUrlWithRedirect(returnPath: string): string {
   return `/onboarding?redirect_url=${encodeURIComponent(safe)}`;
 }
 
+/** Hackathon register/signup uses its own profile wizard — not /onboarding. */
+export function isHackathonSignupPath(path: string | null | undefined): boolean {
+  const safe = safeAppRedirectPath(path?.split("?")[0] ?? path);
+  if (!safe) return false;
+  return /^\/hackathon\/[^/]+\/(profile|dashboard)(\/|$)/.test(safe);
+}
+
+export function hackathonProfilePathFromReturn(returnPath: string): string | null {
+  const safe = safeAppRedirectPath(returnPath);
+  if (!safe || !isHackathonSignupPath(safe)) return null;
+  if (safe.endsWith("/profile")) return safe;
+  const match = /^(\/hackathon\/[^/]+)\/dashboard/.exec(safe);
+  return match ? `${match[1]}/profile` : null;
+}
+
 export function storePostSignInReturnUrl(returnPath: string): void {
   if (typeof window === "undefined") return;
   localStorage.setItem(POST_SIGN_IN_RETURN_URL_KEY, returnPath);

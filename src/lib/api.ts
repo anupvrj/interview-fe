@@ -8,6 +8,7 @@ export { isATSReportV3 } from "@/types/atsReport";
 import { inferImageContentType } from "@/lib/image-upload";
 import {
   getOnboardingUrlWithRedirect,
+  isHackathonSignupPath,
   getSignInUrlWithRedirect,
   shouldRedirectUnauthorizedToSignIn,
   unauthorizedNeedsOnboarding,
@@ -138,8 +139,13 @@ apiClient.interceptors.response.use(
         const returnPath = `${window.location.pathname}${window.location.search}`;
         const body = error.response.data as { message?: string } | undefined;
         if (unauthorizedNeedsOnboarding(body?.message)) {
+          const onHackathonSignup =
+            isHackathonSignupPath(window.location.pathname) ||
+            isHackathonSignupPath(returnPath);
           const onboarding = window.location.pathname.startsWith("/onboarding");
-          if (!onboarding) {
+          if (onHackathonSignup) {
+            // Hackathon profile provisions the user; never send to general onboarding.
+          } else if (!onboarding) {
             window.location.href = getOnboardingUrlWithRedirect(returnPath);
           }
         } else if (

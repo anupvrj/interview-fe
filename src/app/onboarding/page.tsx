@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useUser } from "@clerk/nextjs";
 import { useSearchParams } from "next/navigation";
 import { ArrowLeft, Loader2 } from "lucide-react";
@@ -17,6 +17,8 @@ import {
   resolveCompletedOnboardingPath,
 } from "@/lib/post-onboarding-redirect";
 import {
+  hackathonProfilePathFromReturn,
+  isHackathonSignupPath,
   persistPostAuthReturnPath,
   safeAppRedirectPath,
 } from "@/lib/post-sign-in-redirect";
@@ -33,15 +35,27 @@ function OnboardingFallback() {
 function OnboardingPageContent() {
   const { user, isLoaded } = useUser();
   const searchParams = useSearchParams();
+  const hackathonLeavePath = useMemo(() => {
+    const next = safeAppRedirectPath(searchParams.get("redirect_url"));
+    if (!next) return null;
+    const profile = hackathonProfilePathFromReturn(next);
+    if (profile) return profile;
+    if (isHackathonSignupPath(next)) return next;
+    return null;
+  }, [searchParams]);
   const [checkingStatus, setCheckingStatus] = useState(true);
   const [onboardingPath, setOnboardingPath] = useState<OnboardingPath | null>(
     null,
   );
 
   useEffect(() => {
+    if (hackathonLeavePath) {
+      leaveOnboarding(hackathonLeavePath);
+      return;
+    }
     const next = safeAppRedirectPath(searchParams.get("redirect_url"));
     if (next) persistPostAuthReturnPath(next);
-  }, [searchParams]);
+  }, [hackathonLeavePath, searchParams]);
 
   const checkOnboardingStatus = async () => {
     let didRedirect = false;
@@ -70,13 +84,14 @@ function OnboardingPageContent() {
   };
 
   useEffect(() => {
+    if (hackathonLeavePath) return;
     if (isLoaded && user) {
       void checkOnboardingStatus();
     } else if (isLoaded && !user) {
       setCheckingStatus(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLoaded, user]);
+  }, [hackathonLeavePath, isLoaded, user]);
 
   const handleOnboardingPathChoice = (path: OnboardingPath) => {
     void userApi.sendWelcomeSignup(path).catch((error) => {
@@ -94,7 +109,7 @@ function OnboardingPageContent() {
     setOnboardingPath("candidate");
   };
 
-  if (!isLoaded || checkingStatus) {
+  if (hackathonLeavePath || !isLoaded || checkingStatus) {
     return <OnboardingFallback />;
   }
 
