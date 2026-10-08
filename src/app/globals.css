@@ -59,53 +59,76 @@
     --info: 221 83% 53%;
     --info-foreground: 221 83% 53%;
     --info-muted: 214 100% 97%;
+
+    --shadow-nav: 0 2px 6px 0 rgba(115, 103, 240, 0.45);
+    --shadow-glow-primary: 0 8px 32px rgba(115, 103, 240, 0.28);
   }
 
-  .dark {
-    --background: 254 16% 8%;
-    --foreground: 240 6% 96%;
+  /*
+   * Dashboard dark + hackathon onboarding (`.dark.hk-theme`) share this navy palette.
+   * Light mode keeps Vuexy purple above; only `.dark` shifts to hackathon blues.
+   */
+  .dark,
+  .dark.hk-theme {
+    --background: 219 70% 6%;
+    --foreground: 210 40% 96%;
 
-    --card: 254 14% 12%;
-    --card-foreground: 240 6% 96%;
+    --card: 217 62% 13%;
+    --card-foreground: 210 40% 96%;
 
-    --popover: 254 14% 12%;
-    --popover-foreground: 240 6% 96%;
+    --popover: 217 62% 13%;
+    --popover-foreground: 210 40% 96%;
     color-scheme: dark;
 
-    --primary: 247 75% 67%;
+    --primary: 211 100% 56%;
     --primary-foreground: 0 0% 100%;
-    --primary-muted: 247 40% 18%;
+    --primary-muted: 216 71% 21%;
 
-    --secondary: 254 12% 18%;
-    --secondary-foreground: 240 6% 96%;
+    --secondary: 217 50% 17%;
+    --secondary-foreground: 210 40% 96%;
 
-    --muted: 254 12% 18%;
-    --muted-foreground: 240 4% 60%;
+    --muted: 217 50% 17%;
+    --muted-foreground: 213 25% 72%;
 
-    --accent: 254 12% 18%;
-    --accent-foreground: 247 89% 96%;
+    --accent: 217 50% 17%;
+    --accent-foreground: 210 40% 96%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 254 10% 20%;
-    --input: 254 10% 20%;
-    --ring: 247 75% 67%;
+    --border: 214 48% 25%;
+    --input: 214 48% 25%;
+    --ring: 211 100% 56%;
 
-    --sidebar: 254 14% 10%;
-    --sidebar-border: 254 10% 20%;
-    --sidebar-foreground: 240 4% 65%;
-    --sidebar-active: 247 75% 67%;
+    --sidebar: 219 65% 7%;
+    --sidebar-border: 214 48% 22%;
+    --sidebar-foreground: 213 25% 68%;
+    --sidebar-active: 211 100% 56%;
 
-    --header: 254 14% 12%;
+    --header: 217 62% 13%;
 
-    --success-muted: 142 40% 16%;
-    --warning-muted: 32 40% 16%;
-    --info-muted: 221 40% 16%;
+    --success-muted: 160 45% 14%;
+    --warning-muted: 32 45% 14%;
+    --info-muted: 211 55% 16%;
 
-    --shadow-card: 0 2px 8px 0 rgba(0, 0, 0, 0.35);
-    --shadow-header: 0 4px 18px 0 rgba(0, 0, 0, 0.4);
+    --shadow-card:
+      0 2px 8px 0 rgba(0, 15, 45, 0.45),
+      0 0 0 1px hsl(214 48% 25% / 0.35);
+    --shadow-header:
+      0 4px 18px 0 rgba(0, 0, 0, 0.42),
+      0 0 48px -16px rgba(22, 119, 255, 0.12);
+    --shadow-nav: 0 2px 6px 0 rgba(22, 119, 255, 0.35);
+    --shadow-glow-primary: 0 8px 32px rgba(22, 119, 255, 0.28);
   }
+
+  /* Ambient canvas + card sheen (dashboard dark only; preserves existing glow animations). */
+  #dashboard-theme-root.dark {
+    background-color: hsl(var(--background));
+    background-image:
+      radial-gradient(1200px 600px at 85% -5%, rgba(0, 119, 255, 0.1), transparent 60%),
+      radial-gradient(900px 600px at -10% 45%, rgba(0, 68, 170, 0.08), transparent 60%);
+  }
+
 }
 
 @layer base {

@@ -118,7 +118,7 @@ function renderUnifiedRowActions(
           title="Generate Report"
           className={cn(
             buttonVariants({ variant: "ghost", size: "sm" }),
-            "h-8 px-2 text-xs text-[#7367F0] hover:bg-[#7367F0]/10 hover:text-[#7367F0]",
+            "h-8 px-2 text-xs text-primary hover:bg-primary/10 hover:text-primary",
           )}
         >
           <Sparkles className="mr-1 h-3.5 w-3.5" />
@@ -141,7 +141,7 @@ function renderUnifiedRowActions(
           href={row.reportHref}
           className={cn(
             buttonVariants({ variant: "ghost", size: "sm" }),
-            "h-8 gap-1 px-2 text-xs text-[#7367F0] hover:bg-[#7367F0]/10 hover:text-[#7367F0]",
+            "h-8 gap-1 px-2 text-xs text-primary hover:bg-primary/10 hover:text-primary",
           )}
         >
           <Clock className="h-3.5 w-3.5" />
@@ -170,7 +170,7 @@ function IconActionButton({
   const className = cn(
     "h-8 w-8 shrink-0",
     tone === "primary" &&
-      "bg-[#7367F0] text-white hover:bg-[#6e62e5] hover:text-white",
+      "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground",
     tone === "destructive" &&
       "border-rose-200 text-rose-600 hover:bg-rose-50 hover:text-rose-700",
     unavailable && "cursor-not-allowed opacity-40",
@@ -304,8 +304,8 @@ export function RecentInterviewsList({
         : (emptyCtaHref ?? "/dashboard/interviews/new");
     return (
       <div className="px-5 py-16 text-center">
-        <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-xl bg-[#7367F0]/10">
-          <FileText className="h-8 w-8 text-[#7367F0]" />
+        <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-xl bg-primary/10">
+          <FileText className="h-8 w-8 text-primary" />
         </div>
         <h3 className="mb-2 text-lg font-semibold text-foreground">
           {emptyTitle ?? "No interviews yet"}
@@ -541,7 +541,7 @@ export function RecentInterviewsList({
                               variant: "ghost",
                               size: "sm",
                             }),
-                            "h-8 px-2 text-xs text-[#7367F0] hover:bg-[#7367F0]/10 hover:text-[#7367F0]",
+                            "h-8 px-2 text-xs text-primary hover:bg-primary/10 hover:text-primary",
                           )}
                         >
                           <Sparkles className="mr-1 h-3.5 w-3.5" />
@@ -554,7 +554,7 @@ export function RecentInterviewsList({
                           title="Generate Report"
                           className={cn(
                             buttonVariants({ variant: "ghost", size: "sm" }),
-                            "h-8 px-2 text-xs text-[#7367F0] hover:bg-[#7367F0]/10 hover:text-[#7367F0]",
+                            "h-8 px-2 text-xs text-primary hover:bg-primary/10 hover:text-primary",
                           )}
                         >
                           <Sparkles className="mr-1 h-3.5 w-3.5" />
@@ -566,7 +566,7 @@ export function RecentInterviewsList({
                           href={`/dashboard/interviews/${interview.interviewId}/processing`}
                           className={cn(
                             buttonVariants({ variant: "ghost", size: "sm" }),
-                            "h-8 gap-1 px-2 text-xs text-[#7367F0] hover:bg-[#7367F0]/10 hover:text-[#7367F0]",
+                            "h-8 gap-1 px-2 text-xs text-primary hover:bg-primary/10 hover:text-primary",
                           )}
                         >
                           <Clock className="h-3.5 w-3.5" />

@@ -5,7 +5,7 @@ import { useAuth } from "@clerk/nextjs";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Flag, Loader2, Users } from "lucide-react";
 import { CTA_LABELS, formatIst, PHASE_COPY } from "../copy";
-import { hackathonDashboardPath } from "../config";
+import { hackathonDashboardPath, hackathonProfilePath } from "../config";
 import { hackathonAdminApi, toHackathonError, type HackathonPublic } from "../api";
 import { useHackathonPublic, useHackathonSlug } from "../hooks";
 import { useQuery } from "@tanstack/react-query";
@@ -98,9 +98,12 @@ function PublicContent() {
 
   const cta = ctaFromPublic(data, Boolean(isSignedIn));
   const dashboard = hackathonDashboardPath(slug);
+  const profile = hackathonProfilePath(slug);
   const onCta = () => {
     if (cta.disabled) return;
-    router.push(isSignedIn ? dashboard : `/sign-up?redirect_url=${encodeURIComponent(dashboard)}`);
+    router.push(
+      isSignedIn ? dashboard : `/sign-up?redirect_url=${encodeURIComponent(profile)}`,
+    );
   };
 
   return (

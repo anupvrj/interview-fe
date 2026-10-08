@@ -82,10 +82,14 @@ import { IxOptInNotice } from "@/components/ix-score/IxOptInNotice";
 import { RecentInterviewsList } from "@/components/dashboard/RecentInterviewsList";
 import { PracticeSessionGateDialogs } from "@/components/upsell/PracticeSessionGateDialogs";
 import { usePracticeSessionGate } from "@/components/upsell/usePracticeSessionGate";
+import { useDashboardTheme } from "@/components/dashboard-theme";
+import { dashboardChartPrimaryFill } from "@/lib/dashboard-stat-themes";
 
 const ONBOARDING_BANNER_DISMISSED_KEY = "dashboard-onboarding-banner-dismissed";
 
 export default function DashboardPage() {
+  const { theme } = useDashboardTheme();
+  const chartPrimaryFill = dashboardChartPrimaryFill[theme];
   const { user, isLoaded } = useUser();
   const router = useRouter();
   const roleCtx = useActiveRole();
@@ -423,7 +427,7 @@ export default function DashboardPage() {
                   yAxisId="left"
                   dataKey="interviews"
                   name="Interviews"
-                  fill="#7367F0"
+                  fill={chartPrimaryFill}
                   radius={[4, 4, 0, 0]}
                 />
                 <Line

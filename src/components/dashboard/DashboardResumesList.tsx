@@ -58,7 +58,7 @@ function IconActionButton({
   disabled?: boolean;
 }) {
   const className = cn(
-    "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[#a8aaae] transition-colors hover:bg-[#7367F0]/[0.06] hover:text-[#7367F0]",
+    "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[#a8aaae] transition-colors hover:bg-primary/[0.06] hover:text-primary",
     disabled && "pointer-events-none opacity-50",
   );
 
@@ -127,8 +127,8 @@ export function DashboardResumesList({
   if (resumes.length === 0) {
     return (
       <div className="px-5 py-16 text-center">
-        <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-xl bg-[#7367F0]/10">
-          <FileEdit className="h-8 w-8 text-[#7367F0]" />
+        <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-xl bg-primary/10">
+          <FileEdit className="h-8 w-8 text-primary" />
         </div>
         <h3 className="mb-2 text-lg font-semibold text-foreground">
           No resumes yet
@@ -205,7 +205,7 @@ export function DashboardResumesList({
                   <td className="px-5 py-3.5 align-top">
                     <Link
                       href={`/dashboard/resumes/${resume.resumeId}/edit`}
-                      className="block truncate text-sm font-semibold text-foreground hover:text-[#7367F0]"
+                      className="block truncate text-sm font-semibold text-foreground hover:text-primary"
                     >
                       {resume.title?.trim() || "Untitled resume"}
                     </Link>

@@ -103,7 +103,7 @@ export interface HackathonMe {
   } | null;
   profile: {
     complete: boolean;
-    missing: Array<"onboarding" | "userType" | "targetJobRole" | "resume">;
+    missing: Array<"onboarding" | "userType" | "targetJobRole" | "resume" | "industry" | "college">;
     name: string | null;
     userType: string | null;
     targetJobRole: string | null;

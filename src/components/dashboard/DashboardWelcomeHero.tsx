@@ -195,10 +195,10 @@ export function DashboardWelcomeHero({
   description?: string;
 }) {
   return (
-    <section className="relative overflow-hidden rounded-2xl border border-white/10 shadow-[0_8px_32px_rgba(115,103,240,0.28)]">
+    <section className="relative overflow-hidden rounded-2xl border border-white/10 shadow-[0_8px_32px_rgba(115,103,240,0.28)] dark:border-[#2a64b0]/40 dark:shadow-glow-primary">
       <div
         aria-hidden
-        className="absolute inset-0 bg-gradient-to-br from-[#7367F0] via-[#6e62e5] to-indigo-800"
+        className="absolute inset-0 bg-gradient-to-br from-[#7367F0] via-[#6e62e5] to-indigo-800 dark:from-[#0b3d8c] dark:via-[#1677ff] dark:to-[#06142c]"
       />
       <div
         aria-hidden
