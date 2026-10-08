@@ -34,6 +34,7 @@ import {
   Interview,
   interviewApi,
 } from "@/lib/api";
+import { resolveInterviewReturnTo, withInterviewReturnTo } from "@/lib/interview-return-to";
 import { invalidateAfterCodingSessionCompleteFromStorage } from "@/lib/invalidate-queries";
 import {
   combineScreenAndMicForRecording,
@@ -370,12 +371,20 @@ export default function CodingInterviewSessionPage() {
     try {
       const data = await codingInterviewApi.getSession(interviewId);
       const st = data.interview.status;
+      const returnTo = resolveInterviewReturnTo(interviewId, searchParams);
       if (st === "completed") {
-        router.replace(`/dashboard/interviews/${interviewId}/report`);
+        router.replace(
+          returnTo ?? `/dashboard/interviews/${interviewId}/report`,
+        );
         return;
       }
       if (st === "processing") {
-        router.replace(`/dashboard/interviews/${interviewId}/processing`);
+        router.replace(
+          withInterviewReturnTo(
+            `/dashboard/interviews/${interviewId}/processing`,
+            returnTo,
+          ),
+        );
         return;
       }
       setInterview(data.interview);
@@ -394,7 +403,7 @@ export default function CodingInterviewSessionPage() {
     } finally {
       setLoading(false);
     }
-  }, [interviewId, router]);
+  }, [interviewId, router, searchParams]);
 
   useEffect(() => {
     load().catch(() => setLoading(false));
@@ -950,7 +959,13 @@ export default function CodingInterviewSessionPage() {
       await codingInterviewApi.markDone(interviewId);
       setExitConfirmOpen(false);
       await invalidateAfterCodingSessionCompleteFromStorage();
-      router.push(`/dashboard/interviews/${interviewId}/processing`);
+      const returnTo = resolveInterviewReturnTo(interviewId, searchParams);
+      router.push(
+        withInterviewReturnTo(
+          `/dashboard/interviews/${interviewId}/processing`,
+          returnTo,
+        ),
+      );
     } catch (e: unknown) {
       const msg =
         e instanceof Error
@@ -960,7 +975,7 @@ export default function CodingInterviewSessionPage() {
     } finally {
       setExitBusy(false);
     }
-  }, [codingStarted, interviewId, router, stopMediaRecorderAndUpload]);
+  }, [codingStarted, interviewId, router, searchParams, stopMediaRecorderAndUpload]);
 
   const exitConfirmDialog = (
     <AlertDialog

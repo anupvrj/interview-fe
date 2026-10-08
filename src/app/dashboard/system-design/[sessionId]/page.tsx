@@ -9,13 +9,14 @@ import {
   useRef,
   useState,
 } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import {
   systemDesignApi,
   type SystemDesignProblemDetail,
   type SystemDesignSession,
 } from "@/lib/api";
+import { resolveInterviewReturnTo } from "@/lib/interview-return-to";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -191,11 +192,14 @@ export default function SystemDesignSessionPage() {
     typeof params.sessionId === "string"
       ? params.sessionId
       : (params.sessionId?.[0] ?? "");
+  const searchParams = useSearchParams();
+  const returnTo = resolveInterviewReturnTo(sessionId, searchParams);
 
   const reportHref = useMemo(
     () => `/dashboard/system-design/${encodeURIComponent(sessionId)}/report`,
     [sessionId],
   );
+  const afterHref = returnTo ?? reportHref;
 
   const {
     videoRef,
@@ -591,7 +595,7 @@ export default function SystemDesignSessionPage() {
       setFinalizing(false);
       toast.success("Session completed! Your score is ready.");
       await invalidateAfterSystemDesignSessionFromStorage();
-      router.push(reportHref);
+      router.push(afterHref);
     } catch {
       toast.error("Could not finalize session. Please try again.");
       setFinalizing(false);
@@ -602,7 +606,7 @@ export default function SystemDesignSessionPage() {
     finalized,
     stopMediaRecorderAndUpload,
     router,
-    reportHref,
+    afterHref,
   ]);
 
   /**
@@ -624,9 +628,9 @@ export default function SystemDesignSessionPage() {
           : "Interview ended. Your report is ready.",
       );
       void invalidateAfterSystemDesignSessionFromStorage();
-      router.push(reportHref);
+      router.push(afterHref);
     },
-    [finalized, stopMediaRecorderAndUpload, router, reportHref],
+    [finalized, stopMediaRecorderAndUpload, router, afterHref],
   );
 
   const openLeaveSessionDialog = useCallback(() => {
@@ -734,7 +738,7 @@ export default function SystemDesignSessionPage() {
             type="button"
             className="shrink-0 text-left text-xs font-medium text-white/80 transition-colors hover:text-white sm:text-sm"
             onClick={() => {
-              if (finalized) router.push(reportHref);
+              if (finalized) router.push(afterHref);
               else if (!recordingStarted) setPreStartLeaveOpen(true);
               else setEndInterviewConfirmOpen(true);
             }}

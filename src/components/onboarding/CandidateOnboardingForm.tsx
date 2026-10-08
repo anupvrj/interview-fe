@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useUser } from "@clerk/nextjs";
 import { useDropzone } from "react-dropzone";
 import {
@@ -91,6 +91,20 @@ const STEPS = [
 ] as const;
 
 type UserType = "student" | "fresher" | "experienced" | "";
+
+function firstIncompleteOnboardingStep(input: {
+  userType: UserType;
+  hasResume: boolean;
+  targetJobRole: string;
+  requireResume: boolean;
+  requireTargetRole: boolean;
+}): 1 | 2 | 3 | 4 {
+  if (!input.userType) return 1;
+  if (input.requireResume && !input.hasResume) return 2;
+  if (input.requireTargetRole && !input.targetJobRole.trim()) return 3;
+  if (input.hasResume || input.targetJobRole.trim()) return input.requireResume || input.requireTargetRole ? 4 : 3;
+  return 2;
+}
 
 type ExtractedData = {
   name?: string;
@@ -221,14 +235,25 @@ function OptInCard({
   );
 }
 
-export function CandidateOnboardingForm() {
+export function CandidateOnboardingForm({
+  requireResume = false,
+  requireTargetRole = false,
+  onComplete,
+}: Readonly<{
+  requireResume?: boolean;
+  requireTargetRole?: boolean;
+  /** Replaces the default post-onboarding redirect. */
+  onComplete?: () => void;
+}> = {}) {
   const { user } = useUser();
   const [currentStep, setCurrentStep] = useState(1);
+  const [hydrating, setHydrating] = useState(true);
   const [loading, setLoading] = useState(false);
   const [exitPath, setExitPath] = useState<string | null>(null);
   const [extracting, setExtracting] = useState(false);
   const [error, setError] = useState("");
   const [userType, setUserType] = useState<UserType>("");
+  const [existingResumeLabel, setExistingResumeLabel] = useState<string | null>(null);
   const [resumeFile, setResumeFile] = useState<File | null>(null);
   const [extractedData, setExtractedData] = useState<ExtractedData | null>(null);
   const [reviewData, setReviewData] = useState({
@@ -243,6 +268,65 @@ export function CandidateOnboardingForm() {
   const [interviewOptIns, setInterviewOptIns] = useState<InterviewOptIns>(
     DEFAULT_INTERVIEW_OPT_INS,
   );
+
+  useEffect(() => {
+    let cancelled = false;
+    userApi
+      .getMyProfile()
+      .then((profile) => {
+        if (cancelled) return;
+        const nextType = (profile.userType || "") as UserType;
+        const targetJobRole =
+          profile.targetJobRole?.trim() || profile.currentJob?.role?.trim() || "";
+        const hasResume = Boolean(
+          profile.resume?.s3Key || profile.defaultDesignedResume?.pdfS3Key,
+        );
+        setUserType(nextType);
+        setExistingResumeLabel(
+          hasResume
+            ? profile.resume?.filename ||
+                profile.defaultDesignedResume?.title ||
+                "Resume on your profile"
+            : null,
+        );
+        setReviewData({
+          overallExperience: profile.experience || 0,
+          experience: profile.experience || 0,
+          currentJob: {
+            company: profile.currentJob?.company || "",
+            role: profile.currentJob?.role || "",
+          },
+          targetJobRole,
+          targetCompany: profile.targetCompany || "",
+          industry: profile.industry || profile.currentJob?.industry || "",
+          skills: profile.skills?.slice(0, 20) || [],
+        });
+        if (profile.interviewOptIns) {
+          setInterviewOptIns({
+            ...DEFAULT_INTERVIEW_OPT_INS,
+            ...profile.interviewOptIns,
+          });
+        }
+        setCurrentStep(
+          firstIncompleteOnboardingStep({
+            userType: nextType,
+            hasResume,
+            targetJobRole,
+            requireResume,
+            requireTargetRole,
+          }),
+        );
+      })
+      .catch(() => {
+        /* first-time users have no profile row yet */
+      })
+      .finally(() => {
+        if (!cancelled) setHydrating(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [requireResume, requireTargetRole]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     accept: pdfResumeDropzoneAccept,
@@ -265,6 +349,10 @@ export function CandidateOnboardingForm() {
   });
 
   const redirectAfterComplete = () => {
+    if (onComplete) {
+      onComplete();
+      return;
+    }
     const destination = resolveCompletedOnboardingPath();
     if (destination === "/select-role") {
       sessionStorage.setItem(POST_ONBOARDING_TRIAL_OFFER_KEY, "1");
@@ -283,6 +371,8 @@ export function CandidateOnboardingForm() {
   };
 
   const buildPayload = () => ({
+    // Server only applies this when the account still has the signup placeholder name.
+    name: extractedData?.name?.trim() || undefined,
     userType: userType as "student" | "fresher" | "experienced",
     experience:
       reviewData.overallExperience > 0
@@ -332,6 +422,15 @@ export function CandidateOnboardingForm() {
 
   const handleStep2Next = async () => {
     if (!resumeFile) {
+      if (existingResumeLabel) {
+        setError("");
+        setCurrentStep(3);
+        return;
+      }
+      if (requireResume) {
+        setError("Upload your resume (PDF) to continue.");
+        return;
+      }
       continueWithoutResume();
       return;
     }
@@ -377,9 +476,16 @@ export function CandidateOnboardingForm() {
     });
   };
 
+  const targetRoleMissing = requireTargetRole && !reviewData.targetJobRole.trim();
+
   const completeOnboarding = async () => {
     if (!userType) {
       setError("Please select your profile type");
+      return;
+    }
+    if (targetRoleMissing) {
+      setCurrentStep(3);
+      setError("Enter the role you are applying for.");
       return;
     }
     try {
@@ -402,12 +508,24 @@ export function CandidateOnboardingForm() {
     setCurrentStep((step) => Math.max(step - 1, 1));
   };
 
-  const activeStep = STEPS[currentStep - 1];
+  const activeStep =
+    requireResume && currentStep === 2
+      ? { ...STEPS[1], description: "Upload your CV to pre-fill experience and skills. A resume is required." }
+      : STEPS[currentStep - 1];
   const selectedUserTypeLabel =
     USER_TYPE_OPTIONS.find((option) => option.value === userType)?.label ?? "";
   const enabledInterviewCount = IX_CATEGORY_KEYS.filter(
     (key) => interviewOptIns[key],
   ).length;
+
+  if (hydrating) {
+    return (
+      <div className="flex min-h-[20rem] items-center justify-center text-muted-foreground">
+        <Loader2 className="mr-2 size-5 animate-spin" aria-hidden />
+        Loading your profile…
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto w-full max-w-3xl space-y-4">
@@ -511,8 +629,27 @@ export function CandidateOnboardingForm() {
           {currentStep === 2 ? (
             <StepBlock
               title="Resume upload"
-              description="We'll pre-fill your profile from your CV. You can continue without uploading."
+              description={
+                existingResumeLabel && !resumeFile
+                  ? "We already have a resume on your profile. Continue, or upload a new PDF to replace it."
+                  : requireResume
+                    ? "We'll pre-fill your profile from your CV. A resume is required to continue."
+                    : "We'll pre-fill your profile from your CV. You can continue without uploading."
+              }
             >
+              {existingResumeLabel && !resumeFile ? (
+                <div className="mb-3 flex items-center gap-3 rounded-xl border border-emerald-500/30 bg-emerald-500/[0.06] p-3.5">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#7367F0]/10 text-[#7367F0]">
+                    <FileText className="h-5 w-5" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold text-foreground">
+                      {existingResumeLabel}
+                    </p>
+                    <p className="text-xs text-muted-foreground">Already on your profile</p>
+                  </div>
+                </div>
+              ) : null}
               {!resumeFile ? (
                 <div
                   {...getRootProps()}
@@ -533,7 +670,7 @@ export function CandidateOnboardingForm() {
                       : "Drag & drop or click to upload"}
                   </span>
                   <span className="text-xs text-muted-foreground">
-                    PDF only · Max 5 MB · Optional
+                    PDF only · Max 5 MB · {requireResume ? "Required" : "Optional"}
                   </span>
                 </div>
               ) : (
@@ -690,7 +827,11 @@ export function CandidateOnboardingForm() {
                   <FormField
                     label="Role you are applying for"
                     htmlFor="onboarding-target-role"
-                    hint="Optional — e.g. Software Engineer, Product Manager"
+                    hint={
+                      requireTargetRole
+                        ? "Required — your mock interviews are set for this role"
+                        : "Optional — e.g. Software Engineer, Product Manager"
+                    }
                   >
                     <JobRoleSelect
                       id="onboarding-target-role"
@@ -806,7 +947,11 @@ export function CandidateOnboardingForm() {
                 <div className="rounded-xl border border-border/60 bg-muted/20 px-4 py-3">
                   <p className="text-xs font-medium text-muted-foreground">Resume</p>
                   <p className="mt-0.5 truncate text-sm font-semibold text-foreground">
-                    {resumeFile ? resumeFile.name : "Skipped"}
+                    {resumeFile
+                      ? resumeFile.name
+                      : existingResumeLabel
+                        ? existingResumeLabel
+                        : "Skipped"}
                   </p>
                 </div>
                 <div className="rounded-xl border border-border/60 bg-muted/20 px-4 py-3">
@@ -889,16 +1034,18 @@ export function CandidateOnboardingForm() {
 
               {currentStep === 2 ? (
                 <>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="lg"
-                    onClick={continueWithoutResume}
-                    disabled={extracting}
-                    className="w-full sm:w-auto"
-                  >
-                    Skip for now
-                  </Button>
+                  {requireResume ? null : (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="lg"
+                      onClick={continueWithoutResume}
+                      disabled={extracting}
+                      className="w-full sm:w-auto"
+                    >
+                      Skip for now
+                    </Button>
+                  )}
                   <Button
                     type="button"
                     size="lg"
@@ -926,20 +1073,26 @@ export function CandidateOnboardingForm() {
 
               {currentStep === 3 ? (
                 <>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="lg"
-                    onClick={() => void completeOnboarding()}
-                    disabled={loading}
-                    className="w-full sm:w-auto sm:hidden"
-                  >
-                    Skip for now
-                  </Button>
+                  {requireTargetRole ? null : (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="lg"
+                      onClick={() => void completeOnboarding()}
+                      disabled={loading}
+                      className="w-full sm:w-auto sm:hidden"
+                    >
+                      Skip for now
+                    </Button>
+                  )}
                   <Button
                     type="button"
                     size="lg"
                     onClick={() => {
+                      if (targetRoleMissing) {
+                        setError("Enter the role you are applying for.");
+                        return;
+                      }
                       setError("");
                       setCurrentStep(4);
                     }}

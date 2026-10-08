@@ -9,7 +9,8 @@ import {
   type SetStateAction,
 } from "react";
 import "@/styles/mercury-template.css";
-import { useUser } from "@clerk/nextjs";
+import { useAuth, useUser } from "@clerk/nextjs";
+import { useQueryClient } from "@tanstack/react-query";
 import { useRouter, useParams, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -92,6 +93,11 @@ import {
   resumeSectionHeader,
 } from "@/components/resume-editor/resumeEditorStyles";
 import { cn } from "@/lib/utils";
+import { appPrimaryButton } from "@/lib/app-theme";
+import { safeAppRedirectPath } from "@/lib/post-sign-in-redirect";
+import { hackathonSlugFromDashboardPath } from "@/lib/interview-return-to";
+import { hackathonApi, toHackathonError } from "@/features/hackathon/api";
+import { hackathonKeys } from "@/features/hackathon/hooks";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import { LanguagesEditor } from "@/components/LanguagesEditor";
 import { captureAndUploadThumbnail } from "@/lib/resume-thumbnail";
@@ -227,12 +233,19 @@ function descriptionToEditorHtml(description: unknown): string {
 
 export default function EditResumePage() {
   const { user, isLoaded } = useUser();
+  const { getToken } = useAuth();
+  const queryClient = useQueryClient();
   const router = useRouter();
   const params = useParams();
   const searchParams = useSearchParams();
   const resumeId = params.id as string;
   const showImprovedBanner = searchParams.get("improved") === "1";
   const wantsExtensionSync = searchParams.get("extensionSync") === "1";
+  const resumeReturnTo = safeAppRedirectPath(searchParams.get("returnTo"));
+  const resumeReturnLabel = searchParams.get("returnLabel")?.slice(0, 40) || "previous page";
+  const [savingAndReturning, setSavingAndReturning] = useState(false);
+  /** Which part of "Save and return" is running, so the button doesn't say "Creating PDF" throughout. */
+  const [saveReturnPhase, setSaveReturnPhase] = useState<"pdf" | "submit">("pdf");
 
   const [mounted, setMounted] = useState(false);
   const [resume, setResumeState] = useState<Resume | null>(null);
@@ -1532,6 +1545,47 @@ export default function EditResumePage() {
     }
   };
 
+  const handleSaveAndReturn = async () => {
+    if (!resume || !resumeReturnTo || savingAndReturning) return;
+    setSaveReturnPhase("pdf");
+    setSavingAndReturning(true);
+    try {
+      // The PDF is compiled from the live preview, so it must be on screen.
+      setViewMode("edit");
+      if (isMobile) closeMobileEditing();
+      const previewId = `resume-preview-container-${resumeId}`;
+      for (let i = 0; i < 20 && !document.getElementById(previewId); i += 1) {
+        await new Promise((resolve) => setTimeout(resolve, 150));
+      }
+      await ensureResumePersisted();
+      await compileCurrentPdfFromPreview();
+      setHasChanges(false);
+      const slug = hackathonSlugFromDashboardPath(resumeReturnTo);
+      if (slug) {
+        // Submitting re-scores ATS on the server, which can take a while.
+        setSaveReturnPhase("submit");
+        try {
+          await hackathonApi.submitResume(slug, () => getToken(), resumeId);
+          await queryClient.invalidateQueries({ queryKey: hackathonKeys.me(slug) });
+        } catch (syncError) {
+          const hk = toHackathonError(syncError);
+          if (hk.code !== "RESUME_LOCKED" && hk.status !== 401 && hk.status !== 404) {
+            console.error("Hackathon resume sync failed:", syncError);
+            alert(
+              hk.message ||
+                "Saved the PDF, but we couldn't update your hackathon submission. Submit it again from the dashboard.",
+            );
+          }
+        }
+      }
+      router.push(resumeReturnTo);
+    } catch (error) {
+      console.error("Save and return failed:", error);
+      alert("We couldn't create the PDF for this resume. Please try again.");
+      setSavingAndReturning(false);
+    }
+  };
+
   const handleChangeTemplate = async (newTemplateId: string) => {
     if (!resume || newTemplateId === resume.templateId) {
       setChangeTemplateOpen(false);
@@ -2490,6 +2544,29 @@ export default function EditResumePage() {
 
   return (
     <div className={resumeEditorPage} suppressHydrationWarning>
+      {resumeReturnTo ? (
+        <div className="flex flex-col gap-2 border-b border-border bg-primary/5 px-4 py-2.5 text-sm text-foreground sm:flex-row sm:items-center sm:justify-between">
+          <span>
+            When your resume is ready, save it and go back to the {resumeReturnLabel}.
+          </span>
+          <Button
+            type="button"
+            size="sm"
+            onClick={() => void handleSaveAndReturn()}
+            disabled={savingAndReturning || saving || autoSaving}
+            className={cn(appPrimaryButton, "w-full sm:w-auto")}
+          >
+            {savingAndReturning ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                {saveReturnPhase === "submit" ? "Submitting & scoring…" : "Creating PDF…"}
+              </>
+            ) : (
+              `Save and return to ${resumeReturnLabel}`
+            )}
+          </Button>
+        </div>
+      ) : null}
       {extensionSyncState !== "idle" ? (
         <div className="border-b border-border bg-primary/5 px-4 py-2 text-center text-sm text-foreground md:text-left">
           {extensionSyncState === "syncing"

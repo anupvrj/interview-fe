@@ -1,0 +1,53 @@
+@keyframes hk-dash-flag-wave {
+  0%,
+  100% {
+    transform: rotate(-14deg) translateY(0);
+  }
+  50% {
+    transform: rotate(16deg) translateY(-1px);
+  }
+}
+
+@keyframes hk-dash-live-glow {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 1px rgba(52, 211, 153, 0.28),
+      0 10px 28px rgba(7, 20, 38, 0.35);
+  }
+  50% {
+    box-shadow:
+      0 0 0 2px rgba(110, 231, 183, 0.7),
+      0 0 36px rgba(16, 185, 129, 0.4);
+  }
+}
+
+@keyframes hk-dash-live-sheen {
+  0% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(120%);
+  }
+}
+
+.hk-dash-live-card {
+  animation: hk-dash-live-glow 1.7s ease-in-out infinite;
+}
+
+.hk-dash-live-flag {
+  transform-origin: 20% 90%;
+  animation: hk-dash-flag-wave 0.85s ease-in-out infinite;
+}
+
+.hk-dash-live-sheen {
+  animation: hk-dash-live-sheen 1.8s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hk-dash-live-card,
+  .hk-dash-live-flag,
+  .hk-dash-live-sheen {
+    animation: none;
+  }
+}

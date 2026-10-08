@@ -58,6 +58,28 @@ interface TemplateEditorDialogProps {
 
 type EditorPanel = "content" | "style";
 
+/**
+ * Live preview only: load `/brand/*` logos from the site the admin is on, so the preview
+ * shows assets this frontend ships even before they're live on the production domain.
+ * Test sends keep the public URLs (mail providers fetch images from their own servers).
+ */
+function withSiteBrandAssets(variables: Record<string, string>): Record<string, string> {
+  if (typeof window === "undefined") return variables;
+  const out = { ...variables };
+  for (const [key, value] of Object.entries(out)) {
+    if (!/logo_url$/.test(key) || !value) continue;
+    try {
+      const url = new URL(value);
+      if (url.pathname.startsWith("/brand/")) {
+        out[key] = `${window.location.origin}${url.pathname}`;
+      }
+    } catch {
+      /* not an absolute URL; leave as typed */
+    }
+  }
+  return out;
+}
+
 export function TemplateEditorDialog({
   open,
   template,
@@ -157,7 +179,7 @@ export function TemplateEditorDialog({
         content,
         emailTheme: useCustomEmailTheme ? emailTheme : undefined,
         useCustomEmailTheme,
-        variables: previewVariables,
+        variables: withSiteBrandAssets(previewVariables),
       });
       setPreviewHtml(result.html);
       setPreviewSubject(result.subject);

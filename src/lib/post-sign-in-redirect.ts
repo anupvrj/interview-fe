@@ -62,6 +62,18 @@ export function shouldRedirectUnauthorizedToSignIn(
   return isPrivateAppPath(pathname);
 }
 
+/** Clerk session exists but the app user row does not — send to onboarding, not sign-in. */
+export function unauthorizedNeedsOnboarding(message: string | undefined): boolean {
+  if (!message) return false;
+  return /user not found/i.test(message);
+}
+
+export function getOnboardingUrlWithRedirect(returnPath: string): string {
+  const safe = safeAppRedirectPath(returnPath);
+  if (!safe) return "/onboarding";
+  return `/onboarding?redirect_url=${encodeURIComponent(safe)}`;
+}
+
 export function storePostSignInReturnUrl(returnPath: string): void {
   if (typeof window === "undefined") return;
   localStorage.setItem(POST_SIGN_IN_RETURN_URL_KEY, returnPath);

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  isFeatureAccessExemptPath,
   isFeatureHrefVisible,
   isFeatureAccessibleForActiveRole,
   isFeatureVisibleForActiveRole,
@@ -76,6 +77,31 @@ describe("platform feature path helpers", () => {
     ).toBe(false);
     expect(
       isFeatureHrefVisible(features, "/dashboard/peer-interviews", "peer_interviews"),
+    ).toBe(true);
+  });
+
+  it("matches hackathon landing and challenge paths", () => {
+    const features = [
+      feature({
+        key: "hackathon",
+        routePrefixes: ["/hackathon-2026", "/hackathon"],
+        marketingHrefs: ["/hackathon-2026"],
+        visible: false,
+        accessible: false,
+        status: "disabled",
+      }),
+    ];
+    expect(matchFeatureForPath(features, "/hackathon-2026")?.key).toBe(
+      "hackathon",
+    );
+    expect(
+      matchFeatureForPath(features, "/hackathon/hackathon-2026/dashboard")?.key,
+    ).toBe("hackathon");
+    expect(isFeatureHrefVisible(features, "/hackathon-2026", "hackathon")).toBe(
+      false,
+    );
+    expect(
+      isFeatureAccessExemptPath("/hackathon-2026/reminders/opt-out"),
     ).toBe(true);
   });
 

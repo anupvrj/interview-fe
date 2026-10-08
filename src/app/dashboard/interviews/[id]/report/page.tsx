@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import Link from "next/link";
 import { jsPDF } from "jspdf";
@@ -44,6 +44,11 @@ import {
   practiceHubLabel,
 } from "@/lib/interview-practice-hub";
 import {
+  hackathonDashboardFromTags,
+  resolveHackathonInterviewHome,
+  resolveInterviewReturnTo,
+} from "@/lib/interview-return-to";
+import {
   institutePrimaryClass,
   instituteSecondaryClass,
 } from "@/components/institute/InstituteChrome";
@@ -53,6 +58,7 @@ import { useEntitlements } from "@/hooks/useEntitlements";
 export default function ReportPage() {
   const params = useParams();
   const interviewId = params.id as string;
+  const searchParams = useSearchParams();
   const { user } = useUser();
 
   const [report, setReport] = useState<InterviewReport | null>(null);
@@ -62,15 +68,27 @@ export default function ReportPage() {
   const [shareBusy, setShareBusy] = useState(false);
   const [pdfDownloading, setPdfDownloading] = useState(false);
   const { canUse } = useEntitlements();
-  const reportLocked = !canUse("detailedInterviewReport");
+  const isHackathonReport = Boolean(
+    interview?.metadata?.tags?.includes("hackathon") ||
+      hackathonDashboardFromTags(interview?.metadata?.tags) ||
+      resolveHackathonInterviewHome(resolveInterviewReturnTo(interviewId, searchParams)),
+  );
+  const reportLocked = !canUse("detailedInterviewReport") && !isHackathonReport;
 
   useEffect(() => {
     loadReport();
   }, [interviewId]);
 
+  const reportBackHref = (session: Interview | null) => {
+    const home =
+      resolveHackathonInterviewHome(resolveInterviewReturnTo(interviewId, searchParams)) ??
+      hackathonDashboardFromTags(session?.metadata?.tags);
+    if (home) return { href: home, label: "Back to hackathon" };
+    return { href: practiceHubHref(session), label: practiceHubLabel(session) };
+  };
+
   const loadReport = async () => {
     try {
-      // Load report and interview data in parallel
       const [reportData, interviewData] = await Promise.all([
         interviewApi.getReport(interviewId),
         interviewApi.getInterview(interviewId),
@@ -763,7 +781,7 @@ export default function ReportPage() {
   }
 
   if (error || !report || !interview) {
-    if (reportLocked) {
+    if (reportLocked && !hackathonDashboardFromTags(interview?.metadata?.tags)) {
       return (
         <div className="mx-auto w-full max-w-4xl space-y-4 p-4">
           <Link
@@ -808,8 +826,8 @@ export default function ReportPage() {
                 "The interview report is not ready yet or doesn't exist."}
             </p>
             <Button className={institutePrimaryClass} asChild>
-              <Link href={practiceHubHref(interview)}>
-                {practiceHubLabel(interview)}
+              <Link href={reportBackHref(interview).href}>
+                {reportBackHref(interview).label}
               </Link>
             </Button>
           </CardContent>
@@ -827,11 +845,11 @@ export default function ReportPage() {
     <div className="mx-auto w-full max-w-7xl space-y-4 lg:space-y-6">
       <div className="flex flex-col gap-4">
         <Link
-          href={practiceHubHref(interview)}
+          href={reportBackHref(interview).href}
           className="inline-flex w-fit items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
         >
           <ArrowLeft className="h-4 w-4" />
-          <span>{practiceHubLabel(interview)}</span>
+          <span>{reportBackHref(interview).label}</span>
         </Link>
 
         <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
