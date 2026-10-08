@@ -10,7 +10,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { ZoomIn, ZoomOut, RotateCw, Move, Check, X } from "lucide-react";
+import { ZoomIn, RotateCw, Move, Check, X } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 
 interface Area {
@@ -51,10 +51,10 @@ export function ProfilePictureCropper({
   }, []);
 
   const onCropCompleteCallback = useCallback(
-    (croppedArea: Area, croppedAreaPixels: Area) => {
+    (_croppedArea: Area, croppedAreaPixels: Area) => {
       setCroppedAreaPixels(croppedAreaPixels);
     },
-    []
+    [],
   );
 
   const createImage = (url: string): Promise<HTMLImageElement> =>
@@ -68,7 +68,7 @@ export function ProfilePictureCropper({
   const getCroppedImg = async (
     imageSrc: string,
     pixelCrop: Area,
-    rotation = 0
+    rotation = 0,
   ): Promise<string> => {
     const image = await createImage(imageSrc);
     const canvas = document.createElement("canvas");
@@ -91,7 +91,7 @@ export function ProfilePictureCropper({
     ctx.drawImage(
       image,
       safeArea / 2 - image.width * 0.5,
-      safeArea / 2 - image.height * 0.5
+      safeArea / 2 - image.height * 0.5,
     );
 
     const data = ctx.getImageData(0, 0, safeArea, safeArea);
@@ -102,7 +102,7 @@ export function ProfilePictureCropper({
     ctx.putImageData(
       data,
       Math.round(0 - safeArea / 2 + image.width * 0.5 - pixelCrop.x),
-      Math.round(0 - safeArea / 2 + image.height * 0.5 - pixelCrop.y)
+      Math.round(0 - safeArea / 2 + image.height * 0.5 - pixelCrop.y),
     );
 
     return new Promise((resolve) => {
@@ -124,7 +124,7 @@ export function ProfilePictureCropper({
       const croppedImageUrl = await getCroppedImg(
         imageSrc,
         croppedAreaPixels,
-        rotation
+        rotation,
       );
       onCropComplete(croppedImageUrl);
       onOpenChange(false);
@@ -144,12 +144,13 @@ export function ProfilePictureCropper({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         overlayClassName="z-[100]"
-        className="z-[100] max-h-[95dvh] w-full max-w-2xl overflow-hidden p-0"
+        className="z-[100] flex h-[min(95dvh,760px)] max-h-[95dvh] w-[calc(100vw-1.5rem)] max-w-2xl flex-col overflow-hidden p-0 sm:w-full"
       >
-        <DialogHeader className="px-6 pt-6">
+        <DialogHeader className="shrink-0 space-y-1 px-4 pb-2 pt-4 sm:px-6 sm:pt-5">
           <DialogTitle>Edit Profile Picture</DialogTitle>
         </DialogHeader>
-        <div className="relative w-full h-[400px] bg-gray-900 overflow-hidden">
+
+        <div className="relative min-h-[180px] w-full flex-1 overflow-hidden bg-gray-900">
           <Cropper
             image={imageSrc}
             crop={crop}
@@ -164,12 +165,12 @@ export function ProfilePictureCropper({
             showGrid={true}
           />
         </div>
-        <div className="px-6 py-4 space-y-4 bg-gray-50">
-          {/* Zoom Control */}
+
+        <div className="max-h-[32dvh] shrink-0 space-y-3 overflow-y-auto border-t bg-gray-50 px-4 py-3 sm:px-6 sm:py-4">
           <div className="space-y-2">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
-                <ZoomIn className="w-4 h-4 text-gray-600" />
+                <ZoomIn className="h-4 w-4 shrink-0 text-gray-600" />
                 <label className="text-sm font-medium text-gray-700">Zoom</label>
               </div>
               <span className="text-xs text-gray-500">
@@ -186,11 +187,10 @@ export function ProfilePictureCropper({
             />
           </div>
 
-          {/* Rotation Control */}
           <div className="space-y-2">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
-                <RotateCw className="w-4 h-4 text-gray-600" />
+                <RotateCw className="h-4 w-4 shrink-0 text-gray-600" />
                 <label className="text-sm font-medium text-gray-700">
                   Rotation
                 </label>
@@ -207,25 +207,20 @@ export function ProfilePictureCropper({
             />
           </div>
 
-          {/* Position Control */}
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <Move className="w-4 h-4 text-gray-600" />
-              <label className="text-sm font-medium text-gray-700">
-                Position (drag to align)
-              </label>
-            </div>
-            <p className="text-xs text-gray-500">
-              Drag the image to adjust its position within the circle
+          <div className="flex items-start gap-2">
+            <Move className="mt-0.5 h-4 w-4 shrink-0 text-gray-600" />
+            <p className="text-xs leading-relaxed text-gray-500">
+              Drag the image to adjust its position within the circle.
             </p>
           </div>
         </div>
-        <DialogFooter className="flex flex-row flex-nowrap items-center gap-2 px-4 py-4 sm:justify-end sm:px-6 sm:pb-6">
+
+        <DialogFooter className="shrink-0 flex-row flex-wrap items-center justify-end gap-2 border-t bg-background px-4 py-3 sm:justify-end sm:px-6 sm:py-4">
           <Button
             type="button"
             variant="outline"
             onClick={handleReset}
-            className="h-9 min-w-0 flex-1 px-2 text-xs sm:flex-none sm:px-4 sm:text-sm"
+            className="h-9 min-w-[5.5rem] flex-1 px-3 text-sm sm:flex-none"
           >
             <X className="mr-1.5 h-4 w-4 shrink-0" />
             Reset
@@ -234,14 +229,14 @@ export function ProfilePictureCropper({
             type="button"
             variant="outline"
             onClick={() => onOpenChange(false)}
-            className="h-9 min-w-0 flex-1 px-2 text-xs sm:flex-none sm:px-4 sm:text-sm"
+            className="h-9 min-w-[5.5rem] flex-1 px-3 text-sm sm:flex-none"
           >
             Cancel
           </Button>
           <Button
             type="button"
             onClick={handleSave}
-            className="h-9 min-w-0 flex-1 px-2 text-xs sm:flex-none sm:px-4 sm:text-sm"
+            className="h-9 min-w-[5.5rem] flex-1 px-3 text-sm sm:flex-none"
           >
             <Check className="mr-1.5 h-4 w-4 shrink-0" />
             Save
@@ -251,4 +246,3 @@ export function ProfilePictureCropper({
     </Dialog>
   );
 }
-

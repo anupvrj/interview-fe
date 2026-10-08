@@ -6,7 +6,7 @@ import { useClerk, useUser } from "@clerk/nextjs";
 import { Check, LayoutDashboard, LogOut, UserRound } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useActiveRole } from "@/components/roles/ActiveRoleProvider";
-import { ROLE_META } from "@/lib/roles";
+import { ROLE_META, workspaceRoleLabel } from "@/lib/roles";
 
 const menuItemClass =
   "flex w-full items-center gap-3 rounded-[0.625rem] px-3 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-muted/50";
@@ -181,6 +181,10 @@ export function ProfileMenu({
                   const meta = ROLE_META[role];
                   const RoleIcon = meta.icon;
                   const isActiveRole = role === roleCtx.activeRole;
+                  const label = workspaceRoleLabel(
+                    role,
+                    roleCtx.profile?.accessRole,
+                  );
                   return (
                     <button
                       key={role}
@@ -198,7 +202,7 @@ export function ProfileMenu({
                     >
                       <RoleIcon className="h-4 w-4 shrink-0 text-[#7367F0]" />
                       <span className="min-w-0 flex-1 truncate text-left">
-                        {meta.label}
+                        {label}
                       </span>
                       {isActiveRole ? (
                         <Check className="h-4 w-4 shrink-0 text-[#7367F0]" />

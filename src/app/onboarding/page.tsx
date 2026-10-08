@@ -13,12 +13,14 @@ import {
   type OnboardingPath,
 } from "@/components/onboarding/OnboardingPathChooser";
 import { isPaidPlanId } from "@/lib/pricingPageContent";
+import { isInstituteStaff } from "@/lib/institute-access";
 import {
   consumePostSignInReturnUrl,
   persistPostAuthReturnPath,
   safeAppRedirectPath,
 } from "@/lib/post-sign-in-redirect";
 import { userApi } from "@/lib/api";
+import { roleHome, writeStoredRole } from "@/lib/roles";
 
 function OnboardingFallback() {
   return (
@@ -55,6 +57,18 @@ function OnboardingPageContent() {
         user.primaryEmailAddress?.emailAddress || "",
         user.fullName || user.firstName || "User",
       );
+
+      if (isInstituteStaff(createdUser.accessRole)) {
+        writeStoredRole(user.id, "institution_admin");
+        didRedirect = true;
+        router.replace(roleHome("institution_admin", createdUser));
+        return;
+      }
+
+      if (createdUser.institutionInvited && !createdUser.onboardingCompleted) {
+        setOnboardingPath("candidate");
+        return;
+      }
 
       if (createdUser.onboardingCompleted) {
         const returnUrl = consumePostSignInReturnUrl();
