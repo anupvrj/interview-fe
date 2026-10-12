@@ -1,3 +1,10 @@
+import {
+  HACKATHON_LANDING_PATH,
+  HACKATHON_SLUG,
+  LEGACY_HACKATHON_LANDING_PATH,
+  LEGACY_HACKATHON_SLUG,
+  hackathonDashboardPath,
+} from "@/features/hackathon/config";
 import { safeAppRedirectPath } from "@/lib/post-sign-in-redirect";
 
 /** Query param that sends a finished interview back to the page that launched it. */
@@ -55,7 +62,9 @@ export function resolveHackathonInterviewHome(
   if (slug) return `/hackathon/${slug}/dashboard`;
   if (!returnTo) return null;
   const base = returnTo.split("?")[0]?.replace(/\/$/, "") ?? "";
-  if (base === "/hackathon-2026") return "/hackathon/hackathon-2026/dashboard";
+  if (base === HACKATHON_LANDING_PATH || base === LEGACY_HACKATHON_LANDING_PATH) {
+    return hackathonDashboardPath(HACKATHON_SLUG);
+  }
   const landing = /^\/hackathon\/([^/]+)$/.exec(base);
   return landing?.[1] ? `/hackathon/${landing[1]}/dashboard` : null;
 }
@@ -111,6 +120,8 @@ export function hackathonDashboardFromTags(
   tags: string[] | null | undefined,
 ): string | null {
   if (!tags?.includes("hackathon")) return null;
-  const slug = tags.find((tag) => tag !== "hackathon") ?? "hackathon-2026";
+  const tagged = tags.find((tag) => tag !== "hackathon");
+  // Interviews from before the slug rename still carry the old tag.
+  const slug = !tagged || tagged === LEGACY_HACKATHON_SLUG ? HACKATHON_SLUG : tagged;
   return `/hackathon/${slug}/dashboard?fromInterview=1`;
 }

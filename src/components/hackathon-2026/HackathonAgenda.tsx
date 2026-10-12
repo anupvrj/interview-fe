@@ -33,21 +33,21 @@ export function HackathonAgenda() {
           </p>
         </Reveal>
 
-        <div className="grid items-end gap-12 lg:grid-cols-[1.15fr_0.85fr] lg:gap-8">
+        <div className="grid items-center gap-14 sm:gap-16 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] lg:gap-10 xl:gap-12">
           {/* Timeline */}
-          <ol className="space-y-1">
+          <ol className="mx-auto w-full max-w-[820px] space-y-1 lg:max-w-none">
             {HACKATHON_AGENDA.slots.map((slot, index) => {
               const Icon = ICONS[slot.icon];
               const tone = TONE[slot.tone];
               return (
                 <Reveal as="li" key={slot.time} delay={index * 90} from="left">
-                  <div className="hk-agenda-row grid grid-cols-[44px_1fr] items-start gap-x-4 gap-y-1.5 rounded-2xl border border-transparent px-1 py-3 hover:border-[#1d4268] hover:bg-[#0b1c32]/70 sm:grid-cols-[52px_150px_1fr] sm:items-center sm:gap-5 sm:px-2 sm:py-2.5">
-                    <span className={cn("hk-agenda-icon row-span-2 grid size-11 place-items-center rounded-full sm:row-span-1 sm:size-[52px]", tone.icon)}>
+                  <div className="hk-agenda-row grid grid-cols-[44px_1fr] items-start gap-x-4 gap-y-1.5 rounded-2xl border border-transparent px-1 py-3 hover:border-[#1d4268] hover:bg-[#0b1c32]/70 sm:grid-cols-[52px_150px_1fr] sm:items-center sm:gap-5 sm:px-2 sm:py-2.5 lg:grid-cols-[46px_122px_1fr] lg:gap-3.5 xl:grid-cols-[52px_150px_1fr] xl:gap-5">
+                    <span className={cn("hk-agenda-icon row-span-2 grid size-11 place-items-center rounded-full sm:row-span-1 sm:size-[52px] lg:size-[46px] xl:size-[52px]", tone.icon)}>
                       <Icon className="size-5 sm:size-6" aria-hidden />
                     </span>
                     <span
                       className={cn(
-                        "col-start-2 row-start-1 inline-flex w-fit items-center justify-center rounded-lg px-2.5 py-1 text-[13px] font-bold tabular-nums sm:col-start-auto sm:row-start-auto sm:w-full sm:rounded-xl sm:px-3.5 sm:py-3 sm:text-[15px]",
+                        "col-start-2 row-start-1 inline-flex w-fit items-center justify-center rounded-lg px-2.5 py-1 text-[13px] font-bold tabular-nums sm:col-start-auto sm:row-start-auto sm:w-full sm:rounded-xl sm:px-3.5 sm:py-3 sm:text-[15px] lg:px-2 lg:text-[13.5px] xl:px-3.5 xl:text-[15px]",
                         tone.pill,
                       )}
                     >
@@ -65,7 +65,7 @@ export function HackathonAgenda() {
 
           {/* Speakers */}
           <div className="relative">
-            <Reveal delay={200} from="none" className="mb-8 flex justify-center">
+            <Reveal delay={200} from="none" className="mb-12 flex justify-center">
               <div className="hk-hand relative -rotate-6 text-[26px] leading-[1.02] !text-white">
                 {HACKATHON_AGENDA.guestsNote[0]}
                 <br />
@@ -77,10 +77,10 @@ export function HackathonAgenda() {
               </div>
             </Reveal>
 
-            {/* Mobile: Guest 1 then Guest 2 stacked; side by side from sm up */}
-            <div className="mx-auto grid max-w-[300px] grid-cols-1 gap-8 sm:max-w-none sm:grid-cols-2 sm:gap-5">
+            {/* Three chief guests: stacked on phones, one row of three from sm up (beside the agenda from lg) */}
+            <div className="mx-auto grid max-w-[300px] grid-cols-1 gap-10 sm:max-w-[960px] sm:grid-cols-3 sm:gap-6 lg:gap-4 xl:gap-5">
               {HACKATHON_AGENDA.guests.map((guest, index) => (
-                <Reveal key={guest.name} delay={260 + index * 140} from="right">
+                <Reveal key={guest.name} delay={260 + index * 140} from="up" className="h-full">
                   <SpeakerCard {...guest} />
                 </Reveal>
               ))}
@@ -94,8 +94,8 @@ export function HackathonAgenda() {
 
 function SpeakerCard({ name, topic, image }: { name: string; topic: string; image: string | null }) {
   return (
-    <article className="group flex flex-col items-center">
-      <div className="relative size-[190px]">
+    <article className="group flex h-full flex-col items-center">
+      <div className="relative size-[180px] sm:size-[150px] md:size-[170px] lg:size-[124px] xl:size-[148px]">
         <span className="hk-speaker-ring absolute -inset-[3px] rounded-full opacity-60 transition-opacity duration-500 group-hover:opacity-100" aria-hidden />
         <div className="absolute inset-0 overflow-hidden rounded-full bg-[radial-gradient(circle_at_50%_40%,#1d4f9a,#0c2347_70%)] ring-4 ring-[#040b17]">
           {image ? (
@@ -103,25 +103,19 @@ function SpeakerCard({ name, topic, image }: { name: string; topic: string; imag
               src={image}
               alt={name}
               fill
-              sizes="190px"
+              sizes="180px"
               className="origin-top object-cover object-top transition-transform duration-700 group-hover:scale-105"
             />
           ) : (
-            <div className="flex h-full items-end justify-center">
-              <UserRound className="-mb-2 size-[82%] text-[#2a5d93]" strokeWidth={1.1} aria-hidden />
+            <div className="flex h-full items-start justify-center pt-[9%]">
+              <UserRound className="size-[66%] text-[#3a73b5]" strokeWidth={1.2} aria-hidden />
             </div>
           )}
         </div>
       </div>
-      <div className="relative -mt-6 w-full rounded-2xl border border-[#2f64a8]/80 bg-[linear-gradient(160deg,rgba(24,56,104,0.85),rgba(12,30,60,0.9))] px-4 pb-4 pt-4 text-center shadow-[0_16px_40px_rgba(0,20,60,0.5)] sm:text-left backdrop-blur transition-[border-color,transform] duration-300 group-hover:-translate-y-1 group-hover:border-[#4f96ec]">
-        <h3 className="text-lg font-bold text-white">{name}</h3>
-        {!image && (
-          <span className="mt-1 inline-flex items-center gap-1.5 rounded-full border border-[#24507e] px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.14em] text-[#8fc6ff]">
-            <span className="hk-live-dot !size-1.5 !bg-[#2bd2ff]" aria-hidden />
-            Reveal soon
-          </span>
-        )}
-        <p className="mt-1 text-sm leading-5 text-[#d6e2ef]">{topic}</p>
+      <div className="relative -mt-6 w-full rounded-2xl border border-[#2f64a8]/80 bg-[linear-gradient(160deg,rgba(24,56,104,0.85),rgba(12,30,60,0.9))] flex-1 px-4 pb-5 pt-5 text-center lg:px-3 lg:pb-4 lg:pt-5 shadow-[0_16px_40px_rgba(0,20,60,0.5)] backdrop-blur transition-[border-color,transform] duration-300 group-hover:-translate-y-1 group-hover:border-[#4f96ec]">
+        <h3 className="text-lg font-bold text-white lg:text-base xl:text-[17px]">{name}</h3>
+        <p className="mt-1 text-sm leading-5 text-[#d6e2ef] lg:text-[13px] xl:text-sm">{topic}</p>
       </div>
     </article>
   );

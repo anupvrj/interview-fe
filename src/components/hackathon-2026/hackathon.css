@@ -454,6 +454,27 @@ html:has(.hk-root) body {
 [data-inview="true"] .hk-timeline-fill {
   transform: scaleY(1);
 }
+.hk-timeline-fill-x {
+  transform-origin: left;
+  transform: scaleX(0);
+  transition: transform 1.8s var(--hk-ease) 0.2s;
+}
+[data-inview="true"] .hk-timeline-fill-x {
+  transform: scaleX(1);
+}
+
+/* Challenge timeline nodes */
+.hk-tl-node {
+  transition:
+    transform 0.35s var(--hk-ease),
+    box-shadow 0.35s var(--hk-ease);
+}
+.hk-tl-step:hover .hk-tl-node {
+  transform: translateY(-3px) scale(1.06);
+  box-shadow:
+    0 0 0 6px rgba(58, 141, 255, 0.12),
+    0 0 28px rgba(58, 160, 255, 0.55);
+}
 
 .hk-agenda-row {
   transition:
@@ -747,6 +768,80 @@ html:has(.hk-root) body {
   }
 }
 
+/* Fake registration social-proof chip — bottom-left of the landing */
+.hk-proof-toast {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  border-radius: 16px;
+  border: 1px solid rgba(42, 127, 212, 0.5);
+  background: rgba(8, 22, 46, 0.92);
+  box-shadow:
+    0 16px 40px rgba(0, 10, 40, 0.45),
+    0 0 24px rgba(22, 119, 255, 0.14);
+  backdrop-filter: blur(14px);
+  overflow: visible;
+  opacity: 0;
+  transform: translate3d(-12px, 10px, 0);
+  transition:
+    opacity 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.hk-proof-toast-on {
+  opacity: 1;
+  transform: none;
+}
+.hk-proof-burst {
+  position: absolute;
+  left: 1.4rem;
+  top: 1.15rem;
+  width: 0;
+  height: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+.hk-proof-bit {
+  position: absolute;
+  left: 0;
+  top: 0;
+  opacity: 0;
+}
+.hk-proof-bit-rect {
+  width: 7px;
+  height: 3px;
+  border-radius: 1px;
+}
+.hk-proof-bit-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 99px;
+}
+.hk-proof-bit-star {
+  width: 7px;
+  height: 7px;
+  background: transparent !important;
+  clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
+  background-color: currentColor !important;
+}
+.hk-proof-toast-on .hk-proof-bit {
+  animation: hk-proof-fly 1.05s cubic-bezier(0.22, 1, 0.36, 1) var(--hk-proof-delay, 0ms) forwards;
+}
+@keyframes hk-proof-fly {
+  0% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(var(--dx), var(--dy), 0) rotate(var(--rot)) scale(0.35);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .hk-root *,
   .hk-root *::before,
@@ -769,6 +864,17 @@ html:has(.hk-root) body {
   }
   .hk-timeline-fill {
     transform: scaleY(1);
+  }
+  .hk-timeline-fill-x {
+    transform: scaleX(1);
+  }
+  .hk-proof-toast-on {
+    opacity: 1;
+    transform: none;
+  }
+  .hk-proof-toast-on .hk-proof-bit {
+    animation: none;
+    opacity: 0;
   }
 }
 

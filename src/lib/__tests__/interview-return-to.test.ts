@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  hackathonDashboardFromTags,
   hackathonSlugFromDashboardPath,
   isHackathonDashboardReturn,
   resolveHackathonInterviewHome,
@@ -48,5 +49,24 @@ describe("shouldAutoDiscardUnstartedInterview", () => {
         returnTo: "/hackathon/hackathon-2026/dashboard",
       }),
     ).toBe(false);
+  });
+});
+
+describe("hiring games slug rename", () => {
+  it("sends interviews tagged with the old slug to the renamed dashboard", () => {
+    expect(hackathonDashboardFromTags(["hackathon", "hackathon-2026"])).toBe(
+      "/hackathon/hiring-games-hackathon-2026/dashboard?fromInterview=1",
+    );
+    expect(hackathonDashboardFromTags(["hackathon"])).toBe(
+      "/hackathon/hiring-games-hackathon-2026/dashboard?fromInterview=1",
+    );
+  });
+
+  it("maps both landing paths to the renamed dashboard", () => {
+    for (const landing of ["/hiring-games-hackathon-2026", "/hackathon-2026"]) {
+      expect(resolveHackathonInterviewHome(landing)).toBe(
+        "/hackathon/hiring-games-hackathon-2026/dashboard",
+      );
+    }
   });
 });

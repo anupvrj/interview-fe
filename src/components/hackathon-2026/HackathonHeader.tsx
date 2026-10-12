@@ -6,7 +6,7 @@ import { ChevronRight, Menu, X } from "lucide-react";
 import { HackathonBrand } from "@/components/hackathon-2026/HackathonBrand";
 import { HackathonRegisterButton } from "@/components/hackathon-2026/HackathonRegisterButton";
 import { SectionLink } from "@/components/hackathon-2026/HackathonMotion";
-import { HACKATHON_2026_PATH, HACKATHON_ABOUT, HACKATHON_CHALLENGE, HACKATHON_LAUNCH, HACKATHON_NAV } from "@/lib/hackathon-2026-content";
+import { HACKATHON_2026_PATH, HACKATHON_CHALLENGE, HACKATHON_LAUNCH, HACKATHON_NAV } from "@/lib/hackathon-2026-content";
 import { cn } from "@/lib/utils";
 
 export function HackathonHeader() {
@@ -127,10 +127,7 @@ export function HackathonHeader() {
             <HackathonBrand size="md" priority className="hidden sm:inline-flex" />
           </Link>
 
-          <nav className="hidden items-center gap-9 text-sm font-medium text-[#dbe6f3] lg:flex" aria-label="Hackathon">
-            <Link href={HACKATHON_ABOUT.href} className="hk-nav-link transition-colors duration-200 hover:text-white">
-              {HACKATHON_ABOUT.label}
-            </Link>
+          <nav className="hidden items-center gap-5 text-sm font-medium text-[#dbe6f3] xl:gap-7 lg:flex" aria-label="Hackathon">
             {HACKATHON_NAV.map((item) => (
               <SectionLink
                 key={item.href}
@@ -209,25 +206,13 @@ export function HackathonHeader() {
           </div>
 
           <nav className="flex flex-col gap-1 p-4" aria-label="Hackathon mobile">
-            <Link
-              href={HACKATHON_ABOUT.href}
-              onClick={closeMenu}
-              className={cn(
-                "group flex items-center justify-between rounded-xl px-4 py-3.5 text-[15px] font-semibold text-[#c3d3e4] transition-[opacity,transform,background-color,color] duration-300 hover:bg-white/5 hover:text-white",
-                open ? "translate-x-0 opacity-100" : "-translate-x-6 opacity-0",
-              )}
-              style={{ transitionDelay: open ? "90ms" : "0ms" }}
-            >
-              {HACKATHON_ABOUT.label}
-              <ChevronRight className="size-4 text-[#4f8fd0] transition-transform duration-300 group-hover:translate-x-1" aria-hidden />
-            </Link>
             {HACKATHON_NAV.map((item, index) => (
               <SectionLink
                 key={item.href}
                 href={item.href}
                 onClick={closeMenu}
                 data-active={active === item.href}
-                style={{ transitionDelay: open ? `${120 + index * 50}ms` : "0ms" }}
+                style={{ transitionDelay: open ? `${90 + index * 50}ms` : "0ms" }}
                 className={cn(
                   "group flex items-center justify-between rounded-xl px-4 py-3.5 text-[15px] font-semibold text-[#c3d3e4] transition-[opacity,transform,background-color,color] duration-300 hover:bg-white/5 hover:text-white data-[active=true]:bg-[#0b2748] data-[active=true]:text-white",
                   open ? "translate-x-0 opacity-100" : "-translate-x-6 opacity-0",

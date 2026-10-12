@@ -132,7 +132,7 @@ export function HackathonHero() {
               </li>
               <li className="inline-flex items-center gap-2.5">
                 <Clock className="size-5 text-[#2e9bff]" aria-hidden />
-                Launch {HACKATHON_LAUNCH.dateLabel}, {HACKATHON_LAUNCH.timeLabel}
+                {HACKATHON_LAUNCH.dateLabel}, {HACKATHON_LAUNCH.timeLabel}
               </li>
               <li className="inline-flex items-center gap-2.5">
                 <MapPin className="size-5 fill-[#2e9bff]/25 text-[#2e9bff]" aria-hidden />
@@ -240,7 +240,7 @@ export function HackathonHero() {
             immediate
             from="right"
             delay={450}
-            className="absolute right-[calc(50%_+_var(--hk-r))] top-[70%] z-[5] hidden w-[16rem] sm:block"
+            className="absolute right-[calc(50%_+_var(--hk-r)_-_1.5rem)] top-[70%] z-[5] hidden w-[16rem] sm:block"
           >
             <div className="-translate-y-1/2">
               <div style={parallax(14)}>
@@ -252,7 +252,7 @@ export function HackathonHero() {
             immediate
             from="right"
             delay={590}
-            className="absolute right-[calc(50%_+_var(--hk-r)_-_7rem)] top-[20%] z-[5] hidden w-[16rem] sm:block"
+            className="absolute right-[calc(50%_+_var(--hk-r)_-_8.5rem)] top-[20%] z-[5] hidden w-[16rem] sm:block"
           >
             <div style={parallax(18)}>
               <FloatCard card={HACKATHON_HERO.floatCards[1]} index={1} tick="-left-2.5 top-1/2 -translate-y-1/2" />
@@ -262,7 +262,7 @@ export function HackathonHero() {
             immediate
             from="right"
             delay={730}
-            className="absolute right-3 top-[70%] z-[5] hidden w-[16rem] sm:block"
+            className="absolute -right-3 top-[70%] z-[5] hidden w-[16rem] sm:block"
           >
             <div className="-translate-y-1/2">
               <div style={parallax(22)}>

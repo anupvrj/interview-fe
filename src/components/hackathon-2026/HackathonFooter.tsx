@@ -36,7 +36,7 @@ export function HackathonFooter() {
         >
           <HackathonBrand size="lg" />
         </Link>
-        <nav className="flex max-w-[17rem] flex-wrap justify-center gap-x-6 gap-y-3 md:max-w-none md:gap-x-8" aria-label="Hackathon footer">
+        <nav className="flex max-w-[22rem] flex-wrap justify-center gap-x-5 gap-y-3 md:max-w-none md:gap-x-6" aria-label="Hackathon footer">
           <Link href={HACKATHON_ABOUT.href} className="transition-colors hover:text-[#4fb8ff]">
             {HACKATHON_ABOUT.label}
           </Link>

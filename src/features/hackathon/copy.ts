@@ -57,9 +57,9 @@ export function lockReasonText(reason: LockReason, challengeNumber: number): str
         ? `Finish Challenge ${challengeNumber - 1} to unlock this.`
         : "Finish the previous step to unlock this.";
     case "attempt_limit":
-      return "You've used all attempts for this interview.";
+      return "You've already used your successful attempt for this interview.";
     case "below_pass_mark":
-      return "Your score is below the passing mark. Retry if you have attempts left.";
+      return "Your score is below the passing mark. That used your one successful attempt.";
     case "inactive_entry":
       return "Your hackathon entry is no longer active. Contact support if you think this is a mistake.";
     default:
@@ -68,13 +68,17 @@ export function lockReasonText(reason: LockReason, challengeNumber: number): str
 }
 
 const FAILURE_COPY: Record<string, string> = {
-  abandoned: "Your last attempt was left unfinished, so it was closed.",
-  connection_failed: "Your last attempt lost its connection.",
-  interview_failed: "Your last attempt couldn't be completed.",
-  interview_missing: "Your last attempt was closed before it finished.",
-  report_failed: "We couldn't generate a report for your last attempt.",
+  abandoned: "Your last interview was left unfinished, so it was closed. That used your one attempt.",
+  connection_failed:
+    "This round failed due to an internal connection issue. You can retry — only a successful submission counts.",
+  interview_failed:
+    "This round failed due to an internal issue. You can retry — only a successful submission counts.",
+  interview_missing:
+    "This round failed due to an internal issue before it finished. You can retry — only a successful submission counts.",
+  report_failed:
+    "This round failed due to an internal issue generating your report. You can retry — only a successful submission counts.",
   after_deadline: "Your last attempt finished after the hackathon closed.",
-  never_started: "Your last attempt was never started.",
+  never_started: "Your last attempt was never started. You can retry.",
 };
 
 export function failureReasonText(reason: string | undefined): string | null {
