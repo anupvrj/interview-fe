@@ -42,6 +42,9 @@ const HISTORY_LABELS: Record<string, string> = {
   update_limit: "Participant limit changed",
   update_grace: "Interview grace changed",
   update_reminders: "Reminder schedule changed",
+  participant_suspend: "Participant suspended",
+  participant_unsuspend: "Participant unsuspended",
+  participant_delete: "Participant removed",
 };
 
 function fmtHistoryValue(value?: string) {
