@@ -1,4 +1,4 @@
-export const HACKATHON_2026_PATH = "/hackathon-2026";
+export const HACKATHON_2026_PATH = "/hiring-games-hackathon-2026";
 
 /** Single source of truth for the event window (IST). Display strings, countdown and JSON-LD derive from this. */
 /** Challenge window. Submissions open 15 Oct and close at the end of 24 Oct IST. */
@@ -11,10 +11,10 @@ export const HACKATHON_CHALLENGE = {
 
 /** Live launch. Winners are announced here. The joining link is a later email. */
 export const HACKATHON_LAUNCH = {
-  startISO: "2026-10-31T16:00:00+05:30",
-  endISO: "2026-10-31T17:30:00+05:30",
+  startISO: "2026-10-31T18:30:00+05:30",
+  endISO: "2026-10-31T20:00:00+05:30",
   dateLabel: "Sat, 31 Oct 2026",
-  timeLabel: "4:00 PM – 5:30 PM IST",
+  timeLabel: "6:30 PM IST",
   formatLabel: "Live Virtual Event",
 } as const;
 
@@ -22,25 +22,28 @@ export const HACKATHON_LAUNCH = {
 export const HACKATHON_EVENT = HACKATHON_LAUNCH;
 
 export const HACKATHON_2026_META = {
-  title: "Navigating Careers in 2027 — InterviewTrix Hackathon & Product Launch",
+  title: "InterviewTrix: The Hiring Games — Free Hiring Hackathon & Product Launch",
   description:
-    "Join the Interview Trix Hackathon from 15–24 Oct 2026 and the product launch on 31 Oct 2026. Register, design a 75%+ ATS resume, score 70%+ on two mock interviews, and compete for a ₹20,000 prize pool.",
+    "AI is changing hiring, jobs and work. Join InterviewTrix: The Hiring Games, a free self-paced hackathon (15–24 Oct 2026), then learn from leading software industry experts at our online launch on 31 Oct. ₹20,000 prize pool.",
   keywords: [
     "Interview Trix hackathon",
     "career hackathon 2026",
     "AI mock interview challenge",
     "ATS resume challenge",
     "InterviewTrix product launch",
-    "Navigating Careers in 2027",
+    "InterviewTrix The Hiring Games",
+    "hiring hackathon 2026",
   ],
 };
 
 export const HACKATHON_ABOUT = { href: "/about-us", label: "About" } as const;
 
 export const HACKATHON_NAV = [
-  { href: "#participate", label: "How to Participate" },
   { href: "#prizes", label: "Prizes" },
+  { href: "#participate", label: "How to Participate" },
+  { href: "#timeline", label: "Timeline" },
   { href: "#agenda", label: "Agenda" },
+  { href: "#who", label: "Who can Participate" },
   { href: "#faq", label: "FAQ" },
 ] as const;
 
@@ -54,22 +57,22 @@ export const HACKATHON_SOCIALS = [
 export const HACKATHON_HERO = {
   badgeLeft: "Hackathon",
   badgeRight: "Product Launch",
-  headlineLead: "Navigating",
-  headlineAccent: "Careers in 2027",
-  copy: "AI is changing how we learn, work and get hired. Join the Interview Trix Product Launch & Hackathon to experience the future of interview preparation — and build your edge for what’s next.",
+  headlineLead: "InterviewTrix:",
+  headlineAccent: "The Hiring Games",
+  copy: "AI is changing hiring and how we work. Learn from industry experts what it takes to land your next role.",
   registerLabel: "Register Now — It’s Free",
   startChallengeLabel: "Start the Challenge",
-  checks: ["AI Mock Interviews", "ATS Resume Builder", "Win Exciting Prizes"],
+  checks: ["Face AI Interviewer", "Get Interview Tricks from Experts", "Win Exciting Prizes"],
   floatCards: [
-    { title: "Get seen", subtitle: "by recruiters", icon: "FileText", tone: "blue" },
-    { title: "Be ready", subtitle: "on interview day", icon: "Mic", tone: "rose" },
-    { title: "Get rewarded", subtitle: "₹20,000 prize pool", icon: "Trophy", tone: "cyan" },
+    { title: "Beat the ATS", subtitle: "Score 80+ to unlock interviews", icon: "FileText", tone: "blue" },
+    { title: "Face an AI interviewer", subtitle: "Get instant feedback", icon: "Mic", tone: "rose" },
+    { title: "Get rewarded", subtitle: "Top 3 performers rewarded", icon: "Trophy", tone: "cyan" },
   ],
   noteTop: ["Practice Today.", "Perform Tomorrow."],
-  noteSide: ["Same candidate.", "Verified by AI."],
+  noteSide: ["Your next interviewer", "might be an AI."],
   marquee: [
-    "AI Mock Interviews",
-    "ATS Resume Builder",
+    "Face AI Interviewer",
+    "Get Interview Tricks from Experts",
     "Live Scoring Reports",
     "₹20,000 Prize Pool",
     "Product Launch",
@@ -101,12 +104,47 @@ export const HACKATHON_STEPS = [
   },
   {
     num: "4",
-    title: "Share on Instagram & LinkedIn",
-    body: "Share your experience on Instagram and LinkedIn, tagging the Interview Trix official page.",
+    title: "Share Your Journey",
+    body: "Post about your Hiring Games experience on social media and tag the InterviewTrix official page.",
     icon: "Share2",
     accent: "rose",
   },
 ] as const;
+
+export const HACKATHON_TIMELINE = {
+  titleLead: "Challenge",
+  titleAccent: "Timeline",
+  copy: "Key dates for your journey from registration to the final round.",
+  items: [
+    { date: "15 Oct 2026", title: "Registrations", body: "Sign up and lock in your spot." },
+    { date: "15–24 Oct 2026", title: "Complete Round 1 & 2", body: "Submit your resume and finish both mock interviews." },
+    { date: "25–30 Oct 2026", title: "Review & Shortlisting", body: "We review submissions and shortlist the top performers." },
+    { date: "31 Oct 2026", title: "Winner Announcement", body: "Join the live launch as winners are announced." },
+  ],
+} as const;
+
+export const HACKATHON_WHO = {
+  titleLead: "Who can",
+  titleAccent: "Participate",
+  copy: "Open to anyone eager to participate or showcase their skills.",
+  groups: [
+    {
+      title: "Students",
+      body: "Currently studying in any degree program.",
+      icon: "GraduationCap",
+    },
+    {
+      title: "Recent Graduates",
+      body: "0–2 years of work experience.",
+      icon: "Briefcase",
+    },
+    {
+      title: "Early Professionals",
+      body: "0–5 years of work experience.",
+      icon: "Users",
+    },
+  ],
+} as const;
 
 export type HackathonRewardKind = "claude" | "voucher" | "credit";
 
@@ -119,10 +157,11 @@ export const HACKATHON_PRIZES = {
       title: "Top 1 Performer",
       tier: "gold",
       icon: "/hackathon-2026/prize-gold.webp",
+      approxValue: 14999,
       rewards: [
-        { kind: "claude", label: "Claude Max Plan – 1 Month" },
-        { kind: "voucher", label: "₹2,000 Amazon Gift Voucher" },
-        { kind: "credit", label: "₹1,000 Interview Trix Credit", note: "Valid for 3 Months" },
+        { kind: "claude", label: "Claude Max Plan – 1 Month", priceInr: 11999 },
+        { kind: "voucher", label: "₹2,000 Amazon Gift Voucher", priceInr: 2000 },
+        { kind: "credit", label: "1,000 Interview Trix Credit", note: "Valid for 3 Months", priceInr: 1000 },
       ],
     },
     {
@@ -130,10 +169,11 @@ export const HACKATHON_PRIZES = {
       title: "Top 2 Performer",
       tier: "silver",
       icon: "/hackathon-2026/prize-silver.webp",
+      approxValue: 5399,
       rewards: [
-        { kind: "claude", label: "Claude Pro Plan – 1 Month" },
-        { kind: "voucher", label: "₹2,000 Amazon Gift Voucher" },
-        { kind: "credit", label: "₹1,000 Interview Trix Credit", note: "Valid for 3 Months" },
+        { kind: "claude", label: "Claude Pro Plan – 1 Month", priceInr: 2399 },
+        { kind: "voucher", label: "₹2,000 Amazon Gift Voucher", priceInr: 2000 },
+        { kind: "credit", label: "1,000 Interview Trix Credit", note: "Valid for 3 Months", priceInr: 1000 },
       ],
     },
     {
@@ -141,21 +181,21 @@ export const HACKATHON_PRIZES = {
       title: "Top 3 Performer",
       tier: "bronze",
       icon: "/hackathon-2026/prize-bronze.webp",
+      approxValue: 5399,
       rewards: [
-        { kind: "claude", label: "Claude Pro Plan – 1 Month" },
-        { kind: "voucher", label: "₹2,000 Amazon Gift Voucher" },
-        { kind: "credit", label: "₹1,000 Interview Trix Credit", note: "Valid for 3 Months" },
+        { kind: "claude", label: "Claude Pro Plan – 1 Month", priceInr: 2399 },
+        { kind: "voucher", label: "₹2,000 Amazon Gift Voucher", priceInr: 2000 },
+        { kind: "credit", label: "1,000 Interview Trix Credit", note: "Valid for 3 Months", priceInr: 1000 },
       ],
     },
   ],
-  premium: {
-    title: "What’s Included in Interview Trix Premium?",
-    benefits: [
-      "Unlimited AI mock interviews",
-      "Advanced ATS resume tools",
-      "Personalized interview feedback",
-      "Detailed performance insights",
-      "Access to upcoming premium features",
+  credits: {
+    title: "What comes with InterviewTrix credits?",
+    lead: "Credits worth ₹1,000 include:",
+    items: [
+      { icon: "interview", value: "5", label: "Mock interviews" },
+      { icon: "ats", value: "10", label: "ATS match checks" },
+      { icon: "premium", label: "Premium practice features & guided feedback" },
     ],
   },
 } as const satisfies {
@@ -166,9 +206,14 @@ export const HACKATHON_PRIZES = {
     title: string;
     tier: "gold" | "silver" | "bronze";
     icon: string;
-    rewards: ReadonlyArray<{ kind: HackathonRewardKind; label: string; note?: string }>;
+    approxValue: number;
+    rewards: ReadonlyArray<{ kind: HackathonRewardKind; label: string; note?: string; priceInr?: number }>;
   }>;
-  premium: { title: string; benefits: readonly string[] };
+  credits: {
+    title: string;
+    lead: string;
+    items: ReadonlyArray<{ icon: "interview" | "ats" | "premium"; value?: string; label: string }>;
+  };
 };
 
 export const HACKATHON_AGENDA = {
@@ -218,17 +263,27 @@ export const HACKATHON_AGENDA = {
     {
       name: "Chief Guest 1",
       topic: "The Future of Careers in the AI Era",
-      image: "/hackathon-2026/chief-guest-1.webp" as string | null,
+      image: null as string | null,
     },
     {
       name: "Chief Guest 2",
       topic: "Skills, Opportunities and How to Prepare",
-      image: "/hackathon-2026/chief-guest-2.webp" as string | null,
+      image: null as string | null,
+    },
+    {
+      name: "Chief Guest 3",
+      topic: "Leading Engineering Teams in the AI Era",
+      image: null as string | null,
     },
   ],
 } as const;
 
 export const HACKATHON_FAQ = [
+  {
+    question: "Why should I attend?",
+    answer:
+      "AI is changing how companies hire, what jobs look like and how work gets done, and freshers feel it first. At the online event, our three chief guests, leading experts from the software industry, share what companies now look for and how to start and grow your career in an AI-driven world. Before that, the hackathon lets you practise a real hiring journey with an ATS-ready resume and AI mock interviews, and the top 3 share a prize pool worth ₹20,000.",
+  },
   {
     question: "Who can participate?",
     answer:
@@ -241,7 +296,7 @@ export const HACKATHON_FAQ = [
   {
     question: "How are the top performers selected?",
     answer:
-      "Participants complete the required challenge activities; the final scoring criteria will be published with the official challenge rules.",
+      "Every complete final submission gets a Final Score = 30% resume ATS score + 70% average of your two mock interview scores. Submissions are ranked by Final Score, and if two scores tie, whoever submitted first ranks higher. The top entries are verified, and the top 3 win.",
   },
   {
     question: "Where is the live launch happening?",
@@ -251,10 +306,8 @@ export const HACKATHON_FAQ = [
 ] as const;
 
 export const HACKATHON_FINAL_CTA = {
-  titleLead: "Ready to navigate",
-  titleAccent: "your career",
-  titleTail: "in",
-  titleYear: "2027?",
-  copy: "Join the Interview Trix Product Launch & Hackathon and take the next step towards your dream career.",
-  points: ["Free Registration", "Live Virtual Event", "Open to All"],
+  title: "Ready to take the challenge?",
+  copy: "Submit your resume, unlock the interview round, and compete for the live final.",
+  dateLabel: "Oct 15 – 24, 2026",
+  prizeNote: "Exciting prizes await",
 } as const;

@@ -1,5 +1,8 @@
-export const HACKATHON_SLUG = "hackathon-2026";
-export const HACKATHON_LANDING_PATH = "/hackathon-2026";
+export const HACKATHON_SLUG = "hiring-games-hackathon-2026";
+export const HACKATHON_LANDING_PATH = "/hiring-games-hackathon-2026";
+/** Pre-rename slug/landing. Old links redirect (next.config.mjs); old interview tags map forward. */
+export const LEGACY_HACKATHON_SLUG = "hackathon-2026";
+export const LEGACY_HACKATHON_LANDING_PATH = "/hackathon-2026";
 export const HACKATHON_ADMIN_PATH = "/super-admin/hackathons";
 export const HACKATHON_FEATURE_KEY = "hackathon";
 

@@ -10,7 +10,10 @@ import { HackathonHeader } from "@/components/hackathon-2026/HackathonHeader";
 import { HackathonHero } from "@/components/hackathon-2026/HackathonHero";
 import { HackathonParticipate } from "@/components/hackathon-2026/HackathonParticipate";
 import { HackathonPrizes } from "@/components/hackathon-2026/HackathonPrizes";
+import { HackathonTimeline } from "@/components/hackathon-2026/HackathonTimeline";
+import { HackathonWho } from "@/components/hackathon-2026/HackathonWho";
 import { HackathonRegisterProvider } from "@/components/hackathon-2026/HackathonRegisterContext";
+import { HackathonSocialProofToast } from "@/components/hackathon-2026/HackathonSocialProofToast";
 import { HackathonFeatureGate } from "@/features/hackathon/components/HackathonFeatureGate";
 import { HACKATHON_SLUG } from "@/features/hackathon/config";
 import { HackathonSlugProvider } from "@/features/hackathon/hooks";
@@ -46,13 +49,16 @@ export function HackathonPage() {
             <HackathonHeader />
             <main className="relative z-[1]">
               <HackathonHero />
-              <HackathonParticipate />
               <HackathonPrizes />
+              <HackathonParticipate />
+              <HackathonTimeline />
               <HackathonAgenda />
+              <HackathonWho />
               <HackathonFaq />
               <HackathonFinalCta />
             </main>
             <HackathonFooter />
+            <HackathonSocialProofToast />
           </div>
         </HackathonRegisterProvider>
       </HackathonFeatureGate>

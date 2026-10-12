@@ -9,7 +9,7 @@ export function isHackathonTrialContextFromUrl(
   searchParams: URLSearchParams | null | undefined,
 ): boolean {
   const path = pathname ?? "";
-  if (path.startsWith("/hackathon/") || path.startsWith("/hackathon-2026")) {
+  if (path.startsWith("/hackathon/") || path.startsWith("/hiring-games-hackathon-2026") || path.startsWith("/hackathon-2026")) {
     return true;
   }
   if (!searchParams) return false;

@@ -34,17 +34,14 @@ export const metadata: Metadata = {
   title: HACKATHON_2026_META.title,
   description: HACKATHON_2026_META.description,
   keywords: HACKATHON_2026_META.keywords.join(", "),
+  // og:image / twitter fallback come from ./opengraph-image.tsx (1200×630 PNG).
   openGraph: {
     title: HACKATHON_2026_META.title,
     description: HACKATHON_2026_META.description,
     type: "website",
     url: pageUrl,
-    images: [
-      {
-        url: `${siteUrl}/hackathon-2026/hero-candidate-desk.webp`,
-        alt: "InterviewTrix Hackathon 2026",
-      },
-    ],
+    siteName: "InterviewTrix",
+    locale: "en_IN",
   },
   twitter: {
     card: "summary_large_image",
@@ -58,7 +55,7 @@ export const metadata: Metadata = {
 
 const breadcrumbSchema = createBreadcrumbSchema([
   { name: "Home", url: siteUrl },
-  { name: "Hackathon 2026", url: pageUrl },
+  { name: "The Hiring Games", url: pageUrl },
 ]);
 
 const faqSchema = createFAQSchema(
@@ -68,7 +65,7 @@ const faqSchema = createFAQSchema(
 const eventSchema = {
   "@context": "https://schema.org",
   "@type": "Event",
-  name: "InterviewTrix Hackathon & Product Launch — Navigating Careers in 2027",
+  name: "InterviewTrix: The Hiring Games — Online Event & Product Launch",
   description: HACKATHON_2026_META.description,
   startDate: HACKATHON_LAUNCH.startISO,
   endDate: HACKATHON_LAUNCH.endISO,
@@ -84,7 +81,7 @@ const eventSchema = {
     url: siteUrl,
   },
   isAccessibleForFree: true,
-  image: `${siteUrl}/hackathon-2026/hero-candidate-desk.webp`,
+  image: `${pageUrl}/opengraph-image`,
   url: pageUrl,
 };
 
@@ -103,7 +100,7 @@ export default function Hackathon2026Layout({
         data={{
           "@context": "https://schema.org",
           "@type": "Event",
-          name: "InterviewTrix Hackathon Challenge — Navigating Careers in 2027",
+          name: "InterviewTrix: The Hiring Games — Hackathon Challenge",
           description: "Submit the resume, mock interview, and social challenges between 15 and 24 October 2026.",
           startDate: HACKATHON_CHALLENGE.startISO,
           endDate: HACKATHON_CHALLENGE.endISO,

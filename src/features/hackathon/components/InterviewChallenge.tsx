@@ -200,9 +200,7 @@ function SlotCard({
         ) : slot.state === "available" ? (
           <div className="mt-auto space-y-3">
             {failure ? (
-              <p className="text-sm text-[#ffc44d]">
-                {failure} You can try again.
-              </p>
+              <p className="text-sm text-[#ffc44d]">{failure}</p>
             ) : null}
             <button
               type="button"
@@ -222,7 +220,9 @@ function SlotCard({
               )}
             </button>
             <p className="text-[13px] text-[#cfdbe8]">
-              {attemptsLeft} of {slot.attemptsMax} attempts left. An attempt counts once the {roundNoun(kind)} starts.
+              {slot.attemptsMax <= 1
+                ? `You get one successful ${roundNoun(kind)}. If it fails because of an internal issue, you can retry.`
+                : `${attemptsLeft} of ${slot.attemptsMax} successful attempts left. Internal failures do not use an attempt.`}
             </p>
           </div>
         ) : (
