@@ -4,8 +4,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { connectVoiceSession, getRuntimeApiUrl, getRuntimeWsUrl } from "@/lib/runtimeApi";
 
-const TARGET_SAMPLE_RATE = 24000;
-const MIC_FRAME_SAMPLES = 720;
+/** Gemini Live mic input is 16 kHz PCM (same as interview-core). */
+const MIC_SAMPLE_RATE = 16000;
+/** Gemini Live native audio output is 24 kHz PCM. */
+const PLAYBACK_SAMPLE_RATE = 24000;
+const MIC_FRAME_SAMPLES = 480;
 /** Soft Lab live-test cap (5 minutes). */
 const LIVE_TEST_CAP_SEC = 5 * 60;
 
@@ -56,6 +59,7 @@ export function LabVoicePanel({
   const wsRef = useRef<WebSocket | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
+  const playbackContextRef = useRef<AudioContext | null>(null);
   const processorRef = useRef<AudioNode | null>(null);
   const audioQueueRef = useRef<Int16Array[]>([]);
   const playingRef = useRef(false);
@@ -99,6 +103,11 @@ export function LabVoicePanel({
     audioContextRef.current = null;
     if (ctx) {
       void ctx.close().catch(() => undefined);
+    }
+    const playback = playbackContextRef.current;
+    playbackContextRef.current = null;
+    if (playback) {
+      void playback.close().catch(() => undefined);
     }
   }, []);
 
@@ -157,26 +166,38 @@ export function LabVoicePanel({
     }, 1000);
   }, [stopTimer, teardown]);
 
+  const ensurePlaybackContext = useCallback(async () => {
+    if (playbackContextRef.current) return playbackContextRef.current;
+    const WK = (globalThis as typeof globalThis & { webkitAudioContext?: typeof AudioContext })
+      .webkitAudioContext;
+    const AudioCtx = globalThis.AudioContext || WK;
+    const ctx = new AudioCtx!({ sampleRate: PLAYBACK_SAMPLE_RATE });
+    playbackContextRef.current = ctx;
+    await ctx.resume();
+    return ctx;
+  }, []);
+
   const playNext = useCallback(async () => {
-    const ctx = audioContextRef.current;
-    if (!ctx || audioQueueRef.current.length === 0) {
+    if (audioQueueRef.current.length === 0) {
       playingRef.current = false;
       setAiSpeaking(false);
       return;
     }
+    const ctx = await ensurePlaybackContext();
+    if (!playbackContextRef.current) return;
     playingRef.current = true;
     setAiSpeaking(true);
     const pcm16 = audioQueueRef.current.shift()!;
     const float32 = new Float32Array(pcm16.length);
     for (let i = 0; i < pcm16.length; i++) float32[i] = pcm16[i]! / 32768;
-    const buffer = ctx.createBuffer(1, float32.length, TARGET_SAMPLE_RATE);
+    const buffer = ctx.createBuffer(1, float32.length, PLAYBACK_SAMPLE_RATE);
     buffer.copyToChannel(float32, 0);
     const source = ctx.createBufferSource();
     source.buffer = buffer;
     source.connect(ctx.destination);
     source.onended = () => void playNext();
     source.start();
-  }, []);
+  }, [ensurePlaybackContext]);
 
   const enqueueAudio = useCallback(
     (base64: string) => {
@@ -201,7 +222,7 @@ export function LabVoicePanel({
         echoCancellation: true,
         noiseSuppression: true,
         autoGainControl: true,
-        sampleRate: TARGET_SAMPLE_RATE,
+        sampleRate: MIC_SAMPLE_RATE,
         channelCount: 1,
       } as MediaTrackConstraints,
     });
@@ -214,7 +235,7 @@ export function LabVoicePanel({
     const WK = (globalThis as typeof globalThis & { webkitAudioContext?: typeof AudioContext })
       .webkitAudioContext;
     const AudioCtx = globalThis.AudioContext || WK;
-    const ctx = new AudioCtx!();
+    const ctx = new AudioCtx!({ sampleRate: MIC_SAMPLE_RATE });
     audioContextRef.current = ctx;
     await ctx.resume();
     if (connGenRef.current !== gen) {
@@ -236,6 +257,8 @@ export function LabVoicePanel({
           JSON.stringify({
             type: "input_audio_buffer.append",
             audio: pcm16ToBase64(frame),
+            sampleRate: MIC_SAMPLE_RATE,
+            mimeType: `audio/pcm;rate=${MIC_SAMPLE_RATE}`,
           }),
         );
       }
@@ -246,7 +269,7 @@ export function LabVoicePanel({
         await ctx.audioWorklet.addModule("/mic-processor.worklet.js");
         if (connGenRef.current !== gen) return;
         const worklet = new AudioWorkletNode(ctx, "mic-processor", {
-          processorOptions: { targetSampleRate: TARGET_SAMPLE_RATE },
+          processorOptions: { targetSampleRate: MIC_SAMPLE_RATE },
         });
         worklet.port.onmessage = (ev) => {
           if (ev.data.type !== "audio_chunk" || !voiceActiveRef.current) return;
