@@ -32,6 +32,7 @@ import { DashboardStatCard } from "@/components/dashboard/DashboardStatCard";
 import { institutePrimaryClass } from "@/components/institute/InstituteChrome";
 import { cn, formatDate, getScoreColor } from "@/lib/utils";
 import type { PracticeSessionType } from "./usePracticeSessionGate";
+import { useEntitlements } from "@/hooks/useEntitlements";
 
 type PracticeLockedGateProps = {
   type: PracticeSessionType;
@@ -517,6 +518,8 @@ export function PracticeLockedGate({
 }: PracticeLockedGateProps) {
   const config = LOCK_CONFIG[type];
   const Preview = PREVIEW_BY_TYPE[type];
+  const { data: entitlements } = useEntitlements();
+  const managed = entitlements?.institutionManaged === true;
   const primaryHref = showTrialUpsell
     ? "/dashboard?trial_offer=1"
     : `/checkout?plan=${config.upgradePlan}`;
@@ -549,15 +552,17 @@ export function PracticeLockedGate({
           <Lock className="h-7 w-7 text-[#7367F0]" aria-hidden />
         </div>
         <span className="mb-3 inline-flex rounded-full border border-[#7367F0]/25 bg-[#7367F0]/10 px-3 py-1 text-xs font-semibold text-[#7367F0]">
-          {config.badge}
+          {managed ? "Not included in your institute plan" : config.badge}
         </span>
         <h2 className="max-w-md text-xl font-bold text-foreground sm:text-2xl">
           {config.title}
         </h2>
         <p className="mt-2 max-w-lg text-sm leading-relaxed text-muted-foreground">
-          {config.description}
+          {managed
+            ? "Your plan is managed by your institute. Ask your institute admin to move you to a plan that includes this."
+            : config.description}
         </p>
-        <div className="mt-6 flex flex-col gap-2 sm:flex-row">
+        <div className={cn("mt-6 flex flex-col gap-2 sm:flex-row", managed && "hidden")}>
           <Button
             size="lg"
             className="bg-[#7367F0] shadow-lg shadow-[#7367F0]/20 hover:bg-[#6358d8]"

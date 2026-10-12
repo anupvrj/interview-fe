@@ -1,10 +1,14 @@
 import { describe, expect, it } from "vitest";
-import type { ATSReportV3 } from "@/types/atsReport";
+import type { ATSCategoryId, ATSCategoryResult, ATSReportV3 } from "@/types/atsReport";
 import {
   applyPersistedJobMatchScore,
   normalizeATSReportV3,
   reportHasJobMatch,
 } from "@/lib/atsReportNormalize";
+
+function emptyCategory(id: ATSCategoryId): ATSCategoryResult {
+  return { id, label: id, score: 100, issueCount: 0, checks: [] };
+}
 
 function tailoredReport(): ATSReportV3 {
   return {
@@ -13,6 +17,13 @@ function tailoredReport(): ATSReportV3 {
     issueCount: 1,
     mode: "tailored",
     categories: {
+      content: emptyCategory("content"),
+      sections: emptyCategory("sections"),
+      atsEssentials: emptyCategory("atsEssentials"),
+      hrRedFlags: emptyCategory("hrRedFlags"),
+      discrimination: emptyCategory("discrimination"),
+      seniority: emptyCategory("seniority"),
+      tailoring: emptyCategory("tailoring"),
       jobMatch: {
         id: "jobMatch",
         label: "Job Match",

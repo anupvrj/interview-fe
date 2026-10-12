@@ -93,3 +93,23 @@ export const clerkAuthAppearance: Appearance = {
       "whitespace-nowrap rounded-md bg-info-muted px-2 py-0.5 text-[11px] font-medium normal-case tracking-normal text-primary",
   },
 };
+
+/** Institute staff invite: password / email OTP only — no Google, GitHub, or LinkedIn. */
+export const clerkStaffInviteAppearance: Appearance = {
+  ...clerkAuthAppearance,
+  layout: {
+    ...clerkAuthAppearance.layout,
+    socialButtonsPlacement: "bottom",
+    socialButtonsVariant: "blockButton",
+    showOptionalFields: false,
+  },
+  elements: {
+    ...clerkAuthAppearance.elements,
+    socialButtons: "hidden",
+    socialButtonsBlockButton: "hidden",
+    socialButtonsBlockButtonText: "hidden",
+    dividerRow: "hidden",
+    dividerLine: "hidden",
+    dividerText: "hidden",
+  },
+};

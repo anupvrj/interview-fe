@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useUser, useClerk } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -32,6 +32,7 @@ import {
   AlertTriangle,
   FileEdit,
   Star,
+  Building2,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
@@ -49,6 +50,8 @@ import { ProfileSkillsEditor } from "@/components/profile/ProfileSkillsEditor";
 import { ProfileDesignedResumePicker, type ProfileDesignedResumePickerHandle } from "@/components/profile/ProfileDesignedResumePicker";
 import { ProfilePhoneFields } from "@/components/profile/ProfilePhoneFields";
 import { ProfileWelcomeHero } from "@/components/profile/ProfileWelcomeHero";
+import { InstitutionStaffProfileView } from "@/components/profile/InstitutionStaffProfileView";
+import { useActiveRole } from "@/components/roles/ActiveRoleProvider";
 import { IxScoreSummaryCard } from "@/components/ix-score/IxScoreSummaryCard";
 import { CandidateStatusInlineSelect } from "@/components/recruiter/CandidateStatusInlineSelect";
 import { CANDIDATE_STATUS_LABELS } from "@/lib/recruiter";
@@ -58,6 +61,7 @@ import {
   toProfileAffiliationPayload,
   type AffiliationValue,
 } from "@/lib/affiliation-payload";
+import { isInstituteManagedCandidate } from "@/lib/institution-flags";
 import { getApiErrorMessage } from "@/lib/api-error-message";
 import { formatDate, cn } from "@/lib/utils";
 import { parseStoredPhone, formatPhoneForStorage, isValidPhoneForStorage } from "@/lib/phone-utils";
@@ -171,6 +175,7 @@ export default function ProfilePage() {
   const { user: clerkUser, isLoaded } = useUser();
   const { signOut } = useClerk();
   const router = useRouter();
+  const roleCtx = useActiveRole();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -431,12 +436,12 @@ export default function ProfilePage() {
     setError("");
   };
 
-  const handleDefaultResumeChange = (resume: Resume | null) => {
+  const handleDefaultResumeChange = useCallback((resume: Resume | null) => {
     setDefaultDesignedResume(resume);
     setApplicationForm((prev) =>
       prefillApplicationProfileFromResume(prev, resume?.content?.personalInfo),
     );
-  };
+  }, []);
 
   const handleDeleteProfile = async () => {
     try {
@@ -551,6 +556,26 @@ export default function ProfilePage() {
   })();
 
   const hasActiveResume = Boolean(user?.resume || defaultDesignedResume);
+  const managedByInstitute = isInstituteManagedCandidate(user);
+
+  if (roleCtx && !roleCtx.ready) {
+    return (
+      <div className="flex min-h-[400px] items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="mx-auto mb-4 h-12 w-12 animate-spin text-[#7367F0]" />
+          <p className="text-sm text-muted-foreground">Loading your profile…</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (
+    roleCtx?.ready &&
+    roleCtx.activeRole === "institution_admin" &&
+    roleCtx.profile
+  ) {
+    return <InstitutionStaffProfileView profile={roleCtx.profile} />;
+  }
 
   if (!isLoaded || loading) {
     return (
@@ -568,6 +593,21 @@ export default function ProfilePage() {
       <ProfileWelcomeHero
         firstName={clerkUser?.firstName || user?.name?.split(/\s+/)[0] || ""}
       />
+
+      {managedByInstitute ? (
+        <div className="flex items-start gap-3 rounded-xl border border-[#7367F0]/25 bg-[#7367F0]/8 px-4 py-3">
+          <Building2 className="mt-0.5 h-5 w-5 shrink-0 text-[#7367F0]" />
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-foreground">
+              Your account is managed by {user?.institutionName || "your institute"}
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Name, email, and institute membership are set by your institute. You can still update
+              the rest of your profile.
+            </p>
+          </div>
+        </div>
+      ) : null}
 
       {(error || success) && (
         <div className="space-y-2">
@@ -707,7 +747,7 @@ export default function ProfilePage() {
                           }))
                         }
                         className={profileInputClass}
-                        disabled={savingProfileInfo}
+                        disabled={savingProfileInfo || managedByInstitute}
                       />
                     </div>
                     <div className={profileFormFieldClass}>
@@ -724,7 +764,7 @@ export default function ProfilePage() {
                           }))
                         }
                         className={profileInputClass}
-                        disabled={savingProfileInfo}
+                        disabled={savingProfileInfo || managedByInstitute}
                       />
                     </div>
                     <div className={profileFormFieldClass}>
@@ -741,7 +781,7 @@ export default function ProfilePage() {
                           }))
                         }
                         className={profileInputClass}
-                        disabled={savingProfileInfo}
+                        disabled={savingProfileInfo || managedByInstitute}
                       />
                     </div>
                     <div className={profileFormFieldClass}>
@@ -758,7 +798,7 @@ export default function ProfilePage() {
                           }))
                         }
                         className={profileInputClass}
-                        disabled={savingProfileInfo}
+                        disabled={savingProfileInfo || managedByInstitute}
                       />
                     </div>
                     <div className={profileFormFieldClass}>
@@ -775,7 +815,7 @@ export default function ProfilePage() {
                           }))
                         }
                         className={profileInputClass}
-                        disabled={savingProfileInfo}
+                        disabled={savingProfileInfo || managedByInstitute}
                       />
                     </div>
                     <div className={profileFormFieldClass}>
@@ -1310,13 +1350,22 @@ export default function ProfilePage() {
                     </div>
                   ) : null}
 
-                  <InstitutionAffiliationFields
-                    value={profileData.affiliation}
-                    onChange={(affiliation) =>
-                      setProfileData((prev) => ({ ...prev, affiliation }))
-                    }
-                    disabled={savingProfile}
-                  />
+                  {managedByInstitute ? (
+                    <div className="rounded-lg border border-border/60 bg-muted/20 px-3 py-2.5 text-sm">
+                      <p className="text-xs font-medium text-muted-foreground">Institute</p>
+                      <p className="font-medium text-foreground">
+                        {user?.institutionName || "Your institute"}
+                      </p>
+                    </div>
+                  ) : (
+                    <InstitutionAffiliationFields
+                      value={profileData.affiliation}
+                      onChange={(affiliation) =>
+                        setProfileData((prev) => ({ ...prev, affiliation }))
+                      }
+                      disabled={savingProfile}
+                    />
+                  )}
 
                   <div className="space-y-3">
                     <Label className={profileFormLabelClass}>Skills</Label>
