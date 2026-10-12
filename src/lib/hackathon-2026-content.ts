@@ -60,7 +60,7 @@ export const HACKATHON_HERO = {
   badgeRight: "Product Launch",
   headlineLead: "InterviewTrix:",
   headlineAccent: "The Hiring Games",
-  copy: "AI is reshaping hiring. Challenge AI in our 7-day hackathon, win exciting prizes, and learn from industry experts how to land your next job.",
+  copy: "AI is reshaping hiring. Challenge AI in our {days}-day hackathon, win exciting prizes, and learn from industry experts how to land your next job.",
   registerLabel: "Register Now for Free",
   startChallengeLabel: "Start the Challenge",
   offerWas: "₹799",
