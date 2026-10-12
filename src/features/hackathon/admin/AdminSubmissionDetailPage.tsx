@@ -2,8 +2,22 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, ExternalLink, FileText, Instagram, Linkedin, Loader2, Mic, PlayCircle, X } from "lucide-react";
+import {
+  Check,
+  ExternalLink,
+  FileText,
+  Instagram,
+  Linkedin,
+  Loader2,
+  Mic,
+  PlayCircle,
+  ShieldAlert,
+  ShieldCheck,
+  Trash2,
+  X,
+} from "lucide-react";
 import { toast } from "sonner";
 import { SuperAdminPageHeader } from "@/components/super-admin/SuperAdminPageHeader";
 import { Badge } from "@/components/ui/badge";
@@ -78,6 +92,70 @@ export function AdminSubmissionDetailPage({
     queryFn: () => hackathonAdminApi.get(hackathonId),
   });
   const [reviewNote, setReviewNote] = useState("");
+  const router = useRouter();
+  const listKey = ["admin", "hackathons", hackathonId, "participants"];
+
+  const refreshAfterModeration = async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: key }),
+      queryClient.invalidateQueries({ queryKey: listKey }),
+      queryClient.invalidateQueries({ queryKey: hackathonKeys.adminOne(hackathonId) }),
+    ]);
+  };
+
+  const suspend = useMutation({
+    mutationFn: (note?: string) => hackathonAdminApi.suspendParticipant(hackathonId, participantId, note),
+    onSuccess: async () => {
+      await refreshAfterModeration();
+      toast.success("Participant suspended. Their challenges are locked and they see the suspension notice.");
+    },
+    onError: (err) => toast.error(toHackathonError(err).message),
+  });
+
+  const unsuspend = useMutation({
+    mutationFn: () => hackathonAdminApi.unsuspendParticipant(hackathonId, participantId),
+    onSuccess: async () => {
+      await refreshAfterModeration();
+      toast.success("Suspension lifted. The participant can continue where they left off.");
+    },
+    onError: (err) => toast.error(toHackathonError(err).message),
+  });
+
+  const remove = useMutation({
+    mutationFn: () => hackathonAdminApi.deleteParticipant(hackathonId, participantId),
+    onSuccess: async () => {
+      queryClient.removeQueries({ queryKey: key });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: listKey }),
+        queryClient.invalidateQueries({ queryKey: hackathonKeys.adminOne(hackathonId) }),
+      ]);
+      toast.success("Participant removed. They can register for this hackathon again.");
+      router.push(`${HACKATHON_ADMIN_PATH}/${hackathonId}`);
+    },
+    onError: (err) => toast.error(toHackathonError(err).message),
+  });
+
+  const moderating = suspend.isPending || unsuspend.isPending || remove.isPending;
+
+  const confirmSuspend = (who: string) => {
+    const note = window.prompt(
+      `Suspend ${who}?\n\nEvery challenge locks and they see: "Your hackathon has been suspended due to some suspicious activity found. Drop us an email at info@interviewtrix.com."\n\nInternal reason (optional, only admins see it):`,
+      "",
+    );
+    if (note === null) return;
+    suspend.mutate(note.trim() || undefined);
+  };
+
+  const confirmUnsuspend = (who: string) => {
+    if (window.confirm(`Lift the suspension for ${who}? Their entry goes back to where it was.`)) unsuspend.mutate();
+  };
+
+  const confirmRemove = (who: string) => {
+    const ok = window.confirm(
+      `Remove ${who} from this hackathon?\n\nTheir entry, resume, interview and social submissions for this hackathon are deleted and can't be restored. Their InterviewTrix account is not affected, and they can register again from scratch.`,
+    );
+    if (ok) remove.mutate();
+  };
 
   const reset = useMutation({
     mutationFn: ({ challengeId, slot }: { challengeId: string; slot?: number }) =>
@@ -135,6 +213,7 @@ export function AdminSubmissionDetailPage({
 
   const { participant, resume, interviews, social } = detail.data;
   const profile = participant.profileSnapshot;
+  const who = profile?.name || profile?.email || "this participant";
   const targets = eventTargets(overview.data);
   const requiredCount = overview.data?.interviewConfig.requiredCount ?? 2;
   const socialEnabled = overview.data?.socialConfig.enabled !== false;
@@ -159,14 +238,41 @@ export function AdminSubmissionDetailPage({
           .filter(Boolean)
           .join(" · ")}
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {participantStatusBadge(participant.status)}
             <Button asChild variant="outline" size="sm">
               <Link href={`/super-admin/users/${participant.userId}`}>User profile</Link>
             </Button>
+            {participant.status === "suspended" ? (
+              <Button variant="outline" size="sm" disabled={moderating} onClick={() => confirmUnsuspend(who)}>
+                {unsuspend.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
+                Unsuspend
+              </Button>
+            ) : participant.status !== "withdrawn" ? (
+              <Button variant="outline" size="sm" disabled={moderating} onClick={() => confirmSuspend(who)}>
+                {suspend.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldAlert className="h-4 w-4" />}
+                Suspend
+              </Button>
+            ) : null}
+            <Button variant="destructive" size="sm" disabled={moderating} onClick={() => confirmRemove(who)}>
+              {remove.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+              Remove from hackathon
+            </Button>
           </div>
         }
       />
+
+      {participant.status === "suspended" ? (
+        <div className="flex items-start gap-2 rounded-lg border border-amber-300/70 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-200">
+          <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+          <p>
+            <span className="font-semibold">Suspended</span>
+            {participant.suspension?.at ? ` since ${formatIst(participant.suspension.at)}` : ""}. All challenges are locked
+            and the participant sees the suspension notice.
+            {participant.suspension?.note ? ` Reason: “${participant.suspension.note}”.` : ""}
+          </p>
+        </div>
+      ) : null}
 
       <p className="text-xs text-muted-foreground">
         Registered {formatIst(participant.registeredAt)}
