@@ -1,13 +1,13 @@
 export const HACKATHON_2026_PATH = "/hiring-games-hackathon-2026";
 
 /** Single source of truth for the event window (IST). Display strings, countdown and JSON-LD derive from this. */
-/** Challenge window. Submissions open 15 Oct and close at the end of 24 Oct IST. */
+/** Challenge window fallback. The landing page prefers the published startsAt/endsAt. */
 export const HACKATHON_CHALLENGE = {
-  startISO: "2026-10-15T00:00:00+05:30",
-  endISO: "2026-10-24T23:59:00+05:30",
-  dateLabel: "15–24 Oct 2026",
-  publicRangeLabel: "15th-24th Oct 2026",
-  timeLabel: "Submit by 24 Oct, 11:59 PM IST",
+  startISO: "2026-10-17T00:00:00+05:30",
+  endISO: "2026-10-26T23:59:00+05:30",
+  dateLabel: "17–26 Oct 2026",
+  publicRangeLabel: "17th-26th Oct 2026",
+  timeLabel: "Submit by 26 Oct, 11:59 PM IST",
 } as const;
 
 /** Live launch. Winners are announced here. The joining link is a later email. */
@@ -25,7 +25,7 @@ export const HACKATHON_EVENT = HACKATHON_LAUNCH;
 export const HACKATHON_2026_META = {
   title: "InterviewTrix: The Hiring Games — Free Hiring Hackathon & Product Launch",
   description:
-    "AI is changing hiring, jobs and work. Join InterviewTrix: The Hiring Games, a free self-paced hackathon (15–24 Oct 2026), then learn from leading software industry experts at our online launch on 31 Oct. ₹20,000 prize pool.",
+    "AI is changing hiring, jobs and work. Join InterviewTrix: The Hiring Games, a free self-paced hackathon (17–26 Oct 2026), then learn from leading software industry experts at our online launch on 31 Oct. ₹20,000 prize pool.",
   keywords: [
     "Interview Trix hackathon",
     "career hackathon 2026",
@@ -102,8 +102,8 @@ export const HACKATHON_STEPS = [
   },
   {
     num: "3",
-    title: "Score 70%+ on 2 Mock Interviews",
-    body: "Attempt two full 15-minute mock interviews and score at least 70% on each.",
+    title: "Score Maximum on 2 AI Interviews",
+    body: "Attempt two full 15-minute AI interviews and score your maximum to win the hackathon.",
     icon: "MessageSquareText",
     accent: "amber",
   },
@@ -121,9 +121,9 @@ export const HACKATHON_TIMELINE = {
   titleAccent: "Timeline",
   copy: "Key dates for your journey from registration to the final round.",
   items: [
-    { date: "15 Oct 2026", title: "Registrations", body: "Sign up and lock in your spot." },
-    { date: "15–24 Oct 2026", title: "Complete Round 1 & 2", body: "Submit your resume and finish both mock interviews." },
-    { date: "25–30 Oct 2026", title: "Review & Shortlisting", body: "We review submissions and shortlist the top performers." },
+    { date: "17 Oct 2026", title: "Registrations", body: "Sign up and lock in your spot." },
+    { date: "17–26 Oct 2026", title: "Complete Round 1 & 2", body: "Submit your resume and finish both mock interviews." },
+    { date: "27–30 Oct 2026", title: "Review & Shortlisting", body: "We review submissions and shortlist the top performers." },
     { date: "31 Oct 2026", title: "Winner Announcement", body: "Join the live launch as winners are announced." },
   ],
 } as const;
@@ -144,8 +144,8 @@ export const HACKATHON_WHO = {
       icon: "Briefcase",
     },
     {
-      title: "Early Professionals",
-      body: "0–5 years of work experience.",
+      title: "All Professionals",
+      body: "Any professional looking for a job change.",
       icon: "Users",
     },
   ],

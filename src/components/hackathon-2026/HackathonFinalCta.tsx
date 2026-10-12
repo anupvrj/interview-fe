@@ -4,6 +4,7 @@ import { Award, Calendar, Trophy, Zap } from "lucide-react";
 import { HackathonRegisterButton } from "@/components/hackathon-2026/HackathonRegisterButton";
 import { HackathonRegisterHint } from "@/components/hackathon-2026/HackathonRegisterContext";
 import { Reveal, Ribbon, useLoopingOfferCountdown } from "@/components/hackathon-2026/HackathonMotion";
+import { useLandingChallengeWindow } from "@/components/hackathon-2026/useLandingChallengeWindow";
 import { HACKATHON_FINAL_CTA, HACKATHON_HERO } from "@/lib/hackathon-2026-content";
 
 const POINTS = [
@@ -14,6 +15,7 @@ const POINTS = [
 
 export function HackathonFinalCta() {
   const offerTime = useLoopingOfferCountdown();
+  const challenge = useLandingChallengeWindow();
   const title = HACKATHON_FINAL_CTA.title;
   const splitAt = title.lastIndexOf(" ");
   const titleLead = title.slice(0, splitAt);
@@ -51,10 +53,11 @@ export function HackathonFinalCta() {
                 <ul className="mt-5 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-[13px] font-medium text-[#e2ebf5] lg:justify-start">
                   {HACKATHON_FINAL_CTA.points.map((point, index) => {
                     const { icon: Icon, tone } = POINTS[index];
+                    const label = index === 0 ? `Hackathon - ${challenge.publicRangeLabel}` : point;
                     return (
                       <li key={point} className="inline-flex items-center gap-2">
                         <Icon className={`size-4 shrink-0 ${tone}`} strokeWidth={2} aria-hidden />
-                        {point}
+                        {label}
                       </li>
                     );
                   })}

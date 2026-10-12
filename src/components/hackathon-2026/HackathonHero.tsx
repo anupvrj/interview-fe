@@ -22,7 +22,8 @@ import {
   useLoopingOfferCountdown,
   useParallax,
 } from "@/components/hackathon-2026/HackathonMotion";
-import { HACKATHON_CHALLENGE, HACKATHON_HERO, HACKATHON_LAUNCH } from "@/lib/hackathon-2026-content";
+import { useLandingChallengeWindow } from "@/components/hackathon-2026/useLandingChallengeWindow";
+import { HACKATHON_HERO, HACKATHON_LAUNCH } from "@/lib/hackathon-2026-content";
 import { cn } from "@/lib/utils";
 
 const FLOAT_ICONS = { FileText, Mic, Trophy } as const;
@@ -90,6 +91,7 @@ function FloatCard({
 export function HackathonHero() {
   const visualRef = useParallax<HTMLDivElement>();
   const offerTime = useLoopingOfferCountdown();
+  const challenge = useLandingChallengeWindow();
 
   return (
     <section className="relative overflow-hidden pt-8 sm:pt-10 lg:pt-6">
@@ -132,7 +134,7 @@ export function HackathonHero() {
             <ul className="mt-7 flex flex-wrap items-center justify-center gap-x-1.5 gap-y-2.5 text-[11px] font-medium tracking-tight text-white min-[380px]:gap-x-2 min-[380px]:text-xs min-[380px]:tracking-normal sm:gap-x-6 sm:gap-y-3 sm:text-[15px] lg:justify-start lg:gap-x-7">
               <li className="inline-flex basis-full items-center justify-center gap-2 sm:basis-auto sm:justify-start sm:gap-2.5">
                 <Calendar className="size-4 text-[#2e9bff] sm:size-5" aria-hidden />
-                Hackathon {HACKATHON_CHALLENGE.publicRangeLabel}
+                Hackathon {challenge.publicRangeLabel}
               </li>
               <li className="inline-flex items-center gap-2 sm:gap-2.5">
                 <Clock className="size-4 text-[#2e9bff] sm:size-5" aria-hidden />
@@ -324,20 +326,25 @@ export function HackathonHero() {
   );
 }
 
-function countdownTarget(now = Date.now()): { startISO: string; endISO: string; label: string } {
-  const challengeStart = Date.parse(HACKATHON_CHALLENGE.startISO);
-  const challengeEnd = Date.parse(HACKATHON_CHALLENGE.endISO);
+function countdownTarget(
+  startISO: string,
+  endISO: string,
+  now = Date.now(),
+): { startISO: string; endISO: string; label: string } {
+  const challengeStart = Date.parse(startISO);
+  const challengeEnd = Date.parse(endISO);
   if (now < challengeStart) {
-    return { startISO: HACKATHON_CHALLENGE.startISO, endISO: HACKATHON_LAUNCH.endISO, label: "Challenge opens in" };
+    return { startISO, endISO: HACKATHON_LAUNCH.endISO, label: "Challenge opens in" };
   }
   if (now < challengeEnd) {
-    return { startISO: HACKATHON_CHALLENGE.endISO, endISO: HACKATHON_LAUNCH.endISO, label: "Submissions close in" };
+    return { startISO: endISO, endISO: HACKATHON_LAUNCH.endISO, label: "Submissions close in" };
   }
   return { startISO: HACKATHON_LAUNCH.startISO, endISO: HACKATHON_LAUNCH.endISO, label: "Launch in" };
 }
 
 function HeroTicker() {
-  const target = countdownTarget();
+  const challenge = useLandingChallengeWindow();
+  const target = countdownTarget(challenge.startISO, challenge.endISO);
   const countdown = useCountdown(target.startISO, target.endISO);
   const items = [...HACKATHON_HERO.marquee, ...HACKATHON_HERO.marquee];
 
