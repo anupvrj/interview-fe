@@ -32,11 +32,20 @@ const STATUS_LABEL: Record<ParticipantStatus, string> = {
   completed: "Completed",
   disqualified: "Disqualified",
   withdrawn: "Withdrawn",
+  suspended: "Suspended",
 };
 
 export function participantStatusBadge(status: ParticipantStatus) {
   const variant =
-    status === "completed" ? "success" : status === "in_progress" ? "info" : status === "registered" ? "neutral" : "danger";
+    status === "completed"
+      ? "success"
+      : status === "in_progress"
+        ? "info"
+        : status === "registered"
+          ? "neutral"
+          : status === "suspended"
+            ? "warning"
+            : "danger";
   return <Badge variant={variant}>{STATUS_LABEL[status]}</Badge>;
 }
 

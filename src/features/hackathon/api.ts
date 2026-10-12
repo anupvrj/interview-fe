@@ -12,7 +12,13 @@ export type LockReason =
   | "attempt_limit"
   | "below_pass_mark"
   | "inactive_entry";
-export type ParticipantStatus = "registered" | "in_progress" | "completed" | "disqualified" | "withdrawn";
+export type ParticipantStatus =
+  | "registered"
+  | "in_progress"
+  | "completed"
+  | "disqualified"
+  | "withdrawn"
+  | "suspended";
 export type SocialReviewStatus = "none" | "pending" | "approved" | "rejected";
 export type HackathonChallengeKind = "resume" | "screening" | "coding" | "system_design" | "social";
 
@@ -100,6 +106,9 @@ export interface HackathonMe {
     registeredAt: string;
     completedAt: string | null;
     remindersOptOut?: boolean;
+    /** Frozen by an admin: every challenge is locked and suspendedMessage explains why. */
+    suspended?: boolean;
+    suspendedMessage?: string | null;
   } | null;
   profile: {
     complete: boolean;
@@ -330,6 +339,7 @@ export interface AdminParticipantRow {
   profileSnapshot?: { name?: string; email?: string; userType?: string; targetJobRole?: string; experience?: number };
   registeredAt: string;
   completedAt?: string | null;
+  suspension?: { at: string; byUserId: string; previousStatus: ParticipantStatus; note?: string } | null;
   summary?: {
     resumeAtsScore: number | null;
     interview1Score: number | null;
@@ -534,6 +544,16 @@ export const hackathonAdminApi = {
       { decision, note },
     );
     return res.data.data;
+  },
+  suspendParticipant: async (hackathonId: string, participantId: string, note?: string): Promise<void> => {
+    await apiClient.post(`${adminBase}/${hackathonId}/participants/${participantId}/suspend`, note ? { note } : {});
+  },
+  unsuspendParticipant: async (hackathonId: string, participantId: string): Promise<void> => {
+    await apiClient.post(`${adminBase}/${hackathonId}/participants/${participantId}/unsuspend`, {});
+  },
+  /** Removes the entry and its submissions; the user can register again. */
+  deleteParticipant: async (hackathonId: string, participantId: string): Promise<void> => {
+    await apiClient.delete(`${adminBase}/${hackathonId}/participants/${participantId}`);
   },
   exportCsv: async (hackathonId: string): Promise<Blob> => {
     const res = await apiClient.get<Blob>(`${adminBase}/${hackathonId}/export.csv`, { responseType: "blob" });

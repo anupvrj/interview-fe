@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
 import { useQueryClient } from "@tanstack/react-query";
-import { AlertCircle, CalendarClock, CheckCircle2, Circle, Flag, Loader2, Users } from "lucide-react";
+import { AlertCircle, CalendarClock, CheckCircle2, Circle, Flag, Loader2, Mail, ShieldAlert, Users } from "lucide-react";
 import {
   consumePostSignInReturnUrl,
   getSignInUrlWithRedirect,
@@ -25,6 +25,9 @@ import { InterviewChallenge } from "../components/InterviewChallenge";
 import { PhaseNotice } from "../components/PhaseNotice";
 import { ResumeChallenge, hkSecondaryButton } from "../components/ResumeChallenge";
 import { SocialChallenge } from "../components/SocialChallenge";
+
+const SUSPENDED_CONTACT_EMAIL = "info@interviewtrix.com";
+const SUSPENDED_FALLBACK = `Your hackathon has been suspended due to some suspicious activity found. Drop us an email at ${SUSPENDED_CONTACT_EMAIL}.`;
 
 function challengeKind(challenge: HackathonMe["hackathon"]["challenges"][number]): "resume" | "screening" | "coding" | "system_design" | "social" {
   if (challenge.kind) return challenge.kind;
@@ -255,6 +258,22 @@ function DashboardContent() {
         >
           Try again
         </button>
+      </PhaseNotice>
+    );
+  }
+
+  if (me.participant?.suspended) {
+    return (
+      <PhaseNotice
+        icon={ShieldAlert}
+        tone="rose"
+        title="Hackathon suspended"
+        message={me.participant.suspendedMessage ?? SUSPENDED_FALLBACK}
+      >
+        <a href={`mailto:${SUSPENDED_CONTACT_EMAIL}`} className={`${hkSecondaryButton} mt-6`}>
+          <Mail className="size-4" aria-hidden />
+          {SUSPENDED_CONTACT_EMAIL}
+        </a>
       </PhaseNotice>
     );
   }
