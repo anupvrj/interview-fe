@@ -226,10 +226,10 @@ export function HackathonHeader() {
 
           <div className="mt-auto border-t border-[#132c48] p-5">
             <p className="mb-3 text-xs text-[#7f98b3]">
-              Challenge {HACKATHON_CHALLENGE.dateLabel} · Launch {HACKATHON_LAUNCH.dateLabel}
+              Hackathon {HACKATHON_CHALLENGE.publicRangeLabel} · Launch {HACKATHON_LAUNCH.dateLabel}
             </p>
             <HackathonRegisterButton className="w-full" onClick={closeMenu}>
-              Register Now — It’s Free
+              Register Now for Free
             </HackathonRegisterButton>
           </div>
         </aside>

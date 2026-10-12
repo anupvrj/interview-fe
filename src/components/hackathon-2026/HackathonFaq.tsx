@@ -17,7 +17,7 @@ export function HackathonFaq() {
         <Reveal className="mb-10 text-center">
           <p className="hk-eyebrow">FAQ</p>
           <h2 className="mt-2 text-[clamp(1.75rem,3.6vw,2.5rem)] font-extrabold tracking-[-0.04em] text-white">
-            Questions, <span className="hk-grad-text">answered</span>
+            Frequently Asked <span className="hk-grad-text">Questions</span>
           </h2>
         </Reveal>
 
