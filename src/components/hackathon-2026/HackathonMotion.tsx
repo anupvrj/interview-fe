@@ -172,8 +172,8 @@ export function useCountdown(startISO: string, endISO: string): CountdownState {
   return state;
 }
 
-/** Wall-clock loop so the offer restarts at 4:00 every cycle, including after refresh. */
-const OFFER_LOOP_SECONDS = 4 * 60;
+/** Wall-clock loop so the offer restarts at 24:00:00 every cycle, including after refresh. */
+const OFFER_LOOP_SECONDS = 24 * 60 * 60;
 
 export function useLoopingOfferCountdown(durationSeconds = OFFER_LOOP_SECONDS) {
   const [secondsLeft, setSecondsLeft] = useState(durationSeconds);
@@ -189,9 +189,10 @@ export function useLoopingOfferCountdown(durationSeconds = OFFER_LOOP_SECONDS) {
     return () => window.clearInterval(id);
   }, [durationSeconds]);
 
-  const minutes = Math.floor(secondsLeft / 60);
+  const hours = Math.floor(secondsLeft / 3600);
+  const minutes = Math.floor((secondsLeft % 3600) / 60);
   const seconds = secondsLeft % 60;
-  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+  return [hours, minutes, seconds].map((part) => String(part).padStart(2, "0")).join(":");
 }
 
 /** Subtle pointer parallax: writes --px/--py (-1…1) on the element. Desktop pointers only. */

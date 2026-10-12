@@ -2,12 +2,18 @@
 
 import { FileText, SquareUser, Trophy, UsersRound, type LucideIcon } from "lucide-react";
 import { Reveal, Ribbon } from "@/components/hackathon-2026/HackathonMotion";
+import { useLandingChallengeWindow } from "@/components/hackathon-2026/useLandingChallengeWindow";
 import { HACKATHON_TIMELINE } from "@/lib/hackathon-2026-content";
 
 const STEP_ICONS: readonly LucideIcon[] = [FileText, SquareUser, UsersRound, Trophy];
 
 export function HackathonTimeline() {
-  const { items } = HACKATHON_TIMELINE;
+  const challenge = useLandingChallengeWindow();
+  const items = HACKATHON_TIMELINE.items.map((item, index) => {
+    if (index === 0) return { ...item, date: challenge.registrationDateLabel };
+    if (index === 1) return { ...item, date: challenge.dateLabel };
+    return item;
+  });
 
   return (
     <section id="timeline" className="relative scroll-mt-20 overflow-hidden py-16 sm:py-20">

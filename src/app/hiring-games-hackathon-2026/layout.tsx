@@ -101,7 +101,7 @@ export default function Hackathon2026Layout({
           "@context": "https://schema.org",
           "@type": "Event",
           name: "InterviewTrix: The Hiring Games — Hackathon Challenge",
-          description: "Submit the resume, mock interview, and social challenges between 15 and 24 October 2026.",
+          description: "Submit the resume, mock interview, and social challenges between 17 and 26 October 2026.",
           startDate: HACKATHON_CHALLENGE.startISO,
           endDate: HACKATHON_CHALLENGE.endISO,
           eventStatus: "https://schema.org/EventScheduled",
