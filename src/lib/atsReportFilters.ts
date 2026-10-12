@@ -1,11 +1,11 @@
 import type { ATSCheckId, ATSCheckResult, ATSReportV3 } from "@/types/atsReport";
 import { CATEGORY_ORDER } from "@/types/atsReport";
+import { recomputeAtsHeadlineScore } from "@/lib/atsReportNormalize";
 
 function softSuppressCheck(check: ATSCheckResult): ATSCheckResult {
   return {
     ...check,
     status: "pass",
-    score: Math.max(check.score, 85),
     issueCount: 0,
     issues: [],
     summary: {
@@ -54,9 +54,10 @@ export function filterSuppressedChecks(
     };
   }
 
-  return {
+  const next: ATSReportV3 = {
     ...report,
     issueCount: totalIssueCount,
     categories,
   };
+  return { ...next, score: recomputeAtsHeadlineScore(next) };
 }

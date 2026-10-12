@@ -382,7 +382,7 @@ export default function NewInterviewPage() {
     void voiceApi
       .listProviders()
       .then(({ providers, defaultProvider }) => {
-        const enabled = providers.filter((p) => p.enabled);
+        const enabled = providers.filter((p) => p.enabled && p.id === "sarvam");
         if (enabled.length > 0) {
           const nextOptions = enabled.map((p) => ({
             id: p.id,
