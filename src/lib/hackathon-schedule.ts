@@ -9,6 +9,8 @@ export type ChallengeWindow = {
   publicRangeLabel: string;
   /** e.g. 17 Oct 2026 */
   registrationDateLabel: string;
+  /** Inclusive IST calendar days from start through end. */
+  dayCount: number;
 };
 
 const IST = "Asia/Kolkata";
@@ -24,6 +26,23 @@ function istDate(iso: string): IstDate {
   }).formatToParts(new Date(iso));
   const get = (type: Intl.DateTimeFormatPartTypes) => parts.find((part) => part.type === type)?.value ?? "";
   return { day: Number(get("day")), month: get("month"), year: get("year") };
+}
+
+function inclusiveDays(startISO: string, endISO: string): number {
+  const partsOf = (iso: string) => {
+    const parts = new Intl.DateTimeFormat("en-GB", {
+      timeZone: IST,
+      day: "numeric",
+      month: "numeric",
+      year: "numeric",
+    }).formatToParts(new Date(iso));
+    const value = (type: Intl.DateTimeFormatPartTypes) => Number(parts.find((part) => part.type === type)?.value);
+    return { year: value("year"), month: value("month"), day: value("day") };
+  };
+  const start = partsOf(startISO);
+  const end = partsOf(endISO);
+  const span = Date.UTC(end.year, end.month - 1, end.day) - Date.UTC(start.year, start.month - 1, start.day);
+  return Math.round(span / 86_400_000) + 1;
 }
 
 function ordinal(day: number): string {
@@ -60,5 +79,6 @@ export function formatChallengeWindow(startISO: string, endISO: string): Challen
     dateLabel,
     publicRangeLabel,
     registrationDateLabel: `${start.day} ${start.month} ${start.year}`,
+    dayCount: inclusiveDays(startISO, endISO),
   };
 }
