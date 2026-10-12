@@ -6,6 +6,7 @@ export const HACKATHON_CHALLENGE = {
   startISO: "2026-10-15T00:00:00+05:30",
   endISO: "2026-10-24T23:59:00+05:30",
   dateLabel: "15–24 Oct 2026",
+  publicRangeLabel: "15th-24th Oct 2026",
   timeLabel: "Submit by 24 Oct, 11:59 PM IST",
 } as const;
 
@@ -59,16 +60,20 @@ export const HACKATHON_HERO = {
   badgeRight: "Product Launch",
   headlineLead: "InterviewTrix:",
   headlineAccent: "The Hiring Games",
-  copy: "AI is changing hiring and how we work. Learn from industry experts what it takes to land your next role.",
-  registerLabel: "Register Now — It’s Free",
+  copy: "AI is reshaping hiring. Challenge AI in our 7-day hackathon, win exciting prizes, and learn from industry experts how to land your next job.",
+  registerLabel: "Register Now for Free",
   startChallengeLabel: "Start the Challenge",
-  checks: ["Face AI Interviewer", "Get Interview Tricks from Experts", "Win Exciting Prizes"],
+  offerWas: "₹799",
+  offerNow: "FREE",
+  offerEndsLabel: "Offer ends in",
+  seatNoteLead: "Limited seats left.",
+  seatNote: "Register before this offer ends.",
   floatCards: [
     { title: "Beat the ATS", subtitle: "Score 80+ to unlock interviews", icon: "FileText", tone: "blue" },
     { title: "Face an AI interviewer", subtitle: "Get instant feedback", icon: "Mic", tone: "rose" },
     { title: "Get rewarded", subtitle: "Top 3 performers rewarded", icon: "Trophy", tone: "cyan" },
   ],
-  noteTop: ["Practice Today.", "Perform Tomorrow."],
+  noteTop: ["Are you Ready", "for this?"],
   noteSide: ["Your next interviewer", "might be an AI."],
   marquee: [
     "Face AI Interviewer",
@@ -308,6 +313,9 @@ export const HACKATHON_FAQ = [
 export const HACKATHON_FINAL_CTA = {
   title: "Ready to take the challenge?",
   copy: "Submit your resume, unlock the interview round, and compete for the live final.",
-  dateLabel: "Oct 15 – 24, 2026",
-  prizeNote: "Exciting prizes await",
+  points: [
+    `Hackathon - ${HACKATHON_CHALLENGE.publicRangeLabel}`,
+    "Exciting prizes await",
+    "Winner Announcement",
+  ],
 } as const;

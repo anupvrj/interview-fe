@@ -1,6 +1,9 @@
 import type { HackathonMe, LockReason } from "./api";
 
-export const PROFILE_MISSING_LABELS: Record<HackathonMe["profile"]["missing"][number], string> = {
+export const PROFILE_MISSING_LABELS: Record<
+  HackathonMe["profile"]["missing"][number],
+  string
+> = {
   onboarding: "profile details",
   userType: "profile type",
   targetJobRole: "the role you're applying for",
@@ -9,7 +12,9 @@ export const PROFILE_MISSING_LABELS: Record<HackathonMe["profile"]["missing"][nu
   college: "your college",
 };
 
-export function formatProfileMissing(missing: HackathonMe["profile"]["missing"]): string {
+export function formatProfileMissing(
+  missing: HackathonMe["profile"]["missing"],
+): string {
   const labels = missing.map((key) => PROFILE_MISSING_LABELS[key]);
   if (labels.length === 0) return "your profile details";
   if (labels.length === 1) return labels[0];
@@ -24,8 +29,8 @@ export const PHASE_COPY = {
 } as const;
 
 export const CTA_LABELS = {
-  register: "Register Now — It’s Free",
-  getReady: "Get ready",
+  register: "Register Now for Free",
+  getReady: "Register Now for Free",
   goToChallenges: "Go to challenges",
   seeResults: "See your results",
   full: "Hackathon is full",
@@ -35,14 +40,17 @@ export const CTA_LABELS = {
 /** Short forms of CTA_LABELS for tight spots (e.g. the mobile header). */
 export const CTA_SHORT_LABELS: Record<keyof typeof CTA_LABELS, string> = {
   register: "Register",
-  getReady: "Get ready",
+  getReady: "Register Now",
   goToChallenges: "Challenges",
   seeResults: "Results",
   full: "Full",
   ended: "Ended",
 };
 
-export function lockReasonText(reason: LockReason, challengeNumber: number): string {
+export function lockReasonText(
+  reason: LockReason,
+  challengeNumber: number,
+): string {
   switch (reason) {
     case "not_started":
       return PHASE_COPY.upcoming;
@@ -68,7 +76,8 @@ export function lockReasonText(reason: LockReason, challengeNumber: number): str
 }
 
 const FAILURE_COPY: Record<string, string> = {
-  abandoned: "Your last interview was left unfinished, so it was closed. That used your one attempt.",
+  abandoned:
+    "Your last interview was left unfinished, so it was closed. That used your one attempt.",
   connection_failed:
     "This round failed due to an internal connection issue. You can retry — only a successful submission counts.",
   interview_failed:
@@ -88,14 +97,16 @@ export function failureReasonText(reason: string | undefined): string | null {
 
 export function formatIst(iso: string | null | undefined): string {
   if (!iso) return "—";
-  return new Intl.DateTimeFormat("en-IN", {
-    timeZone: "Asia/Kolkata",
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-  }).format(new Date(iso)) + " IST";
+  return (
+    new Intl.DateTimeFormat("en-IN", {
+      timeZone: "Asia/Kolkata",
+      weekday: "short",
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    }).format(new Date(iso)) + " IST"
+  );
 }

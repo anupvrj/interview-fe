@@ -19,6 +19,7 @@ import {
   Ribbon,
   parallax,
   useCountdown,
+  useLoopingOfferCountdown,
   useParallax,
 } from "@/components/hackathon-2026/HackathonMotion";
 import { HACKATHON_CHALLENGE, HACKATHON_HERO, HACKATHON_LAUNCH } from "@/lib/hackathon-2026-content";
@@ -50,26 +51,28 @@ const PARTICLES = [
 function FloatCard({
   card,
   index,
-  tick = TICK,
+  tickSide = "right",
 }: {
   card: (typeof HACKATHON_HERO.floatCards)[number];
   index: number;
-  tick?: string;
+  tickSide?: "left" | "right";
 }) {
   const Icon = FLOAT_ICONS[card.icon];
+  const tick = tickSide === "left" ? "-left-2.5 top-1/2 -translate-y-1/2" : TICK;
   return (
     <div
       className={cn(
-        "relative flex w-full items-center gap-3 rounded-2xl border border-[#3a7bd0]/60 bg-[linear-gradient(135deg,rgba(24,52,98,0.82),rgba(10,26,54,0.78))] py-3 pl-3 pr-6 shadow-[0_20px_50px_rgba(0,0,0,0.45),0_0_30px_rgba(40,120,255,0.22),inset_0_1px_0_rgba(160,200,255,0.18)] backdrop-blur-md sm:gap-3.5 sm:pr-7",
+        "relative flex w-max items-center gap-3 rounded-2xl border border-[#3a7bd0]/60 bg-[linear-gradient(135deg,rgba(24,52,98,0.82),rgba(10,26,54,0.78))] py-3 shadow-[0_20px_50px_rgba(0,0,0,0.45),0_0_30px_rgba(40,120,255,0.22),inset_0_1px_0_rgba(160,200,255,0.18)] backdrop-blur-md sm:gap-3.5",
+        tickSide === "left" ? "pl-6 pr-3" : "pl-3 pr-6",
         `hk-bob-${index + 1}`,
       )}
     >
       <span className={cn("grid size-12 shrink-0 place-items-center rounded-xl", TONE[card.tone])}>
         <Icon className="size-6" aria-hidden />
       </span>
-      <span className="min-w-0 text-[15px] font-bold leading-snug text-white">
-        {card.title}
-        <span className="block font-semibold text-[#e2ecf8]">{card.subtitle}</span>
+      <span className="min-w-0 text-[13px] font-bold leading-none text-white">
+        <span className="block whitespace-nowrap">{card.title}</span>
+        <span className="mt-1 block whitespace-nowrap text-[11.5px] font-semibold leading-none text-[#e2ecf8]">{card.subtitle}</span>
       </span>
       <span
         className={cn(
@@ -86,6 +89,7 @@ function FloatCard({
 
 export function HackathonHero() {
   const visualRef = useParallax<HTMLDivElement>();
+  const offerTime = useLoopingOfferCountdown();
 
   return (
     <section className="relative overflow-hidden pt-8 sm:pt-10 lg:pt-6">
@@ -125,17 +129,17 @@ export function HackathonHero() {
           </Reveal>
 
           <Reveal immediate delay={320}>
-            <ul className="mt-7 flex flex-wrap justify-center gap-x-6 gap-y-3 text-sm font-medium text-white sm:text-[15px] lg:justify-start lg:gap-x-7">
-              <li className="inline-flex items-center gap-2.5">
-                <Calendar className="size-5 text-[#2e9bff]" aria-hidden />
-                Challenge {HACKATHON_CHALLENGE.dateLabel}
+            <ul className="mt-7 flex flex-wrap items-center justify-center gap-x-1.5 gap-y-2.5 text-[11px] font-medium tracking-tight text-white min-[380px]:gap-x-2 min-[380px]:text-xs min-[380px]:tracking-normal sm:gap-x-6 sm:gap-y-3 sm:text-[15px] lg:justify-start lg:gap-x-7">
+              <li className="inline-flex basis-full items-center justify-center gap-2 sm:basis-auto sm:justify-start sm:gap-2.5">
+                <Calendar className="size-4 text-[#2e9bff] sm:size-5" aria-hidden />
+                Hackathon {HACKATHON_CHALLENGE.publicRangeLabel}
               </li>
-              <li className="inline-flex items-center gap-2.5">
-                <Clock className="size-5 text-[#2e9bff]" aria-hidden />
+              <li className="inline-flex items-center gap-2 sm:gap-2.5">
+                <Clock className="size-4 text-[#2e9bff] sm:size-5" aria-hidden />
                 {HACKATHON_LAUNCH.dateLabel}, {HACKATHON_LAUNCH.timeLabel}
               </li>
-              <li className="inline-flex items-center gap-2.5">
-                <MapPin className="size-5 fill-[#2e9bff]/25 text-[#2e9bff]" aria-hidden />
+              <li className="inline-flex items-center gap-2 sm:gap-2.5">
+                <MapPin className="size-4 fill-[#2e9bff]/25 text-[#2e9bff] sm:size-5" aria-hidden />
                 {HACKATHON_LAUNCH.formatLabel}
                 <span className="hk-live-dot" aria-hidden />
               </li>
@@ -143,34 +147,39 @@ export function HackathonHero() {
           </Reveal>
 
           <Reveal immediate delay={380}>
-            <div className="mt-8">
+            <div className="mt-8 flex flex-col items-center gap-4 sm:flex-row sm:justify-center lg:justify-start">
+              <div className="shrink-0 text-center sm:text-left">
+                <p className="flex flex-wrap items-center justify-center gap-x-2.5 gap-y-1 sm:justify-start">
+                  <span className="hk-hand text-[1.25rem] leading-none !text-white">
+                    {HACKATHON_HERO.offerNow}
+                  </span>
+                  <span className="text-base font-semibold text-[#8fa6c0] line-through decoration-[#9eb4cc]">
+                    {HACKATHON_HERO.offerWas}
+                  </span>
+                  <span className="text-[13px] font-medium text-[#dbe6f3] sm:text-[15px]">
+                    {HACKATHON_HERO.offerEndsLabel}{" "}
+                    <span className="tabular-nums text-sm font-extrabold text-[#ff9a3c] sm:text-base">{offerTime}</span>
+                  </span>
+                </p>
+              </div>
               <HackathonRegisterButton
                 size="lg"
                 idle
-                className="min-h-16 w-full rounded-2xl text-lg sm:w-auto sm:min-w-[25rem]"
+                className="min-h-[3.75rem] w-full rounded-2xl px-8 text-base sm:w-auto sm:min-w-[17.5rem]"
               />
-              <HackathonRegisterHint className="mt-3 text-center text-sm font-medium text-[#ffc44d] lg:text-left" />
             </div>
-          </Reveal>
-
-          <Reveal immediate delay={440}>
-            <ul className="mt-6 flex flex-wrap justify-center gap-x-5 gap-y-2.5 text-[13px] font-medium text-[#dbe6f3] sm:text-sm lg:justify-start lg:gap-x-6">
-              {HACKATHON_HERO.checks.map((item) => (
-                <li key={item} className="inline-flex items-center gap-2">
-                  <span className="grid size-5 place-items-center rounded-full bg-[#3aa9ff] text-[#04172f] shadow-[0_0_12px_rgba(58,169,255,0.55)]">
-                    <Check className="size-3" strokeWidth={3.5} aria-hidden />
-                  </span>
-                  {item}
-                </li>
-              ))}
-            </ul>
+            <p className="mt-3 text-center text-sm font-medium text-[#dbe6f3] lg:text-left">
+              <span className="font-semibold text-[#ff9a3c]">{HACKATHON_HERO.seatNoteLead}</span>{" "}
+              {HACKATHON_HERO.seatNote}
+            </p>
+            <HackathonRegisterHint className="mt-2 text-center text-sm font-medium text-[#ffc44d] lg:text-left" />
           </Reveal>
         </div>
 
         {/* ---------- Visual ---------- */}
         <div
           ref={visualRef}
-          className="relative mx-auto h-[340px] w-full max-w-[640px] [--hk-fy:36%] [--hk-r:9.25rem] sm:h-[600px] lg:h-[700px]"
+          className="relative mx-auto h-[300px] w-full max-w-[640px] [--hk-fy:36%] [--hk-r:9.25rem] sm:h-[600px] lg:h-[700px]"
         >
           {/* Mobile/tablet ribbon behind the candidate (desktop uses the section-level one) */}
           <Ribbon variant="b" className="-right-[18%] top-[-6%] h-[112%] w-[125%] opacity-80 lg:hidden" />
@@ -201,7 +210,7 @@ export function HackathonHero() {
           </div>
 
           {/* Candidate — anchored to the hero's bottom edge like the key visual */}
-          <Reveal immediate from="scale" delay={150} className="absolute inset-x-[-2%] bottom-0 top-[14%] z-[2]">
+          <Reveal immediate from="scale" delay={150} className="absolute inset-x-[-2%] bottom-0 top-0 z-[2] sm:top-[14%]">
             <div className="relative h-full w-full" style={parallax(6)}>
               <Image
                 src="/hackathon-2026/hero-candidate-desk.webp"
@@ -209,7 +218,7 @@ export function HackathonHero() {
                 fill
                 priority
                 sizes="(min-width: 1024px) 660px, 95vw"
-                className="object-contain object-bottom drop-shadow-[0_30px_60px_rgba(0,70,200,0.5)]"
+                className="object-contain object-top drop-shadow-[0_30px_60px_rgba(0,70,200,0.5)] sm:object-bottom"
               />
             </div>
           </Reveal>
@@ -240,11 +249,11 @@ export function HackathonHero() {
             immediate
             from="right"
             delay={450}
-            className="absolute right-[calc(50%_+_var(--hk-r)_-_1.5rem)] top-[70%] z-[5] hidden w-[16rem] sm:block"
+            className="absolute right-[calc(50%_+_var(--hk-r)_-_1.5rem)] top-[70%] z-[5] hidden w-max sm:block"
           >
-            <div className="-translate-y-1/2">
+            <div style={{ transform: "translate(2.75rem, -50%)" }}>
               <div style={parallax(14)}>
-                <FloatCard card={HACKATHON_HERO.floatCards[0]} index={0} tick="-left-2.5 top-1/2 -translate-y-1/2" />
+                <FloatCard card={HACKATHON_HERO.floatCards[1]} index={1} tickSide="left" />
               </div>
             </div>
           </Reveal>
@@ -252,17 +261,17 @@ export function HackathonHero() {
             immediate
             from="right"
             delay={590}
-            className="absolute right-[calc(50%_+_var(--hk-r)_-_8.5rem)] top-[20%] z-[5] hidden w-[16rem] sm:block"
+            className="absolute right-[calc(50%_+_var(--hk-r)_-_8.5rem)] top-[20%] z-[5] hidden w-max sm:block"
           >
             <div style={parallax(18)}>
-              <FloatCard card={HACKATHON_HERO.floatCards[1]} index={1} tick="-left-2.5 top-1/2 -translate-y-1/2" />
+              <FloatCard card={HACKATHON_HERO.floatCards[0]} index={0} tickSide="left" />
             </div>
           </Reveal>
           <Reveal
             immediate
             from="right"
             delay={730}
-            className="absolute -right-3 top-[70%] z-[5] hidden w-[16rem] sm:block"
+            className="absolute -right-3 top-[70%] z-[5] hidden w-max sm:block"
           >
             <div className="-translate-y-1/2">
               <div style={parallax(22)}>
@@ -286,20 +295,20 @@ export function HackathonHero() {
         </div>
 
         {/* Phones: the floating cards would cover the face, so show them as a strip under the photo */}
-        <ul className="relative z-[3] -mt-2 mb-5 grid grid-cols-3 gap-2.5 sm:hidden">
+        <ul className="relative z-[3] -mt-2 mb-5 grid grid-cols-3 gap-1.5 sm:hidden">
           {HACKATHON_HERO.floatCards.map((card) => {
             const Icon = FLOAT_ICONS[card.icon];
             return (
               <li
                 key={card.title}
-                className="relative flex flex-col items-center gap-2 rounded-2xl border border-[#3a7bd0]/60 bg-[linear-gradient(160deg,rgba(24,52,98,0.85),rgba(10,26,54,0.85))] px-2 pb-3 pt-3.5 text-center shadow-[0_12px_30px_rgba(0,0,0,0.4),0_0_20px_rgba(40,120,255,0.18)]"
+                className="relative flex flex-col items-center gap-1.5 rounded-2xl border border-[#3a7bd0]/60 bg-[linear-gradient(160deg,rgba(24,52,98,0.85),rgba(10,26,54,0.85))] px-1 pb-2.5 pt-3 text-center shadow-[0_12px_30px_rgba(0,0,0,0.4),0_0_20px_rgba(40,120,255,0.18)]"
               >
-                <span className={cn("grid size-10 place-items-center rounded-xl", TONE[card.tone])}>
-                  <Icon className="size-5" aria-hidden />
+                <span className={cn("grid size-9 place-items-center rounded-xl", TONE[card.tone])}>
+                  <Icon className="size-[18px]" aria-hidden />
                 </span>
-                <span className="text-[12px] font-bold leading-tight text-white">
+                <span className="text-[11px] font-bold leading-tight text-white">
                   {card.title}
-                  <span className="block font-medium text-[#cfdbe8]">{card.subtitle}</span>
+                  <span className="mt-0.5 block text-[10px] font-medium leading-snug text-[#cfdbe8]">{card.subtitle}</span>
                 </span>
                 <span className="absolute -right-1.5 -top-1.5 grid size-5 place-items-center rounded-full bg-[#22c7a9] text-[#032a22] shadow-[0_0_0_2px_#0a1f3f]">
                   <Check className="size-3" strokeWidth={3.5} aria-hidden />
@@ -338,7 +347,7 @@ function HeroTicker() {
       style={{ "--hk-delay": "600ms" } as React.CSSProperties}
     >
       <div className="flex flex-col overflow-hidden rounded-2xl border border-[#23508a] bg-[#071630]/85 shadow-[0_20px_60px_rgba(0,20,60,0.5)] backdrop-blur-md md:flex-row md:items-stretch">
-        <div className="flex shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-[#1b3c62] px-5 py-3.5 md:flex-nowrap md:border-b-0 md:border-r">
+        <div className="flex shrink-0 flex-col items-center justify-center gap-2 border-b border-[#1b3c62] px-5 py-3.5 text-center md:flex-row md:flex-nowrap md:justify-between md:gap-x-4 md:border-b-0 md:border-r md:text-left">
           <span className="inline-flex items-center gap-2 whitespace-nowrap text-[11px] font-bold uppercase tracking-[0.16em] text-[#9cc6f0]">
             <span className="hk-live-dot" aria-hidden />
             {countdown.phase === "live" ? "Live now" : countdown.phase === "ended" ? "Event wrapped" : target.label}
