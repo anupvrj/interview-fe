@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { useUser } from "@clerk/nextjs";
-import { useRouter } from "next/navigation";
 import { useDropzone } from "react-dropzone";
 import {
   ArrowLeft,
@@ -28,8 +27,10 @@ import {
   StepBlock,
   onboardingControlClass,
 } from "@/components/onboarding/onboarding-form-primitives";
-import { isPaidPlanId } from "@/lib/pricingPageContent";
-import { consumePostSignInReturnUrl } from "@/lib/post-sign-in-redirect";
+import {
+  leaveOnboarding,
+  resolveCompletedOnboardingPath,
+} from "@/lib/post-onboarding-redirect";
 import { POST_ONBOARDING_TRIAL_OFFER_KEY } from "@/lib/trialFeatures";
 import { userApi } from "@/lib/api";
 import {
@@ -245,10 +246,10 @@ export function CandidateOnboardingForm({
   onComplete?: () => void;
 }> = {}) {
   const { user } = useUser();
-  const router = useRouter();
   const [currentStep, setCurrentStep] = useState(1);
   const [hydrating, setHydrating] = useState(true);
   const [loading, setLoading] = useState(false);
+  const [exitPath, setExitPath] = useState<string | null>(null);
   const [extracting, setExtracting] = useState(false);
   const [error, setError] = useState("");
   const [userType, setUserType] = useState<UserType>("");
@@ -352,23 +353,12 @@ export function CandidateOnboardingForm({
       onComplete();
       return;
     }
-    const returnUrl = consumePostSignInReturnUrl();
-    if (returnUrl) {
-      router.push(returnUrl);
-      return;
-    }
-    const pendingPlan = localStorage.getItem("pendingPlan");
-    if (pendingPlan === "enterprise") {
-      localStorage.removeItem("pendingPlan");
-      router.push("/contact");
-    } else if (pendingPlan && isPaidPlanId(pendingPlan)) {
-      localStorage.removeItem("pendingPlan");
-      router.push(`/checkout?plan=${pendingPlan}&cycle=monthly`);
-    } else {
-      if (pendingPlan) localStorage.removeItem("pendingPlan");
+    const destination = resolveCompletedOnboardingPath();
+    if (destination === "/select-role") {
       sessionStorage.setItem(POST_ONBOARDING_TRIAL_OFFER_KEY, "1");
-      router.push("/select-role");
     }
+    setExitPath(destination);
+    leaveOnboarding(destination);
   };
 
   const ensureUser = async () => {
@@ -1119,28 +1109,38 @@ export function CandidateOnboardingForm({
               ) : null}
 
               {currentStep === 4 ? (
-                <Button
-                  type="button"
-                  size="lg"
-                  onClick={() => void completeOnboarding()}
-                  disabled={loading}
-                  className={cn(
-                    "h-12 w-full px-8 text-base font-semibold sm:w-auto",
-                    appPrimaryButton,
-                  )}
-                >
-                  {loading ? (
-                    <>
-                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                      Finishing…
-                    </>
-                  ) : (
-                    <>
-                      Finish setup
-                      <CheckCircle className="ml-2 h-5 w-5" />
-                    </>
-                  )}
-                </Button>
+                <div className="flex w-full flex-col items-stretch gap-3 sm:items-end">
+                  <Button
+                    type="button"
+                    size="lg"
+                    onClick={() => void completeOnboarding()}
+                    disabled={loading}
+                    className={cn(
+                      "h-12 w-full px-8 text-base font-semibold sm:w-auto",
+                      appPrimaryButton,
+                    )}
+                  >
+                    {loading ? (
+                      <>
+                        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                        Finishing…
+                      </>
+                    ) : (
+                      <>
+                        Finish setup
+                        <CheckCircle className="ml-2 h-5 w-5" />
+                      </>
+                    )}
+                  </Button>
+                  {loading && exitPath ? (
+                    <a
+                      href={exitPath}
+                      className="text-center text-sm font-medium text-[#7367F0] underline-offset-4 hover:underline sm:text-right"
+                    >
+                      Taking too long? Continue
+                    </a>
+                  ) : null}
+                </div>
               ) : null}
             </div>
           </div>

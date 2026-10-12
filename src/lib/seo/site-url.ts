@@ -114,6 +114,7 @@ export function isPrivateAppPath(pathname: string): boolean {
     pathname.startsWith("/super-admin") ||
     pathname.startsWith("/purchase-credits") ||
     pathname.startsWith("/interview/") ||
+    pathname.startsWith("/hiring-games-hackathon-2026/") ||
     pathname.startsWith("/hackathon-2026/") ||
     /^\/hackathon\/[^/]+\/(dashboard|profile)(\/|$)/.test(pathname)
   );

@@ -14,6 +14,8 @@ import {
   shouldRedirectUnauthorizedToSignIn,
   unauthorizedNeedsOnboarding,
   getOnboardingUrlWithRedirect,
+  hackathonProfilePathFromReturn,
+  isHackathonSignupPath,
 } from "@/lib/post-sign-in-redirect";
 
 describe("safeAppRedirectPath", () => {
@@ -75,6 +77,10 @@ describe("unauthorizedNeedsOnboarding", () => {
     );
     expect(getOnboardingUrlWithRedirect("/hackathon/hackathon-2026/dashboard")).toBe(
       "/onboarding?redirect_url=%2Fhackathon%2Fhackathon-2026%2Fdashboard",
+    );
+    expect(isHackathonSignupPath("/hackathon/hackathon-2026/profile")).toBe(true);
+    expect(hackathonProfilePathFromReturn("/hackathon/hackathon-2026/dashboard")).toBe(
+      "/hackathon/hackathon-2026/profile",
     );
   });
 });

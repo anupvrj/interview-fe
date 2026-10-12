@@ -11,7 +11,7 @@ import {
 import "@/styles/mercury-template.css";
 import { useAuth, useUser } from "@clerk/nextjs";
 import { useQueryClient } from "@tanstack/react-query";
-import { useRouter, useParams, useSearchParams } from "next/navigation";
+import { useRouter, useParams, useSearchParams, usePathname } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { IconTooltipButton } from "@/components/ui/icon-tooltip-button";
@@ -96,6 +96,7 @@ import {
 import { cn } from "@/lib/utils";
 import { appPrimaryButton } from "@/lib/app-theme";
 import { safeAppRedirectPath } from "@/lib/post-sign-in-redirect";
+import { isHackathonTrialContextFromUrl } from "@/lib/hackathon-trial-suppress";
 import { hackathonSlugFromDashboardPath } from "@/lib/interview-return-to";
 import { hackathonApi, toHackathonError } from "@/features/hackathon/api";
 import { hackathonKeys } from "@/features/hackathon/hooks";
@@ -239,7 +240,9 @@ export default function EditResumePage() {
   const queryClient = useQueryClient();
   const router = useRouter();
   const params = useParams();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
+  const suppressHackathonTrial = isHackathonTrialContextFromUrl(pathname, searchParams);
   const resumeId = params.id as string;
   const showImprovedBanner = searchParams.get("improved") === "1";
   const wantsExtensionSync = searchParams.get("extensionSync") === "1";
@@ -1974,7 +1977,7 @@ export default function EditResumePage() {
   );
 
   const handleDownload = async () => {
-    if (!canUse("resumeDownload")) {
+    if (!canUse("resumeDownload") && !suppressHackathonTrial) {
       setTrialUpsellOpen(true);
       return;
     }
@@ -2018,7 +2021,7 @@ export default function EditResumePage() {
       const err = error as {
         response?: { status?: number; data?: { gate?: string } };
       };
-      if (err.response?.status === 403) {
+      if (err.response?.status === 403 && !suppressHackathonTrial) {
         setTrialUpsellOpen(true);
         return;
       }

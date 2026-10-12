@@ -3,10 +3,10 @@
 import { createContext, useCallback, useContext, useMemo, type ReactNode } from "react";
 import { useAuth } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
-import { HACKATHON_DASHBOARD_PATH, HACKATHON_FEATURE_KEY } from "@/features/hackathon/config";
+import { hackathonDashboardPath, hackathonProfilePath, HACKATHON_FEATURE_KEY } from "@/features/hackathon/config";
 import { usePlatformFeatures } from "@/hooks/usePlatformFeatures";
 import { CTA_LABELS, CTA_SHORT_LABELS } from "@/features/hackathon/copy";
-import { useHackathonPublic } from "@/features/hackathon/hooks";
+import { useHackathonMe, useHackathonPublic, useHackathonSlug } from "@/features/hackathon/hooks";
 import type { HackathonPublic } from "@/features/hackathon/api";
 
 type CtaKey = keyof typeof CTA_LABELS;
@@ -65,18 +65,35 @@ function ctaFromPublic(pub: HackathonPublic | undefined, isSignedIn: boolean): {
 export function HackathonRegisterProvider({ children }: { children: ReactNode }) {
   const { isSignedIn } = useAuth();
   const router = useRouter();
+  const slug = useHackathonSlug();
+  const profilePath = hackathonProfilePath(slug);
+  const dashboardPath = hackathonDashboardPath(slug);
   const pub = useHackathonPublic();
+  const me = useHackathonMe(undefined, { enabled: Boolean(isSignedIn) });
   const { isAccessible } = usePlatformFeatures();
   const derived = ctaFromPublic(pub.data, Boolean(isSignedIn));
 
   const openRegister = useCallback(() => {
     if (derived.disabled) return;
-    router.push(
-      isSignedIn
-        ? HACKATHON_DASHBOARD_PATH
-        : `/sign-up?redirect_url=${encodeURIComponent(HACKATHON_DASHBOARD_PATH)}`,
-    );
-  }, [derived.disabled, isSignedIn, router]);
+    if (!isSignedIn) {
+      router.push(`/sign-up?redirect_url=${encodeURIComponent(profilePath)}`);
+      return;
+    }
+    // Profile page auto-skips when the account already has hackathon fields; dashboard if API says complete.
+    if (me.waitingForMe) {
+      router.push(profilePath);
+      return;
+    }
+    router.push(me.data?.profile.complete ? dashboardPath : profilePath);
+  }, [
+    derived.disabled,
+    dashboardPath,
+    isSignedIn,
+    me.data?.profile.complete,
+    me.waitingForMe,
+    profilePath,
+    router,
+  ]);
 
   const value = useMemo(
     () => ({

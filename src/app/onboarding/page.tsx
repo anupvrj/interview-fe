@@ -1,8 +1,8 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useUser } from "@clerk/nextjs";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { InterviewTrixLogo } from "@/components/InterviewTrixLogo";
@@ -12,10 +12,14 @@ import {
   OnboardingPathChooser,
   type OnboardingPath,
 } from "@/components/onboarding/OnboardingPathChooser";
-import { isPaidPlanId } from "@/lib/pricingPageContent";
 import { isInstituteStaff } from "@/lib/institute-access";
 import {
-  consumePostSignInReturnUrl,
+  leaveOnboarding,
+  resolveCompletedOnboardingPath,
+} from "@/lib/post-onboarding-redirect";
+import {
+  hackathonProfilePathFromReturn,
+  isHackathonSignupPath,
   persistPostAuthReturnPath,
   safeAppRedirectPath,
 } from "@/lib/post-sign-in-redirect";
@@ -32,17 +36,28 @@ function OnboardingFallback() {
 
 function OnboardingPageContent() {
   const { user, isLoaded } = useUser();
-  const router = useRouter();
   const searchParams = useSearchParams();
+  const hackathonLeavePath = useMemo(() => {
+    const next = safeAppRedirectPath(searchParams.get("redirect_url"));
+    if (!next) return null;
+    const profile = hackathonProfilePathFromReturn(next);
+    if (profile) return profile;
+    if (isHackathonSignupPath(next)) return next;
+    return null;
+  }, [searchParams]);
   const [checkingStatus, setCheckingStatus] = useState(true);
   const [onboardingPath, setOnboardingPath] = useState<OnboardingPath | null>(
     null,
   );
 
   useEffect(() => {
+    if (hackathonLeavePath) {
+      leaveOnboarding(hackathonLeavePath);
+      return;
+    }
     const next = safeAppRedirectPath(searchParams.get("redirect_url"));
     if (next) persistPostAuthReturnPath(next);
-  }, [searchParams]);
+  }, [hackathonLeavePath, searchParams]);
 
   const checkOnboardingStatus = async () => {
     let didRedirect = false;
@@ -61,7 +76,7 @@ function OnboardingPageContent() {
       if (isInstituteStaff(createdUser.accessRole)) {
         writeStoredRole(user.id, "institution_admin");
         didRedirect = true;
-        router.replace(roleHome("institution_admin", createdUser));
+        leaveOnboarding(roleHome("institution_admin", createdUser));
         return;
       }
 
@@ -71,27 +86,8 @@ function OnboardingPageContent() {
       }
 
       if (createdUser.onboardingCompleted) {
-        const returnUrl = consumePostSignInReturnUrl();
-        if (returnUrl) {
-          didRedirect = true;
-          router.replace(returnUrl);
-          return;
-        }
-
-        const pendingPlan = localStorage.getItem("pendingPlan");
-        if (pendingPlan === "enterprise") {
-          localStorage.removeItem("pendingPlan");
-          didRedirect = true;
-          router.replace("/contact");
-        } else if (pendingPlan && isPaidPlanId(pendingPlan)) {
-          localStorage.removeItem("pendingPlan");
-          didRedirect = true;
-          router.replace(`/checkout?plan=${pendingPlan}&cycle=monthly`);
-        } else {
-          if (pendingPlan) localStorage.removeItem("pendingPlan");
-          didRedirect = true;
-          router.replace("/select-role");
-        }
+        didRedirect = true;
+        leaveOnboarding(resolveCompletedOnboardingPath());
         return;
       }
     } catch (error) {
@@ -102,13 +98,14 @@ function OnboardingPageContent() {
   };
 
   useEffect(() => {
+    if (hackathonLeavePath) return;
     if (isLoaded && user) {
       void checkOnboardingStatus();
     } else if (isLoaded && !user) {
       setCheckingStatus(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLoaded, user]);
+  }, [hackathonLeavePath, isLoaded, user]);
 
   const handleOnboardingPathChoice = (path: OnboardingPath) => {
     void userApi.sendWelcomeSignup(path).catch((error) => {
@@ -116,17 +113,17 @@ function OnboardingPageContent() {
     });
 
     if (path === "interviewer") {
-      router.replace("/dashboard/peer-interviews/interviewer");
+      leaveOnboarding("/dashboard/peer-interviews/interviewer");
       return;
     }
     if (path === "recruiter") {
-      router.replace("/dashboard/ix-recruiter/apply");
+      leaveOnboarding("/dashboard/ix-recruiter/apply");
       return;
     }
     setOnboardingPath("candidate");
   };
 
-  if (!isLoaded || checkingStatus) {
+  if (hackathonLeavePath || !isLoaded || checkingStatus) {
     return <OnboardingFallback />;
   }
 

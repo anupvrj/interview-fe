@@ -141,7 +141,7 @@ function emptyChallenge(kind: HackathonChallengeKind = "screening"): ChallengeFo
     minScore: "",
     requiredCount: "1",
     durationMinutes: "15",
-    maxAttemptsPerSlot: "3",
+    maxAttemptsPerSlot: "1",
     voiceProvider: "gemini",
     codingProblemIds: [],
     systemDesignProblemId: "",
@@ -183,7 +183,7 @@ function fromOverview(h: AdminHackathonOverview): FormState {
       minScore: c.config?.minScore != null ? String(c.config.minScore) : "",
       requiredCount: String(c.config?.requiredCount ?? (kind === "screening" ? h.interviewConfig.requiredCount : 1)),
       durationMinutes: (c.config?.durationMinutes === 30 ? "30" : "15") as "15" | "30",
-      maxAttemptsPerSlot: String(c.config?.maxAttemptsPerSlot ?? h.interviewConfig.maxAttemptsPerSlot ?? 3),
+      maxAttemptsPerSlot: String(c.config?.maxAttemptsPerSlot ?? h.interviewConfig.maxAttemptsPerSlot ?? 1),
       voiceProvider: (c.config?.voiceProvider as VoiceProvider) || (h.interviewConfig.voiceProvider as VoiceProvider) || "gemini",
       codingProblemIds: c.config?.codingProblemIds ?? [],
       systemDesignProblemId: c.config?.systemDesignProblemId ?? "",
@@ -234,7 +234,7 @@ function toBody(form: FormState): AdminHackathonWriteBody & { title: string; slu
       };
       if (c.kind === "screening" || c.kind === "coding" || c.kind === "system_design") {
         config.requiredCount = Number(c.requiredCount) || 1;
-        config.maxAttemptsPerSlot = Number(c.maxAttemptsPerSlot) || 3;
+        config.maxAttemptsPerSlot = Number(c.maxAttemptsPerSlot) || 1;
       }
       if (c.kind === "screening") {
         config.durationMinutes = c.durationMinutes === "30" ? 30 : 15;
@@ -534,7 +534,7 @@ export function AdminHackathonDesignerPage({ hackathonId }: Readonly<{ hackathon
                     <HackathonAdminField
                       id={`${challenge.clientId}-min`}
                       label="Minimum passing score"
-                      hint="Empty means submit-only. Below this score, the participant must retry."
+                      hint="Empty means submit-only. A scored round below this uses the attempt; they cannot retry unless attempts are above 1."
                     >
                       <Input
                         id={`${challenge.clientId}-min`}
@@ -563,7 +563,11 @@ export function AdminHackathonDesignerPage({ hackathonId }: Readonly<{ hackathon
                           ]}
                         />
                       </HackathonAdminField>
-                      <HackathonAdminField id={`${challenge.clientId}-attempts`} label="Attempts per round">
+                      <HackathonAdminField
+                        id={`${challenge.clientId}-attempts`}
+                        label="Successful attempts per round"
+                        hint="Only a scored submission counts. Report or connection failures do not use the attempt."
+                      >
                         <Input
                           id={`${challenge.clientId}-attempts`}
                           type="number"

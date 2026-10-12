@@ -37,7 +37,7 @@ export function HackathonShell({ children }: Readonly<{ children: React.ReactNod
         <Ribbon variant="b" className="-right-56 top-[56rem] h-[620px] w-[480px] opacity-40" />
       </div>
 
-      <header className="sticky top-0 z-30 border-b border-[#1b3c62]/70 bg-[#040b17]/80 backdrop-blur-xl">
+      <header className="sticky top-0 z-30 border-b border-[#1b3c62]/70 bg-[#040b17]">
         <div className="mx-auto flex h-[4.25rem] w-full max-w-[1460px] items-center justify-between gap-4 px-4 sm:h-[4.75rem] sm:px-6">
           <div className="flex min-w-0 items-center gap-10">
             <Link href={landingPath} aria-label="InterviewTrix Hackathon home" className="shrink-0">

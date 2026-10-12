@@ -104,11 +104,13 @@ export function DashboardHero({ me }: Readonly<{ me: HackathonMe }>) {
   );
 
   return (
-    <section className="relative isolate overflow-hidden rounded-[24px] border border-[#2a64b0]/60 bg-[radial-gradient(700px_380px_at_75%_120%,rgba(40,90,255,0.35),transparent_65%),linear-gradient(135deg,#0c2246_0%,#0a1b3a_55%,#0b1a40_100%)] px-5 py-6 shadow-[0_30px_80px_rgba(0,20,60,0.45),inset_0_1px_0_rgba(140,190,255,0.12)] sm:rounded-[28px] sm:px-8 sm:py-8 lg:px-10">
-      <Ribbon variant="a" className="-bottom-24 left-[30%] -z-[1] h-[260px] w-[760px] opacity-60" />
-      <Ribbon variant="b" slow className="-right-24 -top-16 -z-[1] hidden h-[420px] w-[460px] opacity-50 lg:block" />
+    <section className="relative isolate rounded-[24px] border border-[#2a64b0]/60 bg-[radial-gradient(700px_380px_at_75%_120%,rgba(40,90,255,0.35),transparent_65%),linear-gradient(135deg,#0c2246_0%,#0a1b3a_55%,#0b1a40_100%)] px-5 py-6 shadow-[0_30px_80px_rgba(0,20,60,0.45),inset_0_1px_0_rgba(140,190,255,0.12)] sm:rounded-[28px] sm:px-8 sm:py-8 lg:px-10">
+      <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-[24px] sm:rounded-[28px]" aria-hidden>
+        <Ribbon variant="a" className="-bottom-24 left-[30%] h-[260px] w-[760px] opacity-60" />
+        <Ribbon variant="b" slow className="-right-24 -top-16 hidden h-[420px] w-[460px] opacity-50 lg:block" />
+      </div>
 
-      <div className="grid items-center gap-7 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,300px)] lg:gap-8">
+      <div className="relative z-[1] grid items-center gap-7 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,300px)] lg:gap-8">
         {/* Greeting */}
         <div className="min-w-0 text-center lg:text-left">
           <PhasePill me={me} />

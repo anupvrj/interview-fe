@@ -1,30 +1,30 @@
-/** Shared hero purple — light tinted stat cards (one primary colour) */
+/** Shared hero stat cards — uses theme `primary` (purple light, hackathon blue dark). */
 export const dashboardHeroStatPalette = {
   shell:
-    "border-[#7367F0]/15 bg-gradient-to-br from-[#7367F0]/[0.07] via-card to-[#7367F0]/[0.12] shadow-card",
-  label: "text-[#7367F0]",
+    "border-primary/15 bg-gradient-to-br from-primary/[0.07] via-card to-primary/[0.12] shadow-card",
+  label: "text-primary",
   value: "text-foreground",
   hint: "text-muted-foreground",
-  iconShell: "border-[#7367F0]/12 bg-[#7367F0]/10 text-[#7367F0]",
-  progressTrack: "bg-[#7367F0]/12",
-  progressFill: "bg-[#7367F0]",
+  iconShell: "border-primary/12 bg-primary/10 text-primary",
+  progressTrack: "bg-primary/12",
+  progressFill: "bg-primary",
   footerBars: [
-    "bg-[#7367F0]/35",
-    "bg-[#7367F0]/18",
-    "bg-[#7367F0]/18",
+    "bg-primary/35",
+    "bg-primary/18",
+    "bg-primary/18",
   ] as [string, string, string],
 };
 
-/** Kept for API compatibility — labels use unified primary purple */
+/** Kept for API compatibility — labels use unified primary */
 export const dashboardStatAccents = {
-  purple: "text-[#7367F0]",
-  emerald: "text-[#7367F0]",
-  cyan: "text-[#7367F0]",
-  amber: "text-[#7367F0]",
-  rose: "text-[#7367F0]",
-  sky: "text-[#7367F0]",
-  violet: "text-[#7367F0]",
-  orange: "text-[#7367F0]",
+  purple: "text-primary",
+  emerald: "text-primary",
+  cyan: "text-primary",
+  amber: "text-primary",
+  rose: "text-primary",
+  sky: "text-primary",
+  violet: "text-primary",
+  orange: "text-primary",
 } as const;
 
 export type DashboardStatThemeKey = keyof typeof dashboardStatAccents;
@@ -38,9 +38,9 @@ export type DashboardInsightTheme = {
 
 export const dashboardInsightThemes = {
   purple: {
-    card: "border-[#7367F0]/20 bg-card shadow-card",
-    icon: "bg-[#7367F0]/12 text-[#7367F0]",
-    label: "text-[#7367F0]",
+    card: "border-primary/20 bg-card shadow-card",
+    icon: "bg-primary/12 text-primary",
+    label: "text-primary",
   },
   emerald: {
     card: "border-emerald-500/20 bg-card shadow-card",
@@ -78,3 +78,9 @@ export const dashboardInsightThemes = {
     label: "text-orange-600 dark:text-orange-400",
   },
 } as const satisfies Record<DashboardStatThemeKey, DashboardInsightTheme>;
+
+/** Recharts / SVG fills — match dashboard `primary` token per theme. */
+export const dashboardChartPrimaryFill = {
+  light: "#7367F0",
+  dark: "#3aa6ff",
+} as const;

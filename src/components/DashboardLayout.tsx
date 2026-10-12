@@ -232,6 +232,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     markTrialPromoShown,
     dismissTrialPromo,
     refresh: refreshUpsell,
+    showTrialUpsell,
+    hackathonTrialContext,
     data: upsellData,
   } = useUpsellState();
 
@@ -270,7 +272,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   }, [isDashboardInterviewsDetailPath, interviewsPathSegment, user]);
 
   useEffect(() => {
-    if (!roleReady || !upsellData?.showTrialUpsell) return;
+    if (!roleReady || !showTrialUpsell || hackathonTrialContext) return;
     if (typeof window === "undefined") return;
 
     const postOnboarding =
@@ -291,14 +293,15 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     markTrialPromoShown();
   }, [
     roleReady,
-    upsellData?.showTrialUpsell,
+    showTrialUpsell,
+    hackathonTrialContext,
     pathname,
     router,
     markTrialPromoShown,
   ]);
 
   useEffect(() => {
-    if (!roleReady || skipDelayedTrialPromo) return;
+    if (!roleReady || skipDelayedTrialPromo || hackathonTrialContext) return;
     if (!shouldShowTrialPromo()) return;
 
     const timer = window.setTimeout(() => {
@@ -313,6 +316,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   }, [
     roleReady,
     skipDelayedTrialPromo,
+    hackathonTrialContext,
     shouldShowTrialPromo,
     markTrialPromoShown,
   ]);

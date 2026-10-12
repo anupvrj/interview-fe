@@ -1,7 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { usePathname } from "next/navigation";
 import { useEntitlements } from "@/hooks/useEntitlements";
+import { isHackathonTrialContextFromUrl } from "@/lib/hackathon-trial-suppress";
 import { planApi, type PlanEntitlements, type SubscriptionPlanSlug } from "@/lib/api";
 import {
   FALLBACK_UPGRADE_TARGETS,
@@ -37,8 +39,19 @@ const TRIAL_GATED: UpsellFeature[] = [
 ];
 
 export function useUpsellState() {
+  const pathname = usePathname();
   const { data, loading, refresh, canUse } = useEntitlements();
   const [publicPlans, setPublicPlans] = useState<UpgradePlanSource[]>([]);
+  const [hackathonTrialContext, setHackathonTrialContext] = useState(() =>
+    isHackathonTrialContextFromUrl(pathname, null),
+  );
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    setHackathonTrialContext(isHackathonTrialContextFromUrl(pathname, params));
+  }, [pathname]);
+  const showTrialUpsell =
+    (data?.showTrialUpsell ?? false) && !hackathonTrialContext;
 
   useEffect(() => {
     let cancelled = false;
@@ -56,7 +69,7 @@ export function useUpsellState() {
   }, []);
 
   const shouldShowTrialPromo = useCallback(() => {
-    if (!data?.showTrialUpsell) return false;
+    if (!showTrialUpsell) return false;
 
     if (typeof window === "undefined") return false;
 
@@ -73,7 +86,7 @@ export function useUpsellState() {
     }
 
     return true;
-  }, [data?.showTrialUpsell]);
+  }, [showTrialUpsell]);
 
   const markTrialPromoShown = useCallback(() => {
     if (typeof window === "undefined") return;
@@ -144,7 +157,8 @@ export function useUpsellState() {
     canUse,
     needsTrial,
     isFreeTier: data?.isFreeTier ?? false,
-    showTrialUpsell: data?.showTrialUpsell ?? false,
+    showTrialUpsell,
+    hackathonTrialContext,
     hasActiveTrial: data?.hasActiveTrial ?? false,
     shouldShowTrialPromo,
     markTrialPromoShown,

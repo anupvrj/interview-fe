@@ -93,8 +93,9 @@ export function useHackathonMe(slug?: string, options?: { enabled?: boolean }) {
   const resolved = slug ?? scoped;
   const { getToken, isLoaded, isSignedIn } = useAuth();
   const { isAccessible, isLoading: featuresLoading } = usePlatformFeatures();
+  const optedIn = options?.enabled ?? true;
   const queryEnabled =
-    (options?.enabled ?? true) &&
+    optedIn &&
     !featuresLoading &&
     isAccessible(HACKATHON_FEATURE_KEY) &&
     isLoaded &&
@@ -112,11 +113,17 @@ export function useHackathonMe(slug?: string, options?: { enabled?: boolean }) {
       return status !== undefined && status >= 500 && failureCount < 2;
     },
   });
-  // RQ v5: a disabled query is isPending but not isLoading, so pages must not treat
-  // "no data yet" as an error while Clerk is hydrating or the first /me is in flight.
+  // RQ v5: a disabled query is isPending but not isLoading. queryEnabled is false
+  // while Clerk hydrates, so waiting must not require queryEnabled — otherwise
+  // dashboard treats empty data as "Something went wrong" for a few seconds.
   const waitingForMe =
-    queryEnabled &&
-    (!isLoaded || Boolean(isSignedIn && (query.isPending || (query.isFetching && !query.data))));
+    optedIn &&
+    Boolean(resolved) &&
+    !query.data &&
+    (!isLoaded ||
+      featuresLoading ||
+      (Boolean(isSignedIn) && !query.isError) ||
+      query.isFetching);
   return { ...query, waitingForMe };
 }
 
