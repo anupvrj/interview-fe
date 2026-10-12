@@ -43,10 +43,7 @@ function normalizeStoredCheck(check: ATSCheckResult): ATSCheckResult {
     status = "pass";
   } else if (actionable !== check.issueCount) {
     issueCount = actionable;
-    if (actionable === 0 && status !== "skipped") {
-      score = Math.max(score, 80);
-      if (status === "fail") status = "pass";
-    }
+    if (actionable === 0 && status === "fail") status = "pass";
   }
 
   const meta =
@@ -79,6 +76,42 @@ function missingStoredCheck(id: ATSCheckId): ATSCheckResult {
     issueCount: 0,
     issues: [],
   };
+}
+
+const STANDALONE_WEIGHTS: Partial<Record<ATSCategoryId, number>> = {
+  content: 0.22,
+  sections: 0.14,
+  atsEssentials: 0.18,
+  hrRedFlags: 0.16,
+  discrimination: 0.1,
+  seniority: 0.2,
+};
+
+const TAILORED_WEIGHTS: Partial<Record<ATSCategoryId, number>> = {
+  content: 0.18,
+  sections: 0.12,
+  atsEssentials: 0.15,
+  hrRedFlags: 0.14,
+  discrimination: 0.08,
+  seniority: 0.13,
+  tailoring: 0.2,
+};
+
+/** Headline from category weights. Job Match stays a sibling score. */
+export function recomputeAtsHeadlineScore(report: ATSReportV3): number {
+  const weights =
+    report.mode === "tailored" ? TAILORED_WEIGHTS : STANDALONE_WEIGHTS;
+  let sum = 0;
+  let weightSum = 0;
+  for (const [id, weight] of Object.entries(weights)) {
+    const cat = report.categories[id as ATSCategoryId];
+    if (!cat || !weight) continue;
+    if (!cat.checks.some((check) => check.status !== "skipped")) continue;
+    sum += cat.score * weight;
+    weightSum += weight;
+  }
+  if (weightSum === 0) return report.score;
+  return Math.round(sum / weightSum);
 }
 
 function computeCategoryScore(checks: ATSCheckResult[]): number {
@@ -133,12 +166,13 @@ export function normalizeATSReportV3(report: ATSReportV3): ATSReportV3 {
     };
   }
 
-  return {
+  const next: ATSReportV3 = {
     ...report,
     jobMatch: includeJobMatch ? report.jobMatch : undefined,
     issueCount: totalIssueCount,
     categories,
   };
+  return { ...next, score: recomputeAtsHeadlineScore(next) };
 }
 
 /** Prefer the persisted sibling Job Match % over any stale blended overallMatch. */
