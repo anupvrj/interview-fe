@@ -54,12 +54,15 @@ import {
 } from "@/components/institute/InstituteChrome";
 import { LockedFeatureOverlay } from "@/components/upsell/LockedFeatureOverlay";
 import { useEntitlements } from "@/hooks/useEntitlements";
+import { useActiveRole } from "@/components/roles/ActiveRoleProvider";
+import { canManagedCandidateSelfStart } from "@/lib/institution-flags";
 
 export default function ReportPage() {
   const params = useParams();
   const interviewId = params.id as string;
   const searchParams = useSearchParams();
   const { user } = useUser();
+  const canSelfStart = canManagedCandidateSelfStart(useActiveRole()?.profile);
 
   const [report, setReport] = useState<InterviewReport | null>(null);
   const [interview, setInterview] = useState<Interview | null>(null);
@@ -947,9 +950,15 @@ export default function ReportPage() {
           <p className="mb-6 text-muted-foreground">
             Keep practicing to improve your scores and build confidence.
           </p>
+          {canSelfStart ? (
           <Button className={institutePrimaryClass} size="lg" asChild>
             <Link href="/dashboard/interviews/new">Start new interview</Link>
           </Button>
+          ) : (
+          <Button className={institutePrimaryClass} size="lg" asChild>
+            <Link href="/dashboard/interviews">Back to interviews</Link>
+          </Button>
+          )}
         </CardContent>
       </Card>
     </div>

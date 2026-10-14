@@ -26,6 +26,8 @@ import {
   dashboardChartTooltipStyle,
 } from "@/lib/dashboard-chart-theme";
 import { cn } from "@/lib/utils";
+import { InstituteBillingBanner } from "@/components/institution-lifecycle/InstituteBillingBanner";
+import type { InstitutionLifecycle } from "@/lib/institution-lifecycle";
 import { fetchInstitutionAnalytics, type InstituteAnalyticsData } from "@/lib/institute-analytics";
 import {
   Bar,
@@ -59,6 +61,7 @@ export default function InstituteOverviewPage() {
     scheduleCounts: { scheduled: number; started: number; cancelled: number };
     creditsPool: number;
     interviewsCompleted: number;
+    lifecycle?: InstitutionLifecycle;
   } | null>(null);
   const [analytics, setAnalytics] = useState<InstituteAnalyticsData | null>(null);
 
@@ -131,6 +134,8 @@ export default function InstituteOverviewPage() {
         startedCount={sc.started}
         completedCount={data.interviewsCompleted}
       />
+
+      <InstituteBillingBanner lifecycle={data.lifecycle} institutionId={institutionId} />
 
       <InstituteAdminHubCards institutionId={institutionId} />
 

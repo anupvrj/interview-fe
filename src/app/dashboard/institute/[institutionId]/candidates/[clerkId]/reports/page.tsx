@@ -34,11 +34,37 @@ import {
   Eye,
   Video,
   FileText,
+  Target,
+  CheckCircle2,
+  FileCheck,
 } from "lucide-react";
 import { userApi, adminApi } from "@/lib/api";
 import { canViewInstitutePage } from "@/lib/institute-access";
+import {
+  InstituteEmptyState,
+  InstituteLoader,
+  InstituteTableShell,
+  instituteSecondaryClass,
+} from "@/components/institute/InstituteChrome";
+import { InstituteCandidateReportsHero } from "@/components/institute/InstituteCandidateReportsHero";
+import { DashboardStatCard } from "@/components/dashboard/DashboardStatCard";
 import { toast } from "sonner";
-import { formatDate, getScoreColor } from "@/lib/utils";
+import { cn, formatDate, getScoreColor } from "@/lib/utils";
+
+function initialsFrom(name: string | undefined, email: string | undefined): string {
+  const n = (name || "").trim();
+  if (n) {
+    const parts = n.split(/\s+/).filter(Boolean);
+    if (parts.length >= 2) {
+      const a = parts.at(0)?.[0] ?? "";
+      const b = parts.at(-1)?.[0] ?? "";
+      return `${a}${b}`.toUpperCase();
+    }
+    return n.slice(0, 2).toUpperCase();
+  }
+  const local = (email || "").split("@")[0] || "?";
+  return local.slice(0, 2).toUpperCase();
+}
 
 export default function InstitutionCandidateReportsPage() {
   const { user, isLoaded } = useUser();
@@ -143,117 +169,158 @@ export default function InstitutionCandidateReportsPage() {
   })();
 
   const displayName = nameQ || "Candidate";
+  const candidatesHref = `/dashboard/institute/${institutionId}/candidates`;
 
   if (!profile) {
-    return (
-      <div className="flex min-h-[400px] items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
+    return <InstituteLoader />;
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center gap-4">
-        <Button variant="ghost" size="sm" asChild className="-ml-2 gap-1">
-          <Link href={`/dashboard/institute/${institutionId}/candidates`}>
-            <ArrowLeft className="h-4 w-4" />
-            Candidates
-          </Link>
-        </Button>
-      </div>
+    <div className="mx-auto w-full max-w-7xl space-y-4 lg:space-y-6">
+      <Button
+        variant="outline"
+        size="sm"
+        asChild
+        className={cn(instituteSecondaryClass, "h-9 gap-2 px-3")}
+      >
+        <Link href={candidatesHref}>
+          <ArrowLeft className="h-4 w-4" />
+          Candidates
+        </Link>
+      </Button>
 
-      <div>
-        <h1 className="flex flex-wrap items-center gap-2 text-2xl font-bold text-foreground">
-          <BarChart3 className="h-7 w-7 text-primary" />
-          Candidate reports — {displayName}
-        </h1>
-        <p className="mt-1 text-muted-foreground">
-          {emailQ || "—"} · Resumes and AI Interview Practice
-        </p>
-      </div>
+      <InstituteCandidateReportsHero
+        candidateName={displayName}
+        email={emailQ}
+        avgScore={loading ? null : performanceSummary.avg}
+        totalInterviews={loading ? 0 : performanceSummary.totalInterviews}
+        completedInterviews={loading ? 0 : performanceSummary.completed}
+        resumeCount={loading ? 0 : resumes.length}
+        loading={loading}
+      />
 
       {loading ? (
-        <div className="flex justify-center py-16">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4">
+            {[0, 1, 2, 3].map((i) => (
+              <div key={i} className="h-28 animate-pulse rounded-xl bg-muted/50" />
+            ))}
+          </div>
+          <div className="flex min-h-[220px] items-center justify-center rounded-xl border border-border/60 bg-card shadow-card">
+            <Loader2 className="h-8 w-8 animate-spin text-[#7367F0]" />
+          </div>
         </div>
       ) : (
-        <div className="space-y-6">
-          <div className="grid gap-3 rounded-xl border border-border bg-muted/20 p-4 sm:grid-cols-2 lg:grid-cols-4">
-            <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Avg. interview score
-              </p>
-              <p
-                className={`text-2xl font-bold ${
-                  performanceSummary.avg != null
-                    ? getScoreColor(performanceSummary.avg)
-                    : "text-muted-foreground"
-                }`}
-              >
-                {performanceSummary.avg != null ? performanceSummary.avg : "—"}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                Across {performanceSummary.scoredCount} scored session
-                {performanceSummary.scoredCount === 1 ? "" : "s"}
-              </p>
-            </div>
-            <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Total interviews
-              </p>
-              <p className="text-2xl font-bold text-foreground">
-                {performanceSummary.totalInterviews}
-              </p>
-            </div>
-            <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Completed
-              </p>
-              <p className="text-2xl font-bold text-foreground">
-                {performanceSummary.completed}
-              </p>
-            </div>
-            <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Resumes on file
-              </p>
-              <p className="text-2xl font-bold text-foreground">{resumes.length}</p>
-            </div>
+        <>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4">
+            <DashboardStatCard
+              theme="violet"
+              label="Avg. interview score"
+              icon={Target}
+              value={
+                performanceSummary.avg != null ? performanceSummary.avg : "—"
+              }
+              progress={
+                performanceSummary.avg != null
+                  ? Math.round(performanceSummary.avg)
+                  : undefined
+              }
+              hint={
+                <span>
+                  Across {performanceSummary.scoredCount} scored session
+                  {performanceSummary.scoredCount === 1 ? "" : "s"}
+                </span>
+              }
+            />
+            <DashboardStatCard
+              theme="sky"
+              label="Total interviews"
+              icon={BarChart3}
+              value={performanceSummary.totalInterviews}
+              hint={<span>All practice sessions</span>}
+            />
+            <DashboardStatCard
+              theme="purple"
+              label="Completed"
+              icon={CheckCircle2}
+              value={performanceSummary.completed}
+              hint={<span>Finished interviews</span>}
+            />
+            <DashboardStatCard
+              theme="emerald"
+              label="Resumes on file"
+              icon={FileCheck}
+              value={resumes.length}
+              hint={<span>Uploaded documents</span>}
+            />
           </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Resumes</CardTitle>
-              <CardDescription>Uploaded resumes for this candidate</CardDescription>
+          <Card className="overflow-hidden rounded-xl border border-border/60 bg-card shadow-card">
+            <CardHeader className="border-b border-border/60 px-5 py-4">
+              <CardTitle className="text-lg font-semibold text-foreground">
+                Resumes
+              </CardTitle>
+              <CardDescription className="mt-1 text-sm">
+                Uploaded resumes for this candidate
+              </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-0 sm:p-0">
               {resumes.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No resumes yet</p>
+                <div className="px-4 py-6 sm:px-6">
+                  <InstituteEmptyState
+                    icon={FileText}
+                    title="No resumes yet"
+                    description="This candidate has not uploaded a resume."
+                  />
+                </div>
               ) : (
-                <div className="overflow-x-auto rounded-lg border">
-                  <Table>
+                <InstituteTableShell>
+                  <Table className="w-full min-w-[560px]">
                     <TableHeader>
-                      <TableRow>
-                        <TableHead>Title</TableHead>
-                        <TableHead>Updated</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
+                      <TableRow className="border-b border-border/80 bg-muted/30 hover:bg-muted/30">
+                        <TableHead className="pl-6 font-semibold text-foreground">
+                          Title
+                        </TableHead>
+                        <TableHead className="font-semibold text-foreground">
+                          Updated
+                        </TableHead>
+                        <TableHead className="pr-6 text-right font-semibold text-foreground">
+                          Actions
+                        </TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {resumes.map((r: any) => (
-                        <TableRow key={r.resumeId}>
-                          <TableCell className="font-medium">{r.title}</TableCell>
+                        <TableRow
+                          key={r.resumeId}
+                          className="group border-border align-middle transition-colors hover:bg-muted/40"
+                        >
+                          <TableCell className="pl-6">
+                            <div className="flex min-w-0 items-center gap-3">
+                              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-indigo-600 text-xs font-bold text-white shadow-sm ring-2 ring-white">
+                                {initialsFrom(r.title, emailQ)}
+                              </div>
+                              <div className="min-w-0">
+                                <p className="truncate font-semibold text-foreground">
+                                  {r.title || "Untitled resume"}
+                                </p>
+                                <p className="truncate text-xs text-muted-foreground">
+                                  Resume document
+                                </p>
+                              </div>
+                            </div>
+                          </TableCell>
                           <TableCell className="text-muted-foreground">
                             {formatDate(r.updatedAt)}
                           </TableCell>
-                          <TableCell className="text-right">
+                          <TableCell className="pr-6 text-right">
                             <Button
                               variant="outline"
                               size="sm"
+                              className={cn(instituteSecondaryClass, "h-8 gap-1.5")}
                               onClick={() => openResumePreview(r.resumeId)}
                             >
-                              <Eye className="mr-1 h-4 w-4" />
+                              <Eye className="h-3.5 w-3.5" />
                               View resume
                             </Button>
                           </TableCell>
@@ -261,108 +328,170 @@ export default function InstitutionCandidateReportsPage() {
                       ))}
                     </TableBody>
                   </Table>
-                </div>
+                </InstituteTableShell>
               )}
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Interviews</CardTitle>
-              <CardDescription>
-                Open the full analysis (question-by-question) for any completed session
+          <Card className="overflow-hidden rounded-xl border border-border/60 bg-card shadow-card">
+            <CardHeader className="border-b border-border/60 px-5 py-4">
+              <CardTitle className="text-lg font-semibold text-foreground">
+                Interviews
+              </CardTitle>
+              <CardDescription className="mt-1 text-sm">
+                Open the full analysis for any completed session
               </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-0 sm:p-0">
               {interviews.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No interviews yet</p>
+                <div className="px-4 py-6 sm:px-6">
+                  <InstituteEmptyState
+                    icon={BarChart3}
+                    title="No interviews yet"
+                    description="This candidate has not completed any AI interview practice sessions."
+                  />
+                </div>
               ) : (
-                <div className="overflow-x-auto rounded-lg border">
-                  <Table>
+                <InstituteTableShell>
+                  <Table className="w-full min-w-[760px]">
                     <TableHeader>
-                      <TableRow>
-                        <TableHead>Date</TableHead>
-                        <TableHead>Role</TableHead>
-                        <TableHead>Company</TableHead>
-                        <TableHead>Score</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
+                      <TableRow className="border-b border-border/80 bg-muted/30 hover:bg-muted/30">
+                        <TableHead className="pl-6 font-semibold text-foreground">
+                          Role
+                        </TableHead>
+                        <TableHead className="font-semibold text-foreground">
+                          Date
+                        </TableHead>
+                        <TableHead className="font-semibold text-foreground">
+                          Company
+                        </TableHead>
+                        <TableHead className="font-semibold text-foreground">
+                          Score
+                        </TableHead>
+                        <TableHead className="font-semibold text-foreground">
+                          Status
+                        </TableHead>
+                        <TableHead className="pr-6 text-right font-semibold text-foreground">
+                          Actions
+                        </TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {interviews.map((inv: any) => (
-                        <TableRow key={inv.interviewId}>
-                          <TableCell className="whitespace-nowrap text-muted-foreground">
-                            {formatDate(inv.createdAt)}
-                          </TableCell>
-                          <TableCell>{inv.metadata?.role ?? "—"}</TableCell>
-                          <TableCell className="max-w-[140px] truncate text-muted-foreground">
-                            {inv.metadata?.targetCompany ?? "—"}
-                          </TableCell>
-                          <TableCell>
-                            <span
-                              className={`font-semibold ${getScoreColor(
-                                inv.report?.overallScore ?? 0,
-                              )}`}
-                            >
-                              {inv.report?.overallScore ?? "—"}
-                            </span>
-                          </TableCell>
-                          <TableCell className="text-xs capitalize text-muted-foreground">
-                            {inv.status}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex flex-wrap justify-end gap-1">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setInterviewPreview(inv)}
+                      {interviews.map((inv: any) => {
+                        const role = inv.metadata?.role ?? "Interview";
+                        return (
+                          <TableRow
+                            key={inv.interviewId}
+                            className="group border-border align-middle transition-colors hover:bg-muted/40"
+                          >
+                            <TableCell className="pl-6">
+                              <div className="flex min-w-0 items-center gap-3">
+                                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-indigo-600 text-xs font-bold text-white shadow-sm ring-2 ring-white">
+                                  {initialsFrom(role, emailQ)}
+                                </div>
+                                <div className="min-w-0">
+                                  <p className="truncate font-semibold text-foreground">
+                                    {role}
+                                  </p>
+                                  <p className="truncate text-xs text-muted-foreground">
+                                    {inv.interviewId}
+                                  </p>
+                                </div>
+                              </div>
+                            </TableCell>
+                            <TableCell className="whitespace-nowrap text-muted-foreground">
+                              {formatDate(inv.createdAt)}
+                            </TableCell>
+                            <TableCell className="max-w-[140px] truncate text-muted-foreground">
+                              {inv.metadata?.targetCompany ?? "—"}
+                            </TableCell>
+                            <TableCell>
+                              <span
+                                className={cn(
+                                  "font-semibold",
+                                  getScoreColor(inv.report?.overallScore ?? 0),
+                                )}
                               >
-                                <Eye className="mr-1 h-3 w-3" />
-                                Details
-                              </Button>
-                              <Button variant="outline" size="sm" asChild>
-                                <Link
-                                  href={`/dashboard/institute/${institutionId}/candidates/${clerkId}/reports/${inv.interviewId}?${new URLSearchParams({
-                                    ...(nameQ && { name: nameQ }),
-                                    ...(emailQ && { email: emailQ }),
-                                  }).toString()}`}
-                                >
-                                  <FileText className="mr-1 h-3 w-3" />
-                                  View report
-                                </Link>
-                              </Button>
-                              {inv.session?.s3VideoKey ? (
+                                {inv.report?.overallScore ?? "—"}
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-xs capitalize text-muted-foreground">
+                              {inv.status}
+                            </TableCell>
+                            <TableCell className="pr-6 text-right">
+                              <div className="flex flex-nowrap items-center justify-end gap-1">
                                 <Button
                                   variant="outline"
-                                  size="sm"
-                                  onClick={() => openVideo(inv.interviewId)}
+                                  size="icon"
+                                  className={cn(
+                                    instituteSecondaryClass,
+                                    "h-8 w-8 shrink-0 p-0",
+                                  )}
+                                  onClick={() => setInterviewPreview(inv)}
+                                  title="Details"
+                                  aria-label="Interview details"
                                 >
-                                  <Video className="h-3 w-3" />
+                                  <Eye className="h-3.5 w-3.5" />
                                 </Button>
-                              ) : (
-                                <span className="px-2 text-xs text-muted-foreground">No video</span>
-                              )}
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                                <Button
+                                  variant="outline"
+                                  size="icon"
+                                  className={cn(
+                                    instituteSecondaryClass,
+                                    "h-8 w-8 shrink-0 p-0",
+                                  )}
+                                  asChild
+                                  title="View report"
+                                  aria-label="View report"
+                                >
+                                  <Link
+                                    href={`/dashboard/institute/${institutionId}/candidates/${clerkId}/reports/${inv.interviewId}?${new URLSearchParams({
+                                      ...(nameQ && { name: nameQ }),
+                                      ...(emailQ && { email: emailQ }),
+                                    }).toString()}`}
+                                  >
+                                    <FileText className="h-3.5 w-3.5" />
+                                  </Link>
+                                </Button>
+                                {inv.session?.s3VideoKey ? (
+                                  <Button
+                                    variant="outline"
+                                    size="icon"
+                                    className={cn(
+                                      instituteSecondaryClass,
+                                      "h-8 w-8 shrink-0 p-0",
+                                    )}
+                                    onClick={() => openVideo(inv.interviewId)}
+                                    title="Watch video"
+                                    aria-label="Watch video"
+                                  >
+                                    <Video className="h-3.5 w-3.5" />
+                                  </Button>
+                                ) : null}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
                     </TableBody>
                   </Table>
-                </div>
+                </InstituteTableShell>
               )}
             </CardContent>
           </Card>
-        </div>
+        </>
       )}
 
       <Dialog
         open={!!interviewPreview}
         onOpenChange={(o) => !o && setInterviewPreview(null)}
       >
-        <DialogContent className="max-w-lg">
+        <DialogContent className="border-border/80 max-w-lg">
           <DialogHeader>
-            <DialogTitle>Interview details</DialogTitle>
+            <DialogTitle className="text-xl">Interview details</DialogTitle>
+            <DialogDescription>
+              Session metadata for this practice interview.
+            </DialogDescription>
           </DialogHeader>
           {interviewPreview && (
             <dl className="space-y-2 text-sm">
@@ -402,9 +531,10 @@ export default function InstitutionCandidateReportsPage() {
                 <div className="flex justify-between gap-4">
                   <dt className="text-muted-foreground">Overall score</dt>
                   <dd
-                    className={`font-bold ${getScoreColor(
-                      interviewPreview.report.overallScore,
-                    )}`}
+                    className={cn(
+                      "font-bold",
+                      getScoreColor(interviewPreview.report.overallScore),
+                    )}
                   >
                     {interviewPreview.report.overallScore}
                   </dd>
@@ -424,21 +554,23 @@ export default function InstitutionCandidateReportsPage() {
           }
         }}
       >
-        <DialogContent className="max-h-[85vh] max-w-3xl overflow-y-auto">
+        <DialogContent className="max-h-[85vh] max-w-3xl overflow-y-auto border-border/80">
           <DialogHeader>
-            <DialogTitle>{resumePreview?.title ?? "Resume"}</DialogTitle>
+            <DialogTitle className="text-xl">
+              {resumePreview?.title ?? "Resume"}
+            </DialogTitle>
             <DialogDescription>
               Read-only preview · Template {resumePreview?.templateId ?? ""}
             </DialogDescription>
           </DialogHeader>
           {resumePreviewLoading && (
             <div className="flex justify-center py-8">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <Loader2 className="h-8 w-8 animate-spin text-[#7367F0]" />
             </div>
           )}
           {resumePreview && !resumePreviewLoading && (
             <div className="space-y-4 text-sm">
-              <div className="rounded-lg border bg-muted/20 p-3">
+              <div className="rounded-xl border border-border/60 bg-muted/20 p-3">
                 <p className="font-semibold text-foreground">
                   {resumePreview.content?.personalInfo?.fullName ?? "—"}
                 </p>

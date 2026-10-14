@@ -63,12 +63,21 @@ import {
 import { PracticeSessionGateDialogs } from "@/components/upsell/PracticeSessionGateDialogs";
 import { PracticeLockedGate } from "@/components/upsell/PracticeLockedGate";
 import { usePracticeSessionGate } from "@/components/upsell/usePracticeSessionGate";
+import {
+  isMissingResumeError,
+  useResumeRequiredDialog,
+} from "@/components/resume/ResumeRequiredDialog";
+import { useActiveRole } from "@/components/roles/ActiveRoleProvider";
+import { canManagedCandidateSelfStart } from "@/lib/institution-flags";
 
 const ITEMS_PER_PAGE = 10;
 
 export default function InterviewsPage() {
   const { user, isLoaded } = useUser();
   const router = useRouter();
+  const roleCtx = useActiveRole();
+  const canSelfStart = canManagedCandidateSelfStart(roleCtx?.profile);
+  const { openResumeRequired } = useResumeRequiredDialog();
   const { data: interviews = [], isLoading: interviewsLoading } =
     useInterviewsQuery();
   const { data: scheduled = [], isLoading: schedulesLoading } =
@@ -124,11 +133,18 @@ export default function InterviewsPage() {
         throw new Error("Could not open this scheduled interview.");
       }
       router.push(path);
-    } catch (e: any) {
-      alert(
-        e?.response?.data?.message ||
-          "Could not start interview. You may need a saved resume, or the scheduled time is not open yet (starts 24 hours before)."
-      );
+    } catch (e: unknown) {
+      const message =
+        (e as { response?: { data?: { message?: string } } })?.response?.data
+          ?.message ||
+        "Could not start interview. You may need a saved resume, or the scheduled time is not open yet (starts 24 hours before).";
+      if (isMissingResumeError(message)) {
+        openResumeRequired({
+          onReady: () => handleStartScheduled(scheduleId),
+        });
+        return;
+      }
+      toast.error(message);
     } finally {
       setStartingScheduleId(null);
     }
@@ -278,6 +294,7 @@ export default function InterviewsPage() {
               </div>
               
               <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-3 sm:gap-4 pt-2 px-2 sm:px-0">
+                {canSelfStart ? (
                 <Button
                   type="button"
                   size="lg"
@@ -298,6 +315,7 @@ export default function InterviewsPage() {
                   Start New Interview
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
+                ) : null}
                 <div className="flex items-center gap-1.5 sm:gap-2">
                   <div className="flex items-center gap-0.5 sm:gap-1">
                     {[...Array(5)].map((_, i) => (
@@ -438,6 +456,7 @@ export default function InterviewsPage() {
                     : "Start from 24 hours before the scheduled slot until the expire deadline. Saved resume required."}
               </CardDescription>
             </div>
+            {canSelfStart ? (
             <Button
               type="button"
               disabled={checkingSubscription}
@@ -455,6 +474,7 @@ export default function InterviewsPage() {
               )}
               Start New Interview
             </Button>
+            ) : null}
           </div>
 
           <div
@@ -533,6 +553,7 @@ export default function InterviewsPage() {
               onPageChange={handlePageChange}
               onVideoUnavailable={() => setVideoUnavailableOpen(true)}
               onDelete={setDeleteConfirmId}
+              emptyCtaHref={canSelfStart ? "/dashboard/interviews/new" : null}
               emptyDescription={
                 <>
                   Run AI Interview Practice, lock in company context,
