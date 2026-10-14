@@ -4,43 +4,30 @@ import { useMemo } from "react";
 import { useAuth } from "@clerk/nextjs";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Flag, Loader2, Users } from "lucide-react";
-import { CTA_LABELS, formatIst, PHASE_COPY } from "../copy";
+import { formatIst, PHASE_COPY } from "../copy";
+import { hackathonLandingCtaLabel, resolveHackathonLandingCta } from "../hackathonLandingCta";
 import { hackathonDashboardPath, hackathonProfilePath } from "../config";
 import { hackathonAdminApi, toHackathonError, type HackathonPublic } from "../api";
-import { useHackathonPublic, useHackathonSlug } from "../hooks";
+import { hackathonEntryPath } from "../hackathonEntry";
+import { isHackathonRegistered } from "../hackathonRegistration";
+import { useHackathonMe, useHackathonPublic, useHackathonSlug } from "../hooks";
 import { useQuery } from "@tanstack/react-query";
 import { HackathonFeatureGate } from "../components/HackathonFeatureGate";
 import { HackathonShell } from "../components/HackathonShell";
 import { PhaseNotice } from "../components/PhaseNotice";
-import { Countdown } from "../components/Countdown";
-
-function ctaFromPublic(pub: HackathonPublic | undefined, isSignedIn: boolean) {
-  const hint =
-    pub && pub.spotsLeft !== null && pub.spotsLeft > 0 && pub.spotsLeft < 20
-      ? `Only ${pub.spotsLeft} spot${pub.spotsLeft === 1 ? "" : "s"} left`
-      : null;
-  if (!pub) {
-    return { label: isSignedIn ? CTA_LABELS.goToChallenges : CTA_LABELS.register, disabled: false, hint: null };
-  }
-  if (pub.phase === "ended") {
-    return { label: isSignedIn ? CTA_LABELS.seeResults : CTA_LABELS.ended, disabled: !isSignedIn, hint: null };
-  }
-  if (pub.isFull) {
-    return { label: isSignedIn ? CTA_LABELS.goToChallenges : CTA_LABELS.full, disabled: !isSignedIn, hint: null };
-  }
-  if (isSignedIn) {
-    return { label: pub.phase === "live" ? CTA_LABELS.goToChallenges : CTA_LABELS.getReady, disabled: false, hint };
-  }
-  return { label: pub.landing?.registerCta?.trim() || CTA_LABELS.register, disabled: false, hint };
-}
+import { HackathonStartCountdown } from "../components/HackathonStartCountdown";
 
 function PublicContent() {
   const slug = useHackathonSlug();
   const router = useRouter();
-  const { isSignedIn } = useAuth();
   const search = useSearchParams();
   const preview = search.get("preview") === "1";
+  const { isSignedIn } = useAuth();
   const pub = useHackathonPublic(slug);
+  const me = useHackathonMe(undefined, { enabled: Boolean(isSignedIn) && !preview });
+  const dashboard = hackathonDashboardPath(slug);
+  const profile = hackathonProfilePath(slug);
+
   const adminPreview = useQuery({
     queryKey: ["admin", "hackathons", "slug", slug],
     queryFn: () => hackathonAdminApi.getBySlug(slug),
@@ -96,14 +83,28 @@ function PublicContent() {
     );
   }
 
-  const cta = ctaFromPublic(data, Boolean(isSignedIn));
-  const dashboard = hackathonDashboardPath(slug);
-  const profile = hackathonProfilePath(slug);
+  const registered = me.waitingForMe ? false : isHackathonRegistered(me.data);
+  const ctaResolved = resolveHackathonLandingCta(data, Boolean(isSignedIn), registered);
+  const cta = {
+    label: hackathonLandingCtaLabel(ctaResolved, data.landing?.registerCta),
+    disabled: ctaResolved.disabled,
+    hint: ctaResolved.hint,
+  };
   const onCta = () => {
     if (cta.disabled) return;
-    router.push(
-      isSignedIn ? dashboard : `/sign-up?redirect_url=${encodeURIComponent(profile)}`,
-    );
+    if (!isSignedIn) {
+      router.push(`/sign-up?redirect_url=${encodeURIComponent(profile)}`);
+      return;
+    }
+    if (me.waitingForMe) {
+      router.push(profile);
+      return;
+    }
+    if (isHackathonRegistered(me.data)) {
+      router.push(dashboard);
+      return;
+    }
+    router.push(hackathonEntryPath({ registered: false, profilePath: profile, dashboardPath: dashboard }));
   };
 
   return (
@@ -136,7 +137,7 @@ function PublicContent() {
         </div>
         {data.phase === "upcoming" && data.startsAt ? (
           <div className="mt-8">
-            <Countdown target={data.startsAt} serverNow={data.serverNow} />
+            <HackathonStartCountdown target={data.startsAt} serverNow={data.serverNow} />
           </div>
         ) : null}
         {data.phase === "ended" ? (

@@ -1,9 +1,9 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import { AdminSubmissionsPage } from "@/features/hackathon/admin/AdminSubmissionsPage";
+import { AdminHackathonOverviewPage } from "@/features/hackathon/admin/AdminHackathonOverviewPage";
 
-export default function SuperAdminHackathonSubmissionsRoute() {
+export default function SuperAdminHackathonOverviewRoute() {
   const params = useParams();
-  return <AdminSubmissionsPage hackathonId={String(params.hackathonId ?? "")} />;
+  return <AdminHackathonOverviewPage hackathonId={String(params.hackathonId ?? "")} />;
 }

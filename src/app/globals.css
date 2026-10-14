@@ -1108,6 +1108,62 @@
   box-shadow: 0 0 0 3px hsl(var(--primary) / 0.15) !important;
 }
 
+/* Clerk email / phone OTP — sign-in, sign-up, and verification steps */
+.auth-route .auth-clerk-root .cl-otpCodeFieldInputs,
+.auth-clerk-root .cl-otpCodeFieldInputs {
+  gap: 0.5rem !important;
+  justify-content: center !important;
+}
+
+.auth-route .auth-clerk-root .cl-otpCodeFieldInput,
+.auth-route .auth-clerk-root .cl-otpCodeFieldInput input,
+.auth-route .auth-clerk-root .cl-otpCodeFieldInputs .cl-input,
+.auth-route .auth-clerk-root .cl-otpCodeFieldInputs .cl-formFieldInput,
+.auth-route .auth-clerk-root .cl-otpCodeFieldInputs input,
+.auth-route .auth-clerk-root .cl-formFieldInput.cl-otp-digit,
+.auth-route .auth-clerk-root .cl-formFieldRow:has(.cl-otpCodeFieldInputs) .cl-formFieldInput,
+.auth-route .auth-clerk-root .cl-formFieldRow:has(.cl-otpCodeFieldInputs) input,
+.auth-clerk-root .cl-otpCodeFieldInput,
+.auth-clerk-root .cl-otpCodeFieldInput input,
+.auth-clerk-root .cl-otpCodeFieldInputs .cl-input,
+.auth-clerk-root .cl-otpCodeFieldInputs .cl-formFieldInput,
+.auth-clerk-root .cl-otpCodeFieldInputs input,
+.auth-clerk-root .cl-formFieldInput.cl-otp-digit,
+.auth-clerk-root .cl-formFieldRow:has(.cl-otpCodeFieldInputs) .cl-formFieldInput,
+.auth-clerk-root .cl-formFieldRow:has(.cl-otpCodeFieldInputs) input {
+  min-height: 3rem !important;
+  min-width: 2.75rem !important;
+  max-width: 3rem !important;
+  width: 2.75rem !important;
+  flex: 0 0 auto !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+  border-width: 2px !important;
+  border-style: solid !important;
+  border-color: rgba(115, 103, 240, 0.6) !important;
+  text-align: center !important;
+  font-size: 1.125rem !important;
+  font-weight: 600 !important;
+  font-variant-numeric: tabular-nums !important;
+  box-shadow: 0 1px 2px 0 rgba(47, 43, 61, 0.1) !important;
+}
+
+.auth-route .auth-clerk-root .cl-otpCodeFieldInput:focus,
+.auth-route .auth-clerk-root .cl-otpCodeFieldInput input:focus,
+.auth-route .auth-clerk-root .cl-otpCodeFieldInputs .cl-input:focus,
+.auth-route .auth-clerk-root .cl-otpCodeFieldInputs .cl-formFieldInput:focus,
+.auth-route .auth-clerk-root .cl-otpCodeFieldInputs input:focus,
+.auth-route .auth-clerk-root .cl-formFieldRow:has(.cl-otpCodeFieldInputs) .cl-formFieldInput:focus,
+.auth-clerk-root .cl-otpCodeFieldInput:focus,
+.auth-clerk-root .cl-otpCodeFieldInput input:focus,
+.auth-clerk-root .cl-otpCodeFieldInputs .cl-input:focus,
+.auth-clerk-root .cl-otpCodeFieldInputs .cl-formFieldInput:focus,
+.auth-clerk-root .cl-otpCodeFieldInputs input:focus,
+.auth-clerk-root .cl-formFieldRow:has(.cl-otpCodeFieldInputs) .cl-formFieldInput:focus {
+  border-color: hsl(var(--primary)) !important;
+  box-shadow: 0 0 0 3px hsl(var(--primary) / 0.25) !important;
+}
+
 .auth-clerk-root .cl-formButtonPrimary {
   min-height: 2.75rem !important;
   border-radius: 0.625rem !important;

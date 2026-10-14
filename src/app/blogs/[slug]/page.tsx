@@ -12,6 +12,7 @@ import {
   createBlogPostingSchema,
 } from "@/components/StructuredData";
 import { fetchBlogBySlug } from "@/lib/blog/server";
+import { defaultOgImage } from "@/lib/seo/default-og-image";
 import { getSearchRobots, getSiteUrl } from "@/lib/seo/site-url";
 
 type PageProps = {
@@ -45,15 +46,15 @@ export async function generateMetadata({
       publishedTime: post.publishedAt,
       modifiedTime: post.updatedAt,
       images: post.thumbnailUrl
-        ? [{ url: post.thumbnailUrl, width: 1200, height: 630 }]
-        : undefined,
+        ? [{ url: post.thumbnailUrl, width: 1200, height: 630, alt: post.title }]
+        : [defaultOgImage],
       tags: post.categories,
     },
     twitter: {
       card: "summary_large_image",
       title: post.seoTitle || post.title,
       description: post.metaDescription || post.excerpt,
-      images: post.thumbnailUrl ? [post.thumbnailUrl] : undefined,
+      images: post.thumbnailUrl ? [post.thumbnailUrl] : [defaultOgImage.url],
     },
     robots: getSearchRobots(),
   };
