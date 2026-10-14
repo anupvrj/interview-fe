@@ -8,13 +8,12 @@ import { cn } from "@/lib/utils";
 
 const ICONS = { Rocket, Users, UsersRound, PlayCircle, Trophy } as const;
 
-/** Round filled badges + matching time pills, per the key visual. */
 const TONE = {
-  blue: { icon: "bg-[#12398a] text-[#7cc4ff]", pill: "bg-[#0f2c5a] text-[#4fb8ff]" },
-  rose: { icon: "bg-[#4a1737] text-[#ff6b9e]", pill: "bg-[#0f2c5a] text-[#4fb8ff]" },
-  indigo: { icon: "bg-[#12398a] text-[#7cc4ff]", pill: "bg-[#0f2c5a] text-[#4fb8ff]" },
-  cyan: { icon: "bg-[#0b3f6e] text-[#3fd0ff]", pill: "bg-[#0f2c5a] text-[#4fb8ff]" },
-  amber: { icon: "bg-[#4a3410] text-[#ffc233]", pill: "bg-[#3a2c10] text-[#ffc233]" },
+  blue: { icon: "bg-[#12398a] text-[#7cc4ff]" },
+  rose: { icon: "bg-[#4a1737] text-[#ff6b9e]" },
+  indigo: { icon: "bg-[#12398a] text-[#7cc4ff]" },
+  cyan: { icon: "bg-[#0b3f6e] text-[#3fd0ff]" },
+  amber: { icon: "bg-[#4a3410] text-[#ffc233]" },
 } as const;
 
 export function HackathonAgenda() {
@@ -40,22 +39,16 @@ export function HackathonAgenda() {
               const Icon = ICONS[slot.icon];
               const tone = TONE[slot.tone];
               return (
-                <Reveal as="li" key={slot.time} delay={index * 90} from="left">
-                  <div className="hk-agenda-row grid grid-cols-[44px_1fr] items-start gap-x-4 gap-y-1.5 rounded-2xl border border-transparent px-1 py-3 hover:border-[#1d4268] hover:bg-[#0b1c32]/70 sm:grid-cols-[52px_150px_1fr] sm:items-center sm:gap-5 sm:px-2 sm:py-2.5 lg:grid-cols-[46px_122px_1fr] lg:gap-3.5 xl:grid-cols-[52px_150px_1fr] xl:gap-5">
-                    <span className={cn("hk-agenda-icon row-span-2 grid size-11 place-items-center rounded-full sm:row-span-1 sm:size-[52px] lg:size-[46px] xl:size-[52px]", tone.icon)}>
+                <Reveal as="li" key={slot.title} delay={index * 90} from="left">
+                  <div className="hk-agenda-row grid grid-cols-[44px_1fr] items-start gap-x-4 rounded-2xl border border-transparent px-1 py-3 hover:border-[#1d4268] hover:bg-[#0b1c32]/70 sm:grid-cols-[52px_1fr] sm:items-center sm:gap-5 sm:px-2 sm:py-2.5 lg:grid-cols-[46px_1fr] lg:gap-3.5 xl:grid-cols-[52px_1fr] xl:gap-5">
+                    <span className={cn("hk-agenda-icon grid size-11 place-items-center rounded-full sm:size-[52px] lg:size-[46px] xl:size-[52px]", tone.icon)}>
                       <Icon className="size-5 sm:size-6" aria-hidden />
                     </span>
-                    <span
-                      className={cn(
-                        "col-start-2 row-start-1 inline-flex w-fit items-center justify-center rounded-lg px-2.5 py-1 text-[13px] font-bold tabular-nums sm:col-start-auto sm:row-start-auto sm:w-full sm:rounded-xl sm:px-3.5 sm:py-3 sm:text-[15px] lg:px-2 lg:text-[13.5px] xl:px-3.5 xl:text-[15px]",
-                        tone.pill,
-                      )}
-                    >
-                      {slot.time}
-                    </span>
-                    <div className="col-start-2 row-start-2 min-w-0 sm:col-start-auto sm:row-start-auto">
-                      <h3 className="text-base font-bold text-white sm:text-[17px]">{slot.title}</h3>
-                      <p className="mt-0.5 text-sm text-[#cfdbe8] sm:text-[15px]">{slot.body}</p>
+                    <div className="min-w-0">
+                      <h3 className="text-base font-bold leading-snug text-white sm:text-[17px]">{slot.title}</h3>
+                      {"body" in slot && slot.body ? (
+                        <p className="mt-0.5 text-sm text-[#cfdbe8] sm:text-[15px]">{slot.body}</p>
+                      ) : null}
                     </div>
                   </div>
                 </Reveal>

@@ -254,39 +254,24 @@ export const HACKATHON_AGENDA = {
   guestsNote: ["Learn from", "Industry Leaders"],
   slots: [
     {
-      time: "4:00 – 4:10 PM",
-      title: "Welcome & Opening",
-      body: "Event kickoff and Interview Trix introduction",
-      icon: "Rocket",
-      tone: "blue",
-    },
-    {
-      time: "4:10 – 4:30 PM",
-      title: "Chief Guest 1",
-      body: "The Future of Careers in the AI Era",
-      icon: "Users",
-      tone: "rose",
-    },
-    {
-      time: "4:30 – 4:50 PM",
-      title: "Chief Guest 2",
-      body: "Skills, Opportunities and How to Prepare",
-      icon: "UsersRound",
-      tone: "indigo",
-    },
-    {
-      time: "4:50 – 5:15 PM",
-      title: "Interview Trix Product Launch",
-      body: "Live demo, new features and what’s next",
+      title: "Product Launch",
       icon: "PlayCircle",
       tone: "cyan",
     },
     {
-      time: "5:15 – 5:30 PM",
-      title: "Hackathon Winners + Q&A",
-      body: "Winners, recognition and closing",
+      title: "Live discussion on Industry trends and AI use in current hiring markets",
+      icon: "Users",
+      tone: "blue",
+    },
+    {
+      title: "Hackathon Winner Announcements !!",
       icon: "Trophy",
       tone: "amber",
+    },
+    {
+      title: "Audience — Q & A",
+      icon: "UsersRound",
+      tone: "indigo",
     },
   ],
   guests: [
