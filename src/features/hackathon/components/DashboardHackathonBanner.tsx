@@ -1,18 +1,22 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, Flag, Sparkles } from "lucide-react";
+import { ArrowRight, Brain, Flag } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatIst, formatProfileMissing } from "../copy";
 import { usePlatformFeatures } from "@/hooks/usePlatformFeatures";
+import { HACKATHON_PRIZES } from "@/lib/hackathon-2026-content";
 import {
   HACKATHON_FEATURE_KEY,
+  HACKATHON_SLUG,
   hackathonDashboardPath,
   hackathonLandingPath,
   hackathonProfilePath,
 } from "../config";
 import { useHackathonMe, usePublishedHackathons } from "../hooks";
+import { isHackathonRegistered } from "../hackathonRegistration";
 import { pickDashboardHackathon } from "../pickDashboardHackathon";
+import { DashboardHackathonBanner2026 } from "./DashboardHackathonBanner2026";
 import "./DashboardHackathonBanner.css";
 
 const primaryBtn =
@@ -27,12 +31,13 @@ export function DashboardHackathonBanner() {
   if (!isVisible(HACKATHON_FEATURE_KEY) || published.isError || me.isError || !event) return null;
 
   const participant = me.data?.participant ?? null;
-  const registered = !me.waitingForMe && Boolean(me.data?.registered && participant);
-  const completed = Boolean(me.data?.progress.completed || participant?.status === "completed");
-  const withdrawn = participant?.status === "withdrawn" || participant?.status === "disqualified";
+  const registered = !me.waitingForMe && isHackathonRegistered(me.data);
+  const completed = Boolean(
+    registered && (me.data?.progress.completed || participant?.status === "completed"),
+  );
   const profileReady = Boolean(me.data?.profile.complete);
   const missing = me.data?.profile.missing ?? [];
-  const needsDetails = registered && !profileReady && !completed && !withdrawn;
+  const needsDetails = registered && !profileReady && !completed;
   const started = participant?.status === "in_progress";
   const canRegister = !me.waitingForMe && !registered && !event.isFull;
   const dashboardHref = hackathonDashboardPath(event.slug);
@@ -42,7 +47,9 @@ export function DashboardHackathonBanner() {
 
   let message = live
     ? "It’s live now. Register and start the hackathon from here."
-    : "Register now — challenges unlock when the event starts.";
+    : event.slug === HACKATHON_SLUG
+      ? HACKATHON_PRIZES.registerPitch
+      : "Register now — challenges unlock when the event starts.";
   if (event.isFull && !registered) {
     message = "Spots are full for this event.";
   } else if (needsDetails) {
@@ -51,12 +58,10 @@ export function DashboardHackathonBanner() {
     message = "You’re registered. Challenges unlock when the hackathon starts.";
   } else if (registered && live && started) {
     message = "You’re already in. Continue where you left off.";
-  } else if (registered && live && !completed && !withdrawn) {
+  } else if (registered && live && !completed) {
     message = "Your profile is ready. Start the hackathon now.";
   } else if (completed && live) {
     message = "The event is still live. Open the hackathon page to see your run.";
-  } else if (withdrawn && live) {
-    message = "The event is still live. Open the hackathon page for details.";
   }
 
   const when = live
@@ -75,16 +80,28 @@ export function DashboardHackathonBanner() {
         label: missing.includes("resume") ? "Add resume & details" : "Complete your profile",
       };
     } else if (canRegister && live) {
-      cta = { href: dashboardHref, label: "Register and start" };
+      cta = { href: dashboardHref, label: "Register And Win" };
     } else if (canRegister) {
-      cta = { href: landingHref, label: "Register" };
-    } else if (registered && live && !completed && !withdrawn) {
+      cta = { href: landingHref, label: "Register And Win" };
+    } else if (registered && live && !completed) {
       cta = { href: dashboardHref, label: started ? "Continue hackathon" : "Start hackathon" };
     } else if (registered && !live) {
       cta = { href: dashboardHref, label: "Go to hackathon" };
-    } else if (live && (completed || withdrawn)) {
+    } else if (registered && live && completed) {
       cta = { href: dashboardHref, label: "Go to the Hackathon page" };
     }
+  }
+
+  if (event.slug === HACKATHON_SLUG) {
+    return (
+      <DashboardHackathonBanner2026
+        live={live}
+        message={message}
+        when={when}
+        cta={cta}
+        spotsLeft={event.spotsLeft}
+      />
+    );
   }
 
   return (
@@ -99,8 +116,8 @@ export function DashboardHackathonBanner() {
           <span className="hk-dash-live-sheen absolute inset-y-0 w-1/2 bg-gradient-to-r from-transparent via-emerald-200 to-transparent" />
         </span>
       ) : null}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="min-w-0 space-y-2">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
+        <div className="min-w-0 flex-1 space-y-2">
           <div className="flex flex-wrap items-center gap-2">
             <span
               className={cn(
@@ -121,8 +138,8 @@ export function DashboardHackathonBanner() {
                 </>
               ) : (
                 <>
-                  <Sparkles className="size-3" aria-hidden />
-                  Upcoming
+                  <Brain className="size-3" aria-hidden />
+                  Upcoming Hackathon
                 </>
               )}
             </span>
@@ -133,13 +150,13 @@ export function DashboardHackathonBanner() {
             ) : null}
           </div>
           <h2 className="text-lg font-bold leading-tight sm:text-xl">{event.title}</h2>
-          <p className="text-sm leading-relaxed text-sky-100/85">{message}</p>
+          <p className="text-pretty text-sm leading-relaxed text-sky-100/90 sm:max-w-xl">{message}</p>
           {when ? <p className="text-xs text-sky-200/70">{when}</p> : null}
         </div>
 
         {cta ? (
-          <div className="flex w-full shrink-0 sm:w-auto">
-            <Link href={cta.href} className={primaryBtn}>
+          <div className="flex w-full shrink-0 sm:w-auto sm:pt-0.5">
+            <Link href={cta.href} className={cn(primaryBtn, "whitespace-nowrap")}>
               {cta.label}
               <ArrowRight className="size-4" aria-hidden />
             </Link>

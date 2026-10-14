@@ -540,6 +540,29 @@ html:has(.hk-root) body {
     0 40px 120px rgba(0, 20, 60, 0.45);
 }
 
+@keyframes hk-celebration-sparkle {
+  0%,
+  100% {
+    transform: scale(0.6);
+    opacity: 0.35;
+  }
+  50% {
+    transform: scale(1.2);
+    opacity: 1;
+  }
+}
+
+.hk-celebration-sparkle {
+  animation: hk-celebration-sparkle 1.8s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hk-celebration-sparkle {
+    animation: none;
+    opacity: 0.5;
+  }
+}
+
 /* ---------- Final CTA beam ---------- */
 .hk-beam {
   position: absolute;

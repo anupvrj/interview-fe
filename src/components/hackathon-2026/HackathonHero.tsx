@@ -1,17 +1,12 @@
 "use client";
 
 import Image from "next/image";
+import { Calendar, Check, Plus, Video, Zap } from "lucide-react";
 import {
-  Calendar,
-  Check,
-  Clock,
-  FileText,
-  MapPin,
-  Mic,
-  Plus,
-  Trophy,
-  Zap,
-} from "lucide-react";
+  HACKATHON_FLOAT_CARD_TONE,
+  HACKATHON_FLOAT_ICONS,
+  HackathonFloatCard,
+} from "@/components/hackathon-2026/HackathonFloatCard";
 import { HackathonRegisterButton } from "@/components/hackathon-2026/HackathonRegisterButton";
 import { HackathonRegisterHint } from "@/components/hackathon-2026/HackathonRegisterContext";
 import {
@@ -26,17 +21,6 @@ import { useLandingChallengeWindow } from "@/components/hackathon-2026/useLandin
 import { HACKATHON_HERO, HACKATHON_LAUNCH } from "@/lib/hackathon-2026-content";
 import { cn } from "@/lib/utils";
 
-const FLOAT_ICONS = { FileText, Mic, Trophy } as const;
-
-/** Solid icon tiles, matching the key visual. */
-const TONE = {
-  blue: "bg-gradient-to-br from-[#1a5cff] to-[#3aa6ff] text-white shadow-[0_8px_22px_rgba(30,110,255,0.45)]",
-  rose: "bg-gradient-to-br from-[#5a1636] to-[#3a0f26] text-[#ff5b93] ring-1 ring-[#8a2f57]",
-  cyan: "bg-gradient-to-br from-[#123f78] to-[#0c2a52] text-[#8fd3ff] ring-1 ring-[#2b69b0]",
-} as const;
-
-const TICK = "-right-2.5 top-1/2 -translate-y-1/2";
-
 // Deterministic particle field (avoids hydration mismatch)
 const PARTICLES = [
   { left: "22%", dur: "7.5s", delay: "0s", dx: "14px" },
@@ -48,53 +32,6 @@ const PARTICLES = [
   { left: "30%", dur: "11s", delay: "5.5s", dx: "18px" },
   { left: "62%", dur: "8.5s", delay: "6.3s", dx: "-12px" },
 ] as const;
-
-function FloatCard({
-  card,
-  index,
-  tickSide = "right",
-}: {
-  card: (typeof HACKATHON_HERO.floatCards)[number];
-  index: number;
-  tickSide?: "left" | "right";
-}) {
-  const Icon = FLOAT_ICONS[card.icon];
-  const tick =
-    tickSide === "left" ? "-left-2.5 top-1/2 -translate-y-1/2" : TICK;
-  return (
-    <div
-      className={cn(
-        "relative flex w-max items-center gap-3 rounded-2xl border border-[#3a7bd0]/60 bg-[linear-gradient(135deg,rgba(24,52,98,0.82),rgba(10,26,54,0.78))] py-3 shadow-[0_20px_50px_rgba(0,0,0,0.45),0_0_30px_rgba(40,120,255,0.22),inset_0_1px_0_rgba(160,200,255,0.18)] backdrop-blur-md sm:gap-3.5",
-        tickSide === "left" ? "pl-6 pr-3" : "pl-3 pr-6",
-        `hk-bob-${index + 1}`,
-      )}
-    >
-      <span
-        className={cn(
-          "grid size-12 shrink-0 place-items-center rounded-xl",
-          TONE[card.tone],
-        )}
-      >
-        <Icon className="size-6" aria-hidden />
-      </span>
-      <span className="min-w-0 text-[13px] font-bold leading-none text-white">
-        <span className="block whitespace-nowrap">{card.title}</span>
-        <span className="mt-1 block whitespace-nowrap text-[11.5px] font-semibold leading-none text-[#e2ecf8]">
-          {card.subtitle}
-        </span>
-      </span>
-      <span
-        className={cn(
-          "hk-verified absolute grid size-6 place-items-center rounded-full bg-[#22c7a9] text-[#032a22] shadow-[0_0_0_3px_#0a1f3f,0_0_14px_rgba(34,199,169,0.6)]",
-          tick,
-        )}
-        style={{ animationDelay: `${index * 0.6}s` }}
-      >
-        <Check className="size-3.5" strokeWidth={3.5} aria-hidden />
-      </span>
-    </div>
-  );
-}
 
 export function HackathonHero() {
   const visualRef = useParallax<HTMLDivElement>();
@@ -162,20 +99,14 @@ export function HackathonHero() {
                 />
                 Hackathon {challenge.publicRangeLabel}
               </li>
-              <li className="inline-flex items-center gap-2 sm:gap-2.5">
-                <Clock
-                  className="size-4 text-[#2e9bff] sm:size-5"
-                  aria-hidden
-                />
-                {HACKATHON_LAUNCH.dateLabel}, {HACKATHON_LAUNCH.timeLabel}
-              </li>
-              <li className="inline-flex items-center gap-2 sm:gap-2.5">
-                <MapPin
-                  className="size-4 fill-[#2e9bff]/25 text-[#2e9bff] sm:size-5"
-                  aria-hidden
-                />
-                {HACKATHON_LAUNCH.formatLabel}
-                <span className="hk-live-dot" aria-hidden />
+              <li className="inline-flex basis-full items-center justify-center gap-2 text-center sm:basis-auto sm:justify-start sm:gap-2.5 sm:text-left">
+                <Video className="size-4 shrink-0 text-[#2e9bff] sm:size-5" aria-hidden />
+                <span className="text-[#dbe6f3]">
+                  <span className="font-semibold text-white">{HACKATHON_LAUNCH.summaryLabel}</span>
+                  {" · "}
+                  {HACKATHON_LAUNCH.dateLabel}, {HACKATHON_LAUNCH.timeLabel}
+                </span>
+                <span className="hk-live-dot shrink-0" aria-hidden />
               </li>
             </ul>
           </Reveal>
@@ -183,12 +114,14 @@ export function HackathonHero() {
           <Reveal immediate delay={380}>
             <div className="mt-8 flex flex-col items-center gap-4 sm:flex-row sm:justify-center lg:justify-start">
               <div className="shrink-0 text-center sm:text-left">
-                <p className="flex flex-wrap items-center justify-center gap-x-2.5 gap-y-1 sm:justify-start">
-                  <span className="hk-hand text-[1.25rem] leading-none !text-white">
-                    {HACKATHON_HERO.offerNow}
-                  </span>
-                  <span className="text-base font-semibold text-[#8fa6c0] line-through decoration-[#9eb4cc]">
-                    {HACKATHON_HERO.offerWas}
+                <p className="flex flex-wrap items-center justify-center gap-x-2.5 gap-y-1 sm:justify-start lg:flex-col lg:items-start lg:gap-y-1">
+                  <span className="inline-flex items-baseline gap-x-2.5">
+                    <span className="hk-hand text-[1.25rem] leading-none !text-white">
+                      {HACKATHON_HERO.offerNow}
+                    </span>
+                    <span className="text-base font-semibold text-[#8fa6c0] line-through decoration-[#9eb4cc]">
+                      {HACKATHON_HERO.offerWas}
+                    </span>
                   </span>
                   <span className="text-[13px] font-medium text-[#dbe6f3] sm:text-[15px]">
                     {HACKATHON_HERO.offerEndsLabel}{" "}
@@ -371,7 +304,7 @@ export function HackathonHero() {
           >
             <div style={{ transform: "translate(2.75rem, -50%)" }}>
               <div style={parallax(14)}>
-                <FloatCard
+                <HackathonFloatCard
                   card={HACKATHON_HERO.floatCards[1]}
                   index={1}
                   tickSide="left"
@@ -386,7 +319,7 @@ export function HackathonHero() {
             className="absolute right-[calc(50%_+_var(--hk-r)_-_8.5rem)] top-[20%] z-[5] hidden w-max sm:block"
           >
             <div style={parallax(18)}>
-              <FloatCard
+              <HackathonFloatCard
                 card={HACKATHON_HERO.floatCards[0]}
                 index={0}
                 tickSide="left"
@@ -401,7 +334,7 @@ export function HackathonHero() {
           >
             <div className="-translate-y-1/2">
               <div style={parallax(22)}>
-                <FloatCard card={HACKATHON_HERO.floatCards[2]} index={2} />
+                <HackathonFloatCard card={HACKATHON_HERO.floatCards[2]} index={2} />
               </div>
             </div>
           </Reveal>
@@ -449,7 +382,7 @@ export function HackathonHero() {
         {/* Phones: the floating cards would cover the face, so show them as a strip under the photo */}
         <ul className="relative z-[3] -mt-2 mb-5 grid grid-cols-3 gap-1.5 sm:hidden">
           {HACKATHON_HERO.floatCards.map((card) => {
-            const Icon = FLOAT_ICONS[card.icon];
+            const Icon = HACKATHON_FLOAT_ICONS[card.icon];
             return (
               <li
                 key={card.title}
@@ -458,7 +391,7 @@ export function HackathonHero() {
                 <span
                   className={cn(
                     "grid size-9 place-items-center rounded-xl",
-                    TONE[card.tone],
+                    HACKATHON_FLOAT_CARD_TONE[card.tone],
                   )}
                 >
                   <Icon className="size-[18px]" aria-hidden />

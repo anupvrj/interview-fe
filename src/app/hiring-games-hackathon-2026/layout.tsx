@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Caveat } from "next/font/google";
+import { hackathonHand } from "@/lib/fonts/hackathon-hand";
 import {
   StructuredData,
   createBreadcrumbSchema,
@@ -13,13 +13,6 @@ import {
   HACKATHON_FAQ,
 } from "@/lib/hackathon-2026-content";
 import { getSiteUrl } from "@/lib/seo/site-url";
-
-const handwriting = Caveat({
-  subsets: ["latin"],
-  weight: ["500", "600"],
-  variable: "--font-hackathon-hand",
-  display: "swap",
-});
 
 const siteUrl = getSiteUrl();
 const pageUrl = `${siteUrl}${HACKATHON_2026_PATH}`;
@@ -112,7 +105,7 @@ export default function Hackathon2026Layout({
           url: pageUrl,
         }}
       />
-      <div className={handwriting.variable}>{children}</div>
+      <div className={hackathonHand.variable}>{children}</div>
     </>
   );
 }

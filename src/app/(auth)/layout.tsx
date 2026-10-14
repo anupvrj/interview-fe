@@ -8,5 +8,5 @@ export const metadata: Metadata = {
 export default function AuthLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
-  return children;
+  return <div className="auth-route">{children}</div>;
 }

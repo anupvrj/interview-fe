@@ -23,15 +23,16 @@ export function formatProfileMissing(
 }
 
 export const PHASE_COPY = {
-  upcoming: "Hackathon will start soon. Stay tuned...",
+  upcoming: "You're registered. Challenges unlock when the hackathon starts.",
+  startCountdownLabel: "Hackathon will start in",
   ended: "Hackathon is over",
   full: "Hackathon is full. All spots have been taken.",
 } as const;
 
 export const CTA_LABELS = {
   register: "Register Now for Free",
-  getReady: "Register Now for Free",
-  goToChallenges: "Go to challenges",
+  getReady: "Go to Challenge",
+  goToChallenges: "Go to Challenge",
   seeResults: "See your results",
   full: "Hackathon is full",
   ended: "Hackathon is over",
@@ -40,8 +41,8 @@ export const CTA_LABELS = {
 /** Short forms of CTA_LABELS for tight spots (e.g. the mobile header). */
 export const CTA_SHORT_LABELS: Record<keyof typeof CTA_LABELS, string> = {
   register: "Register",
-  getReady: "Register Now",
-  goToChallenges: "Challenges",
+  getReady: "Go to Challenge",
+  goToChallenges: "Challenge",
   seeResults: "Results",
   full: "Full",
   ended: "Ended",
@@ -96,7 +97,9 @@ export function failureReasonText(reason: string | undefined): string | null {
 }
 
 export function formatIst(iso: string | null | undefined): string {
-  if (!iso) return "—";
+  if (!iso?.trim()) return "—";
+  const ms = Date.parse(iso);
+  if (Number.isNaN(ms)) return "—";
   return (
     new Intl.DateTimeFormat("en-IN", {
       timeZone: "Asia/Kolkata",
@@ -107,6 +110,6 @@ export function formatIst(iso: string | null | undefined): string {
       hour: "numeric",
       minute: "2-digit",
       hour12: true,
-    }).format(new Date(iso)) + " IST"
+    }).format(new Date(ms)) + " IST"
   );
 }

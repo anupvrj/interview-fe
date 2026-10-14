@@ -65,15 +65,15 @@ export function HackathonFinalCta() {
               </div>
 
               <div className="w-full shrink-0 rounded-[22px] border border-[#5b9cf0]/40 bg-[linear-gradient(165deg,rgba(20,56,112,0.96),rgba(7,22,48,0.94))] p-5 text-center shadow-[0_24px_50px_rgba(0,0,0,0.35),inset_0_1px_0_rgba(190,220,255,0.22)] sm:p-6 lg:w-[22.5rem] lg:text-left">
-                <p className="flex flex-wrap items-center justify-center gap-x-2.5 gap-y-1 lg:justify-start">
+                <p className="flex flex-wrap items-center justify-center gap-x-2.5 gap-y-1 lg:flex-nowrap lg:justify-start">
                   <span className="hk-hand text-[1.65rem] leading-none !text-white">{HACKATHON_HERO.offerNow}</span>
                   <span className="text-lg font-semibold text-[#8fa6c0] line-through decoration-[#9eb4cc]">
                     {HACKATHON_HERO.offerWas}
                   </span>
-                </p>
-                <p className="mt-1.5 text-sm font-medium text-[#dbe6f3]">
-                  {HACKATHON_HERO.offerEndsLabel}{" "}
-                  <span className="tabular-nums text-base font-extrabold text-[#ff9a3c]">{offerTime}</span>
+                  <span className="whitespace-nowrap text-sm font-medium text-[#dbe6f3]">
+                    {HACKATHON_HERO.offerEndsLabel}{" "}
+                    <span className="tabular-nums text-base font-extrabold text-[#ff9a3c]">{offerTime}</span>
+                  </span>
                 </p>
                 <HackathonRegisterButton
                   size="lg"

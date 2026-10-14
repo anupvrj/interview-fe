@@ -50,6 +50,7 @@
     "@tiptap/starter-kit": "3.30.2",
     "axios": "^1.7.7",
     "bootstrap-icons": "^1.13.1",
+    "canvas-confetti": "^1.9.4",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
     "html2canvas": "^1.4.1",
@@ -73,6 +74,7 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@types/canvas-confetti": "^1.9.0",
     "@types/html2canvas": "^0.5.35",
     "@types/node": "^22.9.0",
     "@types/react": "^18.3.12",

@@ -12,11 +12,13 @@ export const HACKATHON_CHALLENGE = {
 
 /** Live launch. Winners are announced here. The joining link is a later email. */
 export const HACKATHON_LAUNCH = {
-  startISO: "2026-10-31T18:30:00+05:30",
+  startISO: "2026-10-31T19:00:00+05:30",
   endISO: "2026-10-31T20:00:00+05:30",
-  dateLabel: "Sat, 31 Oct 2026",
-  timeLabel: "6:30 PM IST",
-  formatLabel: "Live Virtual Event",
+  dateLabel: "Sat 31 Oct 2026",
+  timeLabel: "7 PM IST",
+  /** Short hero / promo line (online launch + winners). */
+  summaryLabel: "Live launch & winners",
+  formatLabel: "Live online event",
 } as const;
 
 /** @deprecated Use HACKATHON_LAUNCH. Kept so older imports still point at the launch. */
@@ -47,6 +49,12 @@ export const HACKATHON_NAV = [
   { href: "#who", label: "Who can Participate" },
   { href: "#faq", label: "FAQ" },
 ] as const;
+
+/** Set invite URLs before go-live (or use NEXT_PUBLIC_HACKATHON_WHATSAPP_* env vars). */
+export const HACKATHON_WHATSAPP_LINKS = {
+  channelUrl: "",
+  communityUrl: "",
+} as const;
 
 export const HACKATHON_SOCIALS = [
   { label: "LinkedIn", href: "https://www.linkedin.com/company/interview-trix/", icon: "linkedin" },
@@ -153,9 +161,20 @@ export const HACKATHON_WHO = {
 
 export type HackathonRewardKind = "claude" | "voucher" | "credit";
 
+const HACKATHON_PRIZE_AMOUNT = "INR 20,000/-";
+const HACKATHON_PRIZE_TERMS_MARK = "**";
+
 export const HACKATHON_PRIZES = {
   poolLead: "Total Prize Pool Worth",
   poolAmount: 20000,
+  /** Dashboard / promo copy — amount + T&C asterisks (not an icon). */
+  prizeAmount: HACKATHON_PRIZE_AMOUNT,
+  prizeTermsMark: HACKATHON_PRIZE_TERMS_MARK,
+  prizeAmountWithTerms: `${HACKATHON_PRIZE_AMOUNT} ${HACKATHON_PRIZE_TERMS_MARK}`,
+  poolLine: "Total Prize Pool Worth ₹20,000 INR",
+  registerPitchLead: "Challenge Our AI Interviewer and win prize worth upto",
+  /** Full pitch; must match dashboard `message` for layout tweaks. */
+  registerPitch: `Challenge Our AI Interviewer and win prize worth upto ${HACKATHON_PRIZE_AMOUNT} ${HACKATHON_PRIZE_TERMS_MARK}`,
   ranks: [
     {
       rank: "#1",
@@ -206,6 +225,12 @@ export const HACKATHON_PRIZES = {
 } as const satisfies {
   poolLead: string;
   poolAmount: number;
+  prizeAmount: string;
+  prizeTermsMark: string;
+  prizeAmountWithTerms: string;
+  poolLine: string;
+  registerPitchLead: string;
+  registerPitch: string;
   ranks: ReadonlyArray<{
     rank: string;
     title: string;
@@ -316,6 +341,6 @@ export const HACKATHON_FINAL_CTA = {
   points: [
     `Hackathon - ${HACKATHON_CHALLENGE.publicRangeLabel}`,
     "Exciting prizes await",
-    "Winner Announcement",
+    "Live launch & winners",
   ],
 } as const;

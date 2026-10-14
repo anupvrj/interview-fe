@@ -20,6 +20,7 @@ import {
   createProductNavigationSchema,
   createWebSiteSchema,
 } from "@/components/StructuredData";
+import { defaultOgImage } from "@/lib/seo/default-og-image";
 import { getSearchRobots, getSiteUrl } from "@/lib/seo/site-url";
 import { PRODUCT_MARKETING_ROUTES } from "@/lib/seo/marketing-routes";
 import "./globals.css";
@@ -64,6 +65,7 @@ export const metadata: Metadata = {
     description:
       "From ATS-optimized resumes to AI Interview Practice and detailed performance reports — everything you need to get shortlisted and hired.",
     siteName: "Interview Trix",
+    images: [defaultOgImage],
   },
   twitter: {
     card: "summary_large_image",
@@ -71,6 +73,7 @@ export const metadata: Metadata = {
       "Interview Trix - World Fastest AI Resume Builder | AI Interview Practice | Job Search",
     description:
       "From ATS-optimized resumes to AI Interview Practice and detailed performance reports — everything you need to get shortlisted and hired.",
+    images: [defaultOgImage.url],
     creator: "@interviewtrix",
   },
   robots: getSearchRobots(),
@@ -101,7 +104,7 @@ export default function RootLayout({
 
   return (
     <ClerkProvider>
-      <html lang="en">
+      <html lang="en" dir="ltr" suppressHydrationWarning>
         <head>
           <link rel="preconnect" href="https://fonts.googleapis.com" />
           <link

@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
@@ -14,16 +15,17 @@ import {
 import { toHackathonError, type HackathonMe } from "../api";
 import { HACKATHON_SLUG, hackathonDashboardPath, hackathonLandingPath, hackathonProfilePath } from "../config";
 import { formatIst, PHASE_COPY } from "../copy";
-import { hackathonKeys, useHackathonMe, useHackathonSlug, useRegisterForHackathon, useSetHackathonReminders } from "../hooks";
+import { hackathonKeys, useHackathonMe, useHackathonSlug } from "../hooks";
 import { HackathonFeatureGate } from "../components/HackathonFeatureGate";
 import { ChallengeCard } from "../components/ChallengeCard";
 import { CompleteSection } from "../components/CompleteSection";
-import { Countdown } from "../components/Countdown";
+import { HackathonStartCountdown } from "../components/HackathonStartCountdown";
 import { DashboardHero } from "../components/DashboardHero";
 import { HackathonShell } from "../components/HackathonShell";
 import { InterviewChallenge } from "../components/InterviewChallenge";
 import { PhaseNotice } from "../components/PhaseNotice";
 import { ResumeChallenge, hkSecondaryButton } from "../components/ResumeChallenge";
+import { HackathonRemoveRegistration } from "../components/HackathonRemoveRegistration";
 import { SocialChallenge } from "../components/SocialChallenge";
 
 const SUSPENDED_CONTACT_EMAIL = "info@interviewtrix.com";
@@ -34,24 +36,6 @@ function challengeKind(challenge: HackathonMe["hackathon"]["challenges"][number]
   if (challenge.key === "resume_submission") return "resume";
   if (challenge.key === "social_share") return "social";
   return "screening";
-}
-
-function ReminderToggle({ me }: Readonly<{ me: HackathonMe }>) {
-  const reminders = useSetHackathonReminders();
-  if (!me.registered || me.participant?.status === "completed") return null;
-  const optedOut = Boolean(me.participant?.remindersOptOut);
-  return (
-    <p className="text-center text-sm text-[#7189a6]">
-      <button
-        type="button"
-        className="font-semibold text-[#6fc0ff] hover:text-white disabled:opacity-60"
-        disabled={reminders.isPending}
-        onClick={() => reminders.mutate(optedOut)}
-      >
-        {optedOut ? "Turn daily submission reminders back on" : "Stop daily submission reminders"}
-      </button>
-    </p>
-  );
 }
 
 function Board({ me }: Readonly<{ me: HackathonMe }>) {
@@ -84,6 +68,7 @@ function Board({ me }: Readonly<{ me: HackathonMe }>) {
               passed={progress.passed}
               score={progress.score}
               minScore={progress.minScore}
+              resubmitMessage={"resubmitMessage" in progress ? progress.resubmitMessage : undefined}
             >
               {kind === "resume" ? <ResumeChallenge me={me} /> : null}
               {kind === "social" ? <SocialChallenge me={me} /> : null}
@@ -140,11 +125,10 @@ function DashboardContent() {
   const router = useRouter();
   const { isLoaded, isSignedIn } = useAuth();
   const queryClient = useQueryClient();
-  const meQuery = useHackathonMe();
-  const register = useRegisterForHackathon();
-  const registerAttempted = useRef(false);
   const handledInterviewReturn = useRef(false);
+  const meQuery = useHackathonMe();
   const me = meQuery.data;
+  const [leavingHackathon, setLeavingHackathon] = useState(false);
 
   useEffect(() => {
     const pending = peekPostSignInReturnUrl();
@@ -180,13 +164,6 @@ function DashboardContent() {
     router.replace(hackathonDashboardPath(slug), { scroll: false });
   }, [me, router, slug]);
 
-  useEffect(() => {
-    if (!me || me.registered || registerAttempted.current) return;
-    if (me.hackathon.phase === "ended" || me.hackathon.isFull) return;
-    registerAttempted.current = true;
-    register.mutate("dashboard");
-  }, [me, register]);
-
   const needsProfile =
     me?.registered &&
     !me.profile.complete &&
@@ -206,13 +183,14 @@ function DashboardContent() {
     !isLoaded ||
     !isSignedIn ||
     meQuery.waitingForMe ||
-    (me && !me.registered && register.isPending) ||
     needsProfile ||
+    leavingHackathon ||
     (!me && !meQuery.isError)
   ) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center text-[#9eb2ca]">
-        <Loader2 className="mr-2 size-5 animate-spin" aria-hidden /> Loading your hackathon…
+        <Loader2 className="mr-2 size-5 animate-spin" aria-hidden />
+        {leavingHackathon ? "Leaving hackathon…" : "Loading your hackathon…"}
       </div>
     );
   }
@@ -235,29 +213,25 @@ function DashboardContent() {
     );
   }
 
-  const registerError = register.error ? toHackathonError(register.error) : null;
   const { phase, isFull, startsAt, serverNow } = me.hackathon;
 
   if (!me.registered) {
     if (phase === "ended") {
       return <PhaseNotice icon={Flag} tone="amber" title={PHASE_COPY.ended} message="Thanks for your interest. Watch out for the next one!" />;
     }
-    if (isFull || registerError?.code === "HACKATHON_FULL") {
+    if (isFull) {
       return <PhaseNotice icon={Users} tone="rose" title="Hackathon is full" message="All spots have been taken. Watch out for the next one!" />;
     }
     return (
-      <PhaseNotice icon={AlertCircle} tone="rose" title="We couldn't register you" message={registerError?.message}>
-        <button
-          type="button"
-          className={hkSecondaryButton}
-          onClick={() => {
-            registerAttempted.current = false;
-            register.reset();
-            void meQuery.refetch();
-          }}
-        >
-          Try again
-        </button>
+      <PhaseNotice
+        icon={CalendarClock}
+        tone="blue"
+        title="You're not registered"
+        message="Register from the event page to join this hackathon. If you left recently, you can sign up again anytime."
+      >
+        <Link href={landingPath} className={hkSecondaryButton}>
+          Register for hackathon
+        </Link>
       </PhaseNotice>
     );
   }
@@ -286,15 +260,23 @@ function DashboardContent() {
           title={PHASE_COPY.upcoming}
           message={
             <>
-            You&apos;re registered{me.profile.complete ? " and your profile is complete" : ""}. The challenges unlock
-            when the hackathon starts
-            {startsAt ? ` on ${formatIst(startsAt)}` : ""}.
-            {me.hackathon.endsAt ? ` Submissions close on ${formatIst(me.hackathon.endsAt)}.` : ""}
+              You&apos;re registered{me.profile.complete ? " and your profile is complete" : ""}.
+              {startsAt ? (
+                <>
+                  {" "}
+                  Challenges unlock on <span className="font-semibold text-white">{formatIst(startsAt)}</span>.
+                </>
+              ) : (
+                " The start time will be announced soon."
+              )}
+              {me.hackathon.endsAt ? ` Submissions close on ${formatIst(me.hackathon.endsAt)}.` : ""}
             </>
           }
         >
           {startsAt ? (
-            <Countdown
+            <HackathonStartCountdown
+              className="mt-2"
+              variant="amber"
               target={startsAt}
               serverNow={serverNow}
               onDone={() => void queryClient.invalidateQueries({ queryKey: hackathonKeys.me(slug) })}
@@ -303,9 +285,13 @@ function DashboardContent() {
           <div className="mt-6">
             <ReadinessChecklist me={me} />
           </div>
+          <div className="mt-6">
+            <HackathonRemoveRegistration
+              me={me}
+              onLeavingHackathon={() => flushSync(() => setLeavingHackathon(true))}
+            />
+          </div>
         </PhaseNotice>
-        <Board me={me} />
-        <ReminderToggle me={me} />
       </div>
     );
   }
@@ -333,7 +319,10 @@ function DashboardContent() {
         />
       ) : null}
       <Board me={me} />
-      <ReminderToggle me={me} />
+      <HackathonRemoveRegistration
+        me={me}
+        onLeavingHackathon={() => flushSync(() => setLeavingHackathon(true))}
+      />
       {slug === HACKATHON_SLUG ? (
         <p className="text-center text-sm text-[#7189a6]">
           Questions? See the{" "}

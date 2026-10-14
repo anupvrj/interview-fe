@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { defaultOgImage } from "@/lib/seo/default-og-image";
 import { getSiteUrl } from "@/lib/seo/site-url";
 
 const siteUrl = getSiteUrl();
@@ -18,6 +19,7 @@ export const metadata: Metadata = {
       "Flexible pricing plans for every career stage. Start free or choose a plan that fits your needs.",
     type: "website",
     url: `${siteUrl}/pricing`,
+    images: [defaultOgImage],
   },
   twitter: {
     card: "summary_large_image",

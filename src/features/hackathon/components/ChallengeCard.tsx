@@ -86,8 +86,9 @@ function SocialLockedPreview() {
     <div className="space-y-4">
       <div className="rounded-2xl border border-[#27547d]/80 bg-[#071426]/60 p-4">
         <p className="text-sm text-[#cfdbe8]">
-          Share a post about your mock interview on <strong className="text-white">LinkedIn</strong> and{" "}
-          <strong className="text-white">Instagram</strong>, then paste both post links below. Posts must be public.
+          Share your experience on <strong className="text-white">LinkedIn</strong> and{" "}
+          <strong className="text-white">Instagram</strong>, tag <strong className="text-white">@interviewtrix_official</strong>,
+          and keep each post public. Then paste both post links below.
         </p>
         <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
           <p className="min-w-0 flex-1 rounded-lg bg-white/[0.03] px-3 py-2 text-xs text-[#9eb2ca]">{SOCIAL_CAPTION}</p>
@@ -115,7 +116,7 @@ function SocialLockedPreview() {
           </div>
         </div>
       </div>
-      <span className="hk-btn pointer-events-none inline-flex h-12 px-6 text-sm">Submit links</span>
+      <span className="hk-btn pointer-events-none inline-flex h-12 px-6 text-sm">Submit Challenge 3</span>
     </div>
   );
 }
@@ -189,6 +190,7 @@ export function ChallengeCard({
   passed,
   score,
   minScore,
+  resubmitMessage,
   children,
 }: Readonly<{
   number: number;
@@ -201,6 +203,7 @@ export function ChallengeCard({
   passed?: boolean;
   score?: number | null;
   minScore?: number | null;
+  resubmitMessage?: string | null;
   children?: ReactNode;
 }>) {
   const a = ACCENTS[accent];
@@ -274,6 +277,11 @@ export function ChallengeCard({
             {hasScore && !locked ? <ScoreBadge passed={passed} score={score!} minScore={minScore!} /> : null}
           </div>
           <p className="mt-2 max-w-5xl text-[15px] leading-relaxed text-[#dbe6f3]">{description}</p>
+          {resubmitMessage ? (
+            <p className="mt-3 rounded-xl border border-[#ffc44d]/45 bg-[#2e2410]/60 px-3 py-2.5 text-sm text-[#ffe8b8]">
+              <span className="font-semibold text-[#ffc44d]">Admin requested a new submission:</span> {resubmitMessage}
+            </p>
+          ) : null}
         </div>
       </div>
 
