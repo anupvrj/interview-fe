@@ -55,7 +55,7 @@ export const executiveExtendedConfig: Partial<ExtendedResumeTemplate> = {
     },
     headerStyle: "left",
     sectionSpacing: 12,
-    padding: { top: 20, bottom: 20, left: 20, right: 20 },
+    padding: { top: 6, bottom: 20, left: 20, right: 20 },
     sectionHeader: {
       style: "border-bottom",
       borderWidth: 3,

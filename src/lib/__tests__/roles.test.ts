@@ -26,6 +26,20 @@ describe("deriveAvailableRoles", () => {
     ).toEqual(["super_admin", "institution_admin", "candidate"]);
   });
 
+  it("treats moderators and interview managers as institute staff views", () => {
+    expect(
+      deriveAvailableRoles(profile({ accessRole: "institution_moderator" as User["accessRole"] })),
+    ).toEqual(["institution_admin"]);
+  });
+
+  it("does not add a candidate workspace for institute admins", () => {
+    expect(
+      deriveAvailableRoles(
+        profile({ accessRole: "institution_admin", institutionId: "dhee" }),
+      ),
+    ).toEqual(["institution_admin"]);
+  });
+
   it("includes interviewer and recruiter when those profiles are approved", () => {
     expect(
       deriveAvailableRoles(
@@ -36,6 +50,36 @@ describe("deriveAvailableRoles", () => {
         }),
       ),
     ).toEqual(["super_admin", "interviewer", "recruiter", "candidate"]);
+  });
+
+  it("lets institution admins use only the institution workspace", () => {
+    expect(
+      deriveAvailableRoles(
+        profile({ accessRole: "institution_admin", institutionId: "inst1" }),
+      ),
+    ).toEqual(["institution_admin"]);
+  });
+
+  it("lets interview managers use the institution workspace without a candidate view", () => {
+    expect(
+      deriveAvailableRoles(
+        profile({
+          accessRole: "institution_interview_manager",
+          institutionId: "inst1",
+        }),
+      ),
+    ).toEqual(["institution_admin"]);
+  });
+
+  it("lets institution moderators use the institution workspace without a candidate view", () => {
+    expect(
+      deriveAvailableRoles(
+        profile({
+          accessRole: "institution_moderator",
+          institutionId: "inst1",
+        }),
+      ),
+    ).toEqual(["institution_admin"]);
   });
 });
 

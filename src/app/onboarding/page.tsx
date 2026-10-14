@@ -12,6 +12,7 @@ import {
   OnboardingPathChooser,
   type OnboardingPath,
 } from "@/components/onboarding/OnboardingPathChooser";
+import { isInstituteStaff } from "@/lib/institute-access";
 import {
   leaveOnboarding,
   resolveCompletedOnboardingPath,
@@ -23,6 +24,7 @@ import {
   safeAppRedirectPath,
 } from "@/lib/post-sign-in-redirect";
 import { userApi } from "@/lib/api";
+import { roleHome, writeStoredRole } from "@/lib/roles";
 
 function OnboardingFallback() {
   return (
@@ -70,6 +72,18 @@ function OnboardingPageContent() {
         user.primaryEmailAddress?.emailAddress || "",
         user.fullName || user.firstName || "User",
       );
+
+      if (isInstituteStaff(createdUser.accessRole)) {
+        writeStoredRole(user.id, "institution_admin");
+        didRedirect = true;
+        leaveOnboarding(roleHome("institution_admin", createdUser));
+        return;
+      }
+
+      if (createdUser.institutionInvited && !createdUser.onboardingCompleted) {
+        setOnboardingPath("candidate");
+        return;
+      }
 
       if (createdUser.onboardingCompleted) {
         didRedirect = true;

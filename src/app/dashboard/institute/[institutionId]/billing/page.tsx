@@ -17,8 +17,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Coins, CreditCard, ExternalLink, Receipt, ShieldCheck, Users } from "lucide-react";
-import { userApi, adminApi } from "@/lib/api";
+import { Coins, CreditCard, ExternalLink, Users } from "lucide-react";
+import { userApi, adminApi, type InstitutionBillingStatus } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import {
   InstituteLoader,
@@ -27,6 +27,12 @@ import {
   InstituteTableShell,
   institutePanelClass,
 } from "@/components/institute/InstituteChrome";
+import {
+  BillingHistoryTable,
+  BillingSummaryCard,
+  SeatUsageCard,
+} from "@/components/institution-lifecycle/BillingPanels";
+import { InstituteBillingBanner } from "@/components/institution-lifecycle/InstituteBillingBanner";
 
 const PLAN_LABELS: Record<string, string> = {
   free: "Free",
@@ -47,6 +53,7 @@ export default function InstituteBillingPage() {
   const institutionId = params.institutionId as string;
   const [profile, setProfile] = useState<any>(null);
   const [dashboard, setDashboard] = useState<any>(null);
+  const [billing, setBilling] = useState<InstitutionBillingStatus | null>(null);
   const [payments, setPayments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -59,12 +66,13 @@ export default function InstituteBillingPage() {
     setLoading(true);
     Promise.all([
       adminApi.getInstitutionDashboard(institutionId),
-      adminApi.getInstitutionPayments(institutionId),
+      adminApi.getInstitutionPayments(institutionId).catch(() => []),
+      adminApi.getInstitutionBillingStatus(institutionId).catch(() => null),
     ])
-      .then(([d, p]) => {
+      .then(([d, p, b]) => {
         setDashboard(d);
-        const rows = Array.isArray(p) ? p : p?.data ?? [];
-        setPayments(rows);
+        setPayments(Array.isArray(p) ? p : p?.data ?? []);
+        setBilling(b);
       })
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -74,117 +82,68 @@ export default function InstituteBillingPage() {
     return <InstituteLoader />;
   }
 
-  const planCounts = dashboard?.planCounts || {};
-  const planSeats = dashboard?.planSeats || [];
-  const seatRows = (planSeats as Array<{ purchased: number; used: number }>).filter(
-    (s) => s.purchased > 0 || s.used > 0,
-  );
-  const seatsPurchased = seatRows.reduce((n, s) => n + s.purchased, 0);
-  const seatsUsed = seatRows.reduce((n, s) => n + s.used, 0);
+  const planCounts: Record<string, number> = dashboard?.planCounts || {};
   const creditsPool = dashboard?.creditsPool ?? 0;
   const userCount = dashboard?.userCount ?? 0;
-  const maxUsers = dashboard?.institution?.maxUsers as number | null | undefined;
+  const activePlanCounts = Object.entries(planCounts).filter(([, n]) => n > 0);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 lg:space-y-8">
       <InstitutePageHeader
         hideBack
-        title="Plans & payments"
-        description="Purchased seat packs, member plan mix, credits across candidates, and institute payment history."
+        title="Plans & billing"
+        description="Your billing term, next renewal, seat quota, and payment history."
       />
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <InstituteStatCard
-          icon={ShieldCheck}
-          label="Plan seats used"
-          value={seatsPurchased > 0 ? `${seatsUsed} / ${seatsPurchased}` : "—"}
-          footer={
-            seatsPurchased > 0
-              ? `${Math.round((seatsUsed / seatsPurchased) * 100)}% utilization · ${seatsPurchased - seatsUsed} open`
-              : "No purchased seat packs"
-          }
-        />
+      <InstituteBillingBanner
+        lifecycle={billing?.lifecycle ?? dashboard?.lifecycle}
+        institutionId={institutionId}
+        showBillingLink={false}
+      />
+
+      {billing ? <BillingSummaryCard status={billing} /> : null}
+
+      <div className="grid gap-4 sm:grid-cols-3">
         <InstituteStatCard
           icon={Users}
           label="Members enrolled"
           value={String(userCount)}
-          footer={maxUsers != null ? `Institution cap ${maxUsers}` : "No member cap set"}
+          footer={
+            billing?.seats.totalSeats != null
+              ? `${billing.seats.used} of ${billing.seats.totalSeats} seats in use`
+              : "No seat cap set"
+          }
         />
         <InstituteStatCard
           icon={Coins}
           label="Credits pool"
           value={creditsPool.toLocaleString()}
-          footer="Sum of available credits (all candidates)"
+          footer="Refreshed for every candidate at each renewal"
         />
         <InstituteStatCard
           icon={CreditCard}
-          label="Active plan types"
-          value={String(Object.keys(planCounts).length)}
-          footer="Distribution by plan below"
+          label="Plans in use"
+          value={String(activePlanCounts.length)}
+          footer={
+            activePlanCounts.map(([plan, n]) => `${n} ${PLAN_LABELS[plan] || plan}`).join(" · ") ||
+            "No members yet"
+          }
         />
       </div>
 
-      <section className="space-y-3">
-        <h2 className="text-lg font-semibold text-foreground">Seat quotas by plan</h2>
-        <p className="text-sm text-muted-foreground">
-          Purchased seats are allocated by Interview Trix. You can enroll candidates only while seats
-          remain on each plan. Credits and features match consumer (B2C) plans.
-        </p>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {planSeats
-            .filter((row: { purchased: number }) => row.purchased > 0)
-            .map((row: { planId: string; purchased: number; used: number; remaining: number }) => (
-              <InstituteStatCard
-                key={row.planId}
-                icon={Receipt}
-                label={PLAN_LABELS[row.planId] || row.planId}
-                value={`${row.used} / ${row.purchased}`}
-                footer={`${row.remaining} remaining`}
-              />
-            ))}
-          {planSeats.filter((r: { purchased: number }) => r.purchased > 0).length === 0 && (
-            <Card className={cn(institutePanelClass, "sm:col-span-2")}>
-              <CardContent className="pt-6">
-                <p className="text-sm text-muted-foreground">
-                  No purchased seat packs yet. Contact your account manager or use member cap only.
-                </p>
-              </CardContent>
-            </Card>
-          )}
-        </div>
-      </section>
+      {billing ? <SeatUsageCard seats={billing.seats} /> : null}
 
-      <section className="space-y-3">
-        <h2 className="text-lg font-semibold text-foreground">Candidate plan mix</h2>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {Object.entries(planCounts).map(([plan, count]) => (
-            <InstituteStatCard
-              key={plan}
-              icon={CreditCard}
-              label={PLAN_LABELS[plan] || plan}
-              value={String(count)}
-              footer="active members"
-            />
-          ))}
-        </div>
-      </section>
+      {billing ? <BillingHistoryTable records={billing.records} /> : null}
 
-      <Card className={cn(institutePanelClass, "overflow-hidden shadow-xl")}>
-        <CardHeader className="border-b border-border/60 bg-gradient-to-r from-muted/40 to-card">
-          <CardTitle>Recent payments</CardTitle>
-          <CardDescription>
-            Charges to this institution’s billing account (plans and credit purchases from your
-            institution admin). Receipts and invoices for these transactions live here — not
-            individual candidate subscriptions.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="p-0 sm:p-0">
-          {payments.length === 0 ? (
-            <p className="px-6 py-10 text-center text-sm text-muted-foreground">
-              No institute payments recorded yet. When an institution admin completes checkout for a
-              plan or credits, it will appear here.
-            </p>
-          ) : (
+      {payments.length > 0 ? (
+        <Card className={cn(institutePanelClass, "overflow-hidden")}>
+          <CardHeader className="border-b border-border/60">
+            <CardTitle className="text-base">Online payments</CardTitle>
+            <CardDescription>
+              Card and UPI checkouts made by your institute admins for plans or credits.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="p-0 sm:p-0">
             <InstituteTableShell>
               <Table>
                 <TableHeader>
@@ -219,10 +178,7 @@ export default function InstituteBillingPage() {
                       ? `https://dashboard.razorpay.com/app/payments/${encodeURIComponent(razorpayPaymentId)}`
                       : null;
                     return (
-                      <TableRow
-                        key={row._id || row.id}
-                        className="border-border hover:bg-muted/40"
-                      >
+                      <TableRow key={row._id || row.id} className="border-border hover:bg-muted/40">
                         <TableCell className="whitespace-nowrap text-foreground">
                           {row.createdAt ? new Date(row.createdAt).toLocaleString() : "—"}
                         </TableCell>
@@ -264,9 +220,9 @@ export default function InstituteBillingPage() {
                 </TableBody>
               </Table>
             </InstituteTableShell>
-          )}
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      ) : null}
     </div>
   );
 }

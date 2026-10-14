@@ -359,6 +359,54 @@ export default function PlanPage() {
     );
   }
 
+  if (subscription?.institutionManaged) {
+    const managedPlan = allPlans.find(
+      (p) => p.planId === normalizeSubscriptionPlan(subscription.plan),
+    );
+    return (
+      <div className="mx-auto w-full max-w-3xl space-y-4 lg:space-y-6">
+        <Card className="rounded-xl border border-border/60 bg-card shadow-card">
+          <CardHeader className="border-b border-border/60 px-4 py-4 sm:px-6">
+            <div className="flex items-center gap-3">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#7367F0]/10 text-[#7367F0]">
+                <Shield className="h-5 w-5" />
+              </span>
+              <div className="min-w-0">
+                <CardTitle className="text-lg">Managed by your institute</CardTitle>
+                <CardDescription>
+                  Your plan, credits, and renewal are handled by your institute.
+                </CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="grid gap-3 p-4 sm:grid-cols-3 sm:p-6">
+            <div className="rounded-lg border border-border/60 bg-muted/20 px-4 py-3">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Plan</p>
+              <p className="mt-1 text-sm font-semibold text-foreground">
+                {managedPlan?.displayName || managedPlan?.name || subscription.plan}
+              </p>
+            </div>
+            <div className="rounded-lg border border-border/60 bg-muted/20 px-4 py-3">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Credits</p>
+              <p className="mt-1 text-sm font-semibold tabular-nums text-foreground">
+                {creditBalance?.available ?? subscription.creditsAvailable ?? 0}
+              </p>
+            </div>
+            <div className="rounded-lg border border-border/60 bg-muted/20 px-4 py-3">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Credits refresh</p>
+              <p className="mt-1 text-sm font-semibold text-foreground">
+                {subscription.currentPeriodEnd ? formatDate(subscription.currentPeriodEnd) : "After go-live"}
+              </p>
+            </div>
+            <p className="text-sm text-muted-foreground sm:col-span-3">
+              Need a different plan or more credits? Contact your institute admin.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   const isExpired =
     subscription?.isExpired === true ||
     subscription?.needsRenewal === true ||

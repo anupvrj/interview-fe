@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
   biometricEnrollmentLabel,
   biometricEnrollmentState,
+  canManagedCandidateSelfStart,
+  defaultInstitutionProducts,
   isInstituteBiometricRequired,
+  isInstitutionProductEnabled,
 } from "../institution-flags";
 
 describe("biometricEnrollmentState", () => {
@@ -49,5 +52,50 @@ describe("isInstituteBiometricRequired", () => {
         institutionFlags: { biometricVerification: true },
       }),
     ).toBe(false);
+  });
+
+  it("always requires identity for institute-invited candidates", () => {
+    expect(
+      isInstituteBiometricRequired({
+        institutionId: "inst_1",
+        institutionInvited: true,
+        accessRole: "user",
+        institutionFlags: { biometricVerification: false },
+      }),
+    ).toBe(true);
+  });
+});
+
+describe("canManagedCandidateSelfStart", () => {
+  it("is true for self-serve users", () => {
+    expect(canManagedCandidateSelfStart({ accessRole: "user" })).toBe(true);
+  });
+
+  it("defaults on for managed candidates unless the institute turned it off", () => {
+    expect(
+      canManagedCandidateSelfStart({
+        institutionId: "inst_1",
+        institutionInvited: true,
+        accessRole: "user",
+      }),
+    ).toBe(true);
+    expect(
+      canManagedCandidateSelfStart({
+        institutionId: "inst_1",
+        institutionInvited: true,
+        accessRole: "user",
+        allowCandidateSelfStart: false,
+      }),
+    ).toBe(false);
+  });
+});
+
+describe("AI connector institute product", () => {
+  it("defaults off until a super admin enables it", () => {
+    expect(defaultInstitutionProducts().api_connector).toBe(false);
+    expect(isInstitutionProductEnabled(undefined, "api_connector")).toBe(false);
+    expect(isInstitutionProductEnabled({ api_connector: true }, "api_connector")).toBe(
+      true,
+    );
   });
 });
