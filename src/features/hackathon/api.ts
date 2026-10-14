@@ -305,13 +305,6 @@ export const hackathonApi = {
     return res.data.data;
   },
 
-  /** Deletes this hackathon entry and all submissions; you can register again. */
-  withdrawRegistration: async (slug: string, getToken: TokenGetter): Promise<HackathonMe> => {
-    const res = await apiClient.delete<{ data: HackathonMe }>(`${hackathonBase(slug)}/me/registration`, {
-      headers: await authHeaders(getToken),
-    });
-    return res.data.data;
-  },
 };
 
 // ---------------------------------------------------------------- admin

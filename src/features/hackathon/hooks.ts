@@ -157,21 +157,6 @@ export function useRegisterForHackathon() {
   );
 }
 
-export function useWithdrawFromHackathon() {
-  const slug = useHackathonSlug();
-  const { getToken } = useAuth();
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: () => hackathonApi.withdrawRegistration(slug, () => getToken()),
-    onSuccess: (data) => {
-      queryClient.setQueryData(hackathonKeys.me(slug), data);
-      void queryClient.invalidateQueries({ queryKey: hackathonKeys.published });
-      void queryClient.refetchQueries({ queryKey: hackathonKeys.me(slug), type: "active" });
-    },
-    onError: () => void queryClient.invalidateQueries({ queryKey: hackathonKeys.me(slug) }),
-  });
-}
-
 export function useSubmitHackathonResume() {
   return useMeMutation<string>((slug, getToken, resumeId) =>
     hackathonApi.submitResume(slug, getToken, resumeId),
