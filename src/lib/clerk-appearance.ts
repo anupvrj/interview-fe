@@ -47,7 +47,7 @@ export const clerkAuthAppearance: Appearance = {
     showOptionalFields: false,
   },
   elements: {
-    rootBox: "w-full",
+    rootBox: "auth-clerk-root w-full",
     cardBox: "w-full shadow-none",
     card: "w-full gap-0 border-0 bg-transparent p-0 shadow-none",
     headerTitle: "hidden",
@@ -82,8 +82,10 @@ export const clerkAuthAppearance: Appearance = {
     identityPreview: "rounded-[0.625rem] border border-border bg-muted/30",
     identityPreviewText: "text-sm text-foreground",
     identityPreviewEditButton: "text-sm font-medium text-primary",
+    otpCodeFieldInputs: "flex w-full justify-center gap-2 sm:gap-2.5",
     otpCodeFieldInput:
-      "h-11 rounded-[0.625rem] border border-input text-sm",
+      "cl-otp-digit h-12 min-w-[2.75rem] flex-1 max-w-[3rem] rounded-[0.625rem] border-2 border-[#7367F0]/55 bg-card text-center text-lg font-semibold tabular-nums text-foreground shadow-sm transition-colors focus:border-primary focus:ring-2 focus:ring-primary/30 dark:border-[#7367F0]/65",
+    formFieldInputGroup: "w-full",
     formResendCodeLink: "text-sm font-medium text-primary hover:underline",
     formFieldAction: "text-sm font-medium text-primary hover:underline",
     alternativeMethodsBlockButton:

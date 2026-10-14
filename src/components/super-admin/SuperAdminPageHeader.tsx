@@ -15,6 +15,7 @@ export function SuperAdminPageHeader({
   backHref,
   backLabel,
   hideBack = false,
+  unsavedChanges = false,
 }: Readonly<{
   title?: string;
   description?: ReactNode;
@@ -22,6 +23,8 @@ export function SuperAdminPageHeader({
   backHref?: string | null;
   backLabel?: string;
   hideBack?: boolean;
+  /** Prompt before navigating away via the back link. */
+  unsavedChanges?: boolean;
 }>) {
   const pathname = usePathname();
   const page = resolveSuperAdminPage(pathname);
@@ -48,7 +51,15 @@ export function SuperAdminPageHeader({
             asChild
             className="-ml-2 h-8 w-fit gap-1 px-2 text-muted-foreground hover:text-foreground"
           >
-            <Link href={resolvedBackHref}>
+            <Link
+              href={resolvedBackHref}
+              onClick={(event) => {
+                if (!unsavedChanges) return;
+                if (!window.confirm("You have unsaved changes. Leave this page anyway?")) {
+                  event.preventDefault();
+                }
+              }}
+            >
               <ArrowLeft className="h-4 w-4" />
               {resolvedBackLabel}
             </Link>

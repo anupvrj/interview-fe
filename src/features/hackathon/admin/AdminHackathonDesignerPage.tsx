@@ -1,15 +1,15 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowDown, ArrowUp, CalendarClock, Flag, Loader2, Play, Plus, Sparkles, Trash2, Trophy } from "lucide-react";
+import Link from "next/link";
+import { ArrowDown, ArrowUp, CalendarClock, Eye, Flag, Loader2, Plus, Sparkles, Trash2, Trophy, Users } from "lucide-react";
 import { toast } from "sonner";
 import { InstituteFormStepper, type InstituteFormStep } from "@/components/institute/InstituteFormStepper";
 import { SuperAdminPageHeader } from "@/components/super-admin/SuperAdminPageHeader";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { AppSelect } from "@/components/ui/app-select";
@@ -22,10 +22,13 @@ import {
   type AdminHackathonWriteBody,
   type HackathonChallengeKind,
 } from "../api";
-import { HACKATHON_ADMIN_PATH, HACKATHON_TARGETS } from "../config";
-import { formatIst } from "../copy";
+import { HACKATHON_ADMIN_PATH, HACKATHON_TARGETS, hackathonPublicPath } from "../config";
+import { hackathonAdminTabHref } from "./hackathonAdminNav";
 import { hackathonKeys } from "../hooks";
+import { HackathonStatusActions } from "./HackathonStatusActions";
 import { HackathonAdminField, HackathonAdminFieldRow, hackathonAdminControlClass } from "./HackathonAdminField";
+import { HackathonIstDateTimeField } from "./HackathonIstDateTimeField";
+import { HackathonAdminShell } from "./HackathonAdminShell";
 import { isoToIstInput, istInputToIso } from "./time";
 
 const STEPS: InstituteFormStep[] = [
@@ -45,9 +48,9 @@ const STEPS: InstituteFormStep[] = [
   },
   {
     number: 3,
-    title: "Window",
-    headline: "Schedule and capacity",
-    description: "Start and end times in IST, participant cap, and interview grace.",
+    title: "Operate",
+    headline: "Status, schedule, and limits",
+    description: "Public visibility, submission window, reminders, and capacity.",
     icon: CalendarClock,
   },
 ];
@@ -197,7 +200,7 @@ function fromOverview(h: AdminHackathonOverview): FormState {
     registerCta: h.landing?.registerCta ?? "",
     atsScore: String(h.targets?.atsScore ?? HACKATHON_TARGETS.atsScore),
     interviewScore: String(h.targets?.interviewScore ?? HACKATHON_TARGETS.interviewScore),
-    challenges: challenges.length ? challenges : emptyForm().challenges,
+    challenges: challenges.length ? challenges : [emptyChallenge("resume"), emptyChallenge("screening"), emptyChallenge("social")],
     maxConcurrent: String(h.interviewConfig.maxConcurrent ?? 50),
     startsAt: isoToIstInput(h.startsAt),
     endsAt: isoToIstInput(h.endsAt),
@@ -268,7 +271,7 @@ function toBody(form: FormState): AdminHackathonWriteBody & { title: string; slu
 
 const START_CLOCK_SKEW_MS = 2 * 60_000;
 
-function assertDesignerWrite(form: FormState, body: ReturnType<typeof toBody>, mode: "save" | "startNow") {
+function assertDesignerWrite(form: FormState, body: ReturnType<typeof toBody>, editing: boolean) {
   if (body.title.length < 3) throw new Error("Title must be at least 3 characters.");
   if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(body.slug) || body.slug.length < 3) {
     throw new Error("Slug must be lowercase kebab-case, 3–80 characters.");
@@ -294,13 +297,7 @@ function assertDesignerWrite(form: FormState, body: ReturnType<typeof toBody>, m
   if (reminderHour === undefined || !Number.isInteger(reminderHour) || reminderHour < 0 || reminderHour > 23) {
     throw new Error("Reminder hour must be from 0 to 23.");
   }
-  if (mode === "startNow") {
-    if (body.endsAt && Date.parse(body.endsAt) <= Date.now()) {
-      throw new Error("The end date is already in the past. Clear it or pick a time in the future.");
-    }
-    return { ...body, startsAt: null };
-  }
-  if (body.startsAt && Date.parse(body.startsAt) <= Date.now() - START_CLOCK_SKEW_MS) {
+  if (!editing && body.startsAt && Date.parse(body.startsAt) <= Date.now() - START_CLOCK_SKEW_MS) {
     throw new Error("Start must be in the future. Leave it empty, or use Start now to open immediately.");
   }
   return body;
@@ -310,10 +307,13 @@ export function AdminHackathonDesignerPage({ hackathonId }: Readonly<{ hackathon
   const router = useRouter();
   const queryClient = useQueryClient();
   const editing = Boolean(hackathonId);
-  const [step, setStep] = useState(1);
-  const [form, setForm] = useState<FormState>(emptyForm);
+  const [step, setStep] = useState(() => (hackathonId ? 3 : 1));
+  /** Single empty snapshot — `emptyForm()` uses random challenge clientIds; calling it twice made the form "dirty" before hydrate. */
+  const initialEmptyForm = useMemo(() => emptyForm(), []);
+  const [form, setForm] = useState<FormState>(initialEmptyForm);
   const [slugTouched, setSlugTouched] = useState(editing);
-  const [confirmStart, setConfirmStart] = useState(false);
+  const baselineRef = useRef(JSON.stringify(initialEmptyForm));
+  const hydratedHackathonIdRef = useRef<string | null>(null);
 
   const existing = useQuery({
     queryKey: hackathonKeys.adminOne(hackathonId ?? ""),
@@ -330,9 +330,27 @@ export function AdminHackathonDesignerPage({ hackathonId }: Readonly<{ hackathon
     queryFn: () => adminSystemDesignApi.list({ isActive: true, limit: 100, sortBy: "title", sortDir: "asc" }),
   });
 
+  const isDirty = useMemo(() => JSON.stringify(form) !== baselineRef.current, [form]);
+
   useEffect(() => {
-    if (existing.data) setForm(fromOverview(existing.data));
-  }, [existing.data]);
+    if (!existing.data) return;
+    const id = existing.data.hackathonId;
+    if (hydratedHackathonIdRef.current === id) return;
+    if (hydratedHackathonIdRef.current !== null && isDirty) return;
+    const next = fromOverview(existing.data);
+    setForm(next);
+    baselineRef.current = JSON.stringify(next);
+    hydratedHackathonIdRef.current = id;
+  }, [existing.data, isDirty]);
+
+  useEffect(() => {
+    if (!isDirty) return;
+    const onBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [isDirty]);
 
   useEffect(() => {
     if (slugTouched) return;
@@ -348,25 +366,28 @@ export function AdminHackathonDesignerPage({ hackathonId }: Readonly<{ hackathon
     }));
 
   const save = useMutation({
-    mutationFn: async (mode: "save" | "startNow" = "save") => {
-      const body = assertDesignerWrite(form, toBody(form), mode);
-      let data: AdminHackathonOverview;
+    mutationFn: async () => {
+      const body: ReturnType<typeof toBody> = { ...assertDesignerWrite(form, toBody(form), editing) };
+      if (editing && isoToIstInput(existing.data?.startsAt) === form.startsAt) {
+        delete body.startsAt;
+      }
       if (editing) {
         const res = await hackathonAdminApi.update(hackathonId!, body);
-        data = res.data;
-      } else {
-        data = await hackathonAdminApi.create(body);
+        return res.data;
       }
-      if (mode === "startNow") {
-        data = await hackathonAdminApi.start(data.hackathonId);
-      }
-      return { data, mode };
+      return hackathonAdminApi.create(body);
     },
-    onSuccess: ({ data, mode }) => {
+    onSuccess: (data) => {
       void queryClient.invalidateQueries({ queryKey: hackathonKeys.adminList });
       queryClient.setQueryData(hackathonKeys.adminOne(data.hackathonId), data);
-      toast.success(mode === "startNow" ? "Hackathon is live" : editing ? "Hackathon saved" : "Draft created");
-      router.push(HACKATHON_ADMIN_PATH);
+      const synced = fromOverview(data);
+      setForm(synced);
+      baselineRef.current = JSON.stringify(synced);
+      toast.success(editing ? "Hackathon saved" : "Draft created");
+      if (editing && data.visibility === "published" && !data.startsAt) {
+        toast.warning("No start time is set — participants won't see a countdown until you add one.");
+      }
+      if (!editing) router.push(HACKATHON_ADMIN_PATH);
     },
     onError: (err) => {
       const message = err instanceof Error && !("response" in err) ? err.message : toHackathonError(err).message;
@@ -388,18 +409,16 @@ export function AdminHackathonDesignerPage({ hackathonId }: Readonly<{ hackathon
     );
   }
 
-  return (
-    <div className="space-y-5">
-      <SuperAdminPageHeader
-        backHref={HACKATHON_ADMIN_PATH}
-        backLabel="Hackathons"
-        title={editing ? "Edit hackathon" : "Create hackathon"}
-        description={
-          locked
-            ? "Structure is locked after the first registration. You can still edit copy, dates, and limits."
-            : "Saved as a draft. Publish from the operate card when the public page should go live."
-        }
-      />
+  const inner = (
+    <>
+      {!editing ? (
+        <SuperAdminPageHeader
+          backHref={HACKATHON_ADMIN_PATH}
+          backLabel="Hackathons"
+          title="Create hackathon"
+          description="Saved as a draft until you publish on step Operate after creation."
+        />
+      ) : null}
       <InstituteFormStepper steps={STEPS} currentStep={step} />
       <Card>
         <CardContent className="space-y-5 pt-6">
@@ -429,27 +448,39 @@ export function AdminHackathonDesignerPage({ hackathonId }: Readonly<{ hackathon
               <HackathonAdminFieldRow id="hk-cta" label="Register button" hint="Leave empty to use the default.">
                 <Input id="hk-cta" className={hackathonAdminControlClass} value={form.registerCta} onChange={(e) => patch({ registerCta: e.target.value })} />
               </HackathonAdminFieldRow>
-              <div className="grid gap-4 md:grid-cols-2">
-                <HackathonAdminField id="hk-ats" label="ATS display target">
-                  <Input id="hk-ats" type="number" min={0} max={100} className={hackathonAdminControlClass} value={form.atsScore} onChange={(e) => patch({ atsScore: e.target.value })} />
-                </HackathonAdminField>
-                <HackathonAdminField id="hk-iv" label="Interview display target">
-                  <Input
-                    id="hk-iv"
-                    type="number"
-                    min={0}
-                    max={100}
-                    className={hackathonAdminControlClass}
-                    value={form.interviewScore}
-                    onChange={(e) => patch({ interviewScore: e.target.value })}
-                  />
-                </HackathonAdminField>
-              </div>
+              <details className="rounded-lg border border-border/60 p-3">
+                <summary className="cursor-pointer text-sm font-medium text-foreground">Display targets (optional)</summary>
+                <div className="mt-3 grid gap-4 md:grid-cols-2">
+                  <HackathonAdminField id="hk-ats" label="ATS target %" hint="Shown on the landing page.">
+                    <Input id="hk-ats" type="number" min={0} max={100} className={hackathonAdminControlClass} value={form.atsScore} onChange={(e) => patch({ atsScore: e.target.value })} />
+                  </HackathonAdminField>
+                  <HackathonAdminField id="hk-iv" label="Interview target %" hint="Shown on the landing page.">
+                    <Input
+                      id="hk-iv"
+                      type="number"
+                      min={0}
+                      max={100}
+                      className={hackathonAdminControlClass}
+                      value={form.interviewScore}
+                      onChange={(e) => patch({ interviewScore: e.target.value })}
+                    />
+                  </HackathonAdminField>
+                </div>
+              </details>
             </>
           ) : null}
 
           {step === 2 ? (
             <>
+              {locked ? (
+                <div className="rounded-lg border border-amber-300/70 bg-amber-50 px-4 py-3 text-sm text-amber-950 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-100">
+                  <p className="font-semibold">Challenge structure is locked</p>
+                  <p className="mt-1 text-amber-900/90 dark:text-amber-100/90">
+                    Slug, challenge types, order, round counts, and problem picks cannot change after the first registration.
+                    You can still edit titles, descriptions, schedule, limits, and reminders.
+                  </p>
+                </div>
+              ) : null}
               {form.challenges.map((challenge, index) => (
                 <div key={challenge.clientId} className="space-y-4 rounded-xl border border-border/80 p-4">
                   <div className="flex flex-wrap items-center justify-between gap-2">
@@ -678,55 +709,86 @@ export function AdminHackathonDesignerPage({ hackathonId }: Readonly<{ hackathon
 
           {step === 3 ? (
             <>
+              {editing && existing.data ? (
+                <div className="space-y-3 rounded-xl border border-border/80 p-4">
+                  <p className="text-sm font-semibold text-foreground">Publication and status</p>
+                  <HackathonStatusActions
+                    hackathon={existing.data}
+                    onUpdated={(data) => {
+                      queryClient.setQueryData(hackathonKeys.adminOne(data.hackathonId), data);
+                      if (!isDirty) {
+                        const next = fromOverview(data);
+                        setForm(next);
+                        baselineRef.current = JSON.stringify(next);
+                      }
+                    }}
+                  />
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  After you create the hackathon, open Edit and use this step to publish and set On-going / Completed.
+                </p>
+              )}
+
+              <div className="rounded-lg border border-border/60 bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
+                <p className="font-medium text-foreground">How scheduling works</p>
+                <ul className="mt-2 list-inside list-disc space-y-1">
+                  <li>Registration opens as soon as the hackathon is published (before the start time).</li>
+                  <li>Challenges unlock automatically at the start time you set below — no need to click Start now unless you want to open early.</li>
+                </ul>
+              </div>
+
+              <p className="text-sm font-semibold text-foreground">Schedule and capacity</p>
               <div className="grid gap-4 md:grid-cols-2">
-                <HackathonAdminField
+                <HackathonIstDateTimeField
                   id="hk-start"
-                  label="Start (IST)"
-                  hint="Leave empty to open later, or use Start now to go live immediately."
-                >
-                  <Input id="hk-start" type="datetime-local" className={hackathonAdminControlClass} value={form.startsAt} onChange={(e) => patch({ startsAt: e.target.value })} />
-                </HackathonAdminField>
-                <HackathonAdminField id="hk-end" label="End (IST)" hint="Optional. Empty means it stays open until you click End now.">
-                  <Input id="hk-end" type="datetime-local" className={hackathonAdminControlClass} value={form.endsAt} onChange={(e) => patch({ endsAt: e.target.value })} />
-                </HackathonAdminField>
-                <HackathonAdminField id="hk-remind-hour" label="Daily reminder hour (IST)" hint="One reminder per person in a 6-hour window from this hour. Copy and on/off for the email itself live in Notification Hub.">
-                  <div className="flex items-center gap-3">
-                    <label className="flex items-center gap-2 text-sm">
-                      <input type="checkbox" checked={form.reminderEnabled} onChange={(e) => patch({ reminderEnabled: e.target.checked })} />
-                      Enabled
-                    </label>
-                    <Input id="hk-remind-hour" type="number" min={0} max={23} className={hackathonAdminControlClass} value={form.reminderHour} disabled={!form.reminderEnabled} onChange={(e) => patch({ reminderHour: e.target.value })} />
-                  </div>
-                </HackathonAdminField>
-                <HackathonAdminField id="hk-remind-start" label="Start reminders (IST)" hint="Optional. Empty means as soon as the hackathon is live.">
-                  <Input id="hk-remind-start" type="datetime-local" className={hackathonAdminControlClass} value={form.reminderStart} disabled={!form.reminderEnabled} onChange={(e) => patch({ reminderStart: e.target.value })} />
-                </HackathonAdminField>
-                <HackathonAdminField id="hk-limit" label="Max participants" hint="Empty means unlimited.">
+                  label="Start"
+                  hint="When participants can begin challenges. Leave empty to open only via Status → Start now."
+                  previewVerb="Challenges unlock"
+                  value={form.startsAt}
+                  onChange={(startsAt) => patch({ startsAt })}
+                  disabled={editing && existing.data?.phase !== "upcoming"}
+                />
+                <HackathonIstDateTimeField
+                  id="hk-end"
+                  label="End"
+                  hint="When submissions close. Optional while live."
+                  previewVerb="Submissions close"
+                  value={form.endsAt}
+                  onChange={(endsAt) => patch({ endsAt })}
+                  disabled={editing && existing.data?.phase === "ended"}
+                />
+                <HackathonAdminField id="hk-limit" label="Max participants" hint="Empty = unlimited.">
                   <Input id="hk-limit" type="number" min={1} className={hackathonAdminControlClass} value={form.limit} onChange={(e) => patch({ limit: e.target.value })} />
                 </HackathonAdminField>
-                <HackathonAdminField id="hk-grace" label="Interview grace (minutes)">
+                <HackathonAdminField id="hk-grace" label="Interview grace (minutes)" hint="Extra time after end for in-flight interviews.">
                   <Input id="hk-grace" type="number" min={0} max={240} className={hackathonAdminControlClass} value={form.grace} onChange={(e) => patch({ grace: e.target.value })} />
                 </HackathonAdminField>
               </div>
-              {(!editing || existing.data?.phase === "upcoming") ? (
-                <div className="flex flex-wrap items-center gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    disabled={save.isPending}
-                    onClick={() => {
-                      try {
-                        assertDesignerWrite(form, toBody(form), "startNow");
-                        setConfirmStart(true);
-                      } catch (err) {
-                        toast.error(err instanceof Error ? err.message : "Couldn't start the hackathon.");
-                      }
-                    }}
-                  >
-                    <Play className="mr-1.5 h-4 w-4" /> Start now
-                  </Button>
+
+              <details className="rounded-lg border border-border/60 p-3">
+                <summary className="cursor-pointer text-sm font-medium text-foreground">Email reminders</summary>
+                <div className="mt-3 grid gap-4 md:grid-cols-2">
+                  <HackathonAdminField id="hk-remind-hour" label="Daily hour (IST)" hint="Template copy lives in Notification Hub.">
+                    <div className="flex items-center gap-3">
+                      <label className="flex items-center gap-2 text-sm">
+                        <input type="checkbox" checked={form.reminderEnabled} onChange={(e) => patch({ reminderEnabled: e.target.checked })} />
+                        On
+                      </label>
+                      <Input id="hk-remind-hour" type="number" min={0} max={23} className={hackathonAdminControlClass} value={form.reminderHour} disabled={!form.reminderEnabled} onChange={(e) => patch({ reminderHour: e.target.value })} />
+                    </div>
+                  </HackathonAdminField>
+                  <HackathonIstDateTimeField
+                    id="hk-remind-start"
+                    label="First reminder"
+                    hint="Empty = when the hackathon goes live."
+                    previewVerb="First reminder"
+                    value={form.reminderStart}
+                    onChange={(reminderStart) => patch({ reminderStart })}
+                    disabled={!form.reminderEnabled}
+                  />
                 </div>
-              ) : null}
+              </details>
             </>
           ) : null}
 
@@ -738,31 +800,79 @@ export function AdminHackathonDesignerPage({ hackathonId }: Readonly<{ hackathon
               <Button type="button" className={appPrimaryButton} disabled={!stepValid} onClick={() => setStep((s) => s + 1)}>
                 Continue
               </Button>
-            ) : (
-              <Button type="button" className={appPrimaryButton} disabled={save.isPending} onClick={() => save.mutate("save")}>
+            ) : editing ? null : (
+              <Button type="button" className={appPrimaryButton} disabled={save.isPending} onClick={() => save.mutate()}>
                 {save.isPending ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Flag className="mr-1.5 h-4 w-4" />}
-                {editing ? "Save changes" : "Save as draft"}
+                Save as draft
               </Button>
             )}
           </div>
         </CardContent>
       </Card>
-      <ConfirmationDialog
-        open={confirmStart}
-        onOpenChange={(open) => !open && setConfirmStart(false)}
-        title="Start the hackathon now?"
-        description={
-          form.endsAt
-            ? `Participants can start submitting immediately. Submissions close on ${formatIst(istInputToIso(form.endsAt))}.`
-            : "Participants can start submitting immediately. It stays open until you click End now."
-        }
-        confirmText="Start now"
-        onConfirm={() => {
-          setConfirmStart(false);
-          save.mutate("startNow");
-        }}
-        isLoading={save.isPending}
-      />
-    </div>
+
+      {editing && step === 3 ? (
+        <div className="sticky bottom-0 z-10 -mx-1 flex items-center justify-between gap-3 border-t border-border/60 bg-background/95 px-1 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+          <p className="text-xs text-muted-foreground">{isDirty ? "Unsaved changes" : "All changes saved"}</p>
+          <Button type="button" className={appPrimaryButton} disabled={save.isPending || !isDirty} onClick={() => save.mutate()}>
+            {save.isPending ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : null}
+            Save changes
+          </Button>
+        </div>
+      ) : null}
+    </>
   );
+
+  if (editing && hackathonId) {
+    const previewSlug = existing.data?.slug ?? form.slug;
+    return (
+      <HackathonAdminShell
+        hackathonId={hackathonId}
+        activeTab="edit"
+        unsavedChanges={isDirty}
+        headerExtra={
+          <>
+            <Button asChild variant="outline" size="sm">
+              <Link
+                href={hackathonAdminTabHref(hackathonId, "submissions")}
+                onClick={(event) => {
+                  if (!isDirty) return;
+                  if (!window.confirm("You have unsaved changes. Leave this page anyway?")) {
+                    event.preventDefault();
+                  }
+                }}
+              >
+                <Users className="mr-1.5 h-4 w-4" /> Submissions
+              </Link>
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={!previewSlug}
+              onClick={() =>
+                window.open(
+                  `${hackathonPublicPath(previewSlug)}${existing.data?.visibility === "draft" ? "?preview=1" : ""}`,
+                  "_blank",
+                  "noopener,noreferrer",
+                )
+              }
+            >
+              <Eye className="mr-1.5 h-4 w-4" /> Preview
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-5">
+          <p className="text-sm text-muted-foreground">
+            {locked
+              ? "Challenge structure is locked after the first registration. Copy, status, dates, and limits remain editable."
+              : "Use step Operate for status and schedule. Save applies copy and settings."}
+          </p>
+          {inner}
+        </div>
+      </HackathonAdminShell>
+    );
+  }
+
+  return <div className="space-y-5">{inner}</div>;
 }

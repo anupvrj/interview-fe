@@ -1,22 +1,24 @@
 export const HACKATHON_2026_PATH = "/hiring-games-hackathon-2026";
 
 /** Single source of truth for the event window (IST). Display strings, countdown and JSON-LD derive from this. */
-/** Challenge window. Submissions open 15 Oct and close at the end of 24 Oct IST. */
+/** Challenge window fallback. The landing page prefers the published startsAt/endsAt. */
 export const HACKATHON_CHALLENGE = {
-  startISO: "2026-10-15T00:00:00+05:30",
-  endISO: "2026-10-24T23:59:00+05:30",
-  dateLabel: "15–24 Oct 2026",
-  publicRangeLabel: "15th-24th Oct 2026",
-  timeLabel: "Submit by 24 Oct, 11:59 PM IST",
+  startISO: "2026-10-17T00:00:00+05:30",
+  endISO: "2026-10-26T23:59:00+05:30",
+  dateLabel: "17–26 Oct 2026",
+  publicRangeLabel: "17th-26th Oct 2026",
+  timeLabel: "Submit by 26 Oct, 11:59 PM IST",
 } as const;
 
 /** Live launch. Winners are announced here. The joining link is a later email. */
 export const HACKATHON_LAUNCH = {
-  startISO: "2026-10-31T18:30:00+05:30",
+  startISO: "2026-10-31T19:00:00+05:30",
   endISO: "2026-10-31T20:00:00+05:30",
-  dateLabel: "Sat, 31 Oct 2026",
-  timeLabel: "6:30 PM IST",
-  formatLabel: "Live Virtual Event",
+  dateLabel: "Sat 31 Oct 2026",
+  timeLabel: "7 PM IST",
+  /** Short hero / promo line (online launch + winners). */
+  summaryLabel: "Live launch & winners",
+  formatLabel: "Live online event",
 } as const;
 
 /** @deprecated Use HACKATHON_LAUNCH. Kept so older imports still point at the launch. */
@@ -25,7 +27,7 @@ export const HACKATHON_EVENT = HACKATHON_LAUNCH;
 export const HACKATHON_2026_META = {
   title: "InterviewTrix: The Hiring Games — Free Hiring Hackathon & Product Launch",
   description:
-    "AI is changing hiring, jobs and work. Join InterviewTrix: The Hiring Games, a free self-paced hackathon (15–24 Oct 2026), then learn from leading software industry experts at our online launch on 31 Oct. ₹20,000 prize pool.",
+    "AI is changing hiring, jobs and work. Join InterviewTrix: The Hiring Games, a free self-paced hackathon (17–26 Oct 2026), then learn from leading software industry experts at our online launch on 31 Oct. ₹20,000 prize pool.",
   keywords: [
     "Interview Trix hackathon",
     "career hackathon 2026",
@@ -48,6 +50,12 @@ export const HACKATHON_NAV = [
   { href: "#faq", label: "FAQ" },
 ] as const;
 
+/** Set invite URLs before go-live (or use NEXT_PUBLIC_HACKATHON_WHATSAPP_* env vars). */
+export const HACKATHON_WHATSAPP_LINKS = {
+  channelUrl: "",
+  communityUrl: "",
+} as const;
+
 export const HACKATHON_SOCIALS = [
   { label: "LinkedIn", href: "https://www.linkedin.com/company/interview-trix/", icon: "linkedin" },
   { label: "X", href: "https://x.com/InterviewTrix", icon: "x" },
@@ -60,7 +68,7 @@ export const HACKATHON_HERO = {
   badgeRight: "Product Launch",
   headlineLead: "InterviewTrix:",
   headlineAccent: "The Hiring Games",
-  copy: "AI is reshaping hiring. Challenge AI in our 7-day hackathon, win exciting prizes, and learn from industry experts how to land your next job.",
+  copy: "AI is reshaping hiring. Challenge AI in our {days}-day hackathon, win exciting prizes, and learn from industry experts how to land your next job.",
   registerLabel: "Register Now for Free",
   startChallengeLabel: "Start the Challenge",
   offerWas: "₹799",
@@ -102,8 +110,8 @@ export const HACKATHON_STEPS = [
   },
   {
     num: "3",
-    title: "Score 70%+ on 2 Mock Interviews",
-    body: "Attempt two full 15-minute mock interviews and score at least 70% on each.",
+    title: "Score Maximum on 2 AI Interviews",
+    body: "Attempt two full 15-minute AI interviews and score your maximum to win the hackathon.",
     icon: "MessageSquareText",
     accent: "amber",
   },
@@ -121,9 +129,9 @@ export const HACKATHON_TIMELINE = {
   titleAccent: "Timeline",
   copy: "Key dates for your journey from registration to the final round.",
   items: [
-    { date: "15 Oct 2026", title: "Registrations", body: "Sign up and lock in your spot." },
-    { date: "15–24 Oct 2026", title: "Complete Round 1 & 2", body: "Submit your resume and finish both mock interviews." },
-    { date: "25–30 Oct 2026", title: "Review & Shortlisting", body: "We review submissions and shortlist the top performers." },
+    { date: "17 Oct 2026", title: "Registrations", body: "Sign up and lock in your spot." },
+    { date: "17–26 Oct 2026", title: "Complete Round 1 & 2", body: "Submit your resume and finish both mock interviews." },
+    { date: "27–30 Oct 2026", title: "Review & Shortlisting", body: "We review submissions and shortlist the top performers." },
     { date: "31 Oct 2026", title: "Winner Announcement", body: "Join the live launch as winners are announced." },
   ],
 } as const;
@@ -144,8 +152,8 @@ export const HACKATHON_WHO = {
       icon: "Briefcase",
     },
     {
-      title: "Early Professionals",
-      body: "0–5 years of work experience.",
+      title: "All Professionals",
+      body: "Any professional looking for a job change.",
       icon: "Users",
     },
   ],
@@ -153,9 +161,20 @@ export const HACKATHON_WHO = {
 
 export type HackathonRewardKind = "claude" | "voucher" | "credit";
 
+const HACKATHON_PRIZE_AMOUNT = "INR 20,000/-";
+const HACKATHON_PRIZE_TERMS_MARK = "**";
+
 export const HACKATHON_PRIZES = {
   poolLead: "Total Prize Pool Worth",
   poolAmount: 20000,
+  /** Dashboard / promo copy — amount + T&C asterisks (not an icon). */
+  prizeAmount: HACKATHON_PRIZE_AMOUNT,
+  prizeTermsMark: HACKATHON_PRIZE_TERMS_MARK,
+  prizeAmountWithTerms: `${HACKATHON_PRIZE_AMOUNT} ${HACKATHON_PRIZE_TERMS_MARK}`,
+  poolLine: "Total Prize Pool Worth ₹20,000 INR",
+  registerPitchLead: "Challenge Our AI Interviewer and win prize worth upto",
+  /** Full pitch; must match dashboard `message` for layout tweaks. */
+  registerPitch: `Challenge Our AI Interviewer and win prize worth upto ${HACKATHON_PRIZE_AMOUNT} ${HACKATHON_PRIZE_TERMS_MARK}`,
   ranks: [
     {
       rank: "#1",
@@ -206,6 +225,12 @@ export const HACKATHON_PRIZES = {
 } as const satisfies {
   poolLead: string;
   poolAmount: number;
+  prizeAmount: string;
+  prizeTermsMark: string;
+  prizeAmountWithTerms: string;
+  poolLine: string;
+  registerPitchLead: string;
+  registerPitch: string;
   ranks: ReadonlyArray<{
     rank: string;
     title: string;
@@ -316,6 +341,6 @@ export const HACKATHON_FINAL_CTA = {
   points: [
     `Hackathon - ${HACKATHON_CHALLENGE.publicRangeLabel}`,
     "Exciting prizes await",
-    "Winner Announcement",
+    "Live launch & winners",
   ],
 } as const;

@@ -5,6 +5,7 @@ import {
   createFAQSchema,
 } from "@/components/StructuredData";
 import { ABOUT_US_FAQ } from "@/lib/aboutUsContent";
+import { defaultOgImage } from "@/lib/seo/default-og-image";
 import { getSiteUrl } from "@/lib/seo/site-url";
 
 const siteUrl = getSiteUrl();
@@ -29,6 +30,7 @@ export const metadata: Metadata = {
       "Discover how Interview Trix unifies resume building, AI interviews, coding practice, and peer sessions into one prep loop built for modern hiring.",
     type: "website",
     url: `${siteUrl}/about-us`,
+    images: [defaultOgImage],
   },
   twitter: {
     card: "summary_large_image",

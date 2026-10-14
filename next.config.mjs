@@ -77,6 +77,11 @@ const nextConfig = {
         destination: "/hackathon/hiring-games-hackathon-2026/:path*",
         permanent: true,
       },
+      {
+        source: "/hackathon/hiring-games-hackathon-2026",
+        destination: "/hiring-games-hackathon-2026",
+        permanent: true,
+      },
     ];
   },
   async headers() {

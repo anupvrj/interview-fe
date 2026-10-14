@@ -1,5 +1,6 @@
 import { Metadata } from "next";
 import { FeatureRouteGuard } from "@/components/features/FeatureRouteGuard";
+import { defaultOgImage } from "@/lib/seo/default-og-image";
 
 export const metadata: Metadata = {
   title: "AI System Design Interview Practice — Live Whiteboard Mock",
@@ -17,6 +18,7 @@ export const metadata: Metadata = {
       "Whiteboard architecture on Excalidraw, defend trade-offs in a live AI voice session, and get scored on scope, components, scaling, and communication.",
     type: "website",
     url: "https://interviewtrix.com/ai-system-design",
+    images: [defaultOgImage],
   },
   twitter: {
     card: "summary_large_image",

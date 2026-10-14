@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Caveat } from "next/font/google";
+import { hackathonHand } from "@/lib/fonts/hackathon-hand";
 import {
   StructuredData,
   createBreadcrumbSchema,
@@ -13,13 +13,6 @@ import {
   HACKATHON_FAQ,
 } from "@/lib/hackathon-2026-content";
 import { getSiteUrl } from "@/lib/seo/site-url";
-
-const handwriting = Caveat({
-  subsets: ["latin"],
-  weight: ["500", "600"],
-  variable: "--font-hackathon-hand",
-  display: "swap",
-});
 
 const siteUrl = getSiteUrl();
 const pageUrl = `${siteUrl}${HACKATHON_2026_PATH}`;
@@ -101,7 +94,7 @@ export default function Hackathon2026Layout({
           "@context": "https://schema.org",
           "@type": "Event",
           name: "InterviewTrix: The Hiring Games — Hackathon Challenge",
-          description: "Submit the resume, mock interview, and social challenges between 15 and 24 October 2026.",
+          description: "Submit the resume, mock interview, and social challenges between 17 and 26 October 2026.",
           startDate: HACKATHON_CHALLENGE.startISO,
           endDate: HACKATHON_CHALLENGE.endISO,
           eventStatus: "https://schema.org/EventScheduled",
@@ -112,7 +105,7 @@ export default function Hackathon2026Layout({
           url: pageUrl,
         }}
       />
-      <div className={handwriting.variable}>{children}</div>
+      <div className={hackathonHand.variable}>{children}</div>
     </>
   );
 }

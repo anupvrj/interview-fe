@@ -4,81 +4,18 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  Check,
-  ExternalLink,
-  FileText,
-  Instagram,
-  Linkedin,
-  Loader2,
-  Mic,
-  PlayCircle,
-  ShieldAlert,
-  ShieldCheck,
-  Trash2,
-  X,
-} from "lucide-react";
+import { Loader2, ShieldAlert, ShieldCheck, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { SuperAdminPageHeader } from "@/components/super-admin/SuperAdminPageHeader";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Textarea } from "@/components/ui/textarea";
-import { adminApi } from "@/lib/api";
-import { appSurfaceMuted } from "@/lib/app-theme";
-import { cn } from "@/lib/utils";
-import { hackathonAdminApi, eventTargets, toHackathonError, type AdminParticipantDetail } from "../api";
-import { HACKATHON_ADMIN_PATH } from "../config";
-import { failureReasonText, formatIst } from "../copy";
+import { hackathonAdminApi, toHackathonError, type AdminParticipantDetail } from "../api";
+import { formatIst } from "../copy";
 import { hackathonKeys } from "../hooks";
-import { participantStatusBadge, scoreText, socialBadge } from "./AdminSubmissionsPage";
-import { HackathonAdminField } from "./HackathonAdminField";
-
-function ScoreBlock({ label, score, target }: Readonly<{ label: string; score: number | null; target: number }>) {
-  const met = typeof score === "number" && score >= target;
-  return (
-    <div className={cn(appSurfaceMuted, "px-4 py-3")}>
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className={cn("mt-0.5 text-2xl font-bold tabular-nums", met ? "text-emerald-600 dark:text-emerald-400" : "text-foreground")}>
-        {scoreText(score)}
-      </p>
-      <p className="text-xs text-muted-foreground">Target {target}%</p>
-    </div>
-  );
-}
-
-/** Opens a tab synchronously so the async signed URL isn't popup-blocked. */
-async function openInNewTab(getUrl: () => Promise<string>) {
-  const tab = window.open("", "_blank");
-  try {
-    const url = await getUrl();
-    if (tab) {
-      tab.opener = null;
-      tab.location.href = url;
-    } else {
-      window.open(url, "_blank", "noopener,noreferrer");
-    }
-  } catch (err) {
-    tab?.close();
-    toast.error(toHackathonError(err, "Couldn't open the file").message);
-  }
-}
-
-function PriorNote({ count }: Readonly<{ count?: number }>) {
-  if (!count) return null;
-  return (
-    <p className="text-xs text-muted-foreground">
-      {count} prior submission{count === 1 ? "" : "s"} archived. Live score is the latest attempt only.
-    </p>
-  );
-}
-
-function StepBadge({ status }: Readonly<{ status: string }>) {
-  if (status === "completed") return <Badge variant="success">Submitted</Badge>;
-  if (status === "processing") return <Badge variant="info">Report generating</Badge>;
-  if (status === "in_progress") return <Badge variant="info">In progress</Badge>;
-  return <Badge variant="neutral">Not submitted</Badge>;
-}
+import { AdminParticipantChallengeSections } from "./AdminParticipantChallengeSections";
+import { participantStatusBadge } from "./AdminSubmissionsPage";
+import { hackathonAdminTabHref } from "./hackathonAdminNav";
+import { confirmAdminRemoveParticipant } from "./adminRemoveParticipant";
+import { RequestResubmissionDialog } from "./RequestResubmissionDialog";
 
 export function AdminSubmissionDetailPage({
   hackathonId,
@@ -92,6 +29,11 @@ export function AdminSubmissionDetailPage({
     queryFn: () => hackathonAdminApi.get(hackathonId),
   });
   const [reviewNote, setReviewNote] = useState("");
+  const [resubmitTarget, setResubmitTarget] = useState<{
+    challengeId: string;
+    label: string;
+    slot?: number;
+  } | null>(null);
   const router = useRouter();
   const listKey = ["admin", "hackathons", hackathonId, "participants"];
 
@@ -130,7 +72,7 @@ export function AdminSubmissionDetailPage({
         queryClient.invalidateQueries({ queryKey: hackathonKeys.adminOne(hackathonId) }),
       ]);
       toast.success("Participant removed. They can register for this hackathon again.");
-      router.push(`${HACKATHON_ADMIN_PATH}/${hackathonId}`);
+      router.push(hackathonAdminTabHref(hackathonId, "submissions"));
     },
     onError: (err) => toast.error(toHackathonError(err).message),
   });
@@ -151,46 +93,35 @@ export function AdminSubmissionDetailPage({
   };
 
   const confirmRemove = (who: string) => {
-    const ok = window.confirm(
-      `Remove ${who} from this hackathon?\n\nTheir entry, resume, interview and social submissions for this hackathon are deleted and can't be restored. Their InterviewTrix account is not affected, and they can register again from scratch.`,
-    );
-    if (ok) remove.mutate();
+    if (confirmAdminRemoveParticipant(who)) remove.mutate();
   };
 
   const reset = useMutation({
-    mutationFn: ({ challengeId, slot }: { challengeId: string; slot?: number }) =>
-      hackathonAdminApi.resetChallenge(hackathonId, participantId, challengeId, {
-        slot,
-        note: "Requested reattempt",
-      }),
+    mutationFn: ({ challengeId, slot, note }: { challengeId: string; slot?: number; note?: string }) =>
+      hackathonAdminApi.resetChallenge(hackathonId, participantId, challengeId, { slot, note }),
     onSuccess: (data: AdminParticipantDetail) => {
       queryClient.setQueryData(key, data);
-      void queryClient.invalidateQueries({ queryKey: ["admin", "hackathons", hackathonId, "participants"] });
-      toast.success("Challenge reopened. The next submission is the live one.");
+      void queryClient.invalidateQueries({ queryKey: listKey });
+      setResubmitTarget(null);
+      toast.success("Challenge reopened. The participant can submit again.");
     },
     onError: (err) => toast.error(toHackathonError(err).message),
   });
-
-  const confirmReset = (label: string, challengeId: string, slot?: number) => {
-    const ok = window.confirm(
-      `Allow ${label} to be submitted again? The current score stays in admin history. Only the next attempt will count.`,
-    );
-    if (ok) reset.mutate({ challengeId, slot });
-  };
 
   const review = useMutation({
     mutationFn: (decision: "approved" | "rejected") =>
       hackathonAdminApi.reviewSocial(hackathonId, participantId, decision, reviewNote.trim() || undefined),
     onSuccess: (data: AdminParticipantDetail, decision) => {
       queryClient.setQueryData(key, data);
-      void queryClient.invalidateQueries({ queryKey: ["admin", "hackathons", hackathonId, "participants"] });
+      void queryClient.invalidateQueries({ queryKey: listKey });
       setReviewNote("");
       toast.success(decision === "approved" ? "Social posts approved" : "Social posts rejected");
     },
     onError: (err) => toast.error(toHackathonError(err).message),
   });
 
-  const backHref = `${HACKATHON_ADMIN_PATH}/${hackathonId}`;
+  const backHref = hackathonAdminTabHref(hackathonId, "submissions");
+  const requiredChallenges = overview.data?.challenges?.length ?? 3;
 
   if (detail.isLoading) {
     return (
@@ -211,22 +142,9 @@ export function AdminSubmissionDetailPage({
     );
   }
 
-  const { participant, resume, interviews, social } = detail.data;
+  const { participant } = detail.data;
   const profile = participant.profileSnapshot;
   const who = profile?.name || profile?.email || "this participant";
-  const targets = eventTargets(overview.data);
-  const requiredCount = overview.data?.interviewConfig.requiredCount ?? 2;
-  const socialEnabled = overview.data?.socialConfig.enabled !== false;
-  const requiredChallenges = overview.data?.challenges?.length ?? (socialEnabled ? 3 : 2);
-  const challenges = overview.data?.challenges ?? [];
-  const resumeChallengeId = challenges.find((c) => c.kind === "resume")?.challengeId;
-  const socialChallengeId = challenges.find((c) => c.kind === "social")?.challengeId;
-  const interviewChallenge =
-    challenges.find((c) => c.kind === "screening") ??
-    challenges.find((c) => c.kind === "coding" || c.kind === "system_design");
-  const interviewChallengeId = interviewChallenge?.challengeId;
-  const slotTotal = interviewChallenge?.config?.requiredCount ?? requiredCount;
-  const slots = Array.from({ length: slotTotal }, (_, i) => interviews.find((item) => item.slot === i + 1) ?? null);
 
   return (
     <div className="space-y-5">
@@ -280,247 +198,33 @@ export function AdminSubmissionDetailPage({
         {participant.summary ? ` · ${participant.summary.challengesCompleted} of ${requiredChallenges} challenges done` : ""}
       </p>
 
-      <Card>
-        <CardHeader className="gap-2 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <FileText className="h-4 w-4 text-primary" /> Challenge 1 · Resume
-            </CardTitle>
-            <CardDescription>
-              {resume ? `${resume.title || "Untitled resume"} · submitted ${formatIst(resume.submittedAt)}` : "No resume submitted yet."}
-            </CardDescription>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            {resume ? <StepBadge status={resume.status} /> : null}
-            {resumeChallengeId && resume ? (
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={reset.isPending || resume.status === "in_progress"}
-                onClick={() => confirmReset("the resume", resumeChallengeId)}
-              >
-                Allow resubmit
-              </Button>
-            ) : null}
-          </div>
-        </CardHeader>
-        {resume ? (
-          <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="space-y-2 sm:w-48">
-              <ScoreBlock label="ATS score" score={resume.atsScore} target={targets.atsScore} />
-              <PriorNote count={resume.priorCount} />
-            </div>
-            {resume.status === "submitted" ? (
-              <Button
-                variant="outline"
-                onClick={() =>
-                  void openInNewTab(async () => (await hackathonAdminApi.resumeUrl(hackathonId, participantId)).url)
-                }
-              >
-                <ExternalLink className="mr-1.5 h-4 w-4" /> View resume PDF
-              </Button>
-            ) : null}
-          </CardContent>
-        ) : null}
-      </Card>
+      <AdminParticipantChallengeSections
+        hackathonId={hackathonId}
+        participantId={participantId}
+        detail={detail.data}
+        overview={overview.data}
+        reviewNote={reviewNote}
+        onReviewNoteChange={setReviewNote}
+        onRequestResubmit={(args) => setResubmitTarget(args)}
+        resetPending={reset.isPending}
+        onReviewSocial={(decision) => review.mutate(decision)}
+        reviewPending={review.isPending}
+      />
 
-      {interviewChallengeId && slotTotal > 1 && slots.some((item) => item) ? (
-        <div className="flex justify-end">
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={reset.isPending}
-            onClick={() => confirmReset("every interview in this challenge", interviewChallengeId)}
-          >
-            Allow resubmit (all interviews)
-          </Button>
-        </div>
-      ) : null}
-
-      <div className="grid gap-5 lg:grid-cols-2">
-        {slots.map((item, idx) => {
-          const slot = idx + 1;
-          return (
-            <Card key={slot}>
-              <CardHeader className="gap-2 sm:flex-row sm:items-start sm:justify-between">
-                <div>
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <Mic className="h-4 w-4 text-primary" /> Challenge 2 · Interview {slot}
-                  </CardTitle>
-                  <CardDescription>
-                    {item?.submittedAt ? `Submitted ${formatIst(item.submittedAt)}` : "No report yet."}
-                  </CardDescription>
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <StepBadge status={item?.status ?? "not_started"} />
-                  {interviewChallengeId && item ? (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      disabled={reset.isPending || (item.status === "in_progress" && item.attempts.length === 0)}
-                      onClick={() => confirmReset(`interview ${slot}`, interviewChallengeId, slot)}
-                    >
-                      Reset interview {slot}
-                    </Button>
-                  ) : null}
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <ScoreBlock label="Overall score" score={item?.overallScore ?? null} target={targets.interviewScore} />
-                <PriorNote count={item?.priorCount} />
-                {item?.categoryScores && Object.keys(item.categoryScores).length > 0 ? (
-                  <ul className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
-                    {Object.entries(item.categoryScores).map(([name, value]) => (
-                      <li key={name} className="flex justify-between gap-2">
-                        <span className="truncate capitalize text-muted-foreground">{name.replace(/[_-]/g, " ")}</span>
-                        <span className="font-medium tabular-nums text-foreground">{scoreText(value)}</span>
-                      </li>
-                    ))}
-                  </ul>
-                ) : null}
-                {item?.interviewId ? (
-                  <div className="flex flex-wrap gap-2">
-                    {item.reportId || item.status === "completed" ? (
-                      <Button asChild size="sm" variant="outline">
-                        <Link href={`/super-admin/users/${participant.userId}/reports/${item.interviewId}`}>
-                          <FileText className="mr-1.5 h-4 w-4" /> View report
-                        </Link>
-                      </Button>
-                    ) : null}
-                    {item.hasRecording ? (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() =>
-                          void openInNewTab(async () => (await adminApi.getInterviewVideoUrl(item.interviewId!)).videoUrl)
-                        }
-                      >
-                        <PlayCircle className="mr-1.5 h-4 w-4" /> Watch recording
-                      </Button>
-                    ) : null}
-                  </div>
-                ) : null}
-                {item && item.attempts.length > 0 ? (
-                  <div>
-                    <p className="mb-1.5 text-xs font-semibold text-foreground">Attempts</p>
-                    <ul className="space-y-1 text-xs text-muted-foreground">
-                      {item.attempts.map((a, i) => (
-                        <li key={a.attemptId} className="flex flex-wrap items-center gap-x-2">
-                          <span className="font-medium text-foreground">#{i + 1}</span>
-                          <span className="capitalize">{a.status.replace(/_/g, " ")}</span>
-                          <span>· {formatIst(a.startedAt ?? a.claimedAt)}</span>
-                          {a.failureReason ? <span>· {failureReasonText(a.failureReason)}</span> : null}
-                          {!a.countsTowardLimit ? <span>· not counted</span> : null}
-                          {a.interviewId && a.interviewId !== item.interviewId ? (
-                            <Link
-                              href={`/super-admin/users/${participant.userId}/reports/${a.interviewId}`}
-                              className="text-primary hover:underline"
-                            >
-                              open
-                            </Link>
-                          ) : null}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ) : null}
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
-
-      {socialEnabled ? (
-      <Card>
-        <CardHeader className="gap-2 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <CardTitle className="text-base">Challenge 3 · Social posts</CardTitle>
-            <CardDescription>
-              {social?.submittedAt ? `Submitted ${formatIst(social.submittedAt)}` : "No links submitted yet."}
-            </CardDescription>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            {socialBadge(social?.reviewStatus)}
-            {socialChallengeId && social ? (
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={reset.isPending || social.status === "in_progress"}
-                onClick={() => confirmReset("the social posts", socialChallengeId)}
-              >
-                Allow resubmit
-              </Button>
-            ) : null}
-          </div>
-        </CardHeader>
-        {social?.linkedinUrl || social?.instagramUrl ? (
-          <CardContent className="space-y-4">
-            <div className="grid gap-3 md:grid-cols-2">
-              {[
-                { label: "LinkedIn", url: social.linkedinUrl, Icon: Linkedin },
-                { label: "Instagram", url: social.instagramUrl, Icon: Instagram },
-              ].map(({ label, url, Icon }) => (
-                <a
-                  key={label}
-                  href={url}
-                  target="_blank"
-                  rel="noopener noreferrer nofollow"
-                  className={cn(appSurfaceMuted, "flex items-center gap-3 px-4 py-3 text-sm hover:border-primary/40")}
-                >
-                  <Icon className="h-4 w-4 shrink-0 text-primary" />
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-xs text-muted-foreground">{label}</span>
-                    <span className="block truncate font-medium text-foreground">{url}</span>
-                  </span>
-                  <ExternalLink className="h-4 w-4 shrink-0 text-muted-foreground" />
-                </a>
-              ))}
-            </div>
-            <PriorNote count={social.priorCount} />
-            {social.reviewNote ? (
-              <p className="text-xs text-muted-foreground">
-                Review note: “{social.reviewNote}”{social.reviewedAt ? ` · ${formatIst(social.reviewedAt)}` : ""}
-              </p>
-            ) : null}
-            <div className="space-y-2">
-              <HackathonAdminField id="hk-review-note" label="Review note">
-                <Textarea
-                  id="hk-review-note"
-                  rows={2}
-                  className="w-full min-w-0"
-                  value={reviewNote}
-                  onChange={(e) => setReviewNote(e.target.value)}
-                  placeholder="Optional note. Shown to the participant if you reject."
-                />
-              </HackathonAdminField>
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={review.isPending || social.reviewStatus === "approved"}
-                  onClick={() => review.mutate("approved")}
-                >
-                  <Check className="mr-1.5 h-4 w-4" /> Approve
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="text-destructive hover:text-destructive"
-                  disabled={review.isPending || social.reviewStatus === "rejected"}
-                  onClick={() => review.mutate("rejected")}
-                >
-                  <X className="mr-1.5 h-4 w-4" /> Reject
-                </Button>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Rejecting while the hackathon is live moves a completed participant back to in progress so they can fix
-                their links.
-              </p>
-            </div>
-          </CardContent>
-        ) : null}
-      </Card>
-      ) : null}
+      <RequestResubmissionDialog
+        open={Boolean(resubmitTarget)}
+        onOpenChange={(open) => !open && setResubmitTarget(null)}
+        title={resubmitTarget ? `Request resubmission · ${resubmitTarget.label}` : "Request resubmission"}
+        isLoading={reset.isPending}
+        onConfirm={(note) => {
+          if (!resubmitTarget) return;
+          reset.mutate({
+            challengeId: resubmitTarget.challengeId,
+            slot: resubmitTarget.slot,
+            note: note || undefined,
+          });
+        }}
+      />
     </div>
   );
 }

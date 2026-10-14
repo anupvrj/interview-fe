@@ -1,4 +1,5 @@
 import { Metadata } from 'next';
+import { defaultOgImage } from '@/lib/seo/default-og-image';
 
 export const metadata: Metadata = {
   title: 'AI Job Search - Find Your Perfect Job Match | Interview Trix',
@@ -9,6 +10,7 @@ export const metadata: Metadata = {
     description: 'Discover your ideal job opportunities with AI-powered job search. Get personalized recommendations and smart matching.',
     type: 'website',
     url: 'https://interviewtrix.com/ai-job-search',
+    images: [defaultOgImage],
   },
   twitter: {
     card: 'summary_large_image',

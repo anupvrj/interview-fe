@@ -84,13 +84,21 @@ export interface ChallengeProgress {
   minScore: number | null;
   score?: number | null;
   slots?: InterviewSlotProgress[];
+  resubmitMessage?: string | null;
 }
+
+export type AdminResetInfo = { at: string; note: string | null; generation?: number };
 
 export interface HackathonProgress {
   challenges?: ChallengeProgress[];
-  resume: { state: StepState; lockReason?: LockReason };
-  interviews: { state: StepState; lockReason?: LockReason; slots: InterviewSlotProgress[] };
-  social: { state: StepState; lockReason?: LockReason };
+  resume: { state: StepState; lockReason?: LockReason; resubmitMessage?: string | null };
+  interviews: {
+    state: StepState;
+    lockReason?: LockReason;
+    slots: InterviewSlotProgress[];
+    resubmitMessage?: string | null;
+  };
+  social: { state: StepState; lockReason?: LockReason; resubmitMessage?: string | null };
   challengesCompleted: number;
   requiredChallengeCount?: number;
   canComplete: boolean;
@@ -296,6 +304,14 @@ export const hackathonApi = {
     });
     return res.data.data;
   },
+
+  /** Deletes this hackathon entry and all submissions; you can register again. */
+  withdrawRegistration: async (slug: string, getToken: TokenGetter): Promise<HackathonMe> => {
+    const res = await apiClient.delete<{ data: HackathonMe }>(`${hackathonBase(slug)}/me/registration`, {
+      headers: await authHeaders(getToken),
+    });
+    return res.data.data;
+  },
 };
 
 // ---------------------------------------------------------------- admin
@@ -347,6 +363,13 @@ export interface AdminParticipantRow {
     avgInterviewScore: number | null;
     challengesCompleted: number;
     socialReviewStatus: SocialReviewStatus;
+    interviewSlots?: Array<{
+      challengeId: string;
+      slot: number;
+      score: number | null;
+      hasRecording: boolean | null;
+    }>;
+    missingRecording?: boolean;
   };
 }
 
@@ -359,6 +382,7 @@ export interface AdminParticipantDetail {
     title: string;
     atsScore: number | null;
     priorCount: number;
+    adminReset?: AdminResetInfo | null;
   } | null;
   interviews: Array<{
     slot: number;
@@ -370,6 +394,7 @@ export interface AdminParticipantDetail {
     reportId: string | null;
     challengeId: string | null;
     priorCount: number;
+    adminReset?: AdminResetInfo | null;
     hasRecording: boolean;
     attempts: Array<{
       attemptId: string;
@@ -392,10 +417,12 @@ export interface AdminParticipantDetail {
     reviewNote: string | null;
     reviewedAt: string | null;
     priorCount: number;
+    adminReset?: AdminResetInfo | null;
   } | null;
 }
 
 export type AdminParticipantSort = "recent" | "ats" | "interview" | "completed";
+export type AdminSocialReviewFilter = SocialReviewStatus;
 
 export type AdminHackathonWriteBody = {
   title?: string;
@@ -479,6 +506,17 @@ export const hackathonAdminApi = {
     const res = await apiClient.post<{ data: AdminHackathonOverview }>(`${adminBase}/${hackathonId}/end`, { note });
     return res.data.data;
   },
+  restoreStatus: async (
+    hackathonId: string,
+    target: "upcoming" | "live",
+    endsAt?: string,
+  ): Promise<AdminHackathonOverview> => {
+    const res = await apiClient.post<{ data: AdminHackathonOverview }>(`${adminBase}/${hackathonId}/restore`, {
+      target,
+      endsAt,
+    });
+    return res.data.data;
+  },
   reopen: async (hackathonId: string, endsAt: string, note: string): Promise<AdminHackathonOverview> => {
     const res = await apiClient.post<{ data: AdminHackathonOverview }>(`${adminBase}/${hackathonId}/reopen`, {
       endsAt,
@@ -493,8 +531,12 @@ export const hackathonAdminApi = {
     );
     return res.data.data;
   },
-  reconcile: async (hackathonId: string): Promise<{ reconciled: number; atsBackfilled: number }> => {
-    const res = await apiClient.post<{ data: { reconciled: number; atsBackfilled: number } }>(
+  reconcile: async (
+    hackathonId: string,
+  ): Promise<{ reconciled: number; atsBackfilled: number; summariesRefreshed: number }> => {
+    const res = await apiClient.post<{
+      data: { reconciled: number; atsBackfilled: number; summariesRefreshed: number };
+    }>(
       `${adminBase}/${hackathonId}/reconcile`,
       {},
     );
@@ -502,7 +544,15 @@ export const hackathonAdminApi = {
   },
   participants: async (
     hackathonId: string,
-    query: { q?: string; status?: ParticipantStatus; sort?: AdminParticipantSort; page: number; limit: number },
+    query: {
+      q?: string;
+      status?: ParticipantStatus;
+      sort?: AdminParticipantSort;
+      socialReview?: AdminSocialReviewFilter;
+      missingVideo?: boolean;
+      page: number;
+      limit: number;
+    },
   ): Promise<{ rows: AdminParticipantRow[]; total: number; page: number; limit: number }> => {
     const res = await apiClient.get<{
       data: { rows: AdminParticipantRow[]; total: number; page: number; limit: number };
