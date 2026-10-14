@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { flushSync } from "react-dom";
+import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
@@ -25,7 +24,6 @@ import { HackathonShell } from "../components/HackathonShell";
 import { InterviewChallenge } from "../components/InterviewChallenge";
 import { PhaseNotice } from "../components/PhaseNotice";
 import { ResumeChallenge, hkSecondaryButton } from "../components/ResumeChallenge";
-import { HackathonRemoveRegistration } from "../components/HackathonRemoveRegistration";
 import { SocialChallenge } from "../components/SocialChallenge";
 
 const SUSPENDED_CONTACT_EMAIL = "info@interviewtrix.com";
@@ -128,7 +126,6 @@ function DashboardContent() {
   const handledInterviewReturn = useRef(false);
   const meQuery = useHackathonMe();
   const me = meQuery.data;
-  const [leavingHackathon, setLeavingHackathon] = useState(false);
 
   useEffect(() => {
     const pending = peekPostSignInReturnUrl();
@@ -184,13 +181,11 @@ function DashboardContent() {
     !isSignedIn ||
     meQuery.waitingForMe ||
     needsProfile ||
-    leavingHackathon ||
     (!me && !meQuery.isError)
   ) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center text-[#9eb2ca]">
-        <Loader2 className="mr-2 size-5 animate-spin" aria-hidden />
-        {leavingHackathon ? "Leaving hackathon…" : "Loading your hackathon…"}
+        <Loader2 className="mr-2 size-5 animate-spin" aria-hidden /> Loading your hackathon…
       </div>
     );
   }
@@ -285,12 +280,6 @@ function DashboardContent() {
           <div className="mt-6">
             <ReadinessChecklist me={me} />
           </div>
-          <div className="mt-6">
-            <HackathonRemoveRegistration
-              me={me}
-              onLeavingHackathon={() => flushSync(() => setLeavingHackathon(true))}
-            />
-          </div>
         </PhaseNotice>
       </div>
     );
@@ -319,10 +308,6 @@ function DashboardContent() {
         />
       ) : null}
       <Board me={me} />
-      <HackathonRemoveRegistration
-        me={me}
-        onLeavingHackathon={() => flushSync(() => setLeavingHackathon(true))}
-      />
       {slug === HACKATHON_SLUG ? (
         <p className="text-center text-sm text-[#7189a6]">
           Questions? See the{" "}

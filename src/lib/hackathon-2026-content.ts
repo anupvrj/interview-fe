@@ -3,11 +3,11 @@ export const HACKATHON_2026_PATH = "/hiring-games-hackathon-2026";
 /** Single source of truth for the event window (IST). Display strings, countdown and JSON-LD derive from this. */
 /** Challenge window fallback. The landing page prefers the published startsAt/endsAt. */
 export const HACKATHON_CHALLENGE = {
-  startISO: "2026-10-17T00:00:00+05:30",
+  startISO: "2026-10-16T16:00:00+05:30",
   endISO: "2026-10-26T23:59:00+05:30",
-  dateLabel: "17–26 Oct 2026",
-  publicRangeLabel: "17th-26th Oct 2026",
-  timeLabel: "Submit by 26 Oct, 11:59 PM IST",
+  dateLabel: "16–26 Oct 2026",
+  publicRangeLabel: "16th-26th Oct 2026",
+  timeLabel: "Starts 16 Oct, 4 PM IST · submit by 26 Oct, 11:59 PM IST",
 } as const;
 
 /** Live launch. Winners are announced here. The joining link is a later email. */
