@@ -47,11 +47,14 @@ import { isStartedInterview } from "@/lib/interview-kind";
 import { PracticeSessionGateDialogs } from "@/components/upsell/PracticeSessionGateDialogs";
 import { PracticeLockedGate } from "@/components/upsell/PracticeLockedGate";
 import { usePracticeSessionGate } from "@/components/upsell/usePracticeSessionGate";
+import { useActiveRole } from "@/components/roles/ActiveRoleProvider";
+import { canManagedCandidateSelfStart } from "@/lib/institution-flags";
 
 const ITEMS_PER_PAGE = 10;
 
 export default function CodingInterviewsPage() {
   const { user, isLoaded } = useUser();
+  const canSelfStart = canManagedCandidateSelfStart(useActiveRole()?.profile);
   const { data: listedRows = [], isLoading: loading } = useCodingInterviewsQuery();
   const rows = useMemo(
     () => listedRows.filter(isStartedInterview),
@@ -205,6 +208,7 @@ export default function CodingInterviewsPage() {
               </div>
 
               <div className="flex flex-col items-center justify-center gap-3 px-2 pt-2 sm:flex-row sm:gap-4 lg:justify-start">
+                {canSelfStart ? (
                 <Button
                   type="button"
                   size="lg"
@@ -225,6 +229,7 @@ export default function CodingInterviewsPage() {
                   Start new session
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
+                ) : null}
                 <div className="flex items-center gap-1.5 sm:gap-2">
                   <div className="flex items-center gap-0.5 sm:gap-1">
                     {[...Array(5)].map((_, i) => (
@@ -319,6 +324,7 @@ export default function CodingInterviewsPage() {
                   : `${rows.length} session${rows.length === 1 ? "" : "s"} in your history`}
               </CardDescription>
             </div>
+            {canSelfStart ? (
             <Button
               type="button"
               disabled={checkingSubscription}
@@ -336,6 +342,7 @@ export default function CodingInterviewsPage() {
               )}
               Start new session
             </Button>
+            ) : null}
           </div>
         </CardHeader>
         <CardContent className="p-0">
@@ -347,6 +354,7 @@ export default function CodingInterviewsPage() {
             onVideoUnavailable={() => setVideoUnavailableOpen(true)}
             onDelete={setDeleteConfirmId}
             getDraftActiveHref={(id) => `/dashboard/coding-interviews/${id}`}
+            emptyCtaHref={canSelfStart ? "/dashboard/coding-interviews/new" : null}
             emptyDescription="Solve three problems in the editor, then discuss your approach with AI. Your report will include coding and discussion scores."
           />
         </CardContent>

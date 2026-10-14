@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import { ArrowRight, Loader2 } from "lucide-react";
 import { InterviewTrixLogo } from "@/components/InterviewTrixLogo";
@@ -8,14 +9,15 @@ import { userApi, type User } from "@/lib/api";
 import {
   ROLE_META,
   deriveAvailableRoles,
-  readStoredRole,
   roleHome,
   writeStoredRole,
+  workspaceRoleLabel,
   type ActiveRole,
 } from "@/lib/roles";
 import { cn } from "@/lib/utils";
 
 export default function SelectRolePage() {
+  const router = useRouter();
   const { user, isLoaded } = useUser();
   const [profile, setProfile] = useState<User | null>(null);
   const [roles, setRoles] = useState<ActiveRole[] | null>(null);
@@ -23,7 +25,7 @@ export default function SelectRolePage() {
   useEffect(() => {
     if (!isLoaded) return;
     if (!user) {
-      window.location.replace("/sign-in");
+      router.replace("/sign-in");
       return;
     }
 
@@ -33,31 +35,28 @@ export default function SelectRolePage() {
       .then((p) => {
         if (cancelled) return;
         const available = deriveAvailableRoles(p);
-        const stored = readStoredRole(user.id);
 
         if (available.length <= 1) {
           const only = available[0] ?? "candidate";
           writeStoredRole(user.id, only);
-          window.location.replace(roleHome(only, p));
+          router.replace(roleHome(only, p));
           return;
         }
-        if (stored && available.includes(stored)) {
-          window.location.replace(roleHome(stored, p));
-          return;
-        }
+        // Always show the chooser when multiple workspaces exist so the user
+        // can pick — do not auto-forward from a stale stored role.
         setProfile(p);
         setRoles(available);
       })
       .catch(() => {
         if (cancelled) return;
         writeStoredRole(user.id, "candidate");
-        window.location.replace("/dashboard");
+        router.replace("/dashboard");
       });
 
     return () => {
       cancelled = true;
     };
-  }, [isLoaded, user]);
+  }, [isLoaded, user, router]);
 
   const displayName = useMemo(
     () => user?.firstName?.trim() || user?.fullName?.trim() || "there",
@@ -67,7 +66,7 @@ export default function SelectRolePage() {
   const choose = (role: ActiveRole) => {
     if (!user) return;
     writeStoredRole(user.id, role);
-    window.location.replace(roleHome(role, profile));
+    router.replace(roleHome(role, profile));
   };
 
   if (!roles) {
@@ -102,6 +101,7 @@ export default function SelectRolePage() {
         {roles.map((role) => {
           const meta = ROLE_META[role];
           const Icon = meta.icon;
+          const label = workspaceRoleLabel(role, profile?.accessRole);
           return (
             <button
               key={role}
@@ -119,7 +119,7 @@ export default function SelectRolePage() {
               <span className="min-w-0 flex-1">
                 <span className="flex items-center justify-between gap-2">
                   <span className="text-base font-semibold text-foreground">
-                    {meta.label}
+                    {label}
                   </span>
                   <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-primary" />
                 </span>
