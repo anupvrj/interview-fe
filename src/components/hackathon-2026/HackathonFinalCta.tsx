@@ -23,7 +23,7 @@ export function HackathonFinalCta() {
 
   return (
     <section id="register" className="scroll-mt-20 pb-16 pt-8 sm:pb-24 sm:pt-10">
-      <div className="mx-auto w-full max-w-[1200px] px-5">
+      <div className="mx-auto w-full max-w-[1360px] px-5">
         <Reveal from="scale">
           <div className="relative isolate overflow-hidden rounded-[28px] border border-[#3a7bd0]/55 bg-[#071428] shadow-[0_30px_80px_rgba(0,16,48,0.5),0_0_70px_rgba(30,120,255,0.16)]">
             <div

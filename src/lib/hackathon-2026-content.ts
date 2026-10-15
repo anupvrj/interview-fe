@@ -249,7 +249,7 @@ export const HACKATHON_PRIZES = {
 export const HACKATHON_AGENDA = {
   titleLead: "Live Launch Event",
   titleAccent: "Agenda",
-  lead: "90 Minutes. Two Industry Leaders. One New Era of Interview Preparation.",
+  lead: "90 Minutes. Three Industry Leaders. One New Era of Interview Preparation.",
   copy: "Join our live virtual launch as we introduce Interview Trix, discuss how AI is reshaping careers, and reveal the hackathon winners.",
   guestsNote: ["Learn from", "Industry Leaders"],
   slots: [
@@ -276,19 +276,22 @@ export const HACKATHON_AGENDA = {
   ],
   guests: [
     {
-      name: "Chief Guest 1",
-      topic: "The Future of Careers in the AI Era",
-      image: null as string | null,
+      name: "Azharuddin",
+      topic: "Director of Engineering · AI Technology Consultant, OneOrigin",
+      subtitle: "Ex-TechMahindra",
+      image: "/guests-pic/azharuddin.webp" as string | null,
     },
     {
-      name: "Chief Guest 2",
-      topic: "Skills, Opportunities and How to Prepare",
-      image: null as string | null,
+      name: "Sourav Debnath",
+      topic: "HR Partner · Data-Driven Strategies and Recruitment",
+      subtitle: "Ex-Reliance, Myntra, Blackbuck",
+      image: "/guests-pic/sourav-debnath.webp" as string | null,
     },
     {
-      name: "Chief Guest 3",
-      topic: "Leading Engineering Teams in the AI Era",
-      image: null as string | null,
+      name: "Akshay Manjunath",
+      topic: "Innovation Consultant · AI Researcher",
+      subtitle: "Ex-Walmart, Ford, Design Lab",
+      image: "/guests-pic/akshay-manjunath.webp" as string | null,
     },
   ],
 } as const;

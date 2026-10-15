@@ -21,7 +21,7 @@ export function HackathonAgenda() {
     <section id="agenda" className="relative scroll-mt-20 overflow-hidden py-16 sm:py-20">
       <Ribbon variant="b" className="-right-44 top-40 h-[480px] w-[340px] opacity-40 md:-right-40 md:top-24 md:h-[640px] md:w-[520px] md:opacity-70" />
 
-      <div className="relative z-[1] mx-auto w-full max-w-[1200px] px-5">
+      <div className="relative z-[1] mx-auto w-full max-w-[1360px] px-5">
         <Reveal className="mx-auto mb-12 max-w-[54rem] text-center">
           <h2 className="text-[clamp(2.1rem,4.6vw,3.4rem)] font-extrabold leading-[1.05] tracking-[-0.04em] text-white">
             {HACKATHON_AGENDA.titleLead} <span className="hk-grad-text">{HACKATHON_AGENDA.titleAccent}</span>
@@ -46,8 +46,9 @@ export function HackathonAgenda() {
                     </span>
                     <div className="min-w-0">
                       <h3 className="text-base font-bold leading-snug text-white sm:text-[17px]">{slot.title}</h3>
-                      {"body" in slot && slot.body ? (
-                        <p className="mt-0.5 text-sm text-[#cfdbe8] sm:text-[15px]">{slot.body}</p>
+                      {/* Slots are title-only today; a body line shows if one is added back. */}
+                      {(slot as { body?: string }).body ? (
+                        <p className="mt-0.5 text-sm text-[#cfdbe8] sm:text-[15px]">{(slot as { body?: string }).body}</p>
                       ) : null}
                     </div>
                   </div>
@@ -85,7 +86,17 @@ export function HackathonAgenda() {
   );
 }
 
-function SpeakerCard({ name, topic, image }: { name: string; topic: string; image: string | null }) {
+function SpeakerCard({
+  name,
+  topic,
+  subtitle,
+  image,
+}: {
+  name: string;
+  topic: string;
+  subtitle?: string;
+  image: string | null;
+}) {
   return (
     <article className="group flex h-full flex-col items-center">
       <div className="relative size-[180px] sm:size-[150px] md:size-[170px] lg:size-[124px] xl:size-[148px]">
@@ -97,6 +108,8 @@ function SpeakerCard({ name, topic, image }: { name: string; topic: string; imag
               alt={name}
               fill
               sizes="180px"
+              // Small pre-cropped files: serve as-is so a swapped photo never shows a stale optimizer copy.
+              unoptimized
               className="origin-top object-cover object-top transition-transform duration-700 group-hover:scale-105"
             />
           ) : (
@@ -108,7 +121,10 @@ function SpeakerCard({ name, topic, image }: { name: string; topic: string; imag
       </div>
       <div className="relative -mt-6 w-full rounded-2xl border border-[#2f64a8]/80 bg-[linear-gradient(160deg,rgba(24,56,104,0.85),rgba(12,30,60,0.9))] flex-1 px-4 pb-5 pt-5 text-center lg:px-3 lg:pb-4 lg:pt-5 shadow-[0_16px_40px_rgba(0,20,60,0.5)] backdrop-blur transition-[border-color,transform] duration-300 group-hover:-translate-y-1 group-hover:border-[#4f96ec]">
         <h3 className="text-lg font-bold text-white lg:text-base xl:text-[17px]">{name}</h3>
-        <p className="mt-1 text-sm leading-5 text-[#d6e2ef] lg:text-[13px] xl:text-sm">{topic}</p>
+        <p className="mt-1.5 text-sm font-medium leading-snug text-[#e8f0fa] lg:text-[13px] xl:text-sm">{topic}</p>
+        {subtitle ? (
+          <p className="mt-1 text-xs leading-5 text-[#9eb2ca] sm:text-[13px]">{subtitle}</p>
+        ) : null}
       </div>
     </article>
   );
