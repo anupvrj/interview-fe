@@ -22,7 +22,7 @@ const SOCIAL_ICONS = {
 export function HackathonFooter() {
   return (
     <footer className="border-t border-[#142e4b] text-sm text-[#dbe6f3]">
-      <div className="mx-auto flex w-full max-w-[1200px] flex-col items-center gap-6 px-5 py-9 text-center md:flex-row md:justify-between md:py-8 md:text-left">
+      <div className="mx-auto flex w-full max-w-[1360px] flex-col items-center gap-6 px-5 py-9 text-center md:flex-row md:justify-between md:py-8 md:text-left">
         <Link
           href={HACKATHON_2026_PATH}
           aria-label="Hackathon home"
@@ -66,7 +66,7 @@ export function HackathonFooter() {
         </ul>
       </div>
       <div className="border-t border-[#0f2640]">
-        <div className="mx-auto flex w-full max-w-[1200px] flex-col items-center gap-3 px-5 py-5 text-center text-[13px] text-[#b4c3d4] sm:flex-row sm:justify-between sm:text-left">
+        <div className="mx-auto flex w-full max-w-[1360px] flex-col items-center gap-3 px-5 py-5 text-center text-[13px] text-[#b4c3d4] sm:flex-row sm:justify-between sm:text-left">
           <p>© {new Date().getFullYear()} Interview Trix. All rights reserved.</p>
           <div className="flex gap-6">
             <Link href="/privacy" className="transition-colors hover:text-white">

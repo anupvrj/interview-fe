@@ -46,9 +46,9 @@ export function HackathonParticipate() {
       <Ribbon variant="b" slow className="-right-40 top-0 h-[420px] w-[360px] opacity-50 md:-right-56 md:h-[560px] md:w-[520px] md:opacity-70" />
       <Ribbon variant="a" className="-bottom-10 -left-40 h-[200px] w-[520px] opacity-50 md:h-[260px] md:w-[620px] md:opacity-60" />
 
-      <div className="hk-panel relative z-[1] mx-auto w-full max-w-[1280px] overflow-hidden rounded-[32px] px-4 py-14 backdrop-blur-[2px] sm:rounded-[40px] sm:px-8 sm:py-16">
+      <div className="hk-panel relative z-[1] mx-auto w-full max-w-[1440px] overflow-hidden rounded-[32px] px-4 py-14 backdrop-blur-[2px] sm:rounded-[40px] sm:px-8 sm:py-16">
 
-        <div className="relative z-[1] mx-auto w-full max-w-[1160px]">
+        <div className="relative z-[1] mx-auto w-full max-w-[1320px]">
           <Reveal className="mx-auto mb-12 max-w-[48rem] text-center">
             <h2 className="text-[clamp(2.1rem,4.6vw,3.4rem)] font-extrabold leading-[1.05] tracking-[-0.04em] text-white">
               How to <span className="hk-grad-text">Participate</span>

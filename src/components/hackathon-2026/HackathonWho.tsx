@@ -13,7 +13,7 @@ export function HackathonWho() {
     <section id="who" className="relative scroll-mt-20 overflow-hidden py-16 sm:py-20">
       <Ribbon variant="b" slow className="-right-40 top-0 h-[380px] w-[320px] opacity-40 md:-right-48 md:h-[520px] md:w-[440px] md:opacity-50" />
 
-      <div className="relative z-[1] mx-auto w-full max-w-[1200px] px-5">
+      <div className="relative z-[1] mx-auto w-full max-w-[1360px] px-5">
         <Reveal className="mx-auto mb-12 max-w-[48rem] text-center">
           <h2 className="text-[clamp(2.1rem,4.6vw,3.4rem)] font-extrabold leading-[1.05] tracking-[-0.04em] text-white">
             {HACKATHON_WHO.titleLead} <span className="hk-grad-text">{HACKATHON_WHO.titleAccent}</span>

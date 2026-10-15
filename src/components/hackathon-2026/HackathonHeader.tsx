@@ -94,7 +94,7 @@ export function HackathonHeader() {
       >
         <div
           className={cn(
-            "mx-auto grid w-full max-w-[1200px] grid-cols-[1fr_auto_1fr] items-center gap-3 px-4 transition-[height] duration-300 sm:px-5 lg:flex lg:justify-between lg:gap-4",
+            "mx-auto grid w-full max-w-[1360px] grid-cols-[1fr_auto_1fr] items-center gap-3 px-4 transition-[height] duration-300 sm:px-5 lg:flex lg:justify-between lg:gap-4",
             scrolled ? "h-16" : "h-[4.5rem] sm:h-20",
           )}
         >

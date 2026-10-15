@@ -20,7 +20,7 @@ export function HackathonTimeline() {
       <Ribbon variant="b" className="-left-40 top-8 h-[380px] w-[320px] -scale-x-100 opacity-40 md:-left-48 md:h-[520px] md:w-[440px] md:opacity-50" />
       <Ribbon variant="a" slow className="-right-36 bottom-0 h-[220px] w-[480px] opacity-40 md:h-[280px] md:w-[580px]" />
 
-      <div className="relative z-[1] mx-auto w-full max-w-[1200px] px-5">
+      <div className="relative z-[1] mx-auto w-full max-w-[1360px] px-5">
         <Reveal className="mx-auto mb-10 max-w-[48rem] text-center sm:mb-12">
           <h2 className="text-[clamp(2.1rem,4.6vw,3.4rem)] font-extrabold leading-[1.05] tracking-[-0.04em] text-white">
             {HACKATHON_TIMELINE.titleLead} <span className="hk-grad-text">{HACKATHON_TIMELINE.titleAccent}</span>
