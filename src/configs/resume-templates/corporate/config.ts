@@ -55,7 +55,7 @@ export const corporateExtendedConfig: Partial<ExtendedResumeTemplate> = {
     },
     headerStyle: "centered",
     sectionSpacing: 10,
-    padding: { top: 8, bottom: 8, left: 8, right: 8 },
+    padding: { top: 6, bottom: 8, left: 8, right: 8 },
     sectionHeader: {
       style: "border-top-bottom",
       borderWidth: 2,
@@ -64,10 +64,13 @@ export const corporateExtendedConfig: Partial<ExtendedResumeTemplate> = {
       fontSize: 12,
       fontWeight: "bold",
       marginBottom: "10px",
-      paddingTop: "6px",
-      paddingBottom: "6px",
+      paddingTop: "8px",
+      paddingBottom: "8px",
+      paddingLeft: "16px",
+      paddingRight: "16px",
       textTransform: "uppercase",
     },
+    useCSSClassesForHeader: true,
     skillsDisplay: { type: "list", showRatings: false },
     timelineLayout: { type: "vertical", datePosition: "right" },
     contactDisplay: { type: "text", layout: "horizontal" },
@@ -77,6 +80,7 @@ export const corporateExtendedConfig: Partial<ExtendedResumeTemplate> = {
       enabled: true,
       calculateDynamically: true,
     },
+    /** Page 2+ top gutter follows layout.padding.top from editor settings. */
     dataStructure: "legacy",
     features: {
       showPresent: true,

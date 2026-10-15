@@ -21,6 +21,30 @@ export function FeatureRouteGuard({ children }: { children: ReactNode }) {
   const roleCtx = useActiveRole();
   const accessRole = roleCtx?.profile?.accessRole ?? null;
   const activeRole = roleCtx?.activeRole ?? null;
+  const managed =
+    Boolean(roleCtx?.profile?.institutionId) &&
+    (roleCtx?.profile?.accessRole || "user") === "user" &&
+    roleCtx?.profile?.institutionInvited === true;
+  const capabilityLocked =
+    managed &&
+    Boolean(
+      pathname === "/dashboard/peer-interviews/interviewer/apply" ||
+        pathname?.startsWith("/dashboard/peer-interviews/interviewer/apply/") ||
+        pathname === "/dashboard/ix-recruiter/apply" ||
+        pathname?.startsWith("/dashboard/ix-recruiter/apply/") ||
+        pathname === "/dashboard/lab" ||
+        pathname?.startsWith("/dashboard/lab/"),
+    );
+  if (capabilityLocked) {
+    return (
+      <FeatureUnavailable
+        title="Not available on institute accounts"
+        message="Your institute manages this account. Recruiter and interviewer tools are not available."
+        backHref="/dashboard"
+        backLabel="Back to dashboard"
+      />
+    );
+  }
 
   if (isLoading) return children;
   const viewingAsSuperAdmin =
@@ -48,12 +72,21 @@ export function FeatureRouteGuard({ children }: { children: ReactNode }) {
     allowed &&
     !planLocked &&
     Boolean(roleCtx?.profile?.institutionId) &&
-    roleCtx?.profile?.accessRole === "user" &&
+    roleCtx?.profile?.accessRole !== "super_admin" &&
+    (roleCtx?.profile?.accessRole === "user" || feature.key === "api_connector") &&
     !isInstitutionProductEnabled(
       roleCtx?.profile?.institutionFlags?.products,
       feature.key,
     );
-  if (allowed && !planLocked && !instituteLocked) return children;
+  const selfStartLocked =
+    managed &&
+    roleCtx?.profile?.allowCandidateSelfStart === false &&
+    Boolean(
+      pathname === "/dashboard/interviews/new" ||
+        pathname === "/dashboard/coding-interviews/new" ||
+        pathname === "/dashboard/system-design/new",
+    );
+  if (allowed && !planLocked && !instituteLocked && !selfStartLocked) return children;
 
   const backHref = pathname?.startsWith("/dashboard") ? "/dashboard" : "/";
   const backLabel = pathname?.startsWith("/dashboard")
@@ -65,14 +98,18 @@ export function FeatureRouteGuard({ children }: { children: ReactNode }) {
       title={
         planLocked
           ? `${feature.name} is not in your plan`
-          : instituteLocked
+          : selfStartLocked
+            ? "Scheduled interviews only"
+            : instituteLocked
             ? `${feature.name} is not enabled for your institute`
             : feature.unavailableTitle
       }
       message={
         planLocked
           ? `Upgrade your plan to use ${feature.name}.`
-          : instituteLocked
+          : selfStartLocked
+            ? "Your institute schedules interviews for you. You can start a round from your dashboard when a slot is open."
+            : instituteLocked
             ? `Your institute has not enabled ${feature.name}.`
             : feature.unavailableMessage
       }

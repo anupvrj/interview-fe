@@ -1,7 +1,10 @@
 import type { ResumeTemplate } from "@/lib/api";
 import { getExtendedTemplate } from "@/lib/templateConfigs";
 import { getTemplateStyle } from "@/lib/templateRenderer";
-import { resolveLayoutPaddingMm } from "@/lib/resume-page-dimensions";
+import {
+  CORPORATE_LAYOUT_PADDING_MM,
+  resolveLayoutPaddingMm,
+} from "@/lib/resume-page-dimensions";
 
 export type ResumeEditorLayout = {
   type: "single" | "double";
@@ -71,7 +74,16 @@ export function buildLayoutForTemplateSwitch(
   let padding = resolveLayoutPaddingMm(style.padding);
 
   if (newTemplate.id === "mercury") {
-    padding = { top: 20, bottom: 20, left: 20, right: 20 };
+    padding = { top: 0, bottom: padding.bottom ?? 20, left: 0, right: 0 };
+  }
+
+  if (newTemplate.id === "corporate") {
+    padding = {
+      top: padding.top ?? CORPORATE_LAYOUT_PADDING_MM.top,
+      bottom: padding.bottom ?? CORPORATE_LAYOUT_PADDING_MM.bottom,
+      left: padding.left ?? CORPORATE_LAYOUT_PADDING_MM.left,
+      right: padding.right ?? CORPORATE_LAYOUT_PADDING_MM.right,
+    };
   }
 
   return {

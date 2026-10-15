@@ -38,6 +38,10 @@ import {
   pdfResumeFileValidator,
 } from "@/lib/pdf-dropzone";
 import { JobRoleSelect } from "@/components/career/JobRoleSelect";
+import {
+  isMissingResumeError,
+  useResumeRequiredDialog,
+} from "@/components/resume/ResumeRequiredDialog";
 import { AppSelect } from "@/components/ui/app-select";
 import { FormField } from "@/components/onboarding/onboarding-form-primitives";
 import {
@@ -185,6 +189,7 @@ export default function NewCodingInterviewPage() {
   const profileReady = roleCtx?.ready ?? false;
   const router = useRouter();
   const { invalidate } = useDashboardInvalidation();
+  const { openResumeRequired } = useResumeRequiredDialog();
   const { data: queriedDefaultResume, isFetched: defaultResumeFetched } =
     useDefaultResumeQuery(
       !userProfile?.resume?.s3Key &&
@@ -335,8 +340,12 @@ export default function NewCodingInterviewPage() {
         newErrors.resume = "Please upload your resume or use saved resume";
       }
       if (useSavedResume && !savedResumeAvailable) {
-        newErrors.resume =
-          "No saved resume found. Set a default on your profile or upload a PDF.";
+        openResumeRequired({
+          onReady: async () => {
+            await invalidate(["resumes", "profile"]);
+          },
+        });
+        return false;
       }
     }
 
@@ -420,6 +429,14 @@ export default function NewCodingInterviewPage() {
       }
       const errorMessage =
         data?.message || "Failed to create coding session. Please try again.";
+      if (isMissingResumeError(errorMessage)) {
+        openResumeRequired({
+          onReady: async () => {
+            await invalidate(["resumes", "profile"]);
+          },
+        });
+        return;
+      }
       if (
         typeof errorMessage === "string" &&
         (errorMessage.includes("limit") || errorMessage.includes("upgrade"))
