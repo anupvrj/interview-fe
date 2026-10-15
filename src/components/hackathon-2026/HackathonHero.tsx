@@ -51,7 +51,7 @@ export function HackathonHero() {
         className="right-[-6%] top-[4%] hidden h-[760px] w-[62%] opacity-75 [mask-image:radial-gradient(ellipse_75%_70%_at_60%_55%,#000_45%,transparent_85%)] lg:block"
       />
 
-      <div className="relative z-[1] mx-auto grid w-full max-w-[1240px] items-end gap-6 px-5 lg:grid-cols-[1.08fr_1fr] lg:gap-2">
+      <div className="relative z-[1] mx-auto grid w-full max-w-[1400px] items-end gap-6 px-5 lg:grid-cols-[1.08fr_1fr] lg:gap-2">
         {/* ---------- Copy ---------- */}
         <div className="min-w-0 self-center py-4 text-center lg:pb-24 lg:pt-8 lg:text-left">
           <Reveal immediate>
@@ -452,7 +452,7 @@ function HeroTicker() {
 
   return (
     <div
-      className="hk-enter relative z-[3] mx-auto -mt-2 w-full max-w-[1240px] px-5 pb-8"
+      className="hk-enter relative z-[3] mx-auto -mt-2 w-full max-w-[1400px] px-5 pb-8"
       style={{ "--hk-delay": "600ms" } as React.CSSProperties}
     >
       <div className="flex flex-col overflow-hidden rounded-2xl border border-[#23508a] bg-[#071630]/85 shadow-[0_20px_60px_rgba(0,20,60,0.5)] backdrop-blur-md md:flex-row md:items-stretch">
