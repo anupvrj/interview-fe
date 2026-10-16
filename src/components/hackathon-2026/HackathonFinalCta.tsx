@@ -1,91 +1,94 @@
 "use client";
 
-import { Check } from "lucide-react";
+import { Award, Calendar, Trophy, Zap } from "lucide-react";
 import { HackathonRegisterButton } from "@/components/hackathon-2026/HackathonRegisterButton";
 import { HackathonRegisterHint } from "@/components/hackathon-2026/HackathonRegisterContext";
-import { Reveal, Ribbon } from "@/components/hackathon-2026/HackathonMotion";
-import { HACKATHON_FINAL_CTA } from "@/lib/hackathon-2026-content";
+import { Reveal, Ribbon, useLoopingOfferCountdown } from "@/components/hackathon-2026/HackathonMotion";
+import { useLandingChallengeWindow } from "@/components/hackathon-2026/useLandingChallengeWindow";
+import { HACKATHON_FINAL_CTA, HACKATHON_HERO } from "@/lib/hackathon-2026-content";
+
+const POINTS = [
+  { icon: Calendar, tone: "text-[#6fcfff]" },
+  { icon: Trophy, tone: "text-[#ffc44d]" },
+  { icon: Award, tone: "text-[#7dffc3]" },
+] as const;
 
 export function HackathonFinalCta() {
+  const offerTime = useLoopingOfferCountdown();
+  const challenge = useLandingChallengeWindow();
+  const title = HACKATHON_FINAL_CTA.title;
+  const splitAt = title.lastIndexOf(" ");
+  const titleLead = title.slice(0, splitAt);
+  const titleAccent = title.slice(splitAt + 1);
+
   return (
-    <section id="register" className="scroll-mt-20 pb-16 pt-6 sm:pb-20">
-      <div className="mx-auto w-full max-w-[1200px] px-5">
+    <section id="register" className="scroll-mt-20 pb-16 pt-8 sm:pb-24 sm:pt-10">
+      <div className="mx-auto w-full max-w-[1360px] px-5">
         <Reveal from="scale">
-          <div className="relative isolate overflow-hidden rounded-[26px] border-[1.5px] border-[#2a86f0]/80 bg-[radial-gradient(700px_320px_at_80%_0%,rgba(20,120,255,0.28),transparent_60%),linear-gradient(135deg,#0a2146,#0b1c3c_55%,#08152e)] px-6 py-10 shadow-[0_0_60px_rgba(30,130,255,0.18)] sm:px-10 sm:py-12">
-            <span className="hk-beam" aria-hidden />
-            <Ribbon variant="a" className="-bottom-20 -left-24 -z-[1] h-[240px] w-[620px] opacity-80" />
-            <CornerSparks />
+          <div className="relative isolate overflow-hidden rounded-[28px] border border-[#3a7bd0]/55 bg-[#071428] shadow-[0_30px_80px_rgba(0,16,48,0.5),0_0_70px_rgba(30,120,255,0.16)]">
+            <div
+              className="pointer-events-none absolute inset-0 bg-[radial-gradient(560px_300px_at_92%_-10%,rgba(32,120,255,0.38),transparent_62%)]"
+              aria-hidden
+            />
+            <div
+              className="pointer-events-none absolute inset-0 bg-[radial-gradient(420px_260px_at_0%_110%,rgba(43,210,255,0.14),transparent_58%)]"
+              aria-hidden
+            />
+            <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-white/35 to-transparent" aria-hidden />
+            <Ribbon variant="b" className="pointer-events-none absolute -right-16 -top-24 h-[340px] w-[480px] opacity-60" />
 
-            <div className="grid items-center gap-8 lg:grid-cols-[auto_1fr_auto] lg:gap-10">
-              <GradCap className="hk-bob-1 mx-auto h-24 w-28 drop-shadow-[0_18px_30px_rgba(30,120,255,0.55)] sm:h-28 sm:w-32 lg:mx-0" />
-
-              <div className="text-center lg:text-left">
-                <h2 className="text-balance text-[clamp(1.5rem,2.5vw,1.9rem)] font-extrabold leading-tight tracking-[-0.03em] text-white">
-                  {HACKATHON_FINAL_CTA.titleLead}{" "}
-                  <span className="hk-grad-text">{HACKATHON_FINAL_CTA.titleAccent}</span>{" "}
-                  {HACKATHON_FINAL_CTA.titleTail}{" "}
-                  <span className="relative inline-block">
-                    <span className="hk-grad-text">{HACKATHON_FINAL_CTA.titleYear}</span>
-                    <span className="absolute inset-x-0 -bottom-0.5 h-[3px] rounded-full bg-gradient-to-r from-[#1a8cff] to-[#4fd2ff]" aria-hidden />
-                  </span>
+            <div className="relative z-10 flex flex-col gap-8 px-5 py-8 sm:px-10 sm:py-11 lg:flex-row lg:items-center lg:justify-between lg:gap-12 lg:px-12 lg:py-14">
+              <div className="min-w-0 max-w-xl text-center lg:text-left">
+                <p className="inline-flex items-center gap-2 rounded-full border border-[#2a64a8] bg-[#081c38]/80 px-3.5 py-1.5 text-[11px] font-bold uppercase tracking-[0.16em] text-[#6fcfff] shadow-[0_0_24px_rgba(30,120,255,0.16)]">
+                  <Zap className="size-3.5 fill-[#39b8ff] text-[#39b8ff]" aria-hidden />
+                  Free registration
+                </p>
+                <h2 className="mt-5 text-balance text-[clamp(2.05rem,4.2vw,3.35rem)] font-extrabold leading-[0.98] tracking-[-0.04em] text-white">
+                  {titleLead}{" "}
+                  <span className="hk-grad-text">{titleAccent}</span>
                 </h2>
-                <p className="mx-auto mt-3 max-w-xl text-base leading-7 text-[#dbe6f3] lg:mx-0">
+                <p className="mx-auto mt-4 max-w-md text-sm leading-6 text-[#dbe6f3] sm:text-[15px] sm:leading-7 lg:mx-0">
                   {HACKATHON_FINAL_CTA.copy}
                 </p>
+                <ul className="mt-5 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-[13px] font-medium text-[#e2ebf5] lg:justify-start">
+                  {HACKATHON_FINAL_CTA.points.map((point, index) => {
+                    const { icon: Icon, tone } = POINTS[index];
+                    const label = index === 0 ? `Hackathon - ${challenge.publicRangeLabel}` : point;
+                    return (
+                      <li key={point} className="inline-flex items-center gap-2">
+                        <Icon className={`size-4 shrink-0 ${tone}`} strokeWidth={2} aria-hidden />
+                        {label}
+                      </li>
+                    );
+                  })}
+                </ul>
               </div>
 
-              <div className="flex flex-col items-center gap-5 lg:items-end">
-                <div className="w-full sm:w-auto">
-                  <HackathonRegisterButton size="lg" idle className="min-h-16 w-full rounded-2xl text-lg sm:w-auto sm:min-w-[20rem]" />
-                  <HackathonRegisterHint className="mt-2 text-center text-sm font-medium text-[#ffc44d] lg:text-right" />
-                </div>
-                <ul className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-sm font-medium text-[#e2ebf5]">
-                  {HACKATHON_FINAL_CTA.points.map((point) => (
-                    <li key={point} className="inline-flex items-center gap-2">
-                      <span className="grid size-5 place-items-center rounded-full bg-[#2e9bff] text-[#04172f]">
-                        <Check className="size-3" strokeWidth={3.5} aria-hidden />
-                      </span>
-                      {point}
-                    </li>
-                  ))}
-                </ul>
+              <div className="w-full shrink-0 rounded-[22px] border border-[#5b9cf0]/40 bg-[linear-gradient(165deg,rgba(20,56,112,0.96),rgba(7,22,48,0.94))] p-5 text-center shadow-[0_24px_50px_rgba(0,0,0,0.35),inset_0_1px_0_rgba(190,220,255,0.22)] sm:p-6 lg:w-[22.5rem] lg:text-left">
+                <p className="flex flex-wrap items-center justify-center gap-x-2.5 gap-y-1 lg:flex-nowrap lg:justify-start">
+                  <span className="hk-hand text-[1.65rem] leading-none !text-white">{HACKATHON_HERO.offerNow}</span>
+                  <span className="text-lg font-semibold text-[#8fa6c0] line-through decoration-[#9eb4cc]">
+                    {HACKATHON_HERO.offerWas}
+                  </span>
+                  <span className="whitespace-nowrap text-sm font-medium text-[#dbe6f3]">
+                    {HACKATHON_HERO.offerEndsLabel}{" "}
+                    <span className="tabular-nums text-base font-extrabold text-[#ff9a3c]">{offerTime}</span>
+                  </span>
+                </p>
+                <HackathonRegisterButton
+                  size="lg"
+                  className="mt-5 min-h-[3.75rem] w-full rounded-2xl px-8 text-base"
+                />
+                <p className="mt-3 text-sm font-medium text-[#dbe6f3]">
+                  <span className="font-semibold text-[#ff9a3c]">{HACKATHON_HERO.seatNoteLead}</span>{" "}
+                  {HACKATHON_HERO.seatNote}
+                </p>
+                <HackathonRegisterHint className="mt-2 text-sm font-medium text-[#ffc44d]" />
               </div>
             </div>
           </div>
         </Reveal>
       </div>
     </section>
-  );
-}
-
-function GradCap({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 120 100" className={className} aria-hidden>
-      <defs>
-        <linearGradient id="hk-cap-top" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="#6cc6ff" />
-          <stop offset="1" stopColor="#1463ff" />
-        </linearGradient>
-        <linearGradient id="hk-cap-base" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#1f7dff" />
-          <stop offset="1" stopColor="#0d3fb0" />
-        </linearGradient>
-      </defs>
-      <path d="M30 46 V70 C30 80 90 80 90 70 V46 L60 58 Z" fill="url(#hk-cap-base)" />
-      <path d="M60 14 L114 38 L60 62 L6 38 Z" fill="url(#hk-cap-top)" />
-      <path d="M60 14 L114 38 L60 62" fill="none" stroke="#bfe6ff" strokeOpacity="0.5" strokeWidth="1.2" />
-      <path d="M100 44 V72" stroke="#6cc6ff" strokeWidth="3" strokeLinecap="round" />
-      <circle cx="100" cy="76" r="5" fill="#2e9bff" />
-    </svg>
-  );
-}
-
-function CornerSparks() {
-  return (
-    <svg aria-hidden viewBox="0 0 60 60" className="hk-draw absolute right-5 top-4 hidden h-14 w-14 text-[#2e9bff] sm:block" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round">
-      <path d="M18 4 L22 18" style={{ "--hk-len": 16 } as React.CSSProperties} />
-      <path d="M44 10 L32 22" style={{ "--hk-len": 18 } as React.CSSProperties} />
-      <path d="M56 34 L38 32" style={{ "--hk-len": 20 } as React.CSSProperties} />
-    </svg>
   );
 }

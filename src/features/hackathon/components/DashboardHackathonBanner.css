@@ -1,3 +1,23 @@
+.hk-dash-banner {
+  --hk-cyan: #2bd2ff;
+  --hk-teal: #29d6a0;
+  background:
+    radial-gradient(900px 420px at 100% 0%, rgba(22, 119, 255, 0.22), transparent 55%),
+    radial-gradient(700px 380px at 0% 100%, rgba(0, 68, 170, 0.18), transparent 50%),
+    linear-gradient(135deg, #040b17 0%, #071426 42%, #0b2a4a 100%);
+}
+
+.hk-dash-pitch {
+  max-width: none;
+  text-wrap: balance;
+}
+
+@media (min-width: 1024px) {
+  .hk-dash-pitch {
+    white-space: nowrap;
+  }
+}
+
 @keyframes hk-dash-flag-wave {
   0%,
   100% {

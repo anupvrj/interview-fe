@@ -21,7 +21,14 @@ export function Countdown({
   serverNow,
   onDone,
   compact = false,
-}: Readonly<{ target: string; serverNow: string; onDone?: () => void; compact?: boolean }>) {
+  variant = "default",
+}: Readonly<{
+  target: string;
+  serverNow: string;
+  onDone?: () => void;
+  compact?: boolean;
+  variant?: "default" | "amber";
+}>) {
   const [offset] = useState(() => new Date(serverNow).getTime() - Date.now());
   const [now, setNow] = useState(() => Date.now() + offset);
   const targetMs = new Date(target).getTime();
@@ -54,17 +61,35 @@ export function Countdown({
     [p.minutes, "Minutes"],
     [p.seconds, "Seconds"],
   ];
+  const amber = variant === "amber";
+
   return (
     <div className="flex justify-center gap-2 sm:gap-3" role="timer" aria-live="off">
       {cells.map(([value, label]) => (
         <div
           key={label}
-          className="flex w-[4.25rem] flex-col items-center rounded-2xl border border-[#27547d] bg-[#0a1930]/80 py-3 sm:w-20"
+          className={
+            amber
+              ? "flex w-[4.25rem] flex-col items-center rounded-2xl border border-[#8a6a20]/75 bg-[#2e2410]/55 py-3 shadow-[0_8px_24px_rgba(46,36,16,0.35),inset_0_1px_0_rgba(255,196,77,0.12)] sm:w-20"
+              : "flex w-[4.25rem] flex-col items-center rounded-2xl border border-[#27547d] bg-[#0a1930]/80 py-3 sm:w-20"
+          }
         >
-          <span className="text-2xl font-extrabold tabular-nums text-white sm:text-3xl">
+          <span
+            className={
+              amber
+                ? "text-2xl font-extrabold tabular-nums text-[#ff9a3c] sm:text-3xl"
+                : "text-2xl font-extrabold tabular-nums text-white sm:text-3xl"
+            }
+          >
             {String(value).padStart(2, "0")}
           </span>
-          <span className="mt-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#7189a6]">
+          <span
+            className={
+              amber
+                ? "mt-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#ffc44d]"
+                : "mt-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#7189a6]"
+            }
+          >
             {label}
           </span>
         </div>

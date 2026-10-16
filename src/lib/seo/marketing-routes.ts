@@ -72,10 +72,10 @@ export const PRODUCT_MARKETING_ROUTES: MarketingRoute[] = [
 
 export const SUPPORT_MARKETING_ROUTES: MarketingRoute[] = [
   {
-    path: "/hackathon-2026",
-    name: "Hackathon 2026",
+    path: "/hiring-games-hackathon-2026",
+    name: "InterviewTrix: The Hiring Games",
     description:
-      "Interview Trix Product Launch and Hackathon — Navigating Careers in 2027. Free registration, live virtual event, ₹20,000 prize pool.",
+      "InterviewTrix: The Hiring Games — a free, self-paced hiring hackathon (17–26 Oct 2026) and online launch with leading software industry experts. ₹20,000 prize pool.",
     sitemap: { changeFrequency: "weekly", priority: 0.8 },
   },
   {

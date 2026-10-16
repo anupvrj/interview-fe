@@ -13,11 +13,11 @@ export function HackathonFaq() {
 
   return (
     <section id="faq" className="scroll-mt-20 py-16 sm:py-20">
-      <div className="mx-auto w-full max-w-[820px] px-5">
+      <div className="mx-auto w-full max-w-[960px] px-5">
         <Reveal className="mb-10 text-center">
           <p className="hk-eyebrow">FAQ</p>
           <h2 className="mt-2 text-[clamp(1.75rem,3.6vw,2.5rem)] font-extrabold tracking-[-0.04em] text-white">
-            Questions, <span className="hk-grad-text">answered</span>
+            Frequently Asked <span className="hk-grad-text">Questions</span>
           </h2>
         </Reveal>
 

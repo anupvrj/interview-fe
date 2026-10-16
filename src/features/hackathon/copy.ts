@@ -1,6 +1,9 @@
 import type { HackathonMe, LockReason } from "./api";
 
-export const PROFILE_MISSING_LABELS: Record<HackathonMe["profile"]["missing"][number], string> = {
+export const PROFILE_MISSING_LABELS: Record<
+  HackathonMe["profile"]["missing"][number],
+  string
+> = {
   onboarding: "profile details",
   userType: "profile type",
   targetJobRole: "the role you're applying for",
@@ -9,7 +12,9 @@ export const PROFILE_MISSING_LABELS: Record<HackathonMe["profile"]["missing"][nu
   college: "your college",
 };
 
-export function formatProfileMissing(missing: HackathonMe["profile"]["missing"]): string {
+export function formatProfileMissing(
+  missing: HackathonMe["profile"]["missing"],
+): string {
   const labels = missing.map((key) => PROFILE_MISSING_LABELS[key]);
   if (labels.length === 0) return "your profile details";
   if (labels.length === 1) return labels[0];
@@ -18,15 +23,16 @@ export function formatProfileMissing(missing: HackathonMe["profile"]["missing"])
 }
 
 export const PHASE_COPY = {
-  upcoming: "Hackathon will start soon. Stay tuned...",
+  upcoming: "You're registered. Challenges unlock when the hackathon starts.",
+  startCountdownLabel: "Hackathon will start in",
   ended: "Hackathon is over",
   full: "Hackathon is full. All spots have been taken.",
 } as const;
 
 export const CTA_LABELS = {
-  register: "Register Now — It’s Free",
-  getReady: "Get ready",
-  goToChallenges: "Go to challenges",
+  register: "Register Now for Free",
+  getReady: "Go to Challenge",
+  goToChallenges: "Go to Challenge",
   seeResults: "See your results",
   full: "Hackathon is full",
   ended: "Hackathon is over",
@@ -35,14 +41,17 @@ export const CTA_LABELS = {
 /** Short forms of CTA_LABELS for tight spots (e.g. the mobile header). */
 export const CTA_SHORT_LABELS: Record<keyof typeof CTA_LABELS, string> = {
   register: "Register",
-  getReady: "Get ready",
-  goToChallenges: "Challenges",
+  getReady: "Go to Challenge",
+  goToChallenges: "Challenge",
   seeResults: "Results",
   full: "Full",
   ended: "Ended",
 };
 
-export function lockReasonText(reason: LockReason, challengeNumber: number): string {
+export function lockReasonText(
+  reason: LockReason,
+  challengeNumber: number,
+): string {
   switch (reason) {
     case "not_started":
       return PHASE_COPY.upcoming;
@@ -57,9 +66,9 @@ export function lockReasonText(reason: LockReason, challengeNumber: number): str
         ? `Finish Challenge ${challengeNumber - 1} to unlock this.`
         : "Finish the previous step to unlock this.";
     case "attempt_limit":
-      return "You've used all attempts for this interview.";
+      return "You've already used your successful attempt for this interview.";
     case "below_pass_mark":
-      return "Your score is below the passing mark. Retry if you have attempts left.";
+      return "Your score is below the passing mark. That used your one successful attempt.";
     case "inactive_entry":
       return "Your hackathon entry is no longer active. Contact support if you think this is a mistake.";
     default:
@@ -68,13 +77,18 @@ export function lockReasonText(reason: LockReason, challengeNumber: number): str
 }
 
 const FAILURE_COPY: Record<string, string> = {
-  abandoned: "Your last attempt was left unfinished, so it was closed.",
-  connection_failed: "Your last attempt lost its connection.",
-  interview_failed: "Your last attempt couldn't be completed.",
-  interview_missing: "Your last attempt was closed before it finished.",
-  report_failed: "We couldn't generate a report for your last attempt.",
+  abandoned:
+    "Your last interview was left unfinished, so it was closed. That used your one attempt.",
+  connection_failed:
+    "This round failed due to an internal connection issue. You can retry — only a successful submission counts.",
+  interview_failed:
+    "This round failed due to an internal issue. You can retry — only a successful submission counts.",
+  interview_missing:
+    "This round failed due to an internal issue before it finished. You can retry — only a successful submission counts.",
+  report_failed:
+    "This round failed due to an internal issue generating your report. You can retry — only a successful submission counts.",
   after_deadline: "Your last attempt finished after the hackathon closed.",
-  never_started: "Your last attempt was never started.",
+  never_started: "Your last attempt was never started. You can retry.",
 };
 
 export function failureReasonText(reason: string | undefined): string | null {
@@ -83,15 +97,19 @@ export function failureReasonText(reason: string | undefined): string | null {
 }
 
 export function formatIst(iso: string | null | undefined): string {
-  if (!iso) return "—";
-  return new Intl.DateTimeFormat("en-IN", {
-    timeZone: "Asia/Kolkata",
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-  }).format(new Date(iso)) + " IST";
+  if (!iso?.trim()) return "—";
+  const ms = Date.parse(iso);
+  if (Number.isNaN(ms)) return "—";
+  return (
+    new Intl.DateTimeFormat("en-IN", {
+      timeZone: "Asia/Kolkata",
+      weekday: "short",
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    }).format(new Date(ms)) + " IST"
+  );
 }

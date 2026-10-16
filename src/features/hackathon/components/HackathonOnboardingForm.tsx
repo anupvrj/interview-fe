@@ -16,16 +16,26 @@ import {
   X,
 } from "lucide-react";
 import { IndustryRoleFields } from "@/components/career/IndustryRoleFields";
+import { ProfilePhoneFields } from "@/components/profile/ProfilePhoneFields";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { userApi } from "@/lib/api";
+import {
+  formatPhoneForStorage,
+  isValidPhoneForStorage,
+  parseStoredPhone,
+} from "@/lib/phone-utils";
 import {
   PDF_RESUME_MAX_BYTES,
   pdfResumeDropzoneAccept,
   pdfResumeFileValidator,
 } from "@/lib/pdf-dropzone";
 import { cn } from "@/lib/utils";
-import { hackathonFieldsFromProfile } from "../hackathonProfileFields";
+import {
+  hackathonFieldsFromProfile,
+  isHackathonProfileReady,
+  resolveHackathonOnboardingStep,
+} from "../hackathonProfileFields";
 import { hkSecondaryButton } from "./ResumeChallenge";
 
 type UserType = "student" | "fresher" | "experienced" | "";
@@ -122,6 +132,9 @@ export function HackathonOnboardingForm({ onComplete }: Readonly<{ onComplete: (
   const [targetJobRole, setTargetJobRole] = useState("");
   const [course, setCourse] = useState("");
   const [college, setCollege] = useState("");
+  const [phoneCountryCode, setPhoneCountryCode] = useState("+91");
+  const [phoneLocal, setPhoneLocal] = useState("");
+  const [savedPhone, setSavedPhone] = useState<string | null>(null);
   const [resumeFile, setResumeFile] = useState<File | null>(null);
 
   useEffect(() => {
@@ -136,6 +149,11 @@ export function HackathonOnboardingForm({ onComplete }: Readonly<{ onComplete: (
         setTargetJobRole(fields.targetJobRole);
         setCourse(fields.userType === "student" ? fields.targetJobRole : "");
         setCollege(fields.college);
+        const parsed = parseStoredPhone(profile.phone);
+        setPhoneCountryCode(parsed.countryCode);
+        setPhoneLocal(parsed.localNumber);
+        setSavedPhone(profile.phone?.trim() || null);
+        setStep(resolveHackathonOnboardingStep(profile));
       })
       .catch(() => {
         /* first-time users have no profile row yet */
@@ -202,15 +220,32 @@ export function HackathonOnboardingForm({ onComplete }: Readonly<{ onComplete: (
       setError("Choose Student, Fresher, or Experienced to continue.");
       return;
     }
+    if (!isValidPhoneForStorage(phoneCountryCode, phoneLocal)) {
+      setError("Enter a valid mobile number.");
+      return;
+    }
+    const formattedPhone = formatPhoneForStorage(phoneCountryCode, phoneLocal);
     try {
       setLoading(true);
       setError("");
       await ensureUser();
+      await userApi.updatePhone(formattedPhone);
+      setSavedPhone(formattedPhone);
       await userApi.updateProfile({
         userType: userType as "student" | "fresher" | "experienced",
       });
       void userApi.sendWelcomeSignup("candidate").catch(() => undefined);
-      setStep(2);
+      setStep(
+        isHackathonProfileReady({
+          userType,
+          industry,
+          targetJobRole: userType === "student" ? course : targetJobRole,
+          affiliationInstitutionName: userType === "student" ? college : undefined,
+          phone: formattedPhone,
+        })
+          ? 3
+          : 2,
+      );
     } catch (err: unknown) {
       const message =
         (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
@@ -346,6 +381,21 @@ export function HackathonOnboardingForm({ onComplete }: Readonly<{ onComplete: (
                   {...option}
                 />
               ))}
+            </div>
+            <div className="dark hk-theme space-y-2">
+              <Label className="text-xs font-medium text-muted-foreground">Mobile number</Label>
+              <ProfilePhoneFields
+                countryCode={phoneCountryCode}
+                localNumber={phoneLocal}
+                savedPhone={savedPhone}
+                saving={loading}
+                disabled={loading}
+                showSaveButton={false}
+                onCountryCodeChange={setPhoneCountryCode}
+                onLocalNumberChange={setPhoneLocal}
+                onSave={() => undefined}
+                className="mt-0 sm:items-stretch"
+              />
             </div>
             <div className="flex justify-end">
               <button

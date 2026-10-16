@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { defaultOgImage } from "@/lib/seo/default-og-image";
 import { getSearchRobots, getSiteUrl } from "@/lib/seo/site-url";
 
 const siteUrl = getSiteUrl();
@@ -21,6 +22,7 @@ export const metadata: Metadata = {
       "Expert guides on AI interview preparation, resume optimization, and career growth.",
     type: "website",
     url: `${siteUrl}/blogs`,
+    images: [defaultOgImage],
   },
   twitter: {
     card: "summary_large_image",

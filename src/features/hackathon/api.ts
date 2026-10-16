@@ -12,7 +12,13 @@ export type LockReason =
   | "attempt_limit"
   | "below_pass_mark"
   | "inactive_entry";
-export type ParticipantStatus = "registered" | "in_progress" | "completed" | "disqualified" | "withdrawn";
+export type ParticipantStatus =
+  | "registered"
+  | "in_progress"
+  | "completed"
+  | "disqualified"
+  | "withdrawn"
+  | "suspended";
 export type SocialReviewStatus = "none" | "pending" | "approved" | "rejected";
 export type HackathonChallengeKind = "resume" | "screening" | "coding" | "system_design" | "social";
 
@@ -78,13 +84,21 @@ export interface ChallengeProgress {
   minScore: number | null;
   score?: number | null;
   slots?: InterviewSlotProgress[];
+  resubmitMessage?: string | null;
 }
+
+export type AdminResetInfo = { at: string; note: string | null; generation?: number };
 
 export interface HackathonProgress {
   challenges?: ChallengeProgress[];
-  resume: { state: StepState; lockReason?: LockReason };
-  interviews: { state: StepState; lockReason?: LockReason; slots: InterviewSlotProgress[] };
-  social: { state: StepState; lockReason?: LockReason };
+  resume: { state: StepState; lockReason?: LockReason; resubmitMessage?: string | null };
+  interviews: {
+    state: StepState;
+    lockReason?: LockReason;
+    slots: InterviewSlotProgress[];
+    resubmitMessage?: string | null;
+  };
+  social: { state: StepState; lockReason?: LockReason; resubmitMessage?: string | null };
   challengesCompleted: number;
   requiredChallengeCount?: number;
   canComplete: boolean;
@@ -100,6 +114,9 @@ export interface HackathonMe {
     registeredAt: string;
     completedAt: string | null;
     remindersOptOut?: boolean;
+    /** Frozen by an admin: every challenge is locked and suspendedMessage explains why. */
+    suspended?: boolean;
+    suspendedMessage?: string | null;
   } | null;
   profile: {
     complete: boolean;
@@ -287,6 +304,7 @@ export const hackathonApi = {
     });
     return res.data.data;
   },
+
 };
 
 // ---------------------------------------------------------------- admin
@@ -330,6 +348,7 @@ export interface AdminParticipantRow {
   profileSnapshot?: { name?: string; email?: string; userType?: string; targetJobRole?: string; experience?: number };
   registeredAt: string;
   completedAt?: string | null;
+  suspension?: { at: string; byUserId: string; previousStatus: ParticipantStatus; note?: string } | null;
   summary?: {
     resumeAtsScore: number | null;
     interview1Score: number | null;
@@ -337,6 +356,13 @@ export interface AdminParticipantRow {
     avgInterviewScore: number | null;
     challengesCompleted: number;
     socialReviewStatus: SocialReviewStatus;
+    interviewSlots?: Array<{
+      challengeId: string;
+      slot: number;
+      score: number | null;
+      hasRecording: boolean | null;
+    }>;
+    missingRecording?: boolean;
   };
 }
 
@@ -349,6 +375,7 @@ export interface AdminParticipantDetail {
     title: string;
     atsScore: number | null;
     priorCount: number;
+    adminReset?: AdminResetInfo | null;
   } | null;
   interviews: Array<{
     slot: number;
@@ -360,6 +387,7 @@ export interface AdminParticipantDetail {
     reportId: string | null;
     challengeId: string | null;
     priorCount: number;
+    adminReset?: AdminResetInfo | null;
     hasRecording: boolean;
     attempts: Array<{
       attemptId: string;
@@ -382,10 +410,12 @@ export interface AdminParticipantDetail {
     reviewNote: string | null;
     reviewedAt: string | null;
     priorCount: number;
+    adminReset?: AdminResetInfo | null;
   } | null;
 }
 
 export type AdminParticipantSort = "recent" | "ats" | "interview" | "completed";
+export type AdminSocialReviewFilter = SocialReviewStatus;
 
 export type AdminHackathonWriteBody = {
   title?: string;
@@ -469,6 +499,17 @@ export const hackathonAdminApi = {
     const res = await apiClient.post<{ data: AdminHackathonOverview }>(`${adminBase}/${hackathonId}/end`, { note });
     return res.data.data;
   },
+  restoreStatus: async (
+    hackathonId: string,
+    target: "upcoming" | "live",
+    endsAt?: string,
+  ): Promise<AdminHackathonOverview> => {
+    const res = await apiClient.post<{ data: AdminHackathonOverview }>(`${adminBase}/${hackathonId}/restore`, {
+      target,
+      endsAt,
+    });
+    return res.data.data;
+  },
   reopen: async (hackathonId: string, endsAt: string, note: string): Promise<AdminHackathonOverview> => {
     const res = await apiClient.post<{ data: AdminHackathonOverview }>(`${adminBase}/${hackathonId}/reopen`, {
       endsAt,
@@ -483,8 +524,12 @@ export const hackathonAdminApi = {
     );
     return res.data.data;
   },
-  reconcile: async (hackathonId: string): Promise<{ reconciled: number; atsBackfilled: number }> => {
-    const res = await apiClient.post<{ data: { reconciled: number; atsBackfilled: number } }>(
+  reconcile: async (
+    hackathonId: string,
+  ): Promise<{ reconciled: number; atsBackfilled: number; summariesRefreshed: number }> => {
+    const res = await apiClient.post<{
+      data: { reconciled: number; atsBackfilled: number; summariesRefreshed: number };
+    }>(
       `${adminBase}/${hackathonId}/reconcile`,
       {},
     );
@@ -492,7 +537,15 @@ export const hackathonAdminApi = {
   },
   participants: async (
     hackathonId: string,
-    query: { q?: string; status?: ParticipantStatus; sort?: AdminParticipantSort; page: number; limit: number },
+    query: {
+      q?: string;
+      status?: ParticipantStatus;
+      sort?: AdminParticipantSort;
+      socialReview?: AdminSocialReviewFilter;
+      missingVideo?: boolean;
+      page: number;
+      limit: number;
+    },
   ): Promise<{ rows: AdminParticipantRow[]; total: number; page: number; limit: number }> => {
     const res = await apiClient.get<{
       data: { rows: AdminParticipantRow[]; total: number; page: number; limit: number };
@@ -534,6 +587,16 @@ export const hackathonAdminApi = {
       { decision, note },
     );
     return res.data.data;
+  },
+  suspendParticipant: async (hackathonId: string, participantId: string, note?: string): Promise<void> => {
+    await apiClient.post(`${adminBase}/${hackathonId}/participants/${participantId}/suspend`, note ? { note } : {});
+  },
+  unsuspendParticipant: async (hackathonId: string, participantId: string): Promise<void> => {
+    await apiClient.post(`${adminBase}/${hackathonId}/participants/${participantId}/unsuspend`, {});
+  },
+  /** Removes the entry and its submissions; the user can register again. */
+  deleteParticipant: async (hackathonId: string, participantId: string): Promise<void> => {
+    await apiClient.delete(`${adminBase}/${hackathonId}/participants/${participantId}`);
   },
   exportCsv: async (hackathonId: string): Promise<Blob> => {
     const res = await apiClient.get<Blob>(`${adminBase}/${hackathonId}/export.csv`, { responseType: "blob" });

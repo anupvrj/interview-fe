@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { Check, Trophy } from "lucide-react";
+import { FileCheck2, Gift, MessagesSquare, MonitorPlay, Trophy, type LucideIcon } from "lucide-react";
 import { InterviewTrixLogo } from "@/components/InterviewTrixLogo";
 import {
   Reveal,
@@ -22,7 +22,7 @@ export function HackathonPrizes() {
       <Ribbon variant="b" slow className="-left-36 top-0 h-[380px] w-[320px] -scale-x-100 opacity-40 md:-left-44 md:h-[520px] md:w-[440px] md:opacity-50" />
       <Ribbon variant="b" className="-right-36 top-0 h-[380px] w-[320px] opacity-40 md:-right-44 md:h-[520px] md:w-[440px] md:opacity-50" />
 
-      <div className="relative z-[1] mx-auto w-full max-w-[1200px] px-5">
+      <div className="relative z-[1] mx-auto w-full max-w-[1360px] px-5">
         <Reveal className="mx-auto mb-10 max-w-[48rem] text-center">
           <h2 className="text-[clamp(2.1rem,4.6vw,3.4rem)] font-extrabold leading-[1.05] tracking-[-0.04em] text-white">
             The <span className="hk-grad-text">Prizes</span>
@@ -83,38 +83,19 @@ export function HackathonPrizes() {
                     </li>
                   ))}
                 </ul>
+
+                <div className="mt-5 flex justify-center">
+                  <p className="inline-flex items-center justify-center rounded-full border border-[#d6a440]/70 bg-[#120e08]/80 px-3.5 py-1.5 text-[13px] font-semibold text-[#ffd45e] shadow-[0_0_18px_rgba(214,164,64,0.18)] sm:text-sm">
+                    Approx. total value: ₹{prize.approxValue.toLocaleString("en-IN")}
+                  </p>
+                </div>
               </article>
             </Reveal>
           ))}
         </div>
 
         <Reveal delay={150} className="mt-6">
-          <div
-            onPointerMove={trackSpotlight}
-            className="hk-card grid items-center gap-5 rounded-[22px] border border-[#2a5f9e]/80 bg-gradient-to-br from-[#0c2344] to-[#0a1a33] p-5 sm:p-7 md:grid-cols-[auto_1fr] md:gap-8"
-          >
-            <div className="hidden size-16 place-items-center rounded-2xl bg-[#0f2f5c] ring-1 ring-[#2d6ad0] md:grid">
-              <GemMark id="hk-gem-desktop" className="hk-glint h-10 w-10" />
-            </div>
-            <div>
-              <div className="flex items-center gap-3">
-                <span className="grid size-12 shrink-0 place-items-center rounded-xl bg-[#0f2f5c] ring-1 ring-[#2d6ad0] md:hidden">
-                  <GemMark id="hk-gem-mobile" className="hk-glint h-7 w-7" />
-                </span>
-                <h3 className="text-lg font-bold leading-snug text-white sm:text-xl">{HACKATHON_PRIZES.premium.title}</h3>
-              </div>
-              <ul className="mt-4 grid gap-x-6 gap-y-3 text-[15px] text-[#e2ebf5] sm:grid-cols-2 lg:grid-cols-3">
-                {HACKATHON_PRIZES.premium.benefits.map((benefit) => (
-                  <li key={benefit} className="inline-flex items-center gap-2.5">
-                    <span className="grid size-5 shrink-0 place-items-center rounded-full bg-[#2e9bff] text-[#04172f]">
-                      <Check className="size-3" strokeWidth={3.5} aria-hidden />
-                    </span>
-                    {benefit}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
+          <CreditsStrip />
         </Reveal>
       </div>
     </section>
@@ -164,20 +145,54 @@ function RewardIcon({ kind }: { kind: HackathonRewardKind }) {
   );
 }
 
-/** `id` must be unique per instance: a gradient inside a display:none SVG cannot be referenced. */
-function GemMark({ id, className }: { id: string; className?: string }) {
+const CREDIT_ICONS: Record<"interview" | "ats" | "premium", LucideIcon> = {
+  interview: MessagesSquare,
+  ats: FileCheck2,
+  premium: MonitorPlay,
+};
+
+function CreditsStrip() {
+  const { title, lead, items } = HACKATHON_PRIZES.credits;
   return (
-    <svg viewBox="0 0 40 36" className={className} aria-hidden>
-      <defs>
-        <linearGradient id={id} x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="#9fe0ff" />
-          <stop offset="0.5" stopColor="#2e9bff" />
-          <stop offset="1" stopColor="#1256d8" />
-        </linearGradient>
-      </defs>
-      <path d="M8 2 H32 L39 12 L20 34 L1 12 Z" fill={`url(#${id})`} />
-      <path d="M1 12 H39 M8 2 L14 12 L20 34 L26 12 L32 2 M14 12 L20 2 L26 12" fill="none" stroke="#dff4ff" strokeOpacity="0.6" strokeWidth="1" />
-    </svg>
+    <div
+      onPointerMove={trackSpotlight}
+      className="hk-card grid items-center gap-5 rounded-[22px] border border-[#2a5f9e]/80 bg-gradient-to-br from-[#0c2344] to-[#0a1a33] p-5 sm:p-6 lg:grid-cols-[auto_minmax(0,1fr)] lg:gap-0 lg:px-7"
+    >
+      <div className="flex items-center gap-4 lg:pr-5">
+        <span className="grid size-14 shrink-0 place-items-center rounded-2xl bg-[#0f2f5c] ring-1 ring-[#2d6ad0] shadow-[0_0_22px_rgba(46,155,255,0.25)]">
+          <Gift className="hk-glint size-8 text-[#7cc8ff]" strokeWidth={1.7} aria-hidden />
+        </span>
+        <div className="min-w-0">
+          <h3 className="text-lg font-bold leading-snug sm:text-xl lg:text-lg xl:whitespace-nowrap">
+            <span className="hk-grad-text">{title}</span>
+          </h3>
+          <p className="mt-1 text-[15px] text-[#c5d3e2]">{lead}</p>
+        </div>
+      </div>
+
+      <ul className="grid gap-3 sm:grid-cols-3 sm:gap-0">
+        {items.map((item) => {
+          const Icon = CREDIT_ICONS[item.icon];
+          const value = "value" in item ? item.value : null;
+          return (
+            <li
+              key={item.label}
+              className="group flex items-center gap-3 rounded-xl border border-white/[0.07] bg-white/[0.04] px-3.5 py-3 transition-colors duration-300 hover:border-white/15 hover:bg-white/[0.07] sm:rounded-none sm:border-0 sm:border-l sm:border-l-[#2a5f9e]/70 sm:bg-transparent sm:px-4 sm:py-1 sm:hover:bg-transparent"
+            >
+              <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-[#0f2f5c] ring-1 ring-[#2d6ad0] transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:shadow-[0_0_16px_rgba(46,155,255,0.45)]">
+                <Icon className="size-5 text-[#6fc0ff]" strokeWidth={1.9} aria-hidden />
+              </span>
+              <p className="min-w-0 text-[13.5px] font-medium leading-snug text-[#c5d3e2]">
+                {value ? (
+                  <span className="block text-xl font-extrabold leading-tight tabular-nums text-white">{value}</span>
+                ) : null}
+                <span className={cn(!value && "font-semibold text-white")}>{item.label}</span>
+              </p>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
   );
 }
 

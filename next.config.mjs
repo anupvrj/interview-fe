@@ -50,6 +50,38 @@ const nextConfig = {
         destination: "/super-admin/:path*",
         permanent: true,
       },
+      // Hackathon renamed to /hiring-games-hackathon-2026. Only page URLs move:
+      // /hackathon-2026/*.webp etc. are still static assets under public/.
+      {
+        source: "/hackathon-2026",
+        destination: "/hiring-games-hackathon-2026",
+        permanent: true,
+      },
+      {
+        source: "/hackathon-2026/:page(dashboard|profile)",
+        destination: "/hiring-games-hackathon-2026/:page",
+        permanent: true,
+      },
+      {
+        source: "/hackathon-2026/reminders/:path*",
+        destination: "/hiring-games-hackathon-2026/reminders/:path*",
+        permanent: true,
+      },
+      {
+        source: "/hackathon/hackathon-2026",
+        destination: "/hackathon/hiring-games-hackathon-2026",
+        permanent: true,
+      },
+      {
+        source: "/hackathon/hackathon-2026/:path*",
+        destination: "/hackathon/hiring-games-hackathon-2026/:path*",
+        permanent: true,
+      },
+      {
+        source: "/hackathon/hiring-games-hackathon-2026",
+        destination: "/hiring-games-hackathon-2026",
+        permanent: true,
+      },
     ];
   },
   async headers() {

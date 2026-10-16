@@ -5,11 +5,14 @@ import { useAuth } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { hackathonDashboardPath, hackathonProfilePath, HACKATHON_FEATURE_KEY } from "@/features/hackathon/config";
 import { usePlatformFeatures } from "@/hooks/usePlatformFeatures";
-import { CTA_LABELS, CTA_SHORT_LABELS } from "@/features/hackathon/copy";
+import { CTA_SHORT_LABELS } from "@/features/hackathon/copy";
 import { useHackathonMe, useHackathonPublic, useHackathonSlug } from "@/features/hackathon/hooks";
-import type { HackathonPublic } from "@/features/hackathon/api";
-
-type CtaKey = keyof typeof CTA_LABELS;
+import {
+  hackathonLandingCtaLabel,
+  resolveHackathonLandingCta,
+} from "@/features/hackathon/hackathonLandingCta";
+import { hackathonEntryPath } from "@/features/hackathon/hackathonEntry";
+import { isHackathonRegistered } from "@/features/hackathon/hackathonRegistration";
 
 type HackathonRegisterContextValue = {
   openRegister: () => void;
@@ -22,46 +25,6 @@ type HackathonRegisterContextValue = {
 
 const HackathonRegisterContext = createContext<HackathonRegisterContextValue | null>(null);
 
-function ctaFromPublic(pub: HackathonPublic | undefined, isSignedIn: boolean): {
-  label: CtaKey;
-  disabled: boolean;
-  hint: string | null;
-} {
-  const hint =
-    pub && pub.spotsLeft !== null && pub.spotsLeft > 0 && pub.spotsLeft < 20
-      ? `Only ${pub.spotsLeft} spot${pub.spotsLeft === 1 ? "" : "s"} left`
-      : null;
-  if (!pub) {
-    return {
-      label: isSignedIn ? "goToChallenges" : "register",
-      disabled: false,
-      hint: null,
-    };
-  }
-  if (pub.phase === "ended") {
-    return {
-      label: isSignedIn ? "seeResults" : "ended",
-      disabled: !isSignedIn,
-      hint: null,
-    };
-  }
-  if (pub.isFull) {
-    return {
-      label: isSignedIn ? "goToChallenges" : "full",
-      disabled: !isSignedIn,
-      hint: null,
-    };
-  }
-  if (isSignedIn) {
-    return {
-      label: pub.phase === "live" ? "goToChallenges" : "getReady",
-      disabled: false,
-      hint,
-    };
-  }
-  return { label: "register", disabled: false, hint };
-}
-
 export function HackathonRegisterProvider({ children }: { children: ReactNode }) {
   const { isSignedIn } = useAuth();
   const router = useRouter();
@@ -71,7 +34,8 @@ export function HackathonRegisterProvider({ children }: { children: ReactNode })
   const pub = useHackathonPublic();
   const me = useHackathonMe(undefined, { enabled: Boolean(isSignedIn) });
   const { isAccessible } = usePlatformFeatures();
-  const derived = ctaFromPublic(pub.data, Boolean(isSignedIn));
+  const registered = me.waitingForMe ? false : isHackathonRegistered(me.data);
+  const derived = resolveHackathonLandingCta(pub.data, Boolean(isSignedIn), registered);
 
   const openRegister = useCallback(() => {
     if (derived.disabled) return;
@@ -79,17 +43,27 @@ export function HackathonRegisterProvider({ children }: { children: ReactNode })
       router.push(`/sign-up?redirect_url=${encodeURIComponent(profilePath)}`);
       return;
     }
-    // Profile page auto-skips when the account already has hackathon fields; dashboard if API says complete.
     if (me.waitingForMe) {
       router.push(profilePath);
       return;
     }
-    router.push(me.data?.profile.complete ? dashboardPath : profilePath);
+    if (isHackathonRegistered(me.data)) {
+      router.push(dashboardPath);
+      return;
+    }
+    router.push(
+      hackathonEntryPath({
+        registered: false,
+        profilePath,
+        dashboardPath,
+      }),
+    );
   }, [
     derived.disabled,
     dashboardPath,
     isSignedIn,
     me.data?.profile.complete,
+    me.data?.registered,
     me.waitingForMe,
     profilePath,
     router,
@@ -98,12 +72,20 @@ export function HackathonRegisterProvider({ children }: { children: ReactNode })
   const value = useMemo(
     () => ({
       openRegister,
-      label: CTA_LABELS[derived.label],
-      shortLabel: CTA_SHORT_LABELS[derived.label],
+      label: hackathonLandingCtaLabel(derived, pub.data?.landing?.registerCta),
+      shortLabel: CTA_SHORT_LABELS[derived.labelKey],
       disabled: derived.disabled || !isAccessible(HACKATHON_FEATURE_KEY),
       hint: derived.hint,
     }),
-    [derived.disabled, derived.hint, derived.label, isAccessible, openRegister],
+    [
+      derived,
+      pub.data?.landing?.registerCta,
+      derived.disabled,
+      derived.hint,
+      derived.labelKey,
+      isAccessible,
+      openRegister,
+    ],
   );
 
   return (
