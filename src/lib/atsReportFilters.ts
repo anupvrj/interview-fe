@@ -1,6 +1,5 @@
 import type { ATSCheckId, ATSCheckResult, ATSReportV3 } from "@/types/atsReport";
 import { CATEGORY_ORDER } from "@/types/atsReport";
-import { recomputeAtsHeadlineScore } from "@/lib/atsReportNormalize";
 
 function softSuppressCheck(check: ATSCheckResult): ATSCheckResult {
   return {
@@ -15,13 +14,7 @@ function softSuppressCheck(check: ATSCheckResult): ATSCheckResult {
   };
 }
 
-function computeCategoryScore(checks: ATSCheckResult[]): number {
-  const active = checks.filter((c) => c.status !== "skipped");
-  if (active.length === 0) return 0;
-  return Math.round(active.reduce((sum, c) => sum + c.score, 0) / active.length);
-}
-
-/** Hide issues for improved checks while keeping the same sidebar check list as ATS checker. */
+/** Hide issues for improved checks while keeping the saved category and headline scores. */
 export function filterSuppressedChecks(
   report: ATSReportV3,
   suppressedCheckIds: ATSCheckId[],
@@ -49,15 +42,13 @@ export function filterSuppressedChecks(
     categories[catId] = {
       ...cat,
       checks,
-      score: computeCategoryScore(checks),
       issueCount: categoryIssueCount,
     };
   }
 
-  const next: ATSReportV3 = {
+  return {
     ...report,
     issueCount: totalIssueCount,
     categories,
   };
-  return { ...next, score: recomputeAtsHeadlineScore(next) };
 }
