@@ -408,6 +408,7 @@ export function RealtimeInterviewClient({
   const audioBufferRef = useRef<Int16Array[]>([]);
   const audioBufferTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isPlayingAudioRef = useRef(false);
+  const reportedPlaybackRef = useRef(false);
   const nextPlayAtRef = useRef(0);
   const playbackSourcesRef = useRef<AudioBufferSourceNode[]>([]);
   const playbackNodeRef = useRef<AudioWorkletNode | null>(null);
@@ -462,6 +463,24 @@ export function RealtimeInterviewClient({
     }
   };
 
+  /** Sarvam has no native interruption: the server needs to know when the candidate stops hearing the AI. */
+  const reportPlaybackState = (playing: boolean) => {
+    if (voiceProviderRef.current !== "sarvam") return;
+    if (reportedPlaybackRef.current === playing) return;
+    reportedPlaybackRef.current = playing;
+    const ws = websocketRef.current;
+    if (ws?.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: "playback_state", playing }));
+    }
+  };
+
+  /** First AI audio of a new stretch of speech. */
+  const noteAiAudioStarted = () => {
+    if (isPlayingAudioRef.current) return;
+    turnTelemetry.notifyAgentAudio();
+    reportPlaybackState(true);
+  };
+
   const stopAiPlayback = () => {
     for (const source of playbackSourcesRef.current) {
       try {
@@ -482,6 +501,7 @@ export function RealtimeInterviewClient({
     }
     nextPlayAtRef.current = 0;
     isPlayingAudioRef.current = false;
+    reportPlaybackState(false);
   };
 
   const stopCaptionRevealTimer = () => {
@@ -1533,6 +1553,7 @@ export function RealtimeInterviewClient({
       !stillScheduled
     ) {
       isPlayingAudioRef.current = false;
+      reportPlaybackState(false);
       setIsAISpeaking(false);
       if (shouldHoldAssistantCaptionUntilAudio(voiceProviderRef.current)) {
         scheduleFinishSpeechSyncedCaption();
@@ -1565,6 +1586,7 @@ export function RealtimeInterviewClient({
 
     const startAt = Math.max(ctx.currentTime, nextPlayAtRef.current);
     nextPlayAtRef.current = startAt + audioBuffer.duration;
+    noteAiAudioStarted();
     isPlayingAudioRef.current = true;
     if (shouldHoldAssistantCaptionUntilAudio(voiceProviderRef.current)) {
       beginSpeechSyncedCaption();
@@ -1624,6 +1646,7 @@ export function RealtimeInterviewClient({
     }
     const samples = resamplePcm16ToFloat32(pcm16, sourceRate, ctx.sampleRate);
     node.port.postMessage({ type: "push", samples }, [samples.buffer]);
+    noteAiAudioStarted();
     isPlayingAudioRef.current = true;
     setIsAISpeaking(true);
   };
@@ -1922,6 +1945,7 @@ export function RealtimeInterviewClient({
             node.port.onmessage = (event) => {
               if (event.data?.type === "drained") {
                 isPlayingAudioRef.current = false;
+                reportPlaybackState(false);
                 setIsAISpeaking(false);
                 turnTelemetry.notifyPlaybackDrained();
                 if (
@@ -1947,6 +1971,7 @@ export function RealtimeInterviewClient({
                 audioContext.sampleRate,
               );
               node.port.postMessage({ type: "push", samples }, [samples.buffer]);
+              noteAiAudioStarted();
               isPlayingAudioRef.current = true;
               setIsAISpeaking(true);
               if (
