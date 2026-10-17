@@ -1,3 +1,4 @@
+import { CONNECT_OPEN_TIMEOUT_MS } from "@/lib/interviewReconnect";
 import type {
   VoiceTransport,
   VoiceTransportConnectOptions,
@@ -17,8 +18,30 @@ export class WebSocketVoiceTransport implements VoiceTransport {
     return new Promise((resolve, reject) => {
       const ws = new WebSocket(options.controlUrl);
       this.ws = ws;
-      ws.onopen = () => resolve(ws);
-      ws.onerror = () => reject(new Error("WebSocket connection failed"));
+      let settled = false;
+      const fail = (message: string) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(openTimer);
+        reject(new Error(message));
+      };
+      // A slow or lossy network can leave the handshake pending indefinitely.
+      const openTimer = setTimeout(() => {
+        fail("WebSocket connection timed out");
+        try {
+          ws.close();
+        } catch {
+          /* never opened */
+        }
+      }, options.openTimeoutMs ?? CONNECT_OPEN_TIMEOUT_MS);
+      ws.onopen = () => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(openTimer);
+        resolve(ws);
+      };
+      ws.onerror = () => fail("WebSocket connection failed");
+      ws.onclose = () => fail("WebSocket closed before opening");
       ws.onmessage = (event) => {
         try {
           this.onMessage(JSON.parse(String(event.data)));

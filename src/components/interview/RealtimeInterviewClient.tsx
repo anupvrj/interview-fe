@@ -46,7 +46,18 @@ import {
 } from "@/lib/invalidate-queries";
 import { normalizeInterviewDurationMinutes } from "@/lib/interviewDuration";
 import { formatDuration } from "@/lib/utils";
-import { BENIGN_ACTIVE_INTERVIEW_WS_CLOSE_CODES } from "@/lib/interviewWebSocketPolicy";
+import {
+  CLIENT_DEAD_SOCKET_CLOSE_CODE,
+  CLIENT_HEARTBEAT_MS,
+  COMPLETE_RETRY_DELAYS_MS,
+  isAiPlaybackStuck,
+  isRetryableInterviewClose,
+  isServerSilent,
+  reconnectDelayMs,
+  savedInterviewProgress,
+  shouldEscalateReconnect,
+  TIME_UP_GRACE_MS,
+} from "@/lib/interviewReconnect";
 import {
   AI_INTERVIEWER_PERSONAS,
   pickRandomPersona,
@@ -94,7 +105,7 @@ import {
 /** Hard fallback minutes added on top of target (used if AI never sends interview_complete). */
 const EXTRA_BUFFER_MINUTES = 5;
 
-/** Reconnect attempt counter (e.g. 1/3) in the yellow banner — production candidates see a generic message only. */
+/** Reconnect attempt counter in the yellow banner — production candidates see a generic message only. */
 const SHOW_RECONNECT_ATTEMPT_DEBUG =
   process.env.NODE_ENV === "development" ||
   process.env.NEXT_PUBLIC_VERCEL_ENV === "preview" ||
@@ -269,6 +280,9 @@ export function RealtimeInterviewClient({
   // Number of consecutive reconnect attempts received — used to escalate from
   // non-blocking banner (1-2 attempts) to blocking dialog (all attempts failed).
   const [reconnectAttemptCount, setReconnectAttemptCount] = useState(0);
+  const [isOffline, setIsOffline] = useState(
+    () => typeof navigator !== "undefined" && navigator.onLine === false,
+  );
   const [isClosingFailed, setIsClosingFailed] = useState(false);
   const [isResuming, setIsResuming] = useState(false);
   // Non-blocking toast shown for soft failures during an active interview
@@ -441,7 +455,17 @@ export function RealtimeInterviewClient({
   /** Pending auto-reconnect timer after a benign WS drop during an active interview. */
   const autoReconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const autoReconnectAttemptsRef = useRef(0);
-  const MAX_AUTO_RECONNECT_ATTEMPTS = 4;
+  /** When the current run of failed reconnects (while online) began; 0 when connected. */
+  const reconnectWindowStartedAtRef = useRef(0);
+  const attemptReconnectLatestRef = useRef<(() => void) | null>(null);
+  const lastServerMessageAtRef = useRef(0);
+  /** Wall-clock time until which queued AI audio should still be playing. */
+  const aiAudioQueuedUntilRef = useRef(0);
+  const isAISpeakingRef = useRef(false);
+  const interviewRef = useRef<Interview | null>(null);
+  const timeUpGraceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const endInterviewLatestRef = useRef<(() => Promise<void>) | null>(null);
+  const endingInterviewRef = useRef(false);
   // Ref mirror of elapsedTime so setTimeout/onclose closures always read the current
   // value, not the stale value captured at the time connectWebSocket() was called.
   const elapsedTimeRef = useRef(0);
@@ -572,26 +596,152 @@ export function RealtimeInterviewClient({
     }, SPEECH_CAPTION_FINISH_DEBOUNCE_MS);
   };
 
+  /** Counts interview time only while the connection is open (the server clock pauses too). */
+  const startElapsedTicker = () => {
+    timerStartedRef.current = true;
+    if (timerRef.current) clearInterval(timerRef.current);
+    timerRef.current = setInterval(() => {
+      if (websocketRef.current?.readyState !== WebSocket.OPEN) return;
+      setElapsedTime((prev) => prev + 1);
+    }, 1000);
+  };
+
+  const noteAiAudioQueued = (seconds: number) => {
+    const now = Date.now();
+    aiAudioQueuedUntilRef.current =
+      Math.max(now, aiAudioQueuedUntilRef.current) + seconds * 1000;
+  };
+
+  /** Playback can get stuck "speaking" (suspended AudioContext, lost drain event), which blocks time-up. */
+  const clearStuckAiSpeaking = () => {
+    if (!isAISpeakingRef.current) return;
+    if (!isAiPlaybackStuck(aiAudioQueuedUntilRef.current, Date.now())) return;
+    console.warn("[audio] AI speaking state stuck — clearing it");
+    stopAiPlayback();
+    setIsAISpeaking(false);
+    revealInterviewCompleteIfReady();
+  };
+
   const startClientWsHeartbeat = () => {
     stopClientWsHeartbeat();
-    // 10s interval — well under any 30–60s proxy idle timeout.
-    // Chrome throttles backgrounded-tab setInterval to ≥1s, so 10s is still fine.
-    // Server responds with {type:"pong"} so traffic flows in both directions.
+    lastServerMessageAtRef.current = Date.now();
+    // Server answers every client_ping, so silence means the connection is dead
+    // (half-open TCP on a dropped or very slow network) even if the socket looks open.
     clientWsHeartbeatRef.current = setInterval(() => {
       const ws = websocketRef.current;
-      // Keepalive during prep (before Start) and mid-interview — some proxies idle-close
-      // without traffic; do not gate on isInterviewActive for Gemini.
-      if (
-        ws?.readyState === WebSocket.OPEN &&
-        usesUnifiedVoiceProtocol(voiceProviderRef.current)
-      ) {
-        try {
-          ws.send(JSON.stringify({ type: "client_ping", t: Date.now() }));
-        } catch {
-          /* ignore */
-        }
+      if (ws?.readyState !== WebSocket.OPEN) return;
+      try {
+        ws.send(JSON.stringify({ type: "client_ping", t: Date.now() }));
+      } catch {
+        /* ignore */
       }
-    }, 10_000);
+      clearStuckAiSpeaking();
+      if (
+        isInterviewActiveRef.current &&
+        isServerSilent(lastServerMessageAtRef.current, Date.now())
+      ) {
+        console.warn("[WS] no message from the server — treating the connection as dead");
+        abandonSocket(ws, "server_silent");
+      }
+    }, CLIENT_HEARTBEAT_MS);
+  };
+
+  /** Drop a connection we no longer trust without waiting for a close handshake that may never come. */
+  const abandonSocket = (ws: WebSocket, reason: string) => {
+    ws.onclose = null;
+    ws.onerror = null;
+    try {
+      ws.close(CLIENT_DEAD_SOCKET_CLOSE_CODE, reason);
+    } catch {
+      /* already closed */
+    }
+    handleSocketClosed(ws, CLIENT_DEAD_SOCKET_CLOSE_CODE);
+  };
+
+  const markReconnected = () => {
+    if (autoReconnectTimerRef.current) {
+      clearTimeout(autoReconnectTimerRef.current);
+      autoReconnectTimerRef.current = null;
+    }
+    autoReconnectAttemptsRef.current = 0;
+    reconnectWindowStartedAtRef.current = 0;
+    setReconnectAttemptCount(0);
+    setIsReconnecting(false);
+  };
+
+  const pauseForManualResume = () => {
+    setIsPreparing(false);
+    setIsReconnecting(false);
+    setLastAIMessage(
+      "Connection paused — tap Resume interview to reconnect without losing progress.",
+    );
+    setConnectionFailed(true);
+  };
+
+  /** Retry with backoff; never give up while offline, ask for a manual Resume after a long online outage. */
+  const scheduleAutoReconnect = () => {
+    if (!isInterviewActiveRef.current) return;
+    if (autoReconnectTimerRef.current) return;
+    setIsPreparing(false);
+    setIsReconnecting(true);
+    const offline = typeof navigator !== "undefined" && navigator.onLine === false;
+    if (offline) {
+      // The "online" listener reconnects as soon as the network is back.
+      setLastAIMessage("You're offline. We'll reconnect as soon as your internet is back.");
+      return;
+    }
+    if (reconnectWindowStartedAtRef.current === 0) {
+      reconnectWindowStartedAtRef.current = Date.now();
+    } else if (shouldEscalateReconnect(reconnectWindowStartedAtRef.current, Date.now())) {
+      pauseForManualResume();
+      return;
+    }
+    const attempt = autoReconnectAttemptsRef.current + 1;
+    autoReconnectAttemptsRef.current = attempt;
+    setReconnectAttemptCount(attempt);
+    setLastAIMessage("Reconnecting AI session...");
+    const delayMs = reconnectDelayMs(attempt);
+    autoReconnectTimerRef.current = setTimeout(() => {
+      autoReconnectTimerRef.current = null;
+      attemptReconnectLatestRef.current?.();
+    }, delayMs);
+  };
+
+  const attemptReconnect = async () => {
+    if (!isInterviewActiveRef.current) return;
+    if (connectionInitiatedRef.current || websocketRef.current) return;
+    console.log("[WS] Auto-reconnecting, attempt", autoReconnectAttemptsRef.current);
+    isResumingRef.current = true;
+    geminiResumePayloadRef.current = {
+      reconnectResume: true,
+      elapsedTimeSec: elapsedTimeRef.current,
+    };
+    const ok = await connectWebSocket();
+    if (!ok) {
+      geminiResumePayloadRef.current = null;
+      isResumingRef.current = false;
+      scheduleAutoReconnect();
+    }
+  };
+  attemptReconnectLatestRef.current = () => void attemptReconnect();
+
+  const handleSocketClosed = (closedWs: WebSocket, code: number) => {
+    // A socket we already replaced or detached (manual resume, dead-socket drop) must not touch the new one.
+    if (websocketRef.current !== closedWs) return;
+    stopClientWsHeartbeat();
+    setConnected(false);
+    connectionInitiatedRef.current = false;
+    voiceTransportRef.current = null;
+    websocketRef.current = null;
+    if (!isInterviewActiveRef.current) return;
+    const treatAsBenign = isRetryableInterviewClose(code);
+    if (!treatAsBenign) {
+      setIsReconnecting(false);
+      setConnectionFailed(true);
+      setError("Something went wrong at server side.");
+      return;
+    }
+    scheduleAutoReconnect();
   };
 
   /** One random persona per page load; matches WebSocket voice query. */
@@ -717,21 +867,52 @@ export function RealtimeInterviewClient({
 
   useEffect(() => {
     if (!isInterviewActive || elapsedTime < maxDurationSec) return;
-    // Server already completed or farewell still playing — do not cut mid-speech.
-    if (
-      pendingInterviewCompleteRef.current ||
-      showInterviewComplete ||
-      isAISpeaking
-    ) {
+    if (showInterviewComplete) return;
+    if (!pendingInterviewCompleteRef.current && !isAISpeaking) {
+      endInterview();
       return;
     }
-    endInterview();
+    // Let the farewell finish, but never wait forever on a stuck speaking state.
+    if (timeUpGraceTimerRef.current) return;
+    timeUpGraceTimerRef.current = setTimeout(() => {
+      timeUpGraceTimerRef.current = null;
+      if (!isInterviewActiveRef.current || showInterviewCompleteRef.current) return;
+      void endInterviewLatestRef.current?.();
+    }, TIME_UP_GRACE_MS);
   }, [elapsedTime, isInterviewActive, isAISpeaking, showInterviewComplete]);
 
   // Keep the ref in sync so onclose/setTimeout closures always see the current value.
   useEffect(() => {
     elapsedTimeRef.current = elapsedTime;
   }, [elapsedTime]);
+
+  useEffect(() => {
+    isAISpeakingRef.current = isAISpeaking;
+  }, [isAISpeaking]);
+
+  useEffect(() => {
+    const handleOffline = () => setIsOffline(true);
+    const handleOnline = () => {
+      setIsOffline(false);
+      if (!isInterviewActiveRef.current) return;
+      if (connectionInitiatedRef.current || websocketRef.current) return;
+      if (autoReconnectTimerRef.current) {
+        clearTimeout(autoReconnectTimerRef.current);
+        autoReconnectTimerRef.current = null;
+      }
+      // Fresh window: time spent offline does not count toward giving up.
+      reconnectWindowStartedAtRef.current = Date.now();
+      setConnectionFailed(false);
+      setIsReconnecting(true);
+      attemptReconnectLatestRef.current?.();
+    };
+    window.addEventListener("offline", handleOffline);
+    window.addEventListener("online", handleOnline);
+    return () => {
+      window.removeEventListener("offline", handleOffline);
+      window.removeEventListener("online", handleOnline);
+    };
+  }, []);
 
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -760,11 +941,29 @@ export function RealtimeInterviewClient({
     };
   }, [interviewId, isCodingDiscussion, codingEmbed]);
 
+  /** After a reload, show the conversation so far and continue the clock from the server's connected time. */
+  const restoreSavedProgress = (data: Interview) => {
+    const progress = savedInterviewProgress(data);
+    if (progress.transcript.length > 0) {
+      setTranscript(progress.transcript);
+      if (progress.lastAssistant) {
+        lastCommittedAssistantRef.current = progress.lastAssistant;
+        setLastAIMessage(progress.lastAssistant);
+      }
+    }
+    if (progress.elapsedSec !== null) {
+      elapsedTimeRef.current = progress.elapsedSec;
+      setElapsedTime(progress.elapsedSec);
+    }
+  };
+
   const loadInterview = async () => {
     let redirectedHome = false;
     try {
       const data = await interviewApi.get(interviewId);
       setInterview(data);
+      interviewRef.current = data;
+      if (data.status === "active") restoreSavedProgress(data);
       shouldDiscardUnstartedRef.current = shouldAutoDiscardUnstartedInterview({
         status: data.status,
         tags: data.metadata?.tags,
@@ -825,18 +1024,18 @@ export function RealtimeInterviewClient({
     }
     setIsResuming(true);
     isResumingRef.current = true;
-    if (usesUnifiedVoiceProtocol(voiceProviderRef.current)) {
-      geminiResumePayloadRef.current = {
-        reconnectResume: true,
-        elapsedTimeSec: elapsedTimeRef.current,
-      };
-    }
+    geminiResumePayloadRef.current = {
+      reconnectResume: true,
+      elapsedTimeSec: elapsedTimeRef.current,
+    };
     isInterviewActiveRef.current = true;
     setIsInterviewActive(true);
     setIsPreparing(false);
     setIsReconnecting(true);
     setConnectionFailed(false);
     setError("");
+    reconnectWindowStartedAtRef.current = 0;
+    autoReconnectAttemptsRef.current = 0;
     connectionInitiatedRef.current = false;
     // Explicitly close old WS so the server-side handler cleans up its Gemini
     // session rather than staying alive as a zombie pinging every 15s.
@@ -844,14 +1043,13 @@ export function RealtimeInterviewClient({
     websocketRef.current = null;
     try { oldWs?.close(1000, "manual_resume"); } catch { /* already closed */ }
     try {
-      await connectWebSocket();
-      setConnectionFailed(false);
-      setError("");
-    } catch (err: any) {
-      geminiResumePayloadRef.current = null;
-      setError(err.message || "Failed to reconnect.");
-      setConnectionFailed(true);
-      isResumingRef.current = false;
+      const ok = await connectWebSocket();
+      if (!ok) {
+        geminiResumePayloadRef.current = null;
+        isResumingRef.current = false;
+        setIsReconnecting(false);
+        setConnectionFailed(true);
+      }
     } finally {
       setIsResuming(false);
     }
@@ -1027,6 +1225,10 @@ export function RealtimeInterviewClient({
       clearTimeout(autoReconnectTimerRef.current);
       autoReconnectTimerRef.current = null;
     }
+    if (timeUpGraceTimerRef.current) {
+      clearTimeout(timeUpGraceTimerRef.current);
+      timeUpGraceTimerRef.current = null;
+    }
     if (timerRef.current) clearInterval(timerRef.current);
     if (voiceTransportRef.current) {
       voiceTransportRef.current.disconnect();
@@ -1148,13 +1350,14 @@ export function RealtimeInterviewClient({
     openInterviewCompleteDialog();
   };
 
-  const connectWebSocket = async (interviewForWs?: Interview | null) => {
+  /** Resolves true once the socket is open; false if it could not connect. */
+  const connectWebSocket = async (interviewForWs?: Interview | null): Promise<boolean> => {
     // Prevent duplicate connections (React Strict Mode can cause double mounting)
     if (connectionInitiatedRef.current) {
       console.warn(
         "⚠️ WebSocket connection already initiated, skipping duplicate",
       );
-      return;
+      return true;
     }
 
     try {
@@ -1175,7 +1378,7 @@ export function RealtimeInterviewClient({
       // Use wss:// for HTTPS sites, ws:// for HTTP (localhost)
       const wsProtocol =
         globalThis.location.protocol === "https:" ? "wss:" : "ws:";
-      const ivResolved = interviewForWs ?? interview;
+      const ivResolved = interviewForWs ?? interviewRef.current ?? interview;
       const provider = resolveVoiceProvider(
         ivResolved?.metadata?.voiceProvider,
         voiceProviderRef.current,
@@ -1205,8 +1408,25 @@ export function RealtimeInterviewClient({
 
       console.log("🔌 Connecting to WebSocket:", wsUrl);
       const transport = createVoiceTransport((data) => {
+        lastServerMessageAtRef.current = Date.now();
         try {
-          if (data.type === "preparing") {
+          if (data.type === "pong" || data.type === "client_pong") {
+            /* liveness only */
+          } else if (data.type === "session_state") {
+            if (typeof data.elapsedSec === "number" && data.elapsedSec >= 0) {
+              elapsedTimeRef.current = data.elapsedSec;
+              setElapsedTime(data.elapsedSec);
+            }
+            markReconnected();
+            setConnectionFailed(false);
+          } else if (data.type === "ai_stalled") {
+            // Server closes with 1012 right after; the close handler reconnects and resumes.
+            stopAiPlayback();
+            setIsAISpeaking(false);
+            setIsAIProcessing(false);
+            setIsReconnecting(true);
+            setLastAIMessage("The AI stopped responding — reconnecting...");
+          } else if (data.type === "preparing") {
             console.log("⏳ Preparing interview...");
             const resuming =
               isResumingRef.current || elapsedTimeRef.current > 5;
@@ -1246,7 +1466,7 @@ export function RealtimeInterviewClient({
             if (isResumingRef.current || elapsedTimeRef.current > 5) {
               setIsPreparing(false);
             }
-            autoReconnectAttemptsRef.current = 0;
+            markReconnected();
           } else if (data.type === "openai_event") {
             handleOpenAIEvent(data.event);
           } else if (data.type === "audio_response") {
@@ -1261,10 +1481,7 @@ export function RealtimeInterviewClient({
               beginSpeechSyncedCaption();
             }
             if (!timerStartedRef.current && isInterviewActiveRef.current) {
-              timerStartedRef.current = true;
-              timerRef.current = setInterval(() => {
-                setElapsedTime((prev) => prev + 1);
-              }, 1000);
+              startElapsedTicker();
             }
           } else if (data.type === "text_response") {
             if (data.text) {
@@ -1275,10 +1492,7 @@ export function RealtimeInterviewClient({
                 `🤖 AI transcript: "${text.substring(0, 50)}..." (finished: ${isComplete})`,
               );
               if (!timerStartedRef.current && isInterviewActiveRef.current) {
-                timerStartedRef.current = true;
-                timerRef.current = setInterval(() => {
-                  setElapsedTime((prev) => prev + 1);
-                }, 1000);
+                startElapsedTicker();
               }
               if (
                 shouldHoldAssistantCaptionUntilAudio(voiceProviderRef.current)
@@ -1400,119 +1614,50 @@ export function RealtimeInterviewClient({
         userId,
       });
       websocketRef.current = ws;
+      startClientWsHeartbeat();
 
-      // Wait for backend "connected" once upstream AI session is ready (Gemini + ChatGPT).
-      if (usesUnifiedVoiceProtocol(voiceProviderRef.current)) {
-        startClientWsHeartbeat();
-      }
       if (isResumingRef.current && isInterviewActiveRef.current) {
-        if (usesUnifiedVoiceProtocol(voiceProviderRef.current)) {
-          const resumeExtra = geminiResumePayloadRef.current;
-          geminiResumePayloadRef.current = null;
-          transport.sendControl({
-            type: "start_interview",
-            interviewDurationMinutes: isCodingDiscussion
-              ? (interview?.metadata?.discussionDurationMinutes ?? 60)
-              : normalizeInterviewDurationMinutes(
-                  interview?.metadata?.interviewDuration,
-                ),
-            ...(resumeExtra
-              ? {
-                  reconnectResume: resumeExtra.reconnectResume,
-                  elapsedTimeSec: resumeExtra.elapsedTimeSec,
-                }
-              : {}),
-          });
-        } else {
-          transport.sendControl({ type: "response.create" });
-        }
+        const resumeExtra = geminiResumePayloadRef.current;
+        geminiResumePayloadRef.current = null;
+        transport.sendControl({
+          type: "start_interview",
+          interviewDurationMinutes: isCodingDiscussion
+            ? (ivResolved?.metadata?.discussionDurationMinutes ?? 60)
+            : normalizeInterviewDurationMinutes(
+                ivResolved?.metadata?.interviewDuration,
+              ),
+          ...(resumeExtra
+            ? {
+                reconnectResume: resumeExtra.reconnectResume,
+                elapsedTimeSec: resumeExtra.elapsedTimeSec,
+              }
+            : {}),
+        });
         isResumingRef.current = false;
       }
 
       ws.onerror = () => {
         console.error("[WS] onerror fired – interview active:", isInterviewActiveRef.current);
-        // Reset so a future connectWebSocket() call isn't blocked.
-        connectionInitiatedRef.current = false;
-        if (isInterviewActiveRef.current) {
-          // Treat as a benign transient drop — onclose fires right after onerror
-          // and handles auto-reconnect silently. No user-visible message here.
-          // If Gemini is truly broken the server sends type:"error" before closing,
-          // which correctly sets connectionFailed and shows the popup.
-        } else {
+        // onclose follows and handles reconnecting during an interview.
+        if (!isInterviewActiveRef.current) {
           setError("Connection error. Please try again.");
         }
       };
 
       ws.onclose = (event) => {
-        stopClientWsHeartbeat();
         console.error("[WS] onclose – code:", event.code, "reason:", event.reason, "clean:", event.wasClean);
-        setConnected(false);
-        setIsReconnecting(false);
-        // Always reset so a future reconnect attempt can proceed.
-        connectionInitiatedRef.current = false;
-        voiceTransportRef.current = null;
-        websocketRef.current = null;
-        // Benign codes: proxy / going away / no status / abnormal (1006) — auto-reconnect.
-        const code = event.code;
-        const treatAsBenign =
-          BENIGN_ACTIVE_INTERVIEW_WS_CLOSE_CODES.has(code) || code === 0;
-        if (isInterviewActiveRef.current) {
-          if (treatAsBenign) {
-            // Auto-reconnect silently — no user-visible message during the gap.
-            if (autoReconnectTimerRef.current) {
-              clearTimeout(autoReconnectTimerRef.current);
-            }
-            const attempt = autoReconnectAttemptsRef.current + 1;
-            if (attempt > MAX_AUTO_RECONNECT_ATTEMPTS) {
-              setIsPreparing(false);
-              setLastAIMessage(
-                "Connection paused — tap Resume interview to reconnect without losing progress.",
-              );
-              setConnectionFailed(true);
-              return;
-            }
-            autoReconnectAttemptsRef.current = attempt;
-            const delayMs = 2000 * attempt;
-            autoReconnectTimerRef.current = setTimeout(() => {
-              autoReconnectTimerRef.current = null;
-              // Only attempt if still active and not already reconnecting.
-              if (!isInterviewActiveRef.current || connectionInitiatedRef.current) return;
-              console.log("[WS] Auto-reconnecting after benign close (code:", code, ", attempt:", attempt, ")");
-              isResumingRef.current = true;
-              setIsPreparing(false);
-              setIsReconnecting(true);
-              if (usesUnifiedVoiceProtocol(voiceProviderRef.current)) {
-                // Use the ref (not the state closure) so the value reflects the
-                // elapsed time at reconnect time, not at the time onclose fired.
-                geminiResumePayloadRef.current = {
-                  reconnectResume: true,
-                  elapsedTimeSec: elapsedTimeRef.current,
-                };
-              }
-              connectWebSocket().catch((err) => {
-                console.error("[WS] Auto-reconnect failed:", err);
-                geminiResumePayloadRef.current = null;
-                isResumingRef.current = false;
-                if (autoReconnectAttemptsRef.current < MAX_AUTO_RECONNECT_ATTEMPTS) {
-                  ws.onclose?.(event);
-                  return;
-                }
-                setIsPreparing(false);
-                setLastAIMessage(
-                  "Connection paused — tap Resume interview to reconnect without losing progress.",
-                );
-                setConnectionFailed(true);
-              });
-            }, delayMs);
-          } else {
-            setConnectionFailed(true);
-            setError("Something went wrong at server side.");
-          }
-        }
+        handleSocketClosed(ws, event.code);
       };
+      return true;
     } catch (error: any) {
       console.error("Error connecting WebSocket:", error);
-      setError(error.message || "Failed to connect to interview service.");
+      connectionInitiatedRef.current = false;
+      voiceTransportRef.current = null;
+      // During an interview the reconnect loop owns the messaging.
+      if (!isInterviewActiveRef.current) {
+        setError(error.message || "Failed to connect to interview service.");
+      }
+      return false;
     }
   };
 
@@ -1632,6 +1777,7 @@ export function RealtimeInterviewClient({
   const pushPlaybackSamples = (pcm16: Int16Array, sourceRate: number) => {
     const ctx = audioContextRef.current;
     if (!ctx || pcm16.length === 0) return;
+    noteAiAudioQueued(pcm16.length / sourceRate);
     if (ctx.state === "suspended") {
       void ctx.resume();
     }
@@ -1735,10 +1881,7 @@ export function RealtimeInterviewClient({
         if (event.delta) {
           setIsPreparing(false);
           if (!timerStartedRef.current && isInterviewActiveRef.current) {
-            timerStartedRef.current = true;
-            timerRef.current = setInterval(() => {
-              setElapsedTime((prev) => prev + 1);
-            }, 1000);
+            startElapsedTicker();
           }
           setCurrentAssistantTranscript((prev) => prev + event.delta);
         }
@@ -1769,10 +1912,7 @@ export function RealtimeInterviewClient({
         if (event.delta) {
           setIsPreparing(false);
           if (!timerStartedRef.current && isInterviewActiveRef.current) {
-            timerStartedRef.current = true;
-            timerRef.current = setInterval(() => {
-              setElapsedTime((prev) => prev + 1);
-            }, 1000);
+            startElapsedTicker();
           }
           try {
             const pcm16 = decodeBase64Pcm16(event.delta);
@@ -2120,21 +2260,19 @@ export function RealtimeInterviewClient({
       setIsInterviewActive(true);
       isInterviewActiveRef.current = true;
       setIsPreparing(true); // Show preparing state until AI speaks
-      setElapsedTime(0);
+      // A reloaded active interview continues from the restored clock; the server's
+      // session_state then sets the exact value.
+      const alreadyActive = interview?.status === "active";
+      if (!alreadyActive) {
+        elapsedTimeRef.current = 0;
+        setElapsedTime(0);
+      }
       // Match server wall clock (start_interview_after_greeting): count from Start click so
       // on-screen minutes align with TIME IS UP / configured 15 or 30 min slot.
-      timerStartedRef.current = true;
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-        timerRef.current = null;
-      }
-      timerRef.current = setInterval(() => {
-        setElapsedTime((prev) => prev + 1);
-      }, 1000);
+      startElapsedTicker();
 
-      // Explicitly start Gemini/Sarvam interview only after user click
-      if (usesUnifiedVoiceProtocol(voiceProviderRef.current) && websocketRef.current) {
-        const alreadyActive = interview?.status === "active";
+      // Explicitly start the interview only after user click
+      if (websocketRef.current) {
         const resumeExtra = alreadyActive
           ? {
               reconnectResume: true,
@@ -2165,19 +2303,6 @@ export function RealtimeInterviewClient({
 
       // Setup audio capture (must be after setIsInterviewActive)
       setupAudioCapture();
-
-      // Timer starts when AI is ready (first audio_response or text_response)
-
-      // Request first response only for ChatGPT path
-      setTimeout(() => {
-        if (websocketRef.current?.readyState === WebSocket.OPEN) {
-          if (!usesUnifiedVoiceProtocol(voiceProviderRef.current)) {
-            websocketRef.current.send(
-              JSON.stringify({ type: "response.create" }),
-            );
-          }
-        }
-      }, 1000);
     } catch (error: any) {
       console.error("Error starting interview:", error);
       setError(error.message || "Failed to start interview.");
@@ -2254,7 +2379,31 @@ export function RealtimeInterviewClient({
     interviewId,
   ]);
 
+  /** The server sweeper also completes an overdue interview, so a dropped request does not leave it open. */
+  const completeWithRetry = async () => {
+    for (let attempt = 0; ; attempt += 1) {
+      try {
+        await interviewApi.complete(interviewId);
+        return;
+      } catch (error) {
+        if (attempt >= COMPLETE_RETRY_DELAYS_MS.length) throw error;
+        console.warn("Complete interview failed, retrying:", error);
+        await new Promise((resolve) => setTimeout(resolve, COMPLETE_RETRY_DELAYS_MS[attempt]));
+      }
+    }
+  };
+
   const endInterview = async () => {
+    if (endingInterviewRef.current) return;
+    endingInterviewRef.current = true;
+    if (timeUpGraceTimerRef.current) {
+      clearTimeout(timeUpGraceTimerRef.current);
+      timeUpGraceTimerRef.current = null;
+    }
+    if (autoReconnectTimerRef.current) {
+      clearTimeout(autoReconnectTimerRef.current);
+      autoReconnectTimerRef.current = null;
+    }
     try {
       stopClientWsHeartbeat();
       // Immediately stop screen capture to remove red indicator
@@ -2330,7 +2479,7 @@ export function RealtimeInterviewClient({
           console.warn("codingInterviewApi.markDone:", e);
         }
       } else {
-        await interviewApi.complete(interviewId);
+        await completeWithRetry();
       }
 
       if (codingDiscussionHost) {
@@ -2361,10 +2510,12 @@ export function RealtimeInterviewClient({
       router.push(withInterviewReturnTo(afterPath, returnTo));
     } catch (error: any) {
       console.error("Error ending interview:", error);
+      endingInterviewRef.current = false;
       // Use non-blocking toast so the interview isn't interrupted.
       setActiveError(error.message || "Failed to end interview. Please try again.");
     }
   };
+  endInterviewLatestRef.current = endInterview;
 
   const toggleCamera = () => {
     if (mediaStreamRef.current) {
@@ -3505,9 +3656,11 @@ export function RealtimeInterviewClient({
       {/* Non-blocking reconnect banner — shown during reconnect before escalation to dialog */}
       {isReconnecting && !connectionFailed && (
         <div className="fixed top-0 left-0 right-0 z-50 flex items-center justify-center gap-2 bg-yellow-500/95 px-4 py-2 text-sm font-medium text-yellow-950 shadow-md">
-          {SHOW_RECONNECT_ATTEMPT_DEBUG
-            ? `Reconnecting AI session… (${reconnectAttemptCount}/3 attempts)`
-            : "Reconnecting AI session…"}
+          {isOffline
+            ? "You're offline. The interview clock is paused and will resume when your internet is back."
+            : SHOW_RECONNECT_ATTEMPT_DEBUG && reconnectAttemptCount > 0
+              ? `Reconnecting AI session… (attempt ${reconnectAttemptCount})`
+              : "Reconnecting AI session…"}
         </div>
       )}
 
