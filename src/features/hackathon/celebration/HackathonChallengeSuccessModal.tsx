@@ -14,6 +14,7 @@ import {
 } from "../whatsapp-links";
 import { HACKATHON_CHALLENGE_SUCCESS_COPY } from "./celebrationCopy";
 import { HackathonConfettiLayer } from "./HackathonConfettiLayer";
+import { hackathonReelFontVars } from "@/lib/fonts/hackathon-reel";
 
 type HackathonChallengeSuccessModalProps = Readonly<{
   open: boolean;
@@ -30,7 +31,7 @@ export function HackathonChallengeSuccessModal({ open, onOpenChange }: Hackathon
       <HackathonConfettiLayer active={open} />
       <DialogContent
         overlayClassName="bg-[#020810]/80"
-        className="relative max-h-[min(92vh,720px)] w-[calc(100%-1.5rem)] max-w-2xl gap-0 overflow-hidden border border-[#27547d]/90 bg-[#071426] p-0 text-[#dbe9f8] shadow-none"
+        className={`hk-root hk-modal ${hackathonReelFontVars} relative max-h-[min(92vh,720px)] w-[calc(100%-1.5rem)] max-w-2xl gap-0 overflow-hidden border border-[#27547d]/90 bg-[#071426] p-0 text-[#dbe9f8] shadow-none`}
       >
         <div
           className="pointer-events-none absolute inset-0 overflow-hidden opacity-90"
@@ -53,7 +54,7 @@ export function HackathonChallengeSuccessModal({ open, onOpenChange }: Hackathon
         </DialogHeader>
 
         <div className="relative space-y-5 overflow-y-auto px-5 py-5 sm:px-6">
-          <section className="rounded-xl border border-[#27547d]/70 bg-[#040b17]/80 p-4 sm:p-5">
+          <section className="hk-modal-panel rounded-xl border border-[#27547d]/70 bg-[#040b17]/80 p-4 sm:p-5">
             <h3 className="text-sm font-semibold text-white">{copy.whyJoinTitle}</h3>
             <p className="mt-2 text-sm leading-relaxed text-[#9eb2ca]">{copy.whyJoinBody}</p>
           </section>
@@ -61,7 +62,7 @@ export function HackathonChallengeSuccessModal({ open, onOpenChange }: Hackathon
           <section className="rounded-xl border border-[#1f8a82]/60 bg-gradient-to-b from-[#0c3238]/40 to-[#071426]/80 p-4 sm:p-5">
             <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0 flex-1 space-y-3">
-                <p className="flex items-center gap-2 text-sm font-semibold text-white">
+                <p className="hk-pill-m flex items-center gap-2 text-sm font-semibold text-white">
                   <MessageCircle className="size-4 text-[#29d6a0]" aria-hidden />
                   WhatsApp Community
                 </p>
@@ -92,7 +93,7 @@ export function HackathonChallengeSuccessModal({ open, onOpenChange }: Hackathon
                     height={200}
                     className="size-[140px] rounded-lg border border-[#27547d]/80 bg-white p-1.5 sm:size-[168px]"
                   />
-                  <p className="text-center text-[11px] font-medium uppercase tracking-wide text-[#7189a6]">
+                  <p className="hk-pill-m text-center text-[11px] font-medium uppercase tracking-wide text-[#7189a6]">
                     Scan to join
                   </p>
                 </div>

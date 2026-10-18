@@ -34,7 +34,7 @@ export function PhaseNotice({
       <span className="mx-auto mb-5 grid size-16 place-items-center rounded-2xl bg-white/5 ring-1 ring-white/10">
         <Icon className="size-8" strokeWidth={1.9} aria-hidden />
       </span>
-      <h1 className="text-[clamp(1.6rem,3.6vw,2.3rem)] font-extrabold leading-tight tracking-[-0.03em] text-white">
+      <h1 className="hk-notice-title text-[clamp(1.6rem,3.6vw,2.3rem)] font-extrabold leading-tight tracking-[-0.03em] text-white">
         {title}
       </h1>
       {message ? <div className="mx-auto mt-3 max-w-lg text-[15px] leading-relaxed text-[#cfdbe8]">{message}</div> : null}
