@@ -104,7 +104,7 @@ function RoundIcon({ kind }: Readonly<{ kind?: HackathonChallengeKind }>) {
 function ScoreBadge({ score, target }: Readonly<{ score: number; target: number }>) {
   const good = score >= target;
   return (
-    <span className={cn("block text-3xl font-extrabold leading-none tabular-nums", good ? "text-[#29d6a0]" : "text-[#ffc44d]")}>
+    <span className={cn("hk-num-d block text-3xl font-extrabold leading-none tabular-nums", good ? "text-[#29d6a0]" : "text-[#ffc44d]")}>
       {score}
       <span className="ml-0.5 text-base font-semibold text-[#7189a6]">/100</span>
     </span>
@@ -136,10 +136,10 @@ function SlotCard({
       className={cn(
         "flex h-full flex-col rounded-2xl border p-5",
         slot.state === "completed"
-          ? "border-[#1fa596]/60 bg-[#0b2e2b]/35"
+          ? "hk-slot hk-slot-done border-[#1fa596]/60 bg-[#0b2e2b]/35"
           : slot.state === "locked"
             ? "border-dashed border-white/20 bg-transparent"
-            : "border-white/45 bg-[#06142c]/60",
+            : "hk-slot border-white/45 bg-[#06142c]/60",
       )}
     >
       <div className="flex items-center justify-between gap-3">
@@ -148,7 +148,7 @@ function SlotCard({
           {roundHeading(kind)} {slot.slot}
         </h3>
         {kind === "screening" || !kind ? (
-          <span className="text-sm font-medium text-white">{durationMinutes} min</span>
+          <span className="hk-pill-m text-sm font-medium text-[#9eb2ca]">{durationMinutes} min</span>
         ) : null}
       </div>
 
@@ -157,7 +157,7 @@ function SlotCard({
           // Status + score on the left, report action pinned right
           <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
             <div className="min-w-0 space-y-2">
-              <div className="flex items-center gap-2 text-sm font-semibold text-[#29d6a0]">
+              <div className="hk-pill-m flex items-center gap-2 text-sm font-semibold text-[#29d6a0]">
                 <CheckCircle2 className="size-4" aria-hidden /> Submitted
               </div>
               {typeof slot.overallScore === "number" ? (
@@ -375,7 +375,7 @@ export function InterviewChallenge({
           onSubmit={confirmSetup}
           // Our styled inline error replaces the browser's native "fill out this field" tooltip.
           noValidate
-          className="space-y-5 rounded-2xl border border-white/45 bg-[#06142c]/60 p-4 sm:p-5"
+          className="hk-slot space-y-5 rounded-2xl border border-white/45 bg-[#06142c]/60 p-4 sm:p-5"
         >
           <div>
             <h3 className="text-base font-bold text-white sm:text-[17px]">

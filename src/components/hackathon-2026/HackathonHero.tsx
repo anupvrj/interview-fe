@@ -43,8 +43,7 @@ export function HackathonHero() {
     <section className="relative overflow-hidden pt-8 sm:pt-10 lg:pt-6">
       {/* Reel-style 3D grid floor + horizon glow */}
       <div className="hk-floor" aria-hidden />
-      <div className="hk-horizon" aria-hidden />
-      <HackathonHeroHud className="relative z-[2] mx-auto mb-6 w-full max-w-[1400px] px-5" />
+      <HackathonHeroHud className="relative z-[2] mx-auto mb-6 hidden w-full max-w-[1400px] px-5 md:block" />
       {/* Glossy ribbons: bottom-left sweep + large sweep behind the candidate */}
       <Ribbon
         variant="a"
@@ -87,7 +86,7 @@ export function HackathonHero() {
           </h1>
 
           <Reveal immediate delay={260}>
-            <p className="mx-auto mt-6 max-w-[36rem] text-base leading-7 text-[#dbe6f3] sm:text-lg sm:leading-8 lg:mx-0">
+            <p className="hk-lead mx-auto mt-6 max-w-[36rem] text-base leading-7 text-[#dbe6f3] sm:text-lg sm:leading-8 lg:mx-0">
               {HACKATHON_HERO.copy.replace(
                 "{days}",
                 String(challenge.dayCount),
@@ -221,7 +220,6 @@ export function HackathonHero() {
             className="absolute inset-x-[-2%] bottom-0 top-0 z-[2] sm:top-[14%]"
           >
             <div className="relative h-full w-full" style={parallax(6)}>
-              <div className="hk-scan" aria-hidden />
               <Image
                 src="/hackathon-2026/hero-candidate-desk.webp"
                 alt="Candidate celebrating interview success at a desk with InterviewTrix"

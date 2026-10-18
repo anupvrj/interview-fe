@@ -1,12 +1,15 @@
 "use client";
 
 import "@/components/hackathon-2026/hackathon.css";
+import "@/components/hackathon-2026/hackathon-reel.css";
+import "./hackathon-dashboard-reel.css";
 import Link from "next/link";
 import { SignedIn } from "@clerk/nextjs";
 import { ArrowLeft } from "lucide-react";
 import { ProfileMenu } from "@/components/app/ProfileMenu";
 import { HackathonBrand } from "@/components/hackathon-2026/HackathonBrand";
 import { Ribbon } from "@/components/hackathon-2026/HackathonMotion";
+import { HackathonHeroHud, HackathonScrollRail } from "@/components/hackathon-2026/HackathonHud";
 import { hackathonDashboardPath, hackathonLandingPath } from "../config";
 import { useHackathonSlug } from "../hooks";
 import { cn } from "@/lib/utils";
@@ -25,7 +28,10 @@ export function HackathonShell({ children }: Readonly<{ children: React.ReactNod
   ];
 
   return (
-    <div className="hk-root min-h-screen antialiased">
+    <div className="hk-root hk-dash min-h-screen antialiased">
+      <HackathonScrollRail />
+      <div className="hk-dash-grid" aria-hidden />
+      <div className="hk-dash-floor" aria-hidden />
       <div className="hk-aurora" aria-hidden>
         <span />
         <span />
@@ -78,7 +84,7 @@ export function HackathonShell({ children }: Readonly<{ children: React.ReactNod
           <div className="flex shrink-0 items-center gap-3 sm:gap-5">
             <Link
               href={landingPath}
-              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[#2f64a8] bg-[#0a1b36]/70 px-3 text-sm font-medium text-white transition-colors hover:border-[#4f96ec] hover:bg-[#0f2a52] sm:px-4"
+              className="hk-btn-ghost inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[#2f64a8] bg-[#0a1b36]/70 px-3 text-sm font-medium text-white transition-colors hover:border-[#4f96ec] hover:bg-[#0f2a52] sm:px-4"
             >
               <ArrowLeft className="size-4" aria-hidden />
               <span className="hidden sm:inline">Event page</span>
@@ -117,6 +123,7 @@ export function HackathonShell({ children }: Readonly<{ children: React.ReactNod
       </header>
 
       <main className="relative z-[1] mx-auto w-full max-w-[1460px] px-4 pb-24 pt-5 sm:px-6 sm:pt-8">
+        <HackathonHeroHud className="mb-5 hidden md:block" />
         {children}
       </main>
     </div>

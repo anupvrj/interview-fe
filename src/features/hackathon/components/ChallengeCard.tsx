@@ -219,8 +219,8 @@ export function ChallengeCard({
       onPointerMove={faded ? undefined : trackSpotlight}
       style={{ "--hk-accent": a.rgb } as CSSProperties}
       className={cn(
-        "relative overflow-hidden rounded-[22px] border bg-[linear-gradient(160deg,rgba(13,34,70,0.92),rgba(8,22,46,0.95))] py-5 pl-6 pr-5 shadow-[0_18px_50px_rgba(0,15,45,0.45),inset_0_1px_0_rgba(140,190,255,0.08)] sm:py-6 sm:pl-8 sm:pr-6",
-        !faded && "hk-card",
+        "hk-ch relative overflow-hidden rounded-[22px] border bg-[linear-gradient(160deg,rgba(13,34,70,0.92),rgba(8,22,46,0.95))] py-5 pl-6 pr-5 shadow-[0_18px_50px_rgba(0,15,45,0.45),inset_0_1px_0_rgba(140,190,255,0.08)] sm:py-6 sm:pl-8 sm:pr-6",
+        !faded ? "hk-card" : "hk-bracket",
         completed && "border-[#29d6a0]/40",
         locked && "border-white/15",
         !faded && a.border,
@@ -238,7 +238,7 @@ export function ChallengeCard({
       <div className="relative flex items-start gap-4 sm:gap-5">
         <span
           className={cn(
-            "grid size-11 shrink-0 place-items-center rounded-full text-lg font-extrabold sm:size-12 sm:text-xl",
+            "hk-num-d grid size-11 shrink-0 place-items-center rounded-full text-lg font-extrabold sm:size-12 sm:text-xl",
             completed
               ? "border border-[#29d6a0]/45 bg-[#0b2e2b] text-[#29d6a0] shadow-[0_0_18px_rgba(41,214,160,0.35)]"
               : locked
@@ -328,7 +328,7 @@ export function ChallengeCard({
               </div>
               <span
                 className={cn(
-                  "mb-3 inline-flex rounded-full border px-3 py-1 text-xs font-semibold",
+                  "hk-pill-m mb-3 inline-flex rounded-full border px-3 py-1 text-xs font-semibold",
                   completed
                     ? "border-[#29d6a0]/30 bg-[#29d6a0]/10 text-[#29d6a0]"
                     : "border-white/15 bg-white/[0.06] text-[#cfdbe8]",
