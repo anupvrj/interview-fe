@@ -145,6 +145,7 @@ export function HackathonHeader() {
           {/* Register (right) */}
           <div className="flex justify-end">
             <HackathonRegisterButton
+              ctaLocation="header"
               size="sm"
               compact
               // Short label + no arrow on phones so both header columns fit and the logo sits dead-centre
@@ -230,7 +231,7 @@ export function HackathonHeader() {
             <p className="mb-3 text-xs text-[#7f98b3]">
               Hackathon {challenge.publicRangeLabel} · Launch {HACKATHON_LAUNCH.dateLabel}
             </p>
-            <HackathonRegisterButton className="w-full" onClick={closeMenu}>
+            <HackathonRegisterButton ctaLocation="mobile_menu" className="w-full" onClick={closeMenu}>
               Register Now for Free
             </HackathonRegisterButton>
           </div>

@@ -1,9 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useAuth } from "@clerk/nextjs";
 import type { HackathonMe } from "./api";
 import { useHackathonMe, useRegisterForHackathon } from "./hooks";
 import type { HackathonRegistrationModalPhase } from "./components/HackathonRegistrationModal";
+import { HK_EVENTS, classifyError, trackHackathon, trackRegistrationSuccessOnce } from "./analytics";
 
 type GateOptions = {
   /** Passed to the register API (analytics). */
@@ -19,6 +21,7 @@ export function useHackathonRegistrationGate({
   autoRegister = false,
   onRegistrationComplete,
 }: GateOptions) {
+  const { userId } = useAuth();
   const meQuery = useHackathonMe();
   const register = useRegisterForHackathon();
   const registerAttempted = useRef(false);
@@ -40,18 +43,21 @@ export function useHackathonRegistrationGate({
     register.mutate(source, {
       onSuccess: (data: HackathonMe) => {
         if (!data.registered) return;
+        // Confirmed by the API; deduped per account so retries/reloads never double count.
+        trackRegistrationSuccessOnce({ userKey: userId, source, userType: data.profile.userType });
         if (showModal) {
           setModalPhase("success");
           return;
         }
         onCompleteRef.current?.();
       },
-      onError: () => {
+      onError: (err: unknown) => {
+        trackHackathon(HK_EVENTS.signupError, { form_step: "registration", error_type: classifyError(err) });
         registerAttempted.current = false;
         if (showModal) setModalPhase(null);
       },
     });
-  }, [autoRegister, me, register, source]);
+  }, [autoRegister, me, register, source, userId]);
 
   const completeRegistrationFlow = useCallback(() => {
     // Keep success modal mounted until navigation unmounts this page (avoids onboarding flash).
