@@ -43,10 +43,7 @@ function normalizeStoredCheck(check: ATSCheckResult): ATSCheckResult {
     status = "pass";
   } else if (actionable !== check.issueCount) {
     issueCount = actionable;
-    if (actionable === 0 && status !== "skipped") {
-      score = Math.max(score, 80);
-      if (status === "fail") status = "pass";
-    }
+    if (actionable === 0 && status === "fail") status = "pass";
   }
 
   const meta =
@@ -127,7 +124,10 @@ export function normalizeATSReportV3(report: ATSReportV3): ATSReportV3 {
     categories[catId] = {
       id: catId,
       label: existing?.label ?? CATEGORY_LABELS[catId],
-      score: computeCategoryScore(checks),
+      score:
+        typeof existing?.score === "number"
+          ? existing.score
+          : computeCategoryScore(checks),
       issueCount: categoryIssueCount,
       checks,
     };
