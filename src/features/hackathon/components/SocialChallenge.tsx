@@ -157,7 +157,7 @@ export function SocialChallenge({ me }: Readonly<{ me: HackathonMe }>) {
 
       {showForm ? (
         <form onSubmit={onSubmit} className="space-y-4" noValidate>
-          <div className="relative space-y-3 rounded-2xl border border-[#27547d]/80 bg-[#071426]/60 p-3 sm:p-3.5">
+          <div className="hk-slot relative space-y-3 rounded-2xl border border-[#27547d]/80 bg-[#071426]/60 p-3 sm:p-3.5">
             {celebration.showOverlay ? <HackathonSubmitLoadingOverlay /> : null}
             <SocialShareActions
               caption={shareCaption}

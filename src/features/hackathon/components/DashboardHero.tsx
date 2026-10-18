@@ -48,7 +48,7 @@ function ProgressRing({ value, max }: Readonly<{ value: number; max: number }>) 
             </linearGradient>
           </defs>
         </svg>
-        <p className="relative font-extrabold leading-none tracking-tight text-white" aria-label={`${value} of ${max} challenges done`}>
+        <p className="hk-num-d relative font-extrabold leading-none tracking-tight text-white" aria-label={`${value} of ${max} challenges done`}>
           <span className="text-[2.75rem] tabular-nums sm:text-5xl">{value}</span>
           <span className="text-lg text-[#cfdbe8] sm:text-xl">/{max || 0}</span>
         </p>
@@ -104,7 +104,7 @@ export function DashboardHero({ me }: Readonly<{ me: HackathonMe }>) {
   );
 
   return (
-    <section className="relative isolate rounded-[24px] border border-[#2a64b0]/60 bg-[radial-gradient(700px_380px_at_75%_120%,rgba(40,90,255,0.35),transparent_65%),linear-gradient(135deg,#0c2246_0%,#0a1b3a_55%,#0b1a40_100%)] px-5 py-6 shadow-[0_30px_80px_rgba(0,20,60,0.45),inset_0_1px_0_rgba(140,190,255,0.12)] sm:rounded-[28px] sm:px-8 sm:py-8 lg:px-10">
+    <section className="hk-dash-hero hk-bracket relative isolate rounded-[24px] border border-[#2a64b0]/60 bg-[radial-gradient(700px_380px_at_75%_120%,rgba(40,90,255,0.35),transparent_65%),linear-gradient(135deg,#0c2246_0%,#0a1b3a_55%,#0b1a40_100%)] px-5 py-6 shadow-[0_30px_80px_rgba(0,20,60,0.45),inset_0_1px_0_rgba(140,190,255,0.12)] sm:rounded-[28px] sm:px-8 sm:py-8 lg:px-10">
       <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-[24px] sm:rounded-[28px]" aria-hidden>
         <Ribbon variant="a" className="-bottom-24 left-[30%] h-[260px] w-[760px] opacity-60" />
         <Ribbon variant="b" slow className="-right-24 -top-16 hidden h-[420px] w-[460px] opacity-50 lg:block" />
@@ -121,7 +121,7 @@ export function DashboardHero({ me }: Readonly<{ me: HackathonMe }>) {
               👋
             </span>
           </h1>
-          <p className="mt-3 text-pretty text-base text-[#cfdbe8] sm:text-lg">{title}</p>
+          <p className="hk-pill-m mt-3 !text-[12px] text-[#4fd2ff] sm:!text-[13px]">{title}</p>
           <p className="mt-2 text-pretty text-base text-white sm:text-lg">
             Finish each challenge to unlock the next.
             {current ? (
@@ -163,7 +163,7 @@ function Stat({ label, value, tone }: Readonly<{ label: string; value: number; t
       )}
       <div className="min-w-0">
         <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#cfdbe8]">{label}</p>
-        <p className={cn("mt-0.5 text-[1.75rem] font-extrabold leading-none tabular-nums text-white")}>{value}</p>
+        <p className={cn("hk-num-d mt-1 text-[1.6rem] font-extrabold leading-none tabular-nums text-white")}>{value}</p>
       </div>
     </div>
   );

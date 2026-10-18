@@ -154,10 +154,6 @@ export function HackathonHeader() {
           </div>
         </div>
 
-        {/* Scroll progress */}
-        <div className="absolute inset-x-0 bottom-[-1px] h-[2px] overflow-hidden" aria-hidden>
-          <div className="hk-progress h-full bg-gradient-to-r from-[#1677ff] via-[#2bd2ff] to-[#29d6a0]" />
-        </div>
       </header>
 
       {/* Mobile drawer — sibling of <header> so backdrop-filter can't trap position:fixed */}

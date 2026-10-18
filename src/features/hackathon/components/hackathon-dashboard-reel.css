@@ -1,0 +1,120 @@
+/* ==========================================================================
+   Hackathon dashboard — reel skin (on top of hackathon.css + hackathon-reel.css).
+   Same type system as the landing page: Michroma display, Geist body, Geist Mono labels.
+   Adds the reel's grid backdrop + running floor, dotted card surfaces, mono buttons.
+   ========================================================================== */
+
+/* Backdrop: faint blueprint grid fixed behind everything, plus the running 3D floor */
+.hk-dash { position: relative; }
+.hk-dash-grid {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(66, 150, 255, 0.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(66, 150, 255, 0.07) 1px, transparent 1px);
+  background-size: 64px 64px;
+  mask-image: radial-gradient(ellipse 80% 70% at 50% 30%, #000 30%, transparent 85%);
+}
+.hk-dash-floor {
+  position: fixed;
+  left: -60%;
+  right: -60%;
+  bottom: 0;
+  height: 360px;
+  z-index: 0;
+  pointer-events: none;
+  transform: perspective(520px) rotateX(58deg);
+  transform-origin: 50% 100%;
+  background-image:
+    linear-gradient(rgba(79, 210, 255, 0.45) 2px, transparent 2px),
+    linear-gradient(90deg, rgba(79, 210, 255, 0.45) 2px, transparent 2px);
+  background-size: 90px 90px;
+  mask-image: linear-gradient(0deg, rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.2) 40%, transparent 75%);
+  animation: hk-floor-run 6s linear infinite;
+  opacity: 0.4;
+}
+
+/* Header: mono nav + mono ghost button, like the landing header */
+.hk-dash header nav a,
+.hk-dash header nav span { font-family: var(--hk-mono); letter-spacing: 0.02em; }
+
+/* Ghost / secondary buttons (View report, View PDF, Event page, Try again…) */
+.hk-root .hk-btn-ghost {
+  font-family: var(--hk-mono);
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  border-color: rgba(79, 210, 255, 0.55);
+  background: rgba(8, 20, 40, 0.55);
+}
+.hk-root .hk-btn-ghost:hover { border-color: #4fd2ff; background: rgba(43, 210, 255, 0.08); box-shadow: 0 0 22px rgba(43, 210, 255, 0.22); }
+@media (max-width: 639px) { .hk-root .hk-btn-ghost { letter-spacing: 0.03em; } }
+
+/* Numbers: Michroma, like the reel counters */
+.hk-root .hk-num-d { font-family: var(--hk-display); font-weight: 400 !important; letter-spacing: -0.04em; }
+
+/* Challenge cards: dotted surface + reel corner brackets on every state */
+.hk-dash .hk-ch {
+  background-image:
+    radial-gradient(rgba(120, 180, 255, 0.09) 1.2px, transparent 1.3px),
+    linear-gradient(160deg, rgba(13, 34, 70, 0.92), rgba(8, 22, 46, 0.95)) !important;
+  background-size: 22px 22px, auto !important;
+}
+.hk-dash .hk-ch h2 { font-size: clamp(1.15rem, 2.1vw, 1.6rem) !important; }
+
+/* Inner panels (interview slots, resume row, social form) */
+.hk-dash .hk-slot {
+  position: relative;
+  border-color: rgba(66, 150, 255, 0.3) !important;
+  background-image:
+    radial-gradient(rgba(120, 180, 255, 0.08) 1.2px, transparent 1.3px),
+    linear-gradient(180deg, rgba(12, 28, 56, 0.85), rgba(6, 16, 34, 0.9)) !important;
+  background-size: 18px 18px, auto !important;
+  box-shadow: inset 0 1px 0 rgba(140, 190, 255, 0.08);
+}
+.hk-dash .hk-slot::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(140deg, rgba(79, 210, 255, 0.7), rgba(22, 119, 255, 0.15) 35%, transparent 60%, rgba(79, 210, 255, 0.3));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+/* Small status pills / labels → mono uppercase */
+.hk-dash .hk-pill-m {
+  font-family: var(--hk-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-size: 11px;
+  font-weight: 700;
+}
+@media (max-width: 639px) { .hk-dash .hk-pill-m { letter-spacing: 0.06em; } }
+
+/* Hero panel: dotted surface on top of its gradient */
+.hk-dash .hk-dash-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background-image: radial-gradient(rgba(120, 180, 255, 0.1) 1.2px, transparent 1.3px);
+  background-size: 22px 22px;
+  mask-image: linear-gradient(180deg, #000, transparent 75%);
+}
+
+@media (prefers-reduced-motion: reduce) { .hk-dash-floor { animation: none; } }
+.hk-dash .hk-slot-done {
+  border-color: rgba(41, 214, 160, 0.4) !important;
+  background-image:
+    radial-gradient(rgba(41, 214, 160, 0.1) 1.2px, transparent 1.3px),
+    linear-gradient(180deg, rgba(10, 40, 40, 0.6), rgba(6, 18, 30, 0.85)) !important;
+}
+.hk-dash .hk-slot-done::before { background: linear-gradient(140deg, rgba(41, 214, 160, 0.75), rgba(41, 214, 160, 0.12) 35%, transparent 60%, rgba(41, 214, 160, 0.3)); }

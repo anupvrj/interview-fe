@@ -403,3 +403,34 @@
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.02em;
 }
+
+/* ---------- Hero lead line: techie mono, like the reel's captions ---------- */
+.hk-root .hk-lead {
+  font-family: var(--hk-mono);
+  font-size: 15px;
+  line-height: 1.75;
+  letter-spacing: -0.02em;
+  color: #b6c6d9;
+}
+@media (min-width: 640px) { .hk-root .hk-lead { font-size: 16.5px; line-height: 1.8; } }
+
+/* ---------- Tighter tracking for small / uppercase text (more so on phones) ---------- */
+.hk-root .hk-eyebrow { letter-spacing: 0.14em; }
+.hk-root .hk-marquee-track { letter-spacing: 0.14em; }
+.hk-root .hk-btn { letter-spacing: 0.06em; }
+.hk-root main > section:not(:first-child) h2::before { letter-spacing: 0.16em; }
+.hk-hud { letter-spacing: 0.14em; }
+.hk-root .hk-meta,
+.hk-root .hk-meta * { letter-spacing: 0.07em !important; }
+.hk-root [class*="tracking-[0.1"],
+.hk-root [class*="tracking-[0.2"] { letter-spacing: 0.1em !important; }
+@media (max-width: 639px) {
+  .hk-root .hk-eyebrow,
+  .hk-root .hk-marquee-track { letter-spacing: 0.08em; }
+  .hk-root .hk-btn { letter-spacing: 0.03em; }
+  .hk-root main > section:not(:first-child) h2::before { letter-spacing: 0.12em; }
+  .hk-root .hk-meta,
+  .hk-root .hk-meta * { letter-spacing: 0.03em !important; }
+  .hk-root [class*="tracking-[0.1"],
+  .hk-root [class*="tracking-[0.2"] { letter-spacing: 0.06em !important; }
+}
