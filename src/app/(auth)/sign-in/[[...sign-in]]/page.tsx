@@ -3,6 +3,7 @@
 import { SignIn } from "@clerk/nextjs";
 import { useSearchParams } from "next/navigation";
 import { useEffect } from "react";
+import { HackathonAuthAnalytics } from "@/features/hackathon/components/HackathonAuthAnalytics";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { AuthCardLayout } from "@/components/app/AuthCardLayout";
@@ -55,15 +56,17 @@ export default function SignInPage() {
         </>
       }
     >
-      <SignIn
-        routing="path"
-        path="/sign-in"
-        forceRedirectUrl={afterAuth}
-        fallbackRedirectUrl={afterAuth}
-        signUpForceRedirectUrl={afterAuth}
-        signUpFallbackRedirectUrl={afterAuth}
-        appearance={clerkAuthAppearance}
-      />
+      <HackathonAuthAnalytics pageType="sign_in" redirectUrl={redirectUrl}>
+        <SignIn
+          routing="path"
+          path="/sign-in"
+          forceRedirectUrl={afterAuth}
+          fallbackRedirectUrl={afterAuth}
+          signUpForceRedirectUrl={afterAuth}
+          signUpFallbackRedirectUrl={afterAuth}
+          appearance={clerkAuthAppearance}
+        />
+      </HackathonAuthAnalytics>
     </AuthCardLayout>
   );
 }

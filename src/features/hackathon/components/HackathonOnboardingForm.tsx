@@ -37,9 +37,20 @@ import {
   resolveHackathonOnboardingStep,
 } from "../hackathonProfileFields";
 import { hkSecondaryButton } from "./ResumeChallenge";
+import { HK_EVENTS, classifyError, trackHackathon, type HackathonFormStep } from "../analytics";
 
 type UserType = "student" | "fresher" | "experienced" | "";
 type Step = 1 | 2 | 3;
+
+const STEP_NAMES: Record<Step, HackathonFormStep> = { 1: "profile_type_phone", 2: "details", 3: "resume" };
+
+function trackFormInvalid(step: Step, field: string) {
+  trackHackathon(HK_EVENTS.validationError, { form_step: STEP_NAMES[step], field });
+}
+
+function trackFormFailure(step: Step, err: unknown) {
+  trackHackathon(HK_EVENTS.signupError, { form_step: STEP_NAMES[step], error_type: classifyError(err) });
+}
 
 const USER_TYPE_OPTIONS: {
   value: Exclude<UserType, "">;
@@ -175,6 +186,7 @@ export function HackathonOnboardingForm({ onComplete }: Readonly<{ onComplete: (
       setError("");
       if (rejectedFiles.length > 0) {
         const err = rejectedFiles[0].errors[0];
+        trackFormInvalid(3, err.code === "file-too-large" ? "resume_too_large" : "resume_file_type");
         setError(
           err.code === "file-too-large"
             ? "File size must be less than 5 MB"
@@ -217,10 +229,12 @@ export function HackathonOnboardingForm({ onComplete }: Readonly<{ onComplete: (
 
   const handleStep1Next = async () => {
     if (!userType) {
+      trackFormInvalid(1, "user_type");
       setError("Choose Student, Fresher, or Experienced to continue.");
       return;
     }
     if (!isValidPhoneForStorage(phoneCountryCode, phoneLocal)) {
+      trackFormInvalid(1, "phone");
       setError("Enter a valid mobile number.");
       return;
     }
@@ -235,6 +249,7 @@ export function HackathonOnboardingForm({ onComplete }: Readonly<{ onComplete: (
         userType: userType as "student" | "fresher" | "experienced",
       });
       void userApi.sendWelcomeSignup("candidate").catch(() => undefined);
+      trackHackathon(HK_EVENTS.formProgress, { form_step: STEP_NAMES[1], user_type: userType });
       setStep(
         isHackathonProfileReady({
           userType,
@@ -247,6 +262,7 @@ export function HackathonOnboardingForm({ onComplete }: Readonly<{ onComplete: (
           : 2,
       );
     } catch (err: unknown) {
+      trackFormFailure(1, err);
       const message =
         (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
         "Could not save your profile. Please try again.";
@@ -259,19 +275,23 @@ export function HackathonOnboardingForm({ onComplete }: Readonly<{ onComplete: (
   const handleStep2Next = async () => {
     if (userType === "student") {
       if (!course.trim()) {
+        trackFormInvalid(2, "course");
         setError("Enter your course or program.");
         return;
       }
       if (!college.trim()) {
+        trackFormInvalid(2, "college");
         setError("Enter your college name.");
         return;
       }
     } else {
       if (!industry.trim()) {
+        trackFormInvalid(2, "industry");
         setError("Please select your industry.");
         return;
       }
       if (!targetJobRole.trim()) {
+        trackFormInvalid(2, "target_role");
         setError("Please select or enter your target role.");
         return;
       }
@@ -293,8 +313,10 @@ export function HackathonOnboardingForm({ onComplete }: Readonly<{ onComplete: (
           targetJobRole: targetJobRole.trim(),
         });
       }
+      trackHackathon(HK_EVENTS.formProgress, { form_step: STEP_NAMES[2], user_type: userType });
       setStep(3);
     } catch (err: unknown) {
+      trackFormFailure(2, err);
       const message =
         (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
         "Could not save your details. Please try again.";
@@ -321,8 +343,14 @@ export function HackathonOnboardingForm({ onComplete }: Readonly<{ onComplete: (
       } else {
         await userApi.completeOnboarding(finishPayload());
       }
+      trackHackathon(HK_EVENTS.formProgress, {
+        form_step: STEP_NAMES[3],
+        user_type: userType,
+        resume_uploaded: Boolean(file),
+      });
       onComplete();
     } catch (err: unknown) {
+      trackFormFailure(3, err);
       const message =
         (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
         "Could not finish signup. Please try again.";

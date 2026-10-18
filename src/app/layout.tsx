@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { ClerkProvider } from "@clerk/nextjs";
 import { AppGoogleAnalytics } from "@/components/AppGoogleAnalytics";
+import { SignUpTracker } from "@/components/analytics/SignUpTracker";
 import { UserProvider } from "@/components/UserProvider";
 import { QueryProvider } from "@/components/QueryProvider";
 import { ClerkAuthTabSync } from "@/components/ClerkAuthTabSync";
@@ -21,7 +22,7 @@ import {
   createWebSiteSchema,
 } from "@/components/StructuredData";
 import { defaultOgImage } from "@/lib/seo/default-og-image";
-import { getSearchRobots, getSiteUrl } from "@/lib/seo/site-url";
+import { getSearchRobots, getSiteUrl, isSearchIndexable } from "@/lib/seo/site-url";
 import { PRODUCT_MARKETING_ROUTES } from "@/lib/seo/marketing-routes";
 import "./globals.css";
 
@@ -128,12 +129,13 @@ export default function RootLayout({
           />
         </head>
         <body className="font-sans antialiased" suppressHydrationWarning>
-          <AppGoogleAnalytics gaId={gaMeasurementId} />
+          <AppGoogleAnalytics gaId={gaMeasurementId} debugMode={!isSearchIndexable()} />
           <AppMicrosoftClarity projectId={clarityProjectId} />
           <TemplateRegistryInitializer />
           <QueryProvider>
             <UserProvider>
               <ClerkAuthTabSync />
+              <SignUpTracker />
               <ExtensionConnectReturn />
               <Suspense fallback={null}>
                 <ReferralCapture />

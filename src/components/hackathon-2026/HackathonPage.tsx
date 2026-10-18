@@ -6,6 +6,7 @@ import { HackathonAgenda } from "@/components/hackathon-2026/HackathonAgenda";
 import { HackathonFaq } from "@/components/hackathon-2026/HackathonFaq";
 import { HackathonFinalCta } from "@/components/hackathon-2026/HackathonFinalCta";
 import { HackathonFooter } from "@/components/hackathon-2026/HackathonFooter";
+import { HackathonLandingAnalytics } from "@/components/hackathon-2026/HackathonLandingAnalytics";
 import { HackathonHeader } from "@/components/hackathon-2026/HackathonHeader";
 import { HackathonHero } from "@/components/hackathon-2026/HackathonHero";
 import { HackathonParticipate } from "@/components/hackathon-2026/HackathonParticipate";
@@ -41,6 +42,7 @@ export function HackathonPage() {
         <HackathonRegisterProvider>
           <div className="hk-root min-h-screen scroll-smooth antialiased">
             <HackathonIntroComplete />
+            <HackathonLandingAnalytics />
             <div className="hk-aurora" aria-hidden>
               <span />
               <span />

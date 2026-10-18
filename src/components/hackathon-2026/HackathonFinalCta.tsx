@@ -76,6 +76,7 @@ export function HackathonFinalCta() {
                   </span>
                 </p>
                 <HackathonRegisterButton
+                  ctaLocation="final_cta"
                   size="lg"
                   className="mt-5 min-h-[3.75rem] w-full rounded-2xl px-8 text-base"
                 />

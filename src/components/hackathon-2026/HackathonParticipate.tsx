@@ -100,7 +100,7 @@ export function HackathonParticipate() {
 
           <Reveal delay={300} className="mt-12 flex items-center justify-center gap-5">
             <Sparks />
-            <HackathonRegisterButton size="lg" className="min-w-[18rem] rounded-2xl text-lg">
+            <HackathonRegisterButton ctaLocation="participate" size="lg" className="min-w-[18rem] rounded-2xl text-lg">
               {HACKATHON_HERO.startChallengeLabel}
             </HackathonRegisterButton>
             <Sparks mirrored />

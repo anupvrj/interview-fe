@@ -44,7 +44,7 @@ export function HackathonWho() {
         </div>
 
         <Reveal delay={300} className="mt-12 flex justify-center">
-          <HackathonRegisterButton size="lg" className={cn("min-w-[18rem] rounded-2xl text-lg")}>
+          <HackathonRegisterButton ctaLocation="who" size="lg" className={cn("min-w-[18rem] rounded-2xl text-lg")}>
             {HACKATHON_HERO.registerLabel}
           </HackathonRegisterButton>
         </Reveal>

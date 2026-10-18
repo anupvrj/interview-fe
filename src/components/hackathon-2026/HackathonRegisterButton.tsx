@@ -3,6 +3,7 @@
 import { ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useHackathonRegister } from "@/components/hackathon-2026/HackathonRegisterContext";
+import type { HackathonCtaLocation } from "@/features/hackathon/analytics";
 
 export function HackathonRegisterButton({
   className,
@@ -10,6 +11,7 @@ export function HackathonRegisterButton({
   idle = false,
   compact = false,
   onClick,
+  ctaLocation,
 }: {
   children?: React.ReactNode;
   className?: string;
@@ -19,6 +21,8 @@ export function HackathonRegisterButton({
   /** Short label on phones, full label from `sm` up (for tight headers). */
   compact?: boolean;
   onClick?: () => void;
+  /** Placement reported to GA4 (`hackathon_register_click.cta_location`). */
+  ctaLocation: HackathonCtaLocation;
 }) {
   const { openRegister, label, shortLabel, disabled } = useHackathonRegister();
 
@@ -29,7 +33,7 @@ export function HackathonRegisterButton({
       onClick={() => {
         if (disabled) return;
         onClick?.();
-        openRegister();
+        openRegister(ctaLocation);
       }}
       className={cn(
         "hk-btn focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#040b17] disabled:pointer-events-none disabled:opacity-55",

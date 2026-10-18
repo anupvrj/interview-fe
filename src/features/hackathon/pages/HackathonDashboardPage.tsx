@@ -17,6 +17,7 @@ import { formatIst, PHASE_COPY } from "../copy";
 import { hackathonKeys, useHackathonMe, useHackathonSlug } from "../hooks";
 import { HackathonFeatureGate } from "../components/HackathonFeatureGate";
 import { ChallengeCard } from "../components/ChallengeCard";
+import { HK_EVENTS, trackHackathonOnce, trackParticipationProgress } from "../analytics";
 import { CompleteSection } from "../components/CompleteSection";
 import { HackathonStartCountdown } from "../components/HackathonStartCountdown";
 import { DashboardHero } from "../components/DashboardHero";
@@ -121,7 +122,7 @@ function DashboardContent() {
   const landingPath = hackathonLandingPath(slug);
   const profilePath = hackathonProfilePath(slug);
   const router = useRouter();
-  const { isLoaded, isSignedIn } = useAuth();
+  const { isLoaded, isSignedIn, userId } = useAuth();
   const queryClient = useQueryClient();
   const handledInterviewReturn = useRef(false);
   const meQuery = useHackathonMe();
@@ -160,6 +161,19 @@ function DashboardContent() {
     el?.scrollIntoView({ behavior: "smooth", block: "start" });
     router.replace(hackathonDashboardPath(slug), { scroll: false });
   }, [me, router, slug]);
+
+  useEffect(() => {
+    if (!me?.registered) return;
+    trackHackathonOnce("dashboard_view", HK_EVENTS.dashboardView, {
+      phase: me.hackathon.phase,
+      challenges_completed: me.progress.challengesCompleted,
+    });
+    trackParticipationProgress({
+      userKey: userId,
+      challenges: (me.progress.challenges ?? []).map((c) => ({ challengeId: c.challengeId, kind: c.kind, state: c.state })),
+      completed: me.progress.completed,
+    });
+  }, [me, userId]);
 
   const needsProfile =
     me?.registered &&

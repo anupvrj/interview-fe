@@ -132,6 +132,7 @@ export function HackathonHero() {
                 </p>
               </div>
               <HackathonRegisterButton
+                ctaLocation="hero"
                 size="lg"
                 idle
                 className="min-h-[3.75rem] w-full rounded-2xl px-8 text-base sm:w-auto sm:min-w-[17.5rem]"

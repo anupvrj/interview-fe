@@ -5,6 +5,7 @@ import { Plus } from "lucide-react";
 import { Reveal } from "@/components/hackathon-2026/HackathonMotion";
 import { HACKATHON_FAQ } from "@/lib/hackathon-2026-content";
 import { cn } from "@/lib/utils";
+import { HK_EVENTS, markHackathonEngaged, trackHackathon } from "@/features/hackathon/analytics";
 
 export function HackathonFaq() {
   const [open, setOpen] = useState<number | null>(0);
@@ -42,7 +43,13 @@ export function HackathonFaq() {
                       type="button"
                       aria-expanded={isOpen}
                       aria-controls={panelId}
-                      onClick={() => setOpen(isOpen ? null : index)}
+                      onClick={() => {
+                        setOpen(isOpen ? null : index);
+                        if (!isOpen) {
+                          markHackathonEngaged("faq_open");
+                          trackHackathon(HK_EVENTS.faqInteraction, { faq_index: index + 1 });
+                        }
+                      }}
                       className="flex w-full items-center justify-between gap-4 px-5 py-[18px] text-left text-[15px] font-bold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/60 rounded-2xl"
                     >
                       {item.question}
