@@ -75,7 +75,7 @@ export function HackathonAgenda() {
             <div className="mx-auto grid max-w-[300px] grid-cols-1 gap-10 sm:max-w-[960px] sm:grid-cols-3 sm:gap-6 lg:gap-4 xl:gap-5">
               {HACKATHON_AGENDA.guests.map((guest, index) => (
                 <Reveal key={guest.name} delay={260 + index * 140} from="up" className="h-full">
-                  <SpeakerCard {...guest} />
+                  <SpeakerCard {...guest} index={index} />
                 </Reveal>
               ))}
             </div>
@@ -91,23 +91,35 @@ function SpeakerCard({
   topic,
   subtitle,
   image,
+  index = 0,
 }: {
   name: string;
   topic: string;
   subtitle?: string;
   image: string | null;
+  index?: number;
 }) {
+  // "Role · Detail, Company" → role line (mono, cyan) + the rest (muted), as on the reel's speaker cards.
+  const [role, ...rest] = topic.split(" · ");
+  const detail = rest.join(" · ");
   return (
-    <article className="group flex h-full flex-col items-center">
-      <div className="relative size-[180px] sm:size-[150px] md:size-[170px] lg:size-[124px] xl:size-[148px]">
-        <span className="hk-speaker-ring absolute -inset-[3px] rounded-full opacity-60 transition-opacity duration-500 group-hover:opacity-100" aria-hidden />
-        <div className="absolute inset-0 overflow-hidden rounded-full bg-[radial-gradient(circle_at_50%_40%,#1d4f9a,#0c2347_70%)] ring-4 ring-[#040b17]">
+    <article className="hk-spk group relative flex h-full flex-col items-center px-4 pb-5 pt-4 text-center">
+      <span className="hk-spk-dots" aria-hidden />
+      <div className="relative z-[1] mb-3 flex w-full items-center justify-between">
+        <span className="font-[family-name:var(--hk-mono)] text-[11px] uppercase tracking-[0.16em] text-[#5f7a99]">
+          SPK·{String(index + 1).padStart(2, "0")}
+        </span>
+        <span className="hk-live-dot" aria-hidden />
+      </div>
+      <div className="relative z-[1] size-[132px] rounded-full bg-[linear-gradient(135deg,#2bd2ff,#1677ff)] p-[3px] sm:size-[118px] md:size-[132px] lg:size-[104px] xl:size-[124px]">
+        <span className="hk-speaker-ring absolute -inset-[3px] rounded-full opacity-0 transition-opacity duration-500 group-hover:opacity-100" aria-hidden />
+        <div className="relative h-full w-full overflow-hidden rounded-full border-[3px] border-[#071226] bg-[radial-gradient(circle_at_50%_40%,#1d4f9a,#0c2347_70%)]">
           {image ? (
             <Image
               src={image}
               alt={name}
               fill
-              sizes="180px"
+              sizes="132px"
               // Small pre-cropped files: serve as-is so a swapped photo never shows a stale optimizer copy.
               unoptimized
               className="origin-top object-cover object-top transition-transform duration-700 group-hover:scale-105"
@@ -119,13 +131,15 @@ function SpeakerCard({
           )}
         </div>
       </div>
-      <div className="relative -mt-6 w-full rounded-2xl border border-[#2f64a8]/80 bg-[linear-gradient(160deg,rgba(24,56,104,0.85),rgba(12,30,60,0.9))] flex-1 px-4 pb-5 pt-5 text-center lg:px-3 lg:pb-4 lg:pt-5 shadow-[0_16px_40px_rgba(0,20,60,0.5)] backdrop-blur transition-[border-color,transform] duration-300 group-hover:-translate-y-1 group-hover:border-[#4f96ec]">
-        <h3 className="text-lg font-bold text-white lg:text-base xl:text-[17px]">{name}</h3>
-        <p className="mt-1.5 text-sm font-medium leading-snug text-[#e8f0fa] lg:text-[13px] xl:text-sm">{topic}</p>
-        {subtitle ? (
-          <p className="mt-1 text-xs leading-5 text-[#9eb2ca] sm:text-[13px]">{subtitle}</p>
-        ) : null}
-      </div>
+      <h3 className="relative z-[1] mt-4 text-lg font-bold tracking-[-0.02em] text-white lg:text-base xl:text-[17px]">
+        {name}
+      </h3>
+      <span className="hk-spk-rule" aria-hidden />
+      <p className="relative z-[1] font-[family-name:var(--hk-mono)] text-[11px] uppercase leading-snug tracking-[0.08em] text-[#42c4ff] xl:text-xs">
+        {role}
+      </p>
+      {detail ? <p className="relative z-[1] mt-1.5 text-[13px] leading-snug text-[#c3d2e4]">{detail}</p> : null}
+      {subtitle ? <p className="relative z-[1] mt-1 text-[13px] leading-5 text-[#9eb2ca]">{subtitle}</p> : null}
     </article>
   );
 }
