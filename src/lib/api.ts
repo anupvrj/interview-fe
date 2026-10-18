@@ -421,7 +421,15 @@ export interface Interview {
     duration?: number;
     startedAt?: string;
     endedAt?: string;
+    /** Seconds the candidate was actually connected; continues across reconnects and reloads. */
+    activeElapsedSec?: number;
   };
+  /** Live interview turns saved by the server; used to restore the transcript after a reload. */
+  realtimeTranscript?: Array<{
+    role: "user" | "assistant";
+    content: string;
+    timestamp: string;
+  }>;
   /** Candidate survey after realtime; `interviewId` references this interview. */
   postInterviewFeedback?: {
     interviewId: string;

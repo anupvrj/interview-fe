@@ -106,6 +106,12 @@ export function useTurnTelemetry(opts: {
       drainedRef.current = true;
       tryOpenAwaiting();
     },
+    /** New AI audio while still waiting: the candidate's onset was missed (or the AI spoke unprompted), so this turn can't be timed. */
+    notifyAgentAudio: () => {
+      if (!awaitingUserRef.current) return;
+      awaitingUserRef.current = false;
+      agentEndedAtRef.current = null;
+    },
     notifyBargeIn: () => {
       bargeInRef.current = true;
       awaitingUserRef.current = false;
