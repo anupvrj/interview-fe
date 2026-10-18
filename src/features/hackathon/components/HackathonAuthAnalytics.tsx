@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, type ReactNode } from "react";
-import { isHackathonSignupPath } from "@/lib/post-sign-in-redirect";
+import { isHackathonSignupPath, peekPostSignInReturnUrl } from "@/lib/post-sign-in-redirect";
 import {
   HK_EVENTS,
   readHackathonFunnel,
@@ -39,13 +39,38 @@ function alertType(text: string): HackathonErrorType {
  * Observes Clerk's <SignUp>/<SignIn> (via its stable `cl-*` classes) for the
  * hackathon funnel. Inactive unless the visitor is headed back to the hackathon.
  */
+/**
+ * Clerk's later steps (e.g. /sign-up/verify-email-address) can drop `redirect_url`
+ * from the address, so also trust the stored return path and the Register-click context.
+ */
+function isHackathonAuthVisit(redirectUrl: string | null): boolean {
+  if (isHackathonSignupPath(redirectUrl)) return true;
+  if (readHackathonFunnel()) return true;
+  // Stored return path only counts on Clerk sub-steps (/sign-up/verify-…), where the
+  // query was dropped — not on a fresh, unrelated sign-up later in this browser.
+  if (window.location.pathname.split("/").filter(Boolean).length < 2) return false;
+  try {
+    return isHackathonSignupPath(peekPostSignInReturnUrl());
+  } catch {
+    return false;
+  }
+}
+
+const OTP_SELECTOR = "input[name='code'], .cl-otpCodeField, [class*='cl-otpCodeField']";
+const FIELD_ERROR_SELECTOR =
+  ".cl-formFieldErrorText, [class*='cl-formFieldErrorText'], [class*='cl-otpCodeFieldErrorText'], [class*='cl-'][class*='ErrorText']";
+const ALERT_SELECTOR = ".cl-alert, [class*='cl-alert__'], [class*='cl-alertText']";
+
+/**
+ * Observes Clerk's <SignUp>/<SignIn> (via its stable `cl-*` classes) for the
+ * hackathon funnel. Inactive unless the visitor is headed back to the hackathon.
+ */
 export function HackathonAuthAnalytics({ pageType, redirectUrl, children }: Props) {
   const rootRef = useRef<HTMLDivElement>(null);
-  const active = isHackathonSignupPath(redirectUrl);
 
   useEffect(() => {
     const root = rootRef.current;
-    if (!active || !root) return;
+    if (!root || !isHackathonAuthVisit(redirectUrl)) return;
     const funnel = readHackathonFunnel();
     const base = { signup_page_type: pageType, cta_location: funnel?.ctaLocation };
     trackHackathonOnce(`auth_view:${pageType}`, HK_EVENTS.signupView, base);
@@ -54,6 +79,17 @@ export function HackathonAuthAnalytics({ pageType, redirectUrl, children }: Prop
     const method = (m: string) => {
       start();
       trackHackathonOnce(`auth_method:${pageType}:${m}`, HK_EVENTS.signupMethod, { ...base, signup_method: m });
+    };
+
+    // A button click also fires the form's submit event — count one attempt, not two.
+    let lastSubmitAt = 0;
+    const submit = () => {
+      const now = Date.now();
+      if (now - lastSubmitAt < 1500) return;
+      lastSubmitAt = now;
+      const step = root.querySelector(OTP_SELECTOR) ? "verify_code" : "details";
+      if (step === "details") method("email");
+      trackHackathon(HK_EVENTS.signupSubmit, { ...base, submit_step: step });
     };
 
     const onClick = (event: Event) => {
@@ -65,13 +101,7 @@ export function HackathonAuthAnalytics({ pageType, redirectUrl, children }: Prop
         method(provider.replace(/_oidc$/, ""));
         return;
       }
-      if (target.closest(".cl-formButtonPrimary")) {
-        const step = root.querySelector("input[name='code'], .cl-otpCodeField, [class*='cl-otpCodeField']")
-          ? "verify_code"
-          : "details";
-        if (step === "details") method("email");
-        trackHackathon(HK_EVENTS.signupSubmit, { ...base, submit_step: step });
-      }
+      if (target.closest(".cl-formButtonPrimary")) submit();
     };
     const onFocus = (event: Event) => {
       const target = event.target as Element | null;
@@ -81,16 +111,31 @@ export function HackathonAuthAnalytics({ pageType, redirectUrl, children }: Prop
         if (name === "emailAddress" || name === "identifier") method("email");
       }
     };
+    // Enter key / native submit.
+    const onSubmit = () => submit();
+    // Clerk auto-submits the email code once every digit is filled — no click, no submit event.
+    const onInput = (event: Event) => {
+      const target = event.target as HTMLInputElement | null;
+      const otp = target?.closest(OTP_SELECTOR) ?? (target?.getAttribute("name") === "code" ? target : null);
+      if (!otp) return;
+      const container = target?.closest("[class*='cl-otpCodeField']") ?? root;
+      const inputs = Array.from(container.querySelectorAll<HTMLInputElement>("input"));
+      const code = inputs.map((i) => i.value).join("");
+      if (code.length >= 6 && inputs.every((i) => i.value || inputs.length === 1)) submit();
+    };
 
     // Clerk renders errors asynchronously — watch for them.
     const seen = new WeakSet<Element>();
     const scan = () => {
-      root.querySelectorAll(".cl-formFieldErrorText, [class*='cl-formFieldErrorText']").forEach((el) => {
+      root.querySelectorAll(FIELD_ERROR_SELECTOR).forEach((el) => {
         if (seen.has(el) || !el.textContent?.trim()) return;
         seen.add(el);
-        trackHackathon(HK_EVENTS.validationError, { ...base, form_step: "account", field: fieldOf(el) });
+        // Nested matches (wrapper + inner text) are one error.
+        if (el.parentElement?.closest(FIELD_ERROR_SELECTOR)) return;
+        const field = el.closest(OTP_SELECTOR) || root.querySelector(OTP_SELECTOR) ? "code" : fieldOf(el);
+        trackHackathon(HK_EVENTS.validationError, { ...base, form_step: "account", field });
       });
-      root.querySelectorAll(".cl-alert, [class*='cl-alert__']").forEach((el) => {
+      root.querySelectorAll(ALERT_SELECTOR).forEach((el) => {
         if (seen.has(el) || !el.textContent?.trim()) return;
         seen.add(el);
         trackHackathon(HK_EVENTS.signupError, { ...base, error_type: alertType(el.textContent) });
@@ -101,12 +146,16 @@ export function HackathonAuthAnalytics({ pageType, redirectUrl, children }: Prop
 
     root.addEventListener("click", onClick, true);
     root.addEventListener("focusin", onFocus);
+    root.addEventListener("submit", onSubmit, true);
+    root.addEventListener("input", onInput, true);
     return () => {
       observer.disconnect();
       root.removeEventListener("click", onClick, true);
       root.removeEventListener("focusin", onFocus);
+      root.removeEventListener("submit", onSubmit, true);
+      root.removeEventListener("input", onInput, true);
     };
-  }, [active, pageType]);
+  }, [redirectUrl, pageType]);
 
   return (
     <div ref={rootRef} className="contents">
