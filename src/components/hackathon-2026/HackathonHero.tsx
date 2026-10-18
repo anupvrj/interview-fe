@@ -8,6 +8,7 @@ import {
   HackathonFloatCard,
 } from "@/components/hackathon-2026/HackathonFloatCard";
 import { HackathonRegisterButton } from "@/components/hackathon-2026/HackathonRegisterButton";
+import { HackathonHeroHud } from "@/components/hackathon-2026/HackathonHud";
 import { HackathonRegisterHint } from "@/components/hackathon-2026/HackathonRegisterContext";
 import {
   Reveal,
@@ -40,6 +41,10 @@ export function HackathonHero() {
 
   return (
     <section className="relative overflow-hidden pt-8 sm:pt-10 lg:pt-6">
+      {/* Reel-style 3D grid floor + horizon glow */}
+      <div className="hk-floor" aria-hidden />
+      <div className="hk-horizon" aria-hidden />
+      <HackathonHeroHud className="relative z-[2] mx-auto mb-6 w-full max-w-[1400px] px-5" />
       {/* Glossy ribbons: bottom-left sweep + large sweep behind the candidate */}
       <Ribbon
         variant="a"
@@ -91,7 +96,7 @@ export function HackathonHero() {
           </Reveal>
 
           <Reveal immediate delay={320}>
-            <ul className="mt-7 flex flex-wrap items-center justify-center gap-x-1.5 gap-y-2.5 text-[11px] font-medium tracking-tight text-white min-[380px]:gap-x-2 min-[380px]:text-xs min-[380px]:tracking-normal sm:gap-x-6 sm:gap-y-3 sm:text-[15px] lg:justify-start lg:gap-x-7">
+            <ul className="hk-meta mt-7 flex flex-wrap items-center justify-center gap-x-1.5 gap-y-2.5 text-[11px] font-medium tracking-tight text-white min-[380px]:gap-x-2 min-[380px]:text-xs min-[380px]:tracking-normal sm:gap-x-6 sm:gap-y-3 sm:text-[15px] lg:justify-start lg:gap-x-7">
               <li className="inline-flex basis-full items-center justify-center gap-2 sm:basis-auto sm:justify-start sm:gap-2.5">
                 <Calendar
                   className="size-4 text-[#2e9bff] sm:size-5"
@@ -123,9 +128,9 @@ export function HackathonHero() {
                       {HACKATHON_HERO.offerWas}
                     </span>
                   </span>
-                  <span className="text-[13px] font-medium text-[#dbe6f3] sm:text-[15px]">
+                  <span className="hk-meta text-[13px] font-medium text-[#dbe6f3] sm:text-[15px]">
                     {HACKATHON_HERO.offerEndsLabel}{" "}
-                    <span className="tabular-nums text-sm font-extrabold text-[#ff9a3c] sm:text-base">
+                    <span className="hk-num text-sm font-bold text-[#ffc44d] sm:text-base">
                       {offerTime}
                     </span>
                   </span>
@@ -138,8 +143,8 @@ export function HackathonHero() {
                 className="min-h-[3.75rem] w-full rounded-2xl px-8 text-base sm:w-auto sm:min-w-[17.5rem]"
               />
             </div>
-            <p className="mt-3 text-center text-sm font-medium text-[#dbe6f3] lg:text-left">
-              <span className="font-semibold text-[#ff9a3c]">
+            <p className="hk-meta mt-3 text-center text-sm font-medium text-[#dbe6f3] lg:text-left">
+              <span className="font-semibold text-[#ffc44d]">
                 {HACKATHON_HERO.seatNoteLead}
               </span>{" "}
               {HACKATHON_HERO.seatNote}
@@ -216,6 +221,7 @@ export function HackathonHero() {
             className="absolute inset-x-[-2%] bottom-0 top-0 z-[2] sm:top-[14%]"
           >
             <div className="relative h-full w-full" style={parallax(6)}>
+              <div className="hk-scan" aria-hidden />
               <Image
                 src="/hackathon-2026/hero-candidate-desk.webp"
                 alt="Candidate celebrating interview success at a desk with InterviewTrix"

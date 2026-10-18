@@ -39,7 +39,7 @@ export function HackathonFinalCta() {
 
             <div className="relative z-10 flex flex-col gap-8 px-5 py-8 sm:px-10 sm:py-11 lg:flex-row lg:items-center lg:justify-between lg:gap-12 lg:px-12 lg:py-14">
               <div className="min-w-0 max-w-xl text-center lg:text-left">
-                <p className="inline-flex items-center gap-2 rounded-full border border-[#2a64a8] bg-[#081c38]/80 px-3.5 py-1.5 text-[11px] font-bold uppercase tracking-[0.16em] text-[#6fcfff] shadow-[0_0_24px_rgba(30,120,255,0.16)]">
+                <p className="inline-flex items-center gap-2 rounded-full border border-[#2a64a8] bg-[#081c38]/80 hk-meta px-3.5 py-1.5 text-[11px] font-bold uppercase tracking-[0.16em] text-[#6fcfff] shadow-[0_0_24px_rgba(30,120,255,0.16)]">
                   <Zap className="size-3.5 fill-[#39b8ff] text-[#39b8ff]" aria-hidden />
                   Free registration
                 </p>
@@ -50,7 +50,7 @@ export function HackathonFinalCta() {
                 <p className="mx-auto mt-4 max-w-md text-sm leading-6 text-[#dbe6f3] sm:text-[15px] sm:leading-7 lg:mx-0">
                   {HACKATHON_FINAL_CTA.copy}
                 </p>
-                <ul className="mt-5 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-[13px] font-medium text-[#e2ebf5] lg:justify-start">
+                <ul className="hk-meta mt-5 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-[13px] font-medium text-[#e2ebf5] lg:justify-start">
                   {HACKATHON_FINAL_CTA.points.map((point, index) => {
                     const { icon: Icon, tone } = POINTS[index];
                     const label = index === 0 ? `Hackathon - ${challenge.publicRangeLabel}` : point;
@@ -65,14 +65,14 @@ export function HackathonFinalCta() {
               </div>
 
               <div className="w-full shrink-0 rounded-[22px] border border-[#5b9cf0]/40 bg-[linear-gradient(165deg,rgba(20,56,112,0.96),rgba(7,22,48,0.94))] p-5 text-center shadow-[0_24px_50px_rgba(0,0,0,0.35),inset_0_1px_0_rgba(190,220,255,0.22)] sm:p-6 lg:w-[22.5rem] lg:text-left">
-                <p className="flex flex-wrap items-center justify-center gap-x-2.5 gap-y-1 lg:flex-nowrap lg:justify-start">
+                <p className="flex flex-wrap items-center justify-center gap-x-2.5 gap-y-1.5 lg:justify-start">
                   <span className="hk-hand text-[1.65rem] leading-none !text-white">{HACKATHON_HERO.offerNow}</span>
                   <span className="text-lg font-semibold text-[#8fa6c0] line-through decoration-[#9eb4cc]">
                     {HACKATHON_HERO.offerWas}
                   </span>
-                  <span className="whitespace-nowrap text-sm font-medium text-[#dbe6f3]">
+                  <span className="hk-meta whitespace-nowrap text-sm font-medium text-[#dbe6f3]">
                     {HACKATHON_HERO.offerEndsLabel}{" "}
-                    <span className="tabular-nums text-base font-extrabold text-[#ff9a3c]">{offerTime}</span>
+                    <span className="hk-num text-base font-bold text-[#ffc44d]">{offerTime}</span>
                   </span>
                 </p>
                 <HackathonRegisterButton
@@ -80,8 +80,8 @@ export function HackathonFinalCta() {
                   size="lg"
                   className="mt-5 min-h-[3.75rem] w-full rounded-2xl px-8 text-base"
                 />
-                <p className="mt-3 text-sm font-medium text-[#dbe6f3]">
-                  <span className="font-semibold text-[#ff9a3c]">{HACKATHON_HERO.seatNoteLead}</span>{" "}
+                <p className="hk-meta mt-3 text-sm font-medium text-[#dbe6f3]">
+                  <span className="font-semibold text-[#ffc44d]">{HACKATHON_HERO.seatNoteLead}</span>{" "}
                   {HACKATHON_HERO.seatNote}
                 </p>
                 <HackathonRegisterHint className="mt-2 text-sm font-medium text-[#ffc44d]" />

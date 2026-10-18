@@ -290,7 +290,7 @@ export const HACKATHON_AGENDA = {
     {
       name: "Akshay Manjunath",
       topic: "Innovation Consultant · AI Researcher",
-      subtitle: "Ex-Walmart, Ford, Design Lab",
+      subtitle: "Walmart, Ex-Ford, Design Lab",
       image: "/guests-pic/akshay-manjunath.webp" as string | null,
     },
   ],

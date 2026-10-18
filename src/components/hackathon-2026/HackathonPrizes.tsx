@@ -85,7 +85,7 @@ export function HackathonPrizes() {
                 </ul>
 
                 <div className="mt-5 flex justify-center">
-                  <p className="inline-flex items-center justify-center rounded-full border border-[#d6a440]/70 bg-[#120e08]/80 px-3.5 py-1.5 text-[13px] font-semibold text-[#ffd45e] shadow-[0_0_18px_rgba(214,164,64,0.18)] sm:text-sm">
+                  <p className="inline-flex items-center justify-center rounded-full border border-[#d6a440]/70 bg-[#120e08]/80 hk-meta px-3.5 py-1.5 text-[13px] font-semibold text-[#ffd45e] shadow-[0_0_18px_rgba(214,164,64,0.18)] sm:text-sm">
                     Approx. total value: ₹{prize.approxValue.toLocaleString("en-IN")}
                   </p>
                 </div>
@@ -184,7 +184,7 @@ function CreditsStrip() {
               </span>
               <p className="min-w-0 text-[13.5px] font-medium leading-snug text-[#c5d3e2]">
                 {value ? (
-                  <span className="block text-xl font-extrabold leading-tight tabular-nums text-white">{value}</span>
+                  <span className="hk-num block text-2xl font-bold leading-tight text-white">{value}</span>
                 ) : null}
                 <span className={cn(!value && "font-semibold text-white")}>{item.label}</span>
               </p>
