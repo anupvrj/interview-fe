@@ -3394,6 +3394,31 @@ export const adminApi = {
     return response.data.data;
   },
 
+  getAiInterviewers: async (): Promise<{
+    catalog: import("@/lib/aiInterviewers").InterviewerCatalog;
+    builtinVoices: import("@/lib/aiInterviewers").InterviewerVoiceLists;
+  }> => {
+    const response = await apiClient.get<{
+      success: boolean;
+      data: import("@/lib/aiInterviewers").InterviewerCatalog;
+      builtinVoices: import("@/lib/aiInterviewers").InterviewerVoiceLists;
+    }>("/admin/settings/ai-interviewers");
+    return {
+      catalog: response.data.data,
+      builtinVoices: response.data.builtinVoices,
+    };
+  },
+
+  updateAiInterviewers: async (
+    catalog: import("@/lib/aiInterviewers").InterviewerCatalog,
+  ): Promise<import("@/lib/aiInterviewers").InterviewerCatalog> => {
+    const response = await apiClient.put<{
+      success: boolean;
+      data: import("@/lib/aiInterviewers").InterviewerCatalog;
+    }>("/admin/settings/ai-interviewers", catalog);
+    return response.data.data;
+  },
+
   listCatalogPlans: async (): Promise<
     import("@/lib/planRecord").AdminPlanRecord[]
   > => {
@@ -5867,6 +5892,16 @@ export const configApi = {
       success: boolean;
       data: import("@/lib/integrity/settings").IntegritySettings;
     }>("/config/integrity");
+    return response.data.data;
+  },
+
+  getAiInterviewers: async (): Promise<
+    import("@/lib/aiInterviewers").PublicInterviewerCatalog
+  > => {
+    const response = await apiClient.get<{
+      success: boolean;
+      data: import("@/lib/aiInterviewers").PublicInterviewerCatalog;
+    }>("/config/ai-interviewers");
     return response.data.data;
   },
 };

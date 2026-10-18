@@ -3,6 +3,7 @@ import {
   LayoutDashboard,
   SlidersHorizontal,
   AudioLines,
+  UserRound,
   LayoutGrid,
   Code2,
   Newspaper,
@@ -120,6 +121,14 @@ export const SUPER_ADMIN_NAV_GROUPS: SuperAdminNavGroup[] = [
         accent: accent.indigo,
         description:
           "Choose which voice AI appears at interview start, and set credits per minute.",
+      },
+      {
+        title: "AI Interviewers",
+        href: `${SUPER_ADMIN_HOME}/interviewers`,
+        icon: UserRound,
+        accent: accent.blue,
+        description:
+          "Choose the interviewer for live sessions, and add characters and voices.",
       },
       {
         title: "Plans & Pricing",

@@ -39,7 +39,7 @@ import {
   ArrowLeft,
   X,
 } from "lucide-react";
-import { interviewApi, codingInterviewApi, Interview } from "@/lib/api";
+import { interviewApi, codingInterviewApi, configApi, Interview } from "@/lib/api";
 import {
   invalidateAfterAiInterviewSessionFromStorage,
   invalidateAfterCodingSessionCompleteFromStorage,
@@ -58,11 +58,10 @@ import {
   shouldEscalateReconnect,
   TIME_UP_GRACE_MS,
 } from "@/lib/interviewReconnect";
-import {
-  AI_INTERVIEWER_PERSONAS,
-  pickRandomPersona,
-} from "@/lib/aiPersonas";
+import { pickRandomPersona } from "@/lib/aiPersonas";
 import type { AIInterviewerPersona } from "@/lib/aiPersonas";
+import { selectInterviewerPersona } from "@/lib/aiInterviewers";
+import { useAiInterviewers } from "@/hooks/useAiInterviewers";
 import { AiPersonaAvatar } from "@/components/interview/AiPersonaAvatar";
 import { InterviewBriefingDialog } from "@/components/interview/InterviewBriefingDialog";
 import { toast } from "sonner";
@@ -744,15 +743,24 @@ export function RealtimeInterviewClient({
     scheduleAutoReconnect();
   };
 
-  /** One random persona per page load; matches WebSocket voice query. */
-  const interviewerPersonaRef = useRef<AIInterviewerPersona | null>(null);
-  if (!interviewerPersonaRef.current) {
-    interviewerPersonaRef.current =
-      codingDiscussionHost && isCodingDiscussion
-        ? AI_INTERVIEWER_PERSONAS[0]!
-        : pickRandomPersona();
-  }
-  const interviewerPersona = interviewerPersonaRef.current;
+  const interviewerCatalog = useAiInterviewers();
+  const interviewerCatalogRef = useRef(interviewerCatalog.catalog);
+  interviewerCatalogRef.current = interviewerCatalog.catalog;
+  const personaLockedRef = useRef(false);
+  const personaAppliedRef = useRef(false);
+  const [interviewerPersona, setInterviewerPersona] =
+    useState<AIInterviewerPersona>(() => pickRandomPersona());
+  const interviewerPersonaRef = useRef(interviewerPersona);
+  interviewerPersonaRef.current = interviewerPersona;
+
+  useEffect(() => {
+    if (personaLockedRef.current || personaAppliedRef.current) return;
+    if (!interviewerCatalog.catalog) return;
+    personaAppliedRef.current = true;
+    const next = selectInterviewerPersona(interviewerCatalog.catalog);
+    interviewerPersonaRef.current = next;
+    setInterviewerPersona(next);
+  }, [interviewerCatalog.catalog]);
 
   const notifyCodingDiscussionExit = useCallback(
     (event: CodingDiscussionHostEvent) => {
@@ -1393,7 +1401,19 @@ export function RealtimeInterviewClient({
       const sessionPhaseQs = isCodingDiscussion
         ? "&sessionPhase=coding_discussion"
         : "";
-      const p = interviewerPersonaRef.current!;
+      if (!personaLockedRef.current && !personaAppliedRef.current) {
+        try {
+          const fresh = await configApi.getAiInterviewers();
+          const next = selectInterviewerPersona(fresh);
+          interviewerPersonaRef.current = next;
+          setInterviewerPersona(next);
+          personaAppliedRef.current = true;
+        } catch {
+          // Keep the fallback character if the catalog is unavailable.
+        }
+      }
+      personaLockedRef.current = true;
+      const p = interviewerPersonaRef.current;
       const voiceQuery = buildVoiceQueryParam(provider, p);
       const personaQuery = `&interviewerName=${encodeURIComponent(p.displayName)}&interviewerTitle=${encodeURIComponent(p.title)}`;
       let sessionTokenQs = "";
