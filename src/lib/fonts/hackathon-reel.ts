@@ -19,3 +19,6 @@ export const hackathonMono = Geist_Mono({
   variable: "--font-hk-mono",
   display: "swap",
 });
+
+/** All three reel font variables, for elements rendered outside the hackathon layout (dialogs portal to <body>). */
+export const hackathonReelFontVars = `${hackathonDisplay.variable} ${hackathonSans.variable} ${hackathonMono.variable}`;

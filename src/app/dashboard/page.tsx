@@ -357,7 +357,7 @@ export default function DashboardPage() {
       )}
 
       {profileCompletion < 100 && onboardingBannerDismissed === false && (
-        <div className="flex items-center gap-2 rounded-md border border-amber-200/70 bg-amber-50/50 px-3 py-2 text-sm text-foreground">
+        <div className="flex items-center gap-2 rounded-md border border-amber-200/70 bg-amber-50/50 px-3 py-2 text-sm text-foreground dark:border-amber-900/50 dark:bg-amber-950/30">
           <p className="min-w-0 flex-1 leading-snug">
             <span className="text-foreground">
               Complete your profile ({profileCompletion}% done) — it unlocks your

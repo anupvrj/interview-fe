@@ -101,8 +101,10 @@ function ReadinessChecklist({ me }: Readonly<{ me: HackathonMe }>) {
           ) : (
             <Circle className="size-4 text-[#7189a6]" aria-hidden />
           )}
-          {item.label}
-          {item.done ? null : <span className="text-[#7189a6]">(still needed)</span>}
+          <span>
+            {item.label}
+            {item.done ? null : <span className="text-[#7189a6]"> (still needed)</span>}
+          </span>
         </li>
       ))}
     </ul>

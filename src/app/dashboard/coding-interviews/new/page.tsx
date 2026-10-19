@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { useActiveRole } from "@/components/roles/ActiveRoleProvider";
@@ -47,7 +47,10 @@ import {
   appSurfaceMuted,
 } from "@/lib/app-theme";
 import { cn } from "@/lib/utils";
-import { mergeInterviewFormDefaults } from "@/lib/interview-form-defaults";
+import {
+  mergeInterviewFormDefaults,
+  type InterviewFormEdits,
+} from "@/lib/interview-form-defaults";
 import { UpgradeUpsellDialog } from "@/components/upsell/UpgradeUpsellDialog";
 import { TrialUpsellDialog } from "@/components/upsell/TrialUpsellDialog";
 import { useUpsellState } from "@/components/upsell/useUpsellState";
@@ -217,6 +220,7 @@ export default function NewCodingInterviewPage() {
       : initial;
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const formEdits = useRef<InterviewFormEdits>({});
   const [upgradeUpsellOpen, setUpgradeUpsellOpen] = useState(false);
   const [trialUpsellOpen, setTrialUpsellOpen] = useState(false);
   const { showTrialUpsell, data: entitlements } = useUpsellState();
@@ -224,7 +228,11 @@ export default function NewCodingInterviewPage() {
   const filledForm = useMemo(
     () =>
       userProfile
-        ? mergeInterviewFormDefaults(formData, userProfile)
+        ? mergeInterviewFormDefaults(
+            formData,
+            userProfile,
+            formEdits.current,
+          )
         : formData,
     [formData, userProfile],
   );
@@ -510,9 +518,10 @@ export default function NewCodingInterviewPage() {
                   id="role"
                   className="w-full"
                   value={filledForm.role}
-                  onChange={(value) =>
-                    setFormData({ ...formData, role: value })
-                  }
+                  onChange={(value) => {
+                    formEdits.current.role = true;
+                    setFormData((prev) => ({ ...prev, role: value }));
+                  }}
                   placeholder="e.g. Software Engineer"
                   inputClassName={cn(
                     controlClass,
@@ -533,12 +542,13 @@ export default function NewCodingInterviewPage() {
                   id="targetCompany"
                   placeholder="e.g. Amazon, Google, TCS"
                   value={filledForm.targetCompany}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
+                  onChange={(e) => {
+                    formEdits.current.targetCompany = true;
+                    setFormData((prev) => ({
+                      ...prev,
                       targetCompany: e.target.value,
-                    })
-                  }
+                    }));
+                  }}
                   className={controlClass}
                 />
               </FormField>
@@ -551,9 +561,10 @@ export default function NewCodingInterviewPage() {
                 <AppSelect
                   id="experience"
                   value={filledForm.experience}
-                  onChange={(value) =>
-                    setFormData({ ...formData, experience: value })
-                  }
+                  onChange={(value) => {
+                    formEdits.current.experience = true;
+                    setFormData((prev) => ({ ...prev, experience: value }));
+                  }}
                   options={EXPERIENCE_OPTIONS}
                   className={controlClass}
                 />

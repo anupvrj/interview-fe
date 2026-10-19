@@ -11,6 +11,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { JourneyIconTile, journey } from "@/components/interview/journey-ui";
+import { cn } from "@/lib/utils";
 
 const BRIEFING_ITEMS = [
   "Allow mic, camera, and screenshare when the browser asks — the interview cannot run without them.",
@@ -43,33 +45,37 @@ export function InterviewBriefingDialog({
     <AlertDialog open={open} onOpenChange={() => {}}>
       <AlertDialogContent
         onEscapeKeyDown={(event) => event.preventDefault()}
-        className="mx-4 max-h-[90vh] w-[calc(100%-2rem)] max-w-2xl overflow-y-auto border-2 border-amber-200 bg-card shadow-xl sm:max-w-2xl"
+        className={cn(journey.dialog, "mx-4 max-h-[90vh] w-[calc(100%-2rem)] max-w-2xl overflow-y-auto sm:max-w-2xl")}
       >
-        <AlertDialogHeader>
+        <AlertDialogHeader className={journey.headerBand}>
           <div className="flex flex-col items-center text-center">
-            <Info className="mx-auto mb-4 h-12 w-12 text-amber-500" />
-            <AlertDialogTitle className="text-xl font-bold text-gray-900">
+            <JourneyIconTile tone="warning" size="lg" className="mb-3">
+                <Info className="h-7 w-7" aria-hidden />
+              </JourneyIconTile>
+            <AlertDialogTitle className={journey.title}>
               Hey {firstName}, before you start..
             </AlertDialogTitle>
-            <AlertDialogDescription className="mt-2 text-base text-gray-600">
+            <AlertDialogDescription className={cn(journey.description, "mt-2")}>
               Read these once, then accept to connect and begin your interview.
             </AlertDialogDescription>
           </div>
         </AlertDialogHeader>
 
-        <ul className="list-disc space-y-1.5 pl-5 text-left text-sm leading-5 text-gray-600">
-          {BRIEFING_ITEMS.map((text) => (
-            <li key={text}>{text}</li>
-          ))}
-        </ul>
+        <div className={journey.body}>
+          <ul className="list-disc space-y-1.5 pl-5 text-left text-sm leading-5 text-muted-foreground">
+            {BRIEFING_ITEMS.map((text) => (
+              <li key={text}>{text}</li>
+            ))}
+          </ul>
+        </div>
 
-        <AlertDialogFooter className="mt-4 gap-3 sm:justify-center">
+        <AlertDialogFooter className={cn(journey.footer, "sm:justify-center")}>
           <Button
             type="button"
             size="lg"
             disabled={connecting}
             onClick={onAccept}
-            className="min-w-[120px] bg-gradient-to-r from-violet-600 to-primary text-white hover:from-violet-700 hover:bg-slate-900"
+            className={cn(journey.primaryButton, "min-w-[120px]")}
           >
             {connecting ? (
               <>

@@ -152,7 +152,7 @@ function PublicContent() {
 
       <section className="grid gap-4 md:grid-cols-3">
         {data.challenges.map((challenge, i) => (
-          <article key={challenge.challengeId ?? challenge.key ?? i} className="rounded-[24px] border border-[#27547d]/80 bg-[#071426]/70 p-5">
+          <article key={challenge.challengeId ?? challenge.key ?? i} className="hk-slot hk-bracket rounded-[24px] border border-[#27547d]/80 bg-[#071426]/70 p-5">
             <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#7189a6]">Challenge {i + 1}</p>
             <h2 className="mt-2 text-lg font-bold text-white">{challenge.title}</h2>
             <p className="mt-2 text-sm leading-relaxed text-[#9eb2ca]">{challenge.description}</p>

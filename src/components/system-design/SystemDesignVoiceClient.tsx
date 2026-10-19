@@ -14,8 +14,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { AiPersonaAvatar } from "@/components/interview/AiPersonaAvatar";
 import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { pickRandomPersona } from "@/lib/aiPersonas";
-import type { AIInterviewerPersona } from "@/lib/aiPersonas";
+import { pickRandomPersona, type AIInterviewerPersona } from "@/lib/aiPersonas";
+import { selectInterviewerPersona } from "@/lib/aiInterviewers";
+import { useAiInterviewers } from "@/hooks/useAiInterviewers";
+import { configApi } from "@/lib/api";
 import { useTurnTelemetry } from "@/hooks/integrity/useTurnTelemetry";
 import { useIntegrityConfig } from "@/hooks/useIntegrityConfig";
 import type { IntegrityEvent } from "@/lib/integrity/types";
@@ -97,9 +99,21 @@ export const SystemDesignVoiceClient = forwardRef<
   }: Props,
   ref,
 ) {
-  const personaRef = useRef<AIInterviewerPersona | null>(null);
-  if (!personaRef.current) personaRef.current = pickRandomPersona();
-  const persona = personaRef.current!;
+  const interviewerCatalog = useAiInterviewers();
+  const personaLockedRef = useRef(false);
+  const personaAppliedRef = useRef(false);
+  const [persona, setPersona] = useState<AIInterviewerPersona>(() => pickRandomPersona());
+  const personaRef = useRef(persona);
+  personaRef.current = persona;
+
+  useEffect(() => {
+    if (personaLockedRef.current || personaAppliedRef.current) return;
+    if (!interviewerCatalog.catalog) return;
+    personaAppliedRef.current = true;
+    const next = selectInterviewerPersona(interviewerCatalog.catalog);
+    personaRef.current = next;
+    setPersona(next);
+  }, [interviewerCatalog.catalog]);
 
   const [connecting, setConnecting] = useState(false);
   const [connected, setConnected] = useState(false);
@@ -736,7 +750,7 @@ export const SystemDesignVoiceClient = forwardRef<
     }
   };
 
-  const connectWebSocket = () => {
+  const connectWebSocket = async () => {
     if (connectionInitiated.current || disabled) return;
     connectionInitiated.current = true;
     setConnecting(true);
@@ -759,10 +773,26 @@ export const SystemDesignVoiceClient = forwardRef<
       process.env.NEXT_PUBLIC_API_URL || "http://localhost:5004/api";
     const baseHost = apiUrl.replace(/\/api$/, "").replace(/^https?:\/\//, "");
     const wsProtocol = globalThis.location.protocol === "https:" ? "wss:" : "ws:";
-    const voice = persona.geminiVoice;
+    if (!personaLockedRef.current && !personaAppliedRef.current) {
+      try {
+        const fresh = await configApi.getAiInterviewers();
+        const next = selectInterviewerPersona(fresh);
+        personaRef.current = next;
+        setPersona(next);
+        personaAppliedRef.current = true;
+      } catch {
+        // Keep the fallback character if the catalog is unavailable.
+      }
+    }
+    personaLockedRef.current = true;
+    const voicePersona = personaRef.current;
+    const voice = voicePersona.geminiVoice;
     const wsUrl =
       `${wsProtocol}//${baseHost}/api/system-design/sessions/${encodeURIComponent(sessionId)}/realtime/gemini?` +
-      `userId=${encodeURIComponent(userId)}&geminiVoice=${encodeURIComponent(voice)}&interviewDurationMinutes=45`;
+      `userId=${encodeURIComponent(userId)}&geminiVoice=${encodeURIComponent(voice)}` +
+      `&interviewerName=${encodeURIComponent(voicePersona.displayName)}` +
+      `&interviewerTitle=${encodeURIComponent(voicePersona.title)}` +
+      `&interviewDurationMinutes=45`;
 
     try {
       const ws = new WebSocket(wsUrl);

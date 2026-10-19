@@ -179,6 +179,9 @@ export default function ProfilePage() {
   const [success, setSuccess] = useState<string>("");
   const [editingProfile, setEditingProfile] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
+  const [savingSkills, setSavingSkills] = useState(false);
+  const [skillsError, setSkillsError] = useState("");
+  const skillsSaveSeq = useRef(0);
   const [editingProfileInfo, setEditingProfileInfo] = useState(false);
   const [savingProfileInfo, setSavingProfileInfo] = useState(false);
   const [fullNameInput, setFullNameInput] = useState("");
@@ -318,6 +321,30 @@ export default function ProfilePage() {
       );
     } finally {
       setSavingProfile(false);
+    }
+  };
+
+  const handleSkillsChange = async (skills: string[]) => {
+    const previousSkills = displaySkills;
+    setProfileData((prev) => ({ ...prev, skills }));
+    setUser((prev) => (prev ? { ...prev, skills } : prev));
+    const seq = ++skillsSaveSeq.current;
+    setSavingSkills(true);
+    setSkillsError("");
+    try {
+      const updated = await userApi.updateProfile({ skills });
+      if (seq !== skillsSaveSeq.current) return;
+      setUser(updated);
+      setProfileData(profileFormFromUser(updated));
+    } catch (saveError: any) {
+      if (seq !== skillsSaveSeq.current) return;
+      setUser((prev) => (prev ? { ...prev, skills: previousSkills } : prev));
+      setProfileData((prev) => ({ ...prev, skills: previousSkills }));
+      setSkillsError(
+        saveError?.response?.data?.message || "Could not save skills. Try again.",
+      );
+    } finally {
+      if (seq === skillsSaveSeq.current) setSavingSkills(false);
     }
   };
 
@@ -1467,22 +1494,21 @@ export default function ProfilePage() {
                     value={displayIndustry || "Not set"}
                   />
 
-                  <div>
+                  <div className="space-y-2">
                     <p className={profileSectionLabelClass}>Skills</p>
-                    {displaySkills.length > 0 ? (
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        {displaySkills.map((skill) => (
-                          <span
-                            key={skill}
-                            className="inline-flex items-center rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-0.5 text-xs font-medium text-emerald-700 dark:text-emerald-400"
-                          >
-                            {skill}
-                          </span>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="mt-2 text-sm text-muted-foreground">Not set</p>
-                    )}
+                    <ProfileSkillsEditor
+                      skills={displaySkills}
+                      industry={displayIndustry}
+                      disabled={savingSkills}
+                      inputClassName={profileInputClass}
+                      onChange={(skills) => void handleSkillsChange(skills)}
+                    />
+                    {savingSkills ? (
+                      <p className="text-xs text-muted-foreground">Saving skills…</p>
+                    ) : null}
+                    {skillsError ? (
+                      <p className="text-xs text-destructive">{skillsError}</p>
+                    ) : null}
                   </div>
 
                   {!user?.userType && (

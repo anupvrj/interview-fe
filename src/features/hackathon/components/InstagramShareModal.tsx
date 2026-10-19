@@ -11,6 +11,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { instagramShareOpenUrl } from "../social-links";
+import { hackathonReelFontVars } from "@/lib/fonts/hackathon-reel";
 
 type InstagramShareModalProps = Readonly<{
   open: boolean;
@@ -34,7 +35,7 @@ export function InstagramShareModal({ open, onOpenChange, shareText }: Instagram
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         overlayClassName="bg-[#020810]/75"
-        className="max-h-[min(90vh,640px)] w-[calc(100%-2rem)] max-w-xl gap-0 overflow-hidden border border-[#27547d]/90 bg-[#071426] p-0 text-[#dbe9f8] shadow-none"
+        className={`hk-root hk-modal ${hackathonReelFontVars} max-h-[min(90vh,640px)] w-[calc(100%-2rem)] max-w-xl gap-0 overflow-hidden border border-[#27547d]/90 bg-[#071426] p-0 text-[#dbe9f8] shadow-none`}
       >
         <DialogHeader className="space-y-2 border-b border-[#27547d]/60 px-5 py-4 text-left">
           <DialogTitle className="flex items-center gap-2 text-lg font-semibold text-white">
@@ -48,8 +49,8 @@ export function InstagramShareModal({ open, onOpenChange, shareText }: Instagram
         </DialogHeader>
 
         <div className="max-h-[min(50vh,320px)] overflow-y-auto px-5 py-4">
-          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[#7189a6]">Your caption</p>
-          <pre className="whitespace-pre-wrap rounded-lg border border-[#27547d]/80 bg-[#040b17] px-3 py-2.5 text-xs leading-relaxed text-[#cfdbe8]">
+          <p className="hk-pill-m mb-2 text-xs font-semibold uppercase tracking-wide text-[#7189a6]">Your caption</p>
+          <pre className="hk-modal-panel whitespace-pre-wrap rounded-lg border border-[#27547d]/80 bg-[#040b17] px-3 py-2.5 text-xs leading-relaxed text-[#cfdbe8]">
             {shareText}
           </pre>
         </div>

@@ -426,6 +426,49 @@ export function buildInterviewReportPdfHtml(
   </div>`
     : "";
 
+  const coverage = report.coverage;
+  const coverageHtml =
+    coverage && coverage.questionsAsked > 0 && !isCodingRoundLayout
+      ? (() => {
+          const chip = (a: NonNullable<typeof coverage>["areas"][number]) => {
+            const tone =
+              a.outcome === "explored"
+                ? "border-color:#bbf7d0;background:#f0fdf4;color:#166534;"
+                : a.outcome === "touched"
+                  ? "border-color:#bae6fd;background:#f0f9ff;color:#075985;"
+                  : a.outcome === "no_example"
+                    ? "border-color:#fde68a;background:#fffbeb;color:#92400e;"
+                    : "border-color:#e2e8f0;background:#f8fafc;color:#64748b;";
+            const label =
+              a.outcome === "explored"
+                ? "explored"
+                : a.outcome === "touched"
+                  ? "touched"
+                  : a.outcome === "no_example"
+                    ? "no example"
+                    : "not answered";
+            return `<span style="display:inline-block;border:1px solid;border-radius:999px;padding:2px 8px;margin:0 6px 6px 0;font-size:8.5pt;${tone}">${escapeHtml(a.label)} · ${label}${a.followUps > 0 && a.outcome === "explored" ? ` · ${a.followUps} deep` : ""}</span>`;
+          };
+          const areas = coverage.areas.filter((a) => a.bucket !== "intro");
+          return `<h2 class="ir-section-title">What the interview covered</h2>
+  <div class="ir-card"><div class="ir-card-b">
+    <p style="margin:0 0 10px;color:#334155;font-size:9.5pt;">${escapeHtml(coverage.summary)}</p>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:10px;font-size:9pt;color:#334155;">
+      <div><strong style="color:#64748b;display:block;font-size:8pt;text-transform:uppercase;">Questions</strong>${coverage.questionsAsked}</div>
+      <div><strong style="color:#64748b;display:block;font-size:8pt;text-transform:uppercase;">Areas reached</strong>${coverage.areasTouched}</div>
+      <div><strong style="color:#64748b;display:block;font-size:8pt;text-transform:uppercase;">Breadth</strong>${coverage.breadthScore}/100</div>
+      <div><strong style="color:#64748b;display:block;font-size:8pt;text-transform:uppercase;">Depth</strong>${coverage.depthScore}/100</div>
+    </div>
+    <div>${areas.map(chip).join("")}</div>
+    ${
+      coverage.noExampleAreas.length > 0
+        ? `<p style="margin:8px 0 0;color:#64748b;font-size:9pt;">No example offered for: ${escapeHtml(coverage.noExampleAreas.join(", "))}. Gaps in evidence, not wrong answers.</p>`
+        : ""
+    }
+  </div></div>`;
+        })()
+      : "";
+
   return `<div class="ir-doc">
   <div class="ir-header">
     <span class="ir-brand">Interview Trix</span>
@@ -447,6 +490,8 @@ export function buildInterviewReportPdfHtml(
   ${isCodingRoundLayout ? qaSectionHtml : ""}
 
   ${overallPerformanceAndCategoryHtml}
+
+  ${coverageHtml}
 
   ${integrityHtml}
 

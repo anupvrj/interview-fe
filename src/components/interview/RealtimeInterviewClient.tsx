@@ -39,7 +39,7 @@ import {
   ArrowLeft,
   X,
 } from "lucide-react";
-import { interviewApi, codingInterviewApi, Interview } from "@/lib/api";
+import { interviewApi, codingInterviewApi, configApi, Interview } from "@/lib/api";
 import {
   invalidateAfterAiInterviewSessionFromStorage,
   invalidateAfterCodingSessionCompleteFromStorage,
@@ -54,16 +54,18 @@ import {
   isRetryableInterviewClose,
   isServerSilent,
   reconnectDelayMs,
+  RECONNECT_MAX_ATTEMPTS,
   savedInterviewProgress,
-  shouldEscalateReconnect,
+  shouldStopReconnect,
   TIME_UP_GRACE_MS,
 } from "@/lib/interviewReconnect";
-import {
-  AI_INTERVIEWER_PERSONAS,
-  pickRandomPersona,
-} from "@/lib/aiPersonas";
+import { pickRandomPersona } from "@/lib/aiPersonas";
 import type { AIInterviewerPersona } from "@/lib/aiPersonas";
+import { selectInterviewerPersona } from "@/lib/aiInterviewers";
+import { useAiInterviewers } from "@/hooks/useAiInterviewers";
 import { AiPersonaAvatar } from "@/components/interview/AiPersonaAvatar";
+import { InterviewerVoiceStatus } from "@/components/interview/InterviewerVoiceStatus";
+import { JourneyIconTile, JourneyLoader, journey } from "@/components/interview/journey-ui";
 import { InterviewBriefingDialog } from "@/components/interview/InterviewBriefingDialog";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -104,12 +106,6 @@ import {
 
 /** Hard fallback minutes added on top of target (used if AI never sends interview_complete). */
 const EXTRA_BUFFER_MINUTES = 5;
-
-/** Reconnect attempt counter in the yellow banner — production candidates see a generic message only. */
-const SHOW_RECONNECT_ATTEMPT_DEBUG =
-  process.env.NODE_ENV === "development" ||
-  process.env.NEXT_PUBLIC_VERCEL_ENV === "preview" ||
-  process.env.NEXT_PUBLIC_APP_ENV === "staging";
 
 /** Fallback when interview has no stored provider (legacy drafts). */
 const ENV_VOICE_PROVIDER = resolveVoiceProvider(
@@ -276,6 +272,8 @@ export function RealtimeInterviewClient({
   const [isPreparing, setIsPreparing] = useState(true);
   const [lastAIMessage, setLastAIMessage] = useState("");
   const [connectionFailed, setConnectionFailed] = useState(false);
+  const [serverTerminated, setServerTerminated] = useState(false);
+  const [reportOnTheWay, setReportOnTheWay] = useState(false);
   const [isReconnecting, setIsReconnecting] = useState(false);
   // Number of consecutive reconnect attempts received — used to escalate from
   // non-blocking banner (1-2 attempts) to blocking dialog (all attempts failed).
@@ -454,7 +452,13 @@ export function RealtimeInterviewClient({
   );
   /** Pending auto-reconnect timer after a benign WS drop during an active interview. */
   const autoReconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** Last start_interview frame, resent until the server answers with session_state. */
+  const startPayloadRef = useRef<Record<string, unknown> | null>(null);
+  const startAckTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const startAckTriesRef = useRef(0);
   const autoReconnectAttemptsRef = useRef(0);
+  const serverTerminatedRef = useRef(false);
+  const terminateLatestRef = useRef<(() => void) | null>(null);
   /** When the current run of failed reconnects (while online) began; 0 when connected. */
   const reconnectWindowStartedAtRef = useRef(0);
   const attemptReconnectLatestRef = useRef<(() => void) | null>(null);
@@ -466,6 +470,8 @@ export function RealtimeInterviewClient({
   const timeUpGraceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const endInterviewLatestRef = useRef<(() => Promise<void>) | null>(null);
   const endingInterviewRef = useRef(false);
+  /** Full-screen loader from "View Report" / end until the report page loads. */
+  const [openingReport, setOpeningReport] = useState(false);
   // Ref mirror of elapsedTime so setTimeout/onclose closures always read the current
   // value, not the stale value captured at the time connectWebSocket() was called.
   const elapsedTimeRef = useRef(0);
@@ -669,18 +675,9 @@ export function RealtimeInterviewClient({
     setIsReconnecting(false);
   };
 
-  const pauseForManualResume = () => {
-    setIsPreparing(false);
-    setIsReconnecting(false);
-    setLastAIMessage(
-      "Connection paused — tap Resume interview to reconnect without losing progress.",
-    );
-    setConnectionFailed(true);
-  };
-
-  /** Retry with backoff; never give up while offline, ask for a manual Resume after a long online outage. */
+  /** Five tries, ten seconds apart. A sixth request ends the interview. */
   const scheduleAutoReconnect = () => {
-    if (!isInterviewActiveRef.current) return;
+    if (!isInterviewActiveRef.current || serverTerminatedRef.current) return;
     if (autoReconnectTimerRef.current) return;
     setIsPreparing(false);
     setIsReconnecting(true);
@@ -690,22 +687,93 @@ export function RealtimeInterviewClient({
       setLastAIMessage("You're offline. We'll reconnect as soon as your internet is back.");
       return;
     }
-    if (reconnectWindowStartedAtRef.current === 0) {
-      reconnectWindowStartedAtRef.current = Date.now();
-    } else if (shouldEscalateReconnect(reconnectWindowStartedAtRef.current, Date.now())) {
-      pauseForManualResume();
+    if (shouldStopReconnect(autoReconnectAttemptsRef.current)) {
+      terminateLatestRef.current?.();
       return;
     }
     const attempt = autoReconnectAttemptsRef.current + 1;
     autoReconnectAttemptsRef.current = attempt;
     setReconnectAttemptCount(attempt);
-    setLastAIMessage("Reconnecting AI session...");
-    const delayMs = reconnectDelayMs(attempt);
+    setLastAIMessage(`Reconnecting AI session… (attempt ${attempt} of ${RECONNECT_MAX_ATTEMPTS})`);
     autoReconnectTimerRef.current = setTimeout(() => {
       autoReconnectTimerRef.current = null;
       attemptReconnectLatestRef.current?.();
-    }, delayMs);
+    }, reconnectDelayMs(attempt));
   };
+
+  const clearStartAck = () => {
+    if (startAckTimerRef.current) {
+      clearTimeout(startAckTimerRef.current);
+      startAckTimerRef.current = null;
+    }
+  };
+
+  /** The server ignores a second start once the interview is running, so a lost first frame can be sent again. */
+  const rememberStartPayload = (payload: Record<string, unknown>) => {
+    startPayloadRef.current = payload;
+    startAckTriesRef.current = 0;
+    clearStartAck();
+    const retry = () => {
+      startAckTimerRef.current = null;
+      const pending = startPayloadRef.current;
+      const ws = websocketRef.current;
+      if (!pending || ws?.readyState !== WebSocket.OPEN) return;
+      if (startAckTriesRef.current >= 3) return;
+      startAckTriesRef.current += 1;
+      console.log("[WS] start_interview not acknowledged — sending again", startAckTriesRef.current);
+      ws.send(JSON.stringify(pending));
+      startAckTimerRef.current = setTimeout(retry, 2000);
+    };
+    startAckTimerRef.current = setTimeout(retry, 2000);
+  };
+
+  const noteSessionStarted = () => {
+    clearStartAck();
+    startPayloadRef.current = null;
+    startAckTriesRef.current = 0;
+  };
+
+  const terminateAfterReconnectFailure = async () => {
+    if (serverTerminatedRef.current) return;
+    serverTerminatedRef.current = true;
+    if (autoReconnectTimerRef.current) {
+      clearTimeout(autoReconnectTimerRef.current);
+      autoReconnectTimerRef.current = null;
+    }
+    clearStartAck();
+    stopClientWsHeartbeat();
+    isInterviewActiveRef.current = false;
+    setIsInterviewActive(false);
+    setIsReconnecting(false);
+    setIsPreparing(false);
+    setIsResuming(false);
+    setServerTerminated(true);
+    setConnectionFailed(true);
+    setError("This interview was terminated due to a server error.");
+    const ws = websocketRef.current;
+    websocketRef.current = null;
+    voiceTransportRef.current = null;
+    connectionInitiatedRef.current = false;
+    try {
+      ws?.close(1000, "server_error");
+    } catch {
+      /* already closed */
+    }
+    try {
+      const { reportStarted } = await interviewApi.terminateForServerError(interviewId);
+      if (!reportStarted) return;
+      setReportOnTheWay(true);
+      router.push(
+        withInterviewReturnTo(
+          `/dashboard/interviews/${interviewId}/processing`,
+          returnToRef.current,
+        ),
+      );
+    } catch (err) {
+      console.error("Failed to end the interview after reconnects:", err);
+    }
+  };
+  terminateLatestRef.current = () => void terminateAfterReconnectFailure();
 
   const attemptReconnect = async () => {
     if (!isInterviewActiveRef.current) return;
@@ -733,26 +801,33 @@ export function RealtimeInterviewClient({
     connectionInitiatedRef.current = false;
     voiceTransportRef.current = null;
     websocketRef.current = null;
-    if (!isInterviewActiveRef.current) return;
+    if (!isInterviewActiveRef.current || serverTerminatedRef.current) return;
     const treatAsBenign = isRetryableInterviewClose(code);
     if (!treatAsBenign) {
-      setIsReconnecting(false);
-      setConnectionFailed(true);
-      setError("Something went wrong at server side.");
+      terminateLatestRef.current?.();
       return;
     }
     scheduleAutoReconnect();
   };
 
-  /** One random persona per page load; matches WebSocket voice query. */
-  const interviewerPersonaRef = useRef<AIInterviewerPersona | null>(null);
-  if (!interviewerPersonaRef.current) {
-    interviewerPersonaRef.current =
-      codingDiscussionHost && isCodingDiscussion
-        ? AI_INTERVIEWER_PERSONAS[0]!
-        : pickRandomPersona();
-  }
-  const interviewerPersona = interviewerPersonaRef.current;
+  const interviewerCatalog = useAiInterviewers();
+  const interviewerCatalogRef = useRef(interviewerCatalog.catalog);
+  interviewerCatalogRef.current = interviewerCatalog.catalog;
+  const personaLockedRef = useRef(false);
+  const personaAppliedRef = useRef(false);
+  const [interviewerPersona, setInterviewerPersona] =
+    useState<AIInterviewerPersona>(() => pickRandomPersona());
+  const interviewerPersonaRef = useRef(interviewerPersona);
+  interviewerPersonaRef.current = interviewerPersona;
+
+  useEffect(() => {
+    if (personaLockedRef.current || personaAppliedRef.current) return;
+    if (!interviewerCatalog.catalog) return;
+    personaAppliedRef.current = true;
+    const next = selectInterviewerPersona(interviewerCatalog.catalog);
+    interviewerPersonaRef.current = next;
+    setInterviewerPersona(next);
+  }, [interviewerCatalog.catalog]);
 
   const notifyCodingDiscussionExit = useCallback(
     (event: CodingDiscussionHostEvent) => {
@@ -1393,7 +1468,19 @@ export function RealtimeInterviewClient({
       const sessionPhaseQs = isCodingDiscussion
         ? "&sessionPhase=coding_discussion"
         : "";
-      const p = interviewerPersonaRef.current!;
+      if (!personaLockedRef.current && !personaAppliedRef.current) {
+        try {
+          const fresh = await configApi.getAiInterviewers();
+          const next = selectInterviewerPersona(fresh);
+          interviewerPersonaRef.current = next;
+          setInterviewerPersona(next);
+          personaAppliedRef.current = true;
+        } catch {
+          // Keep the fallback character if the catalog is unavailable.
+        }
+      }
+      personaLockedRef.current = true;
+      const p = interviewerPersonaRef.current;
       const voiceQuery = buildVoiceQueryParam(provider, p);
       const personaQuery = `&interviewerName=${encodeURIComponent(p.displayName)}&interviewerTitle=${encodeURIComponent(p.title)}`;
       let sessionTokenQs = "";
@@ -1417,6 +1504,7 @@ export function RealtimeInterviewClient({
               elapsedTimeRef.current = data.elapsedSec;
               setElapsedTime(data.elapsedSec);
             }
+            noteSessionStarted();
             markReconnected();
             setConnectionFailed(false);
           } else if (data.type === "ai_stalled") {
@@ -1619,7 +1707,7 @@ export function RealtimeInterviewClient({
       if (isResumingRef.current && isInterviewActiveRef.current) {
         const resumeExtra = geminiResumePayloadRef.current;
         geminiResumePayloadRef.current = null;
-        transport.sendControl({
+        const startPayload = {
           type: "start_interview",
           interviewDurationMinutes: isCodingDiscussion
             ? (ivResolved?.metadata?.discussionDurationMinutes ?? 60)
@@ -1632,7 +1720,9 @@ export function RealtimeInterviewClient({
                 elapsedTimeSec: resumeExtra.elapsedTimeSec,
               }
             : {}),
-        });
+        };
+        transport.sendControl(startPayload);
+        rememberStartPayload(startPayload);
         isResumingRef.current = false;
       }
 
@@ -1872,12 +1962,15 @@ export function RealtimeInterviewClient({
         break;
 
       case "response.cancelled":
-        // Response was cancelled (due to interruption)
+        // Beta-era event; GA reports cancellation as response.done with
+        // response.status "cancelled" (handled below). Kept for safety.
         stopAiPlayback();
         setCurrentAssistantTranscript("");
         break;
 
-      case "response.audio_transcript.delta":
+      // GA Realtime event names (the beta response.audio* names were removed
+      // in May 2026).
+      case "response.output_audio_transcript.delta":
         if (event.delta) {
           setIsPreparing(false);
           if (!timerStartedRef.current && isInterviewActiveRef.current) {
@@ -1887,7 +1980,7 @@ export function RealtimeInterviewClient({
         }
         break;
 
-      case "response.audio_transcript.done":
+      case "response.output_audio_transcript.done":
         if (event.transcript) {
           setTranscript((prev) => [
             ...prev,
@@ -1903,11 +1996,11 @@ export function RealtimeInterviewClient({
         }
         break;
 
-      case "response.audio.done":
+      case "response.output_audio.done":
         // AI finished speaking
         break;
 
-      case "response.audio.delta":
+      case "response.output_audio.delta":
         // Queue AI audio for sequential playback
         if (event.delta) {
           setIsPreparing(false);
@@ -1924,7 +2017,11 @@ export function RealtimeInterviewClient({
         break;
 
       case "response.done":
-        // Response complete
+        // Response complete (status "cancelled" when the candidate interrupted)
+        if (event.response?.status === "cancelled") {
+          stopAiPlayback();
+          setCurrentAssistantTranscript("");
+        }
         break;
 
       default:
@@ -2283,22 +2380,22 @@ export function RealtimeInterviewClient({
         if (alreadyActive) {
           setIsPreparing(false);
         }
-        websocketRef.current.send(
-          JSON.stringify({
-            type: "start_interview",
-            interviewDurationMinutes: isCodingDiscussion
-              ? (interview?.metadata?.discussionDurationMinutes ?? 60)
-              : normalizeInterviewDurationMinutes(
-                  interview?.metadata?.interviewDuration,
-                ),
-            ...(resumeExtra
-              ? {
-                  reconnectResume: resumeExtra.reconnectResume,
-                  elapsedTimeSec: resumeExtra.elapsedTimeSec,
-                }
-              : {}),
-          }),
-        );
+        const startPayload = {
+          type: "start_interview",
+          interviewDurationMinutes: isCodingDiscussion
+            ? (interview?.metadata?.discussionDurationMinutes ?? 60)
+            : normalizeInterviewDurationMinutes(
+                interview?.metadata?.interviewDuration,
+              ),
+          ...(resumeExtra
+            ? {
+                reconnectResume: resumeExtra.reconnectResume,
+                elapsedTimeSec: resumeExtra.elapsedTimeSec,
+              }
+            : {}),
+        };
+        websocketRef.current.send(JSON.stringify(startPayload));
+        rememberStartPayload(startPayload);
       }
 
       // Setup audio capture (must be after setIsInterviewActive)
@@ -2396,6 +2493,7 @@ export function RealtimeInterviewClient({
   const endInterview = async () => {
     if (endingInterviewRef.current) return;
     endingInterviewRef.current = true;
+    setOpeningReport(true);
     if (timeUpGraceTimerRef.current) {
       clearTimeout(timeUpGraceTimerRef.current);
       timeUpGraceTimerRef.current = null;
@@ -2511,6 +2609,7 @@ export function RealtimeInterviewClient({
     } catch (error: any) {
       console.error("Error ending interview:", error);
       endingInterviewRef.current = false;
+      setOpeningReport(false);
       // Use non-blocking toast so the interview isn't interrupted.
       setActiveError(error.message || "Failed to end interview. Please try again.");
     }
@@ -3297,6 +3396,16 @@ export function RealtimeInterviewClient({
     }
   };
 
+  if (loading && !codingDiscussionHost && !codingEmbed) {
+    return (
+      <JourneyLoader
+        title="Getting your interview room ready…"
+        description="Loading your interviewer, questions and voice."
+        className={cn("min-h-screen", className)}
+      />
+    );
+  }
+
   if (loading) {
     return (
       <div
@@ -3321,7 +3430,7 @@ export function RealtimeInterviewClient({
           />
           <p
             className={
-              codingDiscussionHost ? "text-xs text-gray-400" : "text-gray-600"
+              codingDiscussionHost ? "text-xs text-gray-400" : "text-muted-foreground"
             }
           >
             Loading interview...
@@ -3360,12 +3469,18 @@ export function RealtimeInterviewClient({
             </Button>
           </div>
         ) : (
-          <Card className="w-full max-w-md">
-            <CardContent className="p-4 text-center sm:p-5">
-              <AlertCircle className="mx-auto mb-4 h-12 w-12 text-red-500" />
-              <h2 className="mb-2 text-xl font-bold text-gray-900">Error</h2>
-              <p className="mb-4 text-gray-600">{error}</p>
+          <div className={cn(journey.card, "w-full max-w-md")}>
+            <div className={journey.headerBand}>
+              <JourneyIconTile tone="danger" size="lg" className="mb-3">
+                <AlertCircle className="h-7 w-7" aria-hidden />
+              </JourneyIconTile>
+              <p className={journey.eyebrow}>Interview</p>
+              <h2 className={cn(journey.title, "mt-2")}>Something went wrong</h2>
+              <p className={journey.description}>{error}</p>
+            </div>
+            <div className={cn(journey.footer, "sm:justify-center")}>
               <Button
+                className={journey.primaryButton}
                 onClick={() => {
                   const home =
                     resolveHackathonInterviewHome(
@@ -3380,8 +3495,8 @@ export function RealtimeInterviewClient({
                   ? "Back to Hackathon"
                   : "Go to Dashboard"}
               </Button>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         )}
       </div>
     );
@@ -3401,6 +3516,14 @@ export function RealtimeInterviewClient({
         className,
       )}
     >
+      {openingReport && (
+        <JourneyLoader
+          variant="overlay"
+          title="Wrapping up your interview…"
+          description="Taking you to your report. This takes a few seconds."
+        />
+      )}
+
       <InterviewBriefingDialog
         open={showBriefing}
         connecting={acceptingBriefing}
@@ -3411,25 +3534,27 @@ export function RealtimeInterviewClient({
         open={showInterviewComplete}
         onOpenChange={setShowInterviewComplete}
       >
-        <AlertDialogContent className="sm:max-w-md border-2 border-green-200 bg-card shadow-xl">
-          <AlertDialogHeader>
+        <AlertDialogContent className={cn(journey.dialog, "sm:max-w-md")}>
+          <AlertDialogHeader className={journey.headerBand}>
             <div className="flex flex-col items-center text-center">
-              <CheckCircle2 className="mx-auto mb-4 h-12 w-12 text-green-500" />
-              <AlertDialogTitle className="text-xl font-bold text-gray-900">
+              <JourneyIconTile tone="success" size="lg" className="mb-3">
+                <CheckCircle2 className="h-7 w-7" aria-hidden />
+              </JourneyIconTile>
+              <AlertDialogTitle className={journey.title}>
                 Your interview is complete!
               </AlertDialogTitle>
-              <AlertDialogDescription className="mt-2 text-base text-gray-600">
+              <AlertDialogDescription className={cn(journey.description, "mt-2")}>
                 Great job! Your report and analysis are being generated — this
                 usually takes about a minute.
                 {interviewCompleteCountdown > 0 && (
-                  <span className="mt-2 block text-sm text-gray-500">
+                  <span className="mt-2 block text-sm text-muted-foreground">
                     Redirecting in {interviewCompleteCountdown}s...
                   </span>
                 )}
               </AlertDialogDescription>
             </div>
           </AlertDialogHeader>
-          <AlertDialogFooter className="mt-4 sm:justify-center">
+          <AlertDialogFooter className={cn(journey.footer, "sm:justify-center")}>
             <Button
               size="lg"
               onClick={() => {
@@ -3445,7 +3570,7 @@ export function RealtimeInterviewClient({
                 showInterviewCompleteRef.current = false;
                 endInterview();
               }}
-              className="min-w-[120px] bg-gradient-to-r from-violet-600 to-primary hover:from-violet-700 hover:bg-slate-900 text-white"
+              className="min-w-[120px] bg-[#7367F0] text-white shadow-sm hover:bg-[#6e62e5]"
             >
               View Report
             </Button>
@@ -3513,20 +3638,22 @@ export function RealtimeInterviewClient({
           }
         }}
       >
-        <AlertDialogContent className="sm:max-w-md border-2 border-amber-200 bg-card shadow-xl">
-          <AlertDialogHeader>
+        <AlertDialogContent className={cn(journey.dialog, "sm:max-w-md")}>
+          <AlertDialogHeader className={journey.headerBand}>
             <div className="flex flex-col items-center text-center">
-              <AlertCircle className="mx-auto h-12 w-12 text-amber-500 mb-4" />
-              <AlertDialogTitle className="text-xl font-bold text-gray-900">
+              <JourneyIconTile tone="warning" size="lg" className="mb-3">
+                <AlertCircle className="h-7 w-7" aria-hidden />
+              </JourneyIconTile>
+              <AlertDialogTitle className={journey.title}>
                 End the interview?
               </AlertDialogTitle>
-              <AlertDialogDescription className="mt-2 text-base text-gray-600">
+              <AlertDialogDescription className={cn(journey.description, "mt-2")}>
                 It sounds like you&apos;d like to finish. Would you like to end
                 the interview now and generate your report?
               </AlertDialogDescription>
             </div>
           </AlertDialogHeader>
-          <AlertDialogFooter className="mt-4 flex gap-3 sm:justify-center">
+          <AlertDialogFooter className={cn(journey.footer, "sm:justify-center")}>
             <Button
               variant="outline"
               size="lg"
@@ -3559,21 +3686,23 @@ export function RealtimeInterviewClient({
         open={showEndInterviewConfirm}
         onOpenChange={setShowEndInterviewConfirm}
       >
-        <AlertDialogContent className="sm:max-w-md border-2 border-amber-200 bg-card shadow-xl">
-          <AlertDialogHeader>
+        <AlertDialogContent className={cn(journey.dialog, "sm:max-w-md")}>
+          <AlertDialogHeader className={journey.headerBand}>
             <div className="flex flex-col items-center text-center">
-              <AlertCircle className="mx-auto h-12 w-12 text-amber-500 mb-4" />
-              <AlertDialogTitle className="text-xl font-bold text-gray-900">
+              <JourneyIconTile tone="warning" size="lg" className="mb-3">
+                <AlertCircle className="h-7 w-7" aria-hidden />
+              </JourneyIconTile>
+              <AlertDialogTitle className={journey.title}>
                 You are about to close the interview. Are you sure?
               </AlertDialogTitle>
-              <AlertDialogDescription className="text-base mt-2 text-gray-600">
+              <AlertDialogDescription className={cn(journey.description, "mt-2")}>
                 Your interview will be ended and credit will be deducted based on
                 your usage. You might see incomplete report of your interview or
                 report generation might fail.
               </AlertDialogDescription>
             </div>
           </AlertDialogHeader>
-          <AlertDialogFooter className="sm:justify-center gap-3 mt-4">
+          <AlertDialogFooter className={cn(journey.footer, "sm:justify-center")}>
             <Button
               variant="outline"
               size="lg"
@@ -3597,52 +3726,82 @@ export function RealtimeInterviewClient({
         </AlertDialogContent>
       </AlertDialog>
       <AlertDialog open={connectionFailed} onOpenChange={() => {}}>
-        <AlertDialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto mx-4 w-[calc(100%-2rem)] border-2 border-red-200 bg-card shadow-xl">
-          <AlertDialogHeader>
+        <AlertDialogContent className={cn(journey.dialog, "sm:max-w-xl max-h-[90vh] overflow-y-auto mx-4 w-[calc(100%-2rem)]")}>
+          <AlertDialogHeader className={journey.headerBand}>
             <div className="flex flex-col items-center text-center">
-              <AlertCircle className="mx-auto h-12 w-12 shrink-0 text-red-500 mb-4" />
-              <AlertDialogTitle className="text-xl font-bold text-gray-900">
-                {isReconnecting ? "Reconnecting..." : "Connection Lost"}
+              <JourneyIconTile tone="danger" size="lg" className="mb-3">
+                <AlertCircle className="h-7 w-7" aria-hidden />
+              </JourneyIconTile>
+              <AlertDialogTitle className={journey.title}>
+                {serverTerminated
+                  ? "Interview ended"
+                  : isReconnecting
+                    ? "Reconnecting..."
+                    : "Connection Lost"}
               </AlertDialogTitle>
-              <AlertDialogDescription className="text-base mt-2 text-gray-600 break-words">
-                {isReconnecting
-                  ? "Something went wrong at server side. Attempting to reconnect..."
-                  : "Something went wrong at server side. You can try to resume or close this interview without losing credits."}
+              <AlertDialogDescription className={cn(journey.description, "break-words")}>
+                {serverTerminated
+                  ? reportOnTheWay
+                    ? "This interview was terminated due to a server error. Your saved answers are being scored."
+                    : "This interview was terminated due to a server error."
+                  : isReconnecting
+                    ? "Something went wrong at server side. Attempting to reconnect..."
+                    : "Something went wrong at server side. You can try to resume or close this interview without losing credits."}
               </AlertDialogDescription>
             </div>
           </AlertDialogHeader>
-          <AlertDialogFooter className="flex flex-col-reverse sm:flex-row sm:justify-center gap-3 mt-4">
-            <Button
-              variant="outline"
-              size="lg"
-              onClick={closeFailedInterview}
-              disabled={isClosingFailed || isReconnecting}
-              className="w-full sm:w-auto sm:whitespace-nowrap text-center h-auto py-2 px-4"
-            >
-              {isClosingFailed ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 shrink-0 animate-spin" />
-                  Closing...
-                </>
+          <AlertDialogFooter className={cn(journey.footer, "sm:justify-center")}>
+            {serverTerminated ? (
+              reportOnTheWay ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
+                  Opening your report…
+                </div>
               ) : (
-                "Close Interview (No credits deducted)"
-              )}
-            </Button>
-            <Button
-              size="lg"
-              onClick={resumeInterview}
-              disabled={isResuming || isReconnecting}
-              className="w-full sm:w-auto sm:whitespace-nowrap text-center h-auto py-2 px-4 bg-gradient-to-r from-violet-600 to-primary hover:from-violet-700 hover:bg-slate-900 text-white"
-            >
-              {isResuming || isReconnecting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 shrink-0 animate-spin" />
-                  Reconnecting...
-                </>
-              ) : (
-                "Resume Interview"
-              )}
-            </Button>
+                <Button
+                  size="lg"
+                  onClick={() => router.push(returnToRef.current ?? "/dashboard/interviews")}
+                  className="w-full sm:w-auto"
+                >
+                  Back to interviews
+                </Button>
+              )
+            ) : null}
+            {!serverTerminated ? (
+              <>
+                <Button
+                  variant="outline"
+                  size="lg"
+                  onClick={closeFailedInterview}
+                  disabled={isClosingFailed || isReconnecting}
+                  className="w-full sm:w-auto sm:whitespace-nowrap text-center h-auto py-2 px-4"
+                >
+                  {isClosingFailed ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 shrink-0 animate-spin" />
+                      Closing...
+                    </>
+                  ) : (
+                    "Close Interview (No credits deducted)"
+                  )}
+                </Button>
+                <Button
+                  size="lg"
+                  onClick={resumeInterview}
+                  disabled={isResuming || isReconnecting}
+                  className="w-full sm:w-auto sm:whitespace-nowrap text-center h-auto py-2 px-4 bg-[#7367F0] text-white shadow-sm hover:bg-[#6e62e5]"
+                >
+                  {isResuming || isReconnecting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 shrink-0 animate-spin" />
+                      Reconnecting...
+                    </>
+                  ) : (
+                    "Resume Interview"
+                  )}
+                </Button>
+              </>
+            ) : null}
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -3658,8 +3817,8 @@ export function RealtimeInterviewClient({
         <div className="fixed top-0 left-0 right-0 z-50 flex items-center justify-center gap-2 bg-yellow-500/95 px-4 py-2 text-sm font-medium text-yellow-950 shadow-md">
           {isOffline
             ? "You're offline. The interview clock is paused and will resume when your internet is back."
-            : SHOW_RECONNECT_ATTEMPT_DEBUG && reconnectAttemptCount > 0
-              ? `Reconnecting AI session… (attempt ${reconnectAttemptCount})`
+            : reconnectAttemptCount > 0
+              ? `Reconnecting AI session… (attempt ${reconnectAttemptCount} of ${RECONNECT_MAX_ATTEMPTS})`
               : "Reconnecting AI session…"}
         </div>
       )}
@@ -3835,29 +3994,28 @@ export function RealtimeInterviewClient({
                     >
                       {interviewerPersona.title}
                     </p>
-                    <p
+                    <InterviewerVoiceStatus
+                      compact={codingEmbed}
                       className={cn(
-                        "mt-1 text-gray-300/80",
+                        "mt-1",
                         codingEmbed && isCodingDiscussion
                           ? "text-xs sm:text-sm"
                           : codingEmbed
                             ? "text-[11px] sm:text-xs"
                             : "text-sm",
-                        connected &&
-                          codingDiscussionHost &&
-                          !isAIProcessing &&
-                          !(isAISpeaking || currentAssistantTranscript) &&
-                          "text-teal-300/90",
                       )}
-                    >
-                      {connected
-                        ? isAIProcessing
-                          ? "Understanding your answer..."
-                          : isAISpeaking || currentAssistantTranscript
-                            ? "Speaking..."
-                            : "Ready"
-                        : "Connecting..."}
-                    </p>
+                      mode={
+                        !connected
+                          ? "connecting"
+                          : isAIProcessing
+                            ? "thinking"
+                            : isAISpeaking || currentAssistantTranscript
+                              ? "speaking"
+                              : isInterviewActive && !isPreparing
+                                ? "listening"
+                                : "ready"
+                      }
+                    />
                   </div>
                 </div>
 
@@ -4004,7 +4162,7 @@ export function RealtimeInterviewClient({
                         onClick={() => setShowRecordingOptIn(true)}
                         disabled={!connected}
                         size={codingEmbed ? "sm" : "default"}
-                        className="h-11 w-full rounded-xl bg-gradient-to-r from-violet-600 to-primary px-4 hover:from-violet-700 hover:bg-slate-900 sm:w-auto sm:px-6"
+                        className="h-11 w-full rounded-xl bg-[#7367F0] px-4 text-white shadow-sm hover:bg-[#6e62e5] sm:w-auto sm:px-6"
                       >
                         {isCodingDiscussion
                           ? "Start discussion"
@@ -4043,7 +4201,7 @@ export function RealtimeInterviewClient({
                     />
                     {(!isCameraOn || !videoStreamActive) && (
                       <div className="absolute inset-0 flex items-center justify-center bg-gray-900/95">
-                        <VideoOff className="h-12 w-12 text-gray-600 sm:h-16 sm:w-16" />
+                        <VideoOff className="h-12 w-12 text-muted-foreground sm:h-16 sm:w-16" />
                         {!videoStreamActive && (
                           <p className="absolute bottom-4 text-sm text-gray-400">
                             Waiting for camera...

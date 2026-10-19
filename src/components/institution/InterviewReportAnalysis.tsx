@@ -17,8 +17,9 @@ import {
   TrendingUp,
   Code2,
   Sparkles,
+  Compass,
 } from "lucide-react";
-import type { InterviewReport } from "@/lib/api";
+import type { InterviewCoverageArea, InterviewReport } from "@/lib/api";
 import { buildOverallExperienceParagraph } from "@/lib/interview-report-overall-experience";
 import { sessionAverageScore } from "@/lib/interview-report-session-scores";
 import { cn, getScoreColor, getScoreGradient } from "@/lib/utils";
@@ -447,6 +448,90 @@ export function InterviewReportQuestionByQuestion({
 }
 
 /** Full report: scores, strengths, behavioral, question-by-question (same data as candidate report). */
+
+const coverageOutcomeLabel: Record<InterviewCoverageArea["outcome"], string> = {
+  explored: "Explored",
+  touched: "Touched",
+  no_example: "No example",
+  not_answered: "Not answered",
+};
+
+const coverageOutcomeClass: Record<InterviewCoverageArea["outcome"], string> = {
+  explored: "border-emerald-200/70 bg-emerald-50 text-emerald-800",
+  touched: "border-sky-200/70 bg-sky-50 text-sky-800",
+  no_example: "border-amber-200/70 bg-amber-50 text-amber-800",
+  not_answered: "border-border/60 bg-muted text-muted-foreground",
+};
+
+/** What the interview reached: areas, depth, gaps — the breadth a hiring reader needs. */
+export function InterviewReportCoverage({ report }: { report: InterviewReport }) {
+  const coverage = report.coverage;
+  if (!coverage || coverage.questionsAsked === 0) return null;
+  const areas = coverage.areas.filter((a) => a.bucket !== "intro");
+  const technical = areas.filter((a) => a.bucket === "technical");
+  const behavioral = areas.filter((a) => a.bucket === "behavioral");
+
+  const stat = (label: string, value: string) => (
+    <div className="rounded-lg border border-border/60 bg-muted/30 px-3 py-2">
+      <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{label}</div>
+      <div className="text-lg font-semibold text-foreground">{value}</div>
+    </div>
+  );
+
+  const areaList = (title: string, items: InterviewCoverageArea[]) =>
+    items.length === 0 ? null : (
+      <div>
+        <div className="mb-2 text-sm font-medium text-muted-foreground">{title}</div>
+        <ul className="flex flex-wrap gap-2">
+          {items.map((area) => (
+            <li
+              key={`${title}-${area.label}`}
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs",
+                coverageOutcomeClass[area.outcome],
+              )}
+              title={`${area.questions} question${area.questions === 1 ? "" : "s"}${area.followUps ? `, ${area.followUps} follow-up${area.followUps === 1 ? "" : "s"}` : ""}${area.repeated ? ", revisited" : ""}`}
+            >
+              <span className="font-medium">{area.label}</span>
+              <span className="opacity-80">· {coverageOutcomeLabel[area.outcome]}</span>
+              {area.followUps > 0 && area.outcome === "explored" ? (
+                <span className="opacity-70">· {area.followUps} deep</span>
+              ) : null}
+            </li>
+          ))}
+        </ul>
+      </div>
+    );
+
+  return (
+    <Card className={reportCardClass}>
+      <CardHeader className={reportCardHeaderClass}>
+        <CardTitle className="flex items-center gap-2 text-lg font-semibold">
+          <Compass className="h-5 w-5 text-[#7367F0]" />
+          What the interview covered
+        </CardTitle>
+        <CardDescription>{coverage.summary}</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-5 px-5 pb-5">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {stat("Questions", String(coverage.questionsAsked))}
+          {stat("Areas reached", `${coverage.areasTouched}`)}
+          {stat("Breadth", `${coverage.breadthScore}/100`)}
+          {stat("Depth", `${coverage.depthScore}/100`)}
+        </div>
+        {areaList("Technical and resume areas", technical)}
+        {areaList("Behavioral and collaboration", behavioral)}
+        {coverage.noExampleAreas.length > 0 ? (
+          <p className="text-sm text-muted-foreground">
+            The candidate said they had no example for: {coverage.noExampleAreas.join(", ")}. These are
+            gaps in evidence, not wrong answers.
+          </p>
+        ) : null}
+      </CardContent>
+    </Card>
+  );
+}
+
 export function InterviewReportAnalysis({ report }: { report: InterviewReport }) {
   const isCodingRoundLayout = !!(
     report.codingSummary && report.codingSummary.problems.length > 0
@@ -542,6 +627,8 @@ export function InterviewReportAnalysis({ report }: { report: InterviewReport })
           ))}
         </div>
       )}
+
+      {!isCodingRoundLayout && <InterviewReportCoverage report={report} />}
 
       <div className="grid gap-4 md:grid-cols-2 lg:gap-6">
         <Card className={cn(reportCardClass, "border-emerald-200/40")}>

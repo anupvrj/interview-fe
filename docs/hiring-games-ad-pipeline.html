@@ -1,0 +1,323 @@
+<title>Hiring Games Ad Pipeline</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: single reading column (max 960px) of numbered operating sections; tables scroll inside their own box. */
+:root{
+  --bg:#f5f7fb; --surface:#ffffff; --ink:#0d1526; --muted:#56627a; --line:#dde3ee;
+  --accent:#1f6bff; --accent-ink:#ffffff; --accent-soft:#e6eeff;
+  --crit:#c4302b; --crit-soft:#fdecea; --warn:#a86400; --warn-soft:#fff3dc; --ok:#13804d; --ok-soft:#e3f6ec;
+  --display:"Bricolage Grotesque",ui-sans-serif,system-ui,sans-serif;
+  --body:"IBM Plex Sans",ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0a1020; --surface:#111a2e; --ink:#e8edf7; --muted:#9aa6bf; --line:#22304d;
+  --accent:#5b93ff; --accent-ink:#06101f; --accent-soft:#16264a;
+  --crit:#ff7a70; --crit-soft:#3a1717; --warn:#f2b44b; --warn-soft:#33260c; --ok:#4fd393; --ok-soft:#0f2e20; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0a1020; --surface:#111a2e; --ink:#e8edf7; --muted:#9aa6bf; --line:#22304d;
+  --accent:#5b93ff; --accent-ink:#06101f; --accent-soft:#16264a;
+  --crit:#ff7a70; --crit-soft:#3a1717; --warn:#f2b44b; --warn-soft:#33260c; --ok:#4fd393; --ok-soft:#0f2e20; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.6;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:40px 80px}
+.wrap{max-width:960px;margin:0 auto;display:grid;gap:56px}
+h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0;line-height:1.15}
+h1{font-size:clamp(2rem,5vw,3.1rem);font-weight:800;letter-spacing:-.02em}
+h2{font-size:1.6rem;font-weight:800;letter-spacing:-.01em}
+h3{font-size:1.05rem;font-weight:600}
+p{margin:0;max-width:68ch}
+.eyebrow{font-family:var(--mono);font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.sec{display:grid;gap:18px}
+.sec-head{display:flex;gap:14px;align-items:baseline;flex-wrap:wrap}
+.num{font-family:var(--mono);color:var(--accent);font-weight:500}
+.lede{color:var(--muted);font-size:1.05rem}
+header{display:grid;gap:16px}
+.window{display:flex;flex-wrap:wrap;gap:10px}
+.chip{font-family:var(--mono);font-size:.78rem;padding:4px 10px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--ink);white-space:nowrap}
+.chip.now{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.funnel{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:.85rem}
+.funnel span{padding:6px 10px;background:var(--accent-soft);border-radius:6px}
+.funnel i{font-style:normal;color:var(--muted)}
+/* blockers */
+.issues{display:grid;gap:10px}
+.issue{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;padding:14px 16px;background:var(--surface);border:1px solid var(--line);border-radius:8px}
+.issue .sev{grid-row:span 2;font-family:var(--mono);font-size:.7rem;font-weight:500;text-transform:uppercase;letter-spacing:.06em;padding:3px 8px;border-radius:4px;align-self:start}
+.sev.crit{background:var(--crit-soft);color:var(--crit)} .sev.warn{background:var(--warn-soft);color:var(--warn)} .sev.ok{background:var(--ok-soft);color:var(--ok)}
+.issue p{color:var(--muted);font-size:.93rem}
+/* tables */
+.tbl{overflow-x:auto;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;min-width:720px;font-size:.9rem}
+th,td{text-align:left;vertical-align:top;padding:10px 14px;border-bottom:1px solid var(--line)}
+th{font-family:var(--mono);font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:500;background:var(--bg)}
+tr:last-child td{border-bottom:0}
+td b{font-weight:600}
+td.date{font-family:var(--mono);white-space:nowrap;font-size:.82rem}
+.today td{background:var(--accent-soft)}
+/* calc */
+.calc{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;padding:18px;background:var(--surface);border:1px solid var(--line);border-radius:8px}
+.calc label{display:grid;gap:4px;font-size:.82rem;color:var(--muted)}
+.calc input{font:500 1rem var(--mono);padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);width:100%}
+.calc input:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.out{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.out div{background:var(--surface);padding:14px 16px;display:grid;gap:2px}
+.out b{font:600 1.35rem var(--display);font-variant-numeric:tabular-nums}
+.out small{color:var(--muted);font-size:.78rem}
+.note{font-size:.82rem;color:var(--muted)}
+/* creatives */
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:12px}
+.card{padding:16px;background:var(--surface);border:1px solid var(--line);border-radius:8px;display:grid;gap:8px;align-content:start;min-width:0}
+.card .fmt{font-family:var(--mono);font-size:.72rem;color:var(--accent)}
+.card p{font-size:.9rem;color:var(--muted)}
+.card .hook{color:var(--ink);font-weight:500}
+/* copy blocks */
+.copy{display:grid;gap:10px}
+.cb{position:relative;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:14px 16px;padding-right:84px;min-width:0}
+.cb .lbl{display:block;margin-bottom:6px}
+.cb pre{margin:0;white-space:pre-wrap;word-break:break-word;font:400 .9rem/1.55 var(--body)}
+.cb pre.code{font-family:var(--mono);font-size:.8rem}
+.cp{position:absolute;top:12px;right:12px;font:500 .78rem var(--body);padding:5px 10px;border-radius:6px;border:1px solid var(--accent);background:transparent;color:var(--accent);cursor:pointer}
+.cp:hover{background:var(--accent);color:var(--accent-ink)}
+/* lists */
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:24px}
+ul.plain{margin:0;padding-left:18px;display:grid;gap:6px}
+ul.plain li{max-width:64ch}
+.checks{display:grid;gap:6px;list-style:none;margin:0;padding:0}
+.checks label{display:flex;gap:10px;align-items:flex-start;padding:8px 10px;border-radius:6px;cursor:pointer}
+.checks label:hover{background:var(--surface)}
+.checks input{margin-top:5px;accent-color:var(--accent)}
+.checks input:checked+span{color:var(--muted);text-decoration:line-through}
+.checks code,p code,td code,li code{font-family:var(--mono);font-size:.82em;background:var(--accent-soft);padding:1px 5px;border-radius:4px}
+.rules{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
+.rule{padding:14px 16px;border-radius:8px;border:1px solid var(--line);background:var(--surface);display:grid;gap:6px}
+.rule h3{display:flex;gap:8px;align-items:center}
+footer{font-size:.82rem;color:var(--muted);border-top:1px solid var(--line);padding-top:18px}
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+</style>
+
+<div class="wrap">
+
+<header>
+  <span class="eyebrow">InterviewTrix · @interviewtrix_official · Meta paid + organic plan</span>
+  <h1>The Hiring Games: ad pipeline for Instagram + Facebook</h1>
+  <p class="lede">One plan for getting registrations from now until 27 Oct, getting registrants to show up for the 31 Oct launch, and turning that audience into followers and paying users afterwards.</p>
+  <div class="window">
+    <span class="chip now">Today · Mon 19 Oct</span>
+    <span class="chip">Registrations + rounds · 20–27 Oct</span>
+    <span class="chip">Review · 27–30 Oct</span>
+    <span class="chip">Live launch + winners · Sat 31 Oct, 7 PM IST</span>
+  </div>
+  <div class="funnel" aria-label="Funnel">
+    <span>Reel / Story / Feed ad</span><i>→</i><span>Landing page</span><i>→</i><span>Register</span><i>→</i><span>Resume ATS ≥ 75</span><i>→</i><span>2 AI interviews</span><i>→</i><span>Share + tag us</span><i>→</i><span>31 Oct live event</span><i>→</i><span>Paid user</span>
+  </div>
+</header>
+
+<section class="sec" id="blockers">
+  <div class="sec-head"><span class="num">01</span><h2>Fix before you spend more</h2></div>
+  <p class="lede">Found while reviewing the profile, landing page and Ads Manager on 19 Oct.</p>
+  <div class="issues">
+    <div class="issue"><span class="sev crit">Blocker</span><h3>No Meta Pixel on interviewtrix.com</h3>
+      <p>The landing page loads GA4 and Clarity only; <code>fbq</code> is undefined and <code>interview-fe</code> has no pixel code. Without it Meta can't optimise for registrations, can't build retargeting audiences of page visitors, and you can't see cost per registration. Add the pixel tonight and fire <code>CompleteRegistration</code> on sign-up.</p></div>
+    <div class="issue"><span class="sev crit">Blocker</span><h3>Ads Manager account isn't set up</h3>
+      <p>Ad account <code>1769948170688665</code> shows "Get set up to run ads" and has no campaigns. The ad you started is an in-app Instagram Boost, which can only optimise for profile visits, messages or link clicks. Finish Account overview (business info + payment method, which you add yourself) so you can run the campaigns below.</p></div>
+    <div class="issue"><span class="sev warn">Fix</span><h3>Dates don't match across touchpoints</h3>
+      <p>Instagram posts say <b>20–26 Oct</b>; the landing page says <b>20–27 Oct</b> and an "8-day hackathon". Pick one deadline (27 Oct, 11:59 PM IST) and use it in every ad, story and caption so last-call ads are believable.</p></div>
+    <div class="issue"><span class="sev warn">Fix</span><h3>The "₹799 → FREE, offer ends in 8h, limited seats" block</h3>
+      <p>The countdown runs out tonight while registration stays open for a week, and the strikethrough price was never charged. Meta can reject ads that send traffic to misleading urgency claims. Replace with "Free · Registration closes 27 Oct".</p></div>
+    <div class="issue"><span class="sev warn">Fix</span><h3>Prize numbers</h3>
+      <p>Ads say "₹20,000 prize pool"; the three prize cards add up to about ₹25,800 in listed value, and the pool counter renders <code>₹0 INR</code> until it animates on scroll. Render the final number server-side and keep "₹20,000+" consistent.</p></div>
+    <div class="issue"><span class="sev ok">Good</span><h3>Profile is ready for paid traffic</h3>
+      <p>Bio link points at the hackathon, three on-brand hackathon posts are pinned, and "WIN ₹20K" / "Winning Products" highlights exist. Bio link uses <code>/hackathon-2026</code>, which redirects; send ads straight to <code>/hiring-games-hackathon-2026</code>.</p></div>
+  </div>
+</section>
+
+<section class="sec" id="timeline">
+  <div class="sec-head"><span class="num">02</span><h2>Day-by-day pipeline</h2></div>
+  <div class="tbl"><table>
+    <thead><tr><th>When</th><th>Phase</th><th>Paid (Meta)</th><th>Organic (Instagram + Facebook)</th></tr></thead>
+    <tbody>
+      <tr class="today"><td class="date">19 Oct (tonight)</td><td><b>Setup</b></td><td>Create pixel, verify domain, finish ad account, build audiences, upload 4–5 creatives, schedule campaigns to start 00:00 IST 20 Oct. Keep the Boost running until then.</td><td>Story countdown sticker "Hiring Games starts in 3h". Update bio: "Free hackathon · ends 27 Oct".</td></tr>
+      <tr><td class="date">20–21 Oct</td><td><b>Launch + test</b></td><td>Campaign A (registrations) live with all creatives. Don't edit for 48h so it can exit learning.</td><td>"It's live" Reel. Collab posts with 3–5 college clubs / placement cells. Comment "GAMES" → auto-DM the link.</td></tr>
+      <tr><td class="date">22 Oct</td><td><b>First cut</b></td><td>Pause creatives that hit the kill rules (section 07). Move budget to the top two. Turn on Campaign B (retargeting).</td><td>First leaderboard story (top scores, first names only). Reshare every participant who tags you.</td></tr>
+      <tr><td class="date">23–25 Oct</td><td><b>Scale</b></td><td>Raise Campaign A budget 20–30% per day if cost per registration holds. Add one new creative made from participant posts.</td><td>Speaker teaser Reels (one per speaker). "How to score 75+ on ATS" tip carousel.</td></tr>
+      <tr><td class="date">26–27 Oct</td><td><b>Last call</b></td><td>Retargeting gets 40% of spend. Swap copy to "Closes tonight, 11:59 PM". Add Campaign C audience warm-up.</td><td>Hourly-ish stories on 27 Oct. Countdown sticker. Founder face-to-camera "last chance" Reel.</td></tr>
+      <tr><td class="date">28–31 Oct</td><td><b>Show-up</b></td><td>Campaign C: reach registrants + engagers with the 31 Oct, 7 PM IST reminder. Small spend.</td><td>Daily speaker clips. "Finalists announced" post. Go live / cross-post the launch on 31 Oct.</td></tr>
+      <tr><td class="date">1 Nov →</td><td><b>Convert</b></td><td>Retarget event attendees and registrants with the product offer (credits / plan). Lookalike of registrants for always-on acquisition.</td><td>Winner spotlight Reels, recap carousel, "what the speakers said" clips.</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section class="sec" id="structure">
+  <div class="sec-head"><span class="num">03</span><h2>Campaign structure in Ads Manager</h2></div>
+  <p class="lede">Three campaigns. Placements on Advantage+ so the same ad runs on Instagram Reels/Stories/Feed and Facebook Feed/Reels; Reels and Stories will take most of the delivery for an 18–30 audience.</p>
+  <div class="tbl"><table>
+    <thead><tr><th>Campaign</th><th>Objective · optimise for</th><th>Ad sets / audience</th><th>Share of budget</th><th>Creatives</th></tr></thead>
+    <tbody>
+      <tr><td><b>A · HG26 Registrations</b><br><span class="note">20–27 Oct</span></td><td>Sales or Leads → Website → <code>CompleteRegistration</code>. Fallback until pixel has data: Traffic → Landing page views.</td><td><b>A1 Broad India</b>, 18–30, Advantage+ audience with suggestions: campus placement, job interview, resume, LinkedIn, Naukri, Internshala, coding, software engineering.<br><b>A2 Metro + college hubs</b>: Bengaluru, Hyderabad, Pune, Chennai, Delhi NCR, Mumbai, 18–28.</td><td>~70% → 55% after 25 Oct</td><td>All 5 concepts; let Meta pick (Advantage+ creative on, but turn off "add music" if it clashes).</td></tr>
+      <tr><td><b>B · HG26 Retargeting</b><br><span class="note">22–27 Oct</span></td><td>Same conversion event.</td><td>Website visitors 14d (pixel) <b>excluding</b> registrants · IG profile engagers 30d · video viewers ≥ 50% of your Reels.</td><td>~20% → 40% on 26–27 Oct</td><td>Deadline-led copy, "takes about 40 minutes", social proof (participant count).</td></tr>
+      <tr><td><b>C · HG26 Launch show-up</b><br><span class="note">28–31 Oct</span></td><td>Awareness → Reach, frequency cap 2 per 3 days.</td><td>Registrants (custom audience from your user list or pixel event) + IG engagers 30d.</td><td>~10%</td><td>Speaker clips, "31 Oct · 7 PM IST · link in your email".</td></tr>
+    </tbody>
+  </table></div>
+  <p class="note">Short window, so keep it to 2 ad sets in A and use campaign budget (Advantage campaign budget). More ad sets split the ~50 conversions/week Meta needs to exit learning.</p>
+</section>
+
+<section class="sec" id="budget">
+  <div class="sec-head"><span class="num">04</span><h2>Budget planner</h2></div>
+  <p class="lede">Enter your daily spend. Cost-per-registration is an assumption for a free career event in India; replace it with your real number after day 2.</p>
+  <form class="calc" id="calc" onsubmit="return false">
+    <label for="daily">Daily budget (₹)<input id="daily" type="number" min="100" step="100" value="1500"></label>
+    <label for="days">Paid days left (20–27 Oct)<input id="days" type="number" min="1" max="12" value="8"></label>
+    <label for="cprLow">Cost / registration, good case (₹)<input id="cprLow" type="number" min="1" value="25"></label>
+    <label for="cprHigh">Cost / registration, poor case (₹)<input id="cprHigh" type="number" min="1" value="70"></label>
+  </form>
+  <div class="out" aria-live="polite">
+    <div><small>Total spend</small><b id="oTotal">–</b></div>
+    <div><small>A · Registrations / day</small><b id="oA">–</b></div>
+    <div><small>B · Retargeting / day</small><b id="oB">–</b></div>
+    <div><small>C · Show-up (total)</small><b id="oC">–</b></div>
+    <div><small>Est. registrations</small><b id="oReg">–</b></div>
+  </div>
+  <p class="note">Estimate counts A + B spend only (C drives attendance, not sign-ups). Split shown is the 70 / 20 / 10 starting mix.</p>
+</section>
+
+<section class="sec" id="creative">
+  <div class="sec-head"><span class="num">05</span><h2>Creative set</h2></div>
+  <p class="lede">Make each concept in 9:16 (Reels, Stories) and 4:5 (Feed). First 2 seconds carry the hook as on-screen text, since most people watch muted. Keep text off the top and bottom 14% of 9:16 frames.</p>
+  <div class="cards">
+    <div class="card"><span class="fmt">REEL 15–20s · founder to camera</span><h3>"Can you beat our AI interviewer?"</h3><p class="hook">Hook: "I built an AI that interviews you. Bet you can't score 80."</p><p>Cut to the AI interview screen, a score popping up, then prize cards and "Free · ends 27 Oct". Your existing post with the ChatGPT × InterviewTrix face-cam is the right style.</p></div>
+    <div class="card"><span class="fmt">REEL 12s · screen recording</span><h3>Live score demo</h3><p class="hook">Hook: "This is what an AI interviewer thinks of your answer."</p><p>Real UI: question appears, candidate answers, instant feedback and score. Product-led ads tend to bring higher-intent sign-ups.</p></div>
+    <div class="card"><span class="fmt">CAROUSEL 4:5 · 5 cards</span><h3>What you can win</h3><p class="hook">Card 1: "Top 3 win Claude Max, Amazon vouchers + InterviewTrix credits"</p><p>One card per prize tier, then "How to win in 3 steps", then CTA card. Works well in Facebook Feed.</p></div>
+    <div class="card"><span class="fmt">STATIC / STORY · pain-led</span><h3>Your resume fails before a human reads it</h3><p class="hook">Hook: "Applied to 100 jobs. Zero calls?"</p><p>ATS score meter from 42 → 81. Then "Fix it in The Hiring Games. Free." Best for the 22–28 job-switcher segment.</p></div>
+    <div class="card"><span class="fmt">REEL / STORY · speakers</span><h3>Learn from the people who hire</h3><p class="hook">Hook: "Walmart, Reliance, Myntra, Tech Mahindra. One live session."</p><p>Three speaker cards with names and roles, 31 Oct · 7 PM IST. Use mainly in Campaign C and late-week retargeting.</p></div>
+  </div>
+</section>
+
+<section class="sec" id="copy">
+  <div class="sec-head"><span class="num">06</span><h2>Ad copy and tracking links</h2></div>
+  <div class="copy">
+    <div class="cb"><span class="eyebrow lbl">Primary text · challenge</span><button class="cp" type="button">Copy</button><pre>Can you beat an AI interviewer? 🎯
+
+The Hiring Games is a free online hackathon by InterviewTrix (20–27 Oct).
+✅ Build an ATS-ready resume (score 75+)
+✅ Take 2 AI mock interviews, get instant feedback
+🏆 Top 3 win Claude Max/Pro, Amazon vouchers and InterviewTrix credits
+
+Open to students, freshers and working professionals. Registration closes 27 Oct.</pre></div>
+    <div class="cb"><span class="eyebrow lbl">Primary text · pain</span><button class="cp" type="button">Copy</button><pre>Applied to 100 jobs and heard nothing back? Your resume may be getting rejected by the ATS before a recruiter ever opens it.
+
+In The Hiring Games you fix your resume, face an AI interviewer and get a scored report, free. Best scores win prizes worth ₹20,000+.
+
+20–27 Oct · Online · Free</pre></div>
+    <div class="cb"><span class="eyebrow lbl">Primary text · retargeting (B)</span><button class="cp" type="button">Copy</button><pre>You checked out The Hiring Games. Registration closes 27 Oct, 11:59 PM IST.
+
+It takes about 40 minutes: one resume, two 15-minute AI interviews. Top 3 scores win.</pre></div>
+    <div class="cb"><span class="eyebrow lbl">Primary text · show-up (C)</span><button class="cp" type="button">Copy</button><pre>Live this Saturday, 31 Oct, 7 PM IST: InterviewTrix launch + Hiring Games winners.
+
+Hear from hiring and AI leaders (Walmart, ex-Reliance/Myntra, OneOrigin) on what companies now look for, then ask them your questions.</pre></div>
+    <div class="cb"><span class="eyebrow lbl">Headlines (pick 3) + description</span><button class="cp" type="button">Copy</button><pre>Beat the AI Interviewer. Win Prizes.
+Free Hiring Hackathon · Ends 27 Oct
+Fix Your Resume. Ace the AI Interview.
+Description: Free · Online · 20–27 Oct
+CTA button: Sign up</pre></div>
+    <div class="cb"><span class="eyebrow lbl">Website URL for ads</span><button class="cp" type="button">Copy</button><pre class="code">https://www.interviewtrix.com/hiring-games-hackathon-2026</pre></div>
+    <div class="cb"><span class="eyebrow lbl">URL parameters field (Meta fills the {{ }} values)</span><button class="cp" type="button">Copy</button><pre class="code">utm_source={{site_source_name}}&utm_medium=paid_social&utm_campaign=hg26_{{campaign.name}}&utm_content={{ad.name}}&utm_term={{adset.name}}</pre></div>
+    <div class="cb"><span class="eyebrow lbl">Bio link (organic)</span><button class="cp" type="button">Copy</button><pre class="code">https://www.interviewtrix.com/hiring-games-hackathon-2026?utm_source=instagram&utm_medium=bio&utm_campaign=hg26</pre></div>
+  </div>
+</section>
+
+<section class="sec" id="ops">
+  <div class="sec-head"><span class="num">07</span><h2>Daily check: targets, kill and scale rules</h2></div>
+  <div class="tbl"><table>
+    <thead><tr><th>Metric</th><th>Where</th><th>Healthy</th><th>Act if</th></tr></thead>
+    <tbody>
+      <tr><td><b>Link CTR</b></td><td>Ads Manager, ad level</td><td>≥ 1.0%</td><td>&lt; 0.6% after ₹500 spend → pause ad</td></tr>
+      <tr><td><b>Hook rate</b> (3s views ÷ impressions)</td><td>Reels ads</td><td>≥ 25%</td><td>&lt; 15% → re-cut first 2 seconds</td></tr>
+      <tr><td><b>Landing page view ÷ link click</b></td><td>Ads Manager</td><td>≥ 70%</td><td>&lt; 60% → page is slow on mobile; check Clarity</td></tr>
+      <tr><td><b>Cost per registration</b></td><td>Pixel event</td><td>Your day-2 average</td><td>&gt; 2× average for 2 days → pause ad set</td></tr>
+      <tr><td><b>Registration → completed both interviews</b></td><td>Your DB / GA4</td><td>≥ 30%</td><td>Low → reminder email/WhatsApp + "how to" story</td></tr>
+      <tr><td><b>Frequency</b> (retargeting)</td><td>Ad set</td><td>&lt; 3 / week</td><td>&gt; 3 → swap creative</td></tr>
+    </tbody>
+  </table></div>
+  <div class="rules">
+    <div class="rule"><h3><span class="sev ok" style="font:500 .7rem var(--mono);padding:3px 8px;border-radius:4px">Scale</span>When it works</h3><p class="note">CPR at or below target for 2 days → raise budget 20–30% once a day. Don't double it in one go; it resets learning.</p></div>
+    <div class="rule"><h3><span class="sev crit" style="font:500 .7rem var(--mono);padding:3px 8px;border-radius:4px">Kill</span>When it doesn't</h3><p class="note">Pause individual ads, not the whole ad set. Keep at least 3 live ads per ad set.</p></div>
+    <div class="rule"><h3><span class="sev warn" style="font:500 .7rem var(--mono);padding:3px 8px;border-radius:4px">Hold</span>First 48 hours</h3><p class="note">No edits to targeting, budget or creative while the ad set is in learning, unless an ad is rejected.</p></div>
+  </div>
+</section>
+
+<section class="sec" id="organic">
+  <div class="sec-head"><span class="num">08</span><h2>Growing the page itself</h2></div>
+  <div class="cols">
+    <div class="sec" style="gap:10px"><h3>Every day of the hackathon</h3><ul class="plain">
+      <li>1 Reel (cross-post to the Facebook Page) + 4–6 stories.</li>
+      <li>Stories: countdown sticker, poll ("Have you faced an AI interviewer?"), quiz (interview question), link sticker.</li>
+      <li>Leaderboard story each evening. Creates FOMO and gives participants a reason to share.</li>
+      <li>Reshare every story that tags @interviewtrix_official. Step 4 of the challenge already asks for this; give people a ready-made story template.</li>
+      <li>Reply to every comment and DM within an hour on 20–21 Oct; early engagement lifts Reel reach.</li>
+    </ul></div>
+    <div class="sec" style="gap:10px"><h3>Reach beyond your 219 followers</h3><ul class="plain">
+      <li>Instagram Collab posts with college coding clubs, placement cells and student creators: the post appears on both profiles.</li>
+      <li>Ask the three speakers to collab on or reshare their teaser Reel.</li>
+      <li>List the hackathon on Unstop and share in college WhatsApp, Telegram and Discord groups (bio-link UTM so you can see which works).</li>
+      <li>Comment-to-DM: "Comment GAMES and I'll send you the link" (Instagram auto-reply or ManyChat).</li>
+      <li>Hashtags: <code>#TheHiringGames</code> plus 3–5 niche ones (#placementprep, #mockinterview, #fresherjobs, #atsresume).</li>
+      <li>Add a "Hackathon Rules" highlight; rename "WIN ₹20K P…" so it isn't truncated.</li>
+    </ul></div>
+  </div>
+</section>
+
+<section class="sec" id="setup">
+  <div class="sec-head"><span class="num">09</span><h2>Tonight's setup checklist</h2></div>
+  <p class="note">Ticks are saved in this browser only.</p>
+  <ul class="checks" id="checks">
+    <li><label><input type="checkbox" id="c1"><span>Ads Manager → Account overview: add business details and payment method (you do the payment step).</span></label></li>
+    <li><label><input type="checkbox" id="c2"><span>Business settings → Brand safety → Domains: verify <code>interviewtrix.com</code>.</span></label></li>
+    <li><label><input type="checkbox" id="c3"><span>Events Manager → Connect data sources → Web: create the pixel (dataset).</span></label></li>
+    <li><label><input type="checkbox" id="c4"><span>Add pixel base code to <code>interview-fe</code> root layout; fire <code>CompleteRegistration</code> after hackathon sign-up and <code>Lead</code> when ATS ≥ 75. Deploy.</span></label></li>
+    <li><label><input type="checkbox" id="c5"><span>Verify events with Meta Pixel Helper / Events Manager "Test events".</span></label></li>
+    <li><label><input type="checkbox" id="c6"><span>Audiences: IG engagers 30d, website visitors 14d, Reel viewers ≥ 50%, registrants (exclusion).</span></label></li>
+    <li><label><input type="checkbox" id="c7"><span>Fix landing page: one deadline (27 Oct), remove the 8-hour countdown and ₹799 strikethrough, render prize pool number.</span></label></li>
+    <li><label><input type="checkbox" id="c8"><span>Export creatives in 9:16 and 4:5; name ads like <code>A1_challenge_reel_v1</code>.</span></label></li>
+    <li><label><input type="checkbox" id="c9"><span>Build Campaign A, paste copy + URL parameters, schedule start 20 Oct 00:00 IST.</span></label></li>
+    <li><label><input type="checkbox" id="c10"><span>Once A delivers, stop the in-app Boost so the two don't compete for the same people.</span></label></li>
+  </ul>
+</section>
+
+<footer>Prepared 19 Oct 2026 from a review of instagram.com/interviewtrix_official, the hackathon landing page and Ads Manager account 1769948170688665. Budget and CPR figures are planning assumptions, not results.</footer>
+</div>
+
+<script>
+(function(){
+  const $=id=>document.getElementById(id);
+  const inr=n=>'₹'+Math.round(n).toLocaleString('en-IN');
+  function calc(){
+    const d=+$('daily').value||0, days=+$('days').value||0, lo=+$('cprLow').value||1, hi=+$('cprHigh').value||1;
+    const total=d*days, convSpend=total*0.9;
+    $('oTotal').textContent=inr(total);
+    $('oA').textContent=inr(d*0.7);
+    $('oB').textContent=inr(d*0.2);
+    $('oC').textContent=inr(total*0.1);
+    $('oReg').textContent=Math.round(convSpend/hi).toLocaleString('en-IN')+'–'+Math.round(convSpend/lo).toLocaleString('en-IN');
+  }
+  ['daily','days','cprLow','cprHigh'].forEach(id=>$(id).addEventListener('input',calc));
+  calc();
+
+  document.querySelectorAll('.cp').forEach(btn=>btn.addEventListener('click',()=>{
+    const pre=btn.parentElement.querySelector('pre');
+    const done=()=>{btn.textContent='Copied';setTimeout(()=>btn.textContent='Copy',1500)};
+    const fallback=()=>{const r=document.createRange();r.selectNodeContents(pre);const s=getSelection();s.removeAllRanges();s.addRange(r);btn.textContent='Selected'};
+    try{navigator.clipboard.writeText(pre.textContent).then(done,fallback)}catch(e){fallback()}
+  }));
+
+  const KEY='hg26-checks';
+  let saved={};
+  try{saved=JSON.parse(localStorage.getItem(KEY)||'{}')}catch(e){}
+  document.querySelectorAll('#checks input').forEach(cb=>{
+    cb.checked=!!saved[cb.id];
+    cb.addEventListener('change',()=>{saved[cb.id]=cb.checked;try{localStorage.setItem(KEY,JSON.stringify(saved))}catch(e){}});
+  });
+})();
+</script>

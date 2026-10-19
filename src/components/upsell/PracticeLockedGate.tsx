@@ -153,9 +153,9 @@ const MOCK_SD_ROWS = [
 
 function statusBadgeClass(status: string): string {
   const badges: Record<string, string> = {
-    completed: "bg-emerald-50 text-emerald-700",
-    processing: "bg-sky-50 text-sky-700",
-    active: "bg-amber-50 text-amber-700",
+    completed: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300",
+    processing: "bg-sky-50 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300",
+    active: "bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300",
   };
   return badges[status] ?? badges.active;
 }
@@ -471,8 +471,8 @@ function SystemDesignLockedPreview() {
                       className={cn(
                         "inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold",
                         row.status === "completed"
-                          ? "border-green-200 bg-green-100 text-green-700"
-                          : "border-yellow-200 bg-yellow-100 text-yellow-700",
+                          ? "border-green-200 bg-green-100 text-green-700 dark:border-green-900/60 dark:bg-green-950/40 dark:text-green-300"
+                          : "border-yellow-200 bg-yellow-100 text-yellow-700 dark:border-yellow-900/60 dark:bg-yellow-950/40 dark:text-yellow-300",
                       )}
                     >
                       {row.status}

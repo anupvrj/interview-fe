@@ -55,12 +55,12 @@ function formatInterviewDurationMinutes(
 
 function statusBadgeClass(status: string): string {
   const badges: Record<string, string> = {
-    completed: "bg-emerald-50 text-emerald-700",
-    processing: "bg-sky-50 text-sky-700",
-    active: "bg-amber-50 text-amber-700",
-    draft: "bg-slate-100 text-muted-foreground",
-    failed: "bg-rose-50 text-rose-700",
-    cancelled: "bg-slate-100 text-slate-600",
+    completed: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300",
+    processing: "bg-sky-50 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300",
+    active: "bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300",
+    draft: "bg-slate-100 text-muted-foreground dark:bg-slate-800/60",
+    failed: "bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300",
+    cancelled: "bg-slate-100 text-slate-600 dark:bg-slate-800/60 dark:text-slate-300",
   };
   return badges[status] ?? badges.draft;
 }

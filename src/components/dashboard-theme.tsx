@@ -25,24 +25,29 @@ const DashboardThemeContext = createContext<DashboardThemeContextValue | null>(
 
 /**
  * Scopes Tailwind `dark:` styles to the dashboard by wrapping children in a
- * `.dark` container (does not set `class="dark"` on `documentElement`, so
- * marketing routes keep their own backgrounds).
+ * `.dark` container, and mirrors it on `documentElement` only while mounted so
+ * portalled dialogs follow the theme (marketing routes keep their own look).
  */
 export function DashboardThemeProvider({
   children,
+  forcedTheme,
 }: Readonly<{
   children: React.ReactNode;
+  /** Pin a theme for a route whose own design is one mode (the live interview room is dark). */
+  forcedTheme?: DashboardTheme;
 }>) {
-  const [theme, setThemeState] = useState<DashboardTheme>("light");
+  const [storedTheme, setThemeState] = useState<DashboardTheme>("light");
+  const theme = forcedTheme ?? storedTheme;
 
   useEffect(() => {
+    if (forcedTheme) return;
     try {
       const s = localStorage.getItem(STORAGE_KEY) as DashboardTheme | null;
       if (s === "light" || s === "dark") setThemeState(s);
     } catch {
       /* ignore */
     }
-  }, []);
+  }, [forcedTheme]);
 
   const setTheme = useCallback((t: DashboardTheme) => {
     setThemeState(t);
@@ -64,6 +69,16 @@ export function DashboardThemeProvider({
       return next;
     });
   }, []);
+
+  // Dialogs, popovers and toasts render in portals under <body>, outside the
+  // wrapper below, so they missed the dark variables and stayed light. Mirror
+  // the theme on <html> while this provider is mounted; unmounting (e.g. going
+  // to a marketing route) removes it, so those pages keep their own look.
+  useEffect(() => {
+    const root = document.documentElement;
+    root.classList.toggle("dark", theme === "dark");
+    return () => root.classList.remove("dark");
+  }, [theme]);
 
   const value = useMemo(
     () => ({ theme, setTheme, toggle }),
