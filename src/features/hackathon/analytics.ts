@@ -40,6 +40,7 @@ export type HackathonCtaLocation =
   | "participate"
   | "who"
   | "final_cta"
+  | "popup"
   | "other";
 
 export type HackathonErrorType =

@@ -19,6 +19,7 @@ import {
   Shield,
   Share2,
   Trophy,
+  Megaphone,
 } from "lucide-react";
 import type { DashboardNavAccent, DashboardNavItem } from "@/lib/dashboard-nav";
 
@@ -236,6 +237,14 @@ export const SUPER_ADMIN_NAV_GROUPS: SuperAdminNavGroup[] = [
         description:
           "Edit event templates, channels, and recipients without a deploy.",
       },
+      {
+        title: "Site Popups",
+        href: `${SUPER_ADMIN_HOME}/popups`,
+        icon: Megaphone,
+        accent: accent.violet,
+        description:
+          "Promo popups for the hackathon and launches: pick a design, edit the wording, choose pages and timing.",
+      },
     ],
   },
   {
@@ -294,6 +303,18 @@ type NestedPageRule = {
 };
 
 const NESTED_PAGES: NestedPageRule[] = [
+  {
+    pattern: /^\/super-admin\/popups\/new\/?$/,
+    title: "New popup",
+    description: "Pick a design, write the message, and choose where and when it opens.",
+    crumb: "New",
+  },
+  {
+    pattern: /^\/super-admin\/popups\/[^/]+\/?$/,
+    title: "Edit popup",
+    description: "Design, wording, pages, timing, and schedule for this popup.",
+    crumb: "Edit",
+  },
   {
     pattern: /^\/super-admin\/hackathons\/new\/?$/,
     title: "Create hackathon",

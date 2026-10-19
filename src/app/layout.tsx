@@ -16,6 +16,7 @@ import { AppMicrosoftClarity } from "@/components/AppMicrosoftClarity";
 import { getMetaPixelId } from "@/config/meta-pixel";
 import { AppMetaPixel } from "@/components/AppMetaPixel";
 import { AppToaster } from "@/components/AppToaster";
+import { SitePopupHost } from "@/features/site-popups/SitePopupHost";
 import {
   StructuredData,
   organizationSchema,
@@ -145,6 +146,7 @@ export default function RootLayout({
                 <ReferralCapture />
               </Suspense>
               <FeatureRouteGuard>{children}</FeatureRouteGuard>
+              <SitePopupHost />
             </UserProvider>
           </QueryProvider>
           <AppToaster />
