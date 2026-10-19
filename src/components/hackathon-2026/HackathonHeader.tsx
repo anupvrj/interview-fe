@@ -145,6 +145,7 @@ export function HackathonHeader() {
           {/* Register (right) */}
           <div className="flex justify-end">
             <HackathonRegisterButton
+              ctaLocation="header"
               size="sm"
               compact
               // Short label + no arrow on phones so both header columns fit and the logo sits dead-centre
@@ -153,10 +154,6 @@ export function HackathonHeader() {
           </div>
         </div>
 
-        {/* Scroll progress */}
-        <div className="absolute inset-x-0 bottom-[-1px] h-[2px] overflow-hidden" aria-hidden>
-          <div className="hk-progress h-full bg-gradient-to-r from-[#1677ff] via-[#2bd2ff] to-[#29d6a0]" />
-        </div>
       </header>
 
       {/* Mobile drawer — sibling of <header> so backdrop-filter can't trap position:fixed */}
@@ -230,7 +227,7 @@ export function HackathonHeader() {
             <p className="mb-3 text-xs text-[#7f98b3]">
               Hackathon {challenge.publicRangeLabel} · Launch {HACKATHON_LAUNCH.dateLabel}
             </p>
-            <HackathonRegisterButton className="w-full" onClick={closeMenu}>
+            <HackathonRegisterButton ctaLocation="mobile_menu" className="w-full" onClick={closeMenu}>
               Register Now for Free
             </HackathonRegisterButton>
           </div>

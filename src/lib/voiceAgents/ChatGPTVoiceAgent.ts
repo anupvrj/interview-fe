@@ -1,5 +1,10 @@
 import { BaseVoiceAgent, type VoiceAgentCallbacks, type VoiceAgentMessage } from "./types";
 
+/**
+ * ChatGPT (OpenAI Realtime GA) voice agent. The backend forwards raw GA server
+ * events as `openai_event` (response.output_audio.delta,
+ * response.output_audio_transcript.*, ...); audio is 24 kHz PCM16 both ways.
+ */
 export class ChatGPTVoiceAgent extends BaseVoiceAgent {
   constructor(callbacks: VoiceAgentCallbacks) {
     super("chatgpt", 24000, callbacks);

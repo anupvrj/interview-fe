@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { hackathonHand } from "@/lib/fonts/hackathon-hand";
+import { hackathonDisplay, hackathonMono, hackathonSans } from "@/lib/fonts/hackathon-reel";
 import {
   StructuredData,
   createBreadcrumbSchema,
@@ -105,7 +106,11 @@ export default function Hackathon2026Layout({
           url: pageUrl,
         }}
       />
-      <div className={hackathonHand.variable}>{children}</div>
+      <div
+        className={`${hackathonHand.variable} ${hackathonDisplay.variable} ${hackathonSans.variable} ${hackathonMono.variable}`}
+      >
+        {children}
+      </div>
     </>
   );
 }

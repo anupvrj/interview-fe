@@ -63,4 +63,47 @@ describe("normalizeATSReportV3", () => {
     expect(reportHasJobMatch(report)).toBe(true);
     expect(report.jobMatch?.overallMatch).toBe(41);
   });
+
+  it("keeps the stored headline and category scores", () => {
+    const report = normalizeATSReportV3({
+      version: 3,
+      score: 40,
+      issueCount: 3,
+      mode: "standalone",
+      categories: {
+        content: {
+          id: "content",
+          label: "Content",
+          score: 50,
+          issueCount: 3,
+          checks: [
+            {
+              id: "quantifyingImpact",
+              label: "Quantifying Impact",
+              description: "",
+              status: "fail",
+              score: 0,
+              issueCount: 2,
+              issues: [],
+            },
+            {
+              id: "atsParseRate",
+              label: "ATS Parse Rate",
+              description: "",
+              status: "pass",
+              score: 100,
+              issueCount: 0,
+              issues: [],
+            },
+          ],
+        },
+      } as unknown as ATSReportV3["categories"],
+      strengths: [],
+      weaknesses: [],
+      suggestions: [],
+    });
+
+    expect(report.score).toBe(40);
+    expect(report.categories.content.score).toBe(50);
+  });
 });

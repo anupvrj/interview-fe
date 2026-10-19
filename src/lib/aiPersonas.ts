@@ -36,7 +36,7 @@ export const AI_INTERVIEWER_PERSONAS: AIInterviewerPersona[] = [
     title: "Technical interviewer",
     geminiVoice: "Charon",
     openaiVoice: "ash",
-    sarvamVoice: "aditya",
+    sarvamVoice: "dev_en_conversational",
     imageSrc: "/personas/persona-1.jpg",
   },
   {
@@ -45,7 +45,7 @@ export const AI_INTERVIEWER_PERSONAS: AIInterviewerPersona[] = [
     title: "Hiring manager",
     geminiVoice: "Kore",
     openaiVoice: "coral",
-    sarvamVoice: "priya",
+    sarvamVoice: "simran_en_customer",
     imageSrc: "/personas/persona-2.jpg",
   },
   {
@@ -54,7 +54,7 @@ export const AI_INTERVIEWER_PERSONAS: AIInterviewerPersona[] = [
     title: "Senior interviewer",
     geminiVoice: "Fenrir",
     openaiVoice: "verse",
-    sarvamVoice: "rahul",
+    sarvamVoice: "kalpit_en_edtech",
     imageSrc: "/personas/persona-3.jpg",
   },
   {
@@ -63,7 +63,7 @@ export const AI_INTERVIEWER_PERSONAS: AIInterviewerPersona[] = [
     title: "Lead interviewer",
     geminiVoice: "Aoede",
     openaiVoice: "sage",
-    sarvamVoice: "ritu",
+    sarvamVoice: "shalini_en_customer",
     imageSrc: "/personas/persona-4.jpg",
   },
   {
@@ -72,7 +72,7 @@ export const AI_INTERVIEWER_PERSONAS: AIInterviewerPersona[] = [
     title: "Panel interviewer",
     geminiVoice: "Orus",
     openaiVoice: "ballad",
-    sarvamVoice: "varun",
+    sarvamVoice: "shubh_en_recovery",
     imageSrc: "/personas/persona-5.jpg",
   },
   {
@@ -81,7 +81,7 @@ export const AI_INTERVIEWER_PERSONAS: AIInterviewerPersona[] = [
     title: "Talent partner",
     geminiVoice: "Leda",
     openaiVoice: "shimmer",
-    sarvamVoice: "neha",
+    sarvamVoice: "neha_en_customer",
     imageSrc: "/personas/persona-6.jpg",
   },
 ];

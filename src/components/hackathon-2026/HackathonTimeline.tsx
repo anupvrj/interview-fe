@@ -49,7 +49,7 @@ export function HackathonTimeline() {
                     <Icon className="size-5 md:size-7" strokeWidth={1.8} aria-hidden />
                   </span>
                   <div className="min-w-0 md:mt-4">
-                    <p className="text-base font-bold leading-snug text-white sm:text-lg">{item.date}</p>
+                    <p className="hk-num text-[15px] font-semibold uppercase leading-snug tracking-[0.06em] text-white sm:text-base">{item.date}</p>
                     <h3 className="mt-0.5 text-[14.5px] font-medium leading-snug text-[#cfdbe8] sm:text-[15px]">{item.title}</h3>
                   </div>
                 </Reveal>

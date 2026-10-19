@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 export const hkInputClass =
   "h-12 w-full rounded-xl border border-[#27547d] bg-[#071426] px-3.5 text-[15px] text-white placeholder:text-[#7189a6] focus:border-[#2a7fd4] focus:outline-none focus:ring-2 focus:ring-[#1677ff]/40 disabled:opacity-60";
 export const hkSecondaryButton =
-  "inline-flex min-h-12 items-center justify-center gap-2.5 rounded-xl border border-white/70 bg-transparent px-5 text-[15px] font-semibold text-white transition-[background-color,border-color,transform] duration-200 hover:-translate-y-0.5 hover:border-white hover:bg-white/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/60 disabled:pointer-events-none disabled:opacity-60";
+  "hk-btn-ghost inline-flex min-h-12 items-center justify-center gap-2.5 rounded-xl border border-white/70 bg-transparent px-5 text-[15px] font-semibold text-white transition-[background-color,border-color,transform] duration-200 hover:-translate-y-0.5 hover:border-white hover:bg-white/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/60 disabled:pointer-events-none disabled:opacity-60";
 
 export function AtsScorePill({ score, target }: Readonly<{ score: number | null; target: number }>) {
   if (score === null) {
@@ -85,7 +85,7 @@ export function ResumeChallenge({ me }: Readonly<{ me: HackathonMe }>) {
   return (
     <div className="space-y-5">
       {me.resume && !changing ? (
-        <div className="flex flex-col gap-4 rounded-2xl border border-[#2a5a94]/60 bg-[#06142c]/60 p-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+        <div className="hk-slot flex flex-col gap-4 rounded-2xl border border-[#2a5a94]/60 bg-[#06142c]/60 p-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
           <div className="flex min-w-0 items-center gap-4">
             <span className="grid size-14 shrink-0 place-items-center rounded-xl border border-[#2f64a8] bg-[#0b2142] text-[#6fc0ff]">
               <FileText className="size-6" strokeWidth={1.8} aria-hidden />
@@ -119,7 +119,7 @@ export function ResumeChallenge({ me }: Readonly<{ me: HackathonMe }>) {
 
       {showPicker ? (
         <div className="space-y-4">
-          <div className="flex flex-col gap-3 rounded-2xl border border-[#27547d]/80 bg-[#071426]/60 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="hk-slot flex flex-col gap-3 rounded-2xl border border-[#27547d]/80 bg-[#071426]/60 p-4 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm text-[#cfdbe8]">
               Design your resume in the InterviewTrix builder, then come back here and submit it
               {displayTarget != null ? `. Aim for an ATS score of ${displayTarget}+.` : "."}

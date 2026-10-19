@@ -33,6 +33,16 @@ describe("interview-form-defaults", () => {
     expect(applied.experience).toBe("3");
   });
 
+  it("keeps a cleared role once the user has edited it", () => {
+    const merged = mergeInterviewFormDefaults(
+      { ...emptyForm, role: "" },
+      profile,
+      { role: true },
+    );
+    expect(merged.role).toBe("");
+    expect(merged.targetCompany).toBe("TCS");
+  });
+
   it("keeps profile values when capture title and company are empty", () => {
     const merged = mergeInterviewFormDefaults(emptyForm, profile);
     const applied = applyJobCaptureToInterviewForm(merged, {

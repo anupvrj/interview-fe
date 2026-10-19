@@ -5,7 +5,6 @@ function softSuppressCheck(check: ATSCheckResult): ATSCheckResult {
   return {
     ...check,
     status: "pass",
-    score: Math.max(check.score, 85),
     issueCount: 0,
     issues: [],
     summary: {
@@ -15,13 +14,7 @@ function softSuppressCheck(check: ATSCheckResult): ATSCheckResult {
   };
 }
 
-function computeCategoryScore(checks: ATSCheckResult[]): number {
-  const active = checks.filter((c) => c.status !== "skipped");
-  if (active.length === 0) return 0;
-  return Math.round(active.reduce((sum, c) => sum + c.score, 0) / active.length);
-}
-
-/** Hide issues for improved checks while keeping the same sidebar check list as ATS checker. */
+/** Hide issues for improved checks while keeping the saved category and headline scores. */
 export function filterSuppressedChecks(
   report: ATSReportV3,
   suppressedCheckIds: ATSCheckId[],
@@ -49,7 +42,6 @@ export function filterSuppressedChecks(
     categories[catId] = {
       ...cat,
       checks,
-      score: computeCategoryScore(checks),
       issueCount: categoryIssueCount,
     };
   }

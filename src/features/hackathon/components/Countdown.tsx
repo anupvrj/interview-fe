@@ -64,21 +64,21 @@ export function Countdown({
   const amber = variant === "amber";
 
   return (
-    <div className="flex justify-center gap-2 sm:gap-3" role="timer" aria-live="off">
+    <div className="hk-cd flex justify-center gap-2 sm:gap-3" role="timer" aria-live="off">
       {cells.map(([value, label]) => (
         <div
           key={label}
           className={
             amber
-              ? "flex w-[4.25rem] flex-col items-center rounded-2xl border border-[#8a6a20]/75 bg-[#2e2410]/55 py-3 shadow-[0_8px_24px_rgba(46,36,16,0.35),inset_0_1px_0_rgba(255,196,77,0.12)] sm:w-20"
-              : "flex w-[4.25rem] flex-col items-center rounded-2xl border border-[#27547d] bg-[#0a1930]/80 py-3 sm:w-20"
+              ? "hk-cd-cell hk-cd-amber flex w-[4.25rem] flex-col items-center rounded-2xl border border-[#8a6a20]/75 bg-[#2e2410]/55 py-3 shadow-[0_8px_24px_rgba(46,36,16,0.35),inset_0_1px_0_rgba(255,196,77,0.12)] sm:w-20"
+              : "hk-cd-cell flex w-[4.25rem] flex-col items-center rounded-2xl border border-[#27547d] bg-[#0a1930]/80 py-3 sm:w-20"
           }
         >
           <span
             className={
               amber
-                ? "text-2xl font-extrabold tabular-nums text-[#ff9a3c] sm:text-3xl"
-                : "text-2xl font-extrabold tabular-nums text-white sm:text-3xl"
+                ? "hk-num-d text-2xl font-extrabold tabular-nums text-[#ffc44d] sm:text-3xl"
+                : "hk-num-d text-2xl font-extrabold tabular-nums text-white sm:text-3xl"
             }
           >
             {String(value).padStart(2, "0")}

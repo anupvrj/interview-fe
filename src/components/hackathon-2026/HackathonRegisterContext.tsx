@@ -13,9 +13,10 @@ import {
 } from "@/features/hackathon/hackathonLandingCta";
 import { hackathonEntryPath } from "@/features/hackathon/hackathonEntry";
 import { isHackathonRegistered } from "@/features/hackathon/hackathonRegistration";
+import { trackRegisterClick, type HackathonCtaLocation } from "@/features/hackathon/analytics";
 
 type HackathonRegisterContextValue = {
-  openRegister: () => void;
+  openRegister: (ctaLocation?: HackathonCtaLocation) => void;
   label: string;
   /** Compact form of `label` for tight layouts. */
   shortLabel: string;
@@ -37,20 +38,26 @@ export function HackathonRegisterProvider({ children }: { children: ReactNode })
   const registered = me.waitingForMe ? false : isHackathonRegistered(me.data);
   const derived = resolveHackathonLandingCta(pub.data, Boolean(isSignedIn), registered);
 
-  const openRegister = useCallback(() => {
+  const openRegister = useCallback((ctaLocation: HackathonCtaLocation = "other") => {
     if (derived.disabled) return;
+    const track = (destination: "sign_up" | "profile" | "dashboard") =>
+      trackRegisterClick({ ctaLocation, ctaState: derived.labelKey, signedIn: Boolean(isSignedIn), destination });
     if (!isSignedIn) {
+      track("sign_up");
       router.push(`/sign-up?redirect_url=${encodeURIComponent(profilePath)}`);
       return;
     }
     if (me.waitingForMe) {
+      track("profile");
       router.push(profilePath);
       return;
     }
     if (isHackathonRegistered(me.data)) {
+      track("dashboard");
       router.push(dashboardPath);
       return;
     }
+    track("profile");
     router.push(
       hackathonEntryPath({
         registered: false,
@@ -60,6 +67,7 @@ export function HackathonRegisterProvider({ children }: { children: ReactNode })
     );
   }, [
     derived.disabled,
+    derived.labelKey,
     dashboardPath,
     isSignedIn,
     me.data?.profile.complete,

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useEffect } from "react";
+import { HackathonAuthAnalytics } from "@/features/hackathon/components/HackathonAuthAnalytics";
 import { AuthCardLayout } from "@/components/app/AuthCardLayout";
 import { clerkAuthAppearance } from "@/lib/clerk-appearance";
 import {
@@ -54,17 +55,19 @@ export default function SignUpPage() {
         </>
       }
     >
-      <SignUp
-        routing="path"
-        path="/sign-up"
-        forceRedirectUrl={afterAuth}
-        fallbackRedirectUrl={afterAuth}
-        signInUrl={signInHref}
-        signInForceRedirectUrl={afterAuth}
-        signInFallbackRedirectUrl={afterAuth}
-        initialValues={emailPrefill ? { emailAddress: emailPrefill } : undefined}
-        appearance={clerkAuthAppearance}
-      />
+      <HackathonAuthAnalytics pageType="sign_up" redirectUrl={redirectUrl}>
+        <SignUp
+          routing="path"
+          path="/sign-up"
+          forceRedirectUrl={afterAuth}
+          fallbackRedirectUrl={afterAuth}
+          signInUrl={signInHref}
+          signInForceRedirectUrl={afterAuth}
+          signInFallbackRedirectUrl={afterAuth}
+          initialValues={emailPrefill ? { emailAddress: emailPrefill } : undefined}
+          appearance={clerkAuthAppearance}
+        />
+      </HackathonAuthAnalytics>
     </AuthCardLayout>
   );
 }

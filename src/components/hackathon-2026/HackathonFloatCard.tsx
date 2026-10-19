@@ -51,7 +51,7 @@ export function HackathonFloatCard({
         <span className="block whitespace-nowrap">{card.title}</span>
         <span
           className={cn(
-            "mt-1 block whitespace-nowrap font-semibold leading-none text-[#e2ecf8]",
+            "hk-meta mt-1.5 block whitespace-nowrap font-medium leading-none text-[#8fd0ff]",
             compact ? "text-[10px]" : "text-[11.5px]",
           )}
         >

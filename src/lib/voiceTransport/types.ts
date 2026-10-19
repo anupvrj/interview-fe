@@ -5,6 +5,8 @@ export interface VoiceTransportConnectOptions {
   controlUrl: string;
   interviewId?: string;
   userId?: string;
+  /** How long to wait for the socket to open. Defaults to 15s. */
+  openTimeoutMs?: number;
 }
 
 export interface VoiceTransport {

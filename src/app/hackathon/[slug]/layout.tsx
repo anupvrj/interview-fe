@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { getSearchRobots } from "@/lib/seo/site-url";
+import { hackathonHand } from "@/lib/fonts/hackathon-hand";
+import { hackathonDisplay, hackathonMono, hackathonSans } from "@/lib/fonts/hackathon-reel";
 
 /** Match the browser UI / overscroll area to the hackathon's navy canvas. */
 export const viewport: Viewport = {
@@ -13,5 +15,11 @@ export const metadata: Metadata = {
 };
 
 export default function HackathonSlugLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return children;
+  return (
+    <div
+      className={`${hackathonHand.variable} ${hackathonDisplay.variable} ${hackathonSans.variable} ${hackathonMono.variable}`}
+    >
+      {children}
+    </div>
+  );
 }

@@ -582,7 +582,17 @@ export interface Interview {
     duration?: number;
     startedAt?: string;
     endedAt?: string;
+    /** Seconds the candidate was actually connected; continues across reconnects and reloads. */
+    activeElapsedSec?: number;
+    connectionFailed?: boolean;
+    terminationReason?: "server_error";
   };
+  /** Live interview turns saved by the server; used to restore the transcript after a reload. */
+  realtimeTranscript?: Array<{
+    role: "user" | "assistant";
+    content: string;
+    timestamp: string;
+  }>;
   /** Candidate survey after realtime; `interviewId` references this interview. */
   postInterviewFeedback?: {
     interviewId: string;
@@ -693,6 +703,8 @@ export interface InterviewReport {
     topStrengths?: string[];
     topImprovements?: string[];
   };
+  /** What the interview covered, from the live theme ledger. */
+  coverage?: InterviewCoverageSummary;
   /** Set after PDF is uploaded for sharing */
   reportPdfS3Key?: string;
   /** Shown when Super Admin enables candidate or reviewer visibility. Never mixed into overallScore. */
@@ -702,6 +714,31 @@ export interface InterviewReport {
   /** Present when an institution admin loads the report and a passing score was set on the interview */
   passingScoreThreshold?: number;
   passStatus?: "pass" | "fail";
+}
+
+export interface InterviewCoverageArea {
+  label: string;
+  kind: string;
+  bucket: "technical" | "behavioral" | "intro";
+  outcome: "explored" | "touched" | "no_example" | "not_answered";
+  questions: number;
+  followUps: number;
+  repeated: boolean;
+}
+
+export interface InterviewCoverageSummary {
+  version: 1;
+  questionsAsked: number;
+  areasTouched: number;
+  areasExplored: number;
+  noExampleAreas: string[];
+  repeatedAreas: string[];
+  mix: { technical: number; behavioral: number; behavioralPct: number };
+  breadthScore: number;
+  depthScore: number;
+  phaseReached: string;
+  areas: InterviewCoverageArea[];
+  summary: string;
 }
 
 export interface CreateInterviewRequest {
@@ -1057,6 +1094,16 @@ export const interviewApi = {
 
   closeAsFailed: async (interviewId: string): Promise<void> => {
     await apiClient.post(`/interviews/${interviewId}/close-failed`);
+  },
+
+  /** End after reconnects fail. reportStarted means saved answers are being scored. */
+  terminateForServerError: async (
+    interviewId: string,
+  ): Promise<{ reportStarted: boolean }> => {
+    const response = await apiClient.post<{ data: { reportStarted: boolean } }>(
+      `/interviews/${interviewId}/terminate-server-error`,
+    );
+    return response.data.data;
   },
 
   /** Delete draft or active interview (owner only). Removes S3 recording and DB records. */
@@ -3810,6 +3857,31 @@ export const adminApi = {
     return response.data.data;
   },
 
+  getAiInterviewers: async (): Promise<{
+    catalog: import("@/lib/aiInterviewers").InterviewerCatalog;
+    builtinVoices: import("@/lib/aiInterviewers").InterviewerVoiceLists;
+  }> => {
+    const response = await apiClient.get<{
+      success: boolean;
+      data: import("@/lib/aiInterviewers").InterviewerCatalog;
+      builtinVoices: import("@/lib/aiInterviewers").InterviewerVoiceLists;
+    }>("/admin/settings/ai-interviewers");
+    return {
+      catalog: response.data.data,
+      builtinVoices: response.data.builtinVoices,
+    };
+  },
+
+  updateAiInterviewers: async (
+    catalog: import("@/lib/aiInterviewers").InterviewerCatalog,
+  ): Promise<import("@/lib/aiInterviewers").InterviewerCatalog> => {
+    const response = await apiClient.put<{
+      success: boolean;
+      data: import("@/lib/aiInterviewers").InterviewerCatalog;
+    }>("/admin/settings/ai-interviewers", catalog);
+    return response.data.data;
+  },
+
   listCatalogPlans: async (): Promise<
     import("@/lib/planRecord").AdminPlanRecord[]
   > => {
@@ -6283,6 +6355,16 @@ export const configApi = {
       success: boolean;
       data: import("@/lib/integrity/settings").IntegritySettings;
     }>("/config/integrity");
+    return response.data.data;
+  },
+
+  getAiInterviewers: async (): Promise<
+    import("@/lib/aiInterviewers").PublicInterviewerCatalog
+  > => {
+    const response = await apiClient.get<{
+      success: boolean;
+      data: import("@/lib/aiInterviewers").PublicInterviewerCatalog;
+    }>("/config/ai-interviewers");
     return response.data.data;
   },
 };

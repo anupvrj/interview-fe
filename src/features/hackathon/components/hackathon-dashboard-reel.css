@@ -1,0 +1,283 @@
+/* ==========================================================================
+   Hackathon dashboard — reel skin (on top of hackathon.css + hackathon-reel.css).
+   Same type system as the landing page: Michroma display, Geist body, Geist Mono labels.
+   Adds the reel's grid backdrop + running floor, dotted card surfaces, mono buttons.
+   ========================================================================== */
+
+/* Backdrop: faint blueprint grid fixed behind everything, plus the running 3D floor */
+.hk-dash { position: relative; }
+.hk-dash-grid {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(66, 150, 255, 0.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(66, 150, 255, 0.07) 1px, transparent 1px);
+  background-size: 64px 64px;
+  mask-image: radial-gradient(ellipse 80% 70% at 50% 30%, #000 30%, transparent 85%);
+}
+.hk-dash-floor {
+  position: fixed;
+  left: -60%;
+  right: -60%;
+  bottom: 0;
+  height: 360px;
+  z-index: 0;
+  pointer-events: none;
+  transform: perspective(520px) rotateX(58deg);
+  transform-origin: 50% 100%;
+  background-image:
+    linear-gradient(rgba(79, 210, 255, 0.45) 2px, transparent 2px),
+    linear-gradient(90deg, rgba(79, 210, 255, 0.45) 2px, transparent 2px);
+  background-size: 90px 90px;
+  mask-image: linear-gradient(0deg, rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.2) 40%, transparent 75%);
+  animation: hk-floor-run 6s linear infinite;
+  opacity: 0.4;
+}
+
+/* Header: mono nav + mono ghost button, like the landing header */
+.hk-dash header nav a,
+.hk-dash header nav span { font-family: var(--hk-mono); letter-spacing: 0.02em; }
+
+/* Ghost / secondary buttons (View report, View PDF, Event page, Try again…) */
+.hk-root .hk-btn-ghost {
+  font-family: var(--hk-mono);
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  border-color: rgba(79, 210, 255, 0.55);
+  background: rgba(8, 20, 40, 0.55);
+}
+.hk-root .hk-btn-ghost:hover { border-color: #4fd2ff; background: rgba(43, 210, 255, 0.08); box-shadow: 0 0 22px rgba(43, 210, 255, 0.22); }
+@media (max-width: 639px) { .hk-root .hk-btn-ghost { letter-spacing: 0.03em; } }
+
+/* Numbers: Michroma, like the reel counters */
+.hk-root .hk-num-d { font-family: var(--hk-display); font-weight: 400 !important; letter-spacing: -0.04em; }
+
+/* Challenge cards: dotted surface + reel corner brackets on every state */
+.hk-dash .hk-ch {
+  background-image:
+    radial-gradient(rgba(120, 180, 255, 0.09) 1.2px, transparent 1.3px),
+    linear-gradient(160deg, rgba(13, 34, 70, 0.92), rgba(8, 22, 46, 0.95)) !important;
+  background-size: 22px 22px, auto !important;
+}
+.hk-dash .hk-ch h2 { font-size: clamp(1.15rem, 2.1vw, 1.6rem) !important; }
+
+/* Inner panels (interview slots, resume row, social form) */
+.hk-dash .hk-slot {
+  position: relative;
+  border-color: rgba(66, 150, 255, 0.3) !important;
+  background-image:
+    radial-gradient(rgba(120, 180, 255, 0.08) 1.2px, transparent 1.3px),
+    linear-gradient(180deg, rgba(12, 28, 56, 0.85), rgba(6, 16, 34, 0.9)) !important;
+  background-size: 18px 18px, auto !important;
+  box-shadow: inset 0 1px 0 rgba(140, 190, 255, 0.08);
+}
+.hk-dash .hk-slot::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(140deg, rgba(79, 210, 255, 0.7), rgba(22, 119, 255, 0.15) 35%, transparent 60%, rgba(79, 210, 255, 0.3));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+/* Small status pills / labels → mono uppercase */
+.hk-dash .hk-pill-m {
+  font-family: var(--hk-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-size: 11px;
+  font-weight: 700;
+}
+@media (max-width: 639px) { .hk-dash .hk-pill-m { letter-spacing: 0.06em; } }
+
+/* Hero panel: dotted surface on top of its gradient */
+.hk-dash .hk-dash-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background-image: radial-gradient(rgba(120, 180, 255, 0.1) 1.2px, transparent 1.3px);
+  background-size: 22px 22px;
+  mask-image: linear-gradient(180deg, #000, transparent 75%);
+}
+
+@media (prefers-reduced-motion: reduce) { .hk-dash-floor { animation: none; } }
+.hk-dash .hk-slot-done {
+  border-color: rgba(41, 214, 160, 0.4) !important;
+  background-image:
+    radial-gradient(rgba(41, 214, 160, 0.1) 1.2px, transparent 1.3px),
+    linear-gradient(180deg, rgba(10, 40, 40, 0.6), rgba(6, 18, 30, 0.85)) !important;
+}
+.hk-dash .hk-slot-done::before { background: linear-gradient(140deg, rgba(41, 214, 160, 0.75), rgba(41, 214, 160, 0.12) 35%, transparent 60%, rgba(41, 214, 160, 0.3)); }
+
+/* Phase notice titles ("You're registered…", "Hackathon is full"…): calmer size than page h1s */
+.hk-root h1.hk-notice-title {
+  font-size: 30px !important;
+  line-height: 1.3 !important;
+  letter-spacing: -0.02em !important;
+  text-wrap: balance;
+}
+@media (max-width: 639px) {
+  .hk-root h1.hk-notice-title { font-size: 21px !important; line-height: 1.35 !important; }
+}
+
+/* ---------- Modals (portalled outside the page, so they carry .hk-root + font vars themselves) ---------- */
+.hk-root.hk-modal {
+  position: fixed !important;
+  font-family: var(--hk-sans);
+  background-color: #071426 !important;
+  background-image:
+    radial-gradient(rgba(120, 180, 255, 0.09) 1.2px, transparent 1.3px),
+    linear-gradient(180deg, rgba(15, 32, 62, 0.96), rgba(6, 14, 30, 0.98)) !important;
+  background-size: 22px 22px, auto !important;
+  border-color: rgba(79, 210, 255, 0.4) !important;
+  box-shadow: 0 40px 100px rgba(0, 0, 0, 0.6), 0 0 60px rgba(22, 119, 255, 0.18) !important;
+  border-radius: 22px !important;
+}
+/* corner brackets instead of the page ruler */
+.hk-root.hk-modal::after {
+  content: "";
+  position: absolute;
+  inset: 10px;
+  top: 10px;
+  bottom: 10px;
+  left: 10px;
+  width: auto;
+  z-index: 2;
+  pointer-events: none;
+  mask-image: none;
+  opacity: 0.8;
+  --b: #4fd2ff;
+  --l: 16px;
+  --w: 2px;
+  background:
+    linear-gradient(var(--b), var(--b)) top left / var(--l) var(--w) no-repeat,
+    linear-gradient(var(--b), var(--b)) top left / var(--w) var(--l) no-repeat,
+    linear-gradient(var(--b), var(--b)) top right / var(--l) var(--w) no-repeat,
+    linear-gradient(var(--b), var(--b)) top right / var(--w) var(--l) no-repeat,
+    linear-gradient(var(--b), var(--b)) bottom left / var(--l) var(--w) no-repeat,
+    linear-gradient(var(--b), var(--b)) bottom left / var(--w) var(--l) no-repeat,
+    linear-gradient(var(--b), var(--b)) bottom right / var(--l) var(--w) no-repeat,
+    linear-gradient(var(--b), var(--b)) bottom right / var(--w) var(--l) no-repeat;
+}
+.hk-root.hk-modal h2 { font-size: clamp(1.15rem, 2.4vw, 1.6rem) !important; line-height: 1.3 !important; }
+.hk-root.hk-modal h3 { font-size: 13px; letter-spacing: 0; }
+.hk-root.hk-modal .hk-pill-m { font-family: var(--hk-mono); text-transform: uppercase; letter-spacing: 0.08em; font-size: 11px; font-weight: 700; }
+.hk-root.hk-modal .hk-modal-panel {
+  background-image:
+    radial-gradient(rgba(120, 180, 255, 0.07) 1.2px, transparent 1.3px),
+    linear-gradient(180deg, rgba(10, 24, 48, 0.85), rgba(4, 11, 23, 0.9)) !important;
+  background-size: 18px 18px, auto !important;
+  border-color: rgba(66, 150, 255, 0.3) !important;
+}
+.hk-root.hk-modal pre { font-family: var(--hk-mono); }
+
+/* Completed banner: dotted teal surface + Michroma title */
+.hk-dash .hk-done {
+  background-image:
+    radial-gradient(rgba(41, 214, 160, 0.1) 1.2px, transparent 1.3px),
+    linear-gradient(180deg, rgba(12, 50, 56, 0.9), rgba(10, 31, 43, 0.92)) !important;
+  background-size: 22px 22px, auto !important;
+}
+.hk-dash .hk-done { --hk-bracket: #29d6a0; }
+.hk-dash .hk-done h2 { font-size: clamp(1.3rem, 2.6vw, 1.9rem) !important; }
+
+/* the completed banner already uses ::after for its sheen, so its corners are a child element */
+.hk-corners {
+  position: absolute;
+  inset: 10px;
+  z-index: 2;
+  pointer-events: none;
+  --b: #29d6a0;
+  --l: 16px;
+  --w: 2px;
+  opacity: 0.85;
+  background:
+    linear-gradient(var(--b), var(--b)) top left / var(--l) var(--w) no-repeat,
+    linear-gradient(var(--b), var(--b)) top left / var(--w) var(--l) no-repeat,
+    linear-gradient(var(--b), var(--b)) top right / var(--l) var(--w) no-repeat,
+    linear-gradient(var(--b), var(--b)) top right / var(--w) var(--l) no-repeat,
+    linear-gradient(var(--b), var(--b)) bottom left / var(--l) var(--w) no-repeat,
+    linear-gradient(var(--b), var(--b)) bottom left / var(--w) var(--l) no-repeat,
+    linear-gradient(var(--b), var(--b)) bottom right / var(--l) var(--w) no-repeat,
+    linear-gradient(var(--b), var(--b)) bottom right / var(--w) var(--l) no-repeat;
+}
+
+/* ==========================================================================
+   One type system on the dashboard + public hackathon page:
+   Michroma headings · Geist Mono for all body/UI text · Michroma numbers.
+   Headings are sized down so they fit in fewer lines.
+   ========================================================================== */
+.hk-dash main,
+.hk-dash main p,
+.hk-dash main li,
+.hk-dash main span,
+.hk-dash main label,
+.hk-dash main input,
+.hk-dash main textarea,
+.hk-dash main button,
+.hk-dash main a,
+.hk-root.hk-modal p,
+.hk-root.hk-modal li,
+.hk-root.hk-modal span:not(.hk-num-d),
+.hk-root.hk-modal button {
+  font-family: var(--hk-mono);
+  letter-spacing: -0.01em;
+}
+.hk-dash main .hk-num-d,
+.hk-dash main .hk-num-d * { font-family: var(--hk-display) !important; letter-spacing: -0.04em; }
+.hk-dash main :is(h1, h2, h3) span,
+.hk-root.hk-modal :is(h1, h2, h3) span { font-family: var(--hk-display); letter-spacing: inherit; }
+.hk-dash main h1 .hk-wave-hand { font-family: initial; }
+
+/* body copy a touch smaller — mono runs wider than sans */
+.hk-dash main p { font-size: 0.94em; line-height: 1.7; }
+.hk-dash main .hk-pill-m,
+.hk-dash main .hk-eyebrow,
+.hk-dash main [class*="tracking-[0.1"],
+.hk-dash main [class*="tracking-[0.2"] { font-size: 11px; }
+
+/* headings: sized to fit */
+.hk-dash main h1 { font-size: clamp(1.55rem, 3vw, 2.35rem) !important; line-height: 1.18 !important; text-wrap: balance; }
+.hk-dash main h2 { font-size: clamp(1.05rem, 1.7vw, 1.35rem) !important; line-height: 1.28 !important; text-wrap: balance; }
+.hk-dash main h3 { font-size: 15px !important; line-height: 1.35 !important; }
+@media (max-width: 639px) {
+  .hk-dash main h1 { font-size: 1.45rem !important; }
+  .hk-dash main h2 { font-size: 1.05rem !important; }
+  .hk-dash main h3 { font-size: 14px !important; }
+  .hk-dash main p { font-size: 13.5px; }
+}
+
+/* countdown cells: reel dotted tiles, amber digits (no orange) */
+.hk-dash .hk-cd-cell {
+  position: relative;
+  border-color: rgba(66, 150, 255, 0.35) !important;
+  background-image:
+    radial-gradient(rgba(120, 180, 255, 0.08) 1.2px, transparent 1.3px),
+    linear-gradient(180deg, rgba(12, 28, 56, 0.9), rgba(6, 16, 34, 0.92)) !important;
+  background-size: 14px 14px, auto !important;
+  box-shadow: inset 0 1px 0 rgba(140, 190, 255, 0.08), 0 0 24px rgba(22, 119, 255, 0.12) !important;
+}
+.hk-dash .hk-cd-amber {
+  border-color: rgba(255, 196, 77, 0.45) !important;
+  background-image:
+    radial-gradient(rgba(255, 196, 77, 0.09) 1.2px, transparent 1.3px),
+    linear-gradient(180deg, rgba(46, 36, 16, 0.6), rgba(20, 15, 8, 0.8)) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 196, 77, 0.1), 0 0 24px rgba(255, 196, 77, 0.12) !important;
+}
+.hk-dash .hk-cd-cell .hk-num-d { font-size: 1.6rem !important; line-height: 1.1; text-shadow: 0 0 18px currentColor; }
+.hk-dash .hk-cd-cell > span:last-child { font-size: 9.5px !important; letter-spacing: 0.08em !important; margin-top: 6px; }
+@media (max-width: 639px) { .hk-dash .hk-cd-cell .hk-num-d { font-size: 1.35rem !important; } }
+
+/* phase-notice title keeps its own (smaller) size */
+.hk-dash main h1.hk-notice-title { font-size: 26px !important; line-height: 1.3 !important; }
+@media (max-width: 639px) { .hk-dash main h1.hk-notice-title { font-size: 19px !important; } }

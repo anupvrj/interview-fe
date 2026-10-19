@@ -8,6 +8,7 @@ import {
   HackathonFloatCard,
 } from "@/components/hackathon-2026/HackathonFloatCard";
 import { HackathonRegisterButton } from "@/components/hackathon-2026/HackathonRegisterButton";
+import { HackathonHeroHud } from "@/components/hackathon-2026/HackathonHud";
 import { HackathonRegisterHint } from "@/components/hackathon-2026/HackathonRegisterContext";
 import {
   Reveal,
@@ -40,6 +41,9 @@ export function HackathonHero() {
 
   return (
     <section className="relative overflow-hidden pt-8 sm:pt-10 lg:pt-6">
+      {/* Reel-style 3D grid floor + horizon glow */}
+      <div className="hk-floor" aria-hidden />
+      <HackathonHeroHud className="relative z-[2] mx-auto mb-6 hidden w-full max-w-[1400px] px-5 md:block" />
       {/* Glossy ribbons: bottom-left sweep + large sweep behind the candidate */}
       <Ribbon
         variant="a"
@@ -82,7 +86,7 @@ export function HackathonHero() {
           </h1>
 
           <Reveal immediate delay={260}>
-            <p className="mx-auto mt-6 max-w-[36rem] text-base leading-7 text-[#dbe6f3] sm:text-lg sm:leading-8 lg:mx-0">
+            <p className="hk-lead mx-auto mt-6 max-w-[36rem] text-base leading-7 text-[#dbe6f3] sm:text-lg sm:leading-8 lg:mx-0">
               {HACKATHON_HERO.copy.replace(
                 "{days}",
                 String(challenge.dayCount),
@@ -91,7 +95,7 @@ export function HackathonHero() {
           </Reveal>
 
           <Reveal immediate delay={320}>
-            <ul className="mt-7 flex flex-wrap items-center justify-center gap-x-1.5 gap-y-2.5 text-[11px] font-medium tracking-tight text-white min-[380px]:gap-x-2 min-[380px]:text-xs min-[380px]:tracking-normal sm:gap-x-6 sm:gap-y-3 sm:text-[15px] lg:justify-start lg:gap-x-7">
+            <ul className="hk-meta mt-7 flex flex-wrap items-center justify-center gap-x-1.5 gap-y-2.5 text-[11px] font-medium tracking-tight text-white min-[380px]:gap-x-2 min-[380px]:text-xs min-[380px]:tracking-normal sm:gap-x-6 sm:gap-y-3 sm:text-[15px] lg:justify-start lg:gap-x-7">
               <li className="inline-flex basis-full items-center justify-center gap-2 sm:basis-auto sm:justify-start sm:gap-2.5">
                 <Calendar
                   className="size-4 text-[#2e9bff] sm:size-5"
@@ -123,22 +127,23 @@ export function HackathonHero() {
                       {HACKATHON_HERO.offerWas}
                     </span>
                   </span>
-                  <span className="text-[13px] font-medium text-[#dbe6f3] sm:text-[15px]">
+                  <span className="hk-meta text-[13px] font-medium text-[#dbe6f3] sm:text-[15px]">
                     {HACKATHON_HERO.offerEndsLabel}{" "}
-                    <span className="tabular-nums text-sm font-extrabold text-[#ff9a3c] sm:text-base">
+                    <span className="hk-num text-sm font-bold text-[#ffc44d] sm:text-base">
                       {offerTime}
                     </span>
                   </span>
                 </p>
               </div>
               <HackathonRegisterButton
+                ctaLocation="hero"
                 size="lg"
                 idle
                 className="min-h-[3.75rem] w-full rounded-2xl px-8 text-base sm:w-auto sm:min-w-[17.5rem]"
               />
             </div>
-            <p className="mt-3 text-center text-sm font-medium text-[#dbe6f3] lg:text-left">
-              <span className="font-semibold text-[#ff9a3c]">
+            <p className="hk-meta mt-3 text-center text-sm font-medium text-[#dbe6f3] lg:text-left">
+              <span className="font-semibold text-[#ffc44d]">
                 {HACKATHON_HERO.seatNoteLead}
               </span>{" "}
               {HACKATHON_HERO.seatNote}
