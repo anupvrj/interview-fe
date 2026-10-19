@@ -3,6 +3,7 @@
 import { Trophy } from "lucide-react";
 import type { HackathonMe } from "../api";
 import { formatIst } from "../copy";
+import { WhatsAppCommunityCard } from "./WhatsAppCommunityCard";
 
 export function CompleteSection({ me }: Readonly<{ me: HackathonMe }>) {
   if (!me.progress.completed) return null;
@@ -21,6 +22,7 @@ export function CompleteSection({ me }: Readonly<{ me: HackathonMe }>) {
         Your submission is in{me.participant?.completedAt ? ` (${formatIst(me.participant.completedAt)})` : ""}. We&apos;ll
         announce the winners after judging. Good luck!
       </p>
+      <WhatsAppCommunityCard variant="qr" className="mt-6" />
     </section>
   );
 }

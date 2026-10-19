@@ -20,6 +20,7 @@ import {
   Share2,
   Trophy,
   Megaphone,
+  Send,
 } from "lucide-react";
 import type { DashboardNavAccent, DashboardNavItem } from "@/lib/dashboard-nav";
 
@@ -245,6 +246,14 @@ export const SUPER_ADMIN_NAV_GROUPS: SuperAdminNavGroup[] = [
         description:
           "Promo popups for the hackathon and launches: pick a design, edit the wording, choose pages and timing.",
       },
+      {
+        title: "Email Broadcasts",
+        href: `${SUPER_ADMIN_HOME}/broadcasts`,
+        icon: Send,
+        accent: accent.violet,
+        description:
+          "Send hackathon updates and announcements to a chosen audience, with test-first and anti-spam safeguards.",
+      },
     ],
   },
   {
@@ -303,6 +312,18 @@ type NestedPageRule = {
 };
 
 const NESTED_PAGES: NestedPageRule[] = [
+  {
+    pattern: /^\/super-admin\/broadcasts\/new\/?$/,
+    title: "New broadcast",
+    description: "Write the email, pick the audience, test it, then send.",
+    crumb: "New",
+  },
+  {
+    pattern: /^\/super-admin\/broadcasts\/[^/]+\/?$/,
+    title: "Broadcast",
+    description: "Email, audience and delivery for this broadcast.",
+    crumb: "Broadcast",
+  },
   {
     pattern: /^\/super-admin\/popups\/new\/?$/,
     title: "New popup",

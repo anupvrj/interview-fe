@@ -19,6 +19,7 @@ import { HackathonFeatureGate } from "../components/HackathonFeatureGate";
 import { ChallengeCard } from "../components/ChallengeCard";
 import { HK_EVENTS, trackAtsQualifiedOnce, trackHackathonOnce, trackParticipationProgress } from "../analytics";
 import { CompleteSection } from "../components/CompleteSection";
+import { WhatsAppCommunityCard } from "../components/WhatsAppCommunityCard";
 import { HackathonStartCountdown } from "../components/HackathonStartCountdown";
 import { DashboardHero } from "../components/DashboardHero";
 import { HackathonShell } from "../components/HackathonShell";
@@ -44,6 +45,8 @@ function Board({ me }: Readonly<{ me: HackathonMe }>) {
   return (
     <div className="space-y-5 sm:space-y-6">
       <DashboardHero me={me} />
+      {/* Completed participants get the QR version in CompleteSection instead. */}
+      {me.progress.completed ? null : <WhatsAppCommunityCard />}
 
       {challenges.map((challenge, index) => {
         const kind = challengeKind(challenge);
@@ -300,6 +303,7 @@ function DashboardContent() {
             <ReadinessChecklist me={me} />
           </div>
         </PhaseNotice>
+        <WhatsAppCommunityCard />
       </div>
     );
   }

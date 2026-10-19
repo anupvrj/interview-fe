@@ -5,8 +5,8 @@ import { cn } from "@/lib/utils";
 const PRESETS = {
   /** Full-color wordmark (transparent PNG) */
   default: { src: "/brand/interviewtrix-logo.png", width: 1067, height: 234 },
-  /** Wordmark on dark backgrounds (e.g. sidebar) */
-  white: { src: "/brand/interviewtrix-logo.png", width: 1067, height: 234 },
+  /** Wordmark on dark backgrounds (dark-mode header / sidebar): white "Interview" text */
+  white: { src: "/brand/interviewtrix-logo-dark.png", width: 1128, height: 235 },
   /** Footer wordmark on dark backgrounds */
   footer: {
     src: "/brand/interview-trix-logo-footer.png",
