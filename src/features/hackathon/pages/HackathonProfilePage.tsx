@@ -37,18 +37,27 @@ function ProfileContent() {
   const [checkingExistingAccount, setCheckingExistingAccount] = useState(true);
   const me = meQuery.data;
   const profileComplete = Boolean(me?.profile.complete);
+  /**
+   * Once the signup form is open it owns the flow until the user finishes it. Without this,
+   * the background `me` refetch (30s poll, or window focus after the resume file picker closes)
+   * sees the profile complete after step 2 and jumps to the dashboard, skipping the resume step.
+   */
+  const [formOpen, setFormOpen] = useState(false);
+  const [formDone, setFormDone] = useState(false);
+  const holdForm = formOpen && !formDone;
 
   const { register, registerAttempted, modalPhase, registrationBusy, successModalOpen, completeRegistrationFlow } =
     useHackathonRegistrationGate({
       source: "profile",
-      autoRegister: true,
+      autoRegister: !holdForm,
       onRegistrationComplete: () => router.replace(dashboardPath),
     });
 
   useEffect(() => {
+    if (holdForm) return;
     if (!me?.registered || !me.profile.complete || modalPhase !== null || register.isPending) return;
     router.replace(dashboardPath);
-  }, [dashboardPath, me?.profile.complete, me?.registered, modalPhase, register.isPending, router]);
+  }, [dashboardPath, holdForm, me?.profile.complete, me?.registered, modalPhase, register.isPending, router]);
 
   useEffect(() => {
     if (isLoaded && !isSignedIn) {
@@ -98,7 +107,7 @@ function ProfileContent() {
     user,
   ]);
 
-  const headingToDashboard = profileComplete && Boolean(me?.registered);
+  const headingToDashboard = !holdForm && profileComplete && Boolean(me?.registered);
 
   const showBlockingShell =
     !isLoaded ||
@@ -108,7 +117,7 @@ function ProfileContent() {
     registrationBusy ||
     successModalOpen ||
     headingToDashboard ||
-    (profileComplete && me && !me.registered && !register.isError) ||
+    (!holdForm && profileComplete && me && !me.registered && !register.isError) ||
     (!me && !meQuery.isError);
 
   if (showBlockingShell) {
@@ -132,7 +141,7 @@ function ProfileContent() {
   }
 
   const registerError = register.error ? toHackathonError(register.error) : null;
-  if (profileComplete && me && !me.registered && registerError) {
+  if (!holdForm && profileComplete && me && !me.registered && registerError) {
     return (
       <PhaseNotice icon={AlertCircle} tone="rose" title="We couldn't register you" message={registerError.message}>
         <button
@@ -162,7 +171,9 @@ function ProfileContent() {
         </p>
       </header>
       <HackathonOnboardingForm
+        onStart={() => setFormOpen(true)}
         onComplete={() => {
+          setFormDone(true);
           void queryClient.invalidateQueries({ queryKey: hackathonKeys.me(slug) });
         }}
       />
