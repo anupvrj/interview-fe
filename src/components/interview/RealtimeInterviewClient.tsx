@@ -64,6 +64,8 @@ import type { AIInterviewerPersona } from "@/lib/aiPersonas";
 import { selectInterviewerPersona } from "@/lib/aiInterviewers";
 import { useAiInterviewers } from "@/hooks/useAiInterviewers";
 import { AiPersonaAvatar } from "@/components/interview/AiPersonaAvatar";
+import { InterviewerVoiceStatus } from "@/components/interview/InterviewerVoiceStatus";
+import { JourneyIconTile, JourneyLoader, journey } from "@/components/interview/journey-ui";
 import { InterviewBriefingDialog } from "@/components/interview/InterviewBriefingDialog";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -468,6 +470,8 @@ export function RealtimeInterviewClient({
   const timeUpGraceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const endInterviewLatestRef = useRef<(() => Promise<void>) | null>(null);
   const endingInterviewRef = useRef(false);
+  /** Full-screen loader from "View Report" / end until the report page loads. */
+  const [openingReport, setOpeningReport] = useState(false);
   // Ref mirror of elapsedTime so setTimeout/onclose closures always read the current
   // value, not the stale value captured at the time connectWebSocket() was called.
   const elapsedTimeRef = useRef(0);
@@ -2489,6 +2493,7 @@ export function RealtimeInterviewClient({
   const endInterview = async () => {
     if (endingInterviewRef.current) return;
     endingInterviewRef.current = true;
+    setOpeningReport(true);
     if (timeUpGraceTimerRef.current) {
       clearTimeout(timeUpGraceTimerRef.current);
       timeUpGraceTimerRef.current = null;
@@ -2604,6 +2609,7 @@ export function RealtimeInterviewClient({
     } catch (error: any) {
       console.error("Error ending interview:", error);
       endingInterviewRef.current = false;
+      setOpeningReport(false);
       // Use non-blocking toast so the interview isn't interrupted.
       setActiveError(error.message || "Failed to end interview. Please try again.");
     }
@@ -3390,6 +3396,16 @@ export function RealtimeInterviewClient({
     }
   };
 
+  if (loading && !codingDiscussionHost && !codingEmbed) {
+    return (
+      <JourneyLoader
+        title="Getting your interview room ready…"
+        description="Loading your interviewer, questions and voice."
+        className={cn("min-h-screen", className)}
+      />
+    );
+  }
+
   if (loading) {
     return (
       <div
@@ -3414,7 +3430,7 @@ export function RealtimeInterviewClient({
           />
           <p
             className={
-              codingDiscussionHost ? "text-xs text-gray-400" : "text-gray-600"
+              codingDiscussionHost ? "text-xs text-gray-400" : "text-muted-foreground"
             }
           >
             Loading interview...
@@ -3453,12 +3469,18 @@ export function RealtimeInterviewClient({
             </Button>
           </div>
         ) : (
-          <Card className="w-full max-w-md">
-            <CardContent className="p-4 text-center sm:p-5">
-              <AlertCircle className="mx-auto mb-4 h-12 w-12 text-red-500" />
-              <h2 className="mb-2 text-xl font-bold text-gray-900">Error</h2>
-              <p className="mb-4 text-gray-600">{error}</p>
+          <div className={cn(journey.card, "w-full max-w-md")}>
+            <div className={journey.headerBand}>
+              <JourneyIconTile tone="danger" size="lg" className="mb-3">
+                <AlertCircle className="h-7 w-7" aria-hidden />
+              </JourneyIconTile>
+              <p className={journey.eyebrow}>Interview</p>
+              <h2 className={cn(journey.title, "mt-2")}>Something went wrong</h2>
+              <p className={journey.description}>{error}</p>
+            </div>
+            <div className={cn(journey.footer, "sm:justify-center")}>
               <Button
+                className={journey.primaryButton}
                 onClick={() => {
                   const home =
                     resolveHackathonInterviewHome(
@@ -3473,8 +3495,8 @@ export function RealtimeInterviewClient({
                   ? "Back to Hackathon"
                   : "Go to Dashboard"}
               </Button>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         )}
       </div>
     );
@@ -3494,6 +3516,14 @@ export function RealtimeInterviewClient({
         className,
       )}
     >
+      {openingReport && (
+        <JourneyLoader
+          variant="overlay"
+          title="Wrapping up your interview…"
+          description="Taking you to your report. This takes a few seconds."
+        />
+      )}
+
       <InterviewBriefingDialog
         open={showBriefing}
         connecting={acceptingBriefing}
@@ -3504,25 +3534,27 @@ export function RealtimeInterviewClient({
         open={showInterviewComplete}
         onOpenChange={setShowInterviewComplete}
       >
-        <AlertDialogContent className="sm:max-w-md border-2 border-green-200 bg-card shadow-xl">
-          <AlertDialogHeader>
+        <AlertDialogContent className={cn(journey.dialog, "sm:max-w-md")}>
+          <AlertDialogHeader className={journey.headerBand}>
             <div className="flex flex-col items-center text-center">
-              <CheckCircle2 className="mx-auto mb-4 h-12 w-12 text-green-500" />
-              <AlertDialogTitle className="text-xl font-bold text-gray-900">
+              <JourneyIconTile tone="success" size="lg" className="mb-3">
+                <CheckCircle2 className="h-7 w-7" aria-hidden />
+              </JourneyIconTile>
+              <AlertDialogTitle className={journey.title}>
                 Your interview is complete!
               </AlertDialogTitle>
-              <AlertDialogDescription className="mt-2 text-base text-gray-600">
+              <AlertDialogDescription className={cn(journey.description, "mt-2")}>
                 Great job! Your report and analysis are being generated — this
                 usually takes about a minute.
                 {interviewCompleteCountdown > 0 && (
-                  <span className="mt-2 block text-sm text-gray-500">
+                  <span className="mt-2 block text-sm text-muted-foreground">
                     Redirecting in {interviewCompleteCountdown}s...
                   </span>
                 )}
               </AlertDialogDescription>
             </div>
           </AlertDialogHeader>
-          <AlertDialogFooter className="mt-4 sm:justify-center">
+          <AlertDialogFooter className={cn(journey.footer, "sm:justify-center")}>
             <Button
               size="lg"
               onClick={() => {
@@ -3538,7 +3570,7 @@ export function RealtimeInterviewClient({
                 showInterviewCompleteRef.current = false;
                 endInterview();
               }}
-              className="min-w-[120px] bg-gradient-to-r from-violet-600 to-primary hover:from-violet-700 hover:bg-slate-900 text-white"
+              className="min-w-[120px] bg-[#7367F0] text-white shadow-sm hover:bg-[#6e62e5]"
             >
               View Report
             </Button>
@@ -3606,20 +3638,22 @@ export function RealtimeInterviewClient({
           }
         }}
       >
-        <AlertDialogContent className="sm:max-w-md border-2 border-amber-200 bg-card shadow-xl">
-          <AlertDialogHeader>
+        <AlertDialogContent className={cn(journey.dialog, "sm:max-w-md")}>
+          <AlertDialogHeader className={journey.headerBand}>
             <div className="flex flex-col items-center text-center">
-              <AlertCircle className="mx-auto h-12 w-12 text-amber-500 mb-4" />
-              <AlertDialogTitle className="text-xl font-bold text-gray-900">
+              <JourneyIconTile tone="warning" size="lg" className="mb-3">
+                <AlertCircle className="h-7 w-7" aria-hidden />
+              </JourneyIconTile>
+              <AlertDialogTitle className={journey.title}>
                 End the interview?
               </AlertDialogTitle>
-              <AlertDialogDescription className="mt-2 text-base text-gray-600">
+              <AlertDialogDescription className={cn(journey.description, "mt-2")}>
                 It sounds like you&apos;d like to finish. Would you like to end
                 the interview now and generate your report?
               </AlertDialogDescription>
             </div>
           </AlertDialogHeader>
-          <AlertDialogFooter className="mt-4 flex gap-3 sm:justify-center">
+          <AlertDialogFooter className={cn(journey.footer, "sm:justify-center")}>
             <Button
               variant="outline"
               size="lg"
@@ -3652,21 +3686,23 @@ export function RealtimeInterviewClient({
         open={showEndInterviewConfirm}
         onOpenChange={setShowEndInterviewConfirm}
       >
-        <AlertDialogContent className="sm:max-w-md border-2 border-amber-200 bg-card shadow-xl">
-          <AlertDialogHeader>
+        <AlertDialogContent className={cn(journey.dialog, "sm:max-w-md")}>
+          <AlertDialogHeader className={journey.headerBand}>
             <div className="flex flex-col items-center text-center">
-              <AlertCircle className="mx-auto h-12 w-12 text-amber-500 mb-4" />
-              <AlertDialogTitle className="text-xl font-bold text-gray-900">
+              <JourneyIconTile tone="warning" size="lg" className="mb-3">
+                <AlertCircle className="h-7 w-7" aria-hidden />
+              </JourneyIconTile>
+              <AlertDialogTitle className={journey.title}>
                 You are about to close the interview. Are you sure?
               </AlertDialogTitle>
-              <AlertDialogDescription className="text-base mt-2 text-gray-600">
+              <AlertDialogDescription className={cn(journey.description, "mt-2")}>
                 Your interview will be ended and credit will be deducted based on
                 your usage. You might see incomplete report of your interview or
                 report generation might fail.
               </AlertDialogDescription>
             </div>
           </AlertDialogHeader>
-          <AlertDialogFooter className="sm:justify-center gap-3 mt-4">
+          <AlertDialogFooter className={cn(journey.footer, "sm:justify-center")}>
             <Button
               variant="outline"
               size="lg"
@@ -3690,18 +3726,20 @@ export function RealtimeInterviewClient({
         </AlertDialogContent>
       </AlertDialog>
       <AlertDialog open={connectionFailed} onOpenChange={() => {}}>
-        <AlertDialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto mx-4 w-[calc(100%-2rem)] border-2 border-red-200 bg-card shadow-xl">
-          <AlertDialogHeader>
+        <AlertDialogContent className={cn(journey.dialog, "sm:max-w-xl max-h-[90vh] overflow-y-auto mx-4 w-[calc(100%-2rem)]")}>
+          <AlertDialogHeader className={journey.headerBand}>
             <div className="flex flex-col items-center text-center">
-              <AlertCircle className="mx-auto h-12 w-12 shrink-0 text-red-500 mb-4" />
-              <AlertDialogTitle className="text-xl font-bold text-gray-900">
+              <JourneyIconTile tone="danger" size="lg" className="mb-3">
+                <AlertCircle className="h-7 w-7" aria-hidden />
+              </JourneyIconTile>
+              <AlertDialogTitle className={journey.title}>
                 {serverTerminated
                   ? "Interview ended"
                   : isReconnecting
                     ? "Reconnecting..."
                     : "Connection Lost"}
               </AlertDialogTitle>
-              <AlertDialogDescription className="text-base mt-2 text-gray-600 break-words">
+              <AlertDialogDescription className={cn(journey.description, "break-words")}>
                 {serverTerminated
                   ? reportOnTheWay
                     ? "This interview was terminated due to a server error. Your saved answers are being scored."
@@ -3712,10 +3750,10 @@ export function RealtimeInterviewClient({
               </AlertDialogDescription>
             </div>
           </AlertDialogHeader>
-          <AlertDialogFooter className="flex flex-col-reverse sm:flex-row sm:justify-center gap-3 mt-4">
+          <AlertDialogFooter className={cn(journey.footer, "sm:justify-center")}>
             {serverTerminated ? (
               reportOnTheWay ? (
-                <div className="flex items-center gap-2 text-sm text-gray-600">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
                   Opening your report…
                 </div>
@@ -3751,7 +3789,7 @@ export function RealtimeInterviewClient({
                   size="lg"
                   onClick={resumeInterview}
                   disabled={isResuming || isReconnecting}
-                  className="w-full sm:w-auto sm:whitespace-nowrap text-center h-auto py-2 px-4 bg-gradient-to-r from-violet-600 to-primary hover:from-violet-700 hover:bg-slate-900 text-white"
+                  className="w-full sm:w-auto sm:whitespace-nowrap text-center h-auto py-2 px-4 bg-[#7367F0] text-white shadow-sm hover:bg-[#6e62e5]"
                 >
                   {isResuming || isReconnecting ? (
                     <>
@@ -3956,29 +3994,28 @@ export function RealtimeInterviewClient({
                     >
                       {interviewerPersona.title}
                     </p>
-                    <p
+                    <InterviewerVoiceStatus
+                      compact={codingEmbed}
                       className={cn(
-                        "mt-1 text-gray-300/80",
+                        "mt-1",
                         codingEmbed && isCodingDiscussion
                           ? "text-xs sm:text-sm"
                           : codingEmbed
                             ? "text-[11px] sm:text-xs"
                             : "text-sm",
-                        connected &&
-                          codingDiscussionHost &&
-                          !isAIProcessing &&
-                          !(isAISpeaking || currentAssistantTranscript) &&
-                          "text-teal-300/90",
                       )}
-                    >
-                      {connected
-                        ? isAIProcessing
-                          ? "Understanding your answer..."
-                          : isAISpeaking || currentAssistantTranscript
-                            ? "Speaking..."
-                            : "Ready"
-                        : "Connecting..."}
-                    </p>
+                      mode={
+                        !connected
+                          ? "connecting"
+                          : isAIProcessing
+                            ? "thinking"
+                            : isAISpeaking || currentAssistantTranscript
+                              ? "speaking"
+                              : isInterviewActive && !isPreparing
+                                ? "listening"
+                                : "ready"
+                      }
+                    />
                   </div>
                 </div>
 
@@ -4125,7 +4162,7 @@ export function RealtimeInterviewClient({
                         onClick={() => setShowRecordingOptIn(true)}
                         disabled={!connected}
                         size={codingEmbed ? "sm" : "default"}
-                        className="h-11 w-full rounded-xl bg-gradient-to-r from-violet-600 to-primary px-4 hover:from-violet-700 hover:bg-slate-900 sm:w-auto sm:px-6"
+                        className="h-11 w-full rounded-xl bg-[#7367F0] px-4 text-white shadow-sm hover:bg-[#6e62e5] sm:w-auto sm:px-6"
                       >
                         {isCodingDiscussion
                           ? "Start discussion"
@@ -4164,7 +4201,7 @@ export function RealtimeInterviewClient({
                     />
                     {(!isCameraOn || !videoStreamActive) && (
                       <div className="absolute inset-0 flex items-center justify-center bg-gray-900/95">
-                        <VideoOff className="h-12 w-12 text-gray-600 sm:h-16 sm:w-16" />
+                        <VideoOff className="h-12 w-12 text-muted-foreground sm:h-16 sm:w-16" />
                         {!videoStreamActive && (
                           <p className="absolute bottom-4 text-sm text-gray-400">
                             Waiting for camera...

@@ -1,5 +1,6 @@
 "use client";
 
+import { JourneyCard, JourneyIconTile, JourneyLoader, journey } from "@/components/interview/journey-ui";
 import { useEffect, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
@@ -773,11 +774,7 @@ export default function ReportPage() {
   };
 
   if (loading) {
-    return (
-      <div className="flex min-h-[50vh] items-center justify-center">
-        <Loader2 className="h-10 w-10 animate-spin text-[#7367F0]" />
-      </div>
-    );
+    return <JourneyLoader title="Loading your report…" description="Scores, answers and feedback from this interview." />;
   }
 
   if (error || !report || !interview) {
@@ -816,22 +813,23 @@ export default function ReportPage() {
     }
 
     return (
-      <div className="flex min-h-[50vh] items-center justify-center p-4">
-        <Card className="max-w-md overflow-hidden rounded-xl border border-border/60 shadow-card">
-          <CardContent className="pt-6 text-center">
-            <AlertCircle className="mx-auto mb-4 h-12 w-12 text-destructive" />
-            <h3 className="mb-2 text-lg font-semibold">Report not available</h3>
-            <p className="mb-4 text-muted-foreground">
-              {error ||
-                "The interview report is not ready yet or doesn't exist."}
-            </p>
-            <Button className={institutePrimaryClass} asChild>
-              <Link href={reportBackHref(interview).href}>
-                {reportBackHref(interview).label}
-              </Link>
+      <div className="flex min-h-[60vh] items-center justify-center p-4">
+        <JourneyCard
+          className="w-full max-w-md"
+          icon={
+            <JourneyIconTile tone="danger" size="lg">
+              <AlertCircle className="h-7 w-7" aria-hidden />
+            </JourneyIconTile>
+          }
+          eyebrow="Interview report"
+          title="Report not available"
+          description={error || "The interview report is not ready yet or doesn't exist."}
+          footer={
+            <Button className={journey.primaryButton} asChild>
+              <Link href={reportBackHref(interview).href}>{reportBackHref(interview).label}</Link>
             </Button>
-          </CardContent>
-        </Card>
+          }
+        />
       </div>
     );
   }

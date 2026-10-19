@@ -11,6 +11,7 @@ import { interviewApi } from "@/lib/api";
 import { getApiErrorMessage } from "@/lib/api-error-message";
 import { cn } from "@/lib/utils";
 import { appCardElevated } from "@/lib/app-theme";
+import { journey } from "@/components/interview/journey-ui";
 import { resolveInterviewReturnTo, withInterviewReturnTo } from "@/lib/interview-return-to";
 
 export default function PostInterviewFeedbackPage() {
@@ -49,11 +50,10 @@ export default function PostInterviewFeedbackPage() {
     <section className="px-4 py-5 sm:px-6 lg:px-8">
       <div className="mx-auto w-full max-w-xl">
         <div className={cn(appCardElevated, "overflow-hidden")}>
-          <div className="border-b border-border/60 px-5 py-4 sm:px-6">
-            <h1 className="text-lg font-semibold text-foreground">
-              How was your mock interview?
-            </h1>
-            <p className="mt-0.5 text-sm text-muted-foreground">
+          <div className={journey.headerBand}>
+            <p className={journey.eyebrow}>Before your report</p>
+            <h1 className={cn(journey.title, "mt-2")}>How was your mock interview?</h1>
+            <p className={journey.description}>
               Quick feedback, then we&apos;ll generate your report.
             </p>
           </div>
