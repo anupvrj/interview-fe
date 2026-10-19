@@ -357,7 +357,9 @@ export function AdminHackathonDesignerPage({ hackathonId }: Readonly<{ hackathon
     setForm((prev) => ({ ...prev, slug: slugFromTitle(prev.title) }));
   }, [form.title, slugTouched]);
 
-  const locked = Boolean(existing.data?.designLocked);
+  // Nothing is locked: every field stays editable in every phase. The backend only refuses
+  // removing a challenge (or changing its type) once people have submitted work for it.
+  const hasRegistrations = (existing.data?.participantCount ?? 0) > 0;
   const patch = (partial: Partial<FormState>) => setForm((prev) => ({ ...prev, ...partial }));
   const patchChallenge = (clientId: string, partial: Partial<ChallengeForm>) =>
     setForm((prev) => ({
@@ -432,7 +434,6 @@ export function AdminHackathonDesignerPage({ hackathonId }: Readonly<{ hackathon
                   id="hk-slug"
                   className={hackathonAdminControlClass}
                   value={form.slug}
-                  disabled={locked}
                   onChange={(e) => {
                     setSlugTouched(true);
                     patch({ slug: e.target.value.toLowerCase() });
@@ -472,12 +473,12 @@ export function AdminHackathonDesignerPage({ hackathonId }: Readonly<{ hackathon
 
           {step === 2 ? (
             <>
-              {locked ? (
+              {hasRegistrations ? (
                 <div className="rounded-lg border border-amber-300/70 bg-amber-50 px-4 py-3 text-sm text-amber-950 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-100">
-                  <p className="font-semibold">Challenge structure is locked</p>
+                  <p className="font-semibold">People have already registered</p>
                   <p className="mt-1 text-amber-900/90 dark:text-amber-100/90">
-                    Slug, challenge types, order, round counts, and problem picks cannot change after the first registration.
-                    You can still edit titles, descriptions, schedule, limits, and reminders.
+                    Everything stays editable and changes apply to everyone as soon as you save, including pass marks, rounds
+                    and attempts. A challenge that already has submissions can&apos;t be removed or change type.
                   </p>
                 </div>
               ) : null}
@@ -490,7 +491,7 @@ export function AdminHackathonDesignerPage({ hackathonId }: Readonly<{ hackathon
                         type="button"
                         variant="outline"
                         size="icon"
-                        disabled={locked || index === 0}
+                        disabled={index === 0}
                         onClick={() =>
                           setForm((prev) => {
                             const next = [...prev.challenges];
@@ -505,7 +506,7 @@ export function AdminHackathonDesignerPage({ hackathonId }: Readonly<{ hackathon
                         type="button"
                         variant="outline"
                         size="icon"
-                        disabled={locked || index === form.challenges.length - 1}
+                        disabled={index === form.challenges.length - 1}
                         onClick={() =>
                           setForm((prev) => {
                             const next = [...prev.challenges];
@@ -520,7 +521,7 @@ export function AdminHackathonDesignerPage({ hackathonId }: Readonly<{ hackathon
                         type="button"
                         variant="outline"
                         size="icon"
-                        disabled={locked || form.challenges.length === 1}
+                        disabled={form.challenges.length === 1}
                         onClick={() =>
                           setForm((prev) => ({
                             ...prev,
@@ -532,11 +533,10 @@ export function AdminHackathonDesignerPage({ hackathonId }: Readonly<{ hackathon
                       </Button>
                     </div>
                   </div>
-                  <HackathonAdminFieldRow id={`${challenge.clientId}-kind`} label="Type" hint={locked ? "Locked after the first registration." : undefined}>
+                  <HackathonAdminFieldRow id={`${challenge.clientId}-kind`} label="Type" hint={hasRegistrations ? "Can't change once the challenge has submissions." : undefined}>
                     <AppSelect
                       id={`${challenge.clientId}-kind`}
                       value={challenge.kind}
-                      disabled={locked}
                       onChange={(value) => {
                         const kind = value as HackathonChallengeKind;
                         patchChallenge(challenge.clientId, { kind, ...defaultsForKind(kind) });
@@ -574,7 +574,6 @@ export function AdminHackathonDesignerPage({ hackathonId }: Readonly<{ hackathon
                         max={100}
                         className={hackathonAdminControlClass}
                         value={challenge.minScore}
-                        disabled={locked}
                         onChange={(e) => patchChallenge(challenge.clientId, { minScore: e.target.value })}
                       />
                     </HackathonAdminField>
@@ -585,7 +584,6 @@ export function AdminHackathonDesignerPage({ hackathonId }: Readonly<{ hackathon
                         <AppSelect
                           id={`${challenge.clientId}-count`}
                           value={challenge.requiredCount}
-                          disabled={locked}
                           onChange={(value) => patchChallenge(challenge.clientId, { requiredCount: value })}
                           options={[
                             { value: "1", label: "1" },
@@ -606,7 +604,6 @@ export function AdminHackathonDesignerPage({ hackathonId }: Readonly<{ hackathon
                           max={10}
                           className={hackathonAdminControlClass}
                           value={challenge.maxAttemptsPerSlot}
-                          disabled={locked}
                           onChange={(e) => patchChallenge(challenge.clientId, { maxAttemptsPerSlot: e.target.value })}
                         />
                       </HackathonAdminField>
@@ -618,7 +615,6 @@ export function AdminHackathonDesignerPage({ hackathonId }: Readonly<{ hackathon
                         <AppSelect
                           id={`${challenge.clientId}-dur`}
                           value={challenge.durationMinutes}
-                          disabled={locked}
                           onChange={(value) => patchChallenge(challenge.clientId, { durationMinutes: value === "30" ? "30" : "15" })}
                           options={[
                             { value: "15", label: "15 minutes" },
@@ -630,7 +626,6 @@ export function AdminHackathonDesignerPage({ hackathonId }: Readonly<{ hackathon
                         <AppSelect
                           id={`${challenge.clientId}-voice`}
                           value={challenge.voiceProvider}
-                          disabled={locked}
                           onChange={(value) => patchChallenge(challenge.clientId, { voiceProvider: value as VoiceProvider })}
                           options={[
                             { value: "gemini", label: "Gemini" },
@@ -652,7 +647,6 @@ export function AdminHackathonDesignerPage({ hackathonId }: Readonly<{ hackathon
                             <label key={problem.problemId} className="flex items-center gap-2 text-sm">
                               <input
                                 type="checkbox"
-                                disabled={locked}
                                 checked={checked}
                                 onChange={() =>
                                   patchChallenge(challenge.clientId, {
@@ -675,7 +669,6 @@ export function AdminHackathonDesignerPage({ hackathonId }: Readonly<{ hackathon
                       <AppSelect
                         id={`${challenge.clientId}-sd`}
                         value={challenge.systemDesignProblemId}
-                        disabled={locked}
                         allowEmpty
                         emptyLabel="Select a problem"
                         onChange={(value) => patchChallenge(challenge.clientId, { systemDesignProblemId: value })}
@@ -688,7 +681,7 @@ export function AdminHackathonDesignerPage({ hackathonId }: Readonly<{ hackathon
               <Button
                 type="button"
                 variant="outline"
-                disabled={locked || form.challenges.length >= 8}
+                disabled={form.challenges.length >= 8}
                 onClick={() => setForm((prev) => ({ ...prev, challenges: [...prev.challenges, emptyChallenge()] }))}
               >
                 <Plus className="mr-1.5 h-4 w-4" /> Add challenge
@@ -747,16 +740,14 @@ export function AdminHackathonDesignerPage({ hackathonId }: Readonly<{ hackathon
                   previewVerb="Challenges unlock"
                   value={form.startsAt}
                   onChange={(startsAt) => patch({ startsAt })}
-                  disabled={editing && existing.data?.phase !== "upcoming"}
                 />
                 <HackathonIstDateTimeField
                   id="hk-end"
                   label="End"
-                  hint="When submissions close. Optional while live."
+                  hint="When submissions close. Can be changed any time; a past time closes it, a future time reopens it."
                   previewVerb="Submissions close"
                   value={form.endsAt}
                   onChange={(endsAt) => patch({ endsAt })}
-                  disabled={editing && existing.data?.phase === "ended"}
                 />
                 <HackathonAdminField id="hk-limit" label="Max participants" hint="Empty = unlimited.">
                   <Input id="hk-limit" type="number" min={1} className={hackathonAdminControlClass} value={form.limit} onChange={(e) => patch({ limit: e.target.value })} />
@@ -864,8 +855,8 @@ export function AdminHackathonDesignerPage({ hackathonId }: Readonly<{ hackathon
       >
         <div className="space-y-5">
           <p className="text-sm text-muted-foreground">
-            {locked
-              ? "Challenge structure is locked after the first registration. Copy, status, dates, and limits remain editable."
+            {hasRegistrations
+              ? "Every field is editable. Changes apply to registered participants as soon as you save."
               : "Use step Operate for status and schedule. Save applies copy and settings."}
           </p>
           {inner}
