@@ -6,6 +6,7 @@ import {
   useEffect,
   useImperativeHandle,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import Link from "next/link";
@@ -57,30 +58,35 @@ export const ProfileDesignedResumePicker = forwardRef<
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const userId = user?.id ?? "";
+  const onDefaultResumeChangeRef = useRef(onDefaultResumeChange);
+  const onDefaultChangedRef = useRef(onDefaultChanged);
+  onDefaultResumeChangeRef.current = onDefaultResumeChange;
+  onDefaultChangedRef.current = onDefaultChanged;
 
   const loadResumes = useCallback(async (): Promise<Resume[]> => {
-    if (!user?.id) return [];
+    if (!userId) return [];
     try {
       setLoading(true);
-      const data = await resumeApi.list(user.id);
+      const data = await resumeApi.list(userId);
       setResumes(data);
       const current = data.find((r) => r.isDefault) ?? null;
-      onDefaultResumeChange?.(current);
+      onDefaultResumeChangeRef.current?.(current);
       return data;
     } catch (error) {
       toast.error(getApiErrorMessage(error, "Failed to load designed resumes"));
-      onDefaultResumeChange?.(null);
+      onDefaultResumeChangeRef.current?.(null);
       return [];
     } finally {
       setLoading(false);
     }
-  }, [user?.id, onDefaultResumeChange]);
+  }, [userId]);
 
   useEffect(() => {
-    if (isLoaded && user?.id) {
+    if (isLoaded && userId) {
       void loadResumes();
     }
-  }, [isLoaded, user?.id, loadResumes]);
+  }, [isLoaded, userId, loadResumes]);
 
   const openDialog = useCallback(async () => {
     setSearch("");
@@ -137,8 +143,8 @@ export const ProfileDesignedResumePicker = forwardRef<
         isDefault: true,
       });
       await loadResumes();
-      onDefaultResumeChange?.(updated);
-      onDefaultChanged?.();
+      onDefaultResumeChangeRef.current?.(updated);
+      onDefaultChangedRef.current?.();
       toast.success(
         `"${resumeTitle(selectedResume)}" is now your default resume`,
       );

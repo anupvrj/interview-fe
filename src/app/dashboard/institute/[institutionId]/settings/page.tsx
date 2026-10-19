@@ -1,103 +1,112 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { Suspense, useCallback, useEffect, useState } from "react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Loader2, Plus, Trash2, UserPlus } from "lucide-react";
+  Activity,
+  CreditCard,
+  LayoutDashboard,
+  Loader2,
+  SlidersHorizontal,
+  UserPlus,
+  Users,
+} from "lucide-react";
 import { toast } from "sonner";
-import { userApi, adminApi } from "@/lib/api";
-import { cn } from "@/lib/utils";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { InstitutePageHeader } from "@/components/institute/InstitutePageHeader";
+import { InstituteTeamPanel, type InstituteStaffMember } from "@/components/institute/InstituteTeamPanel";
+import { SegmentedTabs, type SegmentedTab } from "@/components/institution-lifecycle/SegmentedTabs";
 import {
-  InstituteEmptyState,
-  InstituteTableShell,
-  institutePrimaryClass,
-  instituteSecondaryClass,
-} from "@/components/institute/InstituteChrome";
-import { InstituteSettingsHero } from "@/components/institute/InstituteSettingsHero";
-import { FormField } from "@/components/app/FormField";
+  ActivityTimeline,
+  BillingHistoryTable,
+  BillingSummaryCard,
+  lifecycleCardClass,
+  SeatUsageCard,
+} from "@/components/institution-lifecycle/BillingPanels";
+import { ProductTogglesCard } from "@/components/institution-lifecycle/ProductTogglesCard";
+import { CandidateSelfStartCard } from "@/components/institution-lifecycle/CandidateSelfStartCard";
+import {
+  adminApi,
+  userApi,
+  type AccountStatusEventRow,
+  type InstitutionBillingStatus,
+  type PendingInvitation,
+} from "@/lib/api";
 
-const instituteCardClass =
-  "overflow-hidden rounded-xl border border-border/60 bg-card shadow-card";
+type Tab = "overview" | "seats" | "billing" | "products" | "team" | "activity";
 
-const STAFF_ROLE_OPTIONS = [
-  { value: "institution_admin", label: "Admin" },
-  { value: "institution_interview_manager", label: "Interview manager" },
-  { value: "institution_moderator", label: "Moderator" },
+const TABS: SegmentedTab<Tab>[] = [
+  { value: "overview", label: "Overview", icon: LayoutDashboard },
+  { value: "seats", label: "Seats", icon: Users },
+  { value: "billing", label: "Billing", icon: CreditCard },
+  { value: "products", label: "Products", icon: SlidersHorizontal },
+  { value: "team", label: "Team", icon: UserPlus },
+  { value: "activity", label: "Activity", icon: Activity },
 ];
 
-function staffInitials(name: string | undefined, email: string | undefined): string {
-  const n = (name || "").trim();
-  if (n) {
-    const parts = n.split(/\s+/).filter(Boolean);
-    if (parts.length >= 2) {
-      return `${parts[0]?.[0] ?? ""}${parts.at(-1)?.[0] ?? ""}`.toUpperCase();
-    }
-    return n.slice(0, 2).toUpperCase();
-  }
-  const local = (email || "").split("@")[0] || "?";
-  return local.slice(0, 2).toUpperCase();
-}
+const TAB_VALUES = TABS.map((t) => t.value);
 
 export default function InstituteSettingsPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex justify-center py-16">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      }
+    >
+      <InstituteSettings />
+    </Suspense>
+  );
+}
+
+function InstituteSettings() {
   const params = useParams();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const institutionId = params.institutionId as string;
-  const [profile, setProfile] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  const initialTab = searchParams.get("tab") as Tab | null;
+  const [tab, setTab] = useState<Tab>(
+    initialTab && TAB_VALUES.includes(initialTab) ? initialTab : "overview",
+  );
+
+  const [profile, setProfile] = useState<{ accessRole?: string } | null>(null);
+  const [status, setStatus] = useState<InstitutionBillingStatus | null>(null);
+  const [activity, setActivity] = useState<AccountStatusEventRow[]>([]);
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
   const [domain, setDomain] = useState("");
   const [contactEmail, setContactEmail] = useState("");
-  const [staff, setStaff] = useState<
-    Array<{ clerkId: string; name: string; email: string; accessRole: string }>
-  >([]);
-  const [inviteOpen, setInviteOpen] = useState(false);
-  const [inviteEmail, setInviteEmail] = useState("");
-  const [inviteRole, setInviteRole] = useState("institution_moderator");
-  const [inviteSubmitting, setInviteSubmitting] = useState(false);
+  const [staff, setStaff] = useState<InstituteStaffMember[]>([]);
+  const [pendingStaff, setPendingStaff] = useState<PendingInvitation[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const isAdmin =
-    profile?.accessRole === "institution_admin" ||
-    profile?.accessRole === "super_admin";
+    profile?.accessRole === "institution_admin" || profile?.accessRole === "super_admin";
 
-  const loadStaff = async () => {
-    const rows = await adminApi.listInstitutionStaff(institutionId);
+  const loadStaff = useCallback(async () => {
+    const [rows, invites] = await Promise.all([
+      adminApi.listInstitutionStaff(institutionId),
+      adminApi.listInstitutionInvitations(institutionId, { kind: "staff" }).catch(() => []),
+    ]);
+    const existing = new Set(rows.map((s) => s.email.toLowerCase()));
     setStaff(rows);
-  };
+    setPendingStaff(invites.filter((inv) => !existing.has(inv.email.toLowerCase())));
+  }, [institutionId]);
 
   useEffect(() => {
-    userApi.getMyProfile().then(setProfile).catch(() => {});
+    userApi.getMyProfile().then(setProfile).catch(() => undefined);
   }, []);
 
   useEffect(() => {
     if (!profile) return;
     setLoading(true);
-    adminApi
-      .getInstitutionDashboard(institutionId)
-      .then(async (d) => {
+    Promise.all([
+      adminApi.getInstitutionDashboard(institutionId),
+      adminApi.getInstitutionBillingStatus(institutionId).catch(() => null),
+      adminApi.listInstitutionActivity(institutionId).catch(() => []),
+    ])
+      .then(async ([d, billing, events]) => {
         const inst = d.institution as {
           name?: string;
           slug?: string;
@@ -108,291 +117,135 @@ export default function InstituteSettingsPage() {
         setSlug(inst.slug ?? "");
         setDomain(inst.domain ?? "");
         setContactEmail(inst.contactEmail ?? "");
+        setStatus(billing);
+        setActivity(events);
         if (isAdmin) await loadStaff();
       })
       .catch(() => toast.error("Failed to load institution"))
       .finally(() => setLoading(false));
-  }, [profile, institutionId, isAdmin]);
+  }, [profile, institutionId, isAdmin, loadStaff]);
 
-  const handleInviteStaff = async () => {
-    if (!inviteEmail.trim()) return;
-    try {
-      setInviteSubmitting(true);
-      const res = await adminApi.inviteInstitutionStaff(institutionId, {
-        email: inviteEmail.trim(),
-        staffRole: inviteRole,
-      });
-      toast.success(res.message);
-      setInviteOpen(false);
-      setInviteEmail("");
-      await loadStaff();
-    } catch (err: any) {
-      toast.error(err?.response?.data?.message || "Invite failed");
-    } finally {
-      setInviteSubmitting(false);
-    }
+  const changeTab = (next: Tab) => {
+    setTab(next);
+    router.replace(`/dashboard/institute/${institutionId}/settings?tab=${next}`, { scroll: false });
   };
 
-  if (!profile) {
+  if (!profile || loading) {
     return (
-      <div className="mx-auto w-full max-w-7xl space-y-4">
-        <div className="h-[8.5rem] animate-pulse rounded-2xl bg-muted/60" />
-        <div className="h-64 animate-pulse rounded-xl bg-muted/40" />
+      <div className="flex justify-center py-16">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
 
+  const profileCard = (
+    <Card className={lifecycleCardClass}>
+      <CardHeader className="border-b border-border/60 px-4 py-4 sm:px-5">
+        <CardTitle className="text-base">Institution profile</CardTitle>
+        <CardDescription>
+          Name, slug, domain, and contact email are managed by a super admin.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="p-4 sm:p-5">
+        <dl className="grid gap-3 sm:grid-cols-2">
+          <div className="sm:col-span-2">
+            <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Name</dt>
+            <dd className="mt-1.5 rounded-lg border border-border/60 bg-muted/20 px-3 py-2.5 text-sm font-semibold text-foreground">
+              {name.trim() || "—"}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Slug</dt>
+            <dd className="mt-1.5 rounded-lg border border-border/60 bg-muted/20 px-3 py-2.5 text-sm font-semibold text-foreground">
+              {slug.trim() || "—"}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Custom domain
+            </dt>
+            <dd className="mt-1.5 rounded-lg border border-border/60 bg-muted/20 px-3 py-2.5 text-sm font-semibold text-foreground">
+              {domain.trim() || "—"}
+            </dd>
+          </div>
+          <div className="sm:col-span-2">
+            <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Contact email
+            </dt>
+            <dd className="mt-1.5 rounded-lg border border-border/60 bg-muted/20 px-3 py-2.5 text-sm font-semibold text-foreground">
+              {contactEmail.trim() || "—"}
+            </dd>
+          </div>
+        </dl>
+      </CardContent>
+    </Card>
+  );
+
   return (
-    <div className="mx-auto w-full max-w-7xl space-y-4 lg:space-y-6">
-      <InstituteSettingsHero
-        institutionName={name}
-        staffCount={isAdmin ? staff.length : undefined}
-        isAdmin={isAdmin}
-        loading={loading}
+    <div className="space-y-6">
+      <InstitutePageHeader
+        hideBack
+        title={name.trim() || "Institution"}
+        description={contactEmail.trim() || slug.trim() || "Institute settings"}
       />
 
-      <Card className={instituteCardClass}>
-        <CardHeader className="border-b border-border/60 px-5 py-4">
-          <div className="min-w-0">
-            <CardTitle className="text-lg font-semibold text-foreground">
-              Institution profile
-            </CardTitle>
-            <CardDescription className="mt-1 text-sm">
-              Name, slug, domain, and contact email are managed by a super admin.
-            </CardDescription>
-          </div>
-        </CardHeader>
-        <CardContent className="px-5 py-5 sm:px-6 sm:py-6">
-          {loading ? (
-            <div className="flex justify-center py-12">
-              <Loader2 className="h-9 w-9 animate-spin text-[#7367F0]" />
-            </div>
-          ) : (
-            <dl className="grid max-w-2xl gap-5 sm:grid-cols-2">
-              <div className="sm:col-span-2">
-                <dt className="text-sm font-medium text-foreground">Name</dt>
-                <dd className="mt-1.5 rounded-lg border border-border/70 bg-muted/30 px-3 py-2.5 text-sm text-foreground">
-                  {name.trim() || "—"}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-sm font-medium text-foreground">Slug</dt>
-                <dd className="mt-1.5 rounded-lg border border-border/70 bg-muted/30 px-3 py-2.5 text-sm text-foreground">
-                  {slug.trim() || "—"}
-                </dd>
-                <p className="mt-1.5 text-xs text-muted-foreground">
-                  Used in URLs — lowercase, hyphens only
-                </p>
-              </div>
-              <div>
-                <dt className="text-sm font-medium text-foreground">Custom domain</dt>
-                <dd className="mt-1.5 rounded-lg border border-border/70 bg-muted/30 px-3 py-2.5 text-sm text-foreground">
-                  {domain.trim() || "—"}
-                </dd>
-              </div>
-              <div className="sm:col-span-2">
-                <dt className="text-sm font-medium text-foreground">Contact email</dt>
-                <dd className="mt-1.5 rounded-lg border border-border/70 bg-muted/30 px-3 py-2.5 text-sm text-foreground">
-                  {contactEmail.trim() || "—"}
-                </dd>
-              </div>
-            </dl>
-          )}
-        </CardContent>
-      </Card>
+      <SegmentedTabs tabs={TABS} value={tab} onChange={changeTab} ariaLabel="Institution sections" />
 
-      {isAdmin ? (
-        <Card className={instituteCardClass}>
-          <CardHeader className="border-b border-border/60 px-5 py-4">
-            <div className="flex flex-col items-start justify-between gap-4 lg:flex-row lg:items-center">
-              <div className="min-w-0">
-                <CardTitle className="text-lg font-semibold text-foreground">
-                  Team &amp; roles
-                </CardTitle>
-                <CardDescription className="mt-1 text-sm">
-                  Invite interview managers and moderators with scoped permissions.
-                </CardDescription>
-              </div>
-              <Button
-                size="sm"
-                className={cn(institutePrimaryClass, "h-10 shrink-0 gap-2")}
-                onClick={() => setInviteOpen(true)}
-              >
-                <Plus className="h-4 w-4" />
-                Invite member
-              </Button>
-            </div>
+      {tab === "overview" ? (
+        <div className="space-y-6">
+          {status ? <BillingSummaryCard status={status} /> : null}
+          {status ? <SeatUsageCard seats={status.seats} /> : null}
+          {profileCard}
+        </div>
+      ) : null}
+
+      {tab === "seats" && status ? <SeatUsageCard seats={status.seats} /> : null}
+      {tab === "seats" && !status ? (
+        <p className="text-sm text-muted-foreground">Seat usage is not available yet.</p>
+      ) : null}
+
+      {tab === "billing" ? (
+        <div className="space-y-6">
+          {status ? <BillingSummaryCard status={status} /> : null}
+          {status ? <BillingHistoryTable records={status.records} /> : null}
+        </div>
+      ) : null}
+
+      {tab === "products" && isAdmin ? (
+        <div className="space-y-6">
+          <ProductTogglesCard institutionId={institutionId} scope="institution_admin" />
+          <CandidateSelfStartCard institutionId={institutionId} />
+        </div>
+      ) : null}
+      {tab === "products" && !isAdmin ? (
+        <p className="text-sm text-muted-foreground">Only institute admins can change products.</p>
+      ) : null}
+
+      {tab === "team" && isAdmin ? (
+        <InstituteTeamPanel
+          institutionId={institutionId}
+          staff={staff}
+          pendingStaff={pendingStaff}
+          onReload={loadStaff}
+        />
+      ) : null}
+      {tab === "team" && !isAdmin ? (
+        <p className="text-sm text-muted-foreground">Only institute admins can manage the team.</p>
+      ) : null}
+
+      {tab === "activity" ? (
+        <Card className={lifecycleCardClass}>
+          <CardHeader className="border-b border-border/60 px-4 py-4 sm:px-5">
+            <CardTitle className="text-base">Activity</CardTitle>
+            <CardDescription>
+              Status changes, payments, and product updates for this institute.
+            </CardDescription>
           </CardHeader>
-          <CardContent className="p-0 sm:p-0">
-            {staff.length === 0 ? (
-              <div className="px-4 py-6 sm:px-6">
-                <InstituteEmptyState
-                  icon={UserPlus}
-                  title="No team members yet"
-                  description="Invite colleagues as admins, interview managers, or moderators."
-                  action={
-                    <Button
-                      size="sm"
-                      className={cn(institutePrimaryClass, "gap-2")}
-                      onClick={() => setInviteOpen(true)}
-                    >
-                      <Plus className="h-4 w-4" />
-                      Invite member
-                    </Button>
-                  }
-                />
-              </div>
-            ) : (
-              <InstituteTableShell>
-                <Table className="w-full min-w-[640px]">
-                  <TableHeader>
-                    <TableRow className="border-b border-border/80 bg-muted/30 hover:bg-muted/30">
-                      <TableHead className="pl-6 font-semibold text-foreground">Member</TableHead>
-                      <TableHead className="font-semibold text-foreground">Role</TableHead>
-                      <TableHead className="w-[88px] min-w-[88px] pr-6 text-right font-semibold text-foreground">
-                        Remove
-                      </TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {staff.map((s) => (
-                      <TableRow
-                        key={s.clerkId}
-                        className="border-border transition-colors hover:bg-muted/40"
-                      >
-                        <TableCell className="pl-6 align-middle">
-                          <div className="flex items-center gap-3 py-1">
-                            <div
-                              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-indigo-600 text-sm font-bold text-white shadow-md shadow-primary/15 ring-2 ring-white"
-                              aria-hidden
-                            >
-                              {staffInitials(s.name, s.email)}
-                            </div>
-                            <div className="min-w-0">
-                              <p className="truncate font-semibold text-foreground">
-                                {s.name || "—"}
-                              </p>
-                              <p className="truncate text-xs text-muted-foreground">{s.email}</p>
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell className="align-middle">
-                          <select
-                            className={cn(
-                              "app-control h-10 max-w-[220px] rounded-lg border-border text-sm shadow-sm",
-                            )}
-                            value={s.accessRole}
-                            aria-label={`Role for ${s.email}`}
-                            onChange={async (e) => {
-                              try {
-                                await adminApi.updateInstitutionStaffRole(
-                                  institutionId,
-                                  s.clerkId,
-                                  e.target.value,
-                                );
-                                await loadStaff();
-                                toast.success("Role updated");
-                              } catch (err: any) {
-                                toast.error(err?.response?.data?.message || "Update failed");
-                              }
-                            }}
-                          >
-                            {STAFF_ROLE_OPTIONS.map((o) => (
-                              <option key={o.value} value={o.value}>
-                                {o.label}
-                              </option>
-                            ))}
-                          </select>
-                        </TableCell>
-                        <TableCell className="w-[88px] min-w-[88px] pr-6 text-right align-middle">
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            className="h-8 w-8 shrink-0 border-red-200/80 text-red-600 hover:bg-red-50"
-                            title="Remove from institution"
-                            aria-label={`Remove ${s.email}`}
-                            onClick={async () => {
-                              try {
-                                await adminApi.removeInstitutionStaff(
-                                  institutionId,
-                                  s.clerkId,
-                                );
-                                await loadStaff();
-                                toast.success("Staff removed");
-                              } catch (err: any) {
-                                toast.error(err?.response?.data?.message || "Remove failed");
-                              }
-                            }}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </InstituteTableShell>
-            )}
+          <CardContent className="p-4 sm:p-6">
+            <ActivityTimeline events={activity} />
           </CardContent>
         </Card>
       ) : null}
-
-      <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
-        <DialogContent className="border-border/80 sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-xl">Invite team member</DialogTitle>
-            <DialogDescription>
-              They must sign in with this email to accept institution access.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-2">
-            <FormField label="Email" htmlFor="staff-email" required>
-              <Input
-                id="staff-email"
-                type="email"
-                value={inviteEmail}
-                onChange={(e) => setInviteEmail(e.target.value)}
-                className="h-11 border-border shadow-sm"
-                placeholder="colleague@college.edu"
-              />
-            </FormField>
-            <FormField label="Role" htmlFor="staff-role">
-              <select
-                id="staff-role"
-                className="app-control h-11 w-full rounded-lg border-border shadow-sm"
-                value={inviteRole}
-                onChange={(e) => setInviteRole(e.target.value)}
-              >
-                {STAFF_ROLE_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-            </FormField>
-          </div>
-          <DialogFooter className="gap-2 sm:justify-end">
-            <Button
-              variant="outline"
-              className={instituteSecondaryClass}
-              onClick={() => setInviteOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              className={cn(institutePrimaryClass, "gap-2")}
-              disabled={inviteSubmitting || !inviteEmail.trim()}
-              onClick={() => void handleInviteStaff()}
-            >
-              {inviteSubmitting ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                "Send invite"
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

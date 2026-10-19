@@ -39,6 +39,10 @@ import {
 } from "@/lib/pdf-dropzone";
 import { PracticeLockedGate } from "@/components/upsell/PracticeLockedGate";
 import { useUpsellState } from "@/components/upsell/useUpsellState";
+import {
+  isMissingResumeError,
+  useResumeRequiredDialog,
+} from "@/components/resume/ResumeRequiredDialog";
 import { JobRoleSelect } from "@/components/career/JobRoleSelect";
 import { AppSelect } from "@/components/ui/app-select";
 import {
@@ -249,6 +253,7 @@ export default function NewInterviewPage() {
   const profileReady = roleCtx?.ready ?? false;
   const router = useRouter();
   const { invalidate } = useDashboardInvalidation();
+  const { openResumeRequired } = useResumeRequiredDialog();
   const { data: queriedDefaultResume, isFetched: defaultResumeFetched } =
     useDefaultResumeQuery(
       !userProfile?.resume?.s3Key &&
@@ -513,8 +518,12 @@ export default function NewInterviewPage() {
         newErrors.resume = "Please upload your resume or use saved resume";
       }
       if (useSavedResume && !savedResumeAvailable) {
-        newErrors.resume =
-          "No saved resume found. Set a default on your profile or upload a PDF.";
+        openResumeRequired({
+          onReady: async () => {
+            await invalidate(["resumes", "profile"]);
+          },
+        });
+        return false;
       }
       if (
         useSavedResume &&
@@ -591,6 +600,15 @@ export default function NewInterviewPage() {
 
       if (error.response?.data?.code === "BIOMETRIC_REQUIRED") {
         router.push("/dashboard/identity-verification");
+        return;
+      }
+
+      if (isMissingResumeError(errorMessage)) {
+        openResumeRequired({
+          onReady: async () => {
+            await invalidate(["resumes", "profile"]);
+          },
+        });
         return;
       }
 
