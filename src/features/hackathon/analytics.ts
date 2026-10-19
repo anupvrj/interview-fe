@@ -1,5 +1,6 @@
 /**
- * GA4 funnel events for the Hiring Games hackathon.
+ * GA4 funnel events for the Hiring Games hackathon, plus the two Meta Pixel
+ * conversions the ads optimise for (`CompleteRegistration`, `Lead`).
  *
  * Landing → Register click → Sign-up (Clerk) → Account created (`sign_up`)
  *   → Profile wizard steps → Registration confirmed by the API → Challenges.
@@ -8,6 +9,7 @@
  * names, emails, phone numbers, URLs the user typed, or raw error messages.
  */
 import { trackEvent, type GaParams } from "@/lib/analytics/gtag";
+import { trackMetaEvent } from "@/lib/analytics/fbq";
 
 export const HK_EVENTS = {
   pageView: "hackathon_page_view",
@@ -53,6 +55,7 @@ export type HackathonFormStep = "profile_type_phone" | "details" | "resume";
 const PAGE_TYPE = "hackathon_landing";
 const FUNNEL_KEY = "ix.hk.ga.funnel";
 const FUNNEL_TTL_MS = 2 * 60 * 60 * 1000;
+const META_CONTENT_NAME = "hiring_games_2026";
 
 export function trackHackathon(name: (typeof HK_EVENTS)[keyof typeof HK_EVENTS], params: GaParams = {}) {
   trackEvent(name, { hackathon_id: "hiring_games_2026", ...params });
@@ -132,12 +135,32 @@ export function trackRegistrationSuccessOnce(opts: { userKey: string | null | un
   } catch {
     /* storage blocked — still send once per page via the Set below */
   }
+  if (firedThisPage.has(key)) return;
   const funnel = readHackathonFunnel();
   trackHackathonOnce(key, HK_EVENTS.registrationSuccess, {
     source: opts.source,
     user_type: opts.userType ?? undefined,
     cta_location: funnel?.ctaLocation,
   });
+  trackMetaEvent("CompleteRegistration", { content_name: META_CONTENT_NAME, status: true });
+}
+
+/**
+ * Meta `Lead` once per account, the first time the submitted resume's ATS score
+ * reaches the hackathon target (75 by default). Key is local only.
+ */
+export function trackAtsQualifiedOnce(opts: { userKey: string | null | undefined; atsScore: number | null | undefined; target: number }) {
+  if (!opts.userKey || typeof opts.atsScore !== "number" || opts.atsScore < opts.target) return;
+  const key = `ix.hk.meta.lead.${opts.userKey}`;
+  try {
+    if (localStorage.getItem(key)) return;
+    localStorage.setItem(key, String(Date.now()));
+  } catch {
+    /* storage blocked — still send once per page via the Set below */
+  }
+  if (firedThisPage.has(key)) return;
+  firedThisPage.add(key);
+  trackMetaEvent("Lead", { content_name: META_CONTENT_NAME, content_category: "ats_qualified" });
 }
 
 /** `hackathon_engaged` — once per landing visit, whichever rule trips first. */

@@ -13,6 +13,8 @@ import { Suspense } from "react";
 import { getGaMeasurementId } from "@/config/google-analytics";
 import { getClarityProjectId } from "@/config/microsoft-clarity";
 import { AppMicrosoftClarity } from "@/components/AppMicrosoftClarity";
+import { getMetaPixelId } from "@/config/meta-pixel";
+import { AppMetaPixel } from "@/components/AppMetaPixel";
 import { AppToaster } from "@/components/AppToaster";
 import {
   StructuredData,
@@ -94,6 +96,7 @@ export default function RootLayout({
 }>) {
   const gaMeasurementId = getGaMeasurementId();
   const clarityProjectId = getClarityProjectId();
+  const metaPixelId = getMetaPixelId();
   const siteUrl = getSiteUrl();
   const productNavigationSchema = createProductNavigationSchema(
     PRODUCT_MARKETING_ROUTES.map((route) => ({
@@ -131,6 +134,7 @@ export default function RootLayout({
         <body className="font-sans antialiased" suppressHydrationWarning>
           <AppGoogleAnalytics gaId={gaMeasurementId} debugMode={!isSearchIndexable()} />
           <AppMicrosoftClarity projectId={clarityProjectId} />
+          <AppMetaPixel pixelId={metaPixelId} />
           <TemplateRegistryInitializer />
           <QueryProvider>
             <UserProvider>
