@@ -54,8 +54,9 @@ import {
   isRetryableInterviewClose,
   isServerSilent,
   reconnectDelayMs,
+  RECONNECT_MAX_ATTEMPTS,
   savedInterviewProgress,
-  shouldEscalateReconnect,
+  shouldStopReconnect,
   TIME_UP_GRACE_MS,
 } from "@/lib/interviewReconnect";
 import { pickRandomPersona } from "@/lib/aiPersonas";
@@ -103,12 +104,6 @@ import {
 
 /** Hard fallback minutes added on top of target (used if AI never sends interview_complete). */
 const EXTRA_BUFFER_MINUTES = 5;
-
-/** Reconnect attempt counter in the yellow banner — production candidates see a generic message only. */
-const SHOW_RECONNECT_ATTEMPT_DEBUG =
-  process.env.NODE_ENV === "development" ||
-  process.env.NEXT_PUBLIC_VERCEL_ENV === "preview" ||
-  process.env.NEXT_PUBLIC_APP_ENV === "staging";
 
 /** Fallback when interview has no stored provider (legacy drafts). */
 const ENV_VOICE_PROVIDER = resolveVoiceProvider(
@@ -275,6 +270,8 @@ export function RealtimeInterviewClient({
   const [isPreparing, setIsPreparing] = useState(true);
   const [lastAIMessage, setLastAIMessage] = useState("");
   const [connectionFailed, setConnectionFailed] = useState(false);
+  const [serverTerminated, setServerTerminated] = useState(false);
+  const [reportOnTheWay, setReportOnTheWay] = useState(false);
   const [isReconnecting, setIsReconnecting] = useState(false);
   // Number of consecutive reconnect attempts received — used to escalate from
   // non-blocking banner (1-2 attempts) to blocking dialog (all attempts failed).
@@ -453,7 +450,13 @@ export function RealtimeInterviewClient({
   );
   /** Pending auto-reconnect timer after a benign WS drop during an active interview. */
   const autoReconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** Last start_interview frame, resent until the server answers with session_state. */
+  const startPayloadRef = useRef<Record<string, unknown> | null>(null);
+  const startAckTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const startAckTriesRef = useRef(0);
   const autoReconnectAttemptsRef = useRef(0);
+  const serverTerminatedRef = useRef(false);
+  const terminateLatestRef = useRef<(() => void) | null>(null);
   /** When the current run of failed reconnects (while online) began; 0 when connected. */
   const reconnectWindowStartedAtRef = useRef(0);
   const attemptReconnectLatestRef = useRef<(() => void) | null>(null);
@@ -668,18 +671,9 @@ export function RealtimeInterviewClient({
     setIsReconnecting(false);
   };
 
-  const pauseForManualResume = () => {
-    setIsPreparing(false);
-    setIsReconnecting(false);
-    setLastAIMessage(
-      "Connection paused — tap Resume interview to reconnect without losing progress.",
-    );
-    setConnectionFailed(true);
-  };
-
-  /** Retry with backoff; never give up while offline, ask for a manual Resume after a long online outage. */
+  /** Five tries, ten seconds apart. A sixth request ends the interview. */
   const scheduleAutoReconnect = () => {
-    if (!isInterviewActiveRef.current) return;
+    if (!isInterviewActiveRef.current || serverTerminatedRef.current) return;
     if (autoReconnectTimerRef.current) return;
     setIsPreparing(false);
     setIsReconnecting(true);
@@ -689,22 +683,93 @@ export function RealtimeInterviewClient({
       setLastAIMessage("You're offline. We'll reconnect as soon as your internet is back.");
       return;
     }
-    if (reconnectWindowStartedAtRef.current === 0) {
-      reconnectWindowStartedAtRef.current = Date.now();
-    } else if (shouldEscalateReconnect(reconnectWindowStartedAtRef.current, Date.now())) {
-      pauseForManualResume();
+    if (shouldStopReconnect(autoReconnectAttemptsRef.current)) {
+      terminateLatestRef.current?.();
       return;
     }
     const attempt = autoReconnectAttemptsRef.current + 1;
     autoReconnectAttemptsRef.current = attempt;
     setReconnectAttemptCount(attempt);
-    setLastAIMessage("Reconnecting AI session...");
-    const delayMs = reconnectDelayMs(attempt);
+    setLastAIMessage(`Reconnecting AI session… (attempt ${attempt} of ${RECONNECT_MAX_ATTEMPTS})`);
     autoReconnectTimerRef.current = setTimeout(() => {
       autoReconnectTimerRef.current = null;
       attemptReconnectLatestRef.current?.();
-    }, delayMs);
+    }, reconnectDelayMs(attempt));
   };
+
+  const clearStartAck = () => {
+    if (startAckTimerRef.current) {
+      clearTimeout(startAckTimerRef.current);
+      startAckTimerRef.current = null;
+    }
+  };
+
+  /** The server ignores a second start once the interview is running, so a lost first frame can be sent again. */
+  const rememberStartPayload = (payload: Record<string, unknown>) => {
+    startPayloadRef.current = payload;
+    startAckTriesRef.current = 0;
+    clearStartAck();
+    const retry = () => {
+      startAckTimerRef.current = null;
+      const pending = startPayloadRef.current;
+      const ws = websocketRef.current;
+      if (!pending || ws?.readyState !== WebSocket.OPEN) return;
+      if (startAckTriesRef.current >= 3) return;
+      startAckTriesRef.current += 1;
+      console.log("[WS] start_interview not acknowledged — sending again", startAckTriesRef.current);
+      ws.send(JSON.stringify(pending));
+      startAckTimerRef.current = setTimeout(retry, 2000);
+    };
+    startAckTimerRef.current = setTimeout(retry, 2000);
+  };
+
+  const noteSessionStarted = () => {
+    clearStartAck();
+    startPayloadRef.current = null;
+    startAckTriesRef.current = 0;
+  };
+
+  const terminateAfterReconnectFailure = async () => {
+    if (serverTerminatedRef.current) return;
+    serverTerminatedRef.current = true;
+    if (autoReconnectTimerRef.current) {
+      clearTimeout(autoReconnectTimerRef.current);
+      autoReconnectTimerRef.current = null;
+    }
+    clearStartAck();
+    stopClientWsHeartbeat();
+    isInterviewActiveRef.current = false;
+    setIsInterviewActive(false);
+    setIsReconnecting(false);
+    setIsPreparing(false);
+    setIsResuming(false);
+    setServerTerminated(true);
+    setConnectionFailed(true);
+    setError("This interview was terminated due to a server error.");
+    const ws = websocketRef.current;
+    websocketRef.current = null;
+    voiceTransportRef.current = null;
+    connectionInitiatedRef.current = false;
+    try {
+      ws?.close(1000, "server_error");
+    } catch {
+      /* already closed */
+    }
+    try {
+      const { reportStarted } = await interviewApi.terminateForServerError(interviewId);
+      if (!reportStarted) return;
+      setReportOnTheWay(true);
+      router.push(
+        withInterviewReturnTo(
+          `/dashboard/interviews/${interviewId}/processing`,
+          returnToRef.current,
+        ),
+      );
+    } catch (err) {
+      console.error("Failed to end the interview after reconnects:", err);
+    }
+  };
+  terminateLatestRef.current = () => void terminateAfterReconnectFailure();
 
   const attemptReconnect = async () => {
     if (!isInterviewActiveRef.current) return;
@@ -732,12 +797,10 @@ export function RealtimeInterviewClient({
     connectionInitiatedRef.current = false;
     voiceTransportRef.current = null;
     websocketRef.current = null;
-    if (!isInterviewActiveRef.current) return;
+    if (!isInterviewActiveRef.current || serverTerminatedRef.current) return;
     const treatAsBenign = isRetryableInterviewClose(code);
     if (!treatAsBenign) {
-      setIsReconnecting(false);
-      setConnectionFailed(true);
-      setError("Something went wrong at server side.");
+      terminateLatestRef.current?.();
       return;
     }
     scheduleAutoReconnect();
@@ -1437,6 +1500,7 @@ export function RealtimeInterviewClient({
               elapsedTimeRef.current = data.elapsedSec;
               setElapsedTime(data.elapsedSec);
             }
+            noteSessionStarted();
             markReconnected();
             setConnectionFailed(false);
           } else if (data.type === "ai_stalled") {
@@ -1639,7 +1703,7 @@ export function RealtimeInterviewClient({
       if (isResumingRef.current && isInterviewActiveRef.current) {
         const resumeExtra = geminiResumePayloadRef.current;
         geminiResumePayloadRef.current = null;
-        transport.sendControl({
+        const startPayload = {
           type: "start_interview",
           interviewDurationMinutes: isCodingDiscussion
             ? (ivResolved?.metadata?.discussionDurationMinutes ?? 60)
@@ -1652,7 +1716,9 @@ export function RealtimeInterviewClient({
                 elapsedTimeSec: resumeExtra.elapsedTimeSec,
               }
             : {}),
-        });
+        };
+        transport.sendControl(startPayload);
+        rememberStartPayload(startPayload);
         isResumingRef.current = false;
       }
 
@@ -1892,12 +1958,15 @@ export function RealtimeInterviewClient({
         break;
 
       case "response.cancelled":
-        // Response was cancelled (due to interruption)
+        // Beta-era event; GA reports cancellation as response.done with
+        // response.status "cancelled" (handled below). Kept for safety.
         stopAiPlayback();
         setCurrentAssistantTranscript("");
         break;
 
-      case "response.audio_transcript.delta":
+      // GA Realtime event names (the beta response.audio* names were removed
+      // in May 2026).
+      case "response.output_audio_transcript.delta":
         if (event.delta) {
           setIsPreparing(false);
           if (!timerStartedRef.current && isInterviewActiveRef.current) {
@@ -1907,7 +1976,7 @@ export function RealtimeInterviewClient({
         }
         break;
 
-      case "response.audio_transcript.done":
+      case "response.output_audio_transcript.done":
         if (event.transcript) {
           setTranscript((prev) => [
             ...prev,
@@ -1923,11 +1992,11 @@ export function RealtimeInterviewClient({
         }
         break;
 
-      case "response.audio.done":
+      case "response.output_audio.done":
         // AI finished speaking
         break;
 
-      case "response.audio.delta":
+      case "response.output_audio.delta":
         // Queue AI audio for sequential playback
         if (event.delta) {
           setIsPreparing(false);
@@ -1944,7 +2013,11 @@ export function RealtimeInterviewClient({
         break;
 
       case "response.done":
-        // Response complete
+        // Response complete (status "cancelled" when the candidate interrupted)
+        if (event.response?.status === "cancelled") {
+          stopAiPlayback();
+          setCurrentAssistantTranscript("");
+        }
         break;
 
       default:
@@ -2303,22 +2376,22 @@ export function RealtimeInterviewClient({
         if (alreadyActive) {
           setIsPreparing(false);
         }
-        websocketRef.current.send(
-          JSON.stringify({
-            type: "start_interview",
-            interviewDurationMinutes: isCodingDiscussion
-              ? (interview?.metadata?.discussionDurationMinutes ?? 60)
-              : normalizeInterviewDurationMinutes(
-                  interview?.metadata?.interviewDuration,
-                ),
-            ...(resumeExtra
-              ? {
-                  reconnectResume: resumeExtra.reconnectResume,
-                  elapsedTimeSec: resumeExtra.elapsedTimeSec,
-                }
-              : {}),
-          }),
-        );
+        const startPayload = {
+          type: "start_interview",
+          interviewDurationMinutes: isCodingDiscussion
+            ? (interview?.metadata?.discussionDurationMinutes ?? 60)
+            : normalizeInterviewDurationMinutes(
+                interview?.metadata?.interviewDuration,
+              ),
+          ...(resumeExtra
+            ? {
+                reconnectResume: resumeExtra.reconnectResume,
+                elapsedTimeSec: resumeExtra.elapsedTimeSec,
+              }
+            : {}),
+        };
+        websocketRef.current.send(JSON.stringify(startPayload));
+        rememberStartPayload(startPayload);
       }
 
       // Setup audio capture (must be after setIsInterviewActive)
@@ -3622,47 +3695,75 @@ export function RealtimeInterviewClient({
             <div className="flex flex-col items-center text-center">
               <AlertCircle className="mx-auto h-12 w-12 shrink-0 text-red-500 mb-4" />
               <AlertDialogTitle className="text-xl font-bold text-gray-900">
-                {isReconnecting ? "Reconnecting..." : "Connection Lost"}
+                {serverTerminated
+                  ? "Interview ended"
+                  : isReconnecting
+                    ? "Reconnecting..."
+                    : "Connection Lost"}
               </AlertDialogTitle>
               <AlertDialogDescription className="text-base mt-2 text-gray-600 break-words">
-                {isReconnecting
-                  ? "Something went wrong at server side. Attempting to reconnect..."
-                  : "Something went wrong at server side. You can try to resume or close this interview without losing credits."}
+                {serverTerminated
+                  ? reportOnTheWay
+                    ? "This interview was terminated due to a server error. Your saved answers are being scored."
+                    : "This interview was terminated due to a server error."
+                  : isReconnecting
+                    ? "Something went wrong at server side. Attempting to reconnect..."
+                    : "Something went wrong at server side. You can try to resume or close this interview without losing credits."}
               </AlertDialogDescription>
             </div>
           </AlertDialogHeader>
           <AlertDialogFooter className="flex flex-col-reverse sm:flex-row sm:justify-center gap-3 mt-4">
-            <Button
-              variant="outline"
-              size="lg"
-              onClick={closeFailedInterview}
-              disabled={isClosingFailed || isReconnecting}
-              className="w-full sm:w-auto sm:whitespace-nowrap text-center h-auto py-2 px-4"
-            >
-              {isClosingFailed ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 shrink-0 animate-spin" />
-                  Closing...
-                </>
+            {serverTerminated ? (
+              reportOnTheWay ? (
+                <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
+                  Opening your report…
+                </div>
               ) : (
-                "Close Interview (No credits deducted)"
-              )}
-            </Button>
-            <Button
-              size="lg"
-              onClick={resumeInterview}
-              disabled={isResuming || isReconnecting}
-              className="w-full sm:w-auto sm:whitespace-nowrap text-center h-auto py-2 px-4 bg-gradient-to-r from-violet-600 to-primary hover:from-violet-700 hover:bg-slate-900 text-white"
-            >
-              {isResuming || isReconnecting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 shrink-0 animate-spin" />
-                  Reconnecting...
-                </>
-              ) : (
-                "Resume Interview"
-              )}
-            </Button>
+                <Button
+                  size="lg"
+                  onClick={() => router.push(returnToRef.current ?? "/dashboard/interviews")}
+                  className="w-full sm:w-auto"
+                >
+                  Back to interviews
+                </Button>
+              )
+            ) : null}
+            {!serverTerminated ? (
+              <>
+                <Button
+                  variant="outline"
+                  size="lg"
+                  onClick={closeFailedInterview}
+                  disabled={isClosingFailed || isReconnecting}
+                  className="w-full sm:w-auto sm:whitespace-nowrap text-center h-auto py-2 px-4"
+                >
+                  {isClosingFailed ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 shrink-0 animate-spin" />
+                      Closing...
+                    </>
+                  ) : (
+                    "Close Interview (No credits deducted)"
+                  )}
+                </Button>
+                <Button
+                  size="lg"
+                  onClick={resumeInterview}
+                  disabled={isResuming || isReconnecting}
+                  className="w-full sm:w-auto sm:whitespace-nowrap text-center h-auto py-2 px-4 bg-gradient-to-r from-violet-600 to-primary hover:from-violet-700 hover:bg-slate-900 text-white"
+                >
+                  {isResuming || isReconnecting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 shrink-0 animate-spin" />
+                      Reconnecting...
+                    </>
+                  ) : (
+                    "Resume Interview"
+                  )}
+                </Button>
+              </>
+            ) : null}
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -3678,8 +3779,8 @@ export function RealtimeInterviewClient({
         <div className="fixed top-0 left-0 right-0 z-50 flex items-center justify-center gap-2 bg-yellow-500/95 px-4 py-2 text-sm font-medium text-yellow-950 shadow-md">
           {isOffline
             ? "You're offline. The interview clock is paused and will resume when your internet is back."
-            : SHOW_RECONNECT_ATTEMPT_DEBUG && reconnectAttemptCount > 0
-              ? `Reconnecting AI session… (attempt ${reconnectAttemptCount})`
+            : reconnectAttemptCount > 0
+              ? `Reconnecting AI session… (attempt ${reconnectAttemptCount} of ${RECONNECT_MAX_ATTEMPTS})`
               : "Reconnecting AI session…"}
         </div>
       )}

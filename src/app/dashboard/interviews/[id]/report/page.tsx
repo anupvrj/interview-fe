@@ -857,6 +857,11 @@ export default function ReportPage() {
             <h1 className="mb-1 break-words text-2xl font-bold text-foreground sm:text-3xl">
               {reportTitle}
             </h1>
+            {interview.session?.terminationReason === "server_error" ? (
+              <p className="mb-2 text-sm font-medium text-amber-800">
+                This interview was terminated due to a server error.
+              </p>
+            ) : null}
             <p className="break-words text-sm text-muted-foreground">
               {interview.metadata.role} · {formatDate(interview.createdAt)}
             </p>

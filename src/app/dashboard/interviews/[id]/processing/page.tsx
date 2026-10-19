@@ -131,9 +131,11 @@ export default function ProcessingPage() {
                 Processing Your Interview{dots}
               </h2>
               <p className="text-muted-foreground mb-8 text-lg">
-                {isHackathonDashboardReturn(returnToRef.current)
-                  ? "We’re scoring this round and unlocking the next challenge. This usually takes about a minute."
-                  : "Our AI is analyzing your responses and generating detailed feedback. This usually takes 30-60 seconds."}
+                {interview?.session?.terminationReason === "server_error"
+                  ? "This interview was terminated due to a server error. A report is being prepared from the answers that were saved."
+                  : isHackathonDashboardReturn(returnToRef.current)
+                    ? "We’re scoring this round and unlocking the next challenge. This usually takes about a minute."
+                    : "Our AI is analyzing your responses and generating detailed feedback. This usually takes 30-60 seconds."}
               </p>
 
               {isHackathonDashboardReturn(returnToRef.current) ? (

@@ -29,20 +29,35 @@ export function interviewDefaultsFromProfile(
   return { role, targetCompany, experience };
 }
 
+/** Fields the user has changed, including clearing a prefilled value. */
+export type InterviewFormEdits = {
+  role?: boolean;
+  targetCompany?: boolean;
+  experience?: boolean;
+};
+
 /** Merge profile defaults into interview form state without overwriting user edits. */
 export function mergeInterviewFormDefaults<T extends InterviewFormDefaults>(
   current: T,
   profile: User,
+  edits?: InterviewFormEdits,
 ): T {
   const defaults = interviewDefaultsFromProfile(profile);
   return {
     ...current,
-    role: current.role.trim() ? current.role : defaults.role,
-    targetCompany: current.targetCompany.trim()
+    role: edits?.role
+      ? current.role
+      : current.role.trim()
+        ? current.role
+        : defaults.role,
+    targetCompany: edits?.targetCompany
       ? current.targetCompany
-      : defaults.targetCompany,
-    experience:
-      current.experience !== "0" || defaults.experience === "0"
+      : current.targetCompany.trim()
+        ? current.targetCompany
+        : defaults.targetCompany,
+    experience: edits?.experience
+      ? current.experience
+      : current.experience !== "0" || defaults.experience === "0"
         ? current.experience
         : defaults.experience,
   };

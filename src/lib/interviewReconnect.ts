@@ -1,9 +1,9 @@
 import { BENIGN_ACTIVE_INTERVIEW_WS_CLOSE_CODES } from "@/lib/interviewWebSocketPolicy";
 
-/** Delay before each auto-reconnect attempt; the last value repeats. */
-export const RECONNECT_DELAYS_MS = [2_000, 4_000, 8_000, 15_000];
-/** While online, keep retrying this long before asking the candidate to tap Resume. */
-export const RECONNECT_ESCALATE_AFTER_MS = 90_000;
+/** How many times to try the socket again before ending the interview. */
+export const RECONNECT_MAX_ATTEMPTS = 5;
+/** Wait this long before each of those tries. */
+export const RECONNECT_ATTEMPT_DELAY_MS = 10_000;
 export const CLIENT_HEARTBEAT_MS = 5_000;
 /** No message from the server for this long means the connection is dead even if the socket looks open. */
 export const SERVER_SILENCE_TIMEOUT_MS = 20_000;
@@ -17,15 +17,14 @@ export const COMPLETE_RETRY_DELAYS_MS = [2_000, 5_000, 10_000];
 /** Give up on a WebSocket that never finishes opening. */
 export const CONNECT_OPEN_TIMEOUT_MS = 15_000;
 
-/** 1-based attempt. Attempt 5 and later keep the last delay. */
-export function reconnectDelayMs(attempt: number): number {
-  const index = Math.min(Math.max(attempt, 1), RECONNECT_DELAYS_MS.length) - 1;
-  return RECONNECT_DELAYS_MS[index]!;
+/** Every attempt waits the same ten seconds. */
+export function reconnectDelayMs(_attempt: number): number {
+  return RECONNECT_ATTEMPT_DELAY_MS;
 }
 
-/** Online outages escalate; a window that has not started yet does not. */
-export function shouldEscalateReconnect(windowStartedAt: number, now: number): boolean {
-  return windowStartedAt > 0 && now - windowStartedAt > RECONNECT_ESCALATE_AFTER_MS;
+/** Stop once five online attempts have already run. */
+export function shouldStopReconnect(attemptsSoFar: number): boolean {
+  return attemptsSoFar >= RECONNECT_MAX_ATTEMPTS;
 }
 
 export function isServerSilent(lastMessageAt: number, now: number): boolean {

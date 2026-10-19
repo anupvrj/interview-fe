@@ -8,27 +8,24 @@ import {
   reconnectDelayMs,
   savedInterviewProgress,
   SERVER_SILENCE_TIMEOUT_MS,
-  shouldEscalateReconnect,
+  RECONNECT_MAX_ATTEMPTS,
+  shouldStopReconnect,
   TIME_UP_GRACE_MS,
 } from "@/lib/interviewReconnect";
 
 describe("reconnectDelayMs", () => {
-  it("backs off and then holds the last delay", () => {
-    expect(reconnectDelayMs(1)).toBe(2_000);
-    expect(reconnectDelayMs(2)).toBe(4_000);
-    expect(reconnectDelayMs(3)).toBe(8_000);
-    expect(reconnectDelayMs(4)).toBe(15_000);
-    expect(reconnectDelayMs(9)).toBe(15_000);
+  it("waits ten seconds before every attempt", () => {
+    expect(reconnectDelayMs(1)).toBe(10_000);
+    expect(reconnectDelayMs(5)).toBe(10_000);
   });
 });
 
-describe("shouldEscalateReconnect", () => {
-  const started = 1_000_000;
-
-  it("keeps retrying inside the window and asks for a manual resume after it", () => {
-    expect(shouldEscalateReconnect(0, started + 999_999)).toBe(false);
-    expect(shouldEscalateReconnect(started, started + 90_000)).toBe(false);
-    expect(shouldEscalateReconnect(started, started + 90_001)).toBe(true);
+describe("shouldStopReconnect", () => {
+  it("allows five attempts and then stops", () => {
+    expect(RECONNECT_MAX_ATTEMPTS).toBe(5);
+    expect(shouldStopReconnect(0)).toBe(false);
+    expect(shouldStopReconnect(4)).toBe(false);
+    expect(shouldStopReconnect(5)).toBe(true);
   });
 });
 

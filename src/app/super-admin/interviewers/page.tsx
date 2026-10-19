@@ -150,9 +150,15 @@ export default function SuperAdminInterviewersPage() {
     const valid =
       provider === "gemini"
         ? /^[A-Za-z][A-Za-z0-9]{1,31}$/.test(id)
-        : /^[a-z][a-z0-9-]{1,31}$/.test(id);
+        : provider === "sarvam"
+          ? /^[a-z][a-z0-9_]{1,63}$/.test(id) && id.includes("_")
+          : /^[a-z][a-z0-9-]{1,31}$/.test(id);
     if (!valid) {
-      toast.error("Use a voice id such as Charon, ash, or priya");
+      toast.error(
+        provider === "sarvam"
+          ? "Use a Bulbul voice id such as dev_en_conversational"
+          : "Use a voice id such as Charon or ash",
+      );
       return;
     }
     if (catalog.voices[provider].includes(id)) {
@@ -289,7 +295,8 @@ export default function SuperAdminInterviewersPage() {
                   title: "Technical interviewer",
                   geminiVoice: catalog.voices.gemini[0] ?? "Charon",
                   openaiVoice: catalog.voices.openai[0] ?? "alloy",
-                  sarvamVoice: catalog.voices.sarvam[0] ?? "shubh",
+                  sarvamVoice:
+                    catalog.voices.sarvam[0] ?? "dev_en_conversational",
                   imageSrc: PORTRAITS[0]!,
                   enabled: true,
                 })

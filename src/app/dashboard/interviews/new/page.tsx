@@ -54,6 +54,7 @@ import { cn } from "@/lib/utils";
 import {
   applyJobCaptureToInterviewForm,
   mergeInterviewFormDefaults,
+  type InterviewFormEdits,
 } from "@/lib/interview-form-defaults";
 import {
   clearPendingJobCapture,
@@ -288,6 +289,7 @@ export default function NewInterviewPage() {
   const [jobCapture, setJobCapture] = useState<PendingJobCapture | null>(null);
   const [jobDescription, setJobDescription] = useState("");
   const jobCaptureRef = useRef<PendingJobCapture | null>(null);
+  const formEdits = useRef<InterviewFormEdits>({});
   const {
     canUse,
     showTrialUpsell,
@@ -298,11 +300,18 @@ export default function NewInterviewPage() {
     !entitlementsLoading && !canUse("aiMockInterview");
 
   const filledForm = useMemo(() => {
+    const edits = formEdits.current;
     if (!userProfile) return formData;
-    const merged = mergeInterviewFormDefaults(formData, userProfile);
-    return jobCapture
-      ? applyJobCaptureToInterviewForm(merged, jobCapture)
-      : merged;
+    const merged = mergeInterviewFormDefaults(formData, userProfile, edits);
+    if (!jobCapture) return merged;
+    const captured = applyJobCaptureToInterviewForm(merged, jobCapture);
+    return {
+      ...captured,
+      role: edits.role ? merged.role : captured.role,
+      targetCompany: edits.targetCompany
+        ? merged.targetCompany
+        : captured.targetCompany,
+    };
   }, [formData, userProfile, jobCapture]);
 
   useEffect(() => {
@@ -416,7 +425,17 @@ export default function NewInterviewPage() {
       jobCaptureRef.current = normalized;
       setJobCapture(normalized);
       setJobDescription(normalized.jobDescription);
-      setFormData((prev) => applyJobCaptureToInterviewForm(prev, normalized));
+      setFormData((prev) => {
+        const next = applyJobCaptureToInterviewForm(prev, normalized);
+        const edits = formEdits.current;
+        return {
+          ...next,
+          role: edits.role ? prev.role : next.role,
+          targetCompany: edits.targetCompany
+            ? prev.targetCompany
+            : next.targetCompany,
+        };
+      });
       return true;
     };
 
@@ -671,9 +690,10 @@ export default function NewInterviewPage() {
                   id="role"
                   className="w-full"
                   value={filledForm.role}
-                  onChange={(value) =>
-                    setFormData({ ...formData, role: value })
-                  }
+                  onChange={(value) => {
+                    formEdits.current.role = true;
+                    setFormData((prev) => ({ ...prev, role: value }));
+                  }}
                   placeholder="e.g. Software Engineer, Product Manager"
                   inputClassName={cn(
                     controlClass,
@@ -694,12 +714,13 @@ export default function NewInterviewPage() {
                   id="targetCompany"
                   placeholder="e.g. Amazon, Google, TCS"
                   value={filledForm.targetCompany}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
+                  onChange={(e) => {
+                    formEdits.current.targetCompany = true;
+                    setFormData((prev) => ({
+                      ...prev,
                       targetCompany: e.target.value,
-                    })
-                  }
+                    }));
+                  }}
                   className={controlClass}
                 />
               </FormField>
@@ -709,9 +730,10 @@ export default function NewInterviewPage() {
                 <AppSelect
                   id="experience"
                   value={filledForm.experience}
-                  onChange={(value) =>
-                    setFormData({ ...formData, experience: value })
-                  }
+                  onChange={(value) => {
+                    formEdits.current.experience = true;
+                    setFormData((prev) => ({ ...prev, experience: value }));
+                  }}
                   options={EXPERIENCE_OPTIONS}
                   className={controlClass}
                 />
