@@ -177,7 +177,7 @@ export const BROADCAST_PRESETS: BroadcastPreset[] = [
       ctaUrl: "{{hackathon_url}}",
     },
   }),
-  preset("day8-over", "After 27 Oct · It's over, see you on the 31st", "To all users", {
+  preset("day7-over", "Day 7 · It's over, see you on the 31st", "Send after the 26 Oct deadline · to all users", {
     name: "Hackathon over — see you on the 31st",
     subject: "{{hackathon_title}} is over — see you on {{launch_date}}",
     preheader: "Winners are announced at the live launch.",
