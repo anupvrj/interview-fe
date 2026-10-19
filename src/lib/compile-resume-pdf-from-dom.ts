@@ -81,13 +81,14 @@ export async function compileResumePdfFromPreviewContainer(options: {
         padding,
       });
       const serverBlob = await fetchPdfBlobFromUrl(result.downloadUrl);
-      if (!isPdfOverAtsLimit(serverBlob.size)) {
-        debugResumePagination("compile:pdfDone", { path: "server" });
-        return { blob: serverBlob, downloadUrl: result.downloadUrl };
+      // Always keep the server PDF: it has real, selectable text that applicant tracking
+      // systems can read. The server already shrinks oversized images, so it is rarely over
+      // 2 MB; a screenshot PDF would be smaller but unreadable to an ATS.
+      if (isPdfOverAtsLimit(serverBlob.size)) {
+        console.warn(`Server PDF is ${serverBlob.size} bytes (over 2MB); keeping it for its text layer.`);
       }
-      console.warn(
-        `Server PDF is ${serverBlob.size} bytes (over 2MB). Compressing with client raster.`,
-      );
+      debugResumePagination("compile:pdfDone", { path: "server" });
+      return { blob: serverBlob, downloadUrl: result.downloadUrl };
     } catch (serverErr) {
       console.warn("Server PDF failed, falling back to client html2canvas:", serverErr);
     }

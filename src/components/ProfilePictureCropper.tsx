@@ -164,15 +164,15 @@ export function ProfilePictureCropper({
             showGrid={true}
           />
         </div>
-        <div className="px-6 py-4 space-y-4 bg-gray-50">
+        <div className="px-6 py-4 space-y-4 border-t border-border/60 bg-muted/20">
           {/* Zoom Control */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <ZoomIn className="w-4 h-4 text-gray-600" />
-                <label className="text-sm font-medium text-gray-700">Zoom</label>
+                <ZoomIn className="w-4 h-4 text-muted-foreground" />
+                <label className="text-sm font-medium text-foreground">Zoom</label>
               </div>
-              <span className="text-xs text-gray-500">
+              <span className="text-xs text-muted-foreground">
                 {Math.round(zoom * 100)}%
               </span>
             </div>
@@ -190,12 +190,12 @@ export function ProfilePictureCropper({
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <RotateCw className="w-4 h-4 text-gray-600" />
-                <label className="text-sm font-medium text-gray-700">
+                <RotateCw className="w-4 h-4 text-muted-foreground" />
+                <label className="text-sm font-medium text-foreground">
                   Rotation
                 </label>
               </div>
-              <span className="text-xs text-gray-500">{rotation}°</span>
+              <span className="text-xs text-muted-foreground">{rotation}°</span>
             </div>
             <Slider
               value={[rotation]}
@@ -210,12 +210,12 @@ export function ProfilePictureCropper({
           {/* Position Control */}
           <div className="space-y-2">
             <div className="flex items-center gap-2">
-              <Move className="w-4 h-4 text-gray-600" />
-              <label className="text-sm font-medium text-gray-700">
+              <Move className="w-4 h-4 text-muted-foreground" />
+              <label className="text-sm font-medium text-foreground">
                 Position (drag to align)
               </label>
             </div>
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-muted-foreground">
               Drag the image to adjust its position within the circle
             </p>
           </div>

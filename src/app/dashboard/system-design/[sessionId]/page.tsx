@@ -676,9 +676,9 @@ export default function SystemDesignSessionPage() {
         /* still leave */
       }
       await invalidateAfterSystemDesignSessionFromStorage();
-      router.push("/dashboard/system-design");
+      router.push(returnTo ?? "/dashboard/system-design");
     })();
-  }, [router, stopMediaRecorderAndUpload]);
+  }, [returnTo, router, stopMediaRecorderAndUpload]);
 
   if (!isLoaded || loading) {
     return (
@@ -704,7 +704,7 @@ export default function SystemDesignSessionPage() {
         <Button
           variant="outline"
           className="border-white/20 text-white"
-          onClick={() => router.push("/dashboard/system-design")}
+          onClick={() => router.push(returnTo ?? "/dashboard/system-design")}
         >
           Back to System Design
         </Button>
@@ -1353,7 +1353,7 @@ export default function SystemDesignSessionPage() {
               className="rounded-xl border-white/20 bg-transparent text-white hover:bg-card/10 hover:text-white"
               onClick={() => {
                 setPreStartLeaveOpen(false);
-                router.push("/dashboard/system-design");
+                router.push(returnTo ?? "/dashboard/system-design");
               }}
             >
               Back to sessions

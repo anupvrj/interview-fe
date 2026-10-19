@@ -5,15 +5,30 @@ import { useUser } from "@clerk/nextjs";
 import { ArrowRight, Loader2 } from "lucide-react";
 import { InterviewTrixLogo } from "@/components/InterviewTrixLogo";
 import { userApi, type User } from "@/lib/api";
+import { safeAppRedirectPath } from "@/lib/post-sign-in-redirect";
 import {
   ROLE_META,
   deriveAvailableRoles,
+  isPathAllowedForRole,
   readStoredRole,
   roleHome,
   writeStoredRole,
   type ActiveRole,
 } from "@/lib/roles";
 import { cn } from "@/lib/utils";
+
+/** The page the person was opening before being asked for a role (?next=…), if that role may view it. */
+function destinationFor(role: ActiveRole, profile: User | null): string {
+  const next =
+    typeof window !== "undefined"
+      ? safeAppRedirectPath(new URLSearchParams(window.location.search).get("next"))
+      : null;
+  if (next && !next.startsWith("/select-role")) {
+    const path = next.split(/[?#]/)[0];
+    if (isPathAllowedForRole(role, path, profile)) return next;
+  }
+  return roleHome(role, profile);
+}
 
 export default function SelectRolePage() {
   const { user, isLoaded } = useUser();
@@ -38,11 +53,11 @@ export default function SelectRolePage() {
         if (available.length <= 1) {
           const only = available[0] ?? "candidate";
           writeStoredRole(user.id, only);
-          window.location.replace(roleHome(only, p));
+          window.location.replace(destinationFor(only, p));
           return;
         }
         if (stored && available.includes(stored)) {
-          window.location.replace(roleHome(stored, p));
+          window.location.replace(destinationFor(stored, p));
           return;
         }
         setProfile(p);
@@ -51,7 +66,7 @@ export default function SelectRolePage() {
       .catch(() => {
         if (cancelled) return;
         writeStoredRole(user.id, "candidate");
-        window.location.replace("/dashboard");
+        window.location.replace(destinationFor("candidate", null));
       });
 
     return () => {
@@ -67,7 +82,7 @@ export default function SelectRolePage() {
   const choose = (role: ActiveRole) => {
     if (!user) return;
     writeStoredRole(user.id, role);
-    window.location.replace(roleHome(role, profile));
+    window.location.replace(destinationFor(role, profile));
   };
 
   if (!roles) {

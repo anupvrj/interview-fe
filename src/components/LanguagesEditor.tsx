@@ -83,7 +83,7 @@ export function LanguagesEditor({ languages, onChange }: LanguagesEditorProps) {
                     className={`w-4 h-4 rounded-full border-2 transition-colors ${
                       lang.proficiency && lang.proficiency >= level
                         ? "bg-primary border-primary"
-                        : "bg-gray-200 border-gray-300 hover:border-border"
+                        : "bg-muted border-border hover:border-primary/30"
                     }`}
                     title={`Level ${level}${
                       level === 5
@@ -104,14 +104,14 @@ export function LanguagesEditor({ languages, onChange }: LanguagesEditorProps) {
                     onClick={() =>
                       updateLanguage(lang.id, "proficiency", undefined)
                     }
-                    className="text-xs text-gray-500 hover:text-red-500 ml-2"
+                    className="text-xs text-muted-foreground hover:text-red-500 ml-2"
                     title="Remove rating"
                   >
                     Clear
                   </button>
                 )}
               </div>
-              <div className="text-xs text-gray-500 mt-1">
+              <div className="text-xs text-muted-foreground mt-1">
                 {lang.proficiency
                   ? `Level ${lang.proficiency}${
                       lang.proficiency === 5

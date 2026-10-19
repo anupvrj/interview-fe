@@ -43,7 +43,7 @@ export function ResumeSectionCardHeader({
           onDragStart={onDragStart}
           onDragEnd={onDragEnd}
         />
-        <h3 className="min-w-0 flex-1 truncate font-semibold text-sm">
+        <h3 className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground">
           {section.title}
         </h3>
         {showEdit ? (

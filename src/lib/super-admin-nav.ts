@@ -21,6 +21,7 @@ import {
   Trophy,
   Megaphone,
   Send,
+  LayoutTemplate,
 } from "lucide-react";
 import type { DashboardNavAccent, DashboardNavItem } from "@/lib/dashboard-nav";
 
@@ -107,6 +108,14 @@ export const SUPER_ADMIN_NAV_GROUPS: SuperAdminNavGroup[] = [
         accent: accent.violet,
         description:
           "Turn product surfaces on or off. Disabled is Super Admin only; Live is everyone.",
+      },
+      {
+        title: "Resume Templates",
+        href: `${SUPER_ADMIN_HOME}/resume-templates`,
+        icon: LayoutTemplate,
+        accent: accent.blue,
+        description:
+          "Turn resume templates on or off for every template picker. Existing resumes keep theirs.",
       },
       {
         title: "Interview Integrity",

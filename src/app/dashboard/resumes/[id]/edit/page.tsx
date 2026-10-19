@@ -1597,6 +1597,14 @@ export default function EditResumePage() {
 
     try {
       setChangingTemplate(true);
+      // Fresh check: a template Super Admin just turned off would make every later save fail.
+      const availability = await import("@/lib/resume-template-availability");
+      availability.forgetResumeTemplateAvailability();
+      const disabledTemplates = await availability.fetchDisabledResumeTemplateIds();
+      if (disabledTemplates.includes(newTemplateId)) {
+        alert("This template is no longer available. Please pick another template.");
+        return;
+      }
       const templateList = await resumeApi.getTemplates();
       const newTemplate = templateList.find((t) => t.id === newTemplateId);
       if (!newTemplate) {

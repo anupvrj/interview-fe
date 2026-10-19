@@ -2,7 +2,7 @@
  * Resume editor UI tokens — aligned with dashboard Vuexy theme (purple glow, tinted cards).
  */
 import { cn } from "@/lib/utils";
-import { appPrimaryButton } from "@/lib/app-theme";
+import { appCardElevated, appPrimaryButton, appSurfaceMuted } from "@/lib/app-theme";
 
 export const resumeEditorPage =
   "flex h-full min-h-0 flex-col overflow-hidden bg-background text-foreground";
@@ -31,7 +31,7 @@ export const resumeEditorTabBase =
   "flex-1 px-4 py-3 text-sm font-medium transition-all";
 
 export const resumeEditorTabActive =
-  "relative bg-card font-semibold text-primary after:absolute after:bottom-0 after:left-4 after:right-4 after:h-0.5 after:rounded-full after:bg-[#7367F0] after:shadow-[0_0_10px_rgba(115,103,240,0.45)]";
+  "relative bg-card font-semibold text-[#7367F0] dark:text-[#a59cf7] after:absolute after:bottom-0 after:left-4 after:right-4 after:h-0.5 after:rounded-full after:bg-[#7367F0] after:shadow-[0_0_10px_rgba(115,103,240,0.45)]";
 
 export const resumeEditorTabInactive =
   "text-muted-foreground hover:bg-muted/40 hover:text-foreground";
@@ -39,18 +39,18 @@ export const resumeEditorTabInactive =
 export const resumeEditorFormArea = "space-y-4 p-4 sm:p-6";
 
 export const resumeSectionCard =
-  "overflow-hidden rounded-xl border border-border/80 bg-card shadow-card transition-all hover:shadow-header";
+  cn(appCardElevated, "overflow-hidden transition-all hover:border-[#7367F0]/25");
 
 export const resumeSectionCardDragOver =
   "border-primary/40 shadow-[0_0_0_1px_rgba(115,103,240,0.35),0_8px_24px_rgba(115,103,240,0.16)]";
 
 export const resumeSectionHeader =
-  "flex items-center justify-between border-b border-border/60 bg-gradient-to-r from-[#7367F0]/[0.06] via-muted/25 to-transparent px-4 py-3.5";
+  "flex items-center justify-between border-b border-border/60 bg-gradient-to-br from-[#7367F0]/10 via-transparent to-transparent px-4 py-3.5";
 
 export const resumeSectionContent = "space-y-4 p-4";
 
 export const resumeEntryCard =
-  "space-y-3 rounded-lg border border-border/60 bg-muted/15 p-3 transition-colors hover:border-primary/15 hover:bg-muted/25";
+  cn(appSurfaceMuted, "space-y-3 p-3 transition-colors hover:border-[#7367F0]/20");
 
 export const resumePrimaryCta = cn(appPrimaryButton, "w-full shadow-sm hover:shadow-[0_2px_10px_rgba(115,103,240,0.35)]");
 

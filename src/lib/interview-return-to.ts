@@ -115,6 +115,33 @@ export function clearStoredInterviewReturnTo(interviewId: string): void {
   }
 }
 
+const RECENT_HACKATHON_KEY = "ix:recentHackathonDashboard";
+const RECENT_HACKATHON_TTL_MS = 12 * 60 * 60 * 1000;
+
+/** Hackathon dashboard calls this so interview errors before load can still return there. */
+export function rememberHackathonVisit(dashboardPath: string): void {
+  if (typeof window === "undefined" || !hackathonSlugFromDashboardPath(dashboardPath)) return;
+  try {
+    localStorage.setItem(RECENT_HACKATHON_KEY, JSON.stringify({ path: dashboardPath.split("?")[0], at: Date.now() }));
+  } catch {
+    /* private mode */
+  }
+}
+
+/** Hackathon dashboard opened in the last 12h, if any (fallback when an interview can't load). */
+export function recentHackathonDashboard(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(RECENT_HACKATHON_KEY);
+    if (!raw) return null;
+    const { path, at } = JSON.parse(raw) as { path?: string; at?: number };
+    if (!path || !at || Date.now() - at > RECENT_HACKATHON_TTL_MS) return null;
+    return hackathonSlugFromDashboardPath(path) ? path : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Hackathon interviews are tagged `hackathon` plus the event slug. */
 export function hackathonDashboardFromTags(
   tags: string[] | null | undefined,

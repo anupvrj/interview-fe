@@ -43,7 +43,7 @@ export function ATSImproveTemplatePicker({
   useEffect(() => {
     void (async () => {
       try {
-        const list = await resumeApi.getTemplates();
+        const list = await resumeApi.getSelectableTemplates(currentTemplateId);
         setTemplates(list);
       } finally {
         setLoading(false);

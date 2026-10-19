@@ -151,6 +151,15 @@ function isExtensionJobHandoffPath(pathname: string): boolean {
   );
 }
 
+/**
+ * Candidate-workspace deep links (resume builder/editor, often opened from the hackathon
+ * dashboard or an email). Opening one switches the view to candidate instead of bouncing
+ * the person to the role picker or another workspace home.
+ */
+function isCandidateDeepLinkPath(pathname: string): boolean {
+  return pathname === "/dashboard/resumes" || pathname.startsWith("/dashboard/resumes/");
+}
+
 /** When a URL requires a specific role view, return it so the UI can sync without redirecting away. */
 export function roleRequiredForPath(
   pathname: string | null,
@@ -158,6 +167,7 @@ export function roleRequiredForPath(
 ): ActiveRole | null {
   if (!pathname) return null;
   if (isExtensionJobHandoffPath(pathname)) return "candidate";
+  if (isCandidateDeepLinkPath(pathname)) return "candidate";
   if (
     profile?.accessRole === "super_admin" &&
     matchesPrefix(pathname, SUPER_ADMIN_PREFIXES)
