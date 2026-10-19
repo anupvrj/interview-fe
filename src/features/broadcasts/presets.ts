@@ -31,7 +31,7 @@ export const VARIABLES: { key: string; label: string }[] = [
   { key: "launch_time", label: "Launch time" },
   { key: "dashboard_url", label: "Challenge dashboard link" },
   { key: "hackathon_url", label: "Hackathon page link" },
-  { key: "register_url", label: "Register link" },
+  { key: "register_url", label: "Join link (landing page)" },
   { key: "whatsapp_url", label: "WhatsApp link" },
 ];
 
@@ -118,7 +118,7 @@ export const BROADCAST_PRESETS: BroadcastPreset[] = [
         "Hi {{first_name}},\n\n{{hackathon_title}} is live. Three steps, real prizes, and it's free to join.\n\n[[steps]]\n\n## Top 3 win · prize pool worth ₹20,000\n[[prizes]]\n\n## Live launch · {{launch_date}}, {{launch_time}}\nWinners are announced live, followed by a session on hiring in the age of AI with our guests.\n\n[[guests]]",
       highlight: "Submissions close **{{ends_at}}**.",
       ctaLabel: "Join the hackathon",
-      ctaUrl: "{{register_url}}",
+      ctaUrl: "{{hackathon_url}}",
       footnote:
         "Prizes follow the hackathon terms. Claude is a trademark of Anthropic and Amazon is a trademark of Amazon.com, Inc.; neither sponsors this event.",
     },
