@@ -14,6 +14,11 @@ export function safeAppRedirectPath(redirectUrl: string | null | undefined): str
   if (/[*{}<>]/.test(path)) {
     return null;
   }
+  // Browsers treat "\\" like "/" and drop tabs/newlines, so "/\\evil.com" or "/\t/evil.com"
+  // would become "//evil.com" (off-site). Reject backslashes and control chars (spaces are fine).
+  if (/[\\\u0000-\u001f\u007f]/.test(path)) {
+    return null;
+  }
   return path;
 }
 

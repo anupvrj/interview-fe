@@ -53,7 +53,7 @@ export function ChangeTemplateDialog({
     (async () => {
       setLoading(true);
       try {
-        const data = await resumeApi.getTemplates();
+        const data = await resumeApi.getSelectableTemplates(currentTemplateId);
         if (!cancelled) setTemplates(data);
       } catch (error) {
         console.error("Failed to load templates:", error);
@@ -65,7 +65,7 @@ export function ChangeTemplateDialog({
     return () => {
       cancelled = true;
     };
-  }, [open]);
+  }, [open, currentTemplateId]);
 
   const [activeFilter, setActiveFilter] = useState<FilterCategory>("all");
 
@@ -97,7 +97,7 @@ export function ChangeTemplateDialog({
               variant={activeFilter === filter.id ? "default" : "outline"}
               className={cn(
                 activeFilter === filter.id &&
-                  "bg-gradient-to-r from-purple-600 to-primary text-white hover:bg-slate-900",
+                  "bg-[#7367F0] text-white shadow-sm hover:bg-[#6e62e5]",
               )}
               onClick={() => setActiveFilter(filter.id)}
             >

@@ -1,5 +1,8 @@
 "use client";
 
+import { useEffect } from "react";
+import { useAdoptHackathonDarkTheme } from "@/components/dashboard-theme";
+import { rememberHackathonVisit } from "@/lib/interview-return-to";
 import "@/components/hackathon-2026/hackathon.css";
 import "@/components/hackathon-2026/hackathon-reel.css";
 import "./hackathon-dashboard-reel.css";
@@ -18,6 +21,9 @@ type NavItem = { label: string; href?: string; active?: boolean };
 
 export function HackathonShell({ children }: Readonly<{ children: React.ReactNode }>) {
   const slug = useHackathonSlug();
+  useAdoptHackathonDarkTheme();
+  // Lets an interview that fails to load return here instead of the main dashboard.
+  useEffect(() => rememberHackathonVisit(hackathonDashboardPath(slug)), [slug]);
   const landingPath = hackathonLandingPath(slug);
   // Leaderboard and Resources have no pages yet, so they render as disabled "Soon" items.
   const nav: NavItem[] = [

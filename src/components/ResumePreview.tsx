@@ -246,9 +246,9 @@ export const ResumePreview = forwardRef<ResumePreviewHandle, ResumePreviewProps>
   // Use provided template or show placeholder
   if (!template) {
     return (
-      <div className="flex items-center justify-center h-full text-gray-500 bg-gray-50">
+      <div className="flex items-center justify-center h-full text-muted-foreground bg-muted/20">
         <div className="text-center">
-          <div className="w-16 h-16 bg-gray-200 rounded-lg mb-4 mx-auto"></div>
+          <div className="w-16 h-16 bg-muted rounded-lg mb-4 mx-auto"></div>
           <p>No template selected</p>
         </div>
       </div>

@@ -16,6 +16,7 @@ import {
   type RearrangePartition,
 } from "@/lib/rearrange-sections";
 import { Button } from "@/components/ui/button";
+import { appPrimaryButton } from "@/lib/app-theme";
 import {
   Dialog,
   DialogContent,
@@ -130,8 +131,8 @@ function SectionBox({
       className={cn(
         "relative flex min-h-[40px] items-center justify-center rounded-md border px-2 py-1.5 text-center text-xs font-semibold text-foreground transition-all sm:min-h-[52px] sm:px-3 sm:py-2 sm:text-sm",
         locked
-          ? "cursor-not-allowed border-slate-300 bg-slate-100"
-          : "border-sky-200 bg-sky-100 hover:border-sky-300 hover:bg-sky-50",
+          ? "cursor-not-allowed border-dashed border-border bg-muted/40 text-muted-foreground"
+          : "cursor-grab border-[#7367F0]/25 bg-[#7367F0]/[0.08] hover:border-[#7367F0]/45 hover:bg-[#7367F0]/[0.14] dark:border-[#7367F0]/35 dark:bg-[#7367F0]/[0.16] dark:hover:bg-[#7367F0]/[0.24]",
         isDragOver && !locked && "ring-2 ring-primary/40",
         isDragging && "opacity-50",
         deletable && "pr-8 sm:pr-10",
@@ -409,14 +410,17 @@ export function RearrangeSectionsDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         overlayClassName="z-[80]"
-        className="z-[80] flex max-h-[min(92dvh,720px)] w-[calc(100%-2rem)] max-w-3xl flex-col overflow-hidden border-border/80 bg-background p-0 shadow-header sm:rounded-2xl [&>button]:hidden"
+        className="z-[80] flex max-h-[min(92dvh,720px)] w-[calc(100%-2rem)] max-w-3xl flex-col gap-0 overflow-hidden rounded-xl border border-border/80 bg-card p-0 text-card-foreground shadow-header sm:rounded-2xl [&>button]:hidden"
       >
-        <div className="sticky top-0 z-10 shrink-0 border-b border-border/60 bg-background/95 px-4 py-3 backdrop-blur-md sm:px-6 sm:py-4">
+        <div className="sticky top-0 z-10 shrink-0 border-b border-border/60 bg-gradient-to-br from-[#7367F0]/10 via-card to-card px-4 py-4 sm:px-6 sm:py-5">
           <DialogHeader className="space-y-1 text-left">
-            <DialogTitle className="text-base font-semibold sm:text-lg">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#7367F0] dark:text-[#a59cf7]">
+              Resume layout
+            </p>
+            <DialogTitle className="text-lg font-semibold text-foreground sm:text-xl">
               Hold &amp; Drag the boxes to rearrange the sections
             </DialogTitle>
-            <DialogDescription className="text-xs sm:text-sm">
+            <DialogDescription className="text-sm text-muted-foreground">
               Drag to reorder sections or remove optional ones with the trash
               icon. Changes apply instantly to your live preview.
             </DialogDescription>
@@ -429,7 +433,7 @@ export function RearrangeSectionsDialog({
               No visible sections to rearrange.
             </p>
           ) : (
-            <div className="overflow-hidden rounded-xl border border-border/80 bg-card shadow-card">
+            <div className="overflow-hidden rounded-xl border border-border/60 bg-muted/20">
               <div className="space-y-2 p-3 sm:space-y-3 sm:p-4">
                 {partition.lockedHeader ? (
                   <SectionBox
@@ -489,10 +493,10 @@ export function RearrangeSectionsDialog({
           )}
         </div>
 
-        <div className="sticky bottom-0 shrink-0 border-t border-border/60 bg-background/95 px-4 py-3 backdrop-blur-md sm:px-6 sm:py-4">
+        <div className="sticky bottom-0 flex shrink-0 justify-end border-t border-border/60 bg-card px-4 py-3 sm:px-6 sm:py-4">
           <Button
             type="button"
-            className="w-full sm:w-auto"
+            className={cn("h-11 w-full px-6 text-sm font-semibold sm:w-auto", appPrimaryButton)}
             onClick={() => onOpenChange(false)}
           >
             Done

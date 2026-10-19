@@ -1904,6 +1904,15 @@ export interface RecalculateATSOptions {
   };
 }
 
+/** Super Admin row for a resume template switch. */
+export interface AdminResumeTemplateRow {
+  id: string;
+  name: string;
+  category: "simple" | "modern";
+  enabled: boolean;
+  resumeCount: number;
+}
+
 export const resumeApi = {
   /**
    * Get All Templates
@@ -1913,6 +1922,22 @@ export const resumeApi = {
   getTemplates: async (): Promise<ResumeTemplate[]> => {
     const { TemplateLoader } = await import("./templateLoader");
     return TemplateLoader.loadAllTemplates();
+  },
+
+  /**
+   * Templates users can pick now (Super Admin can turn templates off).
+   * `keepId` keeps the resume's current template in the list even when it's disabled.
+   */
+  getSelectableTemplates: async (keepId?: string | null): Promise<ResumeTemplate[]> => {
+    const [{ TemplateLoader }, availability] = await Promise.all([
+      import("./templateLoader"),
+      import("./resume-template-availability"),
+    ]);
+    const [all, disabled] = await Promise.all([
+      TemplateLoader.loadAllTemplates(),
+      availability.fetchDisabledResumeTemplateIds(),
+    ]);
+    return availability.filterSelectableTemplates(all, disabled, keepId);
   },
 
   /**
@@ -1936,6 +1961,8 @@ export const resumeApi = {
       atsScoringContext?: Resume["atsScoringContext"];
       /** Set true for ATS checker so it does not count toward resume limit */
       forAtsCheckOnly?: boolean;
+      /** Source resume id when copying; the copy may keep a disabled template. */
+      duplicateOf?: string;
     },
   ): Promise<Resume> => {
     const response = await apiClient.post<{ data: Resume }>(
@@ -2036,6 +2063,8 @@ export const resumeApi = {
 
     let created = await resumeApi.create(userId, {
       templateId: source.templateId,
+      // Lets the copy keep its template even if Super Admin has since disabled it.
+      duplicateOf: source.resumeId,
       title: copyTitle,
       content: clone(source.content) ?? {},
       sectionOrder: clone(source.sectionOrder),
@@ -3406,6 +3435,25 @@ export const adminApi = {
 
   deletePlatformFeature: async (key: string): Promise<void> => {
     await apiClient.delete(`/admin/features/${encodeURIComponent(key)}`);
+  },
+
+  listResumeTemplateSettings: async (): Promise<AdminResumeTemplateRow[]> => {
+    const response = await apiClient.get<{
+      success: boolean;
+      data: { templates: AdminResumeTemplateRow[] };
+    }>("/admin/resume-templates");
+    return response.data.data.templates;
+  },
+
+  setResumeTemplateEnabled: async (
+    templateId: string,
+    enabled: boolean,
+  ): Promise<AdminResumeTemplateRow[]> => {
+    const response = await apiClient.patch<{
+      success: boolean;
+      data: { templates: AdminResumeTemplateRow[] };
+    }>(`/admin/resume-templates/${encodeURIComponent(templateId)}`, { enabled });
+    return response.data.data.templates;
   },
 
   getIntegritySettings: async (): Promise<{
@@ -5914,6 +5962,14 @@ export const configApi = {
       data: { version: number; updatedAt: string };
     }>("/config/client-cache");
     return response.data.data;
+  },
+
+  getDisabledResumeTemplateIds: async (): Promise<string[]> => {
+    const response = await apiClient.get<{
+      success: boolean;
+      data: { disabledTemplateIds: string[] };
+    }>("/config/resume-templates");
+    return response.data.data.disabledTemplateIds ?? [];
   },
 
   getFeatures: async (): Promise<import("@/lib/platform-features").PlatformFeature[]> => {

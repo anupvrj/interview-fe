@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useLayoutEffect, useRef } from "react";
+import React, { useState, useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
@@ -30,6 +30,10 @@ import { ResumeBuilderHeroPreview } from "@/components/marketing/ResumeBuilderHe
 import { SeoVideoSection } from "@/components/seo/SeoVideoSection";
 import { resumeBuilderDemoVideo } from "@/lib/seo/marketing-video-content";
 import { TEMPLATES_CATALOG } from "@/configs/resume-templates/templates-catalog";
+import {
+  filterSelectableTemplates,
+  useDisabledResumeTemplateIds,
+} from "@/lib/resume-template-availability";
 import {
   appMarketingSection,
   appMarketingSectionAlt,
@@ -129,6 +133,11 @@ const howItWorksSteps: { title: string; body: string; icon: LucideIcon }[] = [
 ];
 
 export default function ResumeBuilderPage() {
+  const disabledTemplateIds = useDisabledResumeTemplateIds();
+  const templateCatalog = useMemo(
+    () => filterSelectableTemplates(TEMPLATES_CATALOG, disabledTemplateIds),
+    [disabledTemplateIds],
+  );
   const [howItWorksVisible, setHowItWorksVisible] = useState(false);
   const howItWorksRef = useRef<HTMLDivElement>(null);
 
@@ -160,9 +169,9 @@ export default function ResumeBuilderPage() {
     const step = isBelowSm ? 3 : 5;
     setCurrentTemplateSlide((s) => {
       const n = Math.floor(s / step) * step;
-      return n >= TEMPLATES_CATALOG.length ? 0 : n;
+      return n >= templateCatalog.length ? 0 : n;
     });
-  }, [isBelowSm]);
+  }, [isBelowSm, templateCatalog.length]);
 
   useEffect(() => {
     const node = howItWorksRef.current;
@@ -182,7 +191,7 @@ export default function ResumeBuilderPage() {
   }, []);
 
   useEffect(() => {
-    const totalTemplates = TEMPLATES_CATALOG.length;
+    const totalTemplates = templateCatalog.length;
     const step = isBelowSm ? 3 : 5;
     const interval = setInterval(() => {
       setCurrentTemplateSlide((prev) => {
@@ -191,7 +200,7 @@ export default function ResumeBuilderPage() {
       });
     }, 4000);
     return () => clearInterval(interval);
-  }, [isBelowSm]);
+  }, [isBelowSm, templateCatalog.length]);
 
   const templateCarouselTemplatesPerPage = isBelowSm ? 3 : 5;
   const templateCarouselSlideOffsetPx =
@@ -200,7 +209,7 @@ export default function ResumeBuilderPage() {
         templateCarouselWidth
       : 0;
 
-  const heroTemplate = TEMPLATES_CATALOG[0];
+  const heroTemplate = templateCatalog[0];
 
   return (
     <div className="min-h-screen bg-background scroll-smooth selection:bg-info-muted">
@@ -487,7 +496,7 @@ export default function ResumeBuilderPage() {
                     transform: `translateX(-${templateCarouselSlideOffsetPx}px)`,
                   }}
                 >
-                  {[...TEMPLATES_CATALOG, ...TEMPLATES_CATALOG].map(
+                  {[...templateCatalog, ...templateCatalog].map(
                     (template, index) => (
                       <div
                         key={`${template.id}-${index}`}
@@ -534,11 +543,11 @@ export default function ResumeBuilderPage() {
               <div className="mt-6 flex justify-center gap-2">
                 {Array.from({
                   length: Math.ceil(
-                    TEMPLATES_CATALOG.length / templateCarouselTemplatesPerPage,
+                    templateCatalog.length / templateCarouselTemplatesPerPage,
                   ),
                 }).map((_, index) => {
                   const currentPage = Math.floor(
-                    (currentTemplateSlide % TEMPLATES_CATALOG.length) /
+                    (currentTemplateSlide % templateCatalog.length) /
                       templateCarouselTemplatesPerPage,
                   );
                   return (

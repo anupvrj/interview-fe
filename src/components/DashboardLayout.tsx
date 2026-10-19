@@ -342,7 +342,9 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       if (requiredRole && availableRoles.includes(requiredRole)) {
         return;
       }
-      router.replace("/select-role");
+      // Keep the page they were opening; the role picker sends them back to it.
+      const here = `${pathname}${typeof window !== "undefined" ? window.location.search : ""}`;
+      router.replace(`/select-role?next=${encodeURIComponent(here)}`);
       return;
     }
 

@@ -99,6 +99,9 @@ import {
   currentInterviewReturnTo,
   isHackathonDashboardReturn,
   resolveHackathonInterviewHome,
+  hackathonDashboardFromTags,
+  recentHackathonDashboard,
+  rememberInterviewReturnTo,
   resolveInterviewReturnTo,
   shouldAutoDiscardUnstartedInterview,
   withInterviewReturnTo,
@@ -1038,6 +1041,11 @@ export function RealtimeInterviewClient({
       const data = await interviewApi.get(interviewId);
       setInterview(data);
       interviewRef.current = data;
+      // No return link (new tab, reload): hackathon interviews still go back to the hackathon.
+      if (!(currentInterviewReturnTo(interviewId) ?? returnToRef.current)) {
+        const fromTags = hackathonDashboardFromTags(data.metadata?.tags);
+        if (fromTags) returnToRef.current = rememberInterviewReturnTo(interviewId, fromTags);
+      }
       if (data.status === "active") restoreSavedProgress(data);
       shouldDiscardUnstartedRef.current = shouldAutoDiscardUnstartedInterview({
         status: data.status,
@@ -1071,7 +1079,8 @@ export function RealtimeInterviewClient({
       console.error("Error loading interview:", error);
       const returnTo = currentInterviewReturnTo(interviewId) ?? returnToRef.current;
       if (returnTo) returnToRef.current = returnTo;
-      const hackathonHome = resolveHackathonInterviewHome(returnTo);
+      // Couldn't load the interview at all: use the hackathon they just came from, if any.
+      const hackathonHome = resolveHackathonInterviewHome(returnTo) ?? recentHackathonDashboard();
       if (hackathonHome) {
         redirectedHome = true;
         router.replace(hackathonHome);

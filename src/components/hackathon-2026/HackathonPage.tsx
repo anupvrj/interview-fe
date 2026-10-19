@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { useAdoptHackathonDarkTheme } from "@/components/dashboard-theme";
 import "./hackathon.css";
 import "./hackathon-reel.css";
 import { HackathonAgenda } from "@/components/hackathon-2026/HackathonAgenda";
@@ -38,6 +39,7 @@ function HackathonIntroComplete() {
 }
 
 export function HackathonPage() {
+  useAdoptHackathonDarkTheme();
   return (
     <HackathonSlugProvider slug={HACKATHON_SLUG}>
       <HackathonFeatureGate>

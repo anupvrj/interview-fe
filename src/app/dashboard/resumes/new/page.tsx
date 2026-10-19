@@ -253,7 +253,12 @@ export default function NewResumePage() {
       const templateParam = searchParams.get("template");
       const skipTemplate = searchParams.get("skipTemplate") === "true";
 
-      if (templateParam && skipTemplate) {
+      // A template Super Admin turned off can't be preselected from a link.
+      const { fetchDisabledResumeTemplateIds } = await import(
+        "@/lib/resume-template-availability"
+      );
+      const disabledTemplates = await fetchDisabledResumeTemplateIds();
+      if (templateParam && skipTemplate && !disabledTemplates.includes(templateParam)) {
         setSelectedTemplate(templateParam);
         setStep("import");
       }
@@ -267,7 +272,7 @@ export default function NewResumePage() {
   const loadTemplates = async () => {
     try {
       setLoading(true);
-      const data = await resumeApi.getTemplates();
+      const data = await resumeApi.getSelectableTemplates();
       setTemplates(data);
     } catch (error) {
       console.error("Error loading templates:", error);

@@ -260,7 +260,7 @@ export const PaginatedPreview: React.FC<PaginatedPreviewProps> = ({
       </div>
 
       {showSpinner && isPaginating && (
-        <div className="text-gray-400 text-sm mt-4 animate-pulse">Optimizing layout...</div>
+        <div className="text-muted-foreground text-sm mt-4 animate-pulse">Optimizing layout...</div>
       )}
 
       {visiblePages.length > 0 && (

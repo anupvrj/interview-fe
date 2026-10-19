@@ -456,7 +456,7 @@ export function RichTextEditor({
       </div>
 
       {/* Editor Content */}
-      <div className="bg-white rounded-b-md relative">
+      <div className="relative rounded-b-lg bg-card text-foreground">
         <EditorContent editor={editor} />
 
         {/* AI Refine Button - Positioned in bottom-right corner */}
@@ -500,7 +500,7 @@ export function RichTextEditor({
                 value={linkText}
                 onChange={(e) => setLinkText(e.target.value)}
               />
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-muted-foreground">
                 Leave empty to apply link to selected text
               </p>
             </div>

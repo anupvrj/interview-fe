@@ -12,6 +12,57 @@ import {
 export type DashboardTheme = "light" | "dark";
 
 const STORAGE_KEY = "interviewtrix-dashboard-theme";
+/** Set once the person flips the theme themselves; the hackathon default never overrides that. */
+const USER_CHOICE_KEY = "interviewtrix-dashboard-theme-chosen";
+
+function readStoredTheme(): DashboardTheme | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const s = localStorage.getItem(STORAGE_KEY);
+    return s === "light" || s === "dark" ? s : null;
+  } catch {
+    return null;
+  }
+}
+
+function rememberUserChoice(t: DashboardTheme): void {
+  try {
+    localStorage.setItem(STORAGE_KEY, t);
+    localStorage.setItem(USER_CHOICE_KEY, "1");
+  } catch {
+    /* ignore */
+  }
+}
+
+/**
+ * Visiting any hackathon page switches the logged-in app to dark so the resume builder,
+ * interviews and dashboard match the hackathon's look — unless the person already picked
+ * a theme with the toggle.
+ */
+export function adoptHackathonDarkTheme(): void {
+  if (typeof window === "undefined") return;
+  try {
+    if (localStorage.getItem(USER_CHOICE_KEY) === "1") return;
+    // A stored theme from before the "chosen" flag existed was set by the toggle too.
+    if (localStorage.getItem(STORAGE_KEY)) return;
+    localStorage.setItem(STORAGE_KEY, "dark");
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Call from hackathon pages (landing, dashboard, signup). */
+export function useAdoptHackathonDarkTheme(): void {
+  useEffect(() => {
+    adoptHackathonDarkTheme();
+  }, []);
+}
+
+/**
+ * Inline <head>/<body> script for the dashboard layout: applies the saved dark theme
+ * before first paint, so there is no flash of the light theme on a full page load.
+ */
+export const DASHBOARD_THEME_BOOT_SCRIPT = `try{if(localStorage.getItem(${JSON.stringify(STORAGE_KEY)})==="dark"){document.documentElement.classList.add("dark")}}catch(e){}`;
 
 type DashboardThemeContextValue = {
   theme: DashboardTheme;
@@ -36,36 +87,26 @@ export function DashboardThemeProvider({
   /** Pin a theme for a route whose own design is one mode (the live interview room is dark). */
   forcedTheme?: DashboardTheme;
 }>) {
+  // Start "light" to match the server render (no hydration mismatch); the effect below
+  // applies the saved theme right after mount, and the boot script avoids a flash on full loads.
   const [storedTheme, setThemeState] = useState<DashboardTheme>("light");
   const theme = forcedTheme ?? storedTheme;
 
   useEffect(() => {
     if (forcedTheme) return;
-    try {
-      const s = localStorage.getItem(STORAGE_KEY) as DashboardTheme | null;
-      if (s === "light" || s === "dark") setThemeState(s);
-    } catch {
-      /* ignore */
-    }
+    const s = readStoredTheme();
+    if (s) setThemeState(s);
   }, [forcedTheme]);
 
   const setTheme = useCallback((t: DashboardTheme) => {
     setThemeState(t);
-    try {
-      localStorage.setItem(STORAGE_KEY, t);
-    } catch {
-      /* ignore */
-    }
+    rememberUserChoice(t);
   }, []);
 
   const toggle = useCallback(() => {
     setThemeState((prev) => {
       const next: DashboardTheme = prev === "dark" ? "light" : "dark";
-      try {
-        localStorage.setItem(STORAGE_KEY, next);
-      } catch {
-        /* ignore */
-      }
+      rememberUserChoice(next);
       return next;
     });
   }, []);

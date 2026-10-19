@@ -63,7 +63,7 @@ export function ResumeChallenge({ me }: Readonly<{ me: HackathonMe }>) {
     if (options.length === 0) return;
     if (selectedId && options.some((r) => r.resumeId === selectedId)) return;
     const preferred =
-      options.find((r) => r.resumeId === me.preferredResumeId && r.hasPdf) ??
+      options.find((r) => r.resumeId === me.preferredResumeId) ??
       options.find((r) => r.hasPdf) ??
       options[0];
     setSelectedId(preferred.resumeId);
@@ -159,14 +159,13 @@ export function ResumeChallenge({ me }: Readonly<{ me: HackathonMe }>) {
                     <option key={r.resumeId} value={r.resumeId}>
                       {r.title}
                       {r.atsScore !== null ? ` · ATS ${r.atsScore}` : ""}
-                      {r.hasPdf ? "" : " · needs PDF"}
                     </option>
                   ))}
                 </select>
                 <button
                   type="button"
                   className="hk-btn h-12 w-full shrink-0 px-6 text-sm disabled:pointer-events-none disabled:opacity-60 sm:w-auto"
-                  disabled={!selected || !selected.hasPdf || submit.isPending}
+                  disabled={!selected || submit.isPending}
                   onClick={() =>
                     selected &&
                     submit.mutate(selected.resumeId, {
@@ -193,9 +192,8 @@ export function ResumeChallenge({ me }: Readonly<{ me: HackathonMe }>) {
                 </div>
               ) : null}
               {selected && !selected.hasPdf ? (
-                <p className="text-sm text-[#ffc44d]">
-                  This resume has no PDF yet. Open it with <strong>Edit in builder</strong> and click{" "}
-                  <strong>Save and return to Hackathon</strong>.
+                <p className="text-sm text-[#9eb2ca]">
+                  This resume hasn&apos;t been exported yet. We&apos;ll create the PDF for you when you submit.
                 </p>
               ) : null}
               <p className="text-xs text-[#7189a6]">
