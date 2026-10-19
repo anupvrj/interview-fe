@@ -15,21 +15,56 @@ function memoryStorage(): Storage {
 }
 
 const gtag = vi.fn();
+const fbq = vi.fn();
 
 async function loadFresh() {
   vi.resetModules();
   gtag.mockClear();
-  vi.stubGlobal("window", { gtag });
+  fbq.mockClear();
+  vi.stubGlobal("window", { gtag, fbq });
   vi.stubGlobal("localStorage", memoryStorage());
   vi.stubGlobal("sessionStorage", memoryStorage());
   return import("../analytics");
 }
 
 const sent = () => gtag.mock.calls.map(([, name, params]) => ({ name, params }));
+const sentMeta = () => fbq.mock.calls.map(([, name, params]) => ({ name, params }));
 
 describe("hackathon analytics", () => {
   beforeEach(() => {
     vi.unstubAllGlobals();
+  });
+
+  it("sends Meta CompleteRegistration once per account alongside the GA event", async () => {
+    let a = await loadFresh();
+    a.trackRegistrationSuccessOnce({ userKey: "user_m", source: "profile" });
+    a.trackRegistrationSuccessOnce({ userKey: "user_m", source: "profile" });
+    expect(sentMeta()).toEqual([
+      { name: "CompleteRegistration", params: { content_name: "hiring_games_2026", status: true } },
+    ]);
+
+    const storage = localStorage;
+    vi.resetModules();
+    fbq.mockClear();
+    vi.stubGlobal("localStorage", storage);
+    a = await import("../analytics");
+    a.trackRegistrationSuccessOnce({ userKey: "user_m", source: "profile" });
+    expect(sentMeta()).toHaveLength(0);
+  });
+
+  it("sends Meta Lead once, only when the ATS score reaches the target", async () => {
+    const a = await loadFresh();
+    a.trackAtsQualifiedOnce({ userKey: "u", atsScore: 74, target: 75 });
+    a.trackAtsQualifiedOnce({ userKey: "u", atsScore: null, target: 75 });
+    a.trackAtsQualifiedOnce({ userKey: null, atsScore: 90, target: 75 });
+    expect(sentMeta()).toHaveLength(0);
+
+    a.trackAtsQualifiedOnce({ userKey: "u", atsScore: 75, target: 75 });
+    a.trackAtsQualifiedOnce({ userKey: "u", atsScore: 88, target: 75 });
+    expect(sentMeta()).toEqual([
+      { name: "Lead", params: { content_name: "hiring_games_2026", content_category: "ats_qualified" } },
+    ]);
+    expect(sent()).toHaveLength(0);
   });
 
   it("counts a confirmed registration once per account, even across reloads", async () => {

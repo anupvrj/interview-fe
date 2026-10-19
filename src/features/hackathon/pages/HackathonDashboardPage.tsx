@@ -11,13 +11,13 @@ import {
   getSignInUrlWithRedirect,
   peekPostSignInReturnUrl,
 } from "@/lib/post-sign-in-redirect";
-import { toHackathonError, type HackathonMe } from "../api";
+import { eventTargets, toHackathonError, type HackathonMe } from "../api";
 import { HACKATHON_SLUG, hackathonDashboardPath, hackathonLandingPath, hackathonProfilePath } from "../config";
 import { formatIst, PHASE_COPY } from "../copy";
 import { hackathonKeys, useHackathonMe, useHackathonSlug } from "../hooks";
 import { HackathonFeatureGate } from "../components/HackathonFeatureGate";
 import { ChallengeCard } from "../components/ChallengeCard";
-import { HK_EVENTS, trackHackathonOnce, trackParticipationProgress } from "../analytics";
+import { HK_EVENTS, trackAtsQualifiedOnce, trackHackathonOnce, trackParticipationProgress } from "../analytics";
 import { CompleteSection } from "../components/CompleteSection";
 import { HackathonStartCountdown } from "../components/HackathonStartCountdown";
 import { DashboardHero } from "../components/DashboardHero";
@@ -175,6 +175,9 @@ function DashboardContent() {
       challenges: (me.progress.challenges ?? []).map((c) => ({ challengeId: c.challengeId, kind: c.kind, state: c.state })),
       completed: me.progress.completed,
     });
+    if (me.resume?.submittedAt) {
+      trackAtsQualifiedOnce({ userKey: userId, atsScore: me.resume.atsScore, target: eventTargets(me.hackathon).atsScore });
+    }
   }, [me, userId]);
 
   const needsProfile =
