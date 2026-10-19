@@ -127,7 +127,14 @@ function ProfileTypeCard({
   );
 }
 
-export function HackathonOnboardingForm({ onComplete }: Readonly<{ onComplete: () => void }>) {
+export function HackathonOnboardingForm({
+  onComplete,
+  onStart,
+}: Readonly<{
+  onComplete: () => void;
+  /** Called once when the form opens, so the page lets the form finish (incl. the resume step). */
+  onStart?: () => void;
+}>) {
   const { user } = useUser();
   const industryId = useId();
   const roleId = useId();
@@ -147,6 +154,11 @@ export function HackathonOnboardingForm({ onComplete }: Readonly<{ onComplete: (
   const [phoneLocal, setPhoneLocal] = useState("");
   const [savedPhone, setSavedPhone] = useState<string | null>(null);
   const [resumeFile, setResumeFile] = useState<File | null>(null);
+
+  useEffect(() => {
+    onStart?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once, on open
+  }, []);
 
   useEffect(() => {
     let cancelled = false;

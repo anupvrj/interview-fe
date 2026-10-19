@@ -332,7 +332,7 @@ export function PopupView({ popup, countdownTarget, countdownLabel, clockOffsetM
           <Body text={c.body} />
           {price}
           {prize || (parts && !parts.done) ? (
-            <div className="ixp-spot-grid">
+            <div className={cn("ixp-spot-grid", !(prize && parts && !parts.done) && "ixp-spot-one")}>
               {prize}
               <Countdown parts={parts} label={countdownLabel} />
             </div>

@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import {
   HACKATHON_WHATSAPP_COMMUNITY_URL,
-  hackathonWhatsAppCommunityQrUrl,
+  hackathonWhatsAppCommunityQrSrc,
 } from "../whatsapp-links";
 import { HACKATHON_CHALLENGE_SUCCESS_COPY } from "./celebrationCopy";
 import { HackathonConfettiLayer } from "./HackathonConfettiLayer";
@@ -23,7 +23,7 @@ type HackathonChallengeSuccessModalProps = Readonly<{
 
 export function HackathonChallengeSuccessModal({ open, onOpenChange }: HackathonChallengeSuccessModalProps) {
   const communityUrl = HACKATHON_WHATSAPP_COMMUNITY_URL.trim();
-  const qrSrc = communityUrl ? hackathonWhatsAppCommunityQrUrl(communityUrl) : null;
+  const qrSrc = communityUrl ? hackathonWhatsAppCommunityQrSrc(communityUrl) : null;
   const copy = HACKATHON_CHALLENGE_SUCCESS_COPY;
 
   return (
@@ -88,7 +88,7 @@ export function HackathonChallengeSuccessModal({ open, onOpenChange }: Hackathon
                   {/* eslint-disable-next-line @next/next/no-img-element -- external QR API */}
                   <img
                     src={qrSrc}
-                    alt=""
+                    alt="QR code to join the InterviewTrix WhatsApp community"
                     width={200}
                     height={200}
                     className="size-[140px] rounded-lg border border-[#27547d]/80 bg-white p-1.5 sm:size-[168px]"

@@ -67,7 +67,7 @@ export function FormSection({
         </div>
         {action}
       </CardHeader>
-      <CardContent className="grid gap-4">{children}</CardContent>
+      <CardContent className="grid gap-4 [&>*]:min-w-0">{children}</CardContent>
     </Card>
   );
 }
