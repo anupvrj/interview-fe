@@ -63,6 +63,15 @@ import {
 import { DashboardStatCard } from "@/components/dashboard/DashboardStatCard";
 import { DashboardResumesList } from "@/components/dashboard/DashboardResumesList";
 import { TrialUpsellDialog } from "@/components/upsell/TrialUpsellDialog";
+import { PlaceholderDataDialog } from "@/components/resume-editor/PlaceholderDataDialog";
+import {
+  fetchResumePlaceholderIssues,
+  type ResumePlaceholderIssue,
+} from "@/lib/resume-placeholder-check";
+import {
+  dismissReviewReminder,
+  shouldShowReviewReminder,
+} from "@/lib/resume-review-reminder";
 import { useEntitlements } from "@/hooks/useEntitlements";
 import { AddToChromeButton } from "@/components/chrome-extension/AddToChromeButton";
 
@@ -78,6 +87,11 @@ export default function ResumesPage() {
   const { invalidate } = useDashboardInvalidation();
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  /** Resume whose download is waiting on the sample-data warning. */
+  const [placeholderCheck, setPlaceholderCheck] = useState<{
+    resumeId: string;
+    issues: ResumePlaceholderIssue[];
+  } | null>(null);
   const [sendingToChromeId, setSendingToChromeId] = useState<string | null>(null);
   const [extensionSyncNotice, setExtensionSyncNotice] = useState<string | null>(
     null,
@@ -335,6 +349,17 @@ export default function ResumesPage() {
       setTrialUpsellOpen(true);
       return;
     }
+    const issues = await fetchResumePlaceholderIssues(
+      resumes.find((r) => r.resumeId === resumeId)?.content,
+    );
+    if (issues.length > 0 || shouldShowReviewReminder(resumeId)) {
+      setPlaceholderCheck({ resumeId, issues });
+      return;
+    }
+    await downloadPdf(resumeId);
+  };
+
+  const downloadPdf = async (resumeId: string) => {
     try {
       setDownloadingId(resumeId);
       const pdfUrl = await resumeApi.downloadPDF(resumeId);
@@ -971,6 +996,25 @@ export default function ResumesPage() {
         onOpenChange={setSyncDialogOpen}
         variant={syncDialogVariant}
       />
+      <PlaceholderDataDialog
+        open={placeholderCheck !== null}
+        onOpenChange={(open) => {
+          if (!open) setPlaceholderCheck(null);
+        }}
+        issues={placeholderCheck?.issues ?? []}
+        onEdit={() => {
+          const id = placeholderCheck?.resumeId;
+          setPlaceholderCheck(null);
+          if (id) router.push(`/dashboard/resumes/${id}/edit`);
+        }}
+        onDontRemindAgain={() => dismissReviewReminder(placeholderCheck?.resumeId)}
+        onDownloadAnyway={() => {
+          const id = placeholderCheck?.resumeId;
+          setPlaceholderCheck(null);
+          if (id) void downloadPdf(id);
+        }}
+      />
+
       <TrialUpsellDialog
         open={trialUpsellOpen}
         onOpenChange={setTrialUpsellOpen}

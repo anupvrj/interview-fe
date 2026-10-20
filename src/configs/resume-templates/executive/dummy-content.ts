@@ -1,95 +1,94 @@
 /**
- * Executive Template Dummy Content
+ * Sample content for the executive template ("Skip & use defaults").
+ *
+ * Every value is an obvious placeholder (Your Name, Sample Job 1, Sample Degree 1…)
+ * so it can never be mistaken for a real person. The resume placeholder check
+ * (src/lib/resume/placeholderCheck.ts) warns if any of it is left in.
  */
-
 export const executiveDummyContent = {
   personalInfo: {
-    fullName: "Robert Williams",
-    email: "robert.williams@email.com",
-    phone: "+1 555-456-7890",
-    location: "New York, NY",
-    linkedin: "linkedin.com/in/robertwilliams",
-    website: "robertwilliams.com",
-    position: "Chief Technology Officer",
+    fullName: "Your Name",
+    email: "your.email@example.com",
+    phone: "+00 00000 00000",
+    location: "Sample City, Country",
+    linkedin: "linkedin.com/in/your-profile",
+    website: "your-website.example.com",
+    position: "Your Title",
+    portfolio: "Your Title",
   },
-
-  profileSummary:
-    "Visionary technology executive with 15+ years of experience leading engineering teams and driving digital transformation. Proven track record of scaling organizations, implementing innovative solutions, and delivering measurable business results. Expert in cloud architecture, agile methodologies, and strategic planning.",
-
+  profileSummary: "Sample summary — write 2–3 lines about your experience, your strongest skills and the role you want.",
   experience: [
     {
-      position: "Chief Technology Officer",
-      company: "Enterprise Solutions Corp",
-      location: "New York, NY",
+      position: "Sample Job 1",
+      company: "Sample Company 1",
+      location: "Sample City, Country",
       startDate: "2019-01",
       endDate: "Present",
       current: true,
       description: [
-        "Lead technology strategy and oversee 200+ member engineering organization",
-        "Drove cloud migration initiative resulting in 50% cost reduction and improved scalability",
-        "Implemented DevOps practices reducing deployment time from weeks to hours",
-        "Established innovation lab that generated $10M in new revenue streams",
+        "Sample bullet 1 — describe a key achievement in this role, starting with an action verb.",
+        "Sample bullet 2 — describe a project or responsibility you owned and its result.",
+        "Sample bullet 3 — mention a tool, process or team you improved.",
+        "Sample bullet 4 — add another accomplishment that matches the job you want.",
       ],
     },
     {
-      position: "Vice President of Engineering",
-      company: "Tech Innovators Inc",
-      location: "San Francisco, CA",
+      position: "Sample Job 2",
+      company: "Sample Company 2",
+      location: "Sample City, Country",
       startDate: "2015-06",
       endDate: "2018-12",
       current: false,
       description: [
-        "Managed engineering teams across multiple product lines",
-        "Scaled organization from 30 to 150 engineers while maintaining quality",
-        "Led architecture redesign supporting 10x growth in user base",
-        "Established engineering best practices and mentorship programs",
+        "Sample bullet 1 — describe a key achievement in this role, starting with an action verb.",
+        "Sample bullet 2 — describe a project or responsibility you owned and its result.",
+        "Sample bullet 3 — mention a tool, process or team you improved.",
+        "Sample bullet 4 — add another accomplishment that matches the job you want.",
       ],
     },
   ],
-
   skills: [
-    "Strategic Planning",
-    "Team Building",
-    "Stakeholder Management",
-    "Cloud Architecture",
-    "Microservices",
-    "DevOps",
-    "Security",
-    "P&L Management",
-    "Vendor Relations",
-    "Digital Transformation",
+    "Sample Skill 1",
+    "Sample Skill 2",
+    "Sample Skill 3",
+    "Sample Skill 4",
+    "Sample Skill 5",
+    "Sample Skill 6",
+    "Sample Skill 7",
+    "Sample Skill 8",
+    "Sample Skill 9",
+    "Sample Skill 10",
   ],
-
   education: [
     {
-      degree: "Master of Business Administration",
-      institution: "Harvard Business School",
-      location: "Boston, MA",
+      degree: "Sample Degree 1",
+      institution: "Sample University 1",
+      location: "Sample City, Country",
       startDate: "2008",
       endDate: "2010",
       gpa: "",
-      description: "",
+      description: "Sample — add relevant coursework, honours or grades (optional).",
     },
     {
-      degree: "Bachelor of Science in Computer Engineering",
-      institution: "MIT",
-      location: "Cambridge, MA",
+      degree: "Sample Degree 2",
+      institution: "Sample University 2",
+      location: "Sample City, Country",
       startDate: "2000",
       endDate: "2004",
-      gpa: "3.9",
-      description: "",
+      gpa: "",
+      description: "Sample — add relevant coursework, honours or grades (optional).",
     },
   ],
-
   projects: [],
   certificates: [],
   achievements: [],
-  languages: [{ name: "English", level: 5 }],
-  interests: "Technology Trends, Mentorship, Golf",
+  languages: [
+    {
+      name: "Sample Language 1",
+      level: 5,
+    },
+  ],
+  interests: "Sample Interest 1, Sample Interest 2, Sample Interest 3",
 };
 
-/**
- * Default export for template loader
- */
 export default executiveDummyContent;
-

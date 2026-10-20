@@ -1,129 +1,134 @@
 /**
- * Condensed Rule Template - Dummy Content
- * Engineering / operations leadership focused sample.
+ * Sample content for the condensed-rule template ("Skip & use defaults").
+ *
+ * Every value is an obvious placeholder (Your Name, Sample Job 1, Sample Degree 1…)
+ * so it can never be mistaken for a real person. The resume placeholder check
+ * (src/lib/resume/placeholderCheck.ts) warns if any of it is left in.
  */
-
 export const condensedruleDummyContent = {
   personalInfo: {
-    fullName: "Ahmed Hassan",
-    email: "ahmed.hassan@email.com",
-    phone: "+1 100 482 7391",
-    location: "Cairo, Egypt",
-    linkedin: "linkedin.com/in/ahmed-hassan",
-    portfolio: "Head of Engineering",
+    fullName: "Your Name",
+    email: "your.email@example.com",
+    phone: "+00 00000 00000",
+    location: "Sample City, Country",
+    linkedin: "linkedin.com/in/your-profile",
+    portfolio: "Your Title",
   },
-
-  profileSummary:
-    "Engineering leader with over 17 years of experience directing multidisciplinary teams across infrastructure, manufacturing, utilities, and industrial development projects. Brings strong expertise in project delivery, technical governance, asset reliability, process optimization, and cross-functional engineering leadership. Known for improving operational performance, strengthening safety, and delivering complex capital projects through disciplined planning and stakeholder alignment.",
-
+  profileSummary: "Sample summary — write 2–3 lines about your experience, your strongest skills and the role you want.",
   experience: [
     {
-      position: "Head of Engineering",
-      company: "NileWorks Infrastructure",
-      location: "Cairo, Egypt",
+      position: "Sample Job 1",
+      company: "Sample Company 1",
+      location: "Sample City, Country",
       startDate: "2020-01",
       endDate: "",
       current: true,
       description: [
-        "Directed engineering strategy across civil, mechanical, and electrical teams supporting large-scale infrastructure programs.",
-        "Led 8 engineering managers and 120 technical staff, improving project delivery reliability across regional sites.",
-        "Drove design review, contractor coordination, and technical governance processes, reducing rework across major projects.",
+        "Sample bullet 1 — describe a key achievement in this role, starting with an action verb.",
+        "Sample bullet 2 — describe a project or responsibility you owned and its result.",
+        "Sample bullet 3 — mention a tool, process or team you improved.",
       ],
     },
     {
-      position: "Engineering Director",
-      company: "Delta Industrial Solutions",
-      location: "Alexandria, Egypt",
+      position: "Sample Job 2",
+      company: "Sample Company 2",
+      location: "Sample City, Country",
       startDate: "2016-01",
       endDate: "2020-01",
       current: false,
       description: [
-        "Oversaw engineering delivery for manufacturing expansion projects, utilities upgrades, and plant modernization initiatives.",
-        "Scaled preventive maintenance and reliability programs that reduced equipment downtime across critical production lines.",
-        "Introduced engineering performance dashboards, enabling faster decisions on resources, budgets, and technical risks.",
+        "Sample bullet 1 — describe a key achievement in this role, starting with an action verb.",
+        "Sample bullet 2 — describe a project or responsibility you owned and its result.",
+        "Sample bullet 3 — mention a tool, process or team you improved.",
       ],
     },
     {
-      position: "Senior Engineering Manager",
-      company: "Cairo Energy Services",
-      location: "Cairo, Egypt",
+      position: "Sample Job 3",
+      company: "Sample Company 3",
+      location: "Sample City, Country",
       startDate: "2012-01",
       endDate: "2016-01",
       current: false,
       description: [
-        "Managed engineering teams delivering power distribution upgrades, equipment installations, and site improvement projects.",
-        "Improved project control through milestones, design standards, and performance tracking.",
-        "Worked closely with safety and operations teams to strengthen compliance during high-risk activities.",
+        "Sample bullet 1 — describe a key achievement in this role, starting with an action verb.",
+        "Sample bullet 2 — describe a project or responsibility you owned and its result.",
+        "Sample bullet 3 — mention a tool, process or team you improved.",
       ],
     },
   ],
-
   education: [
     {
-      degree: "Executive Program in Operations Leadership",
-      institution: "German University in Cairo",
-      location: "Cairo, Egypt",
+      degree: "Sample Degree 1",
+      institution: "Sample University 1",
+      location: "Sample City, Country",
       startDate: "2018",
       endDate: "2018",
       gpa: "",
-      description: "",
+      description: "Sample — add relevant coursework, honours or grades (optional).",
     },
     {
-      degree: "Postgraduate Diploma in Project Management",
-      institution: "Cairo University",
-      location: "Cairo, Egypt",
+      degree: "Sample Degree 2",
+      institution: "Sample University 2",
+      location: "Sample City, Country",
       startDate: "2010",
       endDate: "2011",
       gpa: "",
-      description: "",
+      description: "Sample — add relevant coursework, honours or grades (optional).",
     },
     {
-      degree: "Bachelor of Science in Mechanical Engineering",
-      institution: "Ain Shams University",
-      location: "Cairo, Egypt",
+      degree: "Sample Degree 3",
+      institution: "Sample University 3",
+      location: "Sample City, Country",
       startDate: "1998",
       endDate: "2003",
       gpa: "",
-      description: "",
+      description: "Sample — add relevant coursework, honours or grades (optional).",
     },
   ],
-
   skills: [
-    "Engineering Leadership",
-    "Capital Project Delivery",
-    "Technical Governance",
-    "Asset Reliability",
-    "Maintenance Optimization",
-    "Contractor Management",
-    "Process Improvement",
-    "Risk Management",
-    "Budget Planning",
-    "Safety Compliance",
+    "Sample Skill 1",
+    "Sample Skill 2",
+    "Sample Skill 3",
+    "Sample Skill 4",
+    "Sample Skill 5",
+    "Sample Skill 6",
+    "Sample Skill 7",
+    "Sample Skill 8",
+    "Sample Skill 9",
+    "Sample Skill 10",
   ],
-
   projects: [],
   certificates: [
     {
-      name: "Certified Maintenance and Reliability Professional",
-      issuer: "SMRP",
+      name: "Sample Certificate 1",
+      issuer: "Sample Organisation 1",
     },
     {
-      name: "NEBOSH International General Certificate",
-      issuer: "NEBOSH",
+      name: "Sample Certificate 2",
+      issuer: "Sample Organisation 2",
     },
     {
-      name: "ISO 9001 Quality Management Systems Lead Auditor",
-      issuer: "IRCA",
+      name: "Sample Certificate 3",
+      issuer: "Sample Organisation 3",
     },
   ],
   achievements: [],
   awards: [],
   languages: [
-    { name: "Arabic", level: 5 },
-    { name: "English", level: 4 },
-    { name: "French", level: 3 },
+    {
+      name: "Sample Language 1",
+      level: 5,
+    },
+    {
+      name: "Sample Language 2",
+      level: 4,
+    },
+    {
+      name: "Sample Language 3",
+      level: 3,
+    },
   ],
-  interests: "",
+  interests: "Sample Interest 1, Sample Interest 2, Sample Interest 3",
 };
 
 export default condensedruleDummyContent;

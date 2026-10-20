@@ -1,102 +1,104 @@
 /**
- * Meridian Template - Dummy Content
- * UX / product design sample.
+ * Sample content for the meridian template ("Skip & use defaults").
+ *
+ * Every value is an obvious placeholder (Your Name, Sample Job 1, Sample Degree 1…)
+ * so it can never be mistaken for a real person. The resume placeholder check
+ * (src/lib/resume/placeholderCheck.ts) warns if any of it is left in.
  */
-
 export const meridianDummyContent = {
   personalInfo: {
-    fullName: "Estelle Darcy",
-    email: "hello@reallygreatsite.com",
-    phone: "",
-    location: "Any City",
-    linkedin: "www.reallygreatsite.com",
-    portfolio: "UX Designer",
+    fullName: "Your Name",
+    email: "your.email@example.com",
+    phone: "+00 00000 00000",
+    location: "Sample City, Country",
+    linkedin: "linkedin.com/in/your-profile",
+    portfolio: "Your Title",
   },
-
-  profileSummary:
-    "UX Designer with a focus on delivering impactful results, eager to tackle dynamic challenges and apply creativity to craft intuitive user experiences. I have demonstrated proficiency in project management, user-centric problem-solving, and seamless collaboration across teams.",
-
+  profileSummary: "Sample summary — write 2–3 lines about your experience, your strongest skills and the role you want.",
   skills: [
-    "Prototyping Tools",
-    "User Research",
-    "Interaction Design",
-    "Visual Design",
-    "Accessibility",
-    "Responsive Design",
+    "Sample Skill 1",
+    "Sample Skill 2",
+    "Sample Skill 3",
+    "Sample Skill 4",
+    "Sample Skill 5",
+    "Sample Skill 6",
   ],
-
   awards: [
     {
-      title: "Market Expansion",
-      description:
-        "Identified untapped markets and launched a system to harness the line market, resulting in a revenue increase of $1.2 Million for Morcelle in 6 months.",
+      title: "Sample Award 1",
+      description: "Sample — describe what the award was for.",
     },
     {
-      title: "Revenue Growth",
-      description:
-        "Successful implementation of a new pricing strategy at XarrowAI increasing deal size by 15% and market cap by $500,000.",
+      title: "Sample Award 2",
+      description: "Sample — describe what the award was for.",
     },
   ],
-
   experience: [
     {
-      position: "UX Designer",
-      company: "Instant Chartz App, Morcelle Program",
-      location: "",
+      position: "Sample Job 1",
+      company: "Sample Company 1",
+      location: "Sample City, Country",
       startDate: "2023-01",
       endDate: "",
       current: true,
       description: [
-        "Led development of an advanced automation system, achieving a 15% increase in operational efficiency.",
-        "Streamlined manufacturing processes, reducing production costs by 10%.",
-        "Implemented preventive maintenance strategies, resulting in a 20% decrease in equipment downtime.",
+        "Sample bullet 1 — describe a key achievement in this role, starting with an action verb.",
+        "Sample bullet 2 — describe a project or responsibility you owned and its result.",
+        "Sample bullet 3 — mention a tool, process or team you improved.",
       ],
     },
     {
-      position: "System UX Engineer",
-      company: "XarrowAI Industries",
-      location: "",
+      position: "Sample Job 2",
+      company: "Sample Company 2",
+      location: "Sample City, Country",
       startDate: "2021-02",
       endDate: "2022-12",
       current: false,
       description: [
-        "Designed and optimised a robotic control system, realizing a 12% performance improvement.",
-        "Coordinated testing and validation, ensuring compliance with industry standards.",
-        "Provided technical expertise, contributing to a 15% reduction in system failures.",
+        "Sample bullet 1 — describe a key achievement in this role, starting with an action verb.",
+        "Sample bullet 2 — describe a project or responsibility you owned and its result.",
+        "Sample bullet 3 — mention a tool, process or team you improved.",
       ],
     },
   ],
-
   education: [
     {
-      degree: "UX Industrial Basics and General Application",
-      institution: "University of Engineering UX Cohort",
-      location: "",
+      degree: "Sample Degree 1",
+      institution: "Sample University 1",
+      location: "Sample City, Country",
       startDate: "2016",
       endDate: "2019",
       gpa: "",
-      description: "Major in Automotive Technology.",
+      description: "Sample — add relevant coursework, honours or grades (optional).",
     },
     {
-      degree: "Bachelor of Design in Process Engineering",
-      institution: "Engineering University",
-      location: "",
+      degree: "Sample Degree 2",
+      institution: "Sample University 2",
+      location: "Sample City, Country",
       startDate: "2014",
       endDate: "2016",
       gpa: "",
-      description: "Relevant coursework in Structural Design and Project Management.",
+      description: "Sample — add relevant coursework, honours or grades (optional).",
     },
   ],
-
   projects: [],
   certificates: [],
   achievements: [],
   languages: [
-    { name: "English", level: 5 },
-    { name: "French", level: 4 },
-    { name: "Mandarin", level: 3 },
+    {
+      name: "Sample Language 1",
+      level: 5,
+    },
+    {
+      name: "Sample Language 2",
+      level: 4,
+    },
+    {
+      name: "Sample Language 3",
+      level: 3,
+    },
   ],
-  interests: "Professional Design Engineer (PDE) License, Project Management Tech (PMT)",
+  interests: "Sample Interest 1, Sample Interest 2, Sample Interest 3",
 };
 
 export default meridianDummyContent;

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowRight, ChevronDown, ChevronUp, Target } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ATSCheckId, ATSCheckResult, ATSReportV3 } from "@/types/atsReport";
-import { CATEGORY_ORDER } from "@/types/atsReport";
+import { CATEGORY_ORDER, isAdvisoryCheck } from "@/types/atsReport";
 import { normalizeATSReportV3, reportHasJobMatch } from "@/lib/atsReportNormalize";
 import { ATSScoreSidebar } from "./ATSScoreSidebar";
 import { ATSCheckDetailPanel } from "./ATSCheckDetailPanel";
@@ -47,6 +47,7 @@ function findFirstActionableCheck(report: ATSReportV3): {
     const failing = cat.checks.find(
       (c) =>
         c.status !== "skipped" &&
+        !isAdvisoryCheck(c) &&
         c.issueCount > 0 &&
         (c.status === "fail" || c.status === "warn"),
     );

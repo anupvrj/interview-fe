@@ -1,84 +1,84 @@
 /**
- * Classic Template Dummy Content
+ * Sample content for the classic template ("Skip & use defaults").
+ *
+ * Every value is an obvious placeholder (Your Name, Sample Job 1, Sample Degree 1…)
+ * so it can never be mistaken for a real person. The resume placeholder check
+ * (src/lib/resume/placeholderCheck.ts) warns if any of it is left in.
  */
-
 export const classicDummyContent = {
   personalInfo: {
-    fullName: "James Miller",
-    email: "james.miller@email.com",
-    phone: "+1 555-567-8901",
-    location: "Chicago, IL",
-    linkedin: "linkedin.com/in/jamesmiller",
-    position: "Business Analyst",
+    fullName: "Your Name",
+    email: "your.email@example.com",
+    phone: "+00 00000 00000",
+    location: "Sample City, Country",
+    linkedin: "linkedin.com/in/your-profile",
+    position: "Your Title",
+    portfolio: "Your Title",
   },
-
-  profileSummary:
-    "Detail-oriented Business Analyst with 4+ years of experience in data analysis and process improvement. Skilled in translating business requirements into technical specifications and driving data-driven decision making.",
-
+  profileSummary: "Sample summary — write 2–3 lines about your experience, your strongest skills and the role you want.",
   experience: [
     {
-      position: "Business Analyst",
-      company: "Consulting Group LLC",
-      location: "Chicago, IL",
+      position: "Sample Job 1",
+      company: "Sample Company 1",
+      location: "Sample City, Country",
       startDate: "2020-03",
       endDate: "Present",
       current: true,
       description: [
-        "Analyzed business processes and identified opportunities for improvement",
-        "Created detailed documentation and requirements specifications",
-        "Collaborated with stakeholders to define project scope and deliverables",
-        "Conducted data analysis using SQL and Excel to support business decisions",
+        "Sample bullet 1 — describe a key achievement in this role, starting with an action verb.",
+        "Sample bullet 2 — describe a project or responsibility you owned and its result.",
+        "Sample bullet 3 — mention a tool, process or team you improved.",
+        "Sample bullet 4 — add another accomplishment that matches the job you want.",
       ],
     },
     {
-      position: "Junior Business Analyst",
-      company: "Tech Solutions Inc",
-      location: "Chicago, IL",
+      position: "Sample Job 2",
+      company: "Sample Company 2",
+      location: "Sample City, Country",
       startDate: "2019-06",
       endDate: "2020-02",
       current: false,
       description: [
-        "Assisted in gathering and documenting business requirements",
-        "Created process flow diagrams and user stories",
-        "Supported UAT and quality assurance activities",
+        "Sample bullet 1 — describe a key achievement in this role, starting with an action verb.",
+        "Sample bullet 2 — describe a project or responsibility you owned and its result.",
+        "Sample bullet 3 — mention a tool, process or team you improved.",
       ],
     },
   ],
-
   skills: [
-    "Requirements Gathering",
-    "Process Mapping",
-    "Data Analysis",
-    "SQL",
-    "Excel",
-    "Tableau",
-    "Jira",
-    "Confluence",
-    "Stakeholder Management",
-    "Project Management",
-    "Agile/Scrum",
+    "Sample Skill 1",
+    "Sample Skill 2",
+    "Sample Skill 3",
+    "Sample Skill 4",
+    "Sample Skill 5",
+    "Sample Skill 6",
+    "Sample Skill 7",
+    "Sample Skill 8",
+    "Sample Skill 9",
+    "Sample Skill 10",
+    "Sample Skill 11",
   ],
-
   education: [
     {
-      degree: "Bachelor of Business Administration",
-      institution: "University of Illinois",
-      location: "Chicago, IL",
+      degree: "Sample Degree 1",
+      institution: "Sample University 1",
+      location: "Sample City, Country",
       startDate: "2015",
       endDate: "2019",
-      gpa: "3.6",
-      description: "",
+      gpa: "",
+      description: "Sample — add relevant coursework, honours or grades (optional).",
     },
   ],
-
   projects: [],
   certificates: [],
   achievements: [],
-  languages: [{ name: "English", level: 5 }],
-  interests: "Data Visualization, Process Optimization, Chess",
+  languages: [
+    {
+      name: "Sample Language 1",
+      level: 5,
+    },
+  ],
+  interests: "Sample Interest 1, Sample Interest 2, Sample Interest 3",
 };
 
-/**
- * Default export for template loader
- */
 export default classicDummyContent;

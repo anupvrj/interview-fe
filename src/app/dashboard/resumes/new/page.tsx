@@ -564,23 +564,45 @@ export default function NewResumePage() {
 
       console.log("✅ Dummy content loaded:", dummyContent);
 
-      // If no template-specific dummy content, use a basic structure
+      // If no template-specific dummy content, use a basic structure.
+      // Obvious placeholders on purpose — the download/submit check flags them.
       const contentToUse = normalizeResumeImportContent(
         (dummyContent || {
           personalInfo: {
-            fullName: "John Doe",
-            email: "john.doe@email.com",
-            phone: "+1 234-567-8900",
-            location: "San Francisco, CA",
-            linkedin: "john-doe",
-            github: "johndoe",
-            portfolio: "Software Engineer",
+            fullName: "Your Name",
+            email: "your.email@example.com",
+            phone: "+00 00000 00000",
+            location: "Sample City, Country",
+            linkedin: "linkedin.com/in/your-profile",
+            github: "github.com/your-username",
+            portfolio: "Your Title",
           },
           profileSummary:
-            "Experienced professional with a strong background in software development and project management.",
-          experience: [],
-          education: [],
-          skills: [],
+            "Sample summary — write 2–3 lines about your experience, your strongest skills and the role you want.",
+          experience: [
+            {
+              position: "Sample Job 1",
+              company: "Sample Company 1",
+              location: "Sample City, Country",
+              startDate: "2021-01",
+              endDate: "",
+              current: true,
+              description: [
+                "Sample bullet 1 — describe a key achievement in this role, starting with an action verb.",
+                "Sample bullet 2 — describe a project or responsibility you owned and its result.",
+              ],
+            },
+          ],
+          education: [
+            {
+              degree: "Sample Degree 1",
+              institution: "Sample University 1",
+              location: "Sample City, Country",
+              startDate: "2016",
+              endDate: "2020",
+            },
+          ],
+          skills: ["Sample Skill 1", "Sample Skill 2", "Sample Skill 3", "Sample Skill 4"],
         }) as Record<string, unknown>,
       );
 

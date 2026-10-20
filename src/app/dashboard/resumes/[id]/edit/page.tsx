@@ -130,6 +130,15 @@ import {
 } from "@/lib/resume-page-dimensions";
 import { ATSReportView } from "@/components/ats-checker/ATSReportView";
 import { TrialUpsellDialog } from "@/components/upsell/TrialUpsellDialog";
+import { PlaceholderDataDialog } from "@/components/resume-editor/PlaceholderDataDialog";
+import {
+  fetchResumePlaceholderIssues,
+  type ResumePlaceholderIssue,
+} from "@/lib/resume-placeholder-check";
+import {
+  dismissReviewReminder,
+  shouldShowReviewReminder,
+} from "@/lib/resume-review-reminder";
 import { useEntitlements } from "@/hooks/useEntitlements";
 import { applyAtsIssueFixToResume } from "@/lib/atsIssueApply";
 import {
@@ -256,6 +265,14 @@ export default function EditResumePage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  /**
+   * Check before Download / "Save and return to Hackathon": sample data found
+   * (issues) or, when clean, a soft "give it a final read" reminder.
+   */
+  const [preflight, setPreflight] = useState<{
+    issues: ResumePlaceholderIssue[];
+    action: "download" | "hackathon";
+  } | null>(null);
   const [extensionSyncState, setExtensionSyncState] = useState<
     "idle" | "syncing" | "synced" | "error" | "missing-extension"
   >("idle");
@@ -1550,6 +1567,19 @@ export default function EditResumePage() {
 
   const handleSaveAndReturn = async () => {
     if (!resume || !resumeReturnTo || savingAndReturning) return;
+    // The hackathon rejects sample data server-side; say so before compiling the PDF.
+    if (hackathonSlugFromDashboardPath(resumeReturnTo)) {
+      const issues = await fetchResumePlaceholderIssues(resume.content);
+      if (issues.length > 0 || shouldShowReviewReminder(resumeId)) {
+        setPreflight({ issues, action: "hackathon" });
+        return;
+      }
+    }
+    await saveAndReturnNow();
+  };
+
+  const saveAndReturnNow = async () => {
+    if (!resume || !resumeReturnTo || savingAndReturning) return;
     setSaveReturnPhase("pdf");
     setSavingAndReturning(true);
     try {
@@ -1980,6 +2010,20 @@ export default function EditResumePage() {
       setTrialUpsellOpen(true);
       return;
     }
+    // Resumes seeded with "Skip & use defaults" keep placeholders the user may have missed;
+    // clean ones get a soft reminder to review AI-written content (until dismissed).
+    if (downloading) return;
+    setDownloading(true); // button shows busy while the server check runs
+    const issues = await fetchResumePlaceholderIssues(resume?.content);
+    if (issues.length > 0 || shouldShowReviewReminder(resumeId)) {
+      setDownloading(false);
+      setPreflight({ issues, action: "download" });
+      return;
+    }
+    await downloadPdf();
+  };
+
+  const downloadPdf = async () => {
     try {
       setDownloading(true);
       await ensureResumePersisted();
@@ -6830,6 +6874,42 @@ export default function EditResumePage() {
         open={syncDialogOpen}
         onOpenChange={setSyncDialogOpen}
       />
+      <PlaceholderDataDialog
+        open={preflight !== null}
+        onOpenChange={(open) => {
+          if (!open) setPreflight(null);
+        }}
+        issues={preflight?.issues ?? []}
+        onEdit={() => setPreflight(null)}
+        downloadLabel={
+          preflight?.action === "hackathon" ? "Submit to hackathon" : undefined
+        }
+        onDontRemindAgain={() => dismissReviewReminder(resumeId)}
+        onGoToHackathon={
+          // Sample data blocks the hackathon submit — offer a way back without submitting.
+          preflight?.action === "hackathon" && preflight.issues.length > 0 && resumeReturnTo
+            ? () => {
+                setPreflight(null);
+                // Keep their edits — save, then leave (navigation still happens if the save fails).
+                void ensureResumePersisted()
+                  .catch((error) => console.error("Save before leaving failed:", error))
+                  .finally(() => router.push(resumeReturnTo));
+              }
+            : undefined
+        }
+        onDownloadAnyway={
+          // Sample data can't go to the hackathon — no "anyway" there.
+          preflight?.action === "hackathon" && preflight.issues.length > 0
+            ? undefined
+            : () => {
+                const action = preflight?.action;
+                setPreflight(null);
+                if (action === "hackathon") void saveAndReturnNow();
+                else void downloadPdf();
+              }
+        }
+      />
+
       <TrialUpsellDialog
         open={trialUpsellOpen}
         onOpenChange={setTrialUpsellOpen}

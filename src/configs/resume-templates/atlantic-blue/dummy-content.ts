@@ -1,169 +1,165 @@
 /**
- * Atlantic Blue Template Dummy Content
- * Sample data for template preview
+ * Sample content for the atlantic-blue template ("Skip & use defaults").
+ *
+ * Every value is an obvious placeholder (Your Name, Sample Job 1, Sample Degree 1…)
+ * so it can never be mistaken for a real person. The resume placeholder check
+ * (src/lib/resume/placeholderCheck.ts) warns if any of it is left in.
  */
-
 export const atlanticblueDummyContent = {
   personalInfo: {
-    fullName: "Michael Anderson",
-    email: "michael.anderson@email.com",
-    phone: "+1 555-789-0123",
-    location: "Seattle, WA",
-    linkedin: "linkedin.com/in/michaelanderson",
-    github: "github.com/michaelanderson",
-    website: "michaelanderson.dev",
-    position: "Senior Full Stack Developer",
+    fullName: "Your Name",
+    email: "your.email@example.com",
+    phone: "+00 00000 00000",
+    location: "Sample City, Country",
+    linkedin: "linkedin.com/in/your-profile",
+    github: "github.com/your-username",
+    website: "your-website.example.com",
+    position: "Your Title",
+    portfolio: "Your Title",
   },
-
-  profileSummary:
-    "Results-driven Full Stack Developer with 7+ years of experience building scalable web applications. Expertise in React, Node.js, and cloud technologies. Proven track record of leading development teams and delivering high-impact solutions for enterprise clients.",
-
+  profileSummary: "Sample summary — write 2–3 lines about your experience, your strongest skills and the role you want.",
   experience: [
     {
-      position: "Senior Full Stack Developer",
-      company: "TechCorp Solutions",
-      location: "Seattle, WA",
+      position: "Sample Job 1",
+      company: "Sample Company 1",
+      location: "Sample City, Country",
       startDate: "2021-03",
       endDate: "Present",
       current: true,
       description: [
-        "Led development of microservices architecture serving 500K+ daily active users",
-        "Architected and implemented CI/CD pipelines, reducing deployment time by 70%",
-        "Mentored team of 8 developers and conducted regular code reviews",
-        "Improved application performance by 45% through optimization and caching strategies",
+        "Sample bullet 1 — describe a key achievement in this role, starting with an action verb.",
+        "Sample bullet 2 — describe a project or responsibility you owned and its result.",
+        "Sample bullet 3 — mention a tool, process or team you improved.",
+        "Sample bullet 4 — add another accomplishment that matches the job you want.",
       ],
     },
     {
-      position: "Full Stack Developer",
-      company: "Digital Innovations Inc",
-      location: "San Francisco, CA",
+      position: "Sample Job 2",
+      company: "Sample Company 2",
+      location: "Sample City, Country",
       startDate: "2018-06",
       endDate: "2021-02",
       current: false,
       description: [
-        "Developed React-based frontend applications with Redux state management",
-        "Built RESTful APIs using Node.js and Express, handling 1M+ requests daily",
-        "Implemented authentication and authorization using JWT and OAuth 2.0",
-        "Collaborated with UX team to create responsive, mobile-first designs",
+        "Sample bullet 1 — describe a key achievement in this role, starting with an action verb.",
+        "Sample bullet 2 — describe a project or responsibility you owned and its result.",
+        "Sample bullet 3 — mention a tool, process or team you improved.",
+        "Sample bullet 4 — add another accomplishment that matches the job you want.",
       ],
     },
     {
-      position: "Junior Developer",
-      company: "StartupHub",
-      location: "San Francisco, CA",
+      position: "Sample Job 3",
+      company: "Sample Company 3",
+      location: "Sample City, Country",
       startDate: "2016-08",
       endDate: "2018-05",
       current: false,
       description: [
-        "Contributed to full-stack development using MERN stack",
-        "Participated in agile development process with 2-week sprints",
-        "Fixed bugs and implemented new features based on user feedback",
+        "Sample bullet 1 — describe a key achievement in this role, starting with an action verb.",
+        "Sample bullet 2 — describe a project or responsibility you owned and its result.",
+        "Sample bullet 3 — mention a tool, process or team you improved.",
       ],
     },
   ],
-
   skills: [
-    "React",
-    "TypeScript",
-    "JavaScript",
-    "HTML5",
-    "CSS3",
-    "Redux",
-    "Next.js",
-    "Node.js",
-    "Express",
-    "Python",
-    "Django",
-    "PostgreSQL",
-    "MongoDB",
-    "Docker",
-    "Kubernetes",
-    "AWS",
-    "CI/CD",
-    "Git",
-    "Jenkins",
+    "Sample Skill 1",
+    "Sample Skill 2",
+    "Sample Skill 3",
+    "Sample Skill 4",
+    "Sample Skill 5",
+    "Sample Skill 6",
+    "Sample Skill 7",
+    "Sample Skill 8",
+    "Sample Skill 9",
+    "Sample Skill 10",
+    "Sample Skill 11",
+    "Sample Skill 12",
+    "Sample Skill 13",
+    "Sample Skill 14",
+    "Sample Skill 15",
+    "Sample Skill 16",
+    "Sample Skill 17",
+    "Sample Skill 18",
+    "Sample Skill 19",
   ],
-
   education: [
     {
-      degree: "Bachelor of Science in Computer Science",
-      institution: "University of Washington",
-      location: "Seattle, WA",
+      degree: "Sample Degree 1",
+      institution: "Sample University 1",
+      location: "Sample City, Country",
       startDate: "2012",
       endDate: "2016",
-      gpa: "3.8",
-      description: "Relevant coursework: Data Structures, Algorithms, Web Development, Database Systems",
+      gpa: "",
+      description: "Sample — add relevant coursework, honours or grades (optional).",
     },
   ],
-
   projects: [
     {
       id: "proj1",
-      name: "E-Commerce Platform",
-      description:
-        "Built a full-featured e-commerce platform with React frontend and Node.js backend, supporting 50K+ products and processing 10K+ daily transactions.",
-      technologies: ["React", "Node.js", "PostgreSQL", "Stripe API", "AWS"],
-      link: "https://example-ecommerce.com",
+      name: "Sample Project 1",
+      description: "Sample project — describe what you built, the tools you used and the result.",
+      technologies: ["Sample Tool 1", "Sample Tool 2", "Sample Tool 3", "Sample Tool 4"],
+      link: "https://example.com/project-1",
     },
     {
       id: "proj2",
-      name: "Real-Time Chat Application",
-      description:
-        "Developed a scalable real-time chat application using WebSockets, supporting 100K+ concurrent users with message persistence and file sharing.",
-      technologies: ["React", "Socket.io", "Redis", "MongoDB", "Docker"],
-      link: "https://example-chat.com",
+      name: "Sample Project 2",
+      description: "Sample project — describe what you built, the tools you used and the result.",
+      technologies: ["Sample Tool 1", "Sample Tool 2", "Sample Tool 3", "Sample Tool 4"],
+      link: "https://example.com/project-2",
     },
   ],
-
   certificates: [
     {
       id: "cert1",
-      title: "AWS Certified Solutions Architect - Professional",
-      issuer: "Amazon Web Services",
+      title: "Sample Certificate 1",
+      issuer: "Sample Organisation 1",
       issueDate: "2023-03",
-      link: "https://aws.amazon.com/certification/",
+      link: "https://example.com/certificate",
     },
     {
       id: "cert2",
-      title: "Certified Kubernetes Administrator (CKA)",
-      issuer: "Cloud Native Computing Foundation",
+      title: "Sample Certificate 2",
+      issuer: "Sample Organisation 2",
       issueDate: "2022-08",
-      link: "https://www.cncf.io/certification/cka/",
+      link: "https://example.com/certificate",
     },
   ],
-
   languages: [
-    { name: "English", level: 5 },
-    { name: "Spanish", level: 4 },
-    { name: "French", level: 3 },
+    {
+      name: "Sample Language 1",
+      level: 5,
+    },
+    {
+      name: "Sample Language 2",
+      level: 4,
+    },
+    {
+      name: "Sample Language 3",
+      level: 3,
+    },
   ],
-
   achievements: [
     {
       id: "ach1",
-      title: "Company Hackathon Winner",
-      description: "Led team that won company hackathon with innovative AI-powered solution",
+      title: "Sample Achievement 1",
+      description: "Sample — describe the achievement and why it mattered.",
       date: "2023",
     },
     {
       id: "ach2",
-      title: "Cost Optimization Achievement",
-      description: "Reduced server costs by 40% through infrastructure optimization",
+      title: "Sample Achievement 2",
+      description: "Sample — describe the achievement and why it mattered.",
       date: "2022",
     },
     {
       id: "ach3",
-      title: "Technical Blogger",
-      description: "Published technical blog posts with 50K+ monthly readers",
+      title: "Sample Achievement 3",
+      description: "Sample — describe the achievement and why it mattered.",
       date: "2021-2023",
     },
   ],
-
-  interests: "Open Source Contribution, Tech Blogging, Photography, Hiking",
+  interests: "Sample Interest 1, Sample Interest 2, Sample Interest 3",
 };
 
-/**
- * Default export for template loader
- */
 export default atlanticblueDummyContent;
-
