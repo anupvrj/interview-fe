@@ -8,6 +8,7 @@ import {
   FOOTER_PRODUCT_LINKS,
   type FooterLink,
 } from "@/lib/marketing-footer-links";
+import { FooterHackathonPromo } from "@/components/marketing/FooterHackathonPromo";
 
 interface MarketingFooterProps {
   as?: "section" | "footer";
@@ -51,6 +52,10 @@ export function MarketingFooter({
       )}
     >
       <div className="container mx-auto max-w-6xl">
+        <div className="mb-10 sm:mb-12">
+          <FooterHackathonPromo />
+        </div>
+
         <div className="grid grid-cols-1 gap-10 sm:grid-cols-2 sm:gap-8 lg:grid-cols-4 lg:gap-10">
           {/* Footer menu 1 — logo & social */}
           <div className="flex flex-col items-center text-center sm:items-start sm:text-left">
