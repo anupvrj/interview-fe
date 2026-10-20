@@ -17,6 +17,11 @@ export interface AiTarget {
   apply: (text: string) => void;
 }
 
+/** Placeholder text has nothing true to reword; rewriting it would only invent claims. */
+function isSampleText(text: string): boolean {
+  return /^(sample|your)\b/i.test(text.trim());
+}
+
 export function AiAssistPanel({
   target,
   targetRole,
@@ -75,7 +80,19 @@ export function AiAssistPanel({
               {target.kind === "summary" ? "Your summary" : "Selected bullet"}
             </p>
             <p className="mt-1 line-clamp-4 rounded-lg bg-muted/60 px-2.5 py-2 text-xs leading-relaxed text-foreground">{target.text}</p>
-            <Button type="button" size="sm" className="mt-3 w-full" onClick={() => void run()} disabled={loading || target.text.length < 3}>
+            {isSampleText(target.text) ? (
+              <p className="mt-3 rounded-lg bg-amber-50 px-2.5 py-2 text-xs leading-relaxed text-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
+                This is still sample text. Write what you actually did in a few words first — AI will then make it sound sharper,
+                without inventing anything.
+              </p>
+            ) : null}
+            <Button
+              type="button"
+              size="sm"
+              className="mt-3 w-full"
+              onClick={() => void run()}
+              disabled={loading || target.text.length < 3 || isSampleText(target.text)}
+            >
               {loading ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Sparkles className="mr-1.5 h-3.5 w-3.5" />}
               {suggestions.length ? "Suggest again" : "Suggest better wording"}
             </Button>

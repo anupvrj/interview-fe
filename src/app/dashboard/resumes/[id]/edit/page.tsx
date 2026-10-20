@@ -141,6 +141,7 @@ import {
 import { CanvasRail, CanvasToolRow, type CanvasPanel } from "@/components/resume-canvas/CanvasChrome";
 import { AddSectionDialog, ADDABLE_SECTIONS } from "@/components/resume-canvas/AddSectionDialog";
 import { TemplatesPanel } from "@/components/resume-canvas/TemplatesPanel";
+import { ShareLinkDialog } from "@/components/resume-canvas/ShareLinkDialog";
 import { AiAssistPanel, type AiTarget } from "@/components/resume-canvas/AiAssistPanel";
 import {
   addEntry,
@@ -427,6 +428,7 @@ export default function EditResumePage() {
   /** True while the PDF is captured from the page, so it gets plain (non-editable) markup. */
   const [pdfCapture, setPdfCapture] = useState(false);
   const [sharing, setSharing] = useState(false);
+  const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [aiTarget, setAiTarget] = useState<AiTarget | null>(null);
   const [canvasNotice, setCanvasNotice] = useState<string | null>(null);
   const canvasNoticeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -2740,9 +2742,10 @@ export default function EditResumePage() {
     const pickTarget = () => {
       const selection = window.getSelection();
       const node = selection?.anchorNode ?? null;
-      const li = (node instanceof Element ? node : node?.parentElement)?.closest("li");
-      const bullet = li && element.contains(li) ? li : null;
       const kind: AiTarget["kind"] = path === "@profileSummary" ? "summary" : "bullet";
+      // A bullet is the list item (or line, for descriptions stored as paragraphs) under the caret.
+      const line = (node instanceof Element ? node : node?.parentElement)?.closest("li, p");
+      const bullet = kind === "bullet" && line && line !== element && element.contains(line) ? line : null;
       const text = (bullet ?? element).textContent?.replace(/\s+/g, " ").trim() ?? "";
       if (!text) return;
       const [section, index] = path.split(".");
@@ -2914,12 +2917,7 @@ export default function EditResumePage() {
       // A fresh PDF so the link shows what is on screen now.
       await compileCurrentPdfFromPreview();
       const { url } = await resumeApi.createShareLink(resumeId);
-      try {
-        await navigator.clipboard.writeText(url);
-        showCanvasNotice("Share link copied — it works for 7 days.");
-      } catch {
-        window.prompt("Copy this link (valid for 7 days):", url);
-      }
+      setShareUrl(url);
     } catch (error) {
       console.error("Share link failed:", error);
       showCanvasNotice("Couldn't create a share link. Try downloading once, then share again.");
@@ -7354,6 +7352,7 @@ export default function EditResumePage() {
         </div>
       </div>
 
+      <ShareLinkDialog url={shareUrl} onOpenChange={(open) => !open && setShareUrl(null)} />
       <AddSectionDialog
         open={addSectionAfter !== null}
         onOpenChange={(open) => {
