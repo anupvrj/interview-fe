@@ -132,8 +132,8 @@ export function DashboardThemeProvider({
         id="dashboard-theme-root"
         className={
           theme === "dark"
-            ? "dark min-h-screen w-full max-w-full overflow-x-hidden bg-background text-foreground"
-            : "min-h-screen w-full max-w-full overflow-x-hidden bg-background text-foreground"
+            ? "dark min-h-screen w-full max-w-full overflow-x-hidden supports-[overflow:clip]:overflow-x-clip bg-background text-foreground"
+            : "min-h-screen w-full max-w-full overflow-x-hidden supports-[overflow:clip]:overflow-x-clip bg-background text-foreground"
         }
         suppressHydrationWarning
       >

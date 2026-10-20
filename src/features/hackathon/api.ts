@@ -128,7 +128,14 @@ export interface HackathonMe {
     experience: number | null;
   };
   progress: HackathonProgress;
-  resume: { resumeId: string; title: string; atsScore: number | null; submittedAt: string | null } | null;
+  resume: {
+    resumeId: string;
+    title: string;
+    atsScore: number | null;
+    submittedAt: string | null;
+    /** Submitted, but "Complete challenge" hasn't been pressed, so the next challenge is still locked. */
+    awaitingCompletion?: boolean;
+  } | null;
   preferredResumeId?: string | null;
   social: {
     linkedinUrl: string;
@@ -236,6 +243,30 @@ export const hackathonApi = {
       `${hackathonBase(slug)}/me/resume`,
       { resumeId },
       { headers: await authHeaders(getToken), timeout: 120_000 },
+    );
+    return res.data.data;
+  },
+
+  /** Scores a resume for the pre-submit pop-up; saves nothing. */
+  previewResumeScore: async (
+    slug: string,
+    getToken: TokenGetter,
+    resumeId: string,
+  ): Promise<{ atsScore: number | null; minScore: number | null }> => {
+    const res = await apiClient.post<{ data: { atsScore: number | null; minScore: number | null } }>(
+      `${hackathonBase(slug)}/me/resume/score`,
+      { resumeId },
+      { headers: await authHeaders(getToken), timeout: 90_000 },
+    );
+    return res.data.data;
+  },
+
+  /** "Complete challenge": makes the submitted resume final and unlocks the next challenge. */
+  completeResumeChallenge: async (slug: string, getToken: TokenGetter): Promise<HackathonMe> => {
+    const res = await apiClient.post<{ data: HackathonMe }>(
+      `${hackathonBase(slug)}/me/resume/complete`,
+      {},
+      { headers: await authHeaders(getToken) },
     );
     return res.data.data;
   },
@@ -374,6 +405,7 @@ export interface AdminParticipantDetail {
     resumeId: string;
     title: string;
     atsScore: number | null;
+    awaitingCompletion?: boolean;
     priorCount: number;
     adminReset?: AdminResetInfo | null;
   } | null;
@@ -389,6 +421,8 @@ export interface AdminParticipantDetail {
     priorCount: number;
     adminReset?: AdminResetInfo | null;
     hasRecording: boolean;
+    /** "camera" = taken on a phone (no screen share), recorded camera + mic only. */
+    recordingSource?: "screen" | "camera" | null;
     attempts: Array<{
       attemptId: string;
       interviewId: string | null;
@@ -399,6 +433,7 @@ export interface AdminParticipantDetail {
       failureReason: string | null;
       countsTowardLimit: boolean;
       hasRecording: boolean;
+      recordingSource?: "screen" | "camera" | null;
     }>;
   }>;
   social: {

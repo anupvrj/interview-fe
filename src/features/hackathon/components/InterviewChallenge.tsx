@@ -1,5 +1,6 @@
 "use client";
 
+import { HackathonHelpOnWhatsApp } from "./HackathonHelpOnWhatsApp";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -468,10 +469,13 @@ export function InterviewChallenge({
         </>
       )}
       {error ? (
-        <p role="alert" className="flex items-start gap-2 text-sm text-[#ff6f9f]">
-          <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden />
-          {error}
-        </p>
+        <>
+          <p role="alert" className="flex items-start gap-2 text-sm text-[#ff6f9f]">
+            <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden />
+            {error}
+          </p>
+          <HackathonHelpOnWhatsApp />
+        </>
       ) : null}
     </div>
   );

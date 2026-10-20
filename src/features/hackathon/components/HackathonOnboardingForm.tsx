@@ -1,5 +1,6 @@
 "use client";
 
+import { HackathonHelpOnWhatsApp } from "./HackathonHelpOnWhatsApp";
 import { useEffect, useId, useState } from "react";
 import { useUser } from "@clerk/nextjs";
 import { useDropzone } from "react-dropzone";
@@ -634,10 +635,13 @@ export function HackathonOnboardingForm({
         ) : null}
 
         {error ? (
-          <p role="alert" className="mt-4 flex items-start gap-2 text-sm text-[#ff6f9f]">
-            <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden />
-            {error}
-          </p>
+          <>
+            <p role="alert" className="mt-4 flex items-start gap-2 text-sm text-[#ff6f9f]">
+              <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden />
+              {error}
+            </p>
+            <HackathonHelpOnWhatsApp className="mt-3" />
+          </>
         ) : null}
       </div>
     </div>

@@ -1,5 +1,6 @@
 "use client";
 
+import { HackathonHelpOnWhatsApp } from "@/features/hackathon/components/HackathonHelpOnWhatsApp";
 import dynamic from "next/dynamic";
 import {
   useCallback,
@@ -16,7 +17,7 @@ import {
   type SystemDesignProblemDetail,
   type SystemDesignSession,
 } from "@/lib/api";
-import { resolveInterviewReturnTo } from "@/lib/interview-return-to";
+import { isHackathonDashboardReturn, resolveInterviewReturnTo } from "@/lib/interview-return-to";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -708,6 +709,9 @@ export default function SystemDesignSessionPage() {
         >
           Back to System Design
         </Button>
+        {isHackathonDashboardReturn(returnTo) ? (
+          <HackathonHelpOnWhatsApp className="max-w-md" />
+        ) : null}
       </div>
     );
   }

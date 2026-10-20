@@ -1066,6 +1066,8 @@ export const interviewApi = {
   saveRecordingKey: async (
     interviewId: string,
     s3Key: string,
+    /** "camera" when a phone recorded the camera because it can't share its screen. */
+    source?: "screen" | "camera",
   ): Promise<{ s3Key: string; videoUrl: string }> => {
     const userId = localStorage.getItem("clerk-user-id");
     if (!userId) {
@@ -1075,7 +1077,7 @@ export const interviewApi = {
       data: { s3Key: string; videoUrl: string };
     }>(
       `/interviews/${interviewId}/recording/save-key`,
-      { s3Key },
+      { s3Key, ...(source ? { source } : {}) },
       {
         params: { userId },
       },

@@ -13,9 +13,17 @@ import {
 import { Button } from "@/components/ui/button";
 import { JourneyIconTile, journey } from "@/components/interview/journey-ui";
 import { cn } from "@/lib/utils";
+import { useEffect, useState } from "react";
+import { supportsDisplayMediaCapture } from "@/lib/codingSessionRecording";
+
+const PERMISSIONS_DESKTOP =
+  "Allow mic, camera, and screenshare when the browser asks — the interview cannot run without them.";
+/** Phones can't share a screen; they record camera + mic instead. */
+const PERMISSIONS_PHONE =
+  "Allow mic and camera when the browser asks — the interview cannot run without them.";
 
 const BRIEFING_ITEMS = [
-  "Allow mic, camera, and screenshare when the browser asks — the interview cannot run without them.",
+  PERMISSIONS_DESKTOP,
   "Sit in a quiet place. Background noise makes answers unclear in the transcript and report.",
   "Use headphones. Keep the camera on and look at the camera while you speak.",
   "Light your face and use a clean background. More than one person on camera lowers your score and can be flagged in the report.",
@@ -40,14 +48,21 @@ export function InterviewBriefingDialog({
     user?.firstName?.trim() ||
     user?.fullName?.trim().split(/\s+/)[0] ||
     "there";
+  const [canShareScreen, setCanShareScreen] = useState(true);
+  useEffect(() => {
+    setCanShareScreen(supportsDisplayMediaCapture());
+  }, []);
+  const items = BRIEFING_ITEMS.map((text) =>
+    text === PERMISSIONS_DESKTOP && !canShareScreen ? PERMISSIONS_PHONE : text,
+  );
 
   return (
     <AlertDialog open={open} onOpenChange={() => {}}>
       <AlertDialogContent
         onEscapeKeyDown={(event) => event.preventDefault()}
-        className={cn(journey.dialog, "mx-4 max-h-[90vh] w-[calc(100%-2rem)] max-w-2xl overflow-y-auto sm:max-w-2xl")}
+        className={cn(journey.dialog, "flex max-h-[90dvh] w-[calc(100%-2rem)] max-w-2xl flex-col overflow-hidden sm:max-w-2xl")}
       >
-        <AlertDialogHeader className={journey.headerBand}>
+        <AlertDialogHeader className={cn(journey.headerBand, "shrink-0 py-4 sm:py-5")}>
           <div className="flex flex-col items-center text-center">
             <JourneyIconTile tone="warning" size="lg" className="mb-3">
                 <Info className="h-7 w-7" aria-hidden />
@@ -61,21 +76,22 @@ export function InterviewBriefingDialog({
           </div>
         </AlertDialogHeader>
 
-        <div className={journey.body}>
-          <ul className="list-disc space-y-1.5 pl-5 text-left text-sm leading-5 text-muted-foreground">
-            {BRIEFING_ITEMS.map((text) => (
+        {/* Only the list scrolls, so the accept button stays on screen on small phones. */}
+        <div className={cn(journey.body, "min-h-0 flex-1 overflow-y-auto")}>
+          <ul className="list-disc space-y-1.5 pl-5 text-left text-[13px] leading-5 text-muted-foreground sm:text-sm">
+            {items.map((text) => (
               <li key={text}>{text}</li>
             ))}
           </ul>
         </div>
 
-        <AlertDialogFooter className={cn(journey.footer, "sm:justify-center")}>
+        <AlertDialogFooter className={cn(journey.footer, "shrink-0 sm:justify-center")}>
           <Button
             type="button"
             size="lg"
             disabled={connecting}
             onClick={onAccept}
-            className={cn(journey.primaryButton, "min-w-[120px]")}
+            className={cn(journey.primaryButton, "w-full min-w-[120px] sm:w-auto")}
           >
             {connecting ? (
               <>

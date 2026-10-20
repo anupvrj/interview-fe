@@ -1564,12 +1564,15 @@ export default function EditResumePage() {
       await compileCurrentPdfFromPreview();
       setHasChanges(false);
       const slug = hackathonSlugFromDashboardPath(resumeReturnTo);
+      let returnUrl = resumeReturnTo;
       if (slug) {
         // Submitting re-scores ATS on the server, which can take a while.
         setSaveReturnPhase("submit");
         try {
           await hackathonApi.submitResume(slug, () => getToken(), resumeId);
           await queryClient.invalidateQueries({ queryKey: hackathonKeys.me(slug) });
+          // Back on the board, show the new score with "Complete Challenge".
+          returnUrl = `${resumeReturnTo}${resumeReturnTo.includes("?") ? "&" : "?"}resumeScore=1`;
         } catch (syncError) {
           const hk = toHackathonError(syncError);
           if (hk.code !== "RESUME_LOCKED" && hk.status !== 401 && hk.status !== 404) {
@@ -1581,7 +1584,7 @@ export default function EditResumePage() {
           }
         }
       }
-      router.push(resumeReturnTo);
+      router.push(returnUrl);
     } catch (error) {
       console.error("Save and return failed:", error);
       alert("We couldn't create the PDF for this resume. Please try again.");

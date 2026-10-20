@@ -1,11 +1,24 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { HackathonHelpOnWhatsApp } from "./HackathonHelpOnWhatsApp";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { AlertCircle, ExternalLink, FilePlus2, FileText, Loader2, PencilLine } from "lucide-react";
+import { AlertCircle, CheckCircle2, ExternalLink, FilePlus2, FileText, Loader2, PencilLine } from "lucide-react";
 import { eventTargets, toHackathonError, type HackathonMe } from "../api";
 import { hackathonDashboardPath } from "../config";
-import { useEligibleResumes, useHackathonSlug, useOpenSubmittedResume, useSubmitHackathonResume } from "../hooks";
+import {
+  useCompleteResumeChallenge,
+  useEligibleResumes,
+  useHackathonSlug,
+  useOpenSubmittedResume,
+  usePreviewResumeScore,
+  useSubmitHackathonResume,
+} from "../hooks";
+import { ResumeScoreDialog, type ResumeScorePhase } from "./ResumeScoreDialog";
+import { HackathonChallengeSuccessModal } from "../celebration/HackathonChallengeSuccessModal";
+
+/** Query flag the resume editor adds after "Save and return to Hackathon" re-submits. */
+export const RESUME_SCORE_RETURN_PARAM = "resumeScore";
 import { cn } from "@/lib/utils";
 
 export const hkInputClass =
@@ -30,7 +43,7 @@ export function AtsScorePill({ score, target }: Readonly<{ score: number | null;
   );
 }
 
-export function ResumeChallenge({ me }: Readonly<{ me: HackathonMe }>) {
+export function ResumeChallenge({ me, number = 1 }: Readonly<{ me: HackathonMe; number?: number }>) {
   const slug = useHackathonSlug();
   const dashboardPath = hackathonDashboardPath(slug);
   const returnQs = `returnTo=${encodeURIComponent(dashboardPath)}&returnLabel=${encodeURIComponent("Hackathon")}`;
@@ -41,7 +54,6 @@ export function ResumeChallenge({ me }: Readonly<{ me: HackathonMe }>) {
   const passMark = resumeProgress?.minScore ?? null;
   const displayTarget = passMark ?? targets.atsScore;
   const state = resumeProgress?.state ?? me.progress.resume.state;
-  if (state === "locked") return null;
   const laterStarted = (me.progress.challenges ?? [])
     .filter((c) => c.kind === "screening" || c.kind === "coding" || c.kind === "system_design")
     .some((c) =>
@@ -51,7 +63,9 @@ export function ResumeChallenge({ me }: Readonly<{ me: HackathonMe }>) {
     );
   const canChange = Boolean(me.resume) && me.hackathon.phase === "live" && !laterStarted;
   const [changing, setChanging] = useState(false);
-  const showPicker = state === "available" || (canChange && changing);
+  // Submitted-but-not-completed shows the submitted card + Complete button, not the picker.
+  const showPicker =
+    (state === "available" && me.resume?.awaitingCompletion !== true) || (canChange && changing);
 
   const resumes = useEligibleResumes(showPicker);
   const submit = useSubmitHackathonResume();
@@ -71,6 +85,123 @@ export function ResumeChallenge({ me }: Readonly<{ me: HackathonMe }>) {
   const selected = options.find((r) => r.resumeId === selectedId);
   const error = submit.error ? toHackathonError(submit.error) : null;
 
+  // ---- Score pop-up: analyse → (update | submit) → complete -------------------------
+  const preview = usePreviewResumeScore();
+  const complete = useCompleteResumeChallenge();
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [phase, setPhase] = useState<ResumeScorePhase>("analysing");
+  const [dialogScore, setDialogScore] = useState<number | null>(null);
+  const [dialogResumeId, setDialogResumeId] = useState<string | null>(null);
+  const [dialogError, setDialogError] = useState<string | null>(null);
+  const [celebrate, setCelebrate] = useState(false);
+  const awaiting = me.resume?.awaitingCompletion === true;
+
+  const openSubmitted = useCallback(() => {
+    if (!me.resume) return;
+    setDialogResumeId(me.resume.resumeId);
+    setDialogScore(me.resume.atsScore);
+    setDialogError(null);
+    setPhase("submitted");
+    setDialogOpen(true);
+  }, [me.resume]);
+
+  const analyse = (resumeId: string) => {
+    setDialogResumeId(resumeId);
+    setDialogScore(null);
+    setDialogError(null);
+    setPhase("analysing");
+    setDialogOpen(true);
+    submit.reset();
+    preview.mutate(resumeId, {
+      onSuccess: (result) => {
+        setDialogScore(result.atsScore);
+        setPhase("scored");
+      },
+      onError: (err) => {
+        setDialogError(toHackathonError(err).message);
+        setPhase("scored");
+      },
+    });
+  };
+
+  const submitFromDialog = () => {
+    if (!dialogResumeId) return;
+    setDialogError(null);
+    setPhase("submitting");
+    submit.mutate(dialogResumeId, {
+      onSuccess: (data) => {
+        setChanging(false);
+        setDialogScore(data.resume?.atsScore ?? dialogScore);
+        setPhase("submitted");
+      },
+      onError: (err) => {
+        setDialogError(toHackathonError(err).message);
+        setPhase("scored");
+      },
+    });
+  };
+
+  const completeChallenge = () => {
+    setDialogError(null);
+    setPhase("completing");
+    complete.mutate(undefined, {
+      onSuccess: () => {
+        setDialogOpen(false);
+        setCelebrate(true);
+      },
+      onError: (err) => {
+        setDialogError(toHackathonError(err).message);
+        setPhase("submitted");
+      },
+    });
+  };
+
+  const goToNextChallenge = () => {
+    document.getElementById(`hk-challenge-${number + 1}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  // Back from the editor ("Save and return to Hackathon" already re-submitted): show the new score.
+  const handledReturn = useRef(false);
+  useEffect(() => {
+    if (handledReturn.current || typeof window === "undefined") return;
+    const url = new URL(window.location.href);
+    if (url.searchParams.get(RESUME_SCORE_RETURN_PARAM) !== "1") return;
+    handledReturn.current = true;
+    url.searchParams.delete(RESUME_SCORE_RETURN_PARAM);
+    window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
+    if (me.resume?.awaitingCompletion) {
+      document.getElementById(`hk-challenge-${number}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+      openSubmitted();
+    }
+  }, [me.resume?.awaitingCompletion, number, openSubmitted]);
+
+  const scoreDialog = (
+    <>
+      <ResumeScoreDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        phase={phase}
+        score={dialogScore}
+        minScore={passMark}
+        target={displayTarget}
+        challengeNumber={number}
+        editHref={dialogResumeId ? editResumeHref(dialogResumeId) : null}
+        errorMessage={dialogError}
+        onSubmit={submitFromDialog}
+        onComplete={completeChallenge}
+      />
+      <HackathonChallengeSuccessModal
+        open={celebrate}
+        onOpenChange={(open) => {
+          setCelebrate(open);
+          if (!open) goToNextChallenge();
+        }}
+      />
+    </>
+  );
+
+  if (state === "locked") return scoreDialog;
+
   const viewSubmitted = async () => {
     const tab = window.open("", "_blank");
     try {
@@ -84,6 +215,26 @@ export function ResumeChallenge({ me }: Readonly<{ me: HackathonMe }>) {
 
   return (
     <div className="space-y-5">
+      {scoreDialog}
+      {awaiting && !changing ? (
+        <div className="flex flex-col gap-3 rounded-2xl border border-[#29d6a0]/50 bg-[#0b2e2b]/40 p-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+          <p className="flex items-start gap-2 text-sm text-[#cfe9e1]">
+            <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-[#29d6a0]" aria-hidden />
+            <span>
+              Resume submitted. Improve it as many times as you like, then press{" "}
+              <strong className="text-white">Complete Challenge {number}</strong> to lock it in and unlock the next challenge.
+            </span>
+          </p>
+          <button
+            type="button"
+            className="hk-btn min-h-11 w-full shrink-0 px-5 text-sm disabled:pointer-events-none disabled:opacity-60 sm:w-auto"
+            disabled={complete.isPending || (passMark !== null && (me.resume?.atsScore ?? 0) < passMark)}
+            onClick={openSubmitted}
+          >
+            Complete Challenge {number}
+          </button>
+        </div>
+      ) : null}
       {me.resume && !changing ? (
         <div className="hk-slot flex flex-col gap-4 rounded-2xl border border-[#2a5a94]/60 bg-[#06142c]/60 p-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
           <div className="flex min-w-0 items-center gap-4">
@@ -165,13 +316,8 @@ export function ResumeChallenge({ me }: Readonly<{ me: HackathonMe }>) {
                 <button
                   type="button"
                   className="hk-btn h-12 w-full shrink-0 px-6 text-sm disabled:pointer-events-none disabled:opacity-60 sm:w-auto"
-                  disabled={!selected || submit.isPending}
-                  onClick={() =>
-                    selected &&
-                    submit.mutate(selected.resumeId, {
-                      onSuccess: () => setChanging(false),
-                    })
-                  }
+                  disabled={!selected || submit.isPending || preview.isPending}
+                  onClick={() => selected && analyse(selected.resumeId)}
                 >
                   {submit.isPending ? (
                     <>
@@ -220,6 +366,7 @@ export function ResumeChallenge({ me }: Readonly<{ me: HackathonMe }>) {
               </span>
             </p>
           ) : null}
+          {error ? <HackathonHelpOnWhatsApp /> : null}
           {changing ? (
             <button type="button" className="text-sm font-medium text-[#9eb2ca] hover:text-white" onClick={() => setChanging(false)}>
               Keep my current resume
