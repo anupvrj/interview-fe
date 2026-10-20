@@ -11,6 +11,7 @@ import {
   PlayCircle,
   VideoOff,
   X,
+  Smartphone,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -305,6 +306,11 @@ export function AdminParticipantChallengeSections({
                               <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
                                 <VideoOff className="h-3.5 w-3.5" /> Recording not found
                               </span>
+                            ) : null}
+                            {item.recordingSource === "camera" ? (
+                              <Badge variant="warning" title="Taken on a phone: no screen share, camera + mic recorded instead">
+                                <Smartphone className="mr-1 h-3.5 w-3.5" /> Phone · camera only
+                              </Badge>
                             ) : null}
                           </div>
                         ) : null}

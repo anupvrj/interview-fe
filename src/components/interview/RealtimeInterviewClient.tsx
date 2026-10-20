@@ -1,5 +1,6 @@
 "use client";
 
+import { HackathonHelpOnWhatsApp } from "@/features/hackathon/components/HackathonHelpOnWhatsApp";
 import {
   useCallback,
   useEffect,
@@ -247,6 +248,19 @@ export function RealtimeInterviewClient({
   }, [interviewId]);
 
   const [interview, setInterview] = useState<Interview | null>(null);
+  const interviewTagsRef = useRef<string[] | null | undefined>(null);
+  interviewTagsRef.current = interview?.metadata?.tags;
+
+  /**
+   * Where this session should send people back to. The launch link wins; if it was lost
+   * (new tab, reload, cleared storage) a hackathon interview still goes back to its
+   * challenge board via its `hackathon` tag instead of the main dashboard.
+   */
+  const exitReturnTo = (): string | null =>
+    currentInterviewReturnTo(interviewId) ??
+    returnToRef.current ??
+    hackathonDashboardFromTags(interviewTagsRef.current);
+  const hackathonExitHome = (): string | null => resolveHackathonInterviewHome(exitReturnTo());
   const [loading, setLoading] = useState(true);
   // Target duration in seconds — general: 15/30 min; coding discussion: metadata.discussionDurationMinutes.
   const targetDurationSec = isCodingDiscussion
@@ -255,6 +269,8 @@ export function RealtimeInterviewClient({
       60;
   const maxDurationSec = targetDurationSec + EXTRA_BUFFER_MINUTES * 60;
   const [error, setError] = useState<string>("");
+  /** Set when the institute requires identity verification before this interview can start. */
+  const [needsIdentityVerification, setNeedsIdentityVerification] = useState(false);
   const [connected, setConnected] = useState(false);
   const [isInterviewActive, setIsInterviewActive] = useState(false);
   const [elapsedTime, setElapsedTime] = useState(0);
@@ -302,6 +318,21 @@ export function RealtimeInterviewClient({
   const [showConfirmEndInterview, setShowConfirmEndInterview] = useState(false);
   /** Recording consent before interview starts (after "Start Interview"). */
   const [showRecordingOptIn, setShowRecordingOptIn] = useState(false);
+  /** What the session recording captures: the shared screen (desktop) or the camera (phones). */
+  const recordingSourceRef = useRef<"screen" | "camera">("screen");
+  /** Phones can't share a screen; on them a required recording falls back to camera + mic. */
+  const [canShareScreen, setCanShareScreen] = useState(true);
+  /** Phone-width layout: smaller avatar and tighter cards so the pinned controls fit. */
+  const [isNarrowScreen, setIsNarrowScreen] = useState(false);
+  useEffect(() => {
+    setCanShareScreen(supportsDisplayMediaCapture());
+    const mq = globalThis.matchMedia?.("(max-width: 639px)");
+    if (!mq) return;
+    const update = () => setIsNarrowScreen(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
   const [biometricMatching, setBiometricMatching] = useState(false);
   /** First-time draft briefing — socket stays closed until the candidate accepts. */
   const [showBriefing, setShowBriefing] = useState(false);
@@ -312,7 +343,7 @@ export function RealtimeInterviewClient({
   /** Avoid double-handling when Radix fires onOpenChange after Yes/No. */
   const recordingOptInResolvedRef = useRef(false);
   const pendingRecordingChoiceRef = useRef<"yes" | "no" | null>(null);
-  const startInterviewLatestRef = useRef<(() => Promise<void>) | null>(null);
+  const startInterviewLatestRef = useRef<(() => Promise<boolean>) | null>(null);
   const shouldDiscardUnstartedRef = useRef(false);
   const codingEmbedAutostartStartedRef = useRef(false);
   const [embedAutostartPending, setEmbedAutostartPending] = useState(false);
@@ -769,7 +800,7 @@ export function RealtimeInterviewClient({
       router.push(
         withInterviewReturnTo(
           `/dashboard/interviews/${interviewId}/processing`,
-          returnToRef.current,
+          exitReturnTo(),
         ),
       );
     } catch (err) {
@@ -1063,13 +1094,17 @@ export function RealtimeInterviewClient({
         return;
       }
       if (data.status === "completed" || data.status === "processing" || data.status === "failed") {
-        const returnTo = currentInterviewReturnTo(interviewId) ?? returnToRef.current;
+        const returnTo =
+          currentInterviewReturnTo(interviewId) ??
+          returnToRef.current ??
+          hackathonDashboardFromTags(data.metadata?.tags);
+        const hackathonHome = resolveHackathonInterviewHome(returnTo);
         const dest =
           data.status === "processing"
             ? `/dashboard/interviews/${interviewId}/processing`
             : data.status === "completed"
-              ? `/dashboard/interviews/${interviewId}/report`
-              : resolveHackathonInterviewHome(returnTo) ?? "/dashboard/interviews";
+              ? hackathonHome ?? `/dashboard/interviews/${interviewId}/report`
+              : hackathonHome ?? "/dashboard/interviews";
         redirectedHome = true;
         router.replace(withInterviewReturnTo(dest, returnTo));
         return;
@@ -1160,7 +1195,7 @@ export function RealtimeInterviewClient({
       } else {
         await invalidateAfterAiInterviewSessionFromStorage();
       }
-      router.push(returnToRef.current ?? "/dashboard");
+      router.push(hackathonExitHome() ?? returnToRef.current ?? "/dashboard/interviews");
     } catch (err: any) {
       setError(err.message || "Failed to close interview.");
     } finally {
@@ -2340,14 +2375,15 @@ export function RealtimeInterviewClient({
     }
   };
 
-  const startInterview = async () => {
+  /** Returns false when the interview could not start (the error screen is already shown). */
+  const startInterview = async (): Promise<boolean> => {
     try {
       if (
         !websocketRef.current ||
         websocketRef.current.readyState !== WebSocket.OPEN
       ) {
         setError("WebSocket not connected. Please refresh and try again.");
-        return;
+        return false;
       }
 
       // Unlock speakers/mic in the same user-gesture turn. Awaiting the API
@@ -2409,9 +2445,15 @@ export function RealtimeInterviewClient({
 
       // Setup audio capture (must be after setIsInterviewActive)
       setupAudioCapture();
+      return true;
     } catch (error: any) {
       console.error("Error starting interview:", error);
-      setError(error.message || "Failed to start interview.");
+      const data = error?.response?.data as { code?: string; message?: string } | undefined;
+      if (data?.code === "BIOMETRIC_REQUIRED") setNeedsIdentityVerification(true);
+      // Show the server's reason ("Your institute requires identity verification…"),
+      // not Axios's "Request failed with status code 403".
+      setError(data?.message || error.message || "Failed to start interview.");
+      return false;
     }
   };
 
@@ -2602,7 +2644,7 @@ export function RealtimeInterviewClient({
         return;
       }
 
-      const returnTo = returnToRef.current;
+      const returnTo = exitReturnTo();
       if (isCodingPractice) {
         await invalidateAfterCodingSessionCompleteFromStorage();
       } else {
@@ -2658,6 +2700,7 @@ export function RealtimeInterviewClient({
       let displayType = "unknown";
 
       if (canCaptureDisplay) {
+        recordingSourceRef.current = "screen";
         // Request screen capture (user will select tab/window/screen)
         // Try to get display media with flexible constraints
         // Include the current tab in the picker using selfBrowserSurface (prevents "hall of mirrors")
@@ -2745,6 +2788,7 @@ export function RealtimeInterviewClient({
             "Camera not available. Please enable your camera and try again.",
           );
         }
+        recordingSourceRef.current = "camera";
         console.log(
           "📱 Screen capture unavailable — recording camera and audio instead",
         );
@@ -3139,7 +3183,10 @@ export function RealtimeInterviewClient({
         name === "PermissionDeniedError" ||
         name === "AbortError";
 
-      if (requireSessionRecording && isUserDeniedOrCancelled) {
+      // Phones (no screen share): the camera recording is best-effort, never a blocker.
+      const mustRecord = requireSessionRecording && supportsDisplayMediaCapture();
+
+      if (mustRecord && isUserDeniedOrCancelled) {
         if (!showRecordingOptIn) {
           setError(
             supportsDisplayMediaCapture()
@@ -3160,7 +3207,7 @@ export function RealtimeInterviewClient({
       }
 
       if (name === "NotFoundError" || name === "NotReadableError") {
-        if (requireSessionRecording) {
+        if (mustRecord) {
           setError(
             supportsDisplayMediaCapture()
               ? "Could not access the screen for required recording. Close other apps using the display and try again."
@@ -3176,7 +3223,7 @@ export function RealtimeInterviewClient({
         return false;
       }
 
-      if (requireSessionRecording) {
+      if (mustRecord) {
         setError(
           `Failed to start required recording: ${error?.message ?? "Unknown error"}`,
         );
@@ -3191,9 +3238,7 @@ export function RealtimeInterviewClient({
 
   const leaveRequiredRecording = () => {
     setShowRecordingOptIn(false);
-    const home = resolveHackathonInterviewHome(
-      currentInterviewReturnTo(interviewId) ?? returnToRef.current,
-    );
+    const home = hackathonExitHome();
     if (home) {
       router.replace(home);
       return;
@@ -3226,14 +3271,6 @@ export function RealtimeInterviewClient({
         /* ignore quota / private mode */
       }
 
-      if (choice === "yes" && requireSessionRecording && !canCaptureDisplay) {
-        setShowRecordingOptIn(false);
-        setError(
-          "This hackathon interview requires screen recording. Open this page on a computer and share your screen to continue.",
-        );
-        return;
-      }
-
       // Desktop: capture screen before the interview starts so tab audio is available.
       // Mobile: screen capture is unavailable — start the interview first so AI audio
       // can be routed through AudioContext, then record camera + mic.
@@ -3252,9 +3289,10 @@ export function RealtimeInterviewClient({
 
       setShowRecordingOptIn(false);
 
-      await startInterview();
+      const started = await startInterview();
 
-      if (choice === "yes" && !canCaptureDisplay) {
+      // Phones record the camera only once the interview is really running.
+      if (started && choice === "yes" && !canCaptureDisplay) {
         await startRecording();
       }
     } catch (e) {
@@ -3392,7 +3430,7 @@ export function RealtimeInterviewClient({
         );
       }
 
-      await interviewApi.saveRecordingKey(interviewId, s3Key);
+      await interviewApi.saveRecordingKey(interviewId, s3Key, recordingSourceRef.current);
 
       recordedChunksRef.current = [];
     } catch (error: any) {
@@ -3488,23 +3526,29 @@ export function RealtimeInterviewClient({
               <p className={journey.description}>{error}</p>
             </div>
             <div className={cn(journey.footer, "sm:justify-center")}>
+              {needsIdentityVerification ? (
+                <Button
+                  variant="outline"
+                  className="h-11 px-6 text-sm font-semibold"
+                  onClick={() => router.push("/dashboard/identity-verification")}
+                >
+                  Verify identity
+                </Button>
+              ) : null}
               <Button
                 className={journey.primaryButton}
                 onClick={() => {
-                  const home =
-                    resolveHackathonInterviewHome(
-                      currentInterviewReturnTo(interviewId) ?? returnToRef.current,
-                    ) ?? "/dashboard";
-                  router.push(home);
+                  router.push(hackathonExitHome() ?? "/dashboard");
                 }}
               >
-                {resolveHackathonInterviewHome(
-                  currentInterviewReturnTo(interviewId) ?? returnToRef.current,
-                )
-                  ? "Back to Hackathon"
-                  : "Go to Dashboard"}
+                {hackathonExitHome() ? "Back to Hackathon" : "Go to Dashboard"}
               </Button>
             </div>
+            {hackathonExitHome() ? (
+              <div className="px-5 pb-5 sm:px-6">
+                <HackathonHelpOnWhatsApp />
+              </div>
+            ) : null}
           </div>
         )}
       </div>
@@ -3521,7 +3565,9 @@ export function RealtimeInterviewClient({
           ? codingDiscussionHost
             ? "flex h-auto min-w-0 flex-col overflow-visible"
             : "flex h-full min-h-0 min-w-0 flex-col overflow-hidden"
-          : "min-h-svh overflow-x-hidden",
+          // overflow-x-clip (not -hidden): -hidden turns this into a scroll box and breaks
+          // the sticky bottom controls on phones.
+          : "min-h-svh overflow-x-hidden supports-[overflow:clip]:overflow-x-clip",
         className,
       )}
     >
@@ -3607,12 +3653,16 @@ export function RealtimeInterviewClient({
           <DialogHeader>
             <DialogTitle className="text-base font-semibold text-white sm:text-lg">
               {requireSessionRecording
-                ? "Screen recording is required"
+                ? canShareScreen
+                  ? "Screen recording is required"
+                  : "This interview is recorded"
                 : "Would you like to record your interview session"}
             </DialogTitle>
             <DialogDescription className="text-sm leading-relaxed text-zinc-300 sm:text-base">
               {requireSessionRecording
-                ? "We record your interview session for assessment and analysis of how you answered each question. You must share this browser tab to continue. If you deny screen sharing, you cannot start this hackathon interview."
+                ? canShareScreen
+                  ? "We record your interview session for assessment and analysis of how you answered each question. You must share this browser tab to continue. If you deny screen sharing, you cannot start this hackathon interview."
+                  : "Phones can't share their screen, so we'll record your camera and microphone for assessment instead. Keep your face visible and stay on this screen during the interview."
                 : "Record your interview session for future reference and analysis of how you answered each question."}
             </DialogDescription>
           </DialogHeader>
@@ -3630,7 +3680,11 @@ export function RealtimeInterviewClient({
               className="h-11 w-full bg-red-600 text-white hover:bg-red-700 sm:w-auto"
               onClick={() => void resolveRecordingOptIn("yes")}
             >
-              {requireSessionRecording ? "Share screen and continue" : "Yes"}
+              {requireSessionRecording
+                ? canShareScreen
+                  ? "Share screen and continue"
+                  : "Start interview"
+                : "Yes"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -3735,7 +3789,7 @@ export function RealtimeInterviewClient({
         </AlertDialogContent>
       </AlertDialog>
       <AlertDialog open={connectionFailed} onOpenChange={() => {}}>
-        <AlertDialogContent className={cn(journey.dialog, "sm:max-w-xl max-h-[90vh] overflow-y-auto mx-4 w-[calc(100%-2rem)]")}>
+        <AlertDialogContent className={cn(journey.dialog, "max-h-[90dvh] w-[calc(100%-2rem)] overflow-y-auto sm:max-w-xl")}>
           <AlertDialogHeader className={journey.headerBand}>
             <div className="flex flex-col items-center text-center">
               <JourneyIconTile tone="danger" size="lg" className="mb-3">
@@ -3769,10 +3823,10 @@ export function RealtimeInterviewClient({
               ) : (
                 <Button
                   size="lg"
-                  onClick={() => router.push(returnToRef.current ?? "/dashboard/interviews")}
+                  onClick={() => router.push(hackathonExitHome() ?? returnToRef.current ?? "/dashboard/interviews")}
                   className="w-full sm:w-auto"
                 >
-                  Back to interviews
+                  {hackathonExitHome() ? "Back to Hackathon" : "Back to interviews"}
                 </Button>
               )
             ) : null}
@@ -3812,6 +3866,11 @@ export function RealtimeInterviewClient({
               </>
             ) : null}
           </AlertDialogFooter>
+          {hackathonExitHome() && !reportOnTheWay && !isReconnecting ? (
+            <div className="px-5 pb-5 sm:px-6">
+              <HackathonHelpOnWhatsApp />
+            </div>
+          ) : null}
         </AlertDialogContent>
       </AlertDialog>
       {!codingDiscussionHost ? (
@@ -3871,7 +3930,7 @@ export function RealtimeInterviewClient({
                 className="h-11 w-11 shrink-0 text-white/90 hover:bg-card/10 hover:text-white"
                 aria-label="Back to interviews"
                 onClick={() => {
-                  router.push(returnToRef.current ?? "/dashboard/interviews");
+                  router.push(hackathonExitHome() ?? returnToRef.current ?? "/dashboard/interviews");
                 }}
               >
                 <ArrowLeft className="h-5 w-5" />
@@ -3961,7 +4020,7 @@ export function RealtimeInterviewClient({
                     : codingEmbed && !isCodingDiscussion
                       ? "gap-2 p-2 sm:gap-3 sm:p-3"
                       : !codingEmbed
-                        ? "gap-4 p-4 sm:p-5"
+                        ? "gap-3 p-3.5 sm:gap-4 sm:p-5"
                         : "",
                 )}
               >
@@ -3983,7 +4042,7 @@ export function RealtimeInterviewClient({
                     }
                     isProcessing={isAIProcessing && isInterviewActive}
                     size={
-                      codingEmbed && isCodingDiscussion ? "md" : codingEmbed ? "md" : "lg"
+                      codingEmbed || isNarrowScreen ? "md" : "lg"
                     }
                   />
                   <div className="min-w-0 flex-1">
@@ -4187,8 +4246,8 @@ export function RealtimeInterviewClient({
 
             {!codingEmbed ? (
               <Card className="flex min-h-0 flex-col overflow-visible border-white/10 bg-card/[0.06] shadow-lg shadow-black/20 lg:h-full">
-                <CardContent className="flex min-h-0 flex-1 flex-col p-4 sm:p-5">
-                  <div className="relative min-h-[180px] w-full flex-1 overflow-hidden rounded-2xl bg-black sm:min-h-[220px] lg:min-h-0">
+                <CardContent className="flex min-h-0 flex-1 flex-col p-2.5 sm:p-5">
+                  <div className="relative aspect-[4/3] max-h-[34dvh] min-h-[150px] w-full flex-1 overflow-hidden rounded-2xl bg-black sm:aspect-auto sm:max-h-none sm:min-h-[220px] lg:min-h-0">
                     <video
                       ref={videoRef}
                       autoPlay
@@ -4257,13 +4316,19 @@ export function RealtimeInterviewClient({
             )}
           >
             <CardContent
-              className={cn(codingEmbed ? "p-2 sm:p-3" : "space-y-3 p-3 sm:space-y-4 sm:p-5")}
+              className={cn(
+                codingEmbed
+                  ? "p-2 sm:p-3"
+                  : "space-y-2.5 p-2.5 sm:space-y-4 sm:p-5 [@media(max-height:500px)]:space-y-1.5 [@media(max-height:500px)]:p-2",
+              )}
             >
               <div className="text-center">
                 <h2
                   className={cn(
                     "font-semibold uppercase tracking-wide text-gray-300/90",
-                    codingEmbed ? "mb-2 text-[10px]" : "text-xs sm:text-sm",
+                    codingEmbed
+                      ? "mb-2 text-[10px]"
+                      : "hidden text-xs sm:block sm:text-sm [@media(max-height:500px)]:hidden",
                   )}
                 >
                   {codingEmbed ? "Mic & camera" : "Interview Controls"}
@@ -4300,7 +4365,7 @@ export function RealtimeInterviewClient({
                     "h-11 min-w-0 rounded-xl px-1.5 text-[11px] sm:w-auto sm:gap-2 sm:px-4 sm:text-sm",
                     codingEmbed
                       ? "h-12"
-                      : "h-auto min-h-11 flex-col gap-0.5 py-2 sm:h-11 sm:flex-row sm:py-2",
+                      : "h-auto min-h-11 flex-col gap-0.5 py-2 sm:h-11 sm:flex-row sm:py-2 [@media(max-height:500px)]:min-h-9 [@media(max-height:500px)]:h-9 [@media(max-height:500px)]:py-1",
                   )}
                   title={isMicOn ? "Mute microphone" : "Unmute microphone"}
                 >
@@ -4319,7 +4384,7 @@ export function RealtimeInterviewClient({
                     "h-11 min-w-0 rounded-xl px-1.5 text-[11px] sm:w-auto sm:gap-2 sm:px-4 sm:text-sm",
                     codingEmbed
                       ? "h-12"
-                      : "h-auto min-h-11 flex-col gap-0.5 py-2 sm:h-11 sm:flex-row sm:py-2",
+                      : "h-auto min-h-11 flex-col gap-0.5 py-2 sm:h-11 sm:flex-row sm:py-2 [@media(max-height:500px)]:min-h-9 [@media(max-height:500px)]:h-9 [@media(max-height:500px)]:py-1",
                   )}
                   title={isCameraOn ? "Turn camera off" : "Turn camera on"}
                 >
@@ -4339,7 +4404,7 @@ export function RealtimeInterviewClient({
                     "h-11 min-w-0 whitespace-normal rounded-xl px-1.5 text-center text-[11px] leading-tight animate-none transition-none sm:w-auto sm:gap-2 sm:px-4 sm:text-sm sm:whitespace-nowrap",
                     codingEmbed
                       ? "h-12"
-                      : "h-auto min-h-11 flex-col gap-0.5 py-2 sm:h-11 sm:flex-row sm:py-2",
+                      : "h-auto min-h-11 flex-col gap-0.5 py-2 sm:h-11 sm:flex-row sm:py-2 [@media(max-height:500px)]:min-h-9 [@media(max-height:500px)]:h-9 [@media(max-height:500px)]:py-1",
                   )}
                   title="End interview"
                 >

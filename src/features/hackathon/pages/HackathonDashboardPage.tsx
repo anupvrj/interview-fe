@@ -72,7 +72,7 @@ function Board({ me }: Readonly<{ me: HackathonMe }>) {
               minScore={progress.minScore}
               resubmitMessage={"resubmitMessage" in progress ? progress.resubmitMessage : undefined}
             >
-              {kind === "resume" ? <ResumeChallenge me={me} /> : null}
+              {kind === "resume" ? <ResumeChallenge me={me} number={index + 1} /> : null}
               {kind === "social" ? <SocialChallenge me={me} /> : null}
               {kind === "screening" || kind === "coding" || kind === "system_design" ? (
                 <InterviewChallenge me={me} challenge={progress} />

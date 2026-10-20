@@ -12,7 +12,8 @@ export default function InterviewPage() {
   useEffect(() => {
     // Redirect to realtime interview page
     if (interviewId) {
-      router.replace(`/interview/${interviewId}/realtime`);
+      // Keep ?returnTo= so a hackathon interview still returns to its challenge board.
+      router.replace(`/interview/${interviewId}/realtime${globalThis.location?.search ?? ""}`);
     }
   }, [interviewId, router]);
 

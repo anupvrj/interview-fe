@@ -163,6 +163,19 @@ export function useSubmitHackathonResume() {
   );
 }
 
+export function useCompleteResumeChallenge() {
+  return useMeMutation<void>((slug, getToken) => hackathonApi.completeResumeChallenge(slug, getToken));
+}
+
+/** Scores a resume without submitting it (the "Analysing…" pop-up). */
+export function usePreviewResumeScore() {
+  const slug = useHackathonSlug();
+  const { getToken } = useAuth();
+  return useMutation({
+    mutationFn: (resumeId: string) => hackathonApi.previewResumeScore(slug, () => getToken(), resumeId),
+  });
+}
+
 export function useSubmitHackathonSocial() {
   return useMeMutation<{ linkedinUrl: string; instagramUrl: string }>((slug, getToken, body) =>
     hackathonApi.submitSocial(slug, getToken, body),
