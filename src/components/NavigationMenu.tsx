@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { LiveChip } from "@/components/LiveChip";
+import { HACKATHON_LANDING_PATH } from "@/features/hackathon/config";
 import { usePlatformFeatures } from "@/hooks/usePlatformFeatures";
 
 const navLinkClass =
@@ -61,6 +63,15 @@ export const resumeNavItems = [
 export const navLinksHome = [
   { href: "/", label: "Home", match: (path: string) => path === "/" },
 ] as const;
+
+export const navLinkHackathon = {
+  href: HACKATHON_LANDING_PATH,
+  label: "Hackathon",
+  match: (path: string) =>
+    path === HACKATHON_LANDING_PATH ||
+    path.startsWith(`${HACKATHON_LANDING_PATH}/`) ||
+    path.startsWith("/hackathon/"),
+} as const;
 
 export const navLinkDashboard = {
   href: "/dashboard",
@@ -146,7 +157,7 @@ function useVisibleMarketingNav() {
       navLinkBecomeInterviewer.href,
       "peer_interviews",
     ),
-    showHireTalent: isNavHrefVisible(navLinkHireTalent.href, "ix_recruiter"),
+    showHackathon: isNavHrefVisible(navLinkHackathon.href, "hackathon"),
   };
 }
 
@@ -309,7 +320,7 @@ export function PublicDesktopNav() {
   const pathname = usePathname();
   const [mockInterviewsOpen, setMockInterviewsOpen] = useState(false);
   const [resumeOpen, setResumeOpen] = useState(false);
-  const { showBecomeInterviewer, showHireTalent } = useVisibleMarketingNav();
+  const { showBecomeInterviewer, showHackathon } = useVisibleMarketingNav();
 
   useEffect(() => {
     setMockInterviewsOpen(false);
@@ -329,6 +340,19 @@ export function PublicDesktopNav() {
           active={item.match(pathname)}
         />
       ))}
+
+      {showHackathon ? (
+        <Link
+          href={navLinkHackathon.href}
+          className={cn(
+            linkClass(navLinkHackathon.match(pathname)),
+            "inline-flex flex-col items-center gap-0.5 leading-none",
+          )}
+        >
+          <LiveChip />
+          <span>{navLinkHackathon.label}</span>
+        </Link>
+      ) : null}
 
       <ResumeDropdown
         open={resumeOpen}
@@ -350,14 +374,6 @@ export function PublicDesktopNav() {
         />
       ) : null}
 
-      {showHireTalent ? (
-        <NavLink
-          href={navLinkHireTalent.href}
-          label={navLinkHireTalent.label}
-          active={navLinkHireTalent.match(pathname)}
-        />
-      ) : null}
-
       <NavLink
         href={navLinkPricing.href}
         label={navLinkPricing.label}
@@ -376,8 +392,12 @@ export function PublicMobileNav() {
   const [resumeOpen, setResumeOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const { user, isLoaded } = useUser();
-  const { mockItems, resumeItems, showBecomeInterviewer, showHireTalent } =
-    useVisibleMarketingNav();
+  const {
+    mockItems,
+    resumeItems,
+    showBecomeInterviewer,
+    showHackathon,
+  } = useVisibleMarketingNav();
 
   useEffect(() => {
     setMounted(true);
@@ -510,6 +530,20 @@ export function PublicMobileNav() {
         </div>
 
         <div className="flex-1 overflow-y-auto py-2">
+          {showHackathon ? (
+            <Link
+              href={navLinkHackathon.href}
+              onClick={navigateFromMobileDrawer(navLinkHackathon.href)}
+              className={cn(
+                mobileLinkClass(navLinkHackathon.match(pathname)),
+                "justify-between gap-2",
+              )}
+            >
+              <span>{navLinkHackathon.label}</span>
+              <LiveChip />
+            </Link>
+          ) : null}
+
           {navLinksHome.map((item) => (
             <Link
               key={item.href}
@@ -616,16 +650,6 @@ export function PublicMobileNav() {
             className={mobileLinkClass(navLinkBecomeInterviewer.match(pathname))}
           >
             {navLinkBecomeInterviewer.label}
-          </Link>
-          ) : null}
-
-          {showHireTalent ? (
-          <Link
-            href={navLinkHireTalent.href}
-            onClick={navigateFromMobileDrawer(navLinkHireTalent.href)}
-            className={mobileLinkClass(navLinkHireTalent.match(pathname))}
-          >
-            {navLinkHireTalent.label}
           </Link>
           ) : null}
 

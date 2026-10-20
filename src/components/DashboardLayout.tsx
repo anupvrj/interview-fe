@@ -36,6 +36,7 @@ import { useUpsellState } from "@/components/upsell/useUpsellState";
 import { useEntitlements } from "@/hooks/useEntitlements";
 import { usePlatformFeatures } from "@/hooks/usePlatformFeatures";
 import { FeatureRouteGuard } from "@/components/features/FeatureRouteGuard";
+import { LiveChip } from "@/components/LiveChip";
 import { POST_ONBOARDING_TRIAL_OFFER_KEY } from "@/lib/trialFeatures";
 import { isFeatureVisibleForActiveRole } from "@/lib/platform-features";
 import {
@@ -536,7 +537,9 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 aria-hidden
               />
             ) : null}
-            {item.badge ? (
+            {item.badgeTone === "live" ? (
+              <LiveChip className="ml-auto" />
+            ) : item.badge ? (
               <span
                 className={cn(
                   "ml-auto shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold leading-none",
@@ -558,6 +561,14 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             strokeWidth={2.5}
             aria-hidden
           />
+        ) : item.badgeTone === "live" ? (
+          <span
+            className="pointer-events-none absolute right-1.5 top-1.5 flex h-2 w-2"
+            aria-hidden
+          >
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-rose-500 opacity-75" />
+            <span className="relative inline-flex h-2 w-2 rounded-full bg-rose-500" />
+          </span>
         ) : item.badge ? (
           <span
             className="pointer-events-none absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-amber-500"

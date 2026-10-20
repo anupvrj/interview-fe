@@ -23,7 +23,9 @@ import {
   Plug,
   Shield,
   Share2,
+  Trophy,
 } from "lucide-react";
+import { HACKATHON_LANDING_PATH } from "@/features/hackathon/config";
 import type { AccessRole, User as ApiUser } from "@/lib/api";
 import { isPathAllowedForRole, type ActiveRole } from "@/lib/roles";
 
@@ -42,6 +44,8 @@ export type DashboardNavItem = {
   featureKey?: string;
   description?: string;
   badge?: string;
+  /** Rose pulsing chip. Used for time-sensitive items such as a live hackathon. */
+  badgeTone?: "live";
 };
 
 const accent = {
@@ -103,6 +107,15 @@ const baseMenuItems: DashboardNavItem[] = [
     href: "/dashboard",
     icon: LayoutDashboard,
     accent: accent.purple,
+  },
+  {
+    title: "Hackathon",
+    href: HACKATHON_LANDING_PATH,
+    icon: Trophy,
+    accent: accent.rose,
+    featureKey: "hackathon",
+    badge: "Live",
+    badgeTone: "live",
   },
   {
     title: "AI Resume Builder",
