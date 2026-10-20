@@ -269,6 +269,10 @@ export async function captureResumeThumbnail(
         onclone: (_clonedDoc: Document, cloned: HTMLElement) => {
           cloned.style.transform = "none";
           cloned.style.transition = "none";
+          // On-canvas editor: thumbnails show the page, not empty-field hints.
+          cloned.querySelectorAll<HTMLElement>("[data-placeholder]").forEach((el) => {
+            el.removeAttribute("data-placeholder");
+          });
         },
       } as any);
     } finally {

@@ -1889,3 +1889,43 @@
   color: rgb(253 186 116);
 }
 
+
+/* ── On-canvas resume editor ─────────────────────────────────────────── */
+.rx-canvas-scroll {
+  background-color: hsl(220 20% 96%);
+  background-image: radial-gradient(hsl(220 14% 82%) 1px, transparent 1px);
+  background-size: 18px 18px;
+}
+.dark .rx-canvas-scroll {
+  background-color: hsl(222 24% 9%);
+  background-image: radial-gradient(hsl(222 14% 22%) 1px, transparent 1px);
+}
+.resume-page .rx-ed,
+.resume-page [data-rx-rich] {
+  outline: none;
+  cursor: text;
+  border-radius: 2px;
+  caret-color: hsl(var(--primary));
+  transition: background-color 120ms;
+}
+.resume-page .rx-ed:hover,
+.resume-page [data-rx-rich]:hover {
+  background-color: rgb(59 130 246 / 0.06);
+}
+.resume-page .rx-ed:focus,
+.resume-page [data-rx-rich]:focus {
+  background-color: rgb(59 130 246 / 0.08);
+  box-shadow: 0 0 0 1px rgb(59 130 246 / 0.35);
+}
+/* Empty field → show what belongs there (never reaches the PDF: editing is off while it is made). */
+.resume-page .rx-ed:empty::before,
+.resume-page [data-rx-rich]:empty::before {
+  content: attr(data-placeholder);
+  color: rgb(148 163 184);
+  font-style: italic;
+  pointer-events: none;
+}
+.resume-page .rx-ed:empty {
+  display: inline-block;
+  min-width: 2ch;
+}

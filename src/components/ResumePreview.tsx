@@ -11,6 +11,7 @@ import { PaginatedPreview } from "./PaginatedPreview";
 import type { ResumePaginationSnapshot } from "./PaginatedPreview";
 import { debugResumePagination } from "@/lib/debug-resume-pagination";
 import { ResumePdfPreviewDialog } from "./ResumePdfPreviewDialog";
+import { CanvasEditProvider } from "@/components/resume-canvas/CanvasEditContext";
 import { cn } from "@/lib/utils";
 import {
   resumePreviewZoomHeader,
@@ -78,13 +79,21 @@ interface ResumePreviewProps {
   onRefresh?: () => void;
   /** Mobile: auto fit page width to viewport and use tighter chrome */
   compact?: boolean;
+  /** Canvas editor: no header bar (zoom floats on the canvas) and an overlay above the pages. */
+  canvasMode?: boolean;
+  /** Rendered above the pages, inside the element passed as overlayRootRef. */
+  overlay?: React.ReactNode;
+  overlayRootRef?: React.Ref<HTMLDivElement>;
 }
 
 export type ResumePreviewHandle = {
+  openPdfPreview: () => void;
   resetPreview: (options?: {
     resetZoom?: boolean;
     /** `local` remounts PaginatedPreview only; `full` remounts via parent onRefresh. */
     remount?: "local" | "full";
+    /** Keep the scroll position (e.g. re-paginating for a PDF). */
+    keepScroll?: boolean;
   }) => void;
 };
 
@@ -101,6 +110,9 @@ export const ResumePreview = forwardRef<ResumePreviewHandle, ResumePreviewProps>
   onPaginationSnapshot,
   onRefresh,
   compact = false,
+  canvasMode = false,
+  overlay,
+  overlayRootRef,
 }: ResumePreviewProps,
   ref,
 ) {
@@ -148,9 +160,10 @@ export const ResumePreview = forwardRef<ResumePreviewHandle, ResumePreviewProps>
   }, []);
 
   const { markUserAdjusted, resetFitZoom } = useResumePreviewFitZoom({
-    enabled: compact,
+    // The canvas editor also fits the page to the space left by side panels and the icon rail.
+    enabled: compact || canvasMode,
     pageWidthGutterPx: pageDeleteGutterPx,
-    horizontalPadding: compact ? 12 : 80,
+    horizontalPadding: compact ? 12 : canvasMode ? 176 : 80,
     containerRef,
     pageMeasureRef,
     onZoom: setZoomLevel,
@@ -217,6 +230,7 @@ export const ResumePreview = forwardRef<ResumePreviewHandle, ResumePreviewProps>
     (options?: {
       resetZoom?: boolean;
       remount?: "local" | "full";
+      keepScroll?: boolean;
     }) => {
       if (options?.resetZoom !== false) {
         if (compact) {
@@ -225,7 +239,9 @@ export const ResumePreview = forwardRef<ResumePreviewHandle, ResumePreviewProps>
           setZoomLevel(100);
         }
       }
-      containerRef.current?.scrollTo({ top: 0, left: 0, behavior: "instant" });
+      if (!options?.keepScroll) {
+        containerRef.current?.scrollTo({ top: 0, left: 0, behavior: "instant" });
+      }
       const remount = options?.remount ?? "full";
       if (remount === "full" && onRefresh) {
         onRefresh();
@@ -236,7 +252,11 @@ export const ResumePreview = forwardRef<ResumePreviewHandle, ResumePreviewProps>
     [onRefresh, setZoomLevel, compact, resetFitZoom],
   );
 
-  useImperativeHandle(ref, () => ({ resetPreview }), [resetPreview]);
+  useImperativeHandle(
+    ref,
+    () => ({ resetPreview, openPdfPreview: () => setPdfPreviewOpen(true) }),
+    [resetPreview],
+  );
 
   const handleRefreshPreview = useCallback(() => {
     resetPreview({ resetZoom: false, remount: "full" });
@@ -275,10 +295,10 @@ export const ResumePreview = forwardRef<ResumePreviewHandle, ResumePreviewProps>
     compact && scaledLayout.height > 0 ? scaledLayout.height : null;
 
   return (
-    <div className="flex h-full flex-col bg-muted/25">
-      {/* Zoom Controls */}
+    <div className={cn("relative flex h-full flex-col", canvasMode ? "bg-transparent" : "bg-muted/25")}>
+      {/* Zoom Controls (canvas editor: a small pill floating at the bottom-left) */}
       <div
-        className={cn(
+        className={canvasMode ? "absolute bottom-3 left-3 z-20 flex items-center gap-1 rounded-full border border-border bg-background/95 p-1 shadow-md backdrop-blur [&_button]:rounded-full [&>div]:gap-1" : cn(
           resumePreviewZoomHeader,
           compact
             ? resumePreviewZoomHeaderMobile
@@ -322,6 +342,7 @@ export const ResumePreview = forwardRef<ResumePreviewHandle, ResumePreviewProps>
             <RotateCcw className="w-4 h-4" />
           </Button>
         </div>
+        {canvasMode ? null : (
         <Button
           variant="outline"
           size="sm"
@@ -334,13 +355,15 @@ export const ResumePreview = forwardRef<ResumePreviewHandle, ResumePreviewProps>
           <FileText className="hidden h-4 w-4 md:mr-1 md:block" />
           <span className="hidden md:inline">PDF Preview</span>
         </Button>
+        )}
       </div>
 
       {/* Scrollable Preview Container */}
       <div
         ref={containerRef}
         className={cn(
-          "flex-1 touch-pan-x touch-pan-y overflow-auto bg-muted/40",
+          "flex-1 touch-pan-x touch-pan-y overflow-auto",
+          canvasMode ? "rx-canvas-scroll" : "bg-muted/40",
           compact && "pl-12",
         )}
       >
@@ -361,6 +384,7 @@ export const ResumePreview = forwardRef<ResumePreviewHandle, ResumePreviewProps>
         >
           {/* Resume Container Wrapper for Scale */}
           <div
+            ref={overlayRootRef}
             className={compact ? "mx-auto" : undefined}
             style={{
               width: compact
@@ -402,10 +426,13 @@ export const ResumePreview = forwardRef<ResumePreviewHandle, ResumePreviewProps>
                 onPaginationSnapshot={onPaginationSnapshot}
               />
             </div>
+            {overlay}
           </div>
         </div>
       </div>
 
+      {/* Preview shows the finished page: never editable. */}
+      <CanvasEditProvider value={null}>
       <ResumePdfPreviewDialog
         open={pdfPreviewOpen}
         onOpenChange={setPdfPreviewOpen}
@@ -415,6 +442,7 @@ export const ResumePreview = forwardRef<ResumePreviewHandle, ResumePreviewProps>
         layout={layout}
         compact={compact}
       />
+      </CanvasEditProvider>
     </div>
   );
 });

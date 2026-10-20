@@ -1985,6 +1985,28 @@ export const resumeApi = {
    * The server owns the rules (same check gates hackathon submission). Posts the
    * content so unsaved editor edits are checked.
    */
+  /** Seven-day link to the resume's latest compiled PDF (409 PDF_NOT_READY if none). */
+  createShareLink: async (resumeId: string): Promise<{ url: string; expiresAt: string }> => {
+    const response = await apiClient.post<{ data: { url: string; expiresAt: string } }>(
+      `/resumes/${resumeId}/share-link`,
+    );
+    return response.data.data;
+  },
+
+  /** Up to three AI rewordings of one bullet or the summary (never adds numbers). */
+  aiRewrite: async (body: {
+    text: string;
+    kind: "bullet" | "summary";
+    role?: string;
+    company?: string;
+    targetRole?: string;
+  }): Promise<string[]> => {
+    const response = await apiClient.post<{ data: { suggestions: string[] } }>("/resumes/ai-rewrite", body, {
+      timeout: 60000,
+    });
+    return response.data.data.suggestions ?? [];
+  },
+
   checkPlaceholders: async (
     content: Resume["content"] | undefined,
   ): Promise<ResumePlaceholderIssue[]> => {

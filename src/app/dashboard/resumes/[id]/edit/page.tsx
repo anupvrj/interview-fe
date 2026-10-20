@@ -131,6 +131,30 @@ import {
 import { ATSReportView } from "@/components/ats-checker/ATSReportView";
 import { TrialUpsellDialog } from "@/components/upsell/TrialUpsellDialog";
 import { PlaceholderDataDialog } from "@/components/resume-editor/PlaceholderDataDialog";
+import { CanvasEditProvider, type CanvasEditApi } from "@/components/resume-canvas/CanvasEditContext";
+import {
+  CanvasInteractionLayer,
+  type CanvasFocus,
+  type CanvasInteractionHandlers,
+  type CanvasSectionRef,
+} from "@/components/resume-canvas/CanvasInteractionLayer";
+import { CanvasRail, CanvasToolRow, type CanvasPanel } from "@/components/resume-canvas/CanvasChrome";
+import { AddSectionDialog, ADDABLE_SECTIONS } from "@/components/resume-canvas/AddSectionDialog";
+import { TemplatesPanel } from "@/components/resume-canvas/TemplatesPanel";
+import { AiAssistPanel, type AiTarget } from "@/components/resume-canvas/AiAssistPanel";
+import {
+  addEntry,
+  deleteEntry,
+  duplicateEntry,
+  escapeHtmlText,
+  isEntrySection,
+  moveEntry,
+  sanitizeRichHtml,
+  setAtPath,
+} from "@/components/resume-canvas/canvasOps";
+
+/** "canvas" (edit on the page) or "classic" (form + preview). */
+const EDITOR_MODE_STORAGE_KEY = "resume-editor-mode";
 import {
   fetchResumePlaceholderIssues,
   type ResumePlaceholderIssue,
@@ -386,14 +410,37 @@ export default function EditResumePage() {
     returnToSectionPicker,
     closeMobileEditing,
   } = mobileEditor;
+  // On-canvas editing is the default; "Classic editor" brings back form + preview.
+  const [canvasOn, setCanvasOn] = useState(true);
+  useEffect(() => {
+    try {
+      if (window.localStorage.getItem(EDITOR_MODE_STORAGE_KEY) === "classic") setCanvasOn(false);
+    } catch {
+      /* storage unavailable */
+    }
+  }, []);
+  /** The form shows one card at a time (mobile sheet, or a canvas side panel). */
+  const focusedForm = isMobile || canvasOn;
+  const [canvasPanel, setCanvasPanel] = useState<CanvasPanel | null>(null);
+  const [canvasFocus, setCanvasFocus] = useState<CanvasFocus | null>(null);
+  const [addSectionAfter, setAddSectionAfter] = useState<{ afterId: string | null } | null>(null);
+  /** True while the PDF is captured from the page, so it gets plain (non-editable) markup. */
+  const [pdfCapture, setPdfCapture] = useState(false);
+  const [sharing, setSharing] = useState(false);
+  const [aiTarget, setAiTarget] = useState<AiTarget | null>(null);
+  const [canvasNotice, setCanvasNotice] = useState<string | null>(null);
+  const canvasNoticeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const canvasRootRef = useRef<HTMLDivElement>(null);
+  const canvasOnRef = useRef(canvasOn);
+  canvasOnRef.current = canvasOn;
   const showMobileEditPanel =
-    isMobile && (mobileEditOpen || viewMode === "ats");
+    isMobile && !canvasOn && (mobileEditOpen || viewMode === "ats");
 
   useEffect(() => {
-    if (isMobile && editingLayout) {
+    if (focusedForm && editingLayout) {
       setLayoutExpanded(true);
     }
-  }, [isMobile, editingLayout]);
+  }, [focusedForm, editingLayout]);
 
   // Delete section dialog state
   const [changeTemplateOpen, setChangeTemplateOpen] = useState(false);
@@ -1365,14 +1412,31 @@ export default function EditResumePage() {
       ),
     );
     const filename = resumePdfFilenameFromResume(resume);
-    const compiled = await compileResumePdfFromPreviewContainer({
-      resumeId,
-      templateId,
-      previewContainerId: `resume-preview-container-${resumeId}`,
-      padding: pdfPadding,
-      filename,
-    });
-    return { ...compiled, filename };
+    // Capture plain markup: turn on-page editing off while the PDF is made.
+    const editingWasOn = canvasOnRef.current;
+    if (editingWasOn) {
+      (document.activeElement as HTMLElement | null)?.blur?.();
+      setPdfCapture(true);
+      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      // Placeholders for empty fields are gone now; paginate the plain page again.
+      previewRef.current?.resetPreview({ remount: "local", resetZoom: false, keepScroll: true });
+      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    }
+    try {
+      const compiled = await compileResumePdfFromPreviewContainer({
+        resumeId,
+        templateId,
+        previewContainerId: `resume-preview-container-${resumeId}`,
+        padding: pdfPadding,
+        filename,
+      });
+      return { ...compiled, filename };
+    } finally {
+      if (editingWasOn) {
+        setPdfCapture(false);
+        requestAnimationFrame(() => previewRef.current?.resetPreview({ remount: "local", resetZoom: false, keepScroll: true }));
+      }
+    }
   };
 
   const syncCompiledPdfToExtension = async (
@@ -2557,7 +2621,7 @@ export default function EditResumePage() {
 
   useEffect(() => {
     if (
-      !isMobile ||
+      !focusedForm ||
       !mobileEditOpen ||
       viewMode !== "edit" ||
       !editingSectionId
@@ -2569,7 +2633,7 @@ export default function EditResumePage() {
       if (!target || target.expanded) return prev;
       return expandOnlySection(prev, editingSectionId);
     });
-  }, [isMobile, mobileEditOpen, viewMode, editingSectionId]);
+  }, [focusedForm, mobileEditOpen, viewMode, editingSectionId]);
 
   const mobileEditBarTitle = editingLayout
     ? "Layout & typography"
@@ -2578,6 +2642,320 @@ export default function EditResumePage() {
       : sections.find((s) => s.id === editingSectionId)?.title ?? "Edit section";
 
   const visibleSectionsForPicker = sections.filter((s) => s.visible);
+
+  // ── On-canvas editor ────────────────────────────────────────────────────
+  const canvasSectionRefs = useMemo<CanvasSectionRef[]>(
+    () => sections.filter((s) => s.visible).map((s) => ({ id: s.id, type: s.type, title: s.title })),
+    [sections],
+  );
+  const canvasEntryCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const s of sections) {
+      const list = (resume?.content as Record<string, unknown> | undefined)?.[s.type];
+      if (Array.isArray(list)) counts[s.id] = list.length;
+    }
+    return counts;
+  }, [sections, resume?.content]);
+
+  // Undo/delete can remove what is focused; leave focus mode instead of outlining nothing.
+  useEffect(() => {
+    if (!canvasFocus) return;
+    const stillThere =
+      canvasSectionRefs.some((s) => s.id === canvasFocus.sectionId) &&
+      (canvasFocus.index === null || canvasFocus.index < (canvasEntryCounts[canvasFocus.sectionId] ?? 0));
+    if (!stillThere) setCanvasFocus(null);
+  }, [canvasFocus, canvasSectionRefs, canvasEntryCounts]);
+
+  const showCanvasNotice = useCallback((message: string) => {
+    setCanvasNotice(message);
+    if (canvasNoticeTimerRef.current) clearTimeout(canvasNoticeTimerRef.current);
+    canvasNoticeTimerRef.current = setTimeout(() => setCanvasNotice(null), 3200);
+  }, []);
+
+  const closeCanvasPanel = useCallback(() => {
+    setCanvasPanel(null);
+    finishMobileEdit();
+    setViewMode("edit");
+  }, [finishMobileEdit]);
+
+  const openCanvasPanel = useCallback(
+    (panel: CanvasPanel, sectionId?: string) => {
+      if (panel === canvasPanel && panel !== "details") {
+        closeCanvasPanel();
+        return;
+      }
+      setCanvasPanel(panel);
+      if (panel === "fix") {
+        finishMobileEdit();
+        setViewMode("ats");
+        if (!resume?.atsFeedback && !refreshingATS) void handleCheckATS();
+      } else if (panel === "details" && sectionId) {
+        setViewMode("edit");
+        startSectionEdit(sectionId);
+      } else if (panel === "design") {
+        setViewMode("edit");
+        startLayoutEdit();
+      } else {
+        finishMobileEdit();
+        setViewMode("edit");
+      }
+    },
+    // handleCheckATS is re-created each render; the latest one is what we want.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [canvasPanel, closeCanvasPanel, finishMobileEdit, startLayoutEdit, startSectionEdit, resume?.atsFeedback, refreshingATS],
+  );
+
+  const commitCanvasField = useCallback(
+    (path: string, value: string) => {
+      const current = resumeRef.current ?? resume;
+      if (!current) return;
+      if (path === "@profileSummary") {
+        setResume((prev) => (prev ? { ...prev, profileSummary: value } : prev));
+        setHasChanges(true);
+        invalidateAtsScoreDisplay();
+        return;
+      }
+      if (path.startsWith("@section:")) {
+        updateSectionTitle(path.slice("@section:".length), value);
+        return;
+      }
+      if (path.startsWith("@custom:")) {
+        const id = path.slice("@custom:".length);
+        const existing = current.content.customSections?.find((cs: { id: string }) => cs.id === id);
+        if (existing) updateContent({ customSections: [{ ...existing, content: value }] });
+        return;
+      }
+      const key = path.split(".")[0] as keyof Resume["content"];
+      const next = setAtPath(current.content as unknown as Record<string, unknown>, path, value);
+      updateContent({ [key]: next[key] } as Partial<Resume["content"]>);
+    },
+    // updateContent/updateSectionTitle close over the latest resume each render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [resume, setResume, invalidateAtsScoreDisplay],
+  );
+
+  // Track the bullet / summary the caret is in, for the AI assistant.
+  const handleCanvasFieldFocus = useCallback((path: string, element: HTMLElement) => {
+    if (!element.hasAttribute("data-rx-rich")) return;
+    const pickTarget = () => {
+      const selection = window.getSelection();
+      const node = selection?.anchorNode ?? null;
+      const li = (node instanceof Element ? node : node?.parentElement)?.closest("li");
+      const bullet = li && element.contains(li) ? li : null;
+      const kind: AiTarget["kind"] = path === "@profileSummary" ? "summary" : "bullet";
+      const text = (bullet ?? element).textContent?.replace(/\s+/g, " ").trim() ?? "";
+      if (!text) return;
+      const [section, index] = path.split(".");
+      const entry = (resumeRef.current?.content as Record<string, unknown> | undefined)?.[section];
+      const item = Array.isArray(entry) ? (entry[Number(index)] as Record<string, unknown> | undefined) : undefined;
+      setAiTarget({
+        path,
+        kind,
+        text,
+        role: typeof item?.position === "string" ? item.position : typeof item?.name === "string" ? item.name : undefined,
+        company: typeof item?.company === "string" ? item.company : undefined,
+        apply: (replacement) => {
+          if (kind === "summary" || !bullet || !element.isConnected) {
+            commitCanvasFieldRef.current?.(path, kind === "summary" ? `<p>${escapeHtmlText(replacement)}</p>` : replacement);
+            return;
+          }
+          bullet.textContent = replacement;
+          commitCanvasFieldRef.current?.(path, sanitizeRichHtml(element.innerHTML));
+        },
+      });
+    };
+    pickTarget();
+    const onSelection = () => {
+      if (document.activeElement === element) pickTarget();
+    };
+    document.addEventListener("selectionchange", onSelection);
+    element.addEventListener("blur", () => document.removeEventListener("selectionchange", onSelection), { once: true });
+  }, []);
+  const commitCanvasFieldRef = useRef(commitCanvasField);
+  commitCanvasFieldRef.current = commitCanvasField;
+
+  const canvasEditApi = useMemo<CanvasEditApi | null>(
+    () =>
+      canvasOn && !pdfCapture
+        ? {
+            commitField: (path, value) => commitCanvasFieldRef.current(path, value),
+            commitSectionTitle: (id, title) => updateSectionTitle(id, title),
+            onFieldFocus: handleCanvasFieldFocus,
+          }
+        : null,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [canvasOn, pdfCapture, handleCanvasFieldFocus],
+  );
+
+  const sectionTypeOf = (sectionId: string) => sections.find((s) => s.id === sectionId)?.type ?? "";
+
+  const canvasHandlers: CanvasInteractionHandlers = {
+    onAddEntry: (sectionId, afterIndex) => {
+      const type = sectionTypeOf(sectionId);
+      if (!resume || !isEntrySection(type)) return;
+      const { content, index } = addEntry(
+        resume.content as unknown as Record<string, unknown>,
+        type,
+        afterIndex ?? undefined,
+      );
+      updateContent({ [type]: content[type] } as Partial<Resume["content"]>);
+      setCanvasFocus({ sectionId, index });
+    },
+    onMoveEntry: (sectionId, index, delta) => {
+      const type = sectionTypeOf(sectionId);
+      if (!resume || !isEntrySection(type)) return;
+      const next = moveEntry(resume.content as unknown as Record<string, unknown>, type, index, delta);
+      updateContent({ [type]: next[type] } as Partial<Resume["content"]>);
+      setCanvasFocus({ sectionId, index: index + delta });
+    },
+    onDuplicateEntry: (sectionId, index) => {
+      const type = sectionTypeOf(sectionId);
+      if (!resume || !isEntrySection(type)) return;
+      const next = duplicateEntry(resume.content as unknown as Record<string, unknown>, type, index);
+      updateContent({ [type]: next[type] } as Partial<Resume["content"]>);
+      setCanvasFocus({ sectionId, index: index + 1 });
+    },
+    onDeleteEntry: (sectionId, index) => {
+      const type = sectionTypeOf(sectionId);
+      if (!resume || !isEntrySection(type)) return;
+      const next = deleteEntry(resume.content as unknown as Record<string, unknown>, type, index);
+      updateContent({ [type]: next[type] } as Partial<Resume["content"]>);
+      setCanvasFocus(null);
+      showCanvasNotice("Entry deleted — press Ctrl/⌘ Z to undo.");
+    },
+    onMoveSection: (sectionId, delta) => {
+      setSections((prev) => {
+        const visible = prev.filter((s) => s.visible);
+        const from = visible.findIndex((s) => s.id === sectionId);
+        const to = from + delta;
+        if (from < 0 || to < 0 || to >= visible.length) return prev;
+        const a = prev.findIndex((s) => s.id === visible[from].id);
+        const b = prev.findIndex((s) => s.id === visible[to].id);
+        const next = [...prev];
+        [next[a], next[b]] = [next[b], next[a]];
+        // In two columns a section keeps its column unless it swaps with one in the other column.
+        return next;
+      });
+      setHasChanges(true);
+    },
+    onHideSection: (sectionId) => {
+      setSections((prev) => prev.map((s) => (s.id === sectionId ? { ...s, visible: false } : s)));
+      setHasChanges(true);
+      setCanvasFocus(null);
+      showCanvasNotice("Section hidden — add it back from + Section.");
+    },
+    onDeleteSection: (sectionId) => {
+      const section = sections.find((s) => s.id === sectionId);
+      if (!section) return;
+      setCanvasFocus(null);
+      setSectionToDelete({ id: section.id, type: section.type, title: section.title } as never);
+      setDeleteDialogOpen(true);
+    },
+    onOpenDetails: (sectionId) => openCanvasPanel("details", sectionId),
+    onAddSectionAfter: (sectionId) => setAddSectionAfter({ afterId: sectionId }),
+    onNotice: showCanvasNotice,
+  };
+
+  /** Add (or re-show) a section from the canvas, placed after `afterId`, seeded so it is visible on the page. */
+  const addCanvasSection = (type: string, afterId: string | null) => {
+    if (!resume) return;
+    beginHistoryTransaction();
+    try {
+      const existing = type === "custom" ? undefined : sections.find((s) => s.type === type);
+      const sectionId = existing?.id ?? `${type}_${Date.now()}`;
+      const titles: Record<string, string> = Object.fromEntries(ADDABLE_SECTIONS.map((s) => [s.type, s.label]));
+      const after = afterId ? sections.find((s) => s.id === afterId) : undefined;
+      setSectionsState((prev) => {
+        const without = prev.filter((s) => s.id !== sectionId);
+        const section: Section = {
+          ...(existing ?? { id: sectionId, type: type as Section["type"], title: titles[type] ?? "New Section", expanded: false }),
+          visible: true,
+          ...(after?.column ? { column: after.column } : {}),
+        } as Section;
+        const at = after ? without.findIndex((s) => s.id === after.id) + 1 : without.length;
+        return [...without.slice(0, at), section, ...without.slice(at)];
+      });
+      const content = resume.content as unknown as Record<string, unknown>;
+      if (type === "custom") {
+        updateContent({
+          customSections: [
+            ...(resume.content.customSections || []),
+            { id: sectionId, title: titles.custom, content: "<ul><li>Sample — add a point here.</li></ul>" },
+          ],
+        });
+      } else if (type === "profileSummary") {
+        if (!resume.profileSummary) setResume((prev) => (prev ? { ...prev, profileSummary: "" } : prev));
+      } else if (isEntrySection(type) && !(Array.isArray(content[type]) && (content[type] as unknown[]).length)) {
+        const { content: next } = addEntry(content, type);
+        updateContent({ [type]: next[type] } as Partial<Resume["content"]>);
+      }
+      setHasChanges(true);
+      setCanvasFocus({ sectionId, index: isEntrySection(type) ? 0 : null });
+      // Bring the new section into view once pagination has placed it on a page.
+      let attempts = 0;
+      const reveal = () => {
+        const target = Array.from(
+          canvasRootRef.current?.querySelectorAll<HTMLElement>(`.resume-page [data-section="${CSS.escape(sectionId)}"]`) ?? [],
+        ).find((el) => el.getClientRects().length > 0);
+        if (target) target.scrollIntoView({ behavior: "smooth", block: "center" });
+        else if (attempts++ < 12) setTimeout(reveal, 150);
+      };
+      setTimeout(reveal, 200);
+    } finally {
+      endHistoryTransaction();
+    }
+  };
+
+  const handleShareLink = async () => {
+    if (sharing) return;
+    setSharing(true);
+    try {
+      await ensureResumePersisted();
+      // A fresh PDF so the link shows what is on screen now.
+      await compileCurrentPdfFromPreview();
+      const { url } = await resumeApi.createShareLink(resumeId);
+      try {
+        await navigator.clipboard.writeText(url);
+        showCanvasNotice("Share link copied — it works for 7 days.");
+      } catch {
+        window.prompt("Copy this link (valid for 7 days):", url);
+      }
+    } catch (error) {
+      console.error("Share link failed:", error);
+      showCanvasNotice("Couldn't create a share link. Try downloading once, then share again.");
+    } finally {
+      setSharing(false);
+    }
+  };
+
+  const setEditorMode = (mode: "canvas" | "classic") => {
+    setCanvasOn(mode === "canvas");
+    setCanvasPanel(null);
+    setCanvasFocus(null);
+    finishMobileEdit();
+    setViewMode("edit");
+    try {
+      window.localStorage.setItem(EDITOR_MODE_STORAGE_KEY, mode);
+    } catch {
+      /* private mode */
+    }
+  };
+
+  const canvasPanelTitle =
+    canvasPanel === "fix"
+      ? "Fix Mistakes"
+      : canvasPanel === "templates"
+        ? "Templates"
+        : canvasPanel === "design"
+          ? "Design & Font"
+          : canvasPanel === "ai"
+            ? "AI assistant"
+            : canvasPanel === "details"
+              ? sections.find((s) => s.id === editingSectionId)?.title ?? "Details"
+              : "";
+  const formPanelOpen = canvasOn && (canvasPanel === "fix" || canvasPanel === "details" || canvasPanel === "design");
+
+
 
   if (
     !mounted ||
@@ -2645,6 +3023,105 @@ export default function EditResumePage() {
           Resume tailored. Click Sync Resume with Chrome when you want this PDF in the extension.
         </div>
       ) : null}
+      {canvasOn ? (
+        <>
+          <div className="flex items-center gap-1.5 border-b border-border bg-background px-2 py-1.5 md:gap-3 md:px-4 md:py-2">
+            <Link href="/dashboard/resumes" className="shrink-0">
+              <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Back to resumes">
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+            </Link>
+            <div className="min-w-0 flex-1 md:flex md:items-center md:gap-3">
+              <div className="min-w-0 md:max-w-[360px]">
+                <ResumeEditorTitle
+                  compact
+                  value={resume.title}
+                  onChange={(title) => {
+                    setResume({ ...resume, title });
+                    setHasChanges(true);
+                  }}
+                />
+              </div>
+              <p className="flex min-w-0 items-center truncate text-[11px] text-muted-foreground md:text-xs">
+                {autoSaving || saving ? (
+                  <>
+                    <Loader2 className="mr-1 h-3 w-3 shrink-0 animate-spin" />
+                    Saving…
+                  </>
+                ) : hasChanges ? (
+                  "Unsaved changes"
+                ) : lastSaved ? (
+                  <>
+                    <Check className="mr-1 h-3 w-3 text-emerald-600" />
+                    Saved
+                  </>
+                ) : (
+                  " "
+                )}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setEditorMode("classic")}
+              className="hidden shrink-0 rounded-md px-2 py-1 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground lg:block"
+            >
+              Classic editor
+            </button>
+            <IconTooltipButton
+              onClick={() => setImportResumeOpen(true)}
+              variant="ghost"
+              label="Import resume data"
+              disabled={refreshingATS || autoSaving || saving || changingTemplate}
+              className="hidden md:inline-flex"
+            >
+              <Upload className="h-4 w-4" />
+            </IconTooltipButton>
+            <IconTooltipButton
+              onClick={() => void handleSyncResumeWithChrome()}
+              variant="ghost"
+              label={extensionSyncState === "syncing" ? "Syncing with Chrome…" : "Sync Resume with Chrome"}
+              disabled={extensionSyncState === "syncing" || autoSaving || saving || changingTemplate}
+              className="hidden md:inline-flex"
+            >
+              {extensionSyncState === "syncing" ? <Loader2 className="h-4 w-4 animate-spin" /> : <ChromeIcon className="h-4 w-4" />}
+            </IconTooltipButton>
+            {isMobile ? (
+              <IconTooltipButton onClick={() => previewRef.current?.openPdfPreview()} variant="ghost" label="Preview">
+                <Eye className="h-4 w-4" />
+              </IconTooltipButton>
+            ) : null}
+            <Button
+              type="button"
+              size="sm"
+              onClick={handleDownload}
+              disabled={downloading}
+              className={cn(appPrimaryButton, "h-8 shrink-0 px-2.5 md:px-3.5")}
+            >
+              {downloading ? <Loader2 className="h-4 w-4 animate-spin md:mr-1.5" /> : <Download className="h-4 w-4 md:mr-1.5" />}
+              <span className="hidden md:inline">{downloading ? "Preparing…" : "Download"}</span>
+            </Button>
+          </div>
+          <CanvasToolRow
+            activePanel={canvasPanel}
+            onPanel={(panel) => openCanvasPanel(panel)}
+            atsScore={displayAtsScore ?? null}
+            checkingAts={refreshingATS}
+            onTailor={() => setMatchJobOpen(true)}
+            tailoring={matchingJob}
+            onRearrange={() => setRearrangeSectionsOpen(true)}
+            rearrangeDisabled={!layout || sections.length === 0}
+            canUndo={editorHistory.canUndo}
+            canRedo={editorHistory.canRedo}
+            onUndo={handleUndo}
+            onRedo={handleRedo}
+            isMobile={isMobile}
+            onAddSection={() => setAddSectionAfter({ afterId: null })}
+            onShare={() => void handleShareLink()}
+            sharing={sharing}
+          />
+        </>
+      ) : (
+        <>
       {/* Top Header Bar */}
       <div className={resumeEditorToolbar}>
         <div className={cn(resumeEditorToolbarInner, "md:py-3", resumeEditorToolbarMobile)}>
@@ -3005,27 +3482,48 @@ export default function EditResumePage() {
         />
       ) : null}
 
+        </>
+      )}
       {/* Main Content: mobile = live preview canvas; md+ = side-by-side */}
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden md:flex-row">
         {isMobile && showMobileEditPanel ? (
           <div className={resumeEditorMobileOverlay} aria-hidden />
         ) : null}
-        {/* Edit panel — centered popup on mobile when editing */}
+        {isMobile && canvasOn && canvasPanel ? (
+          <button type="button" aria-label="Close panel" className="fixed inset-0 z-[59] bg-black/30" onClick={closeCanvasPanel} />
+        ) : null}
+        {/* Edit panel — centered popup on mobile when editing; a docked side panel on the canvas */}
         <div
           className={cn(
-            resumeEditorPanel,
-            isMobile && showMobileEditPanel && resumeEditorPanelMobileSheet,
-            isMobile && showMobileEditPanel && "overflow-hidden",
-            isMobile && !showMobileEditPanel && "hidden",
+            canvasOn
+              ? formPanelOpen
+                ? isMobile
+                  ? "fixed inset-x-0 bottom-0 z-[60] flex max-h-[80dvh] min-h-0 flex-col overflow-hidden rounded-t-2xl border-t border-border bg-card shadow-2xl"
+                  : "resume-editor-fields flex min-h-0 w-[380px] shrink-0 flex-col overflow-hidden border-r border-border bg-card"
+                : "hidden"
+              : cn(
+                  resumeEditorPanel,
+                  isMobile && showMobileEditPanel && resumeEditorPanelMobileSheet,
+                  isMobile && showMobileEditPanel && "overflow-hidden",
+                  isMobile && !showMobileEditPanel && "hidden",
+                ),
           )}
         >
-          {isMobile && mobileEditOpen && viewMode === "edit" ? (
+          {canvasOn ? (
+            <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border px-4 py-3">
+              <h3 className="truncate text-sm font-semibold text-foreground">{canvasPanelTitle}</h3>
+              <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={closeCanvasPanel} aria-label="Close panel">
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          ) : null}
+          {!canvasOn && isMobile && mobileEditOpen && viewMode === "edit" ? (
             <ResumeEditorMobileEditBar
               title={mobileEditBarTitle}
               onDone={handleMobileDone}
             />
           ) : null}
-          {isMobile && viewMode === "ats" ? (
+          {!canvasOn && isMobile && viewMode === "ats" ? (
             <ResumeEditorMobileEditBar
               title="ATS Report"
               onDone={handleMobileDone}
@@ -3033,13 +3531,12 @@ export default function EditResumePage() {
           ) : null}
           <div
             className={cn(
-              isMobile &&
-                showMobileEditPanel &&
+              ((isMobile && showMobileEditPanel) || canvasOn) &&
                 "min-h-0 flex-1 overflow-y-auto overscroll-y-contain touch-pan-y",
             )}
           >
           {/* Toggle between Edit Resume and ATS Report */}
-          <div className={cn(resumeEditorTabsRow, isMobile && "hidden")}>
+          <div className={cn(resumeEditorTabsRow, (isMobile || canvasOn) && "hidden")}>
             <div className="flex">
               <button
                 onClick={() => setViewMode("edit")}
@@ -3099,10 +3596,26 @@ export default function EditResumePage() {
               </div>
             ) : (
               <div className="p-6 text-center text-muted-foreground">
-                <p>
-                  No ATS feedback yet. Click <strong>Check ATS Score</strong> in
-                  the header to run a score and report.
-                </p>
+                {canvasOn ? (
+                  refreshingATS ? (
+                    <p className="flex items-center justify-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Checking your resume…
+                    </p>
+                  ) : (
+                    <div className="space-y-3">
+                      <p>Get a grade and a list of fixes for this resume.</p>
+                      <Button type="button" size="sm" onClick={handleCheckATS} disabled={autoSaving || saving}>
+                        Check my resume
+                      </Button>
+                    </div>
+                  )
+                ) : (
+                  <p>
+                    No ATS feedback yet. Click <strong>Check ATS Score</strong> in
+                    the header to run a score and report.
+                  </p>
+                )}
               </div>
             )
           ) : (
@@ -3113,7 +3626,7 @@ export default function EditResumePage() {
               )}
             >
               {/* Layout & typography — above all sections */}
-              {(!isMobile || editingLayout) && layout && (
+              {(!focusedForm || editingLayout) && layout && (
               <Card className={resumeSectionCardClass(false, false)}>
                 <div className={resumeSectionHeader}>
                   <p className="text-sm font-semibold text-foreground">
@@ -3328,7 +3841,7 @@ export default function EditResumePage() {
               {sections
                 .filter((s) => s.visible)
                 .filter((s) => {
-                  if (!isMobile || !mobileEditOpen || viewMode !== "edit") {
+                  if (!focusedForm || !mobileEditOpen || viewMode !== "edit") {
                     return true;
                   }
                   if (editingLayout || editingAddSections) return false;
@@ -6603,7 +7116,7 @@ export default function EditResumePage() {
                 })}
 
               {/* Add more sections — separate from layout */}
-              {(!isMobile || editingAddSections) && (
+              {(!focusedForm || editingAddSections) && (
               <Card className={resumeAddSectionsCard}>
                 <CardContent className="p-4">
                   <div className="space-y-2">
@@ -6715,25 +7228,68 @@ export default function EditResumePage() {
           </div>
         </div>
 
+        {canvasOn && (canvasPanel === "templates" || canvasPanel === "ai") ? (
+          <div
+            className={
+              isMobile
+                ? "fixed inset-x-0 bottom-0 z-[60] flex max-h-[80dvh] min-h-0 flex-col overflow-hidden rounded-t-2xl border-t border-border bg-card shadow-2xl"
+                : "flex min-h-0 w-[340px] shrink-0 flex-col overflow-hidden border-r border-border bg-card"
+            }
+          >
+            <div className="flex shrink-0 items-center justify-between gap-2 px-4 py-3">
+              <h3 className="text-sm font-semibold text-foreground">{canvasPanelTitle}</h3>
+              <div className="flex items-center gap-1">
+                {canvasPanel === "templates" ? (
+                  <Button type="button" size="sm" variant="outline" className="h-7 text-xs" onClick={closeCanvasPanel}>
+                    Continue editing
+                  </Button>
+                ) : null}
+                <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={closeCanvasPanel} aria-label="Close panel">
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+            {canvasPanel === "templates" ? (
+              <TemplatesPanel
+                currentTemplateId={resume.templateId}
+                onSelectTemplate={handleChangeTemplate}
+                applying={changingTemplate}
+              />
+            ) : (
+              <AiAssistPanel
+                target={aiTarget}
+                targetRole={resume.content.personalInfo?.portfolio}
+                onTailor={() => setMatchJobOpen(true)}
+                onFixMistakes={() => openCanvasPanel("fix")}
+              />
+            )}
+          </div>
+        ) : null}
+
         {/* Preview — full canvas on mobile */}
         <div
-          className={cn(
-            resumePreviewPanel,
-            isMobile && resumePreviewPanelMobile,
-            isMobile && "flex min-h-0 flex-1 flex-col",
-          )}
+          className={
+            canvasOn
+              ? "relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden"
+              : cn(
+                  resumePreviewPanel,
+                  isMobile && resumePreviewPanelMobile,
+                  isMobile && "flex min-h-0 flex-1 flex-col",
+                )
+          }
         >
-          <div className={resumePreviewHeader}>
+          <div className={cn(resumePreviewHeader, canvasOn && "md:hidden")}>
             <h3 className="flex items-center gap-2 text-sm font-semibold">
               <Eye className="h-4 w-4 text-primary" />
               Preview
             </h3>
             <div className="text-xs text-muted-foreground">Live Preview</div>
           </div>
-          <div className={cn("p-4", isMobile && "min-h-0 flex-1 p-0")}>
+          <div className={cn("p-4", (isMobile || canvasOn) && "min-h-0 flex-1 p-0")}>
             {template && previewResume ? (
               <>
                 <TemplateStyleLoader templateId={template.id} />
+                <CanvasEditProvider value={canvasEditApi}>
                 <ResumePreview
                 ref={previewRef}
                 key={`resume-preview-${previewKey}`}
@@ -6747,7 +7303,46 @@ export default function EditResumePage() {
                 onPageDelete={handlePreviewPageDelete}
                 onPaginationSnapshot={handlePaginationSnapshot}
                 onRefresh={handlePreviewRefresh}
+                canvasMode={canvasOn}
+                overlayRootRef={canvasRootRef}
+                overlay={
+                  canvasEditApi ? (
+                    <CanvasInteractionLayer
+                      rootRef={canvasRootRef}
+                      sections={canvasSectionRefs}
+                      entryCounts={canvasEntryCounts}
+                      focus={canvasFocus}
+                      onFocusChange={setCanvasFocus}
+                      handlers={canvasHandlers}
+                      isMobile={isMobile}
+                      revision={previewResume}
+                    />
+                  ) : null
+                }
               />
+                </CanvasEditProvider>
+                {canvasOn && !isMobile ? (
+                  <div className="absolute right-4 top-4 z-20">
+                    <CanvasRail
+                      onPreview={() => previewRef.current?.openPdfPreview()}
+                      onDownload={handleDownload}
+                      downloading={downloading}
+                      onShare={() => void handleShareLink()}
+                      sharing={sharing}
+                      onAi={() => openCanvasPanel("ai")}
+                      aiActive={canvasPanel === "ai"}
+                      onAddSection={() => setAddSectionAfter({ afterId: null })}
+                    />
+                  </div>
+                ) : null}
+                {canvasNotice ? (
+                  <div
+                    role="status"
+                    className="pointer-events-none fixed bottom-20 left-1/2 z-[70] -translate-x-1/2 rounded-full bg-slate-900 px-4 py-2 text-xs font-medium text-white shadow-lg"
+                  >
+                    {canvasNotice}
+                  </div>
+                ) : null}
               </>
             ) : (
               <div className="flex h-full items-center justify-center text-muted-foreground">
@@ -6759,6 +7354,14 @@ export default function EditResumePage() {
         </div>
       </div>
 
+      <AddSectionDialog
+        open={addSectionAfter !== null}
+        onOpenChange={(open) => {
+          if (!open) setAddSectionAfter(null);
+        }}
+        usedTypes={new Set(sections.filter((s) => s.visible).map((s) => s.type))}
+        onAdd={(type) => addCanvasSection(type, addSectionAfter?.afterId ?? null)}
+      />
       {/* Delete Section Confirmation Dialog */}
       <ChangeTemplateDialog
         open={changeTemplateOpen}
