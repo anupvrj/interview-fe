@@ -16,6 +16,7 @@ import { useResumePreviewFitZoom } from "@/hooks/useResumePreviewFitZoom";
 import { useResumePreviewPinchZoom } from "@/hooks/useResumePreviewPinchZoom";
 import { useResumePreviewTrackpadZoom } from "@/hooks/useResumePreviewTrackpadZoom";
 import { cn } from "@/lib/utils";
+import { atsPlainText } from "@/components/resume-canvas/atsPlainText";
 
 interface ResumePdfPreviewDialogProps {
   open: boolean;
@@ -42,6 +43,9 @@ export function ResumePdfPreviewDialog({
   compact = false,
 }: ResumePdfPreviewDialogProps) {
   const [renderKey, setRenderKey] = useState(0);
+  /** "ats" shows the plain text an applicant tracking system reads from the PDF. */
+  const [view, setView] = useState<"recruiter" | "ats">("recruiter");
+  const [atsText, setAtsText] = useState("");
   const [zoomLevel, setZoomLevel] = useState(100);
   const dialogContentRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -89,8 +93,16 @@ export function ResumePdfPreviewDialog({
     maxZoom: 200,
   });
 
+  const showAtsView = () => {
+    // Read the text while the pages are on screen (hidden elements have no layout).
+    const pages = Array.from(containerRef.current?.querySelectorAll<HTMLElement>(".resume-page") ?? []);
+    setAtsText(atsPlainText(pages));
+    setView("ats");
+  };
+
   useEffect(() => {
     if (open) {
+      setView("recruiter");
       setRenderKey((key) => key + 1);
       if (!compact) {
         setZoomLevel(100);
@@ -131,15 +143,47 @@ export function ResumePdfPreviewDialog({
             {compact ? <Eye className="h-4 w-4 shrink-0 text-[#a78bfa]" /> : null}
             PDF Preview
           </DialogTitle>
+          <div className="mt-2 inline-flex w-fit rounded-full bg-white/10 p-0.5 text-xs font-semibold" role="tablist">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={view === "recruiter"}
+              onClick={() => setView("recruiter")}
+              className={cn("rounded-full px-3 py-1.5", view === "recruiter" ? "bg-white text-zinc-900" : "text-zinc-300 hover:text-white")}
+            >
+              What recruiters see
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={view === "ats"}
+              onClick={showAtsView}
+              className={cn("rounded-full px-3 py-1.5", view === "ats" ? "bg-white text-zinc-900" : "text-zinc-300 hover:text-white")}
+            >
+              What ATS sees
+            </button>
+          </div>
           <DialogDescription className="text-zinc-400">
             Pinch or use two fingers on your trackpad to zoom in or out
           </DialogDescription>
         </DialogHeader>
 
+        {view === "ats" ? (
+          <div className="min-h-0 flex-1 overflow-auto bg-zinc-800/90 px-3 py-6 sm:px-8">
+            <div className="mx-auto max-w-[210mm] rounded-sm bg-white px-6 py-8 text-zinc-900 shadow-xl sm:px-12">
+              <p className="mb-4 rounded-md bg-zinc-100 px-3 py-2 text-xs text-zinc-600">
+                This is the text an applicant tracking system pulls out of your PDF. If something is missing or out of order here,
+                a recruiter&apos;s search may not find it.
+              </p>
+              <pre className="whitespace-pre-wrap break-words font-mono text-[12px] leading-relaxed">{atsText || "No text found."}</pre>
+            </div>
+          </div>
+        ) : null}
         <div
           ref={containerRef}
           className={cn(
             "min-h-0 flex-1 touch-pan-x touch-pan-y overflow-auto bg-zinc-800/90",
+            view === "ats" && "hidden",
             compact ? "px-1.5 py-3" : "px-4 py-8 sm:px-8",
           )}
         >

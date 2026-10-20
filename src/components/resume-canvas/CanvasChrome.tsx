@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export type CanvasPanel = "fix" | "templates" | "design" | "details" | "ai";
+export type CanvasPanel = "fix" | "tailor" | "templates" | "design" | "details" | "ai";
 
 /** ATS score → letter grade shown on the Fix Mistakes chip. */
 export function atsGrade(score: number | null | undefined): { letter: string; tone: string } {
@@ -67,6 +67,7 @@ export function CanvasToolRow({
   checkingAts,
   onTailor,
   tailoring,
+  jobMatchScore,
   onRearrange,
   rearrangeDisabled,
   canUndo,
@@ -84,6 +85,8 @@ export function CanvasToolRow({
   checkingAts: boolean;
   onTailor: () => void;
   tailoring: boolean;
+  /** Job match % once a job has been checked. */
+  jobMatchScore?: number | null;
   onRearrange: () => void;
   rearrangeDisabled: boolean;
   canUndo: boolean;
@@ -112,9 +115,19 @@ export function CanvasToolRow({
           )}
         </Chip>
         <span className="mx-1 hidden h-5 w-px bg-border md:block" aria-hidden />
-        <Chip onClick={onTailor} disabled={tailoring} label="Match your resume to a job description">
+        <Chip active={activePanel === "tailor"} onClick={onTailor} label="Match your resume to a job description">
           {tailoring ? <Loader2 className="h-4 w-4 animate-spin" /> : <Target className="h-4 w-4" />}
           Check &amp; Tailor
+          {typeof jobMatchScore === "number" ? (
+            <span
+              className={cn(
+                "rounded-full px-1.5 py-0.5 text-[11px] font-bold",
+                jobMatchScore >= 75 ? "bg-emerald-500 text-white" : jobMatchScore >= 50 ? "bg-amber-400 text-slate-900" : "bg-red-500 text-white",
+              )}
+            >
+              {jobMatchScore}%
+            </span>
+          ) : null}
         </Chip>
         <span className="mx-1 hidden h-5 w-px bg-border md:block" aria-hidden />
         <Chip onClick={onRearrange} disabled={rearrangeDisabled} label="Drag sections into a new order">

@@ -143,6 +143,7 @@ import { AddSectionDialog, ADDABLE_SECTIONS } from "@/components/resume-canvas/A
 import { TemplatesPanel } from "@/components/resume-canvas/TemplatesPanel";
 import { ShareLinkDialog } from "@/components/resume-canvas/ShareLinkDialog";
 import { FixMistakesPanel, buildFixItems, fixMarks, type FixItem } from "@/components/resume-canvas/FixMistakesPanel";
+import { TailorPanel } from "@/components/resume-canvas/TailorPanel";
 import type { CanvasMark } from "@/components/resume-canvas/CanvasInteractionLayer";
 import { AiAssistPanel, type AiTarget } from "@/components/resume-canvas/AiAssistPanel";
 import {
@@ -434,6 +435,8 @@ export default function EditResumePage() {
   /** Fix Mistakes: issues fixed/ignored this session, and the one picked to show on the page. */
   const [fixResolved, setFixResolved] = useState<Set<string>>(() => new Set());
   const [activeMarkId, setActiveMarkId] = useState<string | null>(null);
+  /** Check & Tailor: keywords the user marked as not relevant for this job. */
+  const [excludedKeywords, setExcludedKeywords] = useState<Set<string>>(() => new Set());
   const [aiTarget, setAiTarget] = useState<AiTarget | null>(null);
   const [canvasNotice, setCanvasNotice] = useState<string | null>(null);
   const canvasNoticeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -2671,10 +2674,36 @@ export default function EditResumePage() {
     setFixResolved(new Set());
     setActiveMarkId(null);
   }, [atsReportV3]);
-  const canvasMarks = useMemo<CanvasMark[]>(
-    () => (canvasPanel === "fix" ? fixMarks(fixGroups, fixResolved) : []),
-    [canvasPanel, fixGroups, fixResolved],
-  );
+  const matchedKeywords = resume?.jobMatchFeedback?.matchedSkills;
+  const canvasMarks = useMemo<CanvasMark[]>(() => {
+    if (canvasPanel === "fix") return fixMarks(fixGroups, fixResolved);
+    if (canvasPanel === "tailor") {
+      // Job keywords already on the resume, highlighted green while tailoring.
+      return (matchedKeywords ?? [])
+        .filter((k) => !excludedKeywords.has(k))
+        .map((k) => ({ id: `kw:${k}`, text: k, tone: "keyword" as const, wholeWord: true }));
+    }
+    return [];
+  }, [canvasPanel, fixGroups, fixResolved, matchedKeywords, excludedKeywords]);
+
+  /** "I have this skill" from the keyword table: append it to Skills (the user's own claim). */
+  const addSkillFromJob = (skill: string) => {
+    if (!resume) return;
+    const current = resume.content.skills as unknown;
+    let next: unknown;
+    if (Array.isArray(current)) {
+      if (current.some((s) => typeof s === "string" && s.toLowerCase() === skill.toLowerCase())) return;
+      next = [...current, skill];
+    } else if (typeof current === "string" && /<\/ul>/i.test(current)) {
+      next = current.replace(/<\/ul>(?![\s\S]*<\/ul>)/i, `<li>${escapeHtmlText(skill)}</li></ul>`);
+    } else if (typeof current === "string" && current.trim()) {
+      next = `${current.trim()}, ${skill}`;
+    } else {
+      next = [skill];
+    }
+    updateContent({ skills: next } as Partial<Resume["content"]>);
+    showCanvasNotice(`Added “${skill}” to Skills.`);
+  };
   const resolveFix = (item: FixItem) =>
     setFixResolved((prev) => {
       const next = new Set(prev);
@@ -2965,6 +2994,8 @@ export default function EditResumePage() {
   const canvasPanelTitle =
     canvasPanel === "fix"
       ? "Fix Mistakes"
+      : canvasPanel === "tailor"
+        ? "Check & Tailor"
       : canvasPanel === "templates"
         ? "Templates"
         : canvasPanel === "design"
@@ -3127,8 +3158,9 @@ export default function EditResumePage() {
             onPanel={(panel) => openCanvasPanel(panel)}
             atsScore={displayAtsScore ?? resume.atsScore ?? null}
             checkingAts={refreshingATS}
-            onTailor={() => setMatchJobOpen(true)}
+            onTailor={() => openCanvasPanel("tailor")}
             tailoring={matchingJob}
+            jobMatchScore={resume.jobMatchScore ?? null}
             onRearrange={() => setRearrangeSectionsOpen(true)}
             rearrangeDisabled={!layout || sections.length === 0}
             canUndo={editorHistory.canUndo}
@@ -7289,7 +7321,7 @@ export default function EditResumePage() {
           </div>
         </div>
 
-        {canvasOn && (canvasPanel === "templates" || canvasPanel === "ai") ? (
+        {canvasOn && (canvasPanel === "templates" || canvasPanel === "ai" || canvasPanel === "tailor") ? (
           <div
             className={
               isMobile
@@ -7310,7 +7342,35 @@ export default function EditResumePage() {
                 </Button>
               </div>
             </div>
-            {canvasPanel === "templates" ? (
+            {canvasPanel === "tailor" ? (
+              <div className="min-h-0 flex-1 overflow-y-auto">
+                <TailorPanel
+                  jobDescription={lastMatchedJd ?? resume.atsScoringContext?.lastJobDescription ?? ""}
+                  match={resume.jobMatchFeedback ?? null}
+                  score={resume.jobMatchScore ?? null}
+                  running={refreshingATS}
+                  tailoring={matchingJob}
+                  excluded={excludedKeywords}
+                  onToggleExclude={(keyword) =>
+                    setExcludedKeywords((prev) => {
+                      const next = new Set(prev);
+                      if (next.has(keyword)) next.delete(keyword);
+                      else next.add(keyword);
+                      return next;
+                    })
+                  }
+                  onCheck={(jd) => {
+                    setLastMatchedJd(jd);
+                    setExcludedKeywords(new Set());
+                    void handleRunJobMatch(jd).catch(() =>
+                      showCanvasNotice("Couldn't check the match right now. Try again in a moment."),
+                    );
+                  }}
+                  onTailor={(jd) => handleRequestMatchJobDescription(jd)}
+                  onAddSkill={addSkillFromJob}
+                />
+              </div>
+            ) : canvasPanel === "templates" ? (
               <TemplatesPanel
                 currentTemplateId={resume.templateId}
                 onSelectTemplate={handleChangeTemplate}
