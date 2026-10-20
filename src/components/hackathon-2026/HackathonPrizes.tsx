@@ -12,6 +12,7 @@ import {
 } from "@/components/hackathon-2026/HackathonMotion";
 import { HACKATHON_PRIZES, type HackathonRewardKind } from "@/lib/hackathon-2026-content";
 import { cn } from "@/lib/utils";
+import { AmazonGiftIcon, ClaudeBurstIcon } from "./hackathonRewardIcons";
 
 export function HackathonPrizes() {
   const { ref, inView } = useInView<HTMLParagraphElement>(0.6);
@@ -104,37 +105,16 @@ export function HackathonPrizes() {
 
 function RewardIcon({ kind }: { kind: HackathonRewardKind }) {
   if (kind === "claude") {
-    // Orange starburst
     return (
       <span className="grid size-10 shrink-0 place-items-center">
-        <svg viewBox="0 0 32 32" className="size-8" aria-hidden>
-          {Array.from({ length: 12 }).map((_, i) => (
-            <rect
-              key={i}
-              x="14.6"
-              y="2"
-              width="2.8"
-              height="12"
-              rx="1.4"
-              fill="#e8704a"
-              transform={`rotate(${i * 30} 16 16)`}
-            />
-          ))}
-        </svg>
+        <ClaudeBurstIcon className="size-8" />
       </span>
     );
   }
   if (kind === "voucher") {
-    // Gift-card tile: lowercase "a" with a smile arrow
     return (
-      <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-[#0b0d12] ring-1 ring-white/15">
-        <svg viewBox="0 0 32 32" className="size-7" aria-hidden>
-          <text x="16" y="19" textAnchor="middle" fontSize="18" fontWeight="700" fill="#fff" fontFamily="Arial, sans-serif">
-            a
-          </text>
-          <path d="M8 22 Q16 27 24 22" fill="none" stroke="#ff9900" strokeWidth="2" strokeLinecap="round" />
-          <path d="M21.5 20.5 L24.4 21.8 L23.2 24.6" fill="none" stroke="#ff9900" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
+      <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-[#0b0d12] ring-1 ring-white/15 px-1">
+        <AmazonGiftIcon className="h-7 w-auto" />
       </span>
     );
   }

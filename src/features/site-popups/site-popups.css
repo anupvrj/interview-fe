@@ -410,6 +410,336 @@
   .ixp-spot-grid .ixp-prize { justify-content: center; }
   .ixp-spot-one > .ixp-prize { min-width: 0; width: 100%; }
 }
+
+/* ---------- homepage hero promo strip (banner-style, in document flow) ---------- */
+.ixp-root.ixp-home-strip {
+  position: relative;
+  inset: auto;
+  z-index: 1;
+  display: block;
+  width: 100%;
+  padding: 0 0 12px;
+  pointer-events: auto;
+  background: transparent;
+}
+.ixp-home-strip .ixp-panel.ixp-home-banner {
+  max-width: none;
+  max-height: none;
+  overflow: visible;
+  border-radius: 20px;
+  padding: 14px 16px;
+  animation: none;
+  /* No large colored halo — subtle primary lift only (matches site #7367F0). */
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.06),
+    0 4px 12px rgba(115, 103, 240, 0.1),
+    inset 0 1px 0 rgba(160, 210, 255, 0.1);
+  border-color: rgba(115, 103, 240, 0.28);
+}
+.ixp-home-strip .ixp-prize {
+  box-shadow: inset 0 1px 0 rgba(255, 220, 150, 0.08);
+}
+.ixp-home-strip .ixp-prize-icon {
+  filter: drop-shadow(0 0 4px rgba(255, 196, 77, 0.35));
+}
+.ixp-home-strip .ixp-price-now {
+  filter: none;
+}
+
+/* Claude Max + Amazon voucher inline highlight (Hiring Games prize art) */
+.ixp-brand-prize-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(66, 150, 255, 0.28);
+  background-color: rgba(4, 11, 23, 0.55);
+  background-image:
+    radial-gradient(rgba(120, 180, 255, 0.07) 1.2px, transparent 1.3px),
+    linear-gradient(180deg, rgba(12, 28, 56, 0.5), rgba(6, 16, 34, 0.65));
+  background-size: 18px 18px, auto;
+}
+.ixp-brand-win {
+  font-family: var(--ixp-display);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #c9a227;
+  line-height: 1;
+}
+.ixp-brand-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.ixp-brand-claude-icon {
+  width: 22px;
+  height: 22px;
+  flex: none;
+}
+.ixp-brand-claude-text {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: #fff;
+  white-space: nowrap;
+}
+.ixp-brand-claude-accent {
+  font-family: var(--ixp-display);
+  font-weight: 400;
+}
+.ixp-brand-plus {
+  font-family: var(--ixp-display);
+  font-size: 18px;
+  line-height: 1;
+  color: var(--ixp-cyan-2);
+  opacity: 0.95;
+}
+.ixp-brand-amazon-wrap {
+  flex-wrap: wrap;
+  row-gap: 2px;
+}
+.ixp-brand-amazon-icon {
+  width: 72px;
+  height: 22px;
+  flex: none;
+}
+.ixp-brand-voucher {
+  font-family: var(--ixp-display);
+  font-size: clamp(0.95rem, 2.5vw, 1.15rem);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  background: linear-gradient(180deg, #ffe3a0, #ffc44d 55%, #e2a12a);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  white-space: nowrap;
+}
+.ixp-brand-ix-icon {
+  width: 22px;
+  height: auto;
+  flex: none;
+}
+.ixp-brand-credits {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #cfe3ff;
+  white-space: nowrap;
+}
+.ixp-home-brand-prize {
+  margin-top: 12px;
+  width: 100%;
+}
+.ixp-home-pool-line {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+}
+.ixp-home-pool-line .ixp-prize-label {
+  margin: 0;
+}
+.ixp-home-pool-value {
+  margin: 0;
+  font-size: 20px;
+}
+.ixp-footer-brand-prize {
+  margin-top: 12px;
+  width: 100%;
+}
+@container ixp (max-width: 520px) {
+  .ixp-brand-prize-row {
+    gap: 8px 10px;
+    padding: 10px;
+  }
+  .ixp-brand-amazon-icon {
+    width: 64px;
+  }
+  .ixp-brand-claude-text {
+    font-size: 14px;
+  }
+  .ixp-brand-voucher {
+    font-size: 0.9rem;
+    white-space: normal;
+  }
+  .ixp-brand-amazon-wrap {
+    flex-basis: 100%;
+  }
+  .ixp-brand-prize-row .ixp-brand-item:last-child {
+    flex-basis: 100%;
+  }
+}
+.ixp-home-strip .ixp-panel.ixp-home-banner::after {
+  inset: 8px 10px;
+}
+.ixp-home-banner-grid {
+  display: grid;
+  gap: 12px 16px;
+  align-items: center;
+}
+.ixp-home-banner-copy {
+  min-width: 0;
+  text-align: left;
+}
+.ixp-home-strip .ixp-home-title {
+  margin-top: 8px;
+  font-size: clamp(1rem, 2.4vw, 1.25rem);
+  line-height: 1.25;
+}
+.ixp-home-strip .ixp-home-body {
+  margin-top: 6px;
+  font-size: 12px;
+  line-height: 1.45;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.ixp-home-banner-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+}
+.ixp-home-banner-meta .ixp-price,
+.ixp-home-banner-meta .ixp-cd-inline {
+  margin: 0;
+}
+.ixp-home-banner-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+.ixp-home-strip .ixp-home-cta {
+  min-height: 44px;
+  flex: 1 1 auto;
+}
+.ixp-home-strip .ixp-home-ghost {
+  flex: 0 0 auto;
+}
+@container ixp (min-width: 900px) {
+  .ixp-home-banner-grid {
+    grid-template-columns: minmax(0, 1.25fr) minmax(0, 1.1fr) auto;
+    gap: 20px 24px;
+  }
+  .ixp-home-strip .ixp-home-body {
+    -webkit-line-clamp: 1;
+  }
+  .ixp-home-strip .ixp-home-cta {
+    flex: none;
+    white-space: nowrap;
+  }
+}
+@container ixp (max-width: 899px) {
+  .ixp-home-banner-actions {
+    width: 100%;
+  }
+  .ixp-home-strip .ixp-home-cta {
+    width: 100%;
+  }
+}
+@container ixp (max-width: 520px) {
+  .ixp-home-strip .ixp-home-body {
+    display: none;
+  }
+  .ixp-home-strip .ixp-panel.ixp-home-banner {
+    padding: 12px 14px;
+  }
+}
+
+/* ---------- footer hackathon promo (compact, prize highlights) ---------- */
+.ixp-footer-strip {
+  padding-bottom: 0;
+}
+.ixp-footer-banner-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  align-items: stretch;
+}
+.ixp-footer-title {
+  margin-top: 10px;
+}
+.ixp-footer-highlights {
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.ixp-footer-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 196, 77, 0.35);
+  background: rgba(46, 36, 16, 0.55);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #ffe3a0;
+  line-height: 1.2;
+}
+.ixp-footer-banner-aside {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+.ixp-footer-countdown {
+  margin: 0;
+  justify-content: flex-start;
+}
+.ixp-footer-actions {
+  margin-top: 0;
+  width: 100%;
+}
+@container ixp (min-width: 720px) {
+  .ixp-footer-banner-grid {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px 24px;
+  }
+  .ixp-footer-banner-aside {
+    flex: 0 0 auto;
+    align-items: flex-end;
+    text-align: right;
+  }
+  .ixp-footer-countdown {
+    justify-content: flex-end;
+  }
+  .ixp-footer-actions {
+    justify-content: flex-end;
+  }
+  .ixp-footer-title .ixp-grad {
+    display: inline;
+  }
+}
+@container ixp (max-width: 719px) {
+  .ixp-footer-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .ixp-footer-actions .ixp-home-cta {
+    width: 100%;
+  }
+  .ixp-footer-chip {
+    font-size: 10px;
+    padding: 5px 9px;
+  }
+}
 /* sheet: centre the lone prize/price row items on narrow screens */
 @container ixp (max-width: 480px) {
   .ixp-sheet-row { justify-content: flex-start; }

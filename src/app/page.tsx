@@ -53,6 +53,7 @@ import { AiJobSearchNotifyButton } from "@/components/AiJobSearchNotifyButton";
 import { usePublicPlatformStats } from "@/hooks/usePublicPlatformStats";
 import { appMarketingSection, appMarketingSectionAlt, appMarketingSectionPurple, appMarketingSectionLight } from "@/lib/app-theme";
 import { cn } from "@/lib/utils";
+import { HomeHackathonPromoStrip } from "@/components/marketing/HomeHackathonPromoStrip";
 
 const stackedFeatureCtaRowClass =
   "flex flex-row items-stretch gap-2 pt-4 sm:items-start sm:gap-4";
@@ -481,6 +482,8 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
+
+      <HomeHackathonPromoStrip />
 
       {/* Trusted Companies */}
       <section className="relative overflow-hidden border-y border-border/60 bg-gradient-to-b from-white to-slate-50/80 px-4 py-14 sm:px-6 sm:py-20">
